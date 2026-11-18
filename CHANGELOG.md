@@ -12,6 +12,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   parents kept its version.
   Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
   CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- Add `storage.cors.json` (GET from the two hosting origins; the headers the web SDK sends) and apply it to the
+  bucket: the web photo tray's `getBytes` XHR was blocked with "No 'Access-Control-Allow-Origin' header is
+  present". `docs/PRODUCTION-CHECKLIST.md` gains a Firebase project section: the CORS apply and read-back
+  commands, and the callable invoker check (firebase-tools grants a callable's public invoker only on create).
+  Source: lane C's live command post finding; the joinIncident deploy.
+  Verified: `gcloud storage buckets update --cors-file` exit 0; the bucket's cors_config read back equals the
+  file (it was empty before). An unauthenticated request cannot prove it (error responses carry `*` for any
+  origin), so lane C's authorized live read is the proof. `bash scripts/ci-local.sh` exit 0.
 - `scripts/emulator_config.py --wait-ports SECONDS` waits, bounded, until every port in this worktree's emulator
   block can be bound on 127.0.0.1 and ::1, and exits 1 naming the busy ports when the time runs out.
   `ci-local.sh` runs it (180 s) before the emulator suite, because a socket left from the previous run made the

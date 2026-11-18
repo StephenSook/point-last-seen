@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://buildhybridai-2026-yg3m.web.app", "https://buildhybridai-2026-yg3m.firebaseapp.com"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type", "Authorization", "X-Firebase-AppCheck", "X-Firebase-Storage-Version", "X-Firebase-GMPID"],
+    "maxAgeSeconds": 3600
+  }
+]
