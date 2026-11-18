@@ -50,6 +50,12 @@ class ClipScreenTest {
         assertEquals(1, back)
     }
 
+    @Test fun theCardIsLabelledSuggested() {
+        val card = ClipCard("14:03", "west", "blue top", "Read in the cloud", cached = false, frameTime = "00:05")
+        rule.setContent { PaperTheme { ClipScreen(null, false, "door.mp4", ClipUi.Read(card), {}, {}, {}, {}) } }
+        rule.onNodeWithText("Suggested from the clip").assertIsDisplayed()
+    }
+
     @Test fun withNoClipChosenTheFamilyIsAskedToPickOne() {
         var picked = 0
         rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = null, ui = ClipUi.Idle, onPick = { picked++ }, onRead = {}, onConfirm = {}, onBack = {}) } }

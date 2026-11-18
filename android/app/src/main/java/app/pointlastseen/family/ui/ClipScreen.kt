@@ -125,6 +125,7 @@ fun ClipScreen(
             is ClipUi.Read -> {
                 val c = ui.card
                 var showFrame by rememberSaveable { mutableStateOf(false) }
+                Note("Suggested from the clip")
                 Sentence("Last seen ${c.lastSeen}")
                 Note(if (c.direction != null) "Walking ${c.direction}" else "Direction not known")
                 Note("Wearing ${c.clothing}")
