@@ -67,6 +67,7 @@ service cloud.firestore {
       allow update: if isCommand(incidentId)
         && resource.data.get('status', 'open') != 'closed'
         && request.resource.data.status in ['open', 'found', 'closed']
+        && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt']);
       allow delete: if false;
@@ -235,6 +236,15 @@ service cloud.firestore {
         && (m.clipStartMs is number)
         && (m.clockConfirmed is bool)
         && (m.cameraFacingDeg == null || (m.cameraFacingDeg is int && m.cameraFacingDeg >= 0 && m.cameraFacingDeg <= 315 && m.cameraFacingDeg % 45 == 0));
+    }
+
+    function schema_IncidentConditions(m) {
+      return m is map
+        && m.keys().hasOnly(['tempF', 'wet', 'setAtMs'])
+        && m.size() == 3
+        && (m.tempF == null || (m.tempF is number && m.tempF >= -80 && m.tempF <= 140))
+        && (m.wet == null || (m.wet is bool))
+        && (m.setAtMs is number && m.setAtMs >= 0);
     }
 
     // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.

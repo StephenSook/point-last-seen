@@ -195,6 +195,7 @@ def render(repo: Path) -> str:
         function("schema_RouteRecord", sch("route-record.schema.json"), shape=True),
         function("schema_CameraSighting", sch("camera-sighting.schema.json"), shape=True),
         function("schema_CameraSightingReading", event["$defs"]["CameraSightingReading"], shape=True),
+        function("schema_IncidentConditions", sch("incident-conditions.schema.json")),
         "    // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.\n"
         + function("schema_SharedProfile", shared, notes),
     ]) + END

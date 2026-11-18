@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The incident doc gains `conditions` for the urgency chip: shared/schemas/incident-conditions.schema.json
+  (tempF a number from -80 to 140 or null, wet a boolean or null, setAtMs), the IncidentConditions type and
+  `urgencyFromConditions` in @pls/engine (no conditions gives no chip), and a generated rules validator applied
+  whenever a command update carries the field. The iOS twin is marked pending in the parity map for lane B.
+  Source: lane B (P-12 urgency chip inputs).
+  Verified: the engine test (no function) and the rules test (any shape accepted) failed first, now pass; schema
+  parity ok (11 schemas, 27 types); engine 195 tests, typecheck and lint exit 0; emulator suite 112 (refusal
+  cases use updateDoc, since a merging setDoc deep-merges the map); `bash scripts/ci-local.sh` exit 0.
 - A route record's stage may be "picklist": a person picked the report from a list, so no model ran. Added to
   shared/schemas/route-record.schema.json and the TypeScript ReadStage union (parity checks the TS values; the
   Swift and Kotlin types follow in their lanes). The rules already bound stage by length, so the generated block

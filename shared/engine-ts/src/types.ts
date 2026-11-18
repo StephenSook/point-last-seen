@@ -285,6 +285,13 @@ export interface RouteGraph {
   attribution: string;
 }
 
+/** shared/schemas/incident-conditions.schema.json: the incident's typed conditions for the urgency chip. */
+export interface IncidentConditions {
+  tempF: number | null;
+  wet: boolean | null;
+  setAtMs: number;
+}
+
 // ---- engine types (not schema documents)
 
 export interface EngineParams {
