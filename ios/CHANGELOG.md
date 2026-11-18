@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the shared subject profile
+- What: `SharedProfile`, the 20 fields of `profile/shared` from
+  `shared/schemas/subject-profile.schema.json` (all keys encoded, nulls written out). It is shown
+  to people and carried in the pack; only `ModelProfile`'s six appearance fields reach a model.
+- Source: Task 35 (phone side), spec section 13.2, lane A's parity map (Profile.swift#SharedProfile).
+- Verified: `ProfileTests` (decode; encoded keys equal the schema's required list) compile-red,
+  then green; `check_schema_parity.py` now checks iOS SharedProfile (20 fields, 0 failures);
+  full suite passes; `scripts/ci-local.sh` exit 0.
+
 ### fix(ios): put a time limit on the token count too
 - What: the stage time limit becomes a public helper, `Timeout.run(seconds:_:)`, and
   `ReportReader` uses it around the token count (5 s by default, then a characters-per-token
