@@ -27,6 +27,7 @@ import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.core.EvidenceTerms
 import app.pointlastseen.family.core.JpegEncoder
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
+import app.pointlastseen.family.core.SharedUris
 import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -196,10 +197,20 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // Camera clip
-    fun pickedClip(uri: Uri) {
+    /** Takes a picked or shared clip; returns false (and shows why) for a URI the app must not read. */
+    fun pickedClip(uri: Uri): Boolean {
+        val app = getApplication<Application>()
+        val resolvedType = runCatching { app.contentResolver.getType(uri) }.getOrNull()
+        if (!SharedUris.acceptableClip(uri.scheme, uri.authority, resolvedType, app.packageName)) {
+            clipUri = null
+            clipLabel = null
+            clipUi = ClipUi.Done(ClipOutcome.Refused("This file cannot be read here. Choose a video from your camera or gallery."))
+            return false
+        }
         clipUri = uri
         clipLabel = displayName(uri) ?: "Shared clip"
         clipUi = ClipUi.Idle
+        return true
     }
 
     fun readClip(form: ClipForm) {

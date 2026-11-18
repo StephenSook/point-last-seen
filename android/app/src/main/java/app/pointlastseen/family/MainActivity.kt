@@ -50,11 +50,10 @@ class MainActivity : ComponentActivity() {
         handleShare(intent)
     }
 
-    /** A clip shared from a camera or gallery app opens the clip screen. */
+    /** A clip shared from a camera or gallery app opens the clip screen; file:// and this app's own URIs are refused. */
     private fun handleShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("video/") != true) return
         val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
-        vm.pickedClip(uri)
-        vm.open(Screen.CLIP)
+        if (vm.pickedClip(uri)) vm.open(Screen.CLIP)
     }
 }
