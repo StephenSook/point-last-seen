@@ -6,13 +6,20 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
 // build emits it as an asset and MapLibre is told where it is.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
-import { deltaLabel } from "../command/changeModel";
+import { deltaLabel, type ChangeResult } from "../command/changeModel";
+import { motionScope, playReportBeat } from "../motion/engine";
+import { reportBeatPlan } from "../motion/plan";
 import { mapCredit } from "./credit";
 import { useEffect, useRef } from "react";
 import type { LatLon } from "./geo";
 import { centreFeatures, MAP_INK, POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
 
-const FILL_COLOR = ["match", ["get", "cls"], 0, POA_RAMP[0], 1, POA_RAMP[1], 2, POA_RAMP[2], 3, POA_RAMP[3], 4, POA_RAMP[4], 5, POA_RAMP[5], 6, POA_RAMP[6], POA_RAMP[7]];
+const rampBy = (cls: unknown) => ["match", cls, 0, POA_RAMP[0], 1, POA_RAMP[1], 2, POA_RAMP[2], 3, POA_RAMP[3], 4, POA_RAMP[4], 5, POA_RAMP[5], 6, POA_RAMP[6], POA_RAMP[7]];
+const FILL_COLOR = rampBy(["get", "cls"]);
+const FILL_COLOR_OLD = rampBy(["coalesce", ["get", "clsOld"], ["get", "cls"]]);
+// "fade" is per-segment feature state, 0 (old lightness) to 1 (new); absent means 1. The two
+// layers trade opacity, so at 1 the old fill is gone and the map looks exactly as before the beat.
+const FADE = ["coalesce", ["feature-state", "fade"], 1];
 
 setWorkerUrl(workerUrl);
 
@@ -28,6 +35,8 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
+  beat?: { key: string; before: Readonly<Record<string, number>>; change: ChangeResult; distanceM: Readonly<Record<string, number>> } | null;
 };
 
 const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
@@ -45,7 +54,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -59,6 +68,9 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   // Set once the style and our sources exist. isStyleLoaded() turns false again while a source updates,
   // so it cannot gate redraws: a redraw parked on "load" then would never run.
   const ready = useRef(false);
+  const reduced = useRef(false);
+  const lastBeatKey = useRef<string | null | undefined>(undefined);
+  const beatRun = useRef<{ cancel(): void } | null>(null);
 
   useEffect(() => {
     if (!el.current) return;
@@ -71,7 +83,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     });
     m.on("load", () => {
       m.addSource("segments", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      m.addLayer({ id: "seg-fill", type: "fill", source: "segments", paint: { "fill-color": FILL_COLOR as never, "fill-opacity": 0.9 } });
+      m.addLayer({ id: "seg-fill-old", type: "fill", source: "segments", paint: { "fill-color": FILL_COLOR_OLD as never, "fill-opacity": ["*", 0.9, ["-", 1, FADE]] as never } });
+      m.addLayer({ id: "seg-fill", type: "fill", source: "segments", paint: { "fill-color": FILL_COLOR as never, "fill-opacity": ["*", 0.9, FADE] as never } });
       // Edges: a bg-0 casing under an fg-4 line, so a boundary reads on dark and light steps alike.
       m.addLayer({ id: "seg-casing", type: "line", source: "segments", paint: { "line-color": MAP_INK.edgeCasing, "line-width": 3 } });
       m.addLayer({ id: "seg-line", type: "line", source: "segments", paint: { "line-color": MAP_INK.edgeLine, "line-width": 1 } });
@@ -92,7 +105,12 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
     map.current = m;
+    const scope = motionScope((r) => {
+      reduced.current = r;
+    });
     return () => {
+      beatRun.current?.cancel();
+      scope.revert();
       for (const mk of [...markers.current, ...chips.current]) mk.remove();
       m.remove();
       map.current = null;
@@ -105,7 +123,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     const m = map.current;
     if (!m) return;
     const draw = () => {
-      const fc = segmentFeatures(segments, poa);
+      const fc = segmentFeatures(segments, poa, beat?.before);
       (m.getSource("segments") as GeoJSONSource | undefined)?.setData(fc as never);
       (m.getSource("centres") as GeoJSONSource | undefined)?.setData(centreFeatures(segments, poa) as never);
       for (const mk of markers.current) mk.remove();
@@ -126,7 +144,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     };
     if (ready.current) draw();
     else m.once("load", draw);
-  }, [segments, poa]);
+  }, [segments, poa, beat?.before]);
 
   useEffect(() => {
     const m = map.current;
@@ -140,17 +158,61 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       chips.current = top.flatMap((c) => {
         const seg = segments.find((x) => x.segmentId === c.segmentId);
         if (!seg) return [];
+        // The marker's own element gets its opacity rewritten by MapLibre every frame, so the
+        // visible chip is an inner element the beat can fade.
+        const anchor = document.createElement("div");
         const chip = document.createElement("div");
         chip.className = "delta-chip";
         chip.dataset["testid"] = "delta-chip";
         chip.textContent = deltaLabel(c.deltaPts);
+        anchor.append(chip);
         // Above the dot (the plate hangs below it).
-        return [new Marker({ element: chip, anchor: "bottom", offset: [0, -16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+        return [new Marker({ element: anchor, anchor: "bottom", offset: [0, -16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
       });
     };
     if (ready.current) draw();
     else m.once("load", draw);
   }, [moved, segments]);
+
+  // The REPORT beat (22.1): lightness cross-fades nearest first, the cyan outline pulses once, the
+  // chips rise. Not on the first change seen (a reload shows the final map); reduced motion shows
+  // the final values at once and fades the chips in over 150 ms.
+  useEffect(() => {
+    const m = map.current;
+    const key = beat?.key ?? null;
+    const prev = lastBeatKey.current;
+    lastBeatKey.current = key;
+    if (!m || !beat || prev === undefined || prev === key || !ready.current) return;
+    beatRun.current?.cancel();
+    const index = new Map(segments.map((s, i) => [s.segmentId, i]));
+    const ids = beat.change.changed.map((c) => c.segmentId).filter((id) => index.has(id));
+    const setFade = (id: string, t: number) => m.setFeatureState({ source: "segments", id: index.get(id)! }, { fade: t });
+    const chipEls = () => chips.current.flatMap((c) => (c.getElement().firstElementChild instanceof HTMLElement ? [c.getElement().firstElementChild as HTMLElement] : []));
+    const wrap = el.current?.parentElement;
+    wrap?.setAttribute("data-beat", "playing");
+    if (!reduced.current) for (const id of ids) setFade(id, 0);
+    for (const e of chipEls()) e.style.opacity = "0";
+    beatRun.current = playReportBeat(reportBeatPlan(beat.change, beat.distanceM, reduced.current), {
+      progress: (step, seg, t) => {
+        if (step === "lightness" && seg) setFade(seg, t);
+        else if (step === "pulse" && m.getLayer("moved-line")) m.setPaintProperty("moved-line", "line-width", 2 + 3 * Math.sin(Math.PI * t));
+        else if (step === "chips" || step === "fade")
+          for (const e of chipEls()) {
+            e.style.opacity = String(t);
+            e.style.translate = `0 ${(1 - t) * 6}px`;
+          }
+      },
+      done: () => {
+        for (const id of ids) setFade(id, 1);
+        if (m.getLayer("moved-line")) m.setPaintProperty("moved-line", "line-width", 2);
+        for (const e of chipEls()) {
+          e.style.opacity = "1";
+          e.style.translate = "";
+        }
+        wrap?.setAttribute("data-beat", "done");
+      },
+    });
+  }, [beat?.key]);
 
   useEffect(() => {
     const m = map.current;
