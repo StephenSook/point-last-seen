@@ -619,3 +619,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post renders `LayerSwitches` under the probability ranking with the incident's stored layers, distance table and prior version (the wedge stays disabled: no confirmed direction of travel yet; the vehicle note follows the command profile). Rebuild prior runs `rebuildPrior` and `priorWrites` and commits one Firestore batch (`prior/write.ts`: every segment, ROW and the incident, so no seat sees a mix), not awaited, so it also works offline; the line turns from "Sending" to "Prior rebuilt as vN." when the incident reaches that version.
 - Source: plan Task 26, spec 10.5.
 - Verified: typecheck and build clean; layers harness spec passes. One live round trip on the drill against the local preview (raised the drill's prior version by two): the mountain column changed the numbers; going back to flat reproduced all 67 seeded numbers exactly, so the web rebuild agrees with the grid tools; the match code moved KHSP, D23D, YNDY. scripts/ci-local.sh exit 0.
+
+### feat(motion): compute ripple delays from each segment centre's distance to the start
+- What: `rippleDelays(points, origin)` in `motion/ripple.ts`: each point's offset from the point last seen in 125 m cells (a local flat approximation), times 25 ms.
+- Source: plan Task 39.6.
+- Verified: new test failed first, then passed (0 ms at the origin, 50 ms two cells north, 75 ms three cells east). scripts/ci-local.sh exit 0.
