@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The raw-callable test harness (a request through the Functions wrapper, and an Auth emulator ID token) moves
+  from the join tests into `functions/test/callable.ts`, so other callables can prove App Check enforcement the
+  same way. The caller now names the function it calls. No behaviour change.
+  Source: plan Task 18a (the command-only media delete callable needs the same proof).
+  Verified: emulator suite 124 (the join tests unchanged in what they assert); functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - SECURITY.md rows read back again on 2026-11-18: the iOS API key is restricted to `app.pointlastseen.field`,
   the only target that calls Firebase (row 3 now covers all three keys); the per-user limit is 20 generate
   requests a minute in every region, with the estimate behind the number (row 9); both budgets on the billing
