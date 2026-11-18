@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the `@pls/engine` workspace (`shared/engine-ts/package.json`, `tsconfig.json`) and the root
+  `package-lock.json`. Pins: @noble/hashes 2.4.0 (runtime, synchronous SHA-256), typescript 6.0.3 and vitest
+  5.1.0 (same as lane C), @types/node 22.20.5. Strict TypeScript with noUncheckedIndexedAccess.
+  Source: plan Task 8 (TypeScript engine).
+  Verified: Socket scores for all four (supply chain 98 to 100, vulnerability 100); `npm install` exit 0;
+  `npm audit --omit=dev` finds 0; the 5 dev-only highs are one picomatch ReDoS via vite/vitest globs we
+  control (accepted, same toolchain as lane C). `bash scripts/ci-local.sh` exits 0.
 - Add the `android` CI job (`.github/workflows/android.yml`): lane D's snippet, Temurin 21,
   `./gradlew --no-daemon testDebugUnitTest assembleDebug`, on pull requests to main and on main only,
   triggered by `android/**` until android/ is on main (then widen to shared/**). Mirrored in `ci-local.sh`.
