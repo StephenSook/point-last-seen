@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard writes one log line per call: the path it took (template or direct), the template's name, the
+  request's and generation config's setting names, and whether it rewrote the request. Names only, never the
+  prompt, inputs, media or values. Redeployed at 22:24 UTC on 2026-11-18 (6d29d80), the guard again made the
+  sighting template answer with made-up field names although template calls are now left as sent; it was
+  deleted again at 22:26 UTC. The log line shows which path a live template call takes before the next deploy.
+  Source: the live check after the redeploy.
+  Verified: the log-line tests (path, template, sorted setting names and the rewrite flag; no prompt text, media,
+  MIME type or values in the line) failed first, now 13 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - cloudGuard runs with 1 GiB of memory, a full CPU and up to 6 requests at once per instance (10 instances at most,
   none kept warm). A clip read carries up to 14 MB of video as base64, about 100 MB in flight with the raw body,
   the parsed string and a rewritten reply; at the default 256 MiB and 80 requests per instance, a burst of clip

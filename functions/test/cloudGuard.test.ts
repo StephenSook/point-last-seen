@@ -3,7 +3,7 @@
 // by this trigger, by Google's design (docs/SECURITY.md row 12).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, TTS_MAX_OUTPUT_TOKENS, guardRequest } from "../src/cloudGuard";
+import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, TTS_MAX_OUTPUT_TOKENS, guardLogLine, guardRequest } from "../src/cloudGuard";
 
 const listed = JSON.parse(readFileSync(new URL("../../shared/constants/models.json", import.meta.url), "utf8")).models.map((m: { id: string }) => m.id);
 const path = (id: string) => `projects/buildhybridai-2026-yg3m/locations/global/publishers/google/models/${id}`;
@@ -94,5 +94,24 @@ describe("cloudGuard through the exported trigger", () => {
       expect(status).toBe(500);
       expect(body).toEqual({ code: 7, message: "This model is not allowed here." });
     }
+  });
+});
+
+describe("cloudGuard's log line", () => {
+  // One line per call says which path the guard took and which setting names it saw, so a live defect can be read
+  // from the logs. It never carries the prompt, inputs, media or values.
+  const request = { contents: [{ role: "user", parts: [{ text: "SECRET NOTE ABOUT ROSA" }, { inlineData: { mimeType: "video/mp4", data: "QUJD" } }] }],
+    systemInstruction: { parts: [{ text: "SYSTEM SECRET" }] }, generationConfig: { maxOutputTokens: 50_000, temperature: 0.7, responseSchema: { type: "object" } } };
+  it("names the path, the template, the setting names and whether the request was rewritten", () => {
+    const out = guardRequest(path("gemini-3.5-flash-lite"), request);
+    expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), request }, out)).toEqual({ event: "cloudGuard", path: "direct",
+      model: "gemini-3.5-flash-lite", template: null, requestKeys: ["contents", "generationConfig", "systemInstruction"],
+      configKeys: ["maxOutputTokens", "responseSchema", "temperature"], rewritten: true });
+    expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), template: { templateName: "projects/p/locations/global/templates/pls-voice-v1" }, request }, undefined))
+      .toMatchObject({ path: "template", template: "projects/p/locations/global/templates/pls-voice-v1", rewritten: false });
+  });
+  it("never carries the prompt, inputs, media or setting values", () => {
+    const line = JSON.stringify(guardLogLine({ model: path("gemini-3.5-flash-lite"), request }, guardRequest(path("gemini-3.5-flash-lite"), request)));
+    for (const secret of ["SECRET NOTE", "SYSTEM SECRET", "QUJD", "video/mp4", "50000", "0.7", "object"]) expect(line).not.toContain(secret);
   });
 });

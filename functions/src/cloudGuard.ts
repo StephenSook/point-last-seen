@@ -40,3 +40,19 @@ export function guardRequest(model: string, request: Request, template?: unknown
     && kept.maxOutputTokens === config.maxOutputTokens;
   return unchanged ? undefined : { ...request, generationConfig: kept };
 }
+
+/**
+ * One log line per call: which path the guard took, the template's name, the request's and generation config's
+ * setting names, and whether the request was rewritten. Names only: never the prompt, inputs, media or values.
+ */
+export function guardLogLine(data: { model: string; template?: { templateName?: string }; request: Request }, out: Request | undefined) {
+  return {
+    event: "cloudGuard",
+    path: data.template ? "template" : "direct",
+    model: data.model.split("/").pop() ?? "",
+    template: data.template?.templateName ?? null,
+    requestKeys: Object.keys(data.request).sort(),
+    configKeys: Object.keys(data.request.generationConfig ?? {}).sort(),
+    rewritten: out !== undefined,
+  };
+}
