@@ -8,7 +8,7 @@ test("a new report plays the beat once on the live post, and a reload does not r
   const wrap = page.getByTestId("map").locator("xpath=..");
   await expect(wrap).not.toHaveAttribute("data-beat", /.+/); // nothing plays on load
   await page.getByRole("button", { name: "Add sighting" }).click();
-  await page.getByLabel("Place").selectOption({ index: 1 });
+  await page.getByRole("combobox", { name: /^Place\b/ }).selectOption({ index: 1 });
   await page.getByLabel(/^Note/).fill("Drill check: seen near the first segment. Training drill inject.");
   await page.getByRole("button", { name: "Save sighting" }).click();
   await expect(wrap).toHaveAttribute("data-beat", "playing", { timeout: 10_000 });
