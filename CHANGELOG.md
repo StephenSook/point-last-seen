@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The seeding tool writes join codes to the Keychain through `security -i` on stdin instead of
+  `security add-generic-password -w <code>`, whose arguments any local process can read while it runs; seeding
+  and `--rotate` both use it. A value or name with unexpected characters is refused before anything runs.
+  Source: review (no secret in a command line; lane D found the same in its drill tests).
+  Verified: the test (the code appears in no argument list, only on stdin) failed first, now 9 seed tests pass;
+  a live round trip on a throwaway Keychain item read back equal and was deleted; `bash scripts/ci-local.sh`
+  exit 0.
 - clip-no-sighting's parity map now names Android's `ClipNoSighting` class (3603f3c) instead of a pending
   target, so the schema parity check covers it. LIMITS says a model or network error stores nothing: a
   completed reading never changes, so the record stays open and the next reader retries (both clients do this;
