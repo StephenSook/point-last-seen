@@ -36,6 +36,12 @@ describe("cloudGuard", () => {
     expect(guardRequest(path("gemini-3.5-flash-lite"), req)).toEqual({ contents: [],
       generationConfig: { maxOutputTokens: 100, temperature: 0, responseMimeType: "application/json", responseJsonSchema: { type: "object" } } });
   });
+  it("a template call is checked for its model and otherwise left alone: the template's own config stands (live 2026-11-18)", () => {
+    // Returning a generationConfig on a template call replaced the template's output schema: the sighting template
+    // answered with made-up field names until the guard was rolled back.
+    expect(guardRequest(path("gemini-3.5-flash-lite"), { contents: [] }, { templateId: "pls-sighting-note-v1" })).toBeUndefined();
+    expect(() => guardRequest(path("gemini-9-pro"), { contents: [] }, { templateId: "x" })).toThrow(expect.objectContaining({ code: "permission-denied" }));
+  });
   it("is registered as the AI Logic before-generate trigger", async () => {
     const { cloudGuard } = await import("../src/index");
     const ep = (cloudGuard as unknown as { __endpoint: { blockingTrigger?: { eventType: string } } }).__endpoint;

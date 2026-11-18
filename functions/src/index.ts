@@ -80,4 +80,4 @@ export const deleteEndedSandboxesJob = onSchedule(
  * trigger it, by Google's design (docs/SECURITY.md row 12). No database or outside call; no minimum instances.
  */
 export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInstances: 10 }, event =>
-  guardRequest(event.data.model, event.data.request as never));
+  guardRequest(event.data.model, event.data.request as never, event.data.template));

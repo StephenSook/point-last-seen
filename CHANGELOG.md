@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard leaves a template call's request alone after checking its model. Deployed at 21:47 UTC on
+  2026-11-18, it set a generationConfig on template calls, which replaced the template's own config: the
+  sighting template answered with made-up field names (`directionOfTravel`, `topColour`). It was deleted
+  (`firebase functions:delete cloudGuard`) at about 21:55 UTC, the template answered correctly again, and this
+  fix comes back through the same deploy and live checks. The live run also showed the latency gate holds
+  (median 1,060 ms against an 839 ms baseline over 10 warm calls, +221 ms) and that an off-list model is
+  refused: the function logged permission-denied (403) and the AI Logic proxy answered the client 500.
+  Source: the live check after the first deploy.
+  Verified: the template-call test (a template call is checked for its model and left as sent) failed first,
+  now 7 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - The rules gate fails CI when shipped code (web, iOS, the Android app's main sources, functions) names a
   model host outside Firebase AI Logic: Google's Gemini API host, Vertex AI REST, OpenAI, Ollama (including
   localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
