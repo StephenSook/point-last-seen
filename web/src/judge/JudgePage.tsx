@@ -5,6 +5,7 @@ import { aiClient, deviceModelInitializer } from "../ai/client";
 import { deviceState as readDeviceState, getLaptopReady, type DeviceState } from "../ai/deviceModel";
 import { RC_DEFAULTS } from "../config/rc";
 import { getPls } from "../firebase";
+import { JudgeExtras } from "../extras/JudgeExtras";
 import { d2Copy, loadPublishedRun } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
@@ -53,6 +54,8 @@ export function JudgePage() {
           <p>No published run yet.</p>
         )}
       </section>
+
+      <JudgeExtras run={run?.state === "run" ? run.run : null} />
 
       <section aria-labelledby="d2-h">
         <h2 id="d2-h" className="label">This laptop</h2>

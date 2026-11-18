@@ -537,3 +537,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post header renders the extras lane's `ExtrasDock` ("More": print sheets, radio cards, check, export) with the post state, the view state and the MapLibre map, which MapView hands over through `onReady` (hooks H1 and H3).
 - Source: extras lane request H1 and H3 via the orchestrator (needed for the Sunday drill's ICS 204 sheet and radio card).
 - Verified: new `e2e/extras-dock.spec.ts` failed first (no "More" in the header), then passed against the local preview on the drill (the menu opens with its items); layout, offline and judge e2e still pass. scripts/ci-local.sh exit 0.
+
+### feat(extras): render the judge extras after the replay section
+- What: `/judge` renders the extras lane's `JudgeExtras` after the replay section, given the published run when one exists (hook H2). It draws nothing today.
+- Source: extras lane request H2.
+- Verified: judge e2e (2 tests) pass against the local preview; typecheck and build clean. scripts/ci-local.sh exit 0.
