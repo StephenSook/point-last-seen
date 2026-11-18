@@ -52,5 +52,18 @@ import Testing
         let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
         #expect(model.linkState == LinkState.make(online: false, waiting: 0))             // nothing started, no store
     }
+
+    @Test func theUrgencyChipFollowsTheIncidentsConditions() async throws {
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
+        #expect(model.urgency == .none)                                                    // no pack
+        var mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                              assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                              profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+        await model.load(mission)
+        #expect(model.urgency == .none)                                                    // no conditions
+        mission.conditions = IncidentConditions(tempF: 41, wet: true, setAtMs: 1)
+        await model.load(mission)
+        #expect(model.urgency == .coolWet)
+    }
 }
 

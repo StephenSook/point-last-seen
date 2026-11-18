@@ -39,6 +39,8 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/approach-notes.json
         buildPhase: resources
+      - path: ../shared/constants/urgency.json
+        buildPhase: resources
     info:
       path: PLS/Info.plist
       properties:

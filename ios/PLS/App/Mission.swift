@@ -22,4 +22,6 @@ struct Mission: Sendable {
     var assignment: Assignment? = nil
     /// Events already folded into the pack's prior; the posterior leaves them out.
     var priorInputEventIds: [String] = []
+    /// The incident's `conditions` typed at command (temperature, wet); nil when not set.
+    var conditions: IncidentConditions? = nil
 }

@@ -26,4 +26,10 @@ enum BundledConstants {
     static func approachNotes() throws -> ApproachNotes {
         try ApproachNotes(json: data("approach-notes"))
     }
+
+    /// The urgency chip's threshold and its CDC source line.
+    static func urgencyRule() throws -> UrgencyRule {
+        try UrgencyRule(json: data("urgency"))
+    }
 }
+

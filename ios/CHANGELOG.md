@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): show the urgency chip in the approach card header
+- What: `Mission.conditions` carries the incident's typed temperature and wet answer;
+  `AppModel.urgency` applies the bundled `urgency.json` rule. The Ready check's "How to approach
+  them" section shows "Cold raises urgency" or "Cool and wet raises urgency" (`UrgencyChip`) with
+  the CDC sentence word for word and its read date under it. Search urgency only, no treatment
+  advice; clothing does not enter. The section appears when there is a chip or a profile.
+- Source: P-12, using the shared rule and lane A's conditions schema.
+- Verified: `theAppBundleCarriesTheUrgencyRule` and
+  `theUrgencyChipFollowsTheIncidentsConditions` compile-red, then green; 64 app tests pass; the
+  Title 3 scan passes; a night still of a local-only build with the chip forced on (never
+  committed) shows the chip and the full sentence fitting; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): read the incident's conditions for the urgency chip
 - What: `IncidentConditions` (`tempF`, `wet`, `setAtMs`; all three keys written, nulls out)
   matches `shared/schemas/incident-conditions.schema.json`. `init(incidentField:)` reads the

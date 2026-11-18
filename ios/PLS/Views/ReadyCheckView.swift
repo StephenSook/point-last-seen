@@ -13,9 +13,14 @@ struct ReadyCheckView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
-                if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                if model.urgency != .none || model.mission?.sharedProfile != nil {
                     section("How to approach them") {
-                        ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                        if let text = model.urgency.chipText, let rule = try? BundledConstants.urgencyRule() {
+                            UrgencyChip(text: text, source: rule.sourceLine)
+                        }
+                        if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                            ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                        }
                     }
                 }
                 section("Screen") {

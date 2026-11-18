@@ -72,6 +72,12 @@ final class AppModel {
         }
     }
 
+    /// The urgency chip on the approach card, from the incident's conditions (search urgency only).
+    var urgency: UrgencyLevel {
+        guard let rule = try? BundledConstants.urgencyRule() else { return .none }
+        return rule.level(conditions: mission?.conditions)
+    }
+
     /// The header's link glyph: signal and reports still on this phone.
     var linkState: LinkState {
         let waiting = store?.entries.filter { $0.state == .pending || $0.state == .checking }.count ?? 0
