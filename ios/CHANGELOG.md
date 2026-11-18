@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the urgency rule from the shared constants
+- What: `UrgencyRule` reads `shared/constants/urgency.json` (40 °F, the CDC sentence, its URL
+  and read date). `level(tempF:wet:)` gives cold at or below 40 °F, cool and wet above it when
+  the person is typed as wet, and no chip with no temperature, an unanswered wet question or a
+  value that is not a number. Clothing does not enter. `UrgencyLevel.chipText` is "Cold raises
+  urgency" or "Cool and wet raises urgency"; `sourceLine` quotes the CDC sentence word for word
+  with its read date. Search urgency only, no treatment advice.
+- Source: promotion P-12; coordinator ruling 2026-11-18 (CDC winter-weather page, read
+  2026-11-18); lane A's constants and vectors on main.
+- Verified: three `UrgencyTests` (all 7 shared vectors agree, words and source line, nonsense
+  temperatures give no chip) compile-red, then green; 240 tests; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): show the team's task as a Live Activity
 - What: `TaskActivityAttributes` (in `ios/PLSShared`) carries the `TaskStatus` and the night
   flag. `TaskActivityController` starts one Live Activity when a pack loads, updates it only when
