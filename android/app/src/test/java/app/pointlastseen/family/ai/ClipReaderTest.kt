@@ -111,6 +111,26 @@ class ClipReaderTest {
         assertNotNull(out.check)
     }
 
+    @Test fun aCachedReadingThatFailsItsChecksIsCouldNotRead() = runTest {
+        val r = request(1000)
+        val sha = Hashes.sha256Hex(r.bytes)
+        val bad = readingJson.replace("\"lastSeen\":\"00:12\"", "\"lastSeen\":\"09:99\"")
+        val cached = StoredClipReading(
+            sha256 = sha, storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
+            cameraFacingDeg = 90, readingJson = bad, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L,
+        )
+        val deps = FakeDeps(cached = cached)
+        assertEquals(ClipOutcome.CouldNotRead, ClipReader(deps).read(r))
+        assertEquals(listOf("find"), deps.log)
+    }
+
+    @Test fun anUnknownClipLengthIsRefusedBeforeAnyUpload() = runTest {
+        val deps = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        val out = ClipReader(deps).read(request(1000).copy(durationS = 0))
+        assertTrue(out is ClipOutcome.Refused)
+        assertTrue(deps.log.isEmpty())
+    }
+
     @Test fun aMissUploadsThenReadsInTheCloudThenStores() = runTest {
         val deps = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000)) as ClipOutcome.Read

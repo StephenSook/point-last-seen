@@ -69,6 +69,8 @@ class ClipReader(private val deps: ClipDeps) {
 
     suspend fun read(r: ClipRequest): ClipOutcome {
         ClipRules.sizeProblem(r.bytes.size.toLong())?.let { return ClipOutcome.Refused(it) }
+        // Without the clip's length no reading can be checked, so nothing is sent.
+        if (r.durationS <= 0) return ClipOutcome.Refused("The clip's length could not be read. Try another copy of the clip.")
         val sha = Hashes.sha256Hex(r.bytes)
         if (!ClipRules.consentComplete(r.consent, sha)) return ClipOutcome.Refused(NEEDS_CONSENT)
         if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
@@ -80,6 +82,7 @@ class ClipReader(private val deps: ClipDeps) {
             deps.findReading(sha)?.let { hit ->
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead
                 val check = SightingCheck.check(s, hit.durationS)
+                if (!check.ok) return ClipOutcome.CouldNotRead
                 return ClipOutcome.Read(sha, check.cleaned, check, Bearing.fromExit(hit.cameraFacingDeg, s.exitEdge), hit.route, cached = true)
             }
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
