@@ -21,6 +21,10 @@ export type IncidentDoc = {
   terrain?: Terrain;
   /** The prior's switchable layers (rings are always on). */
   priorLayers?: PriorLayers;
+  /** Which prior the segments carry; the ring prior is always kept in ringPoa. */
+  priorModel?: "rings" | "walkers";
+  /** The walker run's seed, so a rerun gives the identical table. */
+  priorSeed?: number;
 };
 
 export type Team = { teamId: string; name: string };

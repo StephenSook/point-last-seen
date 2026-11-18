@@ -46,7 +46,7 @@ export function rebuildPrior(
 export type PriorWrites = {
   segments: { segmentId: string; data: { priorPoa: number; ringPoa: number; priorVersion: number } }[];
   row: { priorPoa: number; priorVersion: number };
-  incident: { priorLayers: PriorLayers; terrain: Terrain; priorVersion: number };
+  incident: { priorLayers: PriorLayers; terrain: Terrain; priorVersion: number; priorModel?: "rings" };
 };
 
 export function priorWrites(r: RebuiltPrior, incident: { priorVersion: number }, layers: PriorLayers, terrain: Terrain): PriorWrites {

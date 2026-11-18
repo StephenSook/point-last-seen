@@ -1,7 +1,7 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
-import { DEFAULT_PARAMS, placeToCheck, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
+import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
@@ -37,6 +37,11 @@ import { TeamsRail } from "./TeamsRail";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
 import { LayerSwitches } from "./LayerSwitches";
+import { PriorSwitch, WALKER_SENTENCE, type PriorChoice } from "./PriorSwitch";
+import { loadRouteGraph, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
+import { runWalkersInWorker } from "../workers/runWalkers";
+import { walkerTracksToLngLat } from "../motion/walkerTracks";
+import type { Track } from "../motion/walkerCanvas";
 import { priorWrites, rebuildPrior } from "../prior/rebuild";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
@@ -364,6 +369,44 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
 
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // The site's route graph for the walker prior, beside its basemap.
+  const [graph, setGraph] = useState<GraphLoad | null>(null);
+  const [flow, setFlow] = useState<{ key: string; tracks: Track[] } | null>(null);
+  useEffect(() => {
+    if (!incident?.gridId) return;
+    let live = true;
+    void loadRouteGraph(`/tiles/${incident.gridId}.graph.json`).then((g) => live && setGraph(g));
+    return () => {
+      live = false;
+    };
+  }, [incident?.gridId]);
+  const places = (events as unknown as EventDoc[]).filter((e) => e.type === "destination" && e.position);
+  const applyModel = async (choice: PriorChoice) => {
+    if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+    const terrain = incident.terrain ?? "temperate_flat";
+    if (choice.model === "rings") {
+      const layers = incident.priorLayers ?? { linear: false, wedge: false };
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, null);
+      const w = priorWrites(rebuilt, incident, layers, terrain);
+      const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
+      return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
+    }
+    if (graph?.state !== "ok") throw new Error("Walkers need this site's route graph.");
+    const g = graph.graph;
+    if (!g.projection) throw new Error("This site's route graph has no projection.");
+    const start = nearestWalkerStation(g, projectWalkerPoint(g.projection, incident.ipp));
+    if (start === null) throw new Error("No route near the start point.");
+    const seed = incident.priorSeed ?? 20261122;
+    const used = choice.attract ? places : [];
+    const { result, elapsedMs } = await runWalkersInWorker({
+      graph: g,
+      grid: { segments: segments.map((s) => ({ segmentId: s.segmentId, geometry: (s.geometry.type === "Polygon" ? s.geometry : { type: "Polygon", coordinates: s.geometry.coordinates[0]! }) as never })) },
+      opts: { seed, startStationId: start, travelUnit: null, terrain, sampleTracks: 300, attractors: used.map((e) => projectWalkerPoint(g.projection!, e.position!)), lowMobility: choice.lowMobility },
+    });
+    const w = walkerPriorWrites(result, incident, { seed, attractorEventIds: used.map((e) => e.eventId) });
+    setFlow({ key: `walkers-${w.incident.priorVersion}`, tracks: walkerTracksToLngLat(result.sampleTracks, g, 2000) });
+    return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w), run: { n: result.n, elapsedMs } };
+  };
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
@@ -424,7 +467,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -481,6 +524,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
+          {incident && segments.length > 0 && (
+            <PriorSwitch
+              model={incident.priorModel ?? "rings"}
+              graph={graph?.state ?? "loading"}
+              priorVersion={incident.priorVersion}
+              hasPlaces={places.length > 0}
+              onApply={applyModel}
+            />
+          )}
           {incident && segments.length > 0 && (
             <LayerSwitches
               layers={incident.priorLayers ?? { linear: false, wedge: false }}

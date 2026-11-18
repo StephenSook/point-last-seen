@@ -44,6 +44,8 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** One line under the map (the walker prior's planning-only sentence). */
+  note?: string | undefined;
   /** The walker flow for a walker prior: the sampled tracks, played when `key` changes. */
   walkers?: { key: string; tracks: readonly Track[] } | null;
   /** When `key` (the prior version) is first drawn, the dots grow outward from `origin`. */
@@ -76,7 +78,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -360,6 +362,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         <path ref={arc} data-testid="beat-arc" />
       </svg>
       {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
+      {note && (
+        <p className="map-note" data-testid="map-note">
+          {note}
+        </p>
+      )}
       {credit && (
         <div className="map-credit" data-testid="map-credit">
           {credit}

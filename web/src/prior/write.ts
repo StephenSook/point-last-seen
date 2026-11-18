@@ -4,8 +4,9 @@
 
 import { doc, writeBatch, type Firestore } from "firebase/firestore";
 import type { PriorWrites } from "./rebuild";
+import type { WalkerPriorWrites } from "./walkerPrior";
 
-export function writePrior(db: Firestore, incidentId: string, w: PriorWrites): Promise<void> {
+export function writePrior(db: Firestore, incidentId: string, w: PriorWrites | WalkerPriorWrites): Promise<void> {
   const batch = writeBatch(db);
   for (const s of w.segments) batch.set(doc(db, "incidents", incidentId, "segments", s.segmentId), s.data, { merge: true });
   batch.set(doc(db, "incidents", incidentId, "segments", "ROW"), w.row, { merge: true });

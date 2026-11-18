@@ -142,3 +142,4 @@ button, input, select { font: inherit; color: inherit; }
 .beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
 .walker-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 350ms; }
 @media (prefers-reduced-motion: reduce) { .walker-canvas { transition: none; } }
+.map-note { position: absolute; left: 8px; bottom: 6px; margin: 0; max-width: calc(100% - 320px); font-size: 12px; color: var(--fg-2); background: var(--bg-0); padding: 2px 6px; }
