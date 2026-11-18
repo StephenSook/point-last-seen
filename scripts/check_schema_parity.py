@@ -9,8 +9,12 @@ Each shared/schemas/*.schema.json carries an "x-parity" map from a JSON pointer
                        "android": "path/Schemas.kt#ReportReading" } }
 
 For every entry whose file exists, the type's field names must equal the
-schema's property names. A file that does not exist yet is reported as
-"not built" and does not fail. Exit 0 clean, 1 on any mismatch.
+schema's property names, and for TypeScript a string-enum property's values must
+equal the literal union of its field type (inline or a type alias in the same
+file). A file that does not exist is "not built" while its platform root
+(shared/engine-ts, ios/PLSCore, android/app) is absent; once the root exists a
+missing file fails, unless the target is marked "pending:path#Type".
+Exit 0 clean, 1 on any mismatch.
 
 Usage: python3 -I scripts/check_schema_parity.py [root]
 """
@@ -123,7 +127,46 @@ def kotlin_fields(text, name):
     return fields
 
 
+def ts_field_types(text, name):
+    """Field name to its type text, for the TS interface or object type alias `name`."""
+    text = strip_comments(text)
+    m = re.search(rf"\b(?:interface|type)\s+{re.escape(name)}\b", text)
+    if not m:
+        return {}
+    start = text.index("{", m.end())
+    out = {}
+    for seg, _ in depth_one_segments(text, start, ";\n", angle=True):
+        f = re.match(r"\s*(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*\??\s*:(.*)$", seg, re.S)
+        if f:
+            out[f.group(1)] = f.group(2).strip()
+    return out
+
+
+LITERAL = re.compile(r'"([^"]*)"|\'([^\']*)\'')
+
+
+def ts_literals(text, type_text):
+    """String literals of an inline union, or of a same-file type alias the field names."""
+    t = re.sub(r"\|\s*null\b|\bnull\s*\|", "", type_text).strip().rstrip(";,").strip()
+    if re.fullmatch(r"[A-Za-z_$][\w$]*", t):
+        a = re.search(rf"\btype\s+{re.escape(t)}\s*=(.*?);", strip_comments(text), re.S)
+        if not a:
+            return None
+        t = a.group(1)
+    found = [x or y for x, y in LITERAL.findall(t)]
+    return set(found) if found else None
+
+
+def schema_enum(prop):
+    values = list(prop.get("enum", []))
+    for alt in prop.get("anyOf", []):
+        values += alt.get("enum", [])
+    strings = [v for v in values if isinstance(v, str)]
+    return set(strings) if strings and len(strings) == len([v for v in values if v is not None]) else None
+
+
 EXTRACTORS = {"ts": ts_fields, "ios": swift_fields, "android": kotlin_fields}
+PLATFORM_ROOTS = {"ts": "shared/engine-ts", "ios": "ios/PLSCore", "android": "android/app"}
 
 
 def resolve(schema, pointer):
@@ -153,7 +196,8 @@ def main(root):
             continue
         for pointer, targets in parity.items():
             try:
-                props = set(resolve(schema, pointer).get("properties", {}))
+                node = resolve(schema, pointer)
+                props = set(node.get("properties", {}))
             except (KeyError, TypeError):
                 print(f"FAIL {name} {pointer}: pointer does not resolve")
                 failures += 1
@@ -162,10 +206,17 @@ def main(root):
                 target = targets.get(platform)
                 if target is None:
                     continue
-                rel, _, type_name = target.partition("#")
+                pending = target.startswith("pending:")
+                rel, _, type_name = target.removeprefix("pending:").partition("#")
                 file = root / rel
                 if not file.exists():
-                    print(f"{name} {pointer} {platform}: not built ({rel})")
+                    if pending:
+                        print(f"{name} {pointer} {platform}: pending ({rel})")
+                    elif (root / PLATFORM_ROOTS[platform]).exists():
+                        print(f"FAIL {name} {pointer} {platform}: {rel} is missing although {PLATFORM_ROOTS[platform]} exists")
+                        failures += 1
+                    else:
+                        print(f"{name} {pointer} {platform}: not built ({rel})")
                     continue
                 found = EXTRACTORS[platform](file.read_text(), type_name)
                 if found is None:
@@ -176,6 +227,19 @@ def main(root):
                 checked += 1
                 if missing or extra:
                     print(f"FAIL {name} {pointer} {platform}: {type_name} in {rel} missing {missing} extra {extra}")
+                    failures += 1
+                    continue
+                enum_bad = []
+                if platform == "ts":
+                    text = file.read_text()
+                    types = ts_field_types(text, type_name)
+                    for prop_name, prop in node.get("properties", {}).items():
+                        want = schema_enum(prop)
+                        got = ts_literals(text, types.get(prop_name, "")) if want else None
+                        if want and got is not None and got != want:
+                            enum_bad.append(f"{prop_name} missing {sorted(want - got)} extra {sorted(got - want)}")
+                if enum_bad:
+                    print(f"FAIL {name} {pointer} {platform}: {type_name} enum values differ: {'; '.join(enum_bad)}")
                     failures += 1
                 else:
                     print(f"ok {name} {pointer} {platform}: {len(props)} fields")

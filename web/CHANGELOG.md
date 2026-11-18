@@ -286,3 +286,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/privacy.spec.ts`: with `LanguageModel` deleted before the page loads, "Read on this laptop" on a photo and "Read the note" on a sighting both show "This laptop has no local model. Nothing was sent." and zero POST requests reach firebasevertexai, generativelanguage or firebaseml; the positive control, a consented cloud read of one photo, must make exactly one such POST, which proves the listener sees requests. Fixtures: `joinCommand` (joins the seeded drill incident as command; a missing incident or code fails, never skips) and `syntheticSignJpeg` (a drawn sign, never a personal photo). Preflights are not counted.
 - Source: plan Task 20 step 1 (privacy.spec), spec section 15 tests, Codex privacy finding 6 (exactly one observed request after explicit cloud consent).
 - Verified: `npx playwright test --list` lists both tests and typecheck is clean. NOT RUN YET (2026-11-18): it needs joinIncident deployed; it is not in CI until then.
+
+### chore(merge): bring main into lane-web (stricter availability gate, clip consent rules, joinIncident instance cap)
+- What: merges origin/main: the rules gate now also catches optional-chained and bracketed availability calls, schema parity checks TypeScript enum values, the clip consent record is required before upload, camera sightings carry their clip reference, and joinIncident is capped at 5 instances.
+- Source: keep lane-web current with main before the next task.
+- Verified: `scripts/ci-local.sh` exit 0 on the merged tree: rules gate ok on 154 files (the web still asks Chrome only in gate.ts), schema parity ok, engine 155, vectors 134, rules 85 in the emulators, web 190 tests and the build.

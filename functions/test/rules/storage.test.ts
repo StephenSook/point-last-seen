@@ -1,13 +1,19 @@
-import { ref, uploadBytes } from "firebase/storage";
+import { getStorage as getAdminStorage } from "firebase-admin/storage";
+import { getMetadata, ref, uploadBytes } from "firebase/storage";
 import { afterAll, beforeEach, describe, it } from "vitest";
-import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, familyClaims, searcherClaims, storageAs } from "../helpers";
+import { clipReadingDoc } from "../fixtures";
+import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, familyClaims, searcherClaims, storageAs } from "../helpers";
 
 const SHA = "a".repeat(64);
 const bytes = (n: number) => new Uint8Array(n);
 
 beforeEach(async () => {
   await clearFirestore();
+  await getAdminStorage(adminApp).bucket().deleteFiles({ force: true });
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+  // Ruling I9: the clip reading with its consent record exists before the upload.
+  await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set(clipReadingDoc("I1", SHA, "family-uid", { createdAt: new Date() }));
+  await admin.db.doc(`incidents/J1/clipReadings/${SHA}`).set(clipReadingDoc("J1", SHA, "family-uid", { createdAt: new Date() }));
 });
 afterAll(closeClients);
 
@@ -39,7 +45,39 @@ describe("storage rules (spec section 7)", () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
     await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
+  it("media are create-only: an existing clip or photo cannot be replaced at its hash path", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${SHA}.mp4`), bytes(2000), { contentType: "video/mp4" }));
+    await assertSucceeds(uploadBytes(ref(fam, `photos/I1/${SHA}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
+    await assertFails(uploadBytes(ref(fam, `photos/I1/${SHA}.jpg`), bytes(2000), { contentType: "image/jpeg" }));
+  });
+  it("media file names must be a lowercase sha256 with the right extension", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    for (const name of ["clip.mp4", `${"A".repeat(64)}.mp4`, `${SHA}.mov`, `${SHA.slice(1)}.mp4`]) {
+      await assertFails(uploadBytes(ref(fam, `clips/I1/${name}`), bytes(1000), { contentType: "video/mp4" }));
+    }
+    await assertFails(uploadBytes(ref(fam, `photos/I1/${SHA}.png`), bytes(1000), { contentType: "image/jpeg" }));
+  });
+  it("a clip upload needs the uploader's own clip reading with consents first (ruling I9)", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    const other = "b".repeat(64);
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${other}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc(`incidents/I1/clipReadings/${other}`).set(clipReadingDoc("I1", other, "command-uid", { createdAt: new Date() }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${other}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    const third = "d".repeat(64);
+    await admin.db.doc(`incidents/I1/clipReadings/${third}`).set(clipReadingDoc("I1", third, "family-uid", { createdAt: new Date() }));
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${third}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
   it("no client writes packs", async () => {
-    await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1-v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));
+    await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1/v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));
+  });
+  it("a pack bundle is readable by command and its own team only", async () => {
+    const bucket = getAdminStorage(adminApp).bucket();
+    await bucket.file("packs/I1/T1/v1.bundle").save(Buffer.from("bundle"), { contentType: "application/octet-stream" });
+    await bucket.file("packs/I1/T2/v1.bundle").save(Buffer.from("bundle"), { contentType: "application/octet-stream" });
+    await assertSucceeds(getMetadata(ref(storageAs("searcher-uid", searcherClaims), "packs/I1/T1/v1.bundle")));
+    await assertFails(getMetadata(ref(storageAs("searcher-uid", searcherClaims), "packs/I1/T2/v1.bundle")));
+    await assertSucceeds(getMetadata(ref(storageAs("command-uid", commandClaims), "packs/I1/T2/v1.bundle")));
   });
 });
