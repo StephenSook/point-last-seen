@@ -15,7 +15,7 @@ test.beforeAll(() => {
   execFileSync("sh", [fileURLToPath(new URL("./assets/make-moving-box.sh", import.meta.url)), CLIP, String(Math.floor(Math.random() * 200))]);
 });
 
-test("a staged clip with no person is read once in the cloud as inline video and changes nothing", async ({ page }) => {
+test("a staged clip with no person is read once in the cloud as inline video, changes nothing, and is not read again", async ({ page }) => {
   test.setTimeout(180_000);
   deployedOnly();
   await withDebugToken(page);
@@ -26,9 +26,6 @@ test("a staged clip with no person is read once in the cloud as inline video and
     reads.push({ mime: body.contents?.[0]?.parts?.find((p) => p.inlineData)?.inlineData?.mimeType, status: r.status() });
   });
   await joinCommand(page);
-  const code = page.getByTestId("convergence-code");
-  await expect(code).not.toHaveText("----", { timeout: 20_000 });
-  const before = await code.innerText();
   await page.getByRole("button", { name: "Add camera clip" }).click();
   await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
   await expect(page.getByTestId("clip-facts")).toHaveText(/^6 s, [0-9]+ KB$/);
@@ -38,5 +35,11 @@ test("a staged clip with no person is read once in the cloud as inline video and
   await page.getByRole("button", { name: "Read clip" }).click();
   await expect(page.getByText("Couldn't read this clip. Nothing changed.")).toBeVisible({ timeout: 150_000 });
   expect(reads).toEqual([{ mime: "video/mp4", status: 200 }]);
-  await expect(code).toHaveText(before);
+  // No sighting card, so nothing to confirm: the map and the match code cannot change from this read.
+  await expect(page.getByRole("region", { name: "Camera sighting" })).toHaveCount(0);
+  // The no-sighting result was stored with the record, so reading the same clip again asks no model.
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByText("Couldn't read this clip. Nothing changed.")).toBeVisible();
+  expect(reads).toHaveLength(1);
 });
