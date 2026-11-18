@@ -1,7 +1,10 @@
 // The command post map: segments filled by POA lightness, a printed percent
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
-import { Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { Protocol } from "pmtiles";
+import { loadBasemap } from "../basemap/load";
+import { basemapLayers } from "../basemap/style";
 import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
 // build emits it as an asset and MapLibre is told where it is.
@@ -10,7 +13,7 @@ import { deltaLabel, type ChangeResult } from "../command/changeModel";
 import { motionScope, playReportBeat } from "../motion/engine";
 import { reportBeatPlan } from "../motion/plan";
 import { mapCredit } from "./credit";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "./geo";
 import { centreFeatures, MAP_INK, POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
 
@@ -22,6 +25,9 @@ const FILL_COLOR_OLD = rampBy(["coalesce", ["get", "clsOld"], ["get", "cls"]]);
 const FADE = ["coalesce", ["feature-state", "fade"], 1];
 
 setWorkerUrl(workerUrl);
+// One pmtiles protocol for the page; each loaded site file is added to it by name.
+const pmtiles = new Protocol();
+addProtocol("pmtiles", pmtiles.tile);
 
 type Props = {
   segments: readonly MapSegment[];
@@ -35,6 +41,8 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
+  basemapUrl?: string | null;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
   beat?: { key: string; before: Readonly<Record<string, number>>; change: ChangeResult; distanceM: Readonly<Record<string, number>> } | null;
 };
@@ -54,7 +62,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -71,6 +79,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   const reduced = useRef(false);
   const lastBeatKey = useRef<string | undefined>(undefined);
   const beatRun = useRef<{ cancel(): void } | null>(null);
+  const [basemap, setBasemap] = useState<"none" | "drawn" | "absent" | "invalid" | "unavailable">("none");
 
   useEffect(() => {
     if (!el.current) return;
@@ -174,6 +183,31 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     else m.once("load", draw);
   }, [moved, segments]);
 
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !basemapUrl) return;
+    let live = true;
+    const draw = async () => {
+      const b = await loadBasemap(basemapUrl);
+      if (!live || map.current !== m) return;
+      if (b.state !== "ok") {
+        setBasemap(b.state);
+        return;
+      }
+      pmtiles.add(b.tiles);
+      if (!m.getSource("basemap")) m.addSource("basemap", { type: "vector", url: `pmtiles://${b.key}` });
+      const { under, over } = basemapLayers("basemap");
+      for (const l of under) if (!m.getLayer(l.id)) m.addLayer(l, "seg-fill-old");
+      for (const l of over) if (!m.getLayer(l.id)) m.addLayer(l, "seg-casing");
+      setBasemap("drawn");
+    };
+    if (ready.current) void draw();
+    else m.once("load", () => void draw());
+    return () => {
+      live = false;
+    };
+  }, [basemapUrl]);
+
   // The REPORT beat (22.1): lightness cross-fades nearest first, the cyan outline pulses once, the
   // chips rise. Not on the first change seen (a reload shows the final map); reduced motion shows
   // the final values at once and fades the chips in over 150 ms.
@@ -226,10 +260,10 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     pinMarker.current = new Marker({ element: el }).setLngLat([pin.lon, pin.lat]).addTo(m);
   }, [pin]);
 
-  // No basemap is drawn yet, so only the OSM-derived segments earn the credit.
-  const credit = mapCredit({ segments: segments.length, basemap: false, gridAttribution: attribution });
+  // The credit shows when the OSM-derived grid or basemap is actually drawn.
+  const credit = mapCredit({ segments: segments.length, basemap: basemap === "drawn", gridAttribution: attribution });
   return (
-    <div className={onMapClick ? "map-wrap picking" : "map-wrap"}>
+    <div className={onMapClick ? "map-wrap picking" : "map-wrap"} data-basemap={basemap}>
       <div ref={el} className="map" data-testid="map" />
       {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
       {credit && (
