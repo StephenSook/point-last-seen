@@ -4,6 +4,10 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Device session.** `Session` keeps a device id made once, a sequence number written to disk
+  (SharedPreferences `commit()`) before an event id uses it, and the joined incident. Source:
+  spec section 8 (ids hash incident, device and seq). Verified: `SessionTest` failed to compile
+  first, then passes (stable id, seq never repeats across instances, join and leave).
 - **Remote Config, live.** `RcStore` publishes the app's values (defaults first), and
   `FirebaseRcSource` sets the in-app defaults, fetches at start and activates every real-time
   update, so `kill_cloud` and the model ids change without a restart. Source: Task 19 step 4
