@@ -126,3 +126,8 @@ button, input, select { font: inherit; color: inherit; }
 .judge h1 { margin: 0; font-size: 28px; }
 .judge section { display: grid; gap: 8px; background: var(--bg-1); border: 1px solid var(--line); padding: 16px; }
 .judge section p { margin: 0; }
+/* change-cyan means "moved by the last report" and nothing else (22.1) */
+.delta-chip { background: var(--bg-0); color: var(--change-cyan); border: 1px solid var(--change-cyan); padding: 1px 5px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
+.change { display: grid; gap: 4px; }
+.change p { margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -34,7 +34,8 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
-import { viewState } from "./viewState";
+import { lastReportChange, viewState } from "./viewState";
+import { ChangeBeat } from "./ChangeBeat";
 import { WhatChanged } from "./WhatChanged";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
@@ -224,13 +225,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
-  const vs = useMemo(() => {
+  const engineIn = useMemo(() => {
     if (!incident || typeof incident.priorVersion !== "number" || segments.length === 0 || view?.rowPrior === null || view?.rowPrior === undefined) return null;
     const prior = [...segments.map((s) => ({ segmentId: s.segmentId, priorPoa: s.priorPoa })), { segmentId: "ROW", priorPoa: view.rowPrior }];
     // Engine parameters travel with the incident (spec rule R6); the shared constants match a fresh incident.
-    const params = incident.engineParams ?? DEFAULT_PARAMS;
-    return viewState(prior, events as unknown as EventDoc[], incident.priorInputEventIds ?? [], params, incident.priorVersion);
-  }, [incident, segments, view?.rowPrior, events]);
+    return { prior, params: incident.engineParams ?? DEFAULT_PARAMS, priorIds: incident.priorInputEventIds ?? [], priorVersion: incident.priorVersion };
+  }, [incident, segments, view?.rowPrior]);
+  const vs = useMemo(
+    () => (engineIn ? viewState(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, engineIn.priorVersion) : null),
+    [engineIn, events],
+  );
+  const last = useMemo(() => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params) : null), [engineIn, events]);
+  const [holding, setHolding] = useState(false);
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
@@ -383,7 +389,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={poa} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -431,6 +437,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
             onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
           />
+          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <PhotoTray

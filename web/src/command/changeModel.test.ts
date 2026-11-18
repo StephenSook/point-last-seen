@@ -1,6 +1,6 @@
 import type { EventDoc, ReportReading } from "@pls/engine";
 import { describe, expect, it } from "vitest";
-import { changeModel } from "./changeModel";
+import { changeModel, deltaLabel } from "./changeModel";
 
 const reading = (r: Partial<ReportReading>): ReportReading => ({
   kind: "clue", segmentIds: [], method: "unknown", coverage: null, minutes: null, searchers: null, searchType: "unknown",
@@ -46,5 +46,13 @@ describe("changeModel", () => {
     const m = changeModel({ AA: 0.4, ROW: 0.6 }, { AA: 0.1, ROW: 0.9 }, event({ type: "cleared", reading: reading({ kind: "cleared", segmentIds: ["AA"] }) }));
     expect(m.banner).toBe("AA cleared. AA 40% to 10%.");
     expect(m.announce).toBe("Segment AA. POA 10 percent, down 30, after report: AA cleared.");
+  });
+});
+
+describe("deltaLabel", () => {
+  it("prints signed percentage points with plain ASCII signs", () => {
+    expect(deltaLabel(19)).toBe("+19 pts");
+    expect(deltaLabel(-8)).toBe("-8 pts");
+    expect(deltaLabel(1)).toBe("+1 pt");
   });
 });

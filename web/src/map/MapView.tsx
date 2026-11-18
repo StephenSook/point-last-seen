@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
 // build emits it as an asset and MapLibre is told where it is.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { deltaLabel } from "../command/changeModel";
 import { mapCredit } from "./credit";
 import { useEffect, useRef } from "react";
 import type { LatLon } from "./geo";
@@ -23,7 +24,12 @@ type Props = {
   pin?: LatLon | null;
   /** The grid's own license line (incident.gridAttribution). */
   attribution?: string | undefined;
+  /** Segments moved by the newest report, largest move first. The three largest get the cyan outline and a chip. */
+  moved?: readonly { segmentId: string; deltaPts: number }[];
 };
+
+const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
+const movedFilter = (ids: string[]) => ["in", ["get", "segmentId"], ["literal", ids]] as never;
 
 function bounds(segments: readonly MapSegment[]): [[number, number], [number, number]] | null {
   if (segments.length === 0) return null;
@@ -37,7 +43,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -45,6 +51,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
   const pinMarker = useRef<Marker | null>(null);
+  const chips = useRef<Marker[]>([]);
   // Set once the style and our sources exist. isStyleLoaded() turns false again while a source updates,
   // so it cannot gate redraws: a redraw parked on "load" then would never run.
   const ready = useRef(false);
@@ -72,13 +79,16 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
         source: "centres",
         paint: { "circle-radius": ["get", "r"], "circle-color": MAP_INK.dot, "circle-stroke-color": MAP_INK.dotRing, "circle-stroke-width": 1.5 },
       });
+      // Moved by the newest report (22.1): 2 px cyan on a 2 px bg-0 casing each side, so it reads on every step.
+      m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
+      m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
       ready.current = true;
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
     map.current = m;
     return () => {
-      for (const mk of markers.current) mk.remove();
+      for (const mk of [...markers.current, ...chips.current]) mk.remove();
       m.remove();
       map.current = null;
       ready.current = false;
@@ -111,6 +121,30 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
     if (ready.current) draw();
     else m.once("load", draw);
   }, [segments, poa]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const draw = () => {
+      // Only the three largest moves: a strong report nudges nearly every segment, and an all-cyan map says nothing.
+      const top = moved.slice(0, 3);
+      const ids = top.map((c) => c.segmentId);
+      for (const id of ["moved-casing", "moved-line"]) if (m.getLayer(id)) m.setFilter(id, movedFilter(ids));
+      for (const mk of chips.current) mk.remove();
+      chips.current = top.flatMap((c) => {
+        const seg = segments.find((x) => x.segmentId === c.segmentId);
+        if (!seg) return [];
+        const chip = document.createElement("div");
+        chip.className = "delta-chip";
+        chip.dataset["testid"] = "delta-chip";
+        chip.textContent = deltaLabel(c.deltaPts);
+        // Above the dot (the plate hangs below it).
+        return [new Marker({ element: chip, anchor: "bottom", offset: [0, -16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+      });
+    };
+    if (ready.current) draw();
+    else m.once("load", draw);
+  }, [moved, segments]);
 
   useEffect(() => {
     const m = map.current;

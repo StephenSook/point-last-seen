@@ -61,3 +61,9 @@ export function changeModel(before: Readonly<Record<string, number>>, after: Rea
     announce: `Segment ${top.segmentId}. POA ${top.toPct} percent, ${dir} ${Math.abs(top.deltaPts)}, after report: ${spoken(label)}.`,
   };
 }
+
+/** The chip on a moved segment: signed percentage points, ASCII signs only. */
+export function deltaLabel(deltaPts: number): string {
+  const n = Math.abs(deltaPts);
+  return `${deltaPts > 0 ? "+" : "-"}${n} ${n === 1 ? "pt" : "pts"}`;
+}
