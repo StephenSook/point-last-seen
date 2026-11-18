@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check control's answer check requires the text to be a non-empty string: a part whose text is null
+  or a number no longer counts as an answer (null used to read as the string "None").
+  Source: review round 2 (low).
+  Verified: the null and number cases failed first, now 6 control tests pass; `bash scripts/ci-local.sh` exit 0.
 - The lifecycle health check compares the prefixes as an exact set, each of clips/, photos/ and packs/ once
   (no string join), and fails when any other Delete rule in the bucket policy is younger than 30 days, touches
   one of those prefixes, or covers the whole bucket, since any of those would delete drill media before the

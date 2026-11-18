@@ -41,5 +41,6 @@ def test_the_daily_probe_retires_after_judging():
 def test_a_200_counts_only_with_a_non_empty_answer():
     ok = {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}
     assert ac.answered(ok)
-    for body in [{}, {"candidates": []}, {"candidates": [{"content": {"parts": [{"text": ""}]}}]}, {"candidates": [{"content": {}}]}]:
+    for body in [{}, {"candidates": []}, {"candidates": [{"content": {"parts": [{"text": ""}]}}]}, {"candidates": [{"content": {}}]},
+                 {"candidates": [{"content": {"parts": [{"text": None}]}}]}, {"candidates": [{"content": {"parts": [{"text": 5}]}}]}]:
         assert not ac.answered(body)

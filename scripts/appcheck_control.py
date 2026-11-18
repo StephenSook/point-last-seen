@@ -40,7 +40,7 @@ def answered(body) -> bool:
         parts = body["candidates"][0]["content"]["parts"]
     except (KeyError, IndexError, TypeError):
         return False
-    return any(isinstance(p, dict) and str(p.get("text", "")).strip() for p in parts)
+    return any(isinstance(p, dict) and isinstance(p.get("text"), str) and p["text"].strip() != "" for p in parts)
 
 
 def redact(text: str, secrets: list[str]) -> str:
