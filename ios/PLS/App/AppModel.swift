@@ -16,14 +16,16 @@ final class AppModel {
     init(signIn: SignIn = .firebase()) {
         self.signIn = signIn
     }
-    var config = RemoteConfigValues.defaults
+    /// Remote Config values. Read at the moment of each send, and a change reaches the live
+    /// gate at once, so a kill-switch flip takes effect without a restart.
+    var config = RemoteConfigValues.defaults { didSet { refreshGate() } }
     var cloudConsent = false { didSet { refreshGate() } }
     private(set) var mission: Mission?
     private(set) var store: EventStore?
     private(set) var sending = false
     var problem: String?
     private var identity: DeviceIdentity?
-    private var reader: ReportReader?
+    private var screen: EvidenceScreen?
 
     private var started = false
     private var wasOnline = false
@@ -36,8 +38,7 @@ final class AppModel {
         Task { await self.trySignIn() }
         do {
             identity = try DeviceIdentity()
-            reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config,
-                                  screen: try BundledConstants.evidenceScreen())
+            screen = try BundledConstants.evidenceScreen()
             store = try EventStore(server: FirestoreEventServer(db: Firestore.firestore()),
                                    outboxURL: DeviceIdentity.storeDirectory().appendingPathComponent("outbox.json"))
             store?.reconcileUnresolved()
@@ -90,7 +91,7 @@ final class AppModel {
     /// Reads the report, builds the one event and journals it. The Firestore write is never
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
-        guard let mission, let reader, let identity, let store else { problem = "No pack loaded."; return false }
+        guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         await trySignIn()
         guard let uid = identity.uid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
@@ -104,6 +105,7 @@ final class AppModel {
             positionSegmentId: position.flatMap { Geo.segment(containing: $0, in: mission.grid) },
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
             liveGate: { [gate] in gate.current })
+        let reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
         let outcome = await reader.read(text, situation: situation)
         switch outcome.cloudTransport {
         case .failed: connectivity.requestFailed()

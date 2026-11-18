@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): read Remote Config at each send so a kill-switch flip takes effect at once
+- What: `AppModel.config` refreshes the live gate whenever it changes, and the report reader is
+  built at each send from the current values (cloud model, token budget, kill switch,
+  limited-use tokens). Before, the reader held a copy made at launch, so a fetched config would
+  have changed nothing until a restart. Fetching from Remote Config itself is Task 21b.
+- Source: fresh-eyes review I7.
+- Verified: `aKillSwitchFlipReachesTheLiveGateAtOnce` failed before (the gate stayed false), then
+  passed; 27 app tests pass on the iOS 27.2 simulator.
+
 ### fix(ios): feed cloud request failures into networkOnline
 - What: `ReadOutcome.cloudTransport` says whether a cloud stage was used and whether its request
   failed (network error or timeout) or succeeded; `AppModel` passes it to the connectivity
