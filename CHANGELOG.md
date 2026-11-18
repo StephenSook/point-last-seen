@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The drill seeding tool issues one join code per role (searcher, family, command), each stored in its own
+  Keychain service (`pls-drill-searcher-code`, `pls-drill-family-code`, `pls-drill-command-code`, account =
+  incident id), matching the one-role-per-code rule in joinIncident.
+  Source: fresh-context review C1.
+  Verified: the updated seed test failed first, now 5 pass; ci-local exits 0 (59 emulator tests).
 - joinIncident admits exactly one role per code: a code doc must list a single role and the caller must ask
   for that role, so the searcher code can never grant family (read and write on profile/command, confirming
   sightings, clip uploads) or command. Tests use one code per role and add two cases: each code admits only
