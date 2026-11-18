@@ -10,8 +10,7 @@ import com.google.firebase.ai.OnDeviceModelStatus
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.PublicPreviewAPI
-import com.google.firebase.ai.type.content
-import com.google.firebase.ai.type.generationConfig
+import java.util.Base64
 
 /** SDK values mapped to the app's own, so the logic above stays free of SDK types. */
 @OptIn(PublicPreviewAPI::class)
@@ -66,24 +65,22 @@ class AiClient(private val rc: () -> RcValues) {
         AiMapping.status(noteModel(InferenceMode.PREFER_ON_DEVICE).onDeviceExtension?.checkStatus())
     }.getOrDefault(DeviceModelStatus.UNKNOWN)
 
-    /** The clip read: cloud only, inline video, closed schema. */
+    /**
+     * The clip read: the server prompt template (Remote Config clip_template_id) holds the model,
+     * the prompt and the camera-sighting schema; the app sends only the clip's type and its bytes as
+     * base64. Cloud only. The reply is checked exactly as before.
+     */
     suspend fun readClip(bytes: ByteArray, mimeType: String): ModelReply {
         if (rc().killCloud) throw CloudPausedException()
-        val model = ai().generativeModel(
-            modelName = rc().clipModel,
-            generationConfig = generationConfig {
-                responseMimeType = "application/json"
-                responseSchema = AiSchemas.clip
-            },
-            onDeviceConfig = OnDeviceConfig.IN_CLOUD,
-        )
+        val inputs = mapOf(CLIP_MIME_TYPE_INPUT to mimeType, CLIP_VIDEO_INPUT to Base64.getEncoder().encodeToString(bytes))
         val t0 = System.nanoTime()
-        val r = model.generateContent(
-            content {
-                inlineData(bytes, mimeType)
-                text(AiSchemas.CLIP_PROMPT)
-            },
-        )
+        val r = ai().templateGenerativeModel().generateContent(rc().clipTemplateId, inputs)
         return ModelReply(r.text, AiMapping.source(r.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
+    }
+
+    companion object {
+        /** The template's input names (shared/templates/pls-clip-read-v1.json). */
+        const val CLIP_MIME_TYPE_INPUT = "mimeType"
+        const val CLIP_VIDEO_INPUT = "videoData"
     }
 }

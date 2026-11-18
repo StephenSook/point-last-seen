@@ -4,6 +4,8 @@ package app.pointlastseen.family.config
 data class RcValues(
     val cloudModelAndroid: String,
     val clipModel: String,
+    /** The server prompt template the clip read calls (it holds the model, prompt and schema). */
+    val clipTemplateId: String,
     val killCloud: Boolean,
     val useLimitedUseTokens: Boolean,
     val minimumVersionAndroid: Long,
@@ -12,10 +14,12 @@ data class RcValues(
 
     companion object {
         const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
+        const val DEFAULT_CLIP_TEMPLATE = "pls-clip-read-v1"
 
         val DEFAULTS = RcValues(
             cloudModelAndroid = DEFAULT_MODEL,
             clipModel = DEFAULT_MODEL,
+            clipTemplateId = DEFAULT_CLIP_TEMPLATE,
             killCloud = false,
             useLimitedUseTokens = true,
             minimumVersionAndroid = 0L,
@@ -25,6 +29,7 @@ data class RcValues(
         val DEFAULT_MAP: Map<String, Any> = mapOf(
             "cloud_model_android" to DEFAULT_MODEL,
             "clip_model" to DEFAULT_MODEL,
+            "clip_template_id" to DEFAULT_CLIP_TEMPLATE,
             "kill_cloud" to false,
             "use_limited_use_tokens" to true,
             "minimum_version_android" to 0L,
@@ -39,6 +44,7 @@ data class RcValues(
         fun from(m: Map<String, String>): RcValues = RcValues(
             cloudModelAndroid = m["cloud_model_android"]?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULTS.cloudModelAndroid,
             clipModel = m["clip_model"]?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULTS.clipModel,
+            clipTemplateId = m["clip_template_id"]?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULTS.clipTemplateId,
             killCloud = bool(m["kill_cloud"], DEFAULTS.killCloud),
             useLimitedUseTokens = bool(m["use_limited_use_tokens"], DEFAULTS.useLimitedUseTokens),
             minimumVersionAndroid = m["minimum_version_android"]?.trim()?.toLongOrNull() ?: DEFAULTS.minimumVersionAndroid,
