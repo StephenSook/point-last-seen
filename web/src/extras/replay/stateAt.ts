@@ -47,6 +47,23 @@ export function replayWindow(data: ReplayData): ReplayWindow | null {
   return { startMs, endMs, priorInUseFromMs: from === "start" ? startMs : from === "end" ? endMs : from };
 }
 
+/**
+ * What a frame at tMs depends on: how many reports had arrived, whether the current prior was in use, and the plan in
+ * force. Two times with the same key give the same frame, so a panel recomputes the map only when the key changes,
+ * not on every animation frame of a playback.
+ */
+export function frameKey(data: ReplayData, w: ReplayWindow, tMs: number): string {
+  let arrived = 0;
+  // Events are ordered by arrival with pending writes last, so the count stops at the first one not yet arrived.
+  for (const e of data.events) {
+    if (e.arrivedAtMs === null || e.arrivedAtMs > tMs) break;
+    arrived++;
+  }
+  let plan = -1;
+  for (const p of data.plans) if (p.approvedAtMs <= tMs && p.version > plan) plan = p.version;
+  return `${arrived}|${tMs >= w.priorInUseFromMs ? "prior" : "before"}|${plan}`;
+}
+
 /** Every event that had arrived by tMs (pending writes never), and, once the current prior is in use, its map. */
 export function stateAt(data: ReplayData, tMs: number): ReplayFrame {
   const shown = data.events.filter((e) => e.arrivedAtMs !== null && e.arrivedAtMs <= tMs);

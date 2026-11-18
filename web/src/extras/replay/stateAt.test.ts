@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { viewState, type EventDoc } from "../laneC";
 import { T0, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { replayWindow, stateAt } from "./stateAt";
+import { frameKey, replayWindow, stateAt } from "./stateAt";
 
 const MIN = 60_000;
 
@@ -129,5 +129,30 @@ describe("stateAt", () => {
   it("pending writes never appear in a frame", () => {
     const d = data();
     expect(stateAt(d, T0 + 24 * 60 * MIN).shown.map((e) => e.eventId)).not.toContain("pend");
+  });
+});
+
+describe("frameKey", () => {
+  it("changes only at an arrival, a plan approval or the prior mark", () => {
+    const d = data();
+    const w = replayWindow(d)!;
+    const key = (t: number) => frameKey(d, w, t);
+    // Between the plan at +5 and the arrival at +10 nothing on the map changes.
+    expect(new Set([T0 + 5 * MIN, T0 + 6 * MIN, T0 + 10 * MIN - 1].map(key)).size).toBe(1);
+    expect(key(T0 + 10 * MIN)).not.toBe(key(T0 + 10 * MIN - 1));
+    expect(key(T0 + 15 * MIN)).not.toBe(key(T0 + 15 * MIN - 1));
+    expect(key(w.priorInUseFromMs)).not.toBe(key(w.priorInUseFromMs - 1));
+  });
+
+  it("two times with the same key give the same frame", () => {
+    const d = data();
+    const w = replayWindow(d)!;
+    const a = stateAt(d, T0 + 6 * MIN);
+    const b = stateAt(d, T0 + 9 * MIN);
+    expect(frameKey(d, w, T0 + 6 * MIN)).toBe(frameKey(d, w, T0 + 9 * MIN));
+    expect(b.shown.map((e) => e.eventId)).toEqual(a.shown.map((e) => e.eventId));
+    if (a.phase !== "replayable" || b.phase !== "replayable") throw new Error("expected replayable frames");
+    expect(b.view.code).toBe(a.view.code);
+    expect(b.planVersion).toBe(a.planVersion);
   });
 });

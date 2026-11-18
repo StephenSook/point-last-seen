@@ -3,7 +3,7 @@ import { MapView, type MapLibreMap } from "../laneC";
 import type { ExtrasMapLike } from "../types";
 import { pendingLine, type ReplayData } from "./replayData";
 import { clockLabel, markTimes, nextMarkTime } from "./ruler";
-import { replayWindow, stateAt, type ReplayWindow } from "./stateAt";
+import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
 import { attachTrail, legText, legs, trailCollections, trailOrder, trailPoints } from "./trail";
 import { usePlayback } from "./usePlayback";
@@ -34,7 +34,11 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const reduced = useReducedMotion();
   const { tMs, setT, playing, toggle } = usePlayback(w, reduced);
-  const frame = useMemo(() => stateAt(data, tMs), [data, tMs]);
+  // Recompute the map only when the frame's content changes (an arrival, a plan, the prior mark), not on every
+  // animation frame: tMs moves the clock and the head line; the key moves the map.
+  const key = frameKey(data, w, tMs);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const frame = useMemo(() => stateAt(data, tMs), [data, w, key]);
   const marks = useMemo(() => markTimes(data, w), [data, w]);
   const order = useMemo(() => trailOrder(trailPoints(frame)), [frame]);
   const [map, setMap] = useState<MapLibreMap | null>(null);
