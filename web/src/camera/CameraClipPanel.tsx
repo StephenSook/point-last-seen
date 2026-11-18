@@ -16,16 +16,17 @@ type Props = {
   cameraSegmentId: string | null;
   choices: readonly { segmentId: string; centre: LatLon }[];
   onPlaceCamera: (p: LatLon) => void;
-  priorVersion: number;
   onRead: (input: ClipIntakeInput, how: ReadHow) => Promise<ClipReadOutcome>;
   onTriage?: (clip: Blob) => Promise<TriageResult>;
   onConfirm: (read: ClipRead, input: ClipIntakeInput) => { version: number; ack: Promise<void> };
   onClose: () => void;
 };
 
-export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, priorVersion, onRead, onTriage, onConfirm, onClose }: Props) {
+export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
   const [sent, setSent] = useState<number | null>(null);
+  // The version the server acknowledged; a queued local write moves the local version at once.
+  const [acked, setAcked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const clip = useMemo(() => (read ? new Blob([read.input.bytes as BlobPart], { type: read.input.mimeType }) : null), [read]);
 
@@ -53,10 +54,13 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     try {
       const { version, ack } = onConfirm(read.o, read.input);
       setSent(version);
-      ack.catch(() => {
-        setSent(null);
-        setError("The sighting was not saved. Try again.");
-      });
+      ack.then(
+        () => setAcked(version),
+        () => {
+          setSent(null);
+          setError("The sighting was not saved. Try again.");
+        },
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "The sighting was not saved. Try again.");
     }
@@ -84,7 +88,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         </div>
       ) : (
         <>
-          <p role="status">{priorVersion >= sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
+          <p role="status">{acked === sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
           <button type="button" className="btn ghost" onClick={onClose}>
             Done
           </button>

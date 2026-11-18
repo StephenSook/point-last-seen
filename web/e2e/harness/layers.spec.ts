@@ -40,3 +40,14 @@ test("with Walkers on, the rebuild question says the prior goes back to rings", 
   await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
   await expect(page.getByText("Rebuild the prior as rings? Every team's map and match code change.")).toBeVisible();
 });
+
+test("Sending stays until the server acknowledges the write, not when the local prior moves", async ({ page }) => {
+  await page.goto("/harness/layers.html");
+  await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
+  await page.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await page.waitForTimeout(300);
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await page.getByRole("button", { name: "Server acknowledges" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v5.");
+});

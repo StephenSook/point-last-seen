@@ -47,7 +47,6 @@ function Harness() {
         cameraSegmentId={camera ? segmentContaining(camera, HARNESS_SEGMENTS) : null}
         choices={segmentChoices(HARNESS_SEGMENTS)}
         onPlaceCamera={setCamera}
-        priorVersion={8}
         onTriage={triage ? async () => TRIAGE[triage]! : undefined}
         onRead={async (input, h) => {
           setAsked(input);

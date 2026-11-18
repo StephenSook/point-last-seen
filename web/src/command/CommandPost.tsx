@@ -652,7 +652,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               cameraSegmentId={pin ? segmentContaining(pin, segments) : null}
               choices={segmentChoices(segments)}
               onPlaceCamera={setPin}
-              priorVersion={incident?.priorVersion ?? 0}
               onRead={readCameraClip}
               onTriage={triageCameraClip}
               onConfirm={confirmCameraClip}
@@ -679,7 +678,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <PriorSwitch
               model={incident.priorModel ?? "rings"}
               graph={graph?.state ?? "loading"}
-              priorVersion={incident.priorVersion}
               hasPlaces={places.length > 0}
               onApply={applyModel}
             />
@@ -688,7 +686,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <LayerSwitches
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
-              priorVersion={incident.priorVersion}
               hasBearing={bearing !== null}
               model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}

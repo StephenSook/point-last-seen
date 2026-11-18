@@ -12,7 +12,6 @@ type Run = { n: number; elapsedMs: number };
 type Props = {
   model: "rings" | "walkers";
   graph: "ok" | "absent" | "invalid" | "unavailable" | "loading";
-  priorVersion: number;
   /** Confirmed places to check exist (the attractor option uses them). */
   hasPlaces: boolean;
   /** Runs the walkers (in the Worker) or the rings, starts the write, and returns once the run is done. */
@@ -26,13 +25,15 @@ const GRAPH_LINE: Record<Exclude<Props["graph"], "ok">, string> = {
   loading: "Loading this site's route graph.",
 };
 
-export function PriorSwitch({ model, graph, priorVersion, hasPlaces, onApply }: Props) {
+export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
   const [want, setWant] = useState<"rings" | "walkers" | null>(null);
   const [attract, setAttract] = useState(false);
   const [lowMobility, setLowMobility] = useState(false);
   const [busy, setBusy] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [sent, setSent] = useState<number | null>(null);
+  // The version the server acknowledged; a queued local write moves the local version at once.
+  const [acked, setAcked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function apply() {
@@ -44,10 +45,13 @@ export function PriorSwitch({ model, graph, priorVersion, hasPlaces, onApply }: 
       setRun(r.run);
       setSent(r.version);
       setWant(null);
-      r.ack.catch(() => {
-        setSent(null);
-        setError("The prior was not saved. Try again.");
-      });
+      r.ack.then(
+        () => setAcked(r.version),
+        () => {
+          setSent(null);
+          setError("The prior was not saved. Try again.");
+        },
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "The prior was not rebuilt.");
     } finally {
@@ -91,7 +95,7 @@ export function PriorSwitch({ model, graph, priorVersion, hasPlaces, onApply }: 
         </div>
       )}
       {run && <p className="num small">{`${run.n.toLocaleString("en-US")} walkers in ${(run.elapsedMs / 1000).toFixed(2)} s on this laptop.`}</p>}
-      {sent !== null && <p role="status">{priorVersion >= sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>}
+      {sent !== null && <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>}
       {error && (
         <p className="error" role="alert">
           {error}

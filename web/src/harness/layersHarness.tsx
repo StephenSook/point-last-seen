@@ -9,22 +9,26 @@ import "../theme/base.css";
 
 function Harness() {
   const [applied, setApplied] = useState("");
+  // "Server acknowledges" settles the write; until then it is queued, as offline.
+  const [settle, setSettle] = useState<(() => void) | null>(null);
   return (
     <main className="rail right" style={{ width: 340 }}>
       <p className="drill">Synthetic settings, not drill data.</p>
       <LayerSwitches
         layers={{ linear: true, wedge: false }}
         terrain="temperate_flat"
-        priorVersion={4}
         hasBearing={false}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
         onApply={(layers, terrain) => {
           setApplied(`${JSON.stringify(layers)} ${terrain}`);
-          return { version: 5, ack: new Promise<void>(() => {}) };
+          return { version: 5, ack: new Promise<void>((resolve) => setSettle(() => resolve)) };
         }}
       />
       <pre data-testid="applied">{applied}</pre>
+      <button type="button" onClick={() => settle?.()}>
+        Server acknowledges
+      </button>
     </main>
   );
 }

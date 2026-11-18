@@ -18,7 +18,6 @@ function Harness() {
       <PriorSwitch
         model={model}
         graph={graph}
-        priorVersion={5}
         hasPlaces
         onApply={async (choice) => {
           setAsked(JSON.stringify(choice));

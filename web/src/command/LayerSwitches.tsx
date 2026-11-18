@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 type Props = {
   layers: PriorLayers;
   terrain: Terrain;
-  priorVersion: number;
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
   vehicleInvolved: boolean;
@@ -23,9 +22,11 @@ const TERRAINS: [Terrain, string][] = [
   ["temperate_mountain", "Temperate mountain"],
 ];
 
-export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
+export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
+  // The version the server acknowledged; a queued local write moves the local version at once.
+  const [acked, setAcked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Follow the stored settings when they change (another seat, or this rebuild arriving).
   useEffect(() => setDraft({ layers, terrain }), [layers.linear, layers.wedge, terrain]);
@@ -37,10 +38,13 @@ export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehic
     try {
       const { version, ack } = onApply(draft.layers, draft.terrain);
       setSent(version);
-      ack.catch(() => {
-        setSent(null);
-        setError("The prior was not saved. Try again.");
-      });
+      ack.then(
+        () => setAcked(version),
+        () => {
+          setSent(null);
+          setError("The prior was not saved. Try again.");
+        },
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "The prior was not rebuilt.");
     }
@@ -105,7 +109,7 @@ export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehic
         </div>
       )}
       {sent !== null && (
-        <p role="status">{priorVersion >= sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
+        <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
       )}
       {error && (
         <p className="error" role="alert">
