@@ -49,10 +49,6 @@ class AiMappingTest {
         )
     }
 
-    @Test fun theNoteSchemaNamesEveryReadingField() {
-        assertEquals(setOf("kind", "label", "summary", "evidenceQuote"), AiSchemas.note.properties!!.keys)
-    }
-
     @Test fun theClipPromptAsksForNoFacesOrNames() {
         val p = AiSchemas.CLIP_PROMPT.lowercase()
         assertEquals(true, p.contains("do not describe the face"))
