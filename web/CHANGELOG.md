@@ -744,3 +744,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `telemetry/perf.ts` is the sink (Firebase Performance Monitoring custom traces). The post records one "hybrid-inference" trace per model call: plan wording (its route from `wordPlan`), on-device and consented cloud photo reads, and on-device and consented cloud sighting-note reads, each with path, reason, platform and stage and the latency; never any text, photo or answer.
 - Source: promoted item P-15 and plan Task 27.
 - Verified: typecheck and build clean; `e2e/telemetry.spec.ts` (deployed-only) is run against the deployed build right after this commit: a consented cloud photo read must produce a Performance Monitoring upload naming "hybrid-inference" with its route values. scripts/ci-local.sh exit 0.
+
+### test(e2e): run the App Check smoke from an empty browser so it proves the exchange
+- What: the joined smoke runs with an empty starting state instead of the run's saved session, because the saved session carries a cached App Check token and the test's purpose is to see the debug-token exchange answer 200. It costs one anonymous sign-up per run.
+- Source: the first deployed run with the shared session (the smoke waited for an exchange that the cached token made unnecessary).
+- Verified: the smoke file passes against the live site (3 tests plus setup); the telemetry check passes there too. scripts/ci-local.sh exit 0.

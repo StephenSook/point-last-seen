@@ -24,30 +24,35 @@ test("the live site serves this commit", async ({ request }) => {
 });
 
 // Deployed-only: the post loads the drill's photos through Storage, and its console must stay clean.
-test("a joined command post draws the drill segments and credits the grid as stamped", async ({ page, consoleErrors }) => {
-  deployedOnly();
-  const incident = process.env["PLS_SMOKE_INCIDENT"];
-  const code = process.env["PLS_SMOKE_JOIN_CODE"];
-  // Under CI a missing fixture is a failure, never a skip.
-  if (!incident || !code) {
-    if (process.env["CI"]) throw new Error("PLS_SMOKE_INCIDENT and PLS_SMOKE_JOIN_CODE are required in CI");
-    test.skip(true, "needs a seeded drill incident and its join code");
-    return;
-  }
-  await withDebugToken(page);
-  const exchange = page.waitForResponse((r) => r.url().includes("exchangeDebugToken") && r.request().method() === "POST");
-  await page.goto(`/?incident=${encodeURIComponent(incident)}`);
-  await page.getByLabel("Join code").fill(code);
-  await page.getByRole("button", { name: "Join as command" }).click();
-  expect((await exchange).status()).toBe(200);
-  await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
-  // The map's workers start after the canvas appears; wait for the map to settle before reading errors.
-  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
-  // The drill incident has a grid: its segments must draw, with one printed percent each, and the
-  // credit must be the line the grid builder stamped on the incident (no credit only on an empty map).
-  await expect(page.locator(".map-empty")).toHaveCount(0, { timeout: 15_000 });
-  await expect(page.locator(".plate").first()).toBeVisible();
-  await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap contributors (ODbL)");
-  await expect(page.getByText(DRILL)).toBeVisible();
-  expect(consoleErrors).toEqual([]);
+// It starts from an empty browser (not the run's saved session) so it proves the App Check exchange
+// itself; that costs one anonymous sign-up per run.
+test.describe("fresh browser", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+  test("a joined command post draws the drill segments and credits the grid as stamped", async ({ page, consoleErrors }) => {
+    deployedOnly();
+    const incident = process.env["PLS_SMOKE_INCIDENT"];
+    const code = process.env["PLS_SMOKE_JOIN_CODE"];
+    // Under CI a missing fixture is a failure, never a skip.
+    if (!incident || !code) {
+      if (process.env["CI"]) throw new Error("PLS_SMOKE_INCIDENT and PLS_SMOKE_JOIN_CODE are required in CI");
+      test.skip(true, "needs a seeded drill incident and its join code");
+      return;
+    }
+    await withDebugToken(page);
+    const exchange = page.waitForResponse((r) => r.url().includes("exchangeDebugToken") && r.request().method() === "POST");
+    await page.goto(`/?incident=${encodeURIComponent(incident)}`);
+    await page.getByLabel("Join code").fill(code);
+    await page.getByRole("button", { name: "Join as command" }).click();
+    expect((await exchange).status()).toBe(200);
+    await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
+    // The map's workers start after the canvas appears; wait for the map to settle before reading errors.
+    await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+    // The drill incident has a grid: its segments must draw, with one printed percent each, and the
+    // credit must be the line the grid builder stamped on the incident (no credit only on an empty map).
+    await expect(page.locator(".map-empty")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator(".plate").first()).toBeVisible();
+    await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap contributors (ODbL)");
+    await expect(page.getByText(DRILL)).toBeVisible();
+    expect(consoleErrors).toEqual([]);
+  });
 });
