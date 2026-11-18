@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### docs(ios): add simulator screenshots of the iPhone screens there is today
+- What: three screenshots from the iPhone 17 Pro simulator in `ios/docs/evidence/screens/`, for
+  the design review: the task screen with no pack loaded (night theme), and the Ready check in the
+  night and day themes. The screens that need a pack (the task, the approach card, the pick list)
+  wait for the app's pack loader.
+- Source: design review request.
+- Verified: each screen was opened and looked at before saving; `bash scripts/ci-local.sh` exit 0.
+
 ### feat(ios): speak assignments through the published voice template
 - What: the AI Logic voice now calls the published prompt template named by the new Remote Config
   key `voice_template_id` (default `pls-voice-v1`) with the approved plan text as its only input,
