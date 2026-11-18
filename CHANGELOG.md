@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules validate each stored effect variant (spec section 8): cleared needs exactly kind, segmentId
+  (1 to 16 chars), pod (0 to 1) and inputs with exactly coverage (>= 0), sweepWidthM and trackLengthM (null or
+  >= 0), areaM2 (> 0) and a known rdBasis; clue needs 1 to 64 influences with known values and a known
+  authenticity; none needs a known reason and nothing else. Every other device applies a stored effect
+  without re-deriving it, so a malformed one must never be stored.
+  Source: Codex adversarial review H2 (rules side), verified by the orchestrator.
+  Verified: 4 new emulator tests (17 malformed effects rejected, 3 well-formed accepted) failed first (3 of 4),
+  now the suite passes 57; `bash scripts/ci-local.sh` exits 0.
 - Add the ISRID ring prior (`shared/engine-ts/src/prior.ts`, `buildPrior`): ring layer by annulus area share
   (128-step rings, temperate flat or mountain column), the linear-feature layer (75% of grid mass near
   features, grid mass kept) and the direction wedge (2.045 inside 66 degrees, 0.395 outside, grid mass kept);

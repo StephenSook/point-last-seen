@@ -94,6 +94,44 @@ describe("events: identity binding, sizes and types", () => {
   });
 });
 
+describe("events: each effect variant is validated (spec section 8)", () => {
+  const inputs = { coverage: 0.8, sweepWidthM: null, trackLengthM: null, areaM2: 15625, rdBasis: "open_target" };
+  const cleared = { kind: "cleared", segmentId: "AC", pod: 0.55, inputs };
+  const clue = { kind: "clue", influences: { AB: "strong_for", AA: "for" }, authenticity: "high" };
+  it("well-formed cleared, clue and none effects are accepted", async () => {
+    const db = dbAs(S, searcherClaims);
+    await assertSucceeds(setDoc(doc(db, path(ID)), validEvent(S, { effect: cleared })));
+    await assertSucceeds(setDoc(doc(db, path(ID2)), validEvent(S, { eventId: ID2, type: "clue", effect: clue })));
+    await assertSucceeds(setDoc(doc(db, path(ID3)), validEvent(S, { eventId: ID3, effect: { kind: "none", why: "sound_only" } })));
+  });
+  it("a cleared effect without inputs, or with wrong types or bounds, is rejected", async () => {
+    const db = dbAs(S, searcherClaims);
+    const bad = [
+      { kind: "cleared", segmentId: "AC", pod: 0.55 },
+      { ...cleared, pod: "0.55" }, { ...cleared, pod: 1.5 }, { ...cleared, pod: -0.1 },
+      { ...cleared, segmentId: 7 }, { ...cleared, extra: 1 },
+      { ...cleared, inputs: { ...inputs, rdBasis: "guess" } }, { ...cleared, inputs: { ...inputs, coverage: -1 } },
+      { ...cleared, inputs: { ...inputs, areaM2: 0 } }, { ...cleared, inputs: { coverage: 0.8 } },
+      { ...cleared, inputs: { ...inputs, sweepWidthM: "wide" } }, { ...cleared, inputs: { ...inputs, extra: 1 } },
+    ];
+    for (const effect of bad) await assertFails(setDoc(doc(db, path(ID)), validEvent(S, { effect })));
+  });
+  it("a clue effect needs at least one known influence value and a known authenticity", async () => {
+    const db = dbAs(S, searcherClaims);
+    const bad = [
+      { ...clue, influences: {} }, { ...clue, influences: { AB: "certain" } }, { ...clue, authenticity: "total" },
+      { kind: "clue", influences: { AB: "for" } }, { ...clue, influences: "AB" },
+    ];
+    for (const effect of bad) await assertFails(setDoc(doc(db, path(ID)), validEvent(S, { type: "clue", effect })));
+  });
+  it("a none effect needs a known reason and nothing else", async () => {
+    const db = dbAs(S, searcherClaims);
+    await assertFails(setDoc(doc(db, path(ID)), validEvent(S, { effect: { kind: "none", why: "because" } })));
+    await assertFails(setDoc(doc(db, path(ID)), validEvent(S, { effect: { kind: "none" } })));
+    await assertFails(setDoc(doc(db, path(ID)), validEvent(S, { effect: { kind: "none", why: "invalid", pod: 1 } })));
+  });
+});
+
 describe("events: types by role", () => {
   it("a searcher cannot confirm a sighting; command can", async () => {
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), path(ID3)),
