@@ -112,6 +112,14 @@ describe("readClip", () => {
     expect(t.calls).toEqual([]);
   });
 
+  it("a cloud pause that arrives during the consent write stops the read before the upload", async () => {
+    const t = await setup();
+    let paused = false;
+    const r = await readClip({ ...t.req, killCloud: () => paused }, { ...t.deps, writeConsent: async () => { t.calls.push("consent"); paused = true; } });
+    expect(r).toEqual({ kind: "refused", message: "Clip reading is paused right now." });
+    expect(t.calls).toEqual(["find", "consent"]);
+  });
+
   it("on a miss: consent record, then upload, then the model, then the completion", async () => {
     const t = await setup();
     const r = await readClip(t.req, t.deps);

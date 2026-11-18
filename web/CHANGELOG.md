@@ -970,3 +970,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post wrapped the clip generator in `(b64, m) => generate(b64, m)`, which dropped triage's window, so a flagged clip reached the model with no video offsets while its route said `on_device_triage_flagged`. The read's dependencies now come from `clipReadDeps(firestoreClipIo(...), clipCloudGenerator(...))`, which passes the generator through unchanged. The claim stays "the model reads only the flagged seconds": the whole clip is still in the request (offsets, not trimming).
 - Source: second-model review of PR #16, finding 4 (medium).
 - Verified: new test (readClip through `clipReadDeps` with a flagged window: the generator receives the window) failed first (factory missing), then passed; the generator test already pins that a window becomes `videoMetadata` in the request; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): read the cloud pause live and check it again before the clip upload
+- What: `readClip` checks the cloud pause again right after the consent record is saved, before the Storage upload; and the post's check reads the latest activated Remote Config through a ref instead of the value from the render that started the read. A pause that arrives mid-read now stops it before the clip leaves the laptop.
+- Source: second-model review of PR #16, finding 5 (medium).
+- Verified: new test (the pause turns on during the consent write: refused with "Clip reading is paused right now.", no upload) failed first, then passed (21 in clipRead.test.ts); typecheck clean. scripts/ci-local.sh exit 0.

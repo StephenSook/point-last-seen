@@ -215,6 +215,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const { view, events, plans, profile, denied, offline } = state;
   const [now, setNow] = useState(() => Date.now());
   const [rc, setRc] = useState<WebRc>(() => parseRc({}));
+  // The latest activated Remote Config, for checks inside a read that started on an earlier render.
+  const rcNow = useRef(rc);
+  rcNow.current = rc;
   const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
   const latestSeen = useRef<number | null | undefined>(undefined);
@@ -501,7 +504,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
         clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
-        killCloud: () => rc.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
+        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
       },
       clipReadDeps(firestoreClipIo(pls.db, pls.storage, incidentId), clipCloudGenerator(ai(), rc.cloudModelWeb)),
     );
