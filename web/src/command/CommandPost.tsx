@@ -3,10 +3,16 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
+import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { readClip, type ClipReadOutcome } from "../ai/clipRead";
+import { clipExists, clipPath, completeClipReading, findClipReading, uploadClip, writeConsentRecord } from "../data/clips";
+import { buildCameraSighting, travelBearingFromInputs } from "../data/cameraSighting";
+import { cameraPriorWrites } from "../prior/cameraPrior";
+import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
+import type { ClipIntakeInput } from "../camera/ClipIntake";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
@@ -207,6 +213,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
+  const [clipping, setClipping] = useState(false);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
   const [photos, setPhotos] = useState<TrayPhoto[]>([]);
@@ -439,12 +446,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     };
   }, [incident?.gridId]);
   const places = (events as unknown as EventDoc[]).filter((e) => e.type === "destination" && e.position);
+  // The direction of travel comes from a confirmed camera sighting among the prior's inputs.
+  const bearing = useMemo(() => travelBearingFromInputs(events as unknown as EventDoc[], incident?.priorInputEventIds ?? []), [events, incident?.priorInputEventIds]);
   const applyModel = async (choice: PriorChoice) => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
       const layers = incident.priorLayers ?? { linear: false, wedge: false };
-      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, null);
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
@@ -468,8 +477,55 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, null);
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing);
     const w = priorWrites(rebuilt, incident, layers, terrain);
+    return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
+  };
+  // A camera clip: the three required consents are bound to the clip's SHA-256 before readClip
+  // checks them; a fresh reading is traced like any other model call.
+  const readCameraClip = async (input: ClipIntakeInput): Promise<ClipReadOutcome> => {
+    const uid = pls.auth.currentUser?.uid;
+    if (!uid) return { kind: "failed" };
+    const at = Date.now();
+    const mark = (given: boolean) => (given ? { byUid: uid, atMs: at } : null);
+    const sha = await sha256Hex(input.bytes);
+    const o = await readClip(
+      {
+        incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
+        clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
+        consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
+        killCloud: () => rc.killCloud, model: rc.cloudModelWeb, uid,
+      },
+      {
+        findReading: (s) => findClipReading(pls.db, incidentId, s),
+        writeConsent: (r) => writeConsentRecord(pls.db, incidentId, r),
+        clipExists: (s) => clipExists(pls.storage, clipPath(incidentId, s)),
+        upload: (s, b, m) => uploadClip(pls.storage, clipPath(incidentId, s), b, m),
+        generate: (b64, m) => clipCloudGenerator(ai(), rc.cloudModelWeb)(b64, m),
+        complete: (s, reading, route) => completeClipReading(pls.db, incidentId, s, reading as unknown as Record<string, unknown>, route),
+        nowMs: () => Date.now(),
+      },
+    );
+    if (o.kind === "read" && !o.cached && o.route) traced(o.route);
+    return o;
+  };
+  // Confirm: the camera sighting and its confirmation (create-only, not awaited), then one batch
+  // that rebuilds the ring prior from the camera with the wedge on and the sighting as an input.
+  const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void> } => {
+    if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+    const cam = buildCameraSighting(
+      { sha256: o.sha256, reading: o.reading, route: o.route, clipStartMs: input.clipStartMs, clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg, camera: input.camera },
+      writer(),
+    );
+    write(cam);
+    write(buildConfirmation(cam, "confirmed", writer()));
+    const w = cameraPriorWrites(
+      segments,
+      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds },
+      cam,
+      o.bearingDeg,
+    );
+    setPin(null);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
   };
   const saveProfile = (p: FamilyProfile) => {
@@ -525,7 +581,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -569,8 +625,27 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping}>
               Add sighting
+            </button>
+          )}
+          {clipping ? (
+            <CameraClipPanel
+              camera={pin}
+              cameraSegmentId={pin ? segmentContaining(pin, segments) : null}
+              choices={segmentChoices(segments)}
+              onPlaceCamera={setPin}
+              priorVersion={incident?.priorVersion ?? 0}
+              onRead={readCameraClip}
+              onConfirm={confirmCameraClip}
+              onClose={() => {
+                setClipping(false);
+                setPin(null);
+              }}
+            />
+          ) : (
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding}>
+              Add camera clip
             </button>
           )}
           <SightingsPanel
@@ -596,7 +671,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
               priorVersion={incident.priorVersion}
-              hasBearing={false}
+              hasBearing={bearing !== null}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}
               onApply={applyPrior}
             />
