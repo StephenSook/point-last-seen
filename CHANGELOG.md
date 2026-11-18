@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The emulator port wait also waits for any running emulator process whose arguments name a port in this
+  worktree's block, and `--who-holds` prints those processes and the kernel's sockets on the block (TIME_WAIT
+  included). The one-off WebChannel bind failure reproduced here: a bind on this worktree's own Firestore port
+  failed seconds after the previous emulator run returned, with no other worktree's block overlapping, which
+  points at `emulators:exec` returning before the Firestore JVM has released its ports. The wait tests now pick a
+  test worktree whose block is free, so a live emulator cannot make them fail.
+  Source: lane B's flake report and its reproduction in this worktree.
+  Verified: the process test failed first, now 11 emulator_config tests pass; `--who-holds` prints all three
+  sections; `bash scripts/ci-local.sh` exit 0.
 - The App Check control counts the debug-token call as passed only when the 200 carries a non-empty answer
   (candidates with text); a 200 with {} or no text now fails the control.
   Source: review of 2bdb778..dc762be (low).
