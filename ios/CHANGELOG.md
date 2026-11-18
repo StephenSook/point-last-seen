@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): describe each read as a route-only Performance trace
+- What: `RouteTelemetry` maps a read's `RouteRecord` to the `report_read` trace: five
+  attributes (path, stage, reason, model, blocked) and a `latency_ms` metric. It carries the
+  route only, never the report, the reading or anything about the subject. AI monitoring sees
+  cloud calls only, so this is how the on-device share and latency can be shown.
+- Source: promotion P-15 (telemetry), EXTRA-MILE C4.
+- Verified: three `RouteTelemetryTests` (the mapping; every path, stage and reason fits the
+  installed SDK's limits of 5 attributes, 40-character names, 100-character values, no
+  reserved prefix; strange latencies) compile-red, then green. The huge-latency case crashed
+  the run ("Double value cannot be converted to Int64") before the one-day cap was added.
+  235 tests; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): ask an old build to update when command raises the minimum version
 - What: `AppModel.updatePrompt` is set when `minimum_version_ios` is above this build's
   CFBundleShortVersionString: "Update this app. Command needs version X or newer. Reports still
