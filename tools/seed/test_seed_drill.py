@@ -77,3 +77,19 @@ def test_rotation_swaps_the_code_doc_in_one_commit_with_preconditions():
 def test_a_new_code_differs_from_every_current_code():
     new = seed.make_rotated_code({"OLDCODE1", "SEARCHR1"})
     assert len(new) == 8 and new not in {"OLDCODE1", "SEARCHR1"}
+
+
+def test_a_code_is_written_to_the_keychain_on_stdin_never_in_arguments(monkeypatch):
+    # Arguments are visible to every local process (ps); the code must travel on stdin only.
+    import subprocess as sp
+    calls = []
+
+    def fake_run(args, **kw):
+        calls.append((args, kw.get("input")))
+        out = "ABCDEFGH" if "find-generic-password" in args else ""
+        return sp.CompletedProcess(args, 0, out, "")
+
+    monkeypatch.setattr(seed.subprocess, "run", fake_run)
+    seed.keychain_store("pls-drill-family-code", "drill-dev-1", "ABCDEFGH")
+    assert all("ABCDEFGH" not in " ".join(args) for args, _ in calls)
+    assert any(inp and "ABCDEFGH" in inp for _, inp in calls)

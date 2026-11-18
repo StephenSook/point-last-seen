@@ -21,6 +21,7 @@ anything changes, then one atomic commit creates the new joinCodes doc (only if 
 
 import hashlib
 import json
+import re
 import secrets
 import subprocess
 import sys
@@ -157,8 +158,11 @@ def create_doc(project: str, path: str, data: dict, token: str, server_time_fiel
 
 
 def keychain_store(service: str, account: str, value: str) -> None:
-    subprocess.run(["security", "add-generic-password", "-U", "-s", service, "-a", account, "-w", value],
-                   capture_output=True, check=True)
+    # The value goes to `security -i` on stdin, never in arguments, which every local process can read.
+    if not re.fullmatch(r"[0-9A-Za-z_.-]{1,128}", value + service + account):
+        raise SystemExit("keychain_store: unexpected characters in a Keychain value or name")
+    subprocess.run(["security", "-i"], input=f'add-generic-password -U -s "{service}" -a "{account}" -w "{value}"\n',
+                   capture_output=True, text=True, check=True)
     back = subprocess.run(["security", "find-generic-password", "-s", service, "-a", account, "-w"],
                           capture_output=True, text=True, check=True).stdout.strip()
     if back != value:
