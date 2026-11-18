@@ -292,18 +292,11 @@ service cloud.firestore {
         && d.createdAt == request.time;
     }
 
-    function eventFields() {
-      return ['eventId', 'schemaVersion', 'incidentId', 'teamId', 'deviceId', 'seq', 'authorUid', 'role',
-              'type', 'reporter', 'clientTimeMs', 'serverTime', 'observedAtMs', 'position', 'positionSource',
-              'rawText', 'inputMethod', 'isTrainingInject', 'reading', 'effect', 'route', 'targetEventId',
-              'decision', 'planVersion', 'priorVersion'];
-    }
-
-    function typeAllowed(type) {
-      return role() == 'command' && type in ['cleared', 'clue', 'sighting', 'camera_sighting', 'destination',
-                                             'confirmation', 'retraction', 'found', 'plan_ack']
-        || role() == 'searcher' && type in ['cleared', 'clue', 'sighting', 'found', 'plan_ack', 'retraction']
-        || role() == 'family' && type in ['sighting', 'camera_sighting', 'destination', 'confirmation', 'retraction'];
+    function typeAllowed(type, r) {
+      return r == 'command' && type in ['cleared', 'clue', 'sighting', 'camera_sighting', 'destination',
+                                        'confirmation', 'retraction', 'found', 'plan_ack']
+        || r == 'searcher' && type in ['cleared', 'clue', 'sighting', 'found', 'plan_ack', 'retraction']
+        || r == 'family' && type in ['sighting', 'camera_sighting', 'destination', 'confirmation', 'retraction'];
     }
 
     // A retraction targets an event that exists; only command may retract another author's event.
@@ -316,6 +309,9 @@ service cloud.firestore {
 
     // The stored effect is applied by every device without re-deriving it, so each variant is
     // checked here (spec section 8): a malformed effect must never reach another device's engine.
+    // Key sets are pinned by size: every check reads each named key, a missing key is an error and an
+    // error denies, so size() == n admits exactly those keys without list literals (the 1,000-expression
+    // limit; functions/test/rules/shapes.test.ts drops each key in turn to prove it).
     function exactKeys(m, keys) {
       return m.keys().hasOnly(keys) && m.keys().hasAll(keys);
     }
@@ -324,7 +320,7 @@ service cloud.firestore {
     }
     function validClearedInputs(i) {
       return i is map
-        && exactKeys(i, ['coverage', 'sweepWidthM', 'trackLengthM', 'areaM2', 'rdBasis'])
+        && i.size() == 5
         && i.coverage is number && i.coverage >= 0
         && optionalLength(i.sweepWidthM)
         && optionalLength(i.trackLengthM)
@@ -334,17 +330,17 @@ service cloud.firestore {
     function validEffect(e) {
       return e is map && (
         (e.kind == 'cleared'
-          && exactKeys(e, ['kind', 'segmentId', 'pod', 'inputs'])
+          && e.size() == 4
           && e.segmentId is string && e.segmentId.size() >= 1 && e.segmentId.size() <= 16
           && e.pod is number && e.pod >= 0 && e.pod <= 1
           && validClearedInputs(e.inputs))
         || (e.kind == 'clue'
-          && exactKeys(e, ['kind', 'influences', 'authenticity'])
+          && e.size() == 3
           && e.influences is map && e.influences.size() >= 1 && e.influences.size() <= 64
           && e.influences.values().hasOnly(['strong_for', 'for', 'neutral', 'against', 'strong_against'])
           && e.authenticity in ['high', 'medium', 'low'])
         || (e.kind == 'none'
-          && exactKeys(e, ['kind', 'why'])
+          && e.size() == 2
           && e.why in ['needs_command', 'informational', 'invalid', 'sound_only', 'outside_area', 'incorporated_in_prior']));
     }
 
@@ -362,35 +358,32 @@ service cloud.firestore {
     // its start time, whether the family confirmed the camera clock, and an 8-way facing or null. The clip
     // reading doc (consent record) must exist.
     function cameraReadingOk(incidentId, r) {
-      return r is map
-        && exactKeys(r, ['sighting', 'clipSha256', 'clipStartMs', 'clockConfirmed', 'cameraFacingDeg'])
-        && r.sighting is map
-        && r.clipSha256 is string && r.clipSha256.matches('^[0-9a-f]{64}$')
-        && r.clipStartMs is number
-        && r.clockConfirmed is bool
-        && (r.cameraFacingDeg == null || r.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
+      return schema_CameraSightingReading(r)
         && exists(/databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(r.clipSha256));
     }
 
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
+      // The role claim, read once: the 1,000-expression budget is tight for the largest events.
+      // d.size() == 25 pins the key set because each of the 25 event.schema.json fields is read below
+      // (shapes.test.ts drops each in turn with a stray key in its place and must be refused).
+      let r = request.auth.token.role;
       return isMember(incidentId)
         && isOpen(incidentId)
         && eventId.matches('^[0-9a-f]{32}$')
-        && d.keys().hasOnly(eventFields())
-        && d.keys().hasAll(eventFields())
+        && d.size() == 25
         && d.eventId == eventId
         && d.schemaVersion == 1
         && d.incidentId == incidentId
         && d.authorUid == request.auth.uid
-        && d.role == role()
+        && d.role == r
         && d.serverTime == request.time
         && d.seq is int && d.seq >= 0
         && d.clientTimeMs is number
         && d.deviceId == request.auth.uid
         && eventIdOf(incidentId, request.auth.uid, d.seq).matches(eventId + '[0-9a-f]{32}')
         && (d.teamId == null || (d.teamId is string && d.teamId.size() <= 32))
-        && (role() != 'searcher' || d.teamId == request.auth.token.team)
+        && (r != 'searcher' || d.teamId == request.auth.token.team)
         && d.reporter in ['searcher', 'public_caller', 'family', 'camera', 'system']
         && d.positionSource in ['gps', 'assigned_segment', 'manual', 'map_click', 'camera_pin', 'none']
         && d.inputMethod in ['keyboard_dictation', 'typed', 'picklist', 'clip', 'photo', 'system']
@@ -398,14 +391,14 @@ service cloud.firestore {
         && d.priorVersion is int
         && (d.planVersion == null || d.planVersion is int)
         && (d.observedAtMs == null || d.observedAtMs is number)
-        && (d.position == null || d.position is map)
+        && (d.position == null || schema_Position(d.position))
         && (d.rawText == null || (d.rawText is string && d.rawText.size() <= 2000))
-        && (d.reading == null || d.reading is map)
-        && (d.route == null || d.route is map)
+        && (d.type == 'camera_sighting' || d.reading == null || schema_ReportReading(d.reading))
+        && (d.route == null || schema_RouteRecord(d.route))
         && validEffect(d.effect)
         && (d.targetEventId == null || (d.targetEventId is string && d.targetEventId.matches('^[0-9a-f]{32}$')))
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
-        && typeAllowed(d.type)
+        && typeAllowed(d.type, r)
         && (d.type != 'retraction' || retractionOk(incidentId, d))
         && (d.type != 'camera_sighting' || cameraReadingOk(incidentId, d.reading))
         && (d.type != 'confirmation' || (d.targetEventId is string && d.decision in ['confirmed', 'rejected']));

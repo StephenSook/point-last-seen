@@ -49,3 +49,17 @@ export function clipReadingDoc(incidentId: string, sha: string, uid: string, ove
     expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
   };
 }
+
+/** A schema-valid ReportReading (shared/schemas/report-reading.schema.json). */
+export const reportReading = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  kind: "cleared", segmentIds: ["AC"], method: "visual", coverage: 0.8, minutes: 30, searchers: 2, searchType: "sweep",
+  detectionRangeM: 10, item: "", feature: "none", direction: "unknown", topColor: "unknown", bottomColor: "unknown",
+  footwear: "", carried: "", matchesProfile: "unknown", evidenceQuote: "Cleared AC, eighty percent", ...over,
+});
+
+/** A schema-valid RouteRecord (shared/schemas/route-record.schema.json). */
+export const routeRecord = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  platform: "web", path: "cloud", stage: "guided", model: "test-model", reason: "sdk_prefer_in_cloud", latencyMs: 1200,
+  sdkReported: true, blocked: null, decidedAtMs: 1795860000000, ...over,
+});
+

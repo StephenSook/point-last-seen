@@ -5,6 +5,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Events take only their schema shapes (rules audit, moderate): `position` must be {lat, lon, accuracyM} in
+  range, `reading` a ReportReading (or, for camera_sighting, a CameraSightingReading whose sighting is a
+  CameraSighting), `route` a RouteRecord, each bounded in size, using the generated validators. Before, each was
+  any map, so a searcher could append about 1 MiB events that nobody can delete and every device syncs. To fit
+  the heaviest real events (a cleared report with its effect inputs, a full reading, a route and a GPS
+  position; a 64-influence clue; a full camera sighting) under Firestore's 1,000-expression limit per
+  request, the role claim is read once, and the event and effect key sets are pinned by size (every key is
+  read, and a missing key is an error that denies) instead of by list literals.
+  Source: rules audit 2026-11-18, finding (a).
+  Verified: new `functions/test/rules/shapes.test.ts` (each case failed first or hit the limit and was cut
+  down): bad positions, oversized or unknown-keyed readings and routes, a fourth carried item and other bad
+  camera sightings are refused; the heaviest real events pass; dropping any of the 25 event keys, the 4
+  cleared-effect keys or the 5 input keys for a stray key is refused. Emulator suite passes;
+  `bash scripts/ci-local.sh` exit 0.
 - `tools/rules/gen_rules_validators.py` compiles shared/schemas into Firestore rules validator functions
   (schema_Position, schema_ReportReading, schema_RouteRecord, schema_CameraSighting,
   schema_CameraSightingReading, schema_SharedProfile) and writes them between GENERATED markers in
