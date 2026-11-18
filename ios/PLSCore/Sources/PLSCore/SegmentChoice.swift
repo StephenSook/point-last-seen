@@ -1,6 +1,6 @@
 import Foundation
 
-/// Which segments a report is about, decided by code and never by a model (coordinator ruling
+/// Which segments a report is about, decided by code and never by a model (review ruling
 /// 2026-11-18, from spike S1: the model copied the team's assignment instead of the segment the
 /// report named). The ids the report text names, by the parser's rule (capital letters, or after
 /// "segment"), unknown ones included so the validator rejects them; if it names none, the

@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### docs(ios): name no internal process in the changelog or comments
+- What: changelog entries and three code comments now say "review" or name the
+  `ReadOrchestrator` type where they named the team's internal process. No behaviour changes.
+- Source: repo rule for public text (commit messages, changelogs, comments and docs).
+- Verified: a case-insensitive search of `ios/` for the internal names returns 0 lines;
+  246 Swift tests pass; `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): read a partial shared profile with the missing fields empty
 - What: `SharedProfile` decodes every missing or null key as empty ("" for text, [] for
   lists, [:] for flags, nil for optional values) instead of failing. The rules let command write
@@ -57,7 +64,7 @@ finding) and how it was verified. Newest first.
   never spoken. `shouldSpeak` speaks only when the words would change. `path` picks the cloud
   voice only when Remote Config names a model (`tts_model_ios`, default empty), the phone is
   online and the kill switch is off; otherwise the phone's own synthesizer.
-- Source: TTS first cut approved by the orchestrator 2026-11-18 (EXTRA-MILE F1); lane A's key
+- Source: TTS first cut approved in review 2026-11-18 (EXTRA-MILE F1); lane A's key
   name `tts_model_ios`.
 - Verified: five `SpokenAssignmentTests` compile-red, then green; 245 tests;
   `scripts/ci-local.sh` exit 0.
@@ -69,7 +76,7 @@ finding) and how it was verified. Newest first.
   value that is not a number. Clothing does not enter. `UrgencyLevel.chipText` is "Cold raises
   urgency" or "Cool and wet raises urgency"; `sourceLine` quotes the CDC sentence word for word
   with its read date. Search urgency only, no treatment advice.
-- Source: promotion P-12; coordinator ruling 2026-11-18 (CDC winter-weather page, read
+- Source: promotion P-12; review ruling 2026-11-18 (CDC winter-weather page, read
   2026-11-18); lane A's constants and vectors on main.
 - Verified: three `UrgencyTests` (all 7 shared vectors agree, words and source line, nonsense
   temperatures give no chip) compile-red, then green; 240 tests; `scripts/ci-local.sh` exit 0.
@@ -121,7 +128,7 @@ finding) and how it was verified. Newest first.
   script uploads the dSYMs for symbolication on Release builds only, with Firebase's
   documented input files so it runs under user script sandboxing. The app sets no custom keys
   or logs, so crash reports hold stack traces only, never report text or subject data.
-- Source: promotion P-15 (Crashlytics on iOS); orchestrator tool note (all target and script
+- Source: promotion P-15 (Crashlytics on iOS); review note (all target and script
   changes in `ios/project.yml`, never in the generated project).
 - Verified: `crashReportsAreCollected` failed to build without the product ("Unable to resolve
   module dependency: 'FirebaseCrashlytics'"), then green; 43 app tests pass; a Release
@@ -194,7 +201,7 @@ finding) and how it was verified. Newest first.
 - What: `ReportReader` sets `ReadContext.positionSegmentId` from the report's situation, so a
   report that names no segment is read as being about the segment the searcher stands in,
   whatever the model copied.
-- Source: coordinator ruling 2026-11-18 (segment ids from code).
+- Source: review ruling 2026-11-18 (segment ids from code).
 - Verified: `theGPSSegmentReachesTheReadNotTheModelsCopy` (a model that copies AC; GPS in AB;
   text names nothing; result AB) red with this line removed, then green; 35 app tests pass on
   the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
@@ -203,15 +210,15 @@ finding) and how it was verified. Newest first.
 - What: `SegmentChoice.ids` picks a reading's segments in code: the ids the report names (the
   parser's rule; an unknown named id is kept so the validator rejects it), else the segment
   under the GPS fix (`ReadContext.positionSegmentId`), else none (the effect then uses the
-  assignment). The orchestrator applies it to every model and parser reading before
+  assignment). `ReadOrchestrator` applies it to every model and parser reading before
   validation, and the outcome builder applies it before the write, so the model's segment
   field never counts. The kind still comes from the model, with the parser's kind on a
   timeout, a failure or an unknown kind.
-- Source: coordinator ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
+- Source: review ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
   team's assignment, AC, instead of the segment the report named).
 - Verified: five `SegmentsFromCodeTests` (the choice order; AB named while assigned AC gives
   AB; nothing named gives the GPS segment; "maybe" as the kind falls back to the parser; the
-  stored event uses the code choice) red with the orchestrator override removed, then green.
+  stored event uses the code choice) red with the `ReadOrchestrator` override removed, then green.
   Two older tests used the model's own unknown id "ZZ" to make a reading invalid; they now use
   a report naming ZZ and a coverage of 400. 230 tests; `scripts/ci-local.sh` exit 0.
 
@@ -274,7 +281,7 @@ finding) and how it was verified. Newest first.
 - What: `SegmentAtTool`, `TeamAssignmentTool` and `SubjectProfileTool` take their names,
   descriptions and outputs from `ToolText`; `ReportPrompt` wraps `PromptText`. The words the app
   sends are now the exact words `cloudPromptHoldsOnlyNamedFields` checks.
-- Source: orchestrator ruling 2026-11-18 (design section 9), Task 21b.
+- Source: review ruling 2026-11-18 (design section 9), Task 21b.
 - Verified: `ToolsTests` rewritten to compare each tool's name, description and output, and both
   instruction texts, with the Core text: compile-red without `guidedText`/`permissiveText`, then
   green; 30 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
@@ -286,7 +293,7 @@ finding) and how it was verified. Newest first.
   subject-profile schema, puts a findable value in every shared and command field, and asserts
   only the report, the segment id, the assignment ids and the six appearance fields reach the
   payload; no flag name, health, medication, address, phone number or contact word appears.
-- Source: orchestrator ruling 2026-11-18 on design section 9 (all three tools may run on the
+- Source: review ruling 2026-11-18 on design section 9 (all three tools may run on the
   cloud route; the test is an allow-list over the whole outbound prompt); Task 21b.
 - Verified: compile-red without the types, then green; a planted leak (hair read from
   answersTo) turned it red on "field answersTo reached the cloud prompt", then restored; full
@@ -297,7 +304,7 @@ finding) and how it was verified. Newest first.
 - What: `EffectShape` now refuses a cleared effect whose segment id is empty or longer than 16
   characters, and a clue effect with more than 64 influences, as the Firestore create rule does.
   A stored event that fails is skipped and flagged, never applied.
-- Source: fresh-eyes review M6; orchestrator ruling 2026-11-18 ("a mismatch with the rules is a
+- Source: fresh-eyes review M6; review ruling 2026-11-18 ("a mismatch with the rules is a
   real defect").
 - Verified: `sizesFollowTheCreateRule` red on the three missing limits, then green; full suite
   211 tests; `scripts/ci-local.sh` exit 0.
@@ -423,7 +430,7 @@ finding) and how it was verified. Newest first.
   offline for the next minute, as the earlier changelog entry for the monitor already said; before
   this commit no code called those methods.
 - Source: fresh-eyes review I6; plan self-audit addendum (test the failed-request case).
-- Verified: two orchestrator tests (a network failure is reported; a success and an on-device
+- Verified: two `ReadOrchestrator` tests (a network failure is reported; a success and an on-device
   read are reported) compile-red without the field, then green; full suite 196 tests; app builds.
 
 ### fix(ios): retry anonymous sign-in and show it on the Ready check
@@ -571,7 +578,7 @@ finding) and how it was verified. Newest first.
 
 ### feat(ios): hold the live cloud gate in a lock-protected box
 - What: `LiveGateBox` keeps the current `LiveGate` (connectivity, consent, kill switch,
-  incident mode) behind a `Mutex`, so PLSCore's orchestrator can read it from any thread at the
+  incident mode) behind a `Mutex`, so PLSCore's `ReadOrchestrator` can read it from any thread at the
   moment of a cloud dispatch while the app updates it on the main actor.
 - Source: Codex review H1 follow-through (the app side of the live gate).
 - Verified: `LiveGateBoxTests` (latest value read from a detached task) red without the type,
@@ -595,7 +602,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   frame(incidentId) + frame(deviceId) + frame(decimal seq), frame(s) = decimal byte length, ":",
   s, and keeps the first 32 hex characters; ("ab", "c", 1) hashes "2:ab1:c1:1". The Firestore
   rules can recompute this form. `eventSetHash` and `convergenceCode` keep the binary framing.
-  Source: lane A ae8446e (coordinator decision). Verified: all 7 eventId vector cases and the
+  Source: lane A ae8446e (review decision). Verified: all 7 eventId vector cases and the
   new `epoch_ms_seq` case failed on the old framing, then passed; unit-test reference values
   recomputed independently in Python.
 - Detection range measured first. What: the team's measured `visualDetectionRangeM` (with its
@@ -649,7 +656,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   known authenticity; none: a known reason; null is malformed). `EventFilter.decode` skips and
   flags any event that fails it, and the vector harness now decodes docToEngine events one by
   one, as the app does.
-- Source: lane A 6c4dc21 (malformed_* docToEngine vectors), relayed by the orchestrator.
+- Source: lane A 6c4dc21 (malformed_* docToEngine vectors).
 - Verified: 8 malformed vector cases failed before (whole-array decode errors, an empty
   influence map applied), then passed; 158 of 158 vector cases; 3 new `EffectShapeTests`;
   full suite 175 tests.
@@ -676,7 +683,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - What: `EventFilter.decode` reads stored events one by one; one that does not decode (for
   example a clear with no inputs) is skipped and its id listed in `malformedIds` for command,
   while the rest go on to the engine.
-- Source: lane A's security-rules review, relayed by the orchestrator.
+- Source: lane A's security-rules review.
 - Verified: the new test (a good clear, a clear with no inputs, a document with no id) failed
   without `decode`, then passed; full suite 167 tests.
 
@@ -751,17 +758,17 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   word such as "by" or "in"), and the outcome builder adds such an id back when a model left it
   out, so "cleared segment ZZ, coverage 1" gives effect none/invalid instead of clearing the
   team's assigned segment. The assignment is used only when the report names no segment.
-- Source: Codex review H2, verified by the orchestrator; plan Review Focus 3.
+- Source: Codex review H2, verified against the code; plan Review Focus 3.
 - Verified: new parser and builder tests (parser path and model path) failed on the old code,
   then passed; "the segment by the creek" still names nothing; full suite 155 tests.
 
 ### fix(ios-core): check the cloud gate live at dispatch, keep the context-limit reason
-- What: the orchestrator reads a live gate (connectivity, consent, kill switch, incident mode)
+- What: `ReadOrchestrator` reads a live gate (connectivity, consent, kill switch, incident mode)
   again when it reroutes and right before any cloud call; if the gate closed during the
   on-device call, the report goes to the parser, not the cloud. A context-limit failure now
   reroutes as `over_token_budget` instead of `on_device_unavailable`. `ReportSituation` gains an
   optional `liveGate` that `ReportReader` passes through.
-- Source: Codex review H1 (gpt-6.2-sol, 11664c5..cec3596), verified by the orchestrator.
+- Source: Codex review H1 (gpt-6.2-sol, 11664c5..cec3596), verified against the code.
 - Verified: three new tests (kill switch flipped mid-call; signal lost or consent withdrawn
   mid-call; context limit keeps its reason) failed on the old code with the cloud actually
   called, then passed; full suite 152 tests; app builds.
@@ -826,7 +833,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - Source: Task 13; firebase-ios-sdk 13.2.0 `GeminiErrorMapper.swift`.
 - Verified: `CloudFailureTests` red, then green; full suite 146 tests.
 
-### feat(ios-core): add the read orchestrator and the tolerant permissive-line parser
+### feat(ios-core): add `ReadOrchestrator` and the tolerant permissive-line parser
 - What: `ReadOrchestrator.read` runs one report end to end behind a `ReadModelRunner`
   protocol: evidence screen and drill/judge gate first, then the route decision, guided
   generation, the permissive string stage, the deterministic parser and the pick-list. An

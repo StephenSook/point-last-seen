@@ -1,6 +1,6 @@
 import Foundation
 
-/// Event-set identity shared by every seat (coordinator decision during the build).
+/// Event-set identity shared by every seat (a review decision during the build).
 public enum EventSet {
     static let crockford = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 
