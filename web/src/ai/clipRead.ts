@@ -77,6 +77,7 @@ export function clipParts(base64: string, mimeType: string, window?: ClipWindow)
 
 export const NEEDS_CONSENT = "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing.";
 export const PAUSED = "Clip reading is paused right now.";
+export const CONSENT_GONE = "The consent record for this clip was deleted. Nothing was sent.";
 export const NO_LENGTH = "The clip's length could not be read. Try another copy of the clip.";
 
 const EDGES: readonly string[] = P.exitEdge.enum;
@@ -218,6 +219,11 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
       await deps.upload(sha, r.bytes, r.mimeType);
     }
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
+    if (r.killCloud()) return { kind: "refused", message: PAUSED };
+    // Command can delete the consent record (and the clip with it) at any time, from any seat. Read it again
+    // right before the bytes leave this laptop: no record, or an expired one, means nothing is sent.
+    const record = await deps.findReading(sha);
+    if (!record || !(record.expiresAtMs > deps.nowMs())) return { kind: "refused", message: CONSENT_GONE };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const t0 = deps.nowMs();
     const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType, r.window);
