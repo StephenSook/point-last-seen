@@ -100,13 +100,10 @@ export function CommandPost() {
       </main>
     );
   }
+  // While connecting, the join form is already there with its button disabled, so the page
+  // does not jump when the connection is ready (it stays the same element, keeping typed text).
   if (phase.kind === "connecting" || !pls) {
-    return (
-      <main className="panel">
-        <p className="drill">{DRILL_LINE}</p>
-        <p>Connecting.</p>
-      </main>
-    );
+    return <JoinPanel pls={null} error={null} onJoined={() => {}} />;
   }
   if (phase.kind === "join") {
     return <JoinPanel pls={pls} error={phase.error} onJoined={(incidentId) => setPhase({ kind: "post", incidentId })} />;
@@ -114,7 +111,7 @@ export function CommandPost() {
   return <Post pls={pls} incidentId={phase.incidentId} />;
 }
 
-function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; onJoined: (incidentId: string) => void }) {
+function JoinPanel({ pls, error, onJoined }: { pls: Pls | null; error: string | null; onJoined: (incidentId: string) => void }) {
   const [incidentId, setIncidentId] = useState(incidentFromUrl() ?? "");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -122,6 +119,7 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!pls) return;
     setErr(null);
     let req;
     try {
@@ -160,8 +158,8 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
             {err}
           </p>
         )}
-        <button type="submit" disabled={busy}>
-          {busy ? "Joining" : "Join as command"}
+        <button type="submit" disabled={busy || !pls}>
+          {!pls ? "Connecting" : busy ? "Joining" : "Join as command"}
         </button>
       </form>
     </main>

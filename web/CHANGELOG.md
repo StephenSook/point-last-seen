@@ -694,3 +694,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `#root` is a block formatting context (`display: flow-root`), so the panel's top margin stays inside it instead of collapsing into `body`; before, the whole body moved down 108 px (12vh) when React rendered the first panel.
 - Source: UI review D18 and Lighthouse (layout shift 0.084 desktop, 0.12 mobile on `/`). The cause was measured with the browser's layout-shift entries: one shift of 0.075 whose source was BODY, y 0 to 108.
 - Verified: the `e2e/pagefacts.spec.ts` test "the join page does not shift as it loads" failed first (0.075), then passed (under 0.02); the phone layout, judge and shell checks still pass. scripts/ci-local.sh exit 0.
+
+### feat(join): show the join form while connecting, with the button saying Connecting
+- What: while the app connects, the join form is already shown with its button disabled and labelled "Connecting" (instead of a short "Connecting." panel that the form then replaced); it is the same form element afterwards, so anything typed stays.
+- Source: UI review D18 suggestion.
+- Verified: the shell smoke, App Check refusal and field-contrast checks pass against the local preview (they press "Join as command" once it appears); typecheck and build clean. scripts/ci-local.sh exit 0.
