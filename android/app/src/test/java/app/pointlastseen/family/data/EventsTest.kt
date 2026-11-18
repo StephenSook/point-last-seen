@@ -57,6 +57,13 @@ class EventsTest {
         assertTrue(e.rawText!!.contains("by the gas station on Elm"))
     }
 
+    @Test fun aParenthesizedNumberNeverReachesTheStoredEvent() {
+        val e = Events.familySighting(input.copy(note = "call +1 (404) 5550142", place = "Elm (404) 5550142"), ctx())
+        val stored = e.toMap().toString()
+        assertFalse(stored.contains("5550142"))
+        assertTrue(e.rawText!!.contains("[number removed]"))
+    }
+
     @Test fun aSightingWithNoTimeIsRefused() {
         val ex = runCatching { Events.familySighting(input.copy(observedAtMs = null), ctx()) }.exceptionOrNull()
         assertTrue(ex is IllegalArgumentException && ex.message!!.contains("time"))

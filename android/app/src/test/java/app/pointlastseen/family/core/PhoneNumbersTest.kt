@@ -18,6 +18,13 @@ class PhoneNumbersTest {
         assertEquals("neighbour [number removed]", PhoneNumbers.remove("neighbour 555-0142"))
     }
 
+    @Test fun aParenthesizedAreaCodeWithSevenUnseparatedDigitsIsRemoved() {
+        assertEquals("call [number removed]", PhoneNumbers.remove("call +1 (404) 5550142"))
+        assertEquals("call [number removed]", PhoneNumbers.remove("call (404) 5550142"))
+        assertEquals("call [number removed]", PhoneNumbers.remove("call (404)5550142"))
+        assertEquals("call [number removed] now", PhoneNumbers.remove("call 404 5550142 now"))
+    }
+
     @Test fun timesDatesSegmentsAndDistancesAreLeftAlone() {
         val text = "seen at 14:03 on 2026-11-22 in segment AC, about 300 m north, 2 people"
         assertEquals(text, PhoneNumbers.remove(text))

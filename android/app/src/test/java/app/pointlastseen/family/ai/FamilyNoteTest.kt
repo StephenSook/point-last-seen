@@ -69,6 +69,14 @@ class FamilyNoteTest {
         assertTrue(prompt.contains("[number removed]"))
     }
 
+    @Test fun theModelNeverSeesAParenthesizedNumber() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        FamilyNote(model, screen).read("She used to walk to the old mill, call +1 (404) 5550142", env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val prompt = model.calls.single().second
+        assertFalse(prompt.contains("5550142"))
+        assertTrue(prompt.contains("[number removed]"))
+    }
+
     @Test fun theRouteRecordsTheSdkReportedSource() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 42))
         val out = FamilyNote(model, screen).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true)) as NoteOutcome.Read
