@@ -271,3 +271,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `getPls()` now also returns the Storage instance; `client.ts` gains `deviceModelInitializer`, which calls the SDK's `initializeDeviceModel` on a model built with the photo options and the private request options, so the download a person starts is for the same model the photo reads use.
 - Source: plan Task 20 ("Get this laptop ready" calls `initializeDeviceModel` from the click).
 - Verified: typecheck and build clean; the progress and failure handling are tested in `deviceModel.test.ts`.
+
+### feat(photos): add the photo tray with laptop reads, a consented cloud read and the family's answer
+- What: `PhotoTray`: "Get this laptop ready" and one line for the state (no model; can download; text only, "Photos stayed on this laptop."; can read photos), download progress in whole percents, "Add photos", and per photo: "Read on this laptop"; when there is no local model "This laptop has no local model. Nothing was sent." with "Read in the cloud", which needs "I consent for this photo"; the cues as "Suggested" with the route glyph (`data-testid="photo-cues"`); plain "Couldn't read" chips; and Yes, No or Not sure. Thumbnails come from the photo's bytes (a local object URL), never a Storage URL. Styles for the tray.
+- Source: plan Task 20 step 3, spec section 15 step 3, Task 20's privacy.spec labels.
+- Verified: typecheck and build clean; the reading logic is covered by `photoCues.test.ts` and `deviceModel.test.ts`. The deployed privacy e2e and the Gemma-profile still wait for joinIncident.
