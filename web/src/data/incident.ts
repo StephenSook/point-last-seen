@@ -2,7 +2,7 @@
 // segments and each phone's clock offset (measured when it packed).
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
-import type { EngineParams } from "@pls/engine";
+import type { EngineParams, GridSegment, PriorLayers, Terrain } from "@pls/engine";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -17,10 +17,23 @@ export type IncidentDoc = {
   gridId?: string;
   /** The license line the grid builder stamps on the incident, shown wherever its segments draw. */
   gridAttribution?: string;
+  /** Which ISRID distance column the prior uses; flat or mountain for this site is not verified. */
+  terrain?: Terrain;
+  /** The prior's switchable layers (rings are always on). */
+  priorLayers?: PriorLayers;
 };
 
 export type Team = { teamId: string; name: string };
-export type SegmentDoc = MapSegment & { areaM2: number; priorPoa: number; neighbors: string[]; upstream: string[]; downstream: string[] };
+export type SegmentDoc = MapSegment & {
+  areaM2: number;
+  priorPoa: number;
+  neighbors: string[];
+  upstream: string[];
+  downstream: string[];
+  /** Share of the cell within 71 m of a road, trail, stream or water edge (the linear layer reads it; absent: 0). */
+  nearFrac?: number;
+  featureClasses?: GridSegment["featureClasses"];
+};
 
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
@@ -66,7 +79,14 @@ export function subscribeIncident(
         const data = d.data();
         const geometry = parseGeometry(data["geometryJson"]);
         return geometry
-          ? [{ segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"], neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]) } as SegmentDoc]
+          ? [
+              {
+                segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"],
+                neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]),
+                nearFrac: typeof data["nearFrac"] === "number" ? data["nearFrac"] : 0,
+                featureClasses: ids(data["featureClasses"]) as SegmentDoc["featureClasses"],
+              } as SegmentDoc,
+            ]
           : [];
       });
       emit();
