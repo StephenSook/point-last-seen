@@ -5,12 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### docs(ios): record why the iPhone retries a 429 and the web does not
+- What: the 429 retry entry below now states the difference from the web command post and the
+  reason for it.
+- Source: review.
+- Verified: `bash scripts/ci-local.sh` exit 0 (tone and hygiene checks included).
+
 ### fix(ios): retry a cloud report read once after a 429
 - What: the guided cloud read now runs through `CloudRetry`. The SDK reports an HTTP 429 as a
   rate limit (`LanguageModelError.rateLimited`, with the server's retry delay as a reset date
   when one was sent); `ModelSessionFactory.cloudAttempt(failing:now:)` turns that into a retry
   and every other error into the read failure it was before. Each try is a new session. The
   on-device path is unchanged.
+- Deliberate difference from the web command post, which does not retry a 429: the field phone
+  is on a weak signal in the middle of a search, where one short retry is worth it; the command
+  post already falls back to fixed wording, and its user is at a desk and can press again.
 - Source: review (a lower per-user AI Logic limit makes a 429 more likely).
 - Verified: a mapping test (delay, no delay, other error) passes and fails on a mutant that
   ignores the rate limit; all 66 app tests pass on the simulator.
