@@ -32,6 +32,13 @@ describe("storage rules (spec section 7)", () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
     await assertFails(uploadBytes(ref(storageAs("family-uid", { inc: "J1", role: "family", team: null }), `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
+  it("a judge sandbox without a timestamp expiry takes no uploads; an unexpired one does", async () => {
+    const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open" });
+    await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
   it("no client writes packs", async () => {
     await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1-v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));
   });

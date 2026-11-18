@@ -16,9 +16,13 @@ service cloud.firestore {
     function incidentData(incidentId) {
       return get(/databases/$(database)/documents/incidents/$(incidentId)).data;
     }
+    // A judge sandbox must carry a timestamp expiry in the future; any other incident may have none.
     function notExpired(incidentId) {
       let i = incidentData(incidentId);
-      return !('expiresAt' in i) || i.expiresAt == null || request.time < i.expiresAt;
+      let exp = i.get('expiresAt', null);
+      return i.get('mode', '') == 'judge'
+        ? (exp is timestamp && request.time < exp)
+        : (exp == null || (exp is timestamp && request.time < exp));
     }
     function isMember(incidentId) {
       return signedIn() && request.auth.token.inc == incidentId && notExpired(incidentId);
@@ -48,9 +52,13 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       allow read: if isMember(incidentId);
-      allow create, update: if isCommand(incidentId)
-        && request.resource.data.mode in ['drill', 'judge']
-        && !request.resource.data.keys().hasAny(['joinCodeHash', 'commandJoinCodeHash']);
+      // Incidents are created by admin tools only. Command may edit an open incident, but mode and
+      // expiresAt are server-owned (a sandbox cannot be extended) and closing is final.
+      allow create: if false;
+      allow update: if isCommand(incidentId)
+        && resource.data.get('status', 'open') != 'closed'
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash']);
       allow delete: if false;
 
       match /segments/{segmentId} {

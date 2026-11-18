@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
+  never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
+  (no reopen, no edit). A judge sandbox must carry a timestamp `expiresAt` in the future for every member
+  read and write (Firestore and Storage rules) and for joinIncident; other incidents may have none.
+  Source: Codex review M3, the fresh-context review I1 and the Codex C1 re-review item 2.
+  Verified: 5 new tests (rules: no mode or expiry change, no reopen, judge without a timestamp locked out;
+  storage: judge upload needs a future expiry; join: judge needs a future expiry) failed first, now 69
+  emulator tests pass; ci-local exits 0.
 - The seeding tool draws all three role codes and checks they are distinct (drawing again if not) before
   any Keychain entry or Firestore doc is written.
   Source: Codex re-review of the C1 fix.
