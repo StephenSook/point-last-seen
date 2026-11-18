@@ -36,6 +36,7 @@ import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
+import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
@@ -175,6 +176,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
   const [eventsSynced, setEventsSynced] = useState(false);
+  // The map handed over by MapView's onReady, for the extras lane's print and export views.
+  const [extrasMap, setExtrasMap] = useState<unknown>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
@@ -398,6 +401,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <span className="label">Code</span>
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
+        <ExtrasDock incidentId={incidentId} state={state} vs={vs} map={extrasMap} />
       </header>
       {offline && (
         <p className="error" role="status">
@@ -406,7 +410,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
