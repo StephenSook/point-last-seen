@@ -467,3 +467,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/change.spec.ts` joins the drill and expects the "What changed" banner in one of its two forms (a moved segment with from and to percents, or "Report logged. Map unchanged. Ask the team.") and the matching screen-reader line in the section's live region.
 - Source: plan Task 26, on deployed data.
 - Verified: failed against the live site before this build was deployed (no change section), passed against the local preview on the live drill data. scripts/ci-local.sh exit 0.
+
+### feat(motion): add the motion tokens and the two-second REPORT beat plan
+- What: `motion/plan.ts`: `MOTION` (spec 22.1 enter 350 ms out(3), exit 250 ms inOut(3), swap, stroke 50 ms outQuart, line draw 600 to 1000 ms inOutExpo, release bounce 0.35 over 400 ms, reduced fade 150 ms, reduced hold 4 s) and `reportBeatPlan(change, distanceM, reduced)`: pin 0 ms, arc 100, lightness 300 (changed segments nearest first, stagger 40 ms capped so the spread stays within 300 ms), pulse 300, chips 900, reorder 1100, arc fade 1750, ending at 2000 ms; reduced motion is one 150 ms fade. `beatTotalMs` counts each step's stagger. No animation library in this file.
+- Source: plan Task 39.4 interfaces and tests.
+- Verified: `src/motion/plan.test.ts` (the plan's four tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
