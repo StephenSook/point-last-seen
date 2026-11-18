@@ -52,6 +52,7 @@ export function JudgePage() {
   const copy = device ? d2Copy(device, { replay: REPLAY_LIVE && run?.state === "run", downloadFailed }) : null;
   return (
     <main className="judge">
+      <p className="wordmark">Point Last Seen</p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
       <p className="muted">No login and no key. About three minutes.</p>

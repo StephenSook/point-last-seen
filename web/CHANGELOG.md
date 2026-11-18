@@ -749,3 +749,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the joined smoke runs with an empty starting state instead of the run's saved session, because the saved session carries a cached App Check token and the test's purpose is to see the debug-token exchange answer 200. It costs one anonymous sign-up per run.
 - Source: the first deployed run with the shared session (the smoke waited for an exchange that the cached token made unnecessary).
 - Verified: the smoke file passes against the live site (3 tests plus setup); the telemetry check passes there too. scripts/ci-local.sh exit 0.
+
+### feat(web): put the product name above the drill line on the join and judge pages
+- What: a small Ioskeley Mono caps wordmark, "Point Last Seen" (fg-3), above the drill line on the join page and `/judge`.
+- Source: UI review D23 (the product name was on no screen).
+- Verified: the `e2e/phonefit.spec.ts` test "the product name is on the join page and the judge page" failed first (not found), then passed; the join-page layout-shift test and axe on both pages at 1440 and 390 px still pass. scripts/ci-local.sh exit 0.

@@ -14,3 +14,9 @@ test.describe("phone fit", () => {
   });
 });
 
+test("the product name is on the join page and the judge page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Point Last Seen", { exact: true })).toBeVisible();
+  await page.goto("/judge");
+  await expect(page.getByText("Point Last Seen", { exact: true })).toBeVisible();
+});

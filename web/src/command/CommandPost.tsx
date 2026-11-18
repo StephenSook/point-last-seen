@@ -144,6 +144,7 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls | null; error: string | 
 
   return (
     <main className="panel">
+      <p className="wordmark">Point Last Seen</p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Open the command post</h1>
       <form onSubmit={submit}>
