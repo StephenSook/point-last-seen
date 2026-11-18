@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): add the Generable report reading and the neutral prompt
+- What: `ReportReadingG`, the `@Generable` twin of `ReportReading` used on both routes (no
+  pattern guides, which Gemini rejects; optional coverage so "not stated" stays visible), with a
+  total mapping to the core types; `ReportPrompt` (version `pls-report-v1`) with neutral words,
+  "point eight is 0.8", "list only ids the report names", and the one-line permissive format.
+- Source: Task 13; spike S15 (the model read "point eight" as 1.0 and copied tool ids).
+- Verified: `ReportReadingGTests` (field mapping, every core enum value reachable) red without
+  the type, then green; app builds for the simulator with only this commit's files.
+
 ### feat(ios-core): add the appearance-only profile a model may see
 - What: `ModelProfile` takes a `profile/shared` document and keeps exactly six fields
   (clothingLastWorn, appearance, heightFt, heightIn, hair, mobilityAids); `toolText` is what
