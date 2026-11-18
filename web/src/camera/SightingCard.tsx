@@ -4,6 +4,7 @@
 
 import { lastSeenMs, type CameraSightingInput } from "@pls/engine";
 import { useEffect, useState } from "react";
+import { ClipBand } from "../extras/clip/ClipBand";
 
 const POINTS = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
 
@@ -32,16 +33,16 @@ function seconds(mmss: string): number {
   return (m ?? 0) * 60 + (s ?? 0);
 }
 
-/** The clearest frame from the local clip, paused at the model's key frame, with its box. */
-function Frame({ clip, time, box }: { clip: Blob; time: string; box: number[] }) {
+/** The local clip paused at a second; the model's box is drawn only at its key frame. */
+function Frame({ clip, atS, box }: { clip: Blob; atS: number; box: number[] | null }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     const u = URL.createObjectURL(clip);
     setUrl(u);
     return () => URL.revokeObjectURL(u);
   }, [clip]);
-  const [y0, x0, y1, x1] = box as [number, number, number, number];
   if (!url) return null;
+  const [y0, x0, y1, x1] = (box ?? [0, 0, 0, 0]) as [number, number, number, number];
   return (
     <div className="clip-frame" data-testid="clip-frame">
       <video
@@ -49,12 +50,15 @@ function Frame({ clip, time, box }: { clip: Blob; time: string; box: number[] })
         muted
         playsInline
         preload="auto"
-        aria-label={`Clip frame at ${time}`}
+        aria-label={`Clip frame at ${atS} s`}
+        ref={(v) => {
+          if (v && v.readyState >= 1 && v.currentTime !== atS) v.currentTime = atS;
+        }}
         onLoadedMetadata={(e) => {
-          e.currentTarget.currentTime = seconds(time);
+          e.currentTarget.currentTime = atS;
         }}
       />
-      <div className="clip-box" style={{ top: `${y0 / 10}%`, left: `${x0 / 10}%`, height: `${(y1 - y0) / 10}%`, width: `${(x1 - x0) / 10}%` }} />
+      {box && <div className="clip-box" style={{ top: `${y0 / 10}%`, left: `${x0 / 10}%`, height: `${(y1 - y0) / 10}%`, width: `${(x1 - x0) / 10}%` }} />}
     </div>
   );
 }
@@ -68,23 +72,28 @@ type Props = {
   cached: boolean;
   /** The clip on this laptop, for "See the frame"; null when only the reading is here. */
   clip: Blob | null;
+  /** The clip's length in whole seconds, for the person-in-view band; null when not known. */
+  durationS?: number | null;
 };
 
-export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip }: Props) {
-  const [showFrame, setShowFrame] = useState(false);
+export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null }: Props) {
+  // The second the clip is shown at; null while it is hidden.
+  const [frameS, setFrameS] = useState<number | null>(null);
+  const keyS = seconds(reading.keyFrame.time);
   const f = cardFacts(reading, clipStartMs, bearingDeg, colorSuppressed);
   return (
     <section className="clip-card" aria-label="Camera sighting" data-testid="clip-card">
       <p className="num">{f.time}</p>
       <p>{f.direction}</p>
       <p>{f.clothing}</p>
+      <ClipBand durationS={durationS} reading={reading} onSeek={clip ? setFrameS : undefined} />
       {cached && <p className="muted small">Read before, not sent again.</p>}
       {clip && (
-        <button type="button" className="btn ghost" aria-pressed={showFrame} onClick={() => setShowFrame((v) => !v)}>
+        <button type="button" className="btn ghost" aria-pressed={frameS === keyS} onClick={() => setFrameS((v) => (v === keyS ? null : keyS))}>
           See the frame
         </button>
       )}
-      {clip && showFrame && <Frame clip={clip} time={reading.keyFrame.time} box={reading.keyFrame.box2d} />}
+      {clip && frameS !== null && <Frame clip={clip} atS={frameS} box={frameS === keyS ? reading.keyFrame.box2d : null} />}
     </section>
   );
 }

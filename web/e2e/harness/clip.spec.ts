@@ -114,3 +114,17 @@ test("triage: without this laptop's model the clip goes to the plain consented r
   await expect(page.getByTestId("asked")).not.toHaveText("");
   expect(await how(page)).toEqual({});
 });
+
+test("the card's band says when the person is in view, and a click opens the clip at that second", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByTestId("clip-band")).toContainText("Person in view 00:01 to 00:05");
+  const band = card.getByRole("button", { name: "Show the frame at 00:01" });
+  const box = (await band.boundingBox())!;
+  await band.click({ position: { x: box.width / 2, y: box.height / 2 } });
+  const video = card.locator("video");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => (v.readyState >= 2 ? v.currentTime : -1))).toBe(3);
+  await expect(card.locator(".clip-box")).toHaveCount(0);
+  await band.press("Enter");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => (v.readyState >= 2 ? v.currentTime : -1))).toBe(1);
+});

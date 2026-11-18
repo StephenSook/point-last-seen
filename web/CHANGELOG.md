@@ -900,3 +900,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/src/extras/clip/band.ts` (extras Task 10, P-40, owned by lane C now): the cloud reading's first seen to last seen as one interval, clamped to the clip's length, at least 2 px wide, scaled to the last interval and marked open ended when the length is unknown, with the key frame's mark; "Person in view 00:10 to 02:14" or "No person seen.". Intervals from on-device checks keep their own source, but none are stored or passed today (triage keeps no per-window checks).
 - Source: hand-off H4 (orchestrator: no extras session, lane C owns it).
 - Verified: `src/extras/clip/band.test.ts` (8 tests, the plan's seven plus the text) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(camera): show the person-in-view band on the sighting card, opening the clip at a click
+- What: `ClipBand` (an SVG strip: the cloud reading's span solid, on-device spans hatched if ever passed, the key frame marked) sits under the card's three facts. A click on the band opens the local clip at that second; Enter opens it at the first second the person is in view; "See the frame" still opens the key frame, and the model's box is drawn only there. The panel passes the clip's length.
+- Source: hand-off H4.
+- Verified: new harness test (band text "Person in view 00:01 to 00:05"; a click at the middle of a 6 s clip shows second 3 with no box; Enter shows second 1) failed first (no band), then passed; the eight earlier clip harness tests still pass; typecheck clean. scripts/ci-local.sh exit 0.

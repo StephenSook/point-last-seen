@@ -71,6 +71,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         colorSuppressed={read.o.colorSuppressed}
         cached={read.o.cached}
         clip={clip}
+        durationS={read.input.durationS}
       />
       {sent === null ? (
         <div className="row">
