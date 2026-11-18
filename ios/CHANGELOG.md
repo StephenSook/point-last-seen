@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): allocate event sequence numbers from epoch milliseconds
+- What: `SeqAllocator` starts a fresh install at the current epoch milliseconds and counts up by
+  one, persisting each number before handing it out. A reinstall keeps the anonymous uid (the
+  Keychain survives) but loses this file, so starting from the clock means it can never reuse an
+  event id that already exists on the server.
+- Source: lane A's security-rules contract (deviceId is the auth uid; seq must not repeat after
+  a reinstall).
+- Verified: three `SeqAllocatorTests` (fresh start, restart continues even with a clock moved
+  back, a failed write does not use the number) red, then green; full suite passes.
+
 ### feat(ios-core): skip and flag a malformed stored event instead of throwing
 - What: `EventFilter.decode` reads stored events one by one; one that does not decode (for
   example a clear with no inputs) is skipped and its id listed in `malformedIds` for command,
