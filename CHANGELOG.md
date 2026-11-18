@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check control's full mode asks the debug-token exchange for a limited-use token
+  (`{"debugToken": ..., "limitedUse": true}`) and adds a replay half: the same token used a second time must
+  be refused with 401. App Check replay protection was enforced on AI Logic on 2026-11-18, after which the old
+  session-token exchange made the 200 half fail. The run on 2026-11-18 is committed as evidence: no token 401
+  "Firebase App Check token is invalid.", fresh limited-use token 200 with an answer, the same token again 401
+  with the same message.
+  Source: review (replay protection enforced on AI Logic).
+  Verified: the exchange-body and replay tests failed first, now 8 control tests pass; the live full run passed
+  and its evidence file holds no key or token; `bash scripts/ci-local.sh` exit 0.
 - `deleteClipOnConsentEnd` (Firestore delete trigger on incidents/{incidentId}/clipReadings/{sha256}, retry on)
   deletes clips/{incidentId}/{sha256}.mp4 when its consent record is deleted, by the TTL, by command or
   otherwise, so a clip never outlives its consent by more than the trigger's delay; before, only the 1-day

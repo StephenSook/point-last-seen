@@ -1,7 +1,9 @@
 """App Check control for Firebase AI Logic on the deployed project.
 
 Full mode (local): a raw generateContent call with no App Check token must be refused with 401
-"Firebase App Check token is invalid."; only then is a debug-token call made, which must answer 200.
+"Firebase App Check token is invalid."; only then is a limited-use token taken from the debug token, and a
+call with it must answer 200. Replay protection is enforced on AI Logic, so the same token used a second time
+must be refused with 401.
 Writes status codes and reasons (never a key or token) to docs/evidence/appcheck-control/<time>.json.
 
 --no-token-only (the daily probe): only the refusal half; no model call, no secret. The config comes from
@@ -27,6 +29,17 @@ PROMPT = {"contents": [{"role": "user", "parts": [{"text": "Reply with the singl
 
 def control_passed(no_token_status, with_token_status) -> bool:
     return no_token_status == 401 and with_token_status == 200
+
+
+def exchange_body(debug_token: str) -> dict:
+    """AI Logic enforces replay protection, so the control asks for a limited-use (one-call) token."""
+    return {"debugToken": debug_token, "limitedUse": True}
+
+
+def full_control_passed(no_token_status, no_token_refused, first_status, first_answered, replay_status) -> bool:
+    """No token: the App Check refusal. A fresh limited-use token: a real answer. The same token again: 401."""
+    return (no_token_refused and control_passed(no_token_status, first_status) and first_answered is True
+            and replay_status == 401)
 
 
 def refused_for_app_check(status, body) -> bool:
@@ -98,24 +111,28 @@ def main(argv: list[str]) -> int:
             return 1
         print("appcheck_control: ok, a call with no App Check token is refused for App Check")
         return 0
-    with_status = None
+    with_status, first_answered, replay_status = None, False, None
     if refused:
         debug = subprocess.run(["security", "find-generic-password", "-s", "pls-appcheck-debug-token-web", "-w"],
                                capture_output=True, text=True, check=True).stdout.strip()
         secrets.append(debug)
         s1, b1 = post(f"https://content-firebaseappcheck.googleapis.com/v1/projects/{cfg['projectId']}/apps/{WEB_APP_ID}:exchangeDebugToken?key={cfg['apiKey']}",
-                      {"debug_token": debug}, {})
+                      exchange_body(debug), {})
         record["exchangeStatus"] = s1
         token = b1.get("token", "") if isinstance(b1, dict) else ""
         secrets.append(token)
         if token:
-            s2, b2 = post(gen, PROMPT, {"x-goog-api-key": cfg["apiKey"], "X-Firebase-AppCheck": token})
-            with_status = s2 if (s2 != 200 or answered(b2)) else None
-            record["withToken"] = ({"status": 200, "answered": answered(b2), "modelVersion": b2.get("modelVersion")} if s2 == 200
+            headers = {"x-goog-api-key": cfg["apiKey"], "X-Firebase-AppCheck": token}
+            s2, b2 = post(gen, PROMPT, headers)
+            with_status, first_answered = s2, answered(b2)
+            record["withToken"] = ({"status": 200, "answered": first_answered, "modelVersion": b2.get("modelVersion")} if s2 == 200
                                    else {"status": s2, "error": summary(b2)})
+            s3, b3 = post(gen, PROMPT, headers)
+            replay_status = s3
+            record["replay"] = {"status": s3, "error": summary(b3)} if s3 != 200 else {"status": 200, "answered": answered(b3)}
     else:
         record["withToken"] = "not run: the call without a token was not refused for App Check"
-    record["passed"] = control_passed(s0, with_status) and refused
+    record["passed"] = full_control_passed(s0, refused, with_status, first_answered, replay_status)
     out = Path(__file__).resolve().parents[1] / "docs/evidence/appcheck-control"
     out.mkdir(parents=True, exist_ok=True)
     text = redact(json.dumps(record, indent=2), secrets) + "\n"

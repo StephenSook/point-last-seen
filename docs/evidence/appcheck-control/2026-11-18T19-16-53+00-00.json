@@ -1,0 +1,27 @@
+{
+  "ranAt": "2026-11-18T19:16:53+00:00",
+  "projectId": "buildhybridai-2026-yg3m",
+  "model": "gemini-3.5-flash-lite",
+  "referer": "https://buildhybridai-2026-yg3m.web.app/",
+  "noToken": {
+    "status": 401,
+    "error": {
+      "status": "UNAUTHENTICATED",
+      "message": "Firebase App Check token is invalid."
+    }
+  },
+  "exchangeStatus": 200,
+  "withToken": {
+    "status": 200,
+    "answered": true,
+    "modelVersion": "gemini-3.5-flash-lite"
+  },
+  "replay": {
+    "status": 401,
+    "error": {
+      "status": "UNAUTHENTICATED",
+      "message": "Firebase App Check token is invalid."
+    }
+  },
+  "passed": true
+}
