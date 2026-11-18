@@ -3,6 +3,7 @@ package app.pointlastseen.family.ai
 import app.pointlastseen.family.core.EvidenceScreen
 import app.pointlastseen.family.core.PhoneNumbers
 import app.pointlastseen.family.data.RouteRecord
+import app.pointlastseen.family.data.SignIn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -45,20 +46,25 @@ sealed class NoteOutcome {
  * SDK's hybrid mode. Without the family's cloud consent the only route is this
  * phone's own model; with no local model and no consent, nothing is sent.
  */
-class FamilyNote(private val model: NoteModel, private val screen: EvidenceScreen) {
+class FamilyNote(private val model: NoteModel, private val screen: EvidenceScreen, private val signIn: SignIn) {
 
     suspend fun read(note: String, env: NoteEnv): NoteOutcome {
         val cleaned = PhoneNumbers.remove(note.trim())
         if (cleaned.isEmpty() || cleaned.length > MAX_NOTE) return NoteOutcome.Invalid
         if (screen.isPossibleEvidence(cleaned)) return NoteOutcome.PossibleEvidence
         val local = env.status == DeviceModelStatus.AVAILABLE
-        val mode = when {
+        val wanted = when {
             local && (env.killCloud || !env.cloudConsent) -> NoteMode.ONLY_ON_DEVICE
             local -> NoteMode.PREFER_ON_DEVICE
             env.killCloud -> return NoteOutcome.FillByHand
             !env.cloudConsent -> return NoteOutcome.NeedsConsent
             else -> NoteMode.PREFER_ON_DEVICE
         }
+        // A route that can reach the cloud needs a signed-in user (cloud requests carry its ID
+        // token). If sign-in fails, the note stays on this phone, or nothing is sent at all.
+        val mode = if (wanted == NoteMode.ONLY_ON_DEVICE || signedIn()) wanted
+        else if (local) NoteMode.ONLY_ON_DEVICE
+        else return NoteOutcome.Failed
         val reply = try {
             model.structure(mode, prompt(cleaned))
         } catch (e: Exception) {
@@ -77,6 +83,14 @@ class FamilyNote(private val model: NoteModel, private val screen: EvidenceScree
             latencyMs = reply.latencyMs, sdkReported = true, blocked = null, decidedAtMs = env.nowMs(),
         )
         return NoteOutcome.Read(reading, route, cleaned)
+    }
+
+    private suspend fun signedIn(): Boolean = try {
+        signIn.ensureSignedIn()
+        true
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        false
     }
 
     companion object {
