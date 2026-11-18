@@ -7,6 +7,7 @@ import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWordi
 import { photoCloudParams, photoParams, type PhotoDeps } from "./photoCues";
 import { sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
+import { frameCheckParams } from "./frameCheck";
 
 let instance: AI | undefined;
 
@@ -85,6 +86,21 @@ export function clipGeneratorFor(model: ImageModel): ClipGenerate {
 /** The consented cloud read of one camera clip (ONLY_IN_CLOUD). */
 export function clipCloudGenerator(ai: AI, model: string): ClipGenerate {
   return clipGeneratorFor(getGenerativeModel(ai, clipCloudParams(model), { timeout: CLIP_TIMEOUT_MS }));
+}
+
+export function frameGeneratorFor(model: ImageModel): (jpegBase64: string) => Promise<{ text: string }> {
+  return async (jpegBase64) => {
+    const r = await model.generateContent([
+      { type: "text", text: "Check this frame." },
+      { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: jpegBase64 } },
+    ]);
+    return { text: r.response.text() };
+  };
+}
+
+/** One frame of a clip checked on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
+export function frameCheckGenerator(ai: AI): (jpegBase64: string) => Promise<{ text: string }> {
+  return frameGeneratorFor(getGenerativeModel(ai, frameCheckParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** Starts Chrome's model download from a click, on a model built with the photo options the reads use. */

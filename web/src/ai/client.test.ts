@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, generatorFor, photoGeneratorFor } from "./client";
+import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor } from "./client";
 import { clipParts } from "./clipRead";
 
 describe("generatorFor", () => {
@@ -55,5 +55,14 @@ describe("clipGeneratorFor", () => {
 
   it("gives a clip of up to 14 MB two minutes, longer than a text or photo read", () => {
     expect(CLIP_TIMEOUT_MS).toBe(120_000);
+  });
+});
+
+describe("frameGeneratorFor", () => {
+  it("sends one short instruction and one inline JPEG frame, and returns the text", async () => {
+    let sent: unknown;
+    const gen = frameGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => '{"personVisible":false}', inferenceSource: "on_device" } }; }) as never });
+    expect(await gen("QUJD")).toEqual({ text: '{"personVisible":false}' });
+    expect(sent).toEqual([{ type: "text", text: "Check this frame." }, { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: "QUJD" } }]);
   });
 });
