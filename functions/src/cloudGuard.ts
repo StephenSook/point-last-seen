@@ -22,12 +22,15 @@ type Request = Record<string, unknown> & { generationConfig?: Config };
 /**
  * cloudGuard's rule for one generateContent request: refuse a model that is not on the list; keep only the
  * generation settings our apps use; bound the output, by the speech cap on the speech model and by the text cap on
- * every other model, whatever modality the request asks for. Returns the whole request when it changes it, or
- * undefined to leave it as sent.
+ * every other model, whatever modality the request asks for. A template call is only checked for its model.
+ * Returns the whole request when it changes it, or undefined to leave it as sent.
  */
-export function guardRequest(model: string, request: Request): Request | undefined {
+export function guardRequest(model: string, request: Request, template?: unknown): Request | undefined {
   const id = model.split("/").pop() ?? "";
   if (!ALLOWED_MODELS.includes(id)) throw new HttpsError("permission-denied", "This model is not allowed here.");
+  // A template call carries the template's own config (ours, published from shared/templates); a returned
+  // generationConfig would replace it, schema included, so only the model is checked.
+  if (template) return undefined;
   const config: Config = request.generationConfig ?? {};
   const cap = id === TTS_MODEL ? TTS_MAX_OUTPUT_TOKENS : MAX_OUTPUT_TOKENS;
   const kept: Config = Object.fromEntries(Object.entries(config).filter(([k]) => KEPT.has(k)));

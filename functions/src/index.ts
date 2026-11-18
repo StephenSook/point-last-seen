@@ -79,5 +79,7 @@ export const deleteEndedSandboxesJob = onSchedule(
  * may name only a listed model, and a text reply is bounded. generateContentStream and the Live API do not
  * trigger it, by Google's design (docs/SECURITY.md row 12). No database or outside call; no minimum instances.
  */
-export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInstances: 10 }, event =>
-  guardRequest(event.data.model, event.data.request as never));
+// A clip read carries up to 14 MB of video as base64 in the request; with the raw body, the parsed string and a
+// rewritten reply that is about 100 MB in flight, so 1 GiB holds 6 at once (concurrency above 1 needs a full CPU).
+export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInstances: 10, memory: "1GiB", cpu: 1, concurrency: 6 }, event =>
+  guardRequest(event.data.model, event.data.request as never, event.data.template));

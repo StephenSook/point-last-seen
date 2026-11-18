@@ -5,6 +5,66 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard runs with 1 GiB of memory, a full CPU and up to 6 requests at once per instance (10 instances at most,
+  none kept warm). A clip read carries up to 14 MB of video as base64, about 100 MB in flight with the raw body,
+  the parsed string and a rewritten reply; at the default 256 MiB and 80 requests per instance, a burst of clip
+  reads could exhaust the instance and fail every AI call behind it.
+  Source: review (concurrent clip reads could exhaust the trigger's memory).
+  Verified: the endpoint test (1,024 MB, CPU 1, concurrency 6, 10 instances, no minimum instances) failed first,
+  now 11 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0. A live burst
+  follows the redeploy.
+- cloudGuard's tests send events through the exported trigger, as AI Logic does: a template call is answered with
+  no request (so the template's own config, schema included, stands), a direct call that asks too much is
+  answered with the bounded request, and an off-list model is refused with permission-denied (code 7, HTTP 500
+  from the trigger) whether or not it is a template call.
+  Source: review (the earlier tests called the rule function directly and missed the live template defect).
+  Verified: with the template line removed from `guardRequest`, the trigger-level template test fails; restored,
+  10 cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
+- Firestore rules move the prior one version at a time. An incident update that changes `priorVersion` must
+  raise it by exactly 1, and a segment (or ROW) write that changes `priorPoa` or `priorVersion` lands only in
+  the batch that moves the incident to the next version, taking that version. Two command seats that rebuild
+  from the same version can no longer both land: the second batch, built from older inputs, is refused instead
+  of overwriting the newer prior.
+  Source: review (walker results could race across two laptops).
+  Verified: `functions/test/rules/prior.test.ts` (a fresh rebuild lands and a second seat's rebuild from the
+  same version is refused; +2 and a decrease are refused, a status change is allowed; a segment cannot take a
+  version the incident lacks; a full-size 68-segment batch with ROW and the incident passes) failed first
+  (3 of 4), now all 95 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0. The live
+  access-call limit is checked after deploy.
+- `shared/grid/piedmont-park-dev.grid.json`: the development site's grid (Piedmont Park, Atlanta; 67 segments
+  built from an OpenStreetMap extract on 2026-11-18), the same grid the drill incident and every judge's
+  practice search use, committed so the terrain work can build against a real site before the drill site is
+  chosen. `shared/grid/README.md` gives the credit ("Map data © OpenStreetMap contributors", ODbL 1.0, with
+  the copyright link); the file's own `attribution` field carries it too.
+  Source: review (the extras lane's terrain task needs a site grid on main).
+  Verified: the test (the file parses as the engine's Grid: unique ids, positive areas, centroids inside the
+  box, neighbours that exist, no ROW, and the OpenStreetMap credit) failed first (file missing), now passes;
+  engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- Every server prompt template bounds its own output (`maxOutputTokens` 2,048 for text, 4,096 for speech, the
+  same caps cloudGuard applies to direct calls), because cloudGuard leaves a template call's config as the
+  template sets it.
+  Source: review (template calls must be bounded too).
+  Verified: the test (every template's bound within its cap) failed first, now 10 template tests pass; the dry
+  run plans four updates; `bash scripts/ci-local.sh` exit 0.
+- cloudGuard leaves a template call's request alone after checking its model. Deployed at 21:47 UTC on
+  2026-11-18, it set a generationConfig on template calls, which replaced the template's own config: the
+  sighting template answered with made-up field names (`directionOfTravel`, `topColour`). It was deleted
+  (`firebase functions:delete cloudGuard`) at about 21:55 UTC, the template answered correctly again, and this
+  fix comes back through the same deploy and live checks. The live run also showed the latency gate holds
+  (median 1,060 ms against an 839 ms baseline over 10 warm calls, +221 ms) and that an off-list model is
+  refused: the function logged permission-denied (403) and the AI Logic proxy answered the client 500.
+  Source: the live check after the first deploy.
+  Verified: the template-call test (a template call is checked for its model and left as sent) failed first,
+  now 7 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- The rules gate fails CI when shipped code (web, iOS, the Android app's main sources, functions) names a
+  model host outside Firebase AI Logic: Google's Gemini API host, Vertex AI REST, OpenAI, Ollama (including
+  localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
+  would skip App Check, authenticated-users mode, the per-user limit and cloudGuard. Docs and tests may name
+  them; AI Logic's own host does not match.
+  Source: review (a rival lost a stage for calling model hosts directly).
+  Verified: the test (six planted hits across the four trees each fail; a clean tree with AI Logic's host, a
+  doc and a test mention passes) failed first, now 28 gate tests pass; the repo walks with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - cloudGuard bounds output whatever the request asks for: only the speech model gets the speech cap (4,096
   tokens); any other model gets the 2,048-token text cap even when the request asks for audio. It keeps only
   the generation settings our apps use (token limit, temperature, top-p and top-k, stop sequences, the response

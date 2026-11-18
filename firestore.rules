@@ -69,12 +69,25 @@ service cloud.firestore {
         && request.resource.data.status in ['open', 'found', 'closed']
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty']);
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty'])
+        // The prior moves one version at a time, so two seats rebuilding from the same version cannot both land.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion'])
+            || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1);
       allow delete: if false;
 
       match /segments/{segmentId} {
+        // A segment's prior changes only in the batch that moves the incident to the next version, and takes
+        // that version: a rebuild from an older version cannot overwrite a newer one.
+        function priorMovesWithIncident() {
+          let incident = /databases/$(database)/documents/incidents/$(incidentId);
+          let changed = request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys();
+          return !changed.hasAny(['priorPoa', 'priorVersion'])
+            || (request.resource.data.priorVersion == getAfter(incident).data.get('priorVersion', -1)
+                && getAfter(incident).data.get('priorVersion', -1) == get(incident).data.get('priorVersion', 0) + 1);
+        }
         allow read: if isMember(incidentId);
-        allow write: if isCommand(incidentId);
+        allow create, update: if isCommand(incidentId) && priorMovesWithIncident();
+        allow delete: if isCommand(incidentId);
       }
 
       match /teams/{teamId} {
