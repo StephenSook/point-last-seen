@@ -27,9 +27,12 @@ public struct OutcomeContext: Sendable, Equatable {
     /// Segments, assignment and detection range; the builder fills in the position.
     public var effect: EffectContext
     public var params: EngineParams
+    /// When the thing was seen, from the app's time picker; nil when the person gave none.
+    public var observedAtMs: Double?
 
     public init(incidentId: String, teamId: String?, deviceId: String, authorUid: String, priorVersion: Int, clientTimeMs: Double,
-                inputMethod: InputMethod, isTrainingInject: Bool, grid: [GridSegment], effect: EffectContext, params: EngineParams) {
+                inputMethod: InputMethod, isTrainingInject: Bool, grid: [GridSegment], effect: EffectContext, params: EngineParams,
+                observedAtMs: Double? = nil) {
         self.incidentId = incidentId
         self.teamId = teamId
         self.deviceId = deviceId
@@ -41,6 +44,7 @@ public struct OutcomeContext: Sendable, Equatable {
         self.grid = grid
         self.effect = effect
         self.params = params
+        self.observedAtMs = observedAtMs
     }
 }
 
@@ -95,10 +99,17 @@ public enum ReadOutcomeBuilder {
             eventId: EventID.make(incidentId: context.incidentId, deviceId: context.deviceId, seq: seq),
             schemaVersion: 1, incidentId: context.incidentId, teamId: context.teamId, deviceId: context.deviceId, seq: seq,
             authorUid: context.authorUid, role: .searcher, type: type, reporter: .searcher, clientTimeMs: context.clientTimeMs,
-            serverTime: nil, observedAtMs: type == .sighting ? context.clientTimeMs : nil, position: position, positionSource: source,
+            serverTime: nil, observedAtMs: type == .sighting ? observedAt(rawText, context) : nil, position: position, positionSource: source,
             rawText: PhoneNumbers.scrub(rawText), inputMethod: context.inputMethod, isTrainingInject: context.isTrainingInject,
             reading: storedReading.flatMap { try? JSONValue(encoding: $0) }.map { PhoneNumbers.scrub(json: $0) }, effect: effect, route: outcome.route,
             targetEventId: nil, decision: nil, planVersion: nil, priorVersion: context.priorVersion)
+    }
+
+    /// When a sighting was seen: the time picked in the app, else "N minutes ago" or "an hour
+    /// ago" in the report, else nil so the app asks. Never the time the report was sent.
+    static func observedAt(_ rawText: String, _ context: OutcomeContext) -> Double? {
+        if let picked = context.observedAtMs { return picked }
+        return ReportParser.minutesAgo(rawText).map { context.clientTimeMs - $0 * 60_000 }
     }
 
     static func derive(_ reading: ReportReading, rawText: String, ctx: EffectContext, params: EngineParams) -> Effect {

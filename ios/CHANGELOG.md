@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): a sighting records when it was seen, not when it was sent
+- What: `observedAtMs` on a sighting comes from the app's time picker (new
+  `OutcomeContext.observedAtMs`), else from "N minutes ago" or "an hour ago" in the report
+  (`ReportParser.minutesAgo`), else stays nil so the app asks. Before, it copied the send time.
+- Source: Codex review M7; spec section 8 ("when the thing was seen; sightings need it").
+- Verified: the new test failed on the old code (all five expectations), then passed; full suite
+  162 tests.
+
 ### fix(ios-core): read "calling only, no visual search" as sound only
 - What: in the parser's method check, a method word right after a negation word ("no visual",
   "without looking") does not count, and "only" or "just" next to a sound word makes the method

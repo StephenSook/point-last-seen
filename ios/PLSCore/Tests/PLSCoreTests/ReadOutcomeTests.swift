@@ -138,4 +138,18 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
         let fromModel = ReadOutcome(reading: reading(segmentIds: [], coverage: 1, evidenceQuote: "cleared segment ZZ"), route: route(), validation: .ok)
         #expect(ReadOutcomeBuilder.event(from: fromModel, rawText: text, position: nil, context: outcomeCtx(assigned: ["AC"]), seq: 31).effect == .none(why: .invalid))
     }
+
+    @Test func aSightingRecordsWhenItWasSeenNotWhenItWasSent() {
+        let saw = ReadOutcome(reading: reading(kind: .sighting, segmentIds: ["AC"], evidenceQuote: "saw her"), route: route(), validation: .ok)
+        let base = outcomeCtx()
+        let ago = ReadOutcomeBuilder.event(from: saw, rawText: "saw her 20 minutes ago in AC", position: fix, context: base, seq: 40)
+        #expect(ago.observedAtMs == base.clientTimeMs - 20 * 60_000)
+        let hour = ReadOutcomeBuilder.event(from: saw, rawText: "saw her an hour ago in AC", position: fix, context: base, seq: 41)
+        #expect(hour.observedAtMs == base.clientTimeMs - 60 * 60_000)
+        let unknown = ReadOutcomeBuilder.event(from: saw, rawText: "saw her in AC", position: fix, context: base, seq: 42)
+        #expect(unknown.observedAtMs == nil)                                     // the app asks for the time
+        var picked = base; picked.observedAtMs = 1_699_999_000_000
+        #expect(ReadOutcomeBuilder.event(from: saw, rawText: "saw her 20 minutes ago in AC", position: fix, context: picked, seq: 43).observedAtMs == 1_699_999_000_000)
+        #expect(ReadOutcomeBuilder.event(from: outcome(), rawText: raw, position: fix, context: base, seq: 44).observedAtMs == nil)
+    }
 }

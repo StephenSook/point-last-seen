@@ -113,6 +113,19 @@ public enum ReportParser {
         return nil
     }
 
+    /// Minutes before now for "20 minutes ago", "an hour ago" or "two hours ago"; nil otherwise.
+    public static func minutesAgo(_ text: String) -> Double? {
+        let w = Tokens(text).lower
+        guard let ago = w.firstIndex(of: "ago"), ago >= 2 else { return nil }
+        let unit = w[ago - 1]
+        if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1) }
+        if ["hours", "hour", "hrs", "hr"].contains(unit) {
+            if ["an", "a"].contains(w[ago - 2]) { return 60 }
+            return NumberWords.parse(w, endingBefore: ago - 1).map { $0 * 60 }
+        }
+        return nil
+    }
+
     static func searchers(_ t: Tokens) -> Double? {
         let w = t.lower
         for i in w.indices {
