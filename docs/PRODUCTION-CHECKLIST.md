@@ -30,6 +30,8 @@ must give.
 - [ ] The Storage lifecycle rule is in place: `gcloud storage buckets describe gs://buildhybridai-2026-yg3m.firebasestorage.app
   --format=json` shows one Delete rule, age 30, prefixes clips/, photos/, packs/; the daily probe
   (`scripts/media_probe.py`) checks the same thing without credentials.
+- [ ] `python3 -I scripts/check_rc_keys.py .` exits 0 (a CI gate): every template key is read by a client, every
+  key a client reads is in the template, and no engine number is in Remote Config.
 - [ ] Remote Config is published only with `python3 -I scripts/rc_publish.py --publish`, after its dry run: it
   reads the live template and ETag, refuses any live value it would change or drop unless that key is named
   with `--allow KEY`, validates, then publishes with If-Match. `firebase.json` names no template, so a plain
