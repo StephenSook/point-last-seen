@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): route reports between Apple's on-device model and Gemini through AI Logic
+- What: `AIClient` builds the one `FirebaseAI.firebaseAI(backend: .googleAI(),
+  useLimitedUseAppCheckTokens:)` client. `ModelSessionFactory` is the only file that touches
+  `SystemLanguageModel` and `geminiLanguageModel(name:)`: on-device status (availability,
+  locale, `contextSize`, variant name), prewarm, token estimate, and the map from thrown errors
+  (`LanguageModelError`, `SystemLanguageModel.Error`, `GeminiLanguageModel.Error`,
+  cancellation, URL and decoding errors) to `ReadFailure`. `FoundationModelRunner` runs a new
+  session per report: guided on either route, permissive string output on the on-device model
+  only.
+- Source: Task 13 (ModelSessionFactory, AIClient), spike S15 settled names, rules gate allowlist.
+- Verified: `ModelFailureMappingTests` red without the factory, then green on the iOS 27.2
+  simulator; rules gate clean.
+
 ### feat(ios): add the three read-only report tools
 - What: `SegmentAtTool` ("segmentHere": the segment under the GPS fix, or "No GPS fix. Do not
   guess a segment."), `TeamAssignmentTool` ("teamAssignment") and `SubjectProfileTool`
