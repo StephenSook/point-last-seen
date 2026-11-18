@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The template publisher reads the live list from the API's `templates` key (it read `promptTemplates`, so it
+  saw no live template: a published one was planned as a create, and a locked one would never be refused).
+  Source: found in review of the dry run (the published sighting template showed as "create").
+  Verified: the listing test failed first, now passes; the dry run now shows pls-sighting-note-v1 as "same";
+  `bash scripts/ci-local.sh` exit 0.
 - P-04 evidence adds the window test: a server prompt template cannot pass a video window. With a 12-second
   clip of red, blue and green spans, both template forms (with and without start and end offset arguments)
   answered "red, blue, green" with 808 prompt tokens, while a direct call with `videoMetadata` 4 s to 8 s

@@ -47,3 +47,11 @@ def test_the_publish_plan_creates_updates_or_leaves_each_template():
     assert tp.plan(local, remote) == {"create": ["a"], "update": ["b"], "same": ["c"], "locked": []}
     remote["b"]["locked"] = True
     assert tp.plan(local, remote)["locked"] == ["b"]
+
+
+def test_the_live_listing_is_read_from_the_api_s_templates_key():
+    # The list endpoint answers {"templates": [...]} (read 2026-11-18); a wrong key would read as "none live",
+    # plan creates instead of updates, and never see a lock.
+    listing = {"templates": [{"name": "projects/p/locations/global/templates/pls-a-v1", "templateString": "x", "locked": True}]}
+    assert tp.live_templates(listing) == {"pls-a-v1": listing["templates"][0]}
+    assert tp.live_templates({}) == {}
