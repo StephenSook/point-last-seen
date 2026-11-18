@@ -148,8 +148,10 @@ export function fromLive(view: IncidentView | null, events: readonly StreamedEve
     const arrived = e.pendingWrite || !num(e.serverTimeMs) ? null : e.serverTimeMs;
     return replayEvent(e as unknown as EventDoc, arrived, offsets);
   });
+  // Only plans with a server approval time: a plan still being written has none, and the browser's clock must not
+  // place it on the timeline (or move the prior with it).
   const replayPlans = plans.flatMap((p): ReplayPlan[] => {
-    const at = millis(p.approvedAt) ?? (num(p.createdClientTimeMs) ? p.createdClientTimeMs : null);
+    const at = millis(p.approvedAt);
     return at === null ? [] : [{ version: p.version, priorVersion: p.priorVersion, approvedAtMs: at, assignments: p.assignments }];
   });
   return {

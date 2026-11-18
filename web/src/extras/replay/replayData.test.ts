@@ -147,6 +147,13 @@ describe("fromLive", () => {
     expect(pendingLine(two)).toBe("2 reports are still sending and are not in the replay.");
   });
 
+  it("a plan whose server approval time has not arrived is not in the replay", () => {
+    // Still being written: its approval time is not on the server yet, and the browser's clock must not stand in.
+    const pending = { ...replayPlan(3, T0), approvedAt: null, createdClientTimeMs: T0 - 10 * MIN };
+    const d = fromLive(replayView(), [], [replayPlan(1, T0 + MIN), pending])!;
+    expect(d.plans.map((p) => p.version)).toEqual([1]);
+  });
+
   it("carries the grid's own licence line for the map credit", () => {
     expect(fromLive(replayView({ gridAttribution: "Grid from OpenStreetMap (ODbL)" }), [], [])!.gridAttribution).toBe("Grid from OpenStreetMap (ODbL)");
     expect(fromLive(replayView(), [], [])!.gridAttribution).toBeNull();
