@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- SECURITY.md rows 7 and 12 name a fact read in the Firebase iOS SDK source: the iOS report read runs through
+  the Foundation Models adapter (`geminiLanguageModel`), which sends its own `streamGenerateContent` request
+  with tools, so it can be neither a server prompt template nor seen by the AI Logic before and after triggers.
+  Source: review (rows 6, 7 and 12 of the AI Logic security checklist).
+  Verified: GeminiLanguageModelExecutor calls `client.generateContentStream`, and GeminiAPIClient sends action
+  `streamGenerateContent` with `alt=sse` (the SDK checkout the iOS build resolves); `bash scripts/ci-local.sh`
+  exit 0.
 - SECURITY.md row 12 is DECIDED-NO with the reason quoted from Firebase's page (generateContentStream and the
   Live API do not trigger the before and after functions, so a model allow-list there could be skipped) and
   the accepted risk named (another model through our project, at most 20 calls a minute, within the $25 cap).
