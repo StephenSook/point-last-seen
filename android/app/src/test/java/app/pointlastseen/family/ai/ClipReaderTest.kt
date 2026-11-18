@@ -186,7 +186,10 @@ class ClipReaderTest {
         assertEquals("sdk_only_in_cloud", out.route.reason)
         assertTrue(out.route.sdkReported)
         assertEquals(Hashes.sha256Hex(request(1000).bytes), record.sha256)
-        assertEquals(1_000L + 30L * 24 * 3600 * 1000, record.expiresAtMs)
+        // The rules accept expiresAt only between server time + 31 days and + 33 days.
+        val day = 24L * 3600 * 1000
+        assertEquals(1_000L + 32L * day, record.expiresAtMs)
+        assertTrue(record.expiresAtMs - record.createdAtMs in (31L * day + 1)..(33L * day - 1))
         assertEquals(90, record.cameraFacingDeg)
     }
 
@@ -218,8 +221,9 @@ class ClipReaderTest {
         val deps = FakeDeps(cached = consentOnly, reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(r) as ClipOutcome.Read
         assertFalse(out.cached)
-        // The consent record already exists (an earlier attempt), so it is not written again.
-        assertEquals(listOf("find", "exists", "upload", "model:video/mp4", "complete"), deps.log)
+        // The record exists from an earlier attempt: it is renewed (fresh consent and expiry)
+        // before the upload, because the upload is accepted only while the expiry is 31 days out.
+        assertEquals(listOf("find", "consent", "exists", "upload", "model:video/mp4", "complete"), deps.log)
     }
 
     @Test fun aRetryWhoseClipIsAlreadyStoredSkipsTheUpload() = runTest {
@@ -231,7 +235,21 @@ class ClipReaderTest {
         val deps = FakeDeps(cached = consentOnly, reply = ModelReply(readingJson, Source.IN_CLOUD, 900), alreadyUploaded = true)
         assertTrue(ClipReader(deps).read(r) is ClipOutcome.Read)
         // Clips are create-only in Storage, so a second upload of the same hash would be refused.
-        assertEquals(listOf("find", "exists", "model:video/mp4", "complete"), deps.log)
+        assertEquals(listOf("find", "consent", "exists", "model:video/mp4", "complete"), deps.log)
+    }
+
+    /** A retry renews the stored record: only consent, expiresAt and createdAt change; every other field is the stored one. */
+    @Test fun aRetryRenewsTheStoredRecordWithFreshConsent() = runTest {
+        val r = request(1000)
+        val stored = StoredClipReading(
+            sha256 = Hashes.sha256Hex(r.bytes), storagePath = "clips/inc-1/old.mp4", durationS = 29, clipStartMs = 400L,
+            clockConfirmed = false, cameraFacingDeg = 180, readingJson = null, route = null,
+            consent = r.consent.copy(publicUse = mark), expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
+        )
+        val deps = FakeDeps(cached = stored, reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        ClipReader(deps).read(r)
+        val day = 24L * 3600 * 1000
+        assertEquals(stored.copy(consent = r.consent, expiresAtMs = 1_000L + 32L * day, createdAtMs = 1_000L), deps.consents.single())
     }
 
     @Test fun aReadingThatFailsItsChecksIsShownAsCouldNotRead() = runTest {

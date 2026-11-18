@@ -37,6 +37,20 @@ class ProfileStoreTest {
         assertEquals(full, ProfileStore(kv).load())
     }
 
+    /** A profile written in parts (a nickname alone) reads with every list empty and the default flags. */
+    @Test fun aNicknameOnlyDocumentReadsWithEmptyListsAndDefaultFlags() {
+        val p = ProfileCodec.decode("""{"nickname":"Mama Mae"}""")
+        assertEquals("Mama Mae", p.nickname)
+        assertEquals(emptySet<String>(), p.mobilityAids)
+        assertEquals(SubjectProfile().flags, p.flags)
+        assertEquals(emptyList<PlaceEntry>(), p.previousAddresses)
+        assertEquals(emptyList<PlaceEntry>(), p.placesFrequented)
+        assertEquals(emptyList<WanderingEntry>(), p.pastWandering)
+        assertEquals(null, p.vehicle)
+        assertEquals(Profiles.approachNoteIds(SubjectProfile(nickname = "Mama Mae")), Profiles.approachNoteIds(p))
+        assertEquals(18, Profiles.forSearchers(p).flags.size)
+    }
+
     @Test fun aMissingOrBrokenStoredProfileLoadsEmpty() {
         assertEquals(SubjectProfile(), ProfileStore(MemoryStore()).load())
         val kv = MemoryStore().apply { put("profile", "{not json") }
