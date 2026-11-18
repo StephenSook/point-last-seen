@@ -5,39 +5,52 @@ type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
 
 /**
- * Deletes every clip, photo and pack of each judge sandbox whose expiresAt has passed, and stamps
- * mediaDeletedAt once that sandbox's delete succeeded. A member can mint a no-sign-in download link that works
- * as long as the file exists (docs/LIMITS.md), so deleting the file is what ends access. Each sandbox is
- * handled on its own: one failure (a hold, a transient error) is reported and left unstamped for the next
- * run, and never stops the others. A sandbox stamped and ended more than RECHECK_MS ago is not listed again,
- * so the work does not grow with history; inside that window an upload in flight at the end is still caught.
- * No model call.
+ * Deletes every clip, photo and pack of each judge sandbox whose expiresAt has passed. A member can mint a
+ * no-sign-in download link that works as long as the file exists (docs/LIMITS.md), so deleting the file is what
+ * ends access. No model call.
+ * - Which sandboxes: those ended in the last 7 days, plus any still unstamped (mediaDeletedAt == null, which a
+ *   failed sweep writes explicitly), so the work does not grow with history.
+ * - Each prefix of a sandbox is listed and deleted on its own (allSettled): a held clip never stops its photos
+ *   and packs, and one sandbox never stops the next. A sandbox with any failure is reported and left unstamped.
+ * - A sandbox is skipped only once it is stamped and its previous sweep found nothing under all three prefixes
+ *   (mediaSweepEmpty); until then a late upload is still caught.
  */
-const RECHECK_MS = 24 * 3_600_000;
+const RECENT_MS = 7 * 86_400_000;
 export async function deleteEndedSandboxMedia(db: Firestore, bucket: Pick<Bucket, "getFiles">, nowMs: number):
   Promise<{ incidents: string[]; files: number; failed: string[] }> {
-  const ended = await db.collection("incidents").where("expiresAt", "<=", Timestamp.fromMillis(nowMs)).get();
+  const incidentsRef = db.collection("incidents");
+  const [recent, pending] = await Promise.all([
+    incidentsRef.where("expiresAt", ">=", Timestamp.fromMillis(nowMs - RECENT_MS)).where("expiresAt", "<=", Timestamp.fromMillis(nowMs)).get(),
+    incidentsRef.where("mode", "==", "judge").where("mediaDeletedAt", "==", null).get(),
+  ]);
+  const seen = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+  for (const d of [...recent.docs, ...pending.docs]) seen.set(d.id, d);
   const incidents: string[] = [], failed: string[] = [];
   let files = 0;
-  for (const inc of ended.docs) {
-    if (inc.get("mode") !== "judge") continue;
+  for (const inc of [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+    const endedAt = inc.get("expiresAt");
+    if (inc.get("mode") !== "judge" || !(endedAt instanceof Timestamp) || endedAt.toMillis() > nowMs) continue;
     const stamped = inc.get("mediaDeletedAt") != null;
-    const endedAt = (inc.get("expiresAt") as Timestamp).toMillis();
-    if (stamped && nowMs - endedAt > RECHECK_MS) continue;
-    try {
-      let deleted = 0;
-      for (const prefix of MEDIA_PREFIXES) {
-        const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
-        await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
-        deleted += found.length;
-      }
-      if (deleted > 0) incidents.push(inc.id);
-      files += deleted;
-      if (!stamped) await inc.ref.update({ mediaDeletedAt: FieldValue.serverTimestamp() });
-    } catch (e) {
+    if (stamped && inc.get("mediaSweepEmpty") === true) continue;
+    const results = await Promise.allSettled(MEDIA_PREFIXES.map(async prefix => {
+      const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
+      const deletes = await Promise.allSettled(found.map(f => f.delete({ ignoreNotFound: true })));
+      const bad = deletes.find(d => d.status === "rejected");
+      if (bad) throw (bad as PromiseRejectedResult).reason;
+      return found.length;
+    }));
+    const deleted = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value : 0), 0);
+    if (deleted > 0) incidents.push(inc.id);
+    files += deleted;
+    const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (errors.length > 0) {
       failed.push(inc.id);
-      console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, error: String(e) }));
+      console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, errors: errors.map(e => String(e.reason)) }));
+      // An explicit null keeps the sandbox in the "not yet stamped" query until a sweep succeeds.
+      if (inc.get("mediaDeletedAt") !== null) await inc.ref.update({ mediaDeletedAt: null, mediaSweepEmpty: false });
+      continue;
     }
+    await inc.ref.update({ ...(stamped ? {} : { mediaDeletedAt: FieldValue.serverTimestamp() }), mediaSweepEmpty: deleted === 0 && stamped });
   }
   return { incidents, files, failed };
 }

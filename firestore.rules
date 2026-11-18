@@ -69,7 +69,7 @@ service cloud.firestore {
         && request.resource.data.status in ['open', 'found', 'closed']
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt']);
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty']);
       allow delete: if false;
 
       match /segments/{segmentId} {

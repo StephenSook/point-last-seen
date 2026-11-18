@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The media sweep, redesigned from the second review round: it lists only sandboxes ended in the last 7 days
+  plus any not yet stamped (a failed sweep writes mediaDeletedAt: null so the equality query keeps finding it),
+  instead of the whole history every 5 minutes; each of a sandbox's three prefixes is listed and deleted on its
+  own (allSettled), so a held clip never stops that sandbox's photos and packs or the next sandbox; and a
+  sandbox is skipped only once it is stamped and its previous sweep found nothing (mediaSweepEmpty), replacing
+  the 24-hour cutoff that could miss a late file. mediaSweepEmpty joins mediaDeletedAt as server-only in the
+  rules. Sandbox creation (Task 23) must write mediaDeletedAt: null so an unswept sandbox older than 7 days is
+  still found.
+  Source: review round 2 (two mediums and a low on the sweep).
+  Verified: the late-file, held-clip and history-scope tests failed first, now pass; the command
+  mediaSweepEmpty write is refused; emulator suite 113; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - Clip consent window, redesigned so a fresh consent is never refused and always outlives its clip: a clip
   reading's expiresAt must be 31 to 33 days after the server's time (clients write 32, which tolerates clock
   skew both ways), and storage.rules accept a clip upload only while its consent record is under 24 hours old.
