@@ -113,3 +113,18 @@ private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.hi
     }
 }
 
+@Suite struct OutboxConflictTests {
+    @Test func aDifferentEventUnderAnExistingIdIsAConflict() throws {
+        var box = try Outbox(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("outbox-\(UUID().uuidString).json"))
+        try box.add(e1)
+        try box.markAcked(e1.eventId)
+        var other = e1
+        other.clientTimeMs += 5_000
+        #expect(throws: Outbox.Conflict.self) { try box.add(other) }
+        #expect(box.entries.count == 1)
+        #expect(box.entries[0].doc == e1)
+        try box.add(e1)                                     // the identical event is an idempotent retry
+        #expect(box.entries.count == 1)
+    }
+}
+

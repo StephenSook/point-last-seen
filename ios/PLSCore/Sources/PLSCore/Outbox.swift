@@ -60,6 +60,11 @@ public struct OutboxEntry: Sendable, Equatable, Codable {
 public struct Outbox: Sendable {
     public static let conflictReason = "id-conflict"
 
+    /// A different event arrived under an id the journal already holds.
+    public struct Conflict: Error, Equatable {
+        public let eventId: String
+    }
+
     public let fileURL: URL
     public private(set) var entries: [OutboxEntry]
 
@@ -74,8 +79,13 @@ public struct Outbox: Sendable {
         }
     }
 
+    /// Adds a new event. The identical event again is an idempotent retry; a different event
+    /// under the same id throws `Conflict` and changes nothing.
     public mutating func add(_ doc: EventDoc) throws {
-        guard !entries.contains(where: { $0.eventId == doc.eventId }) else { return }
+        if let existing = entries.first(where: { $0.eventId == doc.eventId }) {
+            guard existing.doc == doc else { throw Conflict(eventId: doc.eventId) }
+            return
+        }
         try commit(entries + [OutboxEntry(doc: doc, state: .pending, lastError: nil)])
     }
 

@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): a different event under an existing Outbox id is a conflict
+- What: `Outbox.add` throws `Outbox.Conflict` when a different event arrives under an id the
+  journal holds, and changes nothing; the identical event stays an idempotent retry. Before, the
+  second report was dropped silently and still showed the first one's state.
+- Source: Codex review M4.
+- Verified: the new test failed on the old code ("an error was expected but none was thrown"),
+  then passed; full suite 158 tests.
+
 ### fix(ios-core): the Outbox writes to disk before it changes memory
 - What: `add` and every state change build the new entry list, write it atomically, and only
   then publish it in memory. Before, a failed journal write left the entry in memory, so the
