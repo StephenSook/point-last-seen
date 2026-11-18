@@ -61,6 +61,8 @@ public struct ReadContext: Sendable {
     public var screen: EvidenceScreen
     /// Live connectivity, consent, kill switch and incident mode. When nil, the snapshot above is used.
     public var liveGate: (@Sendable () -> LiveGate)?
+    /// The longest one model stage may take before the read moves on to the next stage.
+    public var stageTimeoutSeconds: Double = 20
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -140,7 +142,10 @@ public enum ReadOrchestrator {
             let next: NextStep
             switch stage {
             case .guided:
-                switch await runner.guided(text, path: path) {
+                let guidedPath = path
+                let result = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
+                    ?? .failure(path == .cloud ? .network : .other)
+                switch result {
                 case let .success(r):
                     if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
@@ -150,7 +155,8 @@ public enum ReadOrchestrator {
                     next = RouterPolicy.afterFailure(f, path: path, stage: .guided)
                 }
             case .permissiveText:
-                switch await runner.permissive(text) {
+                let result = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) } ?? .failure(.other)
+                switch result {
                 case let .success(line):
                     if let merged = PermissiveLine.parse(line, known: context.knownSegmentIds)?.merged(into: parse(text, context)),
                        validate(merged, context, text).isOK {
@@ -180,6 +186,22 @@ public enum ReadOrchestrator {
                 stage = path == .rules ? .deterministicParser : .guided
             case .pickList:
                 return finish(.unclear(quote: String(text.prefix(200))), path: .rules, stage: .deterministicParser)
+            }
+        }
+    }
+
+    /// Runs one model stage with a time limit. Returns nil on timeout without waiting for a
+    /// call that ignores cancellation (a task group would wait for its children).
+    static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
+        let once = ResumeOnce<T?>()
+        return await withCheckedContinuation { continuation in
+            let work = Task {
+                let value = await op()
+                once.resume(continuation, with: value)
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if once.resume(continuation, with: nil) { work.cancel() }
             }
         }
     }
@@ -253,5 +275,21 @@ public struct PermissiveLine: Sendable, Equatable {
         if !segmentIds.isEmpty { r.segmentIds = segmentIds }
         if let coverage { r.coverage = coverage }
         return r
+    }
+}
+
+/// Resumes a continuation exactly once, whichever side gets there first.
+final class ResumeOnce<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+
+    @discardableResult
+    func resume(_ continuation: CheckedContinuation<T, Never>, with value: T) -> Bool {
+        lock.lock()
+        let first = !done
+        done = true
+        lock.unlock()
+        if first { continuation.resume(returning: value) }
+        return first
     }
 }

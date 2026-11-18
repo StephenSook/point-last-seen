@@ -185,3 +185,27 @@ final class LiveGateBox: @unchecked Sendable {
     }
 }
 
+/// A runner whose guided call takes far longer than any stage limit.
+final class SlowRunner: ReadModelRunner, @unchecked Sendable {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        try? await Task.sleep(for: .seconds(30))
+        return .failure(.other)
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> {
+        try? await Task.sleep(for: .seconds(30))
+        return .failure(.other)
+    }
+}
+
+@Suite struct ReadOrchestratorTimeoutTests {
+    @Test func aModelStageThatTakesTooLongFallsToTheParser() async {
+        var c = rctx()
+        c.stageTimeoutSeconds = 0.2
+        let start = Date()
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: SlowRunner(), clock: SystemClock())
+        #expect(Date().timeIntervalSince(start) < 5)
+        #expect(o.route.stage == .deterministicParser)
+        #expect(o.reading.coverage == 0.8)
+    }
+}
+

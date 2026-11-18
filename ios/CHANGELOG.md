@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): give every model stage a time limit
+- What: each guided or permissive model call gets `stageTimeoutSeconds` (20 s by default). On
+  timeout the read moves on as a failure (`network` on the cloud route, `other` on-device), so
+  it reaches the parser instead of holding the report. The race resumes once and does not wait
+  for a call that ignores cancellation.
+- Source: fresh-eyes review I2 (no timeout on `session.respond`).
+- Verified: the new test with a runner that sleeps 30 s failed (the read took 31.8 s), then
+  passed in about 0.2 s; full suite 194 tests; app builds.
+
 ### fix(ios): a late timeout from one location request cannot answer the next
 - What: `FixGate` gives each request a token, and only a finish with the current token resumes
   the waiter. `LocationProvider` uses it, cancels the timer when a fix arrives, and ignores a
