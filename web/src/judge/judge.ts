@@ -50,3 +50,21 @@ export async function loadPublishedRun(
   if (typeof body !== "object" || body === null || RUN_PARTS.some((k) => !(k in body))) return { state: "invalid" };
   return { state: "run", run: body as PublishedRun };
 }
+
+/**
+ * The judge page's model lines (C2): which cloud model Remote Config selects right now, from
+ * where, and when it was fetched. The pinned default is always labelled; the lines are never blank.
+ */
+export function modelLines(rc: { cloudModelWeb: string; cloudModelSource: "remote" | "default" | "static"; fetchedAt: string | null; killCloud: boolean }): string[] {
+  const remote = rc.cloudModelSource === "remote";
+  const lines = [
+    remote ? `Cloud model now: ${rc.cloudModelWeb}.` : `Cloud model now: ${rc.cloudModelWeb} (default).`,
+    remote
+      ? `Chosen by Remote Config (fetched ${rc.fetchedAt ?? "just now"}), so it can change live with no new release.`
+      : rc.fetchedAt
+        ? `Remote Config answered at ${rc.fetchedAt} with no value set, so this is the page's pinned default.`
+        : "Remote Config has not answered, so this is the page's pinned default.",
+  ];
+  if (rc.killCloud) lines.push("Cloud steps are paused by command.");
+  return lines;
+}

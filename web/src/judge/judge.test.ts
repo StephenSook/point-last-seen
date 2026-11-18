@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { d2Copy, loadPublishedRun } from "./judge";
+import { d2Copy, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
   it("(a) no built-in model: nothing private was sent, and the cloud replay is named only when it exists", () => {
@@ -53,5 +53,32 @@ describe("loadPublishedRun", () => {
 
   it("reports an unreachable file as unavailable, not as no run", async () => {
     expect(await loadPublishedRun(async () => { throw new TypeError("Failed to fetch"); })).toEqual({ state: "unavailable" });
+  });
+});
+
+describe("modelLines", () => {
+  it("names the model Remote Config chose and when it was fetched", () => {
+    expect(modelLines({ cloudModelWeb: "gemini-3.6-flash-lite", cloudModelSource: "remote", fetchedAt: "14:05:09", killCloud: false })).toEqual([
+      "Cloud model now: gemini-3.6-flash-lite.",
+      "Chosen by Remote Config (fetched 14:05:09), so it can change live with no new release.",
+    ]);
+  });
+
+  it("labels the pinned default when Remote Config answered with no value", () => {
+    expect(modelLines({ cloudModelWeb: "gemini-3.5-flash-lite", cloudModelSource: "default", fetchedAt: "14:05:09", killCloud: false })).toEqual([
+      "Cloud model now: gemini-3.5-flash-lite (default).",
+      "Remote Config answered at 14:05:09 with no value set, so this is the page's pinned default.",
+    ]);
+  });
+
+  it("labels the pinned default when Remote Config has not answered", () => {
+    expect(modelLines({ cloudModelWeb: "gemini-3.5-flash-lite", cloudModelSource: "default", fetchedAt: null, killCloud: false })).toEqual([
+      "Cloud model now: gemini-3.5-flash-lite (default).",
+      "Remote Config has not answered, so this is the page's pinned default.",
+    ]);
+  });
+
+  it("says when command has paused cloud steps", () => {
+    expect(modelLines({ cloudModelWeb: "gemini-3.5-flash-lite", cloudModelSource: "remote", fetchedAt: "14:05:09", killCloud: true })).toContain("Cloud steps are paused by command.");
   });
 });

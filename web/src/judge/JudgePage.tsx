@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { aiClient, deviceModelInitializer } from "../ai/client";
 import { deviceState as readDeviceState, getLaptopReady, type DeviceState } from "../ai/deviceModel";
-import { RC_DEFAULTS } from "../config/rc";
+import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
 import { getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
-import { d2Copy, loadPublishedRun } from "./judge";
+import { d2Copy, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 // The replay (D1) needs startJudgeSession; until it is built the page never points at it.
@@ -18,6 +18,15 @@ export function JudgePage() {
   const [checking, setChecking] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
+  const [rc, setRc] = useState<WebRc | null>(null);
+  // Remote Config picks the cloud model; the real-time listener shows a swap as it happens (C2).
+  useEffect(() => {
+    try {
+      return startRemoteConfig(getPls().app, setRc);
+    } catch {
+      return undefined;
+    }
+  }, []);
 
   useEffect(() => {
     document.title = "Judge's door: Point Last Seen";
@@ -57,6 +66,21 @@ export function JudgePage() {
       </section>
 
       <JudgeExtras run={run?.state === "run" ? run.run : null} />
+
+      <section aria-labelledby="model-h">
+        <h2 id="model-h" className="label">Cloud model</h2>
+        {rc ? (
+          modelLines({
+            cloudModelWeb: rc.cloudModelWeb,
+            cloudModelSource: rc.cloudModelSource ?? "default",
+            fetchedAt: rc.fetchedAtMs ? new Date(rc.fetchedAtMs).toLocaleTimeString("en-GB") : null,
+            killCloud: rc.killCloud,
+          }).map((l) => <p key={l}>{l}</p>)
+        ) : (
+          // Before Remote Config starts (or if it cannot), the pinned default is still named.
+          modelLines({ cloudModelWeb: RC_DEFAULTS.cloud_model_web, cloudModelSource: "default", fetchedAt: null, killCloud: false }).map((l) => <p key={l}>{l}</p>)
+        )}
+      </section>
 
       <section aria-labelledby="d2-h">
         <h2 id="d2-h" className="label">This laptop</h2>

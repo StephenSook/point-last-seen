@@ -20,3 +20,11 @@ test("before a run is published the page says so", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Replay the training drill" }).getByText("No published run yet.")).toBeVisible();
   await expect(page.getByText("Training drill. Nobody is missing.")).toBeVisible();
 });
+
+test("the judge page names the cloud model Remote Config selects right now", async ({ page }) => {
+  await page.goto("/judge");
+  const s = page.getByRole("region", { name: "Cloud model" });
+  await expect(s).toContainText(/Cloud model now: gemini-[0-9.]+-flash-lite( \(default\))?\./, { timeout: 15_000 });
+  // Until a Remote Config template is published (the server answers NO_TEMPLATE), the page says it is on its default.
+  await expect(s).toContainText(/Chosen by Remote Config \(fetched [0-9:]+\)|Remote Config answered at [0-9:]+ with no value set|Remote Config has not answered/, { timeout: 15_000 });
+});

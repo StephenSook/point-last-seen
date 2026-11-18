@@ -2,7 +2,7 @@
 // engine parameters travel in the incident doc and the pack.
 
 import type { FirebaseApp } from "firebase/app";
-import { activate, fetchAndActivate, getAll, getRemoteConfig, onConfigUpdate } from "firebase/remote-config";
+import { activate, fetchAndActivate, getAll, getRemoteConfig, getValue, onConfigUpdate } from "firebase/remote-config";
 
 export const RC_DEFAULTS = {
   cloud_model_web: "gemini-3.5-flash-lite",
@@ -14,6 +14,10 @@ export type WebRc = {
   cloudModelWeb: string;
   killCloud: boolean;
   useLimitedUseTokens: boolean;
+  /** Where cloud_model_web came from: the fetched config ("remote") or the in-app default. */
+  cloudModelSource?: "remote" | "default" | "static";
+  /** When Remote Config last answered a fetch (ms since 1970), or null when it never has. */
+  fetchedAtMs?: number | null;
 };
 
 // Live paths use the flash-lite family only. A larger flash model took 116 s
@@ -45,7 +49,12 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
 export function startRemoteConfig(app: FirebaseApp, onChange: (rc: WebRc) => void): () => void {
   const rc = getRemoteConfig(app);
   rc.defaultConfig = Object.fromEntries(Object.entries(RC_DEFAULTS).map(([k, v]) => [k, typeof v === "string" ? v : String(v)]));
-  const emit = () => onChange(parseRc(Object.fromEntries(Object.entries(getAll(rc)).map(([k, v]) => [k, v.asString()]))));
+  const emit = () =>
+    onChange({
+      ...parseRc(Object.fromEntries(Object.entries(getAll(rc)).map(([k, v]) => [k, v.asString()]))),
+      cloudModelSource: getValue(rc, "cloud_model_web").getSource(),
+      fetchedAtMs: rc.fetchTimeMillis > 0 ? rc.fetchTimeMillis : null,
+    });
   emit();
   fetchAndActivate(rc).then(emit, () => emit());
   return onConfigUpdate(rc, {
