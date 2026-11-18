@@ -4,7 +4,7 @@
 // API names below were read from animejs 4.5.0's own type files:
 // createTimeline (add, label), createScope ({ mediaQueries }, matches), spring ({ bounce, duration }).
 
-import { createScope, createTimeline, spring } from "animejs";
+import { createScope, createTimeline, createTimer, spring } from "animejs";
 import { MOTION, type BeatStep } from "./plan";
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
@@ -80,4 +80,17 @@ export function playFlip(items: readonly { el: HTMLElement; dy: number }[], dela
       reset();
     },
   };
+}
+
+/**
+ * The walker flow: one 60 fps timer for every walker (no animation object per walker),
+ * calling `onFrame` with the elapsed milliseconds. Reduced motion: no flow, done at once.
+ */
+export function playWalkers(totalMs: number, reduced: boolean, onFrame: (tMs: number) => void, done: () => void): { cancel(): void } {
+  if (reduced || totalMs <= 0) {
+    done();
+    return { cancel: () => {} };
+  }
+  const timer = createTimer({ duration: totalMs, frameRate: 60, onUpdate: (t) => onFrame(t.currentTime), onComplete: () => done() });
+  return { cancel: () => void timer.cancel() };
 }

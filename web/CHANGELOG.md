@@ -659,3 +659,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `motion/walkerTracks.ts` `walkerTracksToLngLat(tracks, graph, durationMs)`: each sampled track's stations (and its end point when it stayed on the graph) become longitude and latitude through the graph's projection, released in cohorts of 25, 100 ms apart, so the canvas projects only each walker's current point per frame.
 - Source: plan Task 37c and 39.5 (walker canvas).
 - Verified: `src/motion/walkerTracks.test.ts` (2 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(walkers): draw the walker flow on one canvas, then hand over to the probability grid
+- What: `playWalkers` in `motion/engine.ts` is one 60 fps timer for every walker (no animation object per walker). `command/WalkerLayer.tsx` draws each walker's current point (`walkerFrame`, projected per frame) as a small fg-2 dot on one canvas over the map, then fades the canvas over 350 ms so the probability fill remains, marking `data-mode` "flowing" then "final-grid"; reduced motion goes straight to the grid. MapView takes `walkers` ({ key, tracks }) and shows the layer once its map has loaded.
+- Source: plan Task 37c and 39.5 (walker canvas), spec 22.1 "Walkers".
+- Verified: two new map harness tests (300 synthetic tracks fanning out from cell AB) failed first (no canvas), then passed: more than 50 lit canvas pixels mid-flow, then "final-grid"; with reduced motion "final-grid" at once. Frame at 900 ms checked by eye. All 22 harness specs pass. scripts/ci-local.sh exit 0.

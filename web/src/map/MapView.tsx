@@ -13,6 +13,8 @@ import { deltaLabel, type ChangeResult } from "../command/changeModel";
 import { motionScope, playReportBeat, playRipple } from "../motion/engine";
 import { rippleDelays } from "../motion/ripple";
 import { reportBeatPlan } from "../motion/plan";
+import type { Track } from "../motion/walkerCanvas";
+import { WalkerLayer } from "../command/WalkerLayer";
 import { mapCredit } from "./credit";
 import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "./geo";
@@ -42,6 +44,8 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** The walker flow for a walker prior: the sampled tracks, played when `key` changes. */
+  walkers?: { key: string; tracks: readonly Track[] } | null;
   /** When `key` (the prior version) is first drawn, the dots grow outward from `origin`. */
   ripple?: { key: string; origin: LatLon } | null;
   /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
@@ -72,7 +76,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -93,6 +97,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   const arc = useRef<SVGPathElement>(null);
   const reportPin = useRef<Marker | null>(null);
   const rippleRun = useRef<{ cancel(): void } | null>(null);
+  const [loadedMap, setLoadedMap] = useState<MlMap | null>(null);
   const [basemap, setBasemap] = useState<"none" | "drawn" | "absent" | "invalid" | "unavailable">("none");
 
   useEffect(() => {
@@ -129,6 +134,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
       m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
       ready.current = true;
+      setLoadedMap(m);
       readyRef.current?.(m);
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
@@ -349,6 +355,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   return (
     <div className={onMapClick ? "map-wrap picking" : "map-wrap"} data-basemap={basemap}>
       <div ref={el} className="map" data-testid="map" />
+      {walkers && loadedMap && <WalkerLayer map={loadedMap} tracks={walkers.tracks} playKey={walkers.key} />}
       <svg className="beat-overlay" aria-hidden="true">
         <path ref={arc} data-testid="beat-arc" />
       </svg>

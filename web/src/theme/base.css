@@ -140,3 +140,5 @@ button, input, select { font: inherit; color: inherit; }
 .report-pin { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
 .beat-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
+.walker-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 350ms; }
+@media (prefers-reduced-motion: reduce) { .walker-canvas { transition: none; } }

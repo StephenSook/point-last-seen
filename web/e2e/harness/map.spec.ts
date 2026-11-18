@@ -43,3 +43,24 @@ test("with reduced motion the dots are drawn at once, with no ripple", async ({ 
   const far = (await page.locator(".plate").nth(22).boundingBox())!;
   expect(near(await pixelAt(page, far.x + far.width / 2, far.y - 16), MAP_INK.dot)).toBe(true);
 });
+
+test("the walkers flow out as dots on one canvas, then hand over to the grid", async ({ page }) => {
+  await page.goto("/harness/map.html?walkers");
+  const canvas = page.getByTestId("walker-canvas");
+  await expect(canvas).toHaveAttribute("data-mode", "flowing", { timeout: 20_000 });
+  await page.waitForTimeout(600);
+  const lit = await canvas.evaluate((c: HTMLCanvasElement) => {
+    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i]! > 0) n++;
+    return n;
+  });
+  expect(lit, "walker dots drawn mid-flow").toBeGreaterThan(50);
+  await expect(canvas).toHaveAttribute("data-mode", "final-grid", { timeout: 5_000 });
+});
+
+test("with reduced motion the walkers skip straight to the grid", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/harness/map.html?walkers");
+  await expect(page.getByTestId("walker-canvas")).toHaveAttribute("data-mode", "final-grid", { timeout: 20_000 });
+});
