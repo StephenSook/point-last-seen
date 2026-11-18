@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the appearance-only profile a model may see
+- What: `ModelProfile` takes a `profile/shared` document and keeps exactly six fields
+  (clothingLastWorn, appearance, heightFt, heightIn, hair, mobilityAids); `toolText` is what
+  `SubjectProfileTool` returns. Names, age, weight, dementia type, flags and approach notes are
+  dropped.
+- Source: spec section 13.2 (profileForModel), Task 13 (SubjectProfileTool), Task 21b
+  (`cloudPromptHoldsOnlyNamedFields`, tool-output half).
+- Verified: three `ModelProfileTests` (key set, no health or behaviour words, empty profile)
+  red, then green; full suite 149 tests.
+
 ### feat(ios-core): classify Gemini route failures, App Check refusal included
 - What: `CloudFailure.classify` maps the Gemini error case and HTTP status to a `ReadFailure`:
   401 or 403 is `app_check_refused`, network and 503 are `network`, a bad response is
