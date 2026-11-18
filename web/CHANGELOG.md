@@ -542,3 +542,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `/judge` renders the extras lane's `JudgeExtras` after the replay section, given the published run when one exists (hook H2). It draws nothing today.
 - Source: extras lane request H2.
 - Verified: judge e2e (2 tests) pass against the local preview; typecheck and build clean. scripts/ci-local.sh exit 0.
+
+### feat(web): precache the extras lane's json data files for offline use
+- What: the Workbox precache adds `extras/**/*.json` (the extras lane's scam.json and terrain files once they ship) beside the existing patterns; `version.json` at the root stays network-only. The lazy extras chunks were already covered by the js pattern (hook H6).
+- Source: extras lane request H6.
+- Verified: build clean (11 precache entries today; no extras json exists yet, so the pattern matches nothing until it does); offline e2e passes. scripts/ci-local.sh exit 0.
