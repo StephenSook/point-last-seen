@@ -6,7 +6,11 @@ in firebase.json they collide ("port taken"). This copy keeps every setting, mak
 file paths absolute to the worktree, and moves every emulator to a port block derived
 from the worktree path (20000 to 34999), so two worktrees never share a port.
 
-Usage: python3 -I scripts/emulator_config.py [worktree root]   (prints the config path)
+The demo project id is per worktree too ("demo-pls-" + 8 hex), because the emulator hub
+also refuses or warns about "multiple instances of the emulator suite" for one project.
+
+Usage: python3 -I scripts/emulator_config.py [worktree root]               (prints the config path)
+       python3 -I scripts/emulator_config.py [worktree root] --project-id  (prints the project id)
 """
 
 import hashlib
@@ -45,8 +49,16 @@ def build(root: Path) -> dict:
     return cfg
 
 
+def project_id(root: Path) -> str:
+    return "demo-pls-" + hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:8]
+
+
 def main(argv: list[str]) -> int:
-    root = Path(argv[0] if argv else ".").resolve()
+    args = [a for a in argv if a != "--project-id"]
+    root = Path(args[0] if args else ".").resolve()
+    if "--project-id" in argv:
+        print(project_id(root))
+        return 0
     out_dir = Path(tempfile.gettempdir()) / f"pls-emulators-{hashlib.sha256(str(root).encode()).hexdigest()[:12]}"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "firebase.json"

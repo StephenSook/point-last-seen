@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Run the rules suite under a per-worktree demo project id (`demo-pls-` + 8 hex of the worktree path, from
+  `scripts/emulator_config.py --project-id`); test helpers read it from GCLOUD_PROJECT. Separate ports alone
+  still let the emulator hub report "running multiple instances of the emulator suite for project demo-pls"
+  when two worktrees ran at once.
+  Source: lane B report from its ci-local runs.
+  Verified: the new test failed first, now 4 emulator-config tests pass; the suite ran as demo-pls-68ccce04
+  and passed 63; ci-local exits 0.
 - joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
   claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
   right role against another OPEN incident (I2), so only the incident comparison can refuse it.
