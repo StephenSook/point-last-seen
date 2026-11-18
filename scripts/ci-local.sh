@@ -34,7 +34,7 @@ npm test -w tools/grid-builder
 
 echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check
-npm test -w shared/engine-ts -- test/vectors.test.ts test/priorVectors.test.ts
+npm test -w shared/engine-ts -- test/vectors.test.ts test/priorVectors.test.ts test/urgency.test.ts
 
 echo "== rules: functions typecheck, rules and joinIncident tests in the emulators"
 # Local only (a CI runner starts clean): a socket left from the previous run on this worktree's port block

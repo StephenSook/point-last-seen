@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- P-12 urgency chip: `shared/constants/urgency.json` (coldF 40, the CDC sentence it rests on, its URL and the
+  date it was read), `urgencyLevel(tempF, wet)` in @pls/engine, and shared vectors in
+  `shared/test-vectors/urgency.json` from the Python reference so web (lane C) and iOS (lane B) agree: cold at
+  or below 40 F, cool_wet above it when typed wet, none otherwise. Clothing does not enter. Ruling: no typed
+  temperature gives none (no chip without data) and an unanswered wet question counts as dry. The vectors sit
+  in their own file because the Swift vector test refuses unknown sections in search.json.
+  Source: coordinator ruling (P-12), PLS-DESIGN Coordinator decisions.
+  Verified: the CDC sentence was found word for word on the live page (reviewed 2026-08-25, read 2026-11-18);
+  the urgency tests failed first (no constants file), now 183 engine tests pass with the 7 vectors;
+  search.json unchanged; 16 generator tests pass; `make_vectors.py --check` covers the file; the
+  vectors-parity job diffs it and runs its TS test; `bash scripts/ci-local.sh` exit 0.
 - NOTICE credits anime.js 4.5.0 (Julian Garnier, MIT), imported only by web/src/motion/engine.ts (the rules
   gate enforces that); it arrives with lane C's merge (dependency 657d96b, engine cf627b4).
   Source: plan Task 39.3, lane C hand-over.
