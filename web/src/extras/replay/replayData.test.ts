@@ -294,6 +294,25 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [withSha] }))).toEqual({ ok: false, reason: "The run carries a field a public run must not: event.reading.clipSha256." });
   });
 
+  it("refuses a segment whose shape has a missing or broken ring", () => {
+    const base = runV1();
+    const seg = base.segments[0] as { geometryJson: string };
+    const noShape = { ok: false, reason: "The run has a map segment without a shape." };
+    for (const coordinates of [[null], [[[-84.37, 33.78]]], [[[-84.37], [-84.36, 33.78], [-84.36, 33.79], [-84.37]]], [[[-84.37, "x"], [-84.36, 33.78], [-84.36, 33.79], [-84.37, 33.78]]]]) {
+      const broken = { ...seg, geometryJson: JSON.stringify({ type: "Polygon", coordinates }) };
+      expect(fromPublishedRun(run({ segments: [broken, ...base.segments.slice(1)] }))).toEqual(noShape);
+    }
+  });
+
+  it("refuses a run whose engine settings fail on any frame, not only the last", () => {
+    // The clue is retracted later, so the last frame never touches the missing table; the frame before it does.
+    const { iocBase: _missing, ...broken } = DEFAULT_PARAMS;
+    const clue = runEvent(eventDoc({ eventId: "c", clientTimeMs: T0, effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + MIN);
+    const retract = runEvent(eventDoc({ eventId: "r", type: "retraction", role: "command", teamId: null, deviceId: "cmd", clientTimeMs: T0 + 2 * MIN, targetEventId: "c", effect: { kind: "none", why: "informational" } }), T0 + 2 * MIN);
+    const r = fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: broken }, events: [clue, retract] }));
+    expect(r).toEqual({ ok: false, reason: "The run's engine settings cannot be used." });
+  });
+
   it("refuses engine settings it cannot compute with", () => {
     expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: {} } }))).toEqual({
       ok: false,

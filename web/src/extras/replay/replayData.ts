@@ -195,9 +195,14 @@ function geometryOf(s: Record<string, unknown>): MapSegment["geometry"] | null {
       return null;
     }
   }
-  return isObj(g) && (g["type"] === "Polygon" || g["type"] === "MultiPolygon") && Array.isArray(g["coordinates"])
-    ? (g as MapSegment["geometry"])
-    : null;
+  if (!isObj(g)) return null;
+  // Every ring is a closed list of at least four [longitude, latitude] pairs; the map and the cube walk them all.
+  const ring = (r: unknown) => Array.isArray(r) && r.length >= 4 && r.every((p) => Array.isArray(p) && p.length >= 2 && num(p[0]) && num(p[1]));
+  const polygon = (rings: unknown) => Array.isArray(rings) && rings.length >= 1 && rings.every(ring);
+  const c = g["coordinates"];
+  if (g["type"] === "Polygon" && polygon(c)) return g as MapSegment["geometry"];
+  if (g["type"] === "MultiPolygon" && Array.isArray(c) && c.length >= 1 && c.every(polygon)) return g as MapSegment["geometry"];
+  return null;
 }
 
 /**
@@ -323,13 +328,19 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     events: ordered(replayEvents),
     plans: replayPlans.sort((a, b) => a.version - b.version),
   };
-  // Compute the last frame once here, so a run whose engine settings or reports the engine cannot use is refused
-  // with a reason instead of failing on the judge's screen.
+  // Compute every frame the replay can show (each arrival and the end) once here, so a run whose engine settings or
+  // reports the engine cannot use is refused with a reason instead of failing on the judge's screen.
   try {
     const w = replayWindow(data);
-    const last = w ? stateAt(data, w.endMs) : null;
-    if (last?.phase === "replayable" && Object.values(last.view.result.poa).some((v) => !Number.isFinite(v))) {
-      return refuse("The run's engine settings cannot be used.");
+    if (w) {
+      const times = new Set<number>([w.endMs]);
+      for (const e of data.events) if (e.arrivedAtMs !== null) times.add(e.arrivedAtMs);
+      for (const t of times) {
+        const frame = stateAt(data, t);
+        if (frame.phase === "replayable" && Object.values(frame.view.result.poa).some((v) => !Number.isFinite(v))) {
+          return refuse("The run's engine settings cannot be used.");
+        }
+      }
     }
   } catch {
     return refuse("The run's engine settings cannot be used.");
