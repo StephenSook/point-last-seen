@@ -22,6 +22,10 @@ class CopyTest {
         assertEquals("In a training drill, call the drill call-taker, not 911.", Copy.UNJOINED_DRILL_HINT)
     }
 
+    @Test fun theDownloadPageIsTheReleasesPage() {
+        assertEquals("https://github.com/StephenSook/point-last-seen/releases/latest", Copy.DOWNLOAD_PAGE)
+    }
+
     @Test fun drillBannerOnEveryDrillScreen() {
         assertEquals("Training drill. Nobody is missing.", Copy.drillBanner("drill"))
         assertEquals("Training drill. Nobody is missing.", Copy.drillBanner("judge"))

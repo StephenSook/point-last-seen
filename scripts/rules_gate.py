@@ -8,6 +8,7 @@ Exit 0 when clean, 1 on any violation or when the walk finds zero files.
 Usage: python3 -I scripts/rules_gate.py [root]
 """
 
+import json
 import re
 import subprocess
 import sys
@@ -59,6 +60,18 @@ CLIENT_DIRS = ("web/", "ios/", "android/")
 # Plain, optional-chained (?.) and bracket ("availability") access all count.
 AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
+# Task 39 type and motion: only the OFL fonts in web/public/fonts ship, the motion library sits behind one
+# module, and no font is fetched from a remote host.
+FONT_NAMES = re.compile(r"berkeley\s*mono|digital-7", re.IGNORECASE)
+ANIMEJS_ONLY_IN = "web/src/motion/engine.ts"
+ANIMEJS_IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)["']animejs(?:/[^"']*)?["']""")
+REMOTE_FONT_HOSTS = re.compile(r"fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net|p\.typekit\.net|"
+                               r"fonts\.bunny\.net|fast\.fonts\.net|fonts\.cdnfonts\.com|fonts\.adobe\.com")
+# Model ids: every id named in source must be on shared/constants/models.json (read from the live models page
+# with a date); an id whose shutdown falls before judging ends fails anywhere outside docs, tests included.
+MODEL_ID = re.compile(r"\bgemini-[0-9][A-Za-z0-9._-]*[A-Za-z0-9]")
+MODELS_FILE = "shared/constants/models.json"
+TEST_PATH = re.compile(r"(^|/)(test|tests|__tests__|androidTest)/|[A-Za-z]+Tests?/|\.(test|spec)\.[jt]sx?$|(^|/)test_[^/]+\.py$|Tests?\.(kt|swift)$")
 MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
 ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
 
@@ -90,8 +103,10 @@ def check_name(rel: str) -> list[str]:
     return []
 
 
-def check_lines(rel: str, text: str) -> list[str]:
+def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(), set())) -> list[str]:
     problems = []
+    allowed_models, banned_models = models
+    is_test = bool(TEST_PATH.search(rel))
     is_doc = rel.endswith(".md")
     in_functions = rel.startswith("functions/")
     for n, line in enumerate(text.splitlines(), start=1):
@@ -122,6 +137,20 @@ def check_lines(rel: str, text: str) -> list[str]:
             for token, allowed in MODEL_BUILDERS.items():
                 if token in line and rel not in allowed:
                     bad(f"model builder '{token}' belongs only in its client file")
+        if not is_doc:
+            m = FONT_NAMES.search(line)
+            if m:
+                bad(f"font '{m.group(0)}' is not one of the shipped OFL fonts")
+            if ANIMEJS_IMPORT.search(line) and rel != ANIMEJS_ONLY_IN:
+                bad(f"animejs is imported only by {ANIMEJS_ONLY_IN}")
+        if (rel == "web/index.html" or (rel.startswith("web/") and rel.endswith((".css", ".scss")))) and REMOTE_FONT_HOSTS.search(line):
+            bad("fonts load only from web/public/fonts, never a remote host")
+        if not is_doc and rel != MODELS_FILE and (allowed_models or banned_models):
+            for mid in MODEL_ID.findall(line):
+                if mid in banned_models:
+                    bad(f"model '{mid}' shuts down before judging ends ({MODELS_FILE})")
+                elif not is_test and mid not in allowed_models and mid != SLOW_MODEL:
+                    bad(f"model '{mid}' is not on the allow-list in {MODELS_FILE}")
         if in_functions:
             for token in FUNCTION_MODEL_CALLS:
                 if token in line:
@@ -153,11 +182,16 @@ def main(root: str) -> int:
         print("rules_gate: walked 0 files; refusing to report clean")
         return 1
     problems = []
+    models: tuple[set[str], set[str]] = (set(), set())
+    mf = root_path / MODELS_FILE
+    if mf.exists():
+        m = json.loads(mf.read_text())
+        models = ({x["id"] for x in m.get("models", [])}, {x["id"] for x in m.get("banned", [])})
     for rel in files:
         problems += check_name(rel)
         text = read_text(root_path / rel)
         if text is not None:
-            problems += check_lines(rel, text)
+            problems += check_lines(rel, text, models)
     problems += check_builder_floor(root_path, files)
     for p in problems:
         print(p)

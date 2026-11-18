@@ -35,15 +35,6 @@ object AiSchemas {
         ),
     )
 
-    val note: Schema = Schema.obj(
-        mapOf(
-            "kind" to Schema.enumeration(FamilyNoteReading.KINDS),
-            "label" to Schema.string(),
-            "summary" to Schema.string(),
-            "evidenceQuote" to Schema.string(),
-        ),
-    )
-
     const val CLIP_PROMPT =
         "This is a short home-camera clip from a training drill. Describe one adult walking through the view: " +
             "when they first and last appear, which frame edge they enter and leave by (toward_camera or " +

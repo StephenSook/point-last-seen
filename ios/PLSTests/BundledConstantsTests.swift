@@ -16,4 +16,12 @@ import Testing
         #expect(p.secondsPerMinute == 60)
         #expect(p.detectionProfile.soundCounts == false)
     }
+
+    @Test func theAppBundleCarriesTheApproachNotes() throws {
+        let notes = try BundledConstants.approachNotes()
+        #expect(notes.firstScreenMax == 7)
+        #expect(notes.order.first == "may_not_respond")
+        #expect(notes.footer.hasSuffix("Not medical advice."))
+    }
 }
+

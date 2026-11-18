@@ -63,17 +63,11 @@ public enum ReadOutcomeBuilder {
         ctx.positionSegmentId = position.flatMap { Geo.segment(containing: $0, in: context.grid) }
 
         var reading = outcome.reading
-        // A model may copy known ids it saw in a tool's output. Drop a known id the report
-        // never names (by the parser's rule: capital letters, or after "segment"); with none
-        // left and none named, the effect falls back to the team's assignment. An unknown id
-        // is kept so the validator rejects the reading.
-        let gridIds = Set(context.effect.segments.keys)
-        let namedInText = ReportParser.segments(Tokens(rawText), known: gridIds)
-        let named = Set(namedInText)
-        reading.segmentIds = reading.segmentIds.filter { context.effect.segments[$0] == nil || named.contains($0) }
-        // An unknown id the report itself names ("segment ZZ") is added back, so the reading is
-        // rejected rather than the clear landing on the team's assignment.
-        for id in namedInText where !gridIds.contains(id) && !reading.segmentIds.contains(id) { reading.segmentIds.append(id) }
+        // Segment ids come from code, never the model (`SegmentChoice`): the ids the report
+        // names, else the segment under this fix; with neither, the effect falls back to the
+        // team's assignment. An unknown id the report names is kept so the validator rejects it.
+        reading.segmentIds = SegmentChoice.ids(rawText: rawText, known: Array(context.effect.segments.keys),
+                                               positionSegmentId: ctx.positionSegmentId)
         let effect: Effect
         var storedReading: ReportReading? = reading
         if outcome.route.stage == .evidenceProtocol {

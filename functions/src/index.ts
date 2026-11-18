@@ -1,6 +1,10 @@
 import { getApps, initializeApp } from "firebase-admin/app";
+import { getStorage } from "firebase-admin/storage";
+import { getFirestore } from "firebase-admin/firestore";
 import { onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { handleJoin, type JoinRequest } from "./join.js";
+import { deleteEndedSandboxMedia, recordStorageHealth } from "./media.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -8,4 +12,18 @@ if (getApps().length === 0) initializeApp();
 export const joinIncident = onCall<JoinRequest>(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
   request => handleJoin(request.auth?.uid ?? null, request.data),
+);
+
+/**
+ * deleteIncidentMedia (scheduled every 15 minutes): deletes an ended judge sandbox's clips, photos and packs,
+ * then records the bucket's lifecycle state in ops/storage for the credential-free daily probe.
+ */
+export const deleteIncidentMedia = onSchedule(
+  { schedule: "every 15 minutes", region: "us-central1", maxInstances: 1, timeoutSeconds: 300 },
+  async () => {
+    const db = getFirestore(), bucket = getStorage().bucket();
+    const r = await deleteEndedSandboxMedia(db, bucket, Date.now());
+    await recordStorageHealth(db, bucket);
+    console.log(JSON.stringify({ event: "deleteIncidentMedia", incidents: r.incidents, files: r.files }));
+  },
 );

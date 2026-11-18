@@ -5,6 +5,274 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): show the team's task as a Live Activity
+- What: `TaskActivityAttributes` (in `ios/PLSShared`) carries the `TaskStatus` and the night
+  flag. `TaskActivityController` starts one Live Activity when a pack loads, updates it only when
+  what it shows changes (segments, reports waiting or needing a look, day or night colours), and
+  ends it when the pack is gone; a refused start is tried again on the next change.
+  `ActivityKitClient` is the real client (ends leftovers from an earlier run first). The widget
+  extension draws the lock screen ("Training drill. Nobody is missing.", "Your segments: AB,
+  AC", the status line) and the Dynamic Island in the field colours. The app declares
+  `NSSupportsLiveActivities`; `FieldColor` moved to `ios/PLSShared` so the extension can use the
+  theme; the extension links PLSCore. `@preconcurrency import ActivityKit` because Activity
+  predates Sendable; the client touches its one activity from the main actor only.
+- Source: promotion P-07 (Live Activity for the team's task).
+- Verified: two `TaskActivityControllerTests` (start once, update on change, end when the pack
+  goes; a refused start is retried) compile-red without the types, then green;
+  `theRealClientStartsAndEndsALiveActivity` puts an actual Live Activity up on the iOS 27.2
+  simulator and takes it down; 48 app tests pass; `scripts/ci-local.sh` exit 0. Not verified
+  yet: a still of the lock screen and Dynamic Island (the simulator still did not show it) and a
+  loaded pack driving it, which waits on the pack loader.
+
+### feat(ios-core): sum up the team's task for the Live Activity
+- What: `TaskStatus.make(assignedSegmentIds:states:)` gives the sorted assigned segments, the
+  reports still waiting for signal (pending or checking) and the ones refused by the server,
+  and a short line ("2 reports waiting for signal. 2 need a look."). It holds no report text
+  and nothing about the subject, because a lock screen can be seen by anyone nearby.
+- Source: promotion P-07 (Live Activity for the team's task).
+- Verified: two `TaskStatusTests` compile-red, then green; 237 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios): add a Log report control for the Action button
+- What: a WidgetKit extension target `PLSWidgets` (in `ios/project.yml`, embedded in the app)
+  with the `LogReportControl` control. Its `LogReportIntent` (in `ios/PLSShared`, built into
+  both targets) runs in the app in the foreground (`supportedModes = .foreground(.immediate)`;
+  `openAppWhenRun` is deprecated in iOS 26) and asks `ReportFocus` for the Report field, which
+  the field screen focuses once when a pack is loaded. Assigned to the Action button, one press
+  opens the app with the keyboard and its microphone key ready.
+- Source: promotion P-08, Task 32 item 6.
+- Verified: two `LogReportIntentTests` (foreground mode; perform asks once, focus taken once)
+  compile-red without the types, then green; 45 app tests pass on the iOS 27.2 simulator; the
+  built app holds `PlugIns/PLSWidgets.appex` with extension point
+  `com.apple.widgetkit-extension`; `scripts/ci-local.sh` exit 0. Not verified yet: assigning
+  the control to the iPhone's Action button (a device step for Stephen).
+
+### feat(ios): collect crash reports with Crashlytics
+- What: the app links `FirebaseCrashlytics` (pinned SDK, no new package) and a post-build
+  script uploads the dSYMs for symbolication on Release builds only, with Firebase's
+  documented input files so it runs under user script sandboxing. The app sets no custom keys
+  or logs, so crash reports hold stack traces only, never report text or subject data.
+- Source: promotion P-15 (Crashlytics on iOS); orchestrator tool note (all target and script
+  changes in `ios/project.yml`, never in the generated project).
+- Verified: `crashReportsAreCollected` failed to build without the product ("Unable to resolve
+  module dependency: 'FirebaseCrashlytics'"), then green; 43 app tests pass; a Release
+  simulator build ran the upload phase and succeeded (the script path resolves); Debug builds
+  run the phase and upload nothing; `scripts/ci-local.sh` exit 0. Not verified yet: the dSYMs
+  showing in the Crashlytics console.
+
+### feat(ios): send one Performance trace per report read
+- What: the app links `FirebasePerformance` (same pinned firebase-ios-sdk 13.2.0, no new
+  package). `PerformanceTelemetry.record` starts a `report_read` trace, sets the five route
+  attributes and `latency_ms` from `RouteTelemetry`, and stops it. `ReportReader` records the
+  route of every read on every path (evidence protocol, parser, on-device, cloud) through
+  `recordRoute`, a seam for tests.
+- Source: promotion P-15 (Performance traces per route), EXTRA-MILE C4.
+- Verified: `everyReadRecordsExactlyOneRouteTrace` (an evidence read and a parser read record
+  exactly their two routes) compile-red without `recordRoute`, then green; 42 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0. Not verified yet: traces arriving in the
+  Performance console, which takes a device or simulator run with network and a console read.
+
+### feat(ios-core): describe each read as a route-only Performance trace
+- What: `RouteTelemetry` maps a read's `RouteRecord` to the `report_read` trace: five
+  attributes (path, stage, reason, model, blocked) and a `latency_ms` metric. It carries the
+  route only, never the report, the reading or anything about the subject. AI monitoring sees
+  cloud calls only, so this is how the on-device share and latency can be shown.
+- Source: promotion P-15 (telemetry), EXTRA-MILE C4.
+- Verified: three `RouteTelemetryTests` (the mapping; every path, stage and reason fits the
+  installed SDK's limits of 5 attributes, 40-character names, 100-character values, no
+  reserved prefix; strange latencies) compile-red, then green. The huge-latency case crashed
+  the run ("Double value cannot be converted to Int64") before the one-day cap was added.
+  235 tests; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): ask an old build to update when command raises the minimum version
+- What: `AppModel.updatePrompt` is set when `minimum_version_ios` is above this build's
+  CFBundleShortVersionString: "Update this app. Command needs version X or newer. Reports still
+  send." The field screen shows it as an accent banner under the drill line and the Ready check
+  as a row (otherwise "App version 0.1.0: current"). It asks and does not block, so a searcher
+  on an old build can still send reports.
+- Source: J10 (`minimum_version_ios` upgrade prompt), promotion plan.
+- Ruling: prompt, not block. Cost if wrong: an old build with a known defect keeps sending until
+  its user updates; command can still flip `kill_cloud`.
+- Verified: two `AppModelTests` (a raised minimum sets and clears the prompt; the version comes
+  from the bundle) compile-red, then green; 41 app tests pass; stills of a local-only build with
+  the minimum at 9.9.9 (never committed) show the banner by day and the row at night;
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios): read Remote Config at start and on every live update
+- What: `RemoteConfigStore` sets the built-in defaults, fetches and activates at start, and
+  listens for real-time updates (activate, then publish), so a kill-switch flip or a raised
+  `minimum_version_ios` reaches the phone without a restart. `RemoteConfigValues.from` reads
+  the five iOS keys (`cloud_model_ios`, `token_budget_fraction`, `kill_cloud`,
+  `use_limited_use_tokens`, `minimum_version_ios`); a missing or unreadable value keeps its
+  default. `AppModel.start` feeds every update into `config`, which updates the live gate.
+- Source: J10 and Task 21b (RemoteConfigStore fetch), promotion plan.
+- Verified: four `RemoteConfigValuesTests` (keys read, bad values keep defaults, defaults
+  written under the same keys, old build asked to update) compile-red, then green; 39 app
+  tests pass; the app launches on the simulator and is still running 8 s later against the
+  project's template, which is empty today (so the defaults are in force);
+  `scripts/ci-local.sh` exit 0. Not verified yet: a live update arriving, which needs the
+  template that lane A publishes.
+
+### feat(ios-core): compare app versions for the minimum version check
+- What: `AppVersion.isBelow(_:minimum:)` compares dotted versions part by part as numbers
+  (0.9 is below 0.10; a missing part is 0; spaces trimmed). A value that is not a dotted
+  number never asks for an update, so a typo in Remote Config cannot lock a searcher out.
+- Source: J10 (`minimum_version_ios` with an upgrade prompt), promotion plan.
+- Verified: two `AppVersionTests` compile-red, then green; 232 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### fix(ios): give the read the segment under the GPS fix
+- What: `ReportReader` sets `ReadContext.positionSegmentId` from the report's situation, so a
+  report that names no segment is read as being about the segment the searcher stands in,
+  whatever the model copied.
+- Source: coordinator ruling 2026-11-18 (segment ids from code).
+- Verified: `theGPSSegmentReachesTheReadNotTheModelsCopy` (a model that copies AC; GPS in AB;
+  text names nothing; result AB) red with this line removed, then green; 35 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
+### fix(ios-core): take segment ids from the report text or GPS, never from the model
+- What: `SegmentChoice.ids` picks a reading's segments in code: the ids the report names (the
+  parser's rule; an unknown named id is kept so the validator rejects it), else the segment
+  under the GPS fix (`ReadContext.positionSegmentId`), else none (the effect then uses the
+  assignment). The orchestrator applies it to every model and parser reading before
+  validation, and the outcome builder applies it before the write, so the model's segment
+  field never counts. The kind still comes from the model, with the parser's kind on a
+  timeout, a failure or an unknown kind.
+- Source: coordinator ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
+  team's assignment, AC, instead of the segment the report named).
+- Verified: five `SegmentsFromCodeTests` (the choice order; AB named while assigned AC gives
+  AB; nothing named gives the GPS segment; "maybe" as the kind falls back to the parser; the
+  stored event uses the code choice) red with the orchestrator override removed, then green.
+  Two older tests used the model's own unknown id "ZZ" to make a reading invalid; they now use
+  a report naming ZZ and a coverage of 400. 230 tests; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): draw the field screens in the day and night colours only
+- What: the Report bar is filled with the theme accent (amber by day, red at night) with black
+  text; secondary text, problems and the approach card footer use theme colours; the Ready
+  check is plain black rows with 2 pt theme lines, a three-button Auto/Day/Night choice (60 pt
+  targets for gloves), a theme-coloured switch and a theme-coloured title and back button. The
+  system title, back chevron, segmented picker and switch knob stayed white at night, so they
+  are replaced.
+- Source: promotion P-16, Task 25 step 5 (stills of every screen in each theme).
+- Verified: simulator stills of the field screen and the Ready check in Day and in Night, and a
+  live Night-to-Day switch from the Ready check: no white left at night except the iOS status
+  bar, which the app cannot colour. Two defects found in the stills and fixed before this
+  commit: VoiceOver read every choice as the hint text (now Auto, Day, Night with the hint
+  separate), and the back chevron kept the night tint after a switch. 34 app tests pass;
+  `scripts/ci-local.sh` exit 0. No unit test covers the drawing; the stills are the check.
+
+### feat(ios): keep the screen choice and switch to night colours at dusk
+- What: `ThemeStore` keeps Auto, Day or Night on this phone (an unknown stored value falls back
+  to Auto); `FieldColor` turns the theme's hex values into colours; `RootView` re-checks each
+  minute, passes the chosen colours down as `fieldTheme`, and sets the tint, text colour and
+  black background. Auto uses the last GPS fix (`AppModel.lastFix`), else the pack's area.
+- Source: promotion P-16, Task 25 (`ThemeStore`).
+- Verified: four `ThemeStoreTests` (choice kept, unknown value, place order, hex parsing)
+  compile-red without the types, then green; 34 app tests pass on the iOS 27.2 simulator with
+  only this commit's app files; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): choose the field theme from the setting, the clock and the place
+- What: `ThemeMode` (auto, day, night) and `FieldTheme.resolve(mode:date:at:)`. Day and Night
+  are fixed choices; Auto is night between civil dusk and civil dawn at the given place and day
+  when no place is known yet (the searcher can pick Night by hand).
+- Source: promotion P-16, Task 25 (automatic night switch).
+- Verified: four `ThemeChoiceTests` (auto before and after dusk in Atlanta, a chosen theme
+  wins, no place stays day, stored names) compile-red, then green; 225 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): tell when it is dark enough for night mode
+- What: `Dusk.isAfterCivilDusk(date:lat:lon:)` is true when the sun is more than 6 degrees below
+  the horizon (after civil dusk, before civil dawn), from the standard low-precision solar
+  position formulas. The app uses it for the automatic night switch.
+- Source: promotion P-16, Task 25 (`Dusk`).
+- Verified: two `DuskTests` (Atlanta, Nov 22: 15:00 local day, 19:30 night; Nov 23: 05:00
+  night, 09:00 day) compile-red without the type, then green; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): add the field day and night colours with a contrast check
+- What: `Contrast.ratio` (WCAG) and `FieldTheme.day` / `FieldTheme.night` from design section
+  22.1. Day: black, white text, one amber `#FFB020` for the Report bar and "your segment", a
+  six-step grey ladder for probability. Night: red on black (`#FF5448` primary, `#ED4138`
+  secondary, `#C93029` only at 24 pt or more, `#831B16` lines), a six-step red lightness ramp,
+  and the top class hatched. Probability is shown by lightness and a printed number, never hue.
+- Source: promotion P-16 (night mode, locked in the design), Task 25; design section 22.1.
+- Ruling: the plan named the namespace `Tokens`; Core already has `Tokens` (the report parser's
+  token list), so the theme is `FieldTheme`. Interface otherwise as planned.
+- Verified: six `ContrastTests` (day and night text pairs, both ramps, the 24 pt rule, every
+  text role at least 4.5 to 1) compile-red without the types, then green; full suite;
+  `scripts/ci-local.sh` exit 0.
+
+### refactor(ios): send the tools' and prompt's words from the Core allow-listed text
+- What: `SegmentAtTool`, `TeamAssignmentTool` and `SubjectProfileTool` take their names,
+  descriptions and outputs from `ToolText`; `ReportPrompt` wraps `PromptText`. The words the app
+  sends are now the exact words `cloudPromptHoldsOnlyNamedFields` checks.
+- Source: orchestrator ruling 2026-11-18 (design section 9), Task 21b.
+- Verified: `ToolsTests` rewritten to compare each tool's name, description and output, and both
+  instruction texts, with the Core text: compile-red without `guidedText`/`permissiveText`, then
+  green; 30 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
+### test(ios-core): pin everything the cloud route can send to an allow-list
+- What: `PromptText` (instruction text), `ToolText` (the three tools' names, descriptions and
+  outputs) and `CloudOutbound.texts` (instructions, report, every tool's name, description and
+  output) move the cloud payload into Core. `cloudPromptHoldsOnlyNamedFields` walks the
+  subject-profile schema, puts a findable value in every shared and command field, and asserts
+  only the report, the segment id, the assignment ids and the six appearance fields reach the
+  payload; no flag name, health, medication, address, phone number or contact word appears.
+- Source: orchestrator ruling 2026-11-18 on design section 9 (all three tools may run on the
+  cloud route; the test is an allow-list over the whole outbound prompt); Task 21b.
+- Verified: compile-red without the types, then green; a planted leak (hair read from
+  answersTo) turned it red on "field answersTo reached the cloud prompt", then restored; full
+  suite 213 tests; `scripts/ci-local.sh` exit 0. The Generable schema text of the reading is
+  fixed copy and is not in this list.
+
+### fix(ios-core): hold stored effects to the rules' id length and influence cap
+- What: `EffectShape` now refuses a cleared effect whose segment id is empty or longer than 16
+  characters, and a clue effect with more than 64 influences, as the Firestore create rule does.
+  A stored event that fails is skipped and flagged, never applied.
+- Source: fresh-eyes review M6; orchestrator ruling 2026-11-18 ("a mismatch with the rules is a
+  real defect").
+- Verified: `sizesFollowTheCreateRule` red on the three missing limits, then green; full suite
+  211 tests; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): show the approach card on the Ready check
+- What: `approach-notes.json` is bundled into the app; `ApproachCardView` shows the first lines,
+  the rest under More, and the footer; the Ready check shows it under "How to approach them" when
+  the pack carries `profile/shared` (`Mission.sharedProfile`, filled by the pack loader).
+- Source: Task 35 (ApproachCardView), spec section 13.3.
+- Verified: a bundled-file test (`theAppBundleCarriesTheApproachNotes`) compile-red, then green;
+  29 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): build the approach card from the profile's note ids
+- What: `ApproachNotes` reads `shared/constants/approach-notes.json`; `ApproachCard.build` takes
+  the note ids command chose (`approachNoteIds`), orders them by the file, fills in the family's
+  own words (`{primaryLanguage}`, `{triggersToAvoid}`, `{bestApproach}`,
+  `{uniqueDescription}`), leaves out a note whose words are empty, shows the first 7 and puts
+  the rest under More, with the footer. Code and fixed copy only, no model.
+- Source: Task 35 (ApproachCardView data), spec section 13.3, lane A 2bc711c.
+- Verified: two `ApproachCardTests` (file order with filled text and an unknown id ignored; the
+  7-line cut and empty family text) compile-red, then green; full suite 210 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): add the shared subject profile
+- What: `SharedProfile`, the 20 fields of `profile/shared` from
+  `shared/schemas/subject-profile.schema.json` (all keys encoded, nulls written out). It is shown
+  to people and carried in the pack; only `ModelProfile`'s six appearance fields reach a model.
+- Source: Task 35 (phone side), spec section 13.2, lane A's parity map (Profile.swift#SharedProfile).
+- Verified: `ProfileTests` (decode; encoded keys equal the schema's required list) compile-red,
+  then green; `check_schema_parity.py` now checks iOS SharedProfile (20 fields, 0 failures);
+  full suite passes; `scripts/ci-local.sh` exit 0.
+
+### fix(ios): put a time limit on the token count too
+- What: the stage time limit becomes a public helper, `Timeout.run(seconds:_:)`, and
+  `ReportReader` uses it around the token count (5 s by default, then a characters-per-token
+  estimate). The model runner is now injectable for tests. Before, a stalled count would hold
+  the report with no limit.
+- Source: spike S1 on the Mac: a FoundationModels call stalled for 44 minutes (sampled stack
+  parked inside FoundationModels) in a run built before the stage limits.
+- Verified: two `TimeoutTests` (a 30 s call gives nil in about 0.1 s; a quick call gives its
+  value) and an app test with a 60 s token count and a 0.2 s limit (the read finishes in under
+  10 s), compile-red without the API, then green; 207 PLSCore tests; 28 app tests pass on the
+  iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
 ### refactor(ios): let the compiler check the model runner's Sendable conformance
 - What: `FoundationModelRunner` drops `@unchecked Sendable`; `FirebaseAI` is a `Sendable` final
   class in 13.2.0 and `Tool` is `Sendable`, so the plain conformance compiles and stays checked.

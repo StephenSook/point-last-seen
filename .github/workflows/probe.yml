@@ -1,0 +1,31 @@
+name: Live probe
+
+# Daily, unattended through judging (ends 2026-12-16), credential-free: a raw AI Logic call with no App
+# Check token must be refused for App Check, and ops/storage must show the 30-day media lifecycle rule and
+# a sweep within 2 hours. Both scripts retire themselves after 2026-12-17. A failed run emails the repo
+# owner. Actions minutes are budgeted: one short job a day. Check this workflow's state and its newest
+# run's age, not only green runs (a disabled or throttled cron reports nothing).
+on:
+  schedule:
+    - cron: "23 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: AI Logic refuses a call with no App Check token
+        run: python3 -I scripts/appcheck_control.py --no-token-only
+      - name: Drill media still expires (lifecycle rule and a recent sweep)
+        if: always()
+        run: python3 -I scripts/media_probe.py

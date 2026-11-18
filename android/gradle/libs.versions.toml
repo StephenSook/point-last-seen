@@ -1,7 +1,11 @@
 [versions]
 agp = "9.5.1"
 kotlin = "2.4.21"
+# KSP2 versions are independent of Kotlin; firebase-ai-ksp-processor 17.0.0 needs symbol-processing-api 2.3.6 or later.
+ksp = "2.3.14"
+firebaseAiKsp = "17.0.0"
 googleServices = "4.6.0"
+crashlyticsPlugin = "3.0.8"
 firebaseBom = "35.2.0"
 # Pinned exactly by the project plan; firebase-bom 35.2.0 carries the same firebase-ai.
 firebaseAi = "18.2.0"
@@ -22,12 +26,16 @@ espresso = "3.7.0"
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-ai = { module = "com.google.firebase:firebase-ai", version.ref = "firebaseAi" }
+firebase-ai-ksp-processor = { module = "com.google.firebase:firebase-ai-ksp-processor", version.ref = "firebaseAiKsp" }
 firebase-ai-ondevice = { module = "com.google.firebase:firebase-ai-ondevice", version.ref = "firebaseAiOndevice" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-functions = { module = "com.google.firebase:firebase-functions" }
 firebase-storage = { module = "com.google.firebase:firebase-storage" }
 firebase-config = { module = "com.google.firebase:firebase-config" }
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-appcheck-playintegrity = { module = "com.google.firebase:firebase-appcheck-playintegrity" }
 firebase-appcheck-debug = { module = "com.google.firebase:firebase-appcheck-debug" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -36,6 +44,7 @@ compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+compose-ui-test-junit4-accessibility = { module = "androidx.compose.ui:ui-test-junit4-accessibility" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 fragment = { module = "androidx.fragment:fragment", version.ref = "fragment" }
@@ -52,3 +61,6 @@ espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref =
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

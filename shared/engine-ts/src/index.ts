@@ -9,7 +9,12 @@ export { deriveClearedEffect, deriveClueEffect, isWellFormedEffect, malformedEve
 export { validateReading } from "./validate";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
-export { buildPrior } from "./prior";
+export { buildPrior, linearWeights } from "./prior";
+export { urgencyLevel } from "./urgency";
+export type { UrgencyLevel } from "./urgency";
 export { approachNoteIds, detectionProfile, placeToCheck, profileForCommand, profileForModel, profileForSearchers, profileWarnings } from "./approach";
 export type { FamilyProfile, ModelProfile, PlaceToCheckContext, ProfileWarning } from "./approach";
 export type { PriorLayers, PriorResult } from "./prior";
+export { mulberry32 } from "./prng";
+export { COMPASS_UNITS, DEFAULT_WALKER_PARAMS, nearestWalkerStation, projectWalkerPoint, simulateWalkers, walkerSegmentLookup } from "./walkers";
+export type { WalkerGrid, WalkerOptions, WalkerParams, WalkerProjection, WalkerResult, WalkerRouteGraph, WalkerTrack } from "./walkers";
