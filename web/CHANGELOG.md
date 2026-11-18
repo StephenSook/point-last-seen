@@ -709,3 +709,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `telemetry/trace.ts`: `traceAttributes(route)` gives path, reason, platform and stage, nothing else (no report text, note, photo or answer); `recordInference(route, sink)` records one "hybrid-inference" trace from the call's start to its end with `latency_ms` as a metric, and drops any telemetry failure so it cannot break the read it describes. The sink will be Firebase Performance Monitoring (the web config has no Analytics measurement id, so the plan's `inference_complete` event has no web home).
 - Source: promoted item P-15 and plan Task 27.
 - Verified: `src/telemetry/trace.test.ts` (3 tests: the plan's attribute test, the recorded trace with start, duration and metric, a failing sink does not throw) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### fix(plan): name teams in the suggested plan instead of their document ids
+- What: `WhatChanged` takes the incident's teams and prints each assignment's team name ("Team 2"), falling back to the id only for a team it does not know; the post passes its teams. Dev-only harness `web/harness/plan.html`.
+- Source: UI review D14 (the person approved a plan that read Firestore document ids).
+- Verified: new `e2e/harness/plan.spec.ts` failed first ("T1 Search AA."), then passed ("Team 1 ..."). scripts/ci-local.sh exit 0.

@@ -9,10 +9,13 @@ type Props = {
   /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
   onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
   planStatus: (version: number) => "unknown" | "sending" | "sent";
+  /** Team names, so the plan a person approves reads "Team 2", not a document id. */
+  teams?: readonly { teamId: string; name: string }[];
 };
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus }: Props) {
+export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus, teams = [] }: Props) {
+  const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
   const [suggested, setSuggested] = useState<WordedPlan | null>(null);
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +79,7 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
           <ul>
             {suggested.wording.assignments.map((a) => (
               <li key={a.teamId}>
-                <strong>{a.teamId}</strong> {a.taskText} <span className="muted">{a.reason}</span>
+                <strong>{nameOf(a.teamId)}</strong> {a.taskText} <span className="muted">{a.reason}</span>
               </li>
             ))}
           </ul>
