@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): describe the link state and each report's route as glyphs
+- What: `LinkState.make(online:waiting:)` gives the header glyph's four states, which differ in
+  SF Symbol shape and a count badge, never in colour alone (signal; no signal; no signal with
+  reports waiting; sending), each with a VoiceOver line ("No signal. 2 reports waiting to
+  send."). `RouteMark.make` gives each read report's source glyph from our own router's route:
+  phone, cloud, the phone's rules, or "Not sent to any model." for the evidence protocol.
+- Source: Task 25 (route glyph, link glyph shapes, VoiceOver labels); design 22.1 (states by
+  shape and number).
+- Verified: three tests compile-red, then green; 249 tests; `scripts/ci-local.sh` exit 0.
+
 ### docs(ios): name no internal process in the changelog or comments
 - What: changelog entries and three code comments now say "review" or name the
   `ReadOrchestrator` type where they named the team's internal process. No behaviour changes.
