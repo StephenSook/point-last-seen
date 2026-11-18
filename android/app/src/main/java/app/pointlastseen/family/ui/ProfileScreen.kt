@@ -119,7 +119,11 @@ fun ProfileScreen(
 
     FamilyScaffold(mode, killCloud = false) {
         warnings.forEach { Note(ProfileCopy.warning(it)) }
-        if (gone) {
+        if (gone && !joined) {
+            // Gone but not joined yet (for example, back from the join screen): joining is the next step.
+            Sentence("Join the search to share this profile.")
+            MainAction("Join with a code") { onJoin(edited()) }
+        } else if (gone) {
             Sentence("Their profile")
             OtherAction("Back", onClick = onBack)
         } else {

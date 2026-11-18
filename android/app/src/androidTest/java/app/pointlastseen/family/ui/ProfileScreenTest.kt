@@ -94,4 +94,12 @@ class ProfileScreenTest {
         tap("Join with a code")
         assertEquals("Mae", joinedWith!!.answersTo)
     }
+
+    @Test fun goneButNotJoinedStillOffersJoin() {
+        var joins = 0
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), joined = false, mode = null, onSave = {}, onGone = {}, onJoin = { joins++ }, gone = true, onBack = {}) } }
+        rule.onNodeWithText("She's gone").assertDoesNotExist()
+        tap("Join with a code")
+        assertEquals(1, joins)
+    }
 }
