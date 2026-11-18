@@ -63,3 +63,9 @@ export const routeRecord = (over: Record<string, unknown> = {}): Record<string, 
   sdkReported: true, blocked: null, decidedAtMs: 1795860000000, ...over,
 });
 
+/** All 18 flags (the schema requires the whole set). */
+export const allFlags = (on: string[] = []): Record<string, boolean> => Object.fromEntries([
+  "mayNotRespond", "likelyToHide", "afraidOfUniforms", "sensitiveToTouch", "sensitiveToLight", "likelyToFight", "seizures",
+  "hallucinationsOrDelusions", "lookingForHome", "gaitUnsteady", "freezing", "fallRisk", "softVoice", "slowToRespond",
+  "fluctuates", "medicationSensitivity", "carriesMedicalAlertCard", "medicationTimingMatters",
+].map(k => [k, on.includes(k)]));

@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- profile/shared types every key it allows (rules audit, moderate), through the generated
+  schema_SharedProfile: string lengths (60 or 40 or 200), integer ranges for age, height and weight, the
+  dementiaType and mobilityAids enums, the date pattern for photoTakenOn, all 18 flags as booleans, and
+  approachNoteIds limited to the ids in shared/constants/approach-notes.json. Before, 15 of the 20 keys took
+  any value, so free text (an address, history) could land in a field every searcher reads and every pack
+  carries. Keys stay optional so a profile can be written in parts; flags is all 18 or nothing (the web,
+  Android and engine writers already send all 18).
+  Source: rules audit 2026-11-18, finding (b).
+  Verified: new shapes cases (the full profile the apps write passes; free text in dementiaType, an address
+  object in mobilityAids, a made-up aid, a bad date, a wrong type, out-of-range numbers, overlong strings,
+  partial flags and unknown note ids are refused) fail against the previous rules; the existing profile test
+  now sends all 18 flags. Emulator suite passes; `bash scripts/ci-local.sh` exit 0.
 - Events take only their schema shapes (rules audit, moderate): `position` must be {lat, lon, accuracyM} in
   range, `reading` a ReportReading (or, for camera_sighting, a CameraSightingReading whose sighting is a
   CameraSighting), `route` a RouteRecord, each bounded in size, using the generated validators. Before, each was
@@ -14,8 +26,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   request, the role claim is read once, and the event and effect key sets are pinned by size (every key is
   read, and a missing key is an error that denies) instead of by list literals.
   Source: rules audit 2026-11-18, finding (a).
-  Verified: new `functions/test/rules/shapes.test.ts` (each case failed first or hit the limit and was cut
-  down): bad positions, oversized or unknown-keyed readings and routes, a fourth carried item and other bad
+  Verified: new `functions/test/rules/shapes.test.ts` (written with the fix, then run against the previous
+  rules, where its three refusal groups fail; the heaviest cases first hit the limit and were cut down): bad positions, oversized or unknown-keyed readings and routes, a fourth carried item and other bad
   camera sightings are refused; the heaviest real events pass; dropping any of the 25 event keys, the 4
   cleared-effect keys or the 5 input keys for a stray key is refused. Emulator suite passes;
   `bash scripts/ci-local.sh` exit 0.
