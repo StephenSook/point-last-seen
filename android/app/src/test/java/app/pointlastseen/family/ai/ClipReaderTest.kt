@@ -26,8 +26,10 @@ class ClipReaderTest {
         val cached: StoredClipReading? = null,
         val reply: ModelReply = ModelReply(null, Source.IN_CLOUD, 0),
         val alreadyUploaded: Boolean = false,
+        val signInFails: Boolean = false,
     ) : ClipDeps {
         val log = mutableListOf<String>()
+        override suspend fun ensureSignedIn(): String { if (signInFails) throw IllegalStateException("no network"); return "u1" }
         val consents = mutableListOf<StoredClipReading>()
         val completed = mutableListOf<Pair<String, String>>()
         override suspend fun findReading(sha256: String): StoredClipReading? { log += "find"; return cached }
@@ -250,6 +252,28 @@ class ClipReaderTest {
         ClipReader(deps).read(r)
         val day = 24L * 3600 * 1000
         assertEquals(stored.copy(consent = r.consent, expiresAtMs = 1_000L + 32L * day, createdAtMs = 1_000L), deps.consents.single())
+    }
+
+    /** Cloud AI Logic requests need a Firebase Auth ID token: a clip read signs in before anything leaves the phone. */
+    @Test fun aClipReadSignsInBeforeAnythingLeavesThePhone() = runTest {
+        val order = mutableListOf<String>()
+        val inner = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        val deps = object : ClipDeps by inner {
+            override suspend fun ensureSignedIn(): String { order += "signin"; return "u1" }
+            override suspend fun findReading(sha256: String): StoredClipReading? { order += "find"; return null }
+            override suspend fun createConsentRecord(doc: StoredClipReading) { order += "consent" }
+            override suspend fun upload(sha256: String, bytes: ByteArray): String { order += "upload"; return "p" }
+            override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { order += "model"; return inner.reply }
+        }
+        ClipReader(deps).read(request(1000))
+        assertEquals(listOf("signin", "find", "consent", "upload", "model"), order)
+    }
+
+    @Test fun aFailedSignInSendsNothing() = runTest {
+        val deps = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900), signInFails = true)
+        assertEquals(ClipOutcome.Failed, ClipReader(deps).read(request(1000)))
+        assertTrue(deps.log.isEmpty())
+        assertTrue(deps.consents.isEmpty())
     }
 
     @Test fun aReadingThatFailsItsChecksIsShownAsCouldNotRead() = runTest {

@@ -58,11 +58,7 @@ class Join(private val backend: JoinBackend) {
 }
 
 class FirebaseJoinBackend : JoinBackend {
-    override suspend fun ensureSignedIn(): String {
-        val auth = Firebase.auth
-        val user = auth.currentUser ?: auth.signInAnonymously().await().user
-        return requireNotNull(user?.uid) { "anonymous sign-in returned no user" }
-    }
+    override suspend fun ensureSignedIn(): String = FirebaseSignIn.ensureSignedIn()
 
     override suspend fun callJoin(payload: Map<String, Any?>): Any? = try {
         Firebase.functions.getHttpsCallable("joinIncident").call(payload).await().getData()

@@ -35,6 +35,8 @@ data class StoredClipReading(
  * it), then completed once with the reading and route, then is read-only.
  */
 interface ClipDeps {
+    /** A signed-in user for this phone (cloud requests carry its ID token); throws when sign-in fails. */
+    suspend fun ensureSignedIn(): String
     suspend fun findReading(sha256: String): StoredClipReading?
     /** Where the clip with this hash is stored: clips/{incidentId}/{sha256}.mp4. */
     fun storagePath(sha256: String): String
@@ -100,6 +102,8 @@ class ClipReader(
 
         val bearingOf = { s: CameraSighting -> Bearing.fromExit(r.cameraFacingDeg, s.exitEdge) }
         try {
+            // Signed in before anything leaves the phone; a failed sign-in sends nothing.
+            deps.ensureSignedIn()
             val found = deps.findReading(sha)
             found?.takeIf { it.readingJson != null }?.let { hit ->
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead

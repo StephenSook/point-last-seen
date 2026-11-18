@@ -227,7 +227,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
-            val outcome = FamilyNote(ai.familyNote, evidence).read(text, env)
+            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
             noteUi = NoteUi.Done(outcome, text)
         }

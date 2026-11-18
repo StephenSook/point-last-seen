@@ -18,6 +18,8 @@ class FirebaseClipDeps(private val incidentId: String, private val ai: AiClient)
     private fun doc(sha256: String) =
         Firebase.firestore.collection("incidents").document(incidentId).collection("clipReadings").document(sha256)
 
+    override suspend fun ensureSignedIn(): String = app.pointlastseen.family.data.FirebaseSignIn.ensureSignedIn()
+
     override suspend fun findReading(sha256: String): StoredClipReading? {
         val snap = doc(sha256).get().await()
         if (!snap.exists()) return null
