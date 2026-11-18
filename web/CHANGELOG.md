@@ -40,3 +40,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `PoaRank` lists segments by POA, highest first, with tabular percents, plus a row "Outside the mapped area" for the ROW mass. Until the engine lands it lists the stored prior.
 - Source: plan Task 15 (POA rank with a ROW row), spec 10.1 (ROW always carried and shown).
 - Verified: typecheck and build clean.
+
+### feat(web): add the teams rail with label-only team markers
+- What: `TeamsRail` lists teams by name. Teams have no colours: the active team is fg-1 and the others fg-4, and each row carries `data-testid="team-card-<teamId>"` for the e2e tests.
+- Source: plan Task 15 (teams rail), spec 22.1 ("Teams have no colours").
+- Verified: typecheck and build clean.
