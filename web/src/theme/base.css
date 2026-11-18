@@ -84,3 +84,18 @@ button, input, select { font: inherit; color: inherit; }
 .tag { font: 600 12px/1.2 var(--mono); text-transform: uppercase; color: var(--fg-1); }
 .teams .assign { display: block; color: var(--fg-3); font-size: 13px; }
 .teams .new { color: var(--fg-1); font-weight: 700; margin-left: 6px; }
+.map-wrap.picking { cursor: crosshair; }
+.pin { width: 16px; height: 16px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
+.btn.ghost { background: transparent; color: var(--fg-1); border: 1px solid var(--line); }
+.btn.ghost:disabled { color: var(--fg-4); background: transparent; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.sighting-form { display: grid; gap: 10px; background: var(--bg-2); padding: 12px; }
+.sighting-form label { display: grid; gap: 4px; color: var(--fg-2); font-size: 14px; }
+.sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--line); padding: 6px 8px; color: var(--fg-1); }
+.sighting-form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sighting-form .callback { border: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
+.sighting-form .callback legend { color: var(--fg-3); font-size: 13px; }
+.note-state { display: grid; gap: 6px; }
+.sightings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sighting { background: var(--bg-2); padding: 8px; display: grid; gap: 4px; }
+.sighting p { margin: 0; }

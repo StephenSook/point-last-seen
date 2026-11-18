@@ -181,3 +181,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `MapView` takes `onMapClick` (a click reports its lat and lon; the cursor becomes a crosshair while picking) and `pin` (drawn as a marker labelled "Sighting place").
 - Source: plan Task 36 ("where: a map click, stored as position with positionSource map_click").
 - Verified: typecheck and build clean. The pin style lands with the sighting form styles in the next commit.
+
+### feat(sightings): add the sighting form with on-device note reading and a consented cloud read
+- What: `SightingForm`: time seen, place from a map click (it names the segment or says "outside the search area"), direction, top and bottom colour, footwear, carrying, who reported, and a note with the hint "Do not type the caller's name." "Read the note" fills the pick-lists on this laptop; without a local model it says "This laptop has no local model. Nothing was sent." and offers "Read in the cloud", which needs "I consent for this note" first. Evidence notes are never read. Every field stays editable. The callback name and number live only in the form and are cleared on save. Styles for the form, the sightings list, the ghost button and the map pin.
+- Source: plan Task 36 step 3, spec 12.2 and section 15 step 3.
+- Verified: typecheck and build clean; the reading logic it calls is covered by `sightingText.test.ts`; the deployed check waits for joinIncident.
