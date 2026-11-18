@@ -5,6 +5,23 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): add the field screen with the Report bar and the echo card
+- What: `AppModel` holds the phone's state and its one action, `send`: a location fix (10 s),
+  the report read through `ReportReader` with the live gate, the next sequence number, the event
+  from `ReadOutcomeBuilder`, then `EventStore.append` (never awaited). `TaskView` shows "Training
+  drill. Nobody is missing.", the assignment and "Your assignment changes only when command
+  approves.", the 120 pt Report bar (it focuses the field; the keyboard's microphone key does
+  dictation, the app calls no speech API), Send, and the sent reports. `ReportEchoView` shows
+  the raw text, the effect line, the route line and the delivery badge with Retry;
+  `EvidenceProtocolView` shows "Do not touch. Hold the line. Call it in." and "Not sent to any
+  model." The Ready check now shows the real pack state, the model state, the location request
+  and the cloud consent switch. With no pack loaded the field screen says so and reads nothing.
+  `Mission` is what a loaded pack will give the phone (the pack loader is Task 12).
+- Source: Task 13 (TaskView, ReportEchoView, EvidenceProtocolView), spec section 6.2.
+- Verified: app builds; 16 app tests pass; on the iOS 27.2 simulator the field screen shows the
+  no-pack state and the Ready check's accessibility tree lists the real lines. The send path
+  needs a pack and is device acceptance (Task 13 step 5).
+
 ### fix(ios): never record an empty on-device model name
 - What: when Apple's model reports an empty variant name (the iOS 27.2 simulator does), the
   status uses "Apple on-device model", so the route record and the Ready check always name it.

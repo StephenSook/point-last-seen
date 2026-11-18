@@ -11,11 +11,16 @@ import PLSCore
 final class ConnectivityMonitor {
     private(set) var connectivity = Connectivity(holdMs: 60_000)
     private let monitor = NWPathMonitor()
+    /// Called on the main actor after every path change.
+    var onChange: (@MainActor () -> Void)?
 
     func start() {
         monitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
-            Task { @MainActor in self?.connectivity.pathChanged(satisfied: satisfied) }
+            Task { @MainActor in
+                self?.connectivity.pathChanged(satisfied: satisfied)
+                self?.onChange?()
+            }
         }
         monitor.start(queue: DispatchQueue(label: "pls.network"))
     }

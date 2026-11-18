@@ -35,7 +35,7 @@ struct PLSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ReadyCheckView()
+            RootView()
         }
     }
 }
