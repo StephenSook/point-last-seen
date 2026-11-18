@@ -719,3 +719,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post passes its teams to `WhatChanged`. The previous commit's entry said so, but this one-line change had been left out of that commit; this commit makes the claim true.
 - Source: UI review D14 follow-up (committed-tree check).
 - Verified: typecheck and build clean; the plan harness spec passes. scripts/ci-local.sh exit 0.
+
+### fix(web): use 16 px field text and 44 px tap targets on phones
+- What: under 900 px wide, inputs, selects and text areas use 16 px text (iOS Safari zooms into smaller fields on focus) and buttons are at least 44 px tall.
+- Source: UI review D20 (15 px inputs, 39 to 41 px buttons at 390 px).
+- Verified: new `e2e/phonefit.spec.ts` at 390 x 844 failed first (15px), then passed (16 px fields, Join button at least 44 px). scripts/ci-local.sh exit 0.
