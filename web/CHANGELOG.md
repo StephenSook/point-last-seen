@@ -176,3 +176,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `sightingCards` lists each sighting once (newest seen first) with its status: awaiting, confirmed or rejected. Decisions follow the engine's order (a command decision outranks a family one; the latest within a role wins; a searcher's confirmation is ignored). Retracted sightings drop out. A card says when the sighting has no place yet and when it fell outside the search area.
 - Source: plan Task 36 (confirm and reject at command; the out-of-area banner), lane D's family sightings that arrive with no place.
 - Verified: `src/command/sightingCards.test.ts`, 5 tests, failed first (module missing), then passed.
+
+### feat(web): let a map click place a point and show it as a pin
+- What: `MapView` takes `onMapClick` (a click reports its lat and lon; the cursor becomes a crosshair while picking) and `pin` (drawn as a marker labelled "Sighting place").
+- Source: plan Task 36 ("where: a map click, stored as position with positionSource map_click").
+- Verified: typecheck and build clean. The pin style lands with the sighting form styles in the next commit.
