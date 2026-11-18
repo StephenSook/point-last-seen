@@ -367,3 +367,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/appcheck.spec.ts` sets a random debug token registered nowhere, submits the join form with a made-up code, and expects "Join refused by App Check. Try a normal browser window." No real join code is used: App Check refuses before the code is read.
 - Source: plan Task 23c ("an unregistered token shows the refusal message").
 - Verified: against the live site (old build e26fc23) it failed, receiving "Could not join. Check the incident id and the code.", which also shows the deployed joinIncident refusing an untrusted browser; against the local preview with the fix it passed. scripts/ci-local.sh exit 0.
+
+### fix(web): give the map the first row on phones so it is no longer 0 px tall
+- What: under 900 px the grid gave its 50vh first row to the Teams rail, and the map (whose only child is absolutely placed) collapsed to 0 px. The map now takes the first row (`order: -1`, 55vh), the page scrolls instead of the inner rail, and the rails follow at full height.
+- Source: UI review D1 (orchestrator P0 item 1).
+- Verified: new `e2e/layout.spec.ts` at 390x844 failed first (map height 0), then passed (map over 300 px, both rails below it, no sideways scroll); the smoke suite still passes; still taken at 390 px shows the map at the top. scripts/ci-local.sh exit 0.
