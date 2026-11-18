@@ -16,7 +16,9 @@ import { HARNESS_POA, HARNESS_SEGMENTS } from "./mapHarness";
 const AFTER: Record<string, number> = Object.fromEntries(Object.entries(HARNESS_POA).map(([id, v]) => [id, id === "CD" ? v * 0.85 + 0.15 : v * 0.85]));
 const CAUSE = { type: "clue", isTrainingInject: true, reading: { kind: "clue", item: "slipper", feature: "water", segmentIds: [] } } as unknown as EventDoc;
 const CHANGE = changeModel(HARNESS_POA, AFTER, CAUSE);
-const DIST = beatDistances(null, CHANGE.changed.map((c) => c.segmentId), HARNESS_SEGMENTS);
+// The synthetic report sits in cell DE, south-east of CD.
+const ORIGIN = HARNESS_SEGMENTS.find((s) => s.segmentId === "DE")!.centroid;
+const DIST = beatDistances(ORIGIN, CHANGE.changed.map((c) => c.segmentId), HARNESS_SEGMENTS);
 
 function Harness() {
   const [holding, setHolding] = useState(false);
@@ -29,7 +31,7 @@ function Harness() {
           segments={HARNESS_SEGMENTS}
           poa={holding ? HARNESS_POA : AFTER}
           moved={holding ? undefined : CHANGE.changed}
-          beat={{ key: String(reports), before: HARNESS_POA, change: CHANGE, distanceM: DIST }}
+          beat={{ key: String(reports), before: HARNESS_POA, change: CHANGE, distanceM: DIST, origin: ORIGIN }}
         />
       </div>
       <aside className="rail right">

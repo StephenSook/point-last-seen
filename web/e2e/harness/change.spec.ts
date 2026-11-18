@@ -81,3 +81,19 @@ test("with reduced motion a new report shows the final lightness at once", async
   expect(near(now, drawn(POA_RAMP[7]), 6), `reduced ${hex(now)}`).toBe(true);
   await expect(map).toHaveAttribute("data-beat", "done", { timeout: 500 });
 });
+
+test("the beat springs a pin in at the report and draws an arc to the largest move, then fades the arc", async ({ page }) => {
+  await page.goto("/harness/change.html");
+  const map = page.getByTestId("map").locator("xpath=..");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Report again" }).click();
+  await expect(map).toHaveAttribute("data-beat", "playing");
+  await expect(page.getByTestId("report-pin")).toBeVisible();
+  const arc = page.getByTestId("beat-arc");
+  await expect(arc).toBeAttached();
+  await page.waitForTimeout(900); // the arc is drawn by 700 ms
+  expect(Number(await arc.evaluate((e) => getComputedStyle(e).opacity))).toBeGreaterThan(0.9);
+  await expect(map).toHaveAttribute("data-beat", "done", { timeout: 2_500 });
+  expect(Number(await arc.evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(0.05);
+  await expect(page.getByTestId("report-pin")).toBeVisible();
+});

@@ -258,7 +258,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const cause = (events as unknown as EventDoc[]).find((e) => e.eventId === last.causeEventId);
     const origin = cause?.position ? { lat: cause.position.lat, lon: cause.position.lon } : null;
     const distanceM = beatDistances(origin, last.change.changed.map((c) => c.segmentId), segments);
-    return { key: last.causeEventId, before: last.before, change: last.change, distanceM };
+    return { key: last.causeEventId, before: last.before, change: last.change, distanceM, origin };
   }, [last, events, segments, eventsSynced]);
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];

@@ -47,7 +47,14 @@ type Props = {
   /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
   basemapUrl?: string | null;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
-  beat?: { key: string; before: Readonly<Record<string, number>>; change: ChangeResult; distanceM: Readonly<Record<string, number>> } | null;
+  beat?: {
+    key: string;
+    before: Readonly<Record<string, number>>;
+    change: ChangeResult;
+    distanceM: Readonly<Record<string, number>>;
+    /** Where the report was made; without one the pin and the arc are skipped. */
+    origin?: LatLon | null;
+  } | null;
 };
 
 const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
@@ -83,6 +90,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   const lastBeatKey = useRef<string | undefined>(undefined);
   const beatRun = useRef<{ cancel(): void } | null>(null);
   const lastRippleKey = useRef<string | null>(null);
+  const arc = useRef<SVGPathElement>(null);
+  const reportPin = useRef<Marker | null>(null);
   const rippleRun = useRef<{ cancel(): void } | null>(null);
   const [basemap, setBasemap] = useState<"none" | "drawn" | "absent" | "invalid" | "unavailable">("none");
 
@@ -131,6 +140,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     return () => {
       beatRun.current?.cancel();
       rippleRun.current?.cancel();
+      reportPin.current?.remove();
       scope.revert();
       for (const mk of [...markers.current, ...chips.current]) mk.remove();
       m.remove();
@@ -260,9 +270,45 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     wrap?.setAttribute("data-beat", "playing");
     if (!reduced.current) for (const id of ids) setFade(id, 0);
     for (const e of chipEls()) e.style.opacity = "0";
+    // The pin at the report (neutral ink; cyan only marks what moved), and the arc to the largest move.
+    reportPin.current?.remove();
+    reportPin.current = null;
+    let pinDot: HTMLElement | null = null;
+    const path = arc.current;
+    if (path) path.style.opacity = "0";
+    const target = ids[0] ? segments.find((s) => s.segmentId === ids[0]) : undefined;
+    if (beat.origin) {
+      const anchor = document.createElement("div");
+      pinDot = document.createElement("div");
+      pinDot.className = "report-pin";
+      pinDot.dataset["testid"] = "report-pin";
+      pinDot.setAttribute("aria-label", "Report position");
+      pinDot.style.transform = reduced.current ? "" : "scale(0)";
+      anchor.append(pinDot);
+      reportPin.current = new Marker({ element: anchor }).setLngLat([beat.origin.lon, beat.origin.lat]).addTo(m);
+      if (path && target && !reduced.current) {
+        const a = m.project([beat.origin.lon, beat.origin.lat]);
+        const b = m.project([target.centroid.lon, target.centroid.lat]);
+        // A gentle curve: the control point sits off the midpoint, a fifth of the length to the side.
+        const [mx, my] = [(a.x + b.x) / 2, (a.y + b.y) / 2];
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        path.setAttribute("d", `M ${a.x} ${a.y} Q ${mx - dy / 5} ${my + dx / 5} ${b.x} ${b.y}`);
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = String(len);
+        path.style.strokeDashoffset = String(len);
+      }
+    }
+    const drawArc = (t: number) => {
+      if (!path?.getAttribute("d")) return;
+      path.style.opacity = "1";
+      path.style.strokeDashoffset = String(path.getTotalLength() * (1 - t));
+    };
     beatRun.current = playReportBeat(reportBeatPlan(beat.change, beat.distanceM, reduced.current), {
       progress: (step, seg, t) => {
         if (step === "lightness" && seg) setFade(seg, t);
+        else if (step === "pin" && pinDot) pinDot.style.transform = `scale(${t})`;
+        else if (step === "arc") drawArc(t);
+        else if (step === "arcFade" && path?.getAttribute("d")) path.style.opacity = String(1 - t);
         else if (step === "pulse" && m.getLayer("moved-line")) m.setPaintProperty("moved-line", "line-width", 2 + 3 * Math.sin(Math.PI * t));
         else if (step === "chips" || step === "fade")
           for (const e of chipEls()) {
@@ -276,6 +322,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         for (const e of chipEls()) {
           e.style.opacity = "1";
           e.style.translate = "";
+        }
+        if (pinDot) pinDot.style.transform = "";
+        if (path) {
+          path.style.opacity = "0";
+          path.removeAttribute("d");
         }
         wrap?.setAttribute("data-beat", "done");
       },
@@ -298,6 +349,9 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   return (
     <div className={onMapClick ? "map-wrap picking" : "map-wrap"} data-basemap={basemap}>
       <div ref={el} className="map" data-testid="map" />
+      <svg className="beat-overlay" aria-hidden="true">
+        <path ref={arc} data-testid="beat-arc" />
+      </svg>
       {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
       {credit && (
         <div className="map-credit" data-testid="map-credit">
