@@ -18,7 +18,8 @@ object Nav {
     fun start(joined: Boolean, gone: Boolean) =
         NavState(if (joined && gone) Screen.STATUS else Screen.PROFILE, gone, joined)
 
-    fun shesGone(s: NavState) = NavStep(s.copy(screen = Screen.CALL_FIRST, gone = true))
+    /** A family already joined publishes right away; the call-first screen is not a gate on sharing. */
+    fun shesGone(s: NavState) = NavStep(s.copy(screen = Screen.CALL_FIRST, gone = true), publishProfile = s.joined)
 
     fun calledFirst(s: NavState) =
         if (s.joined) NavStep(s.copy(screen = Screen.STATUS), publishProfile = true) else NavStep(s.copy(screen = Screen.JOIN))

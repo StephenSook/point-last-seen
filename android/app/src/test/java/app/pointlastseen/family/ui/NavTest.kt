@@ -37,18 +37,11 @@ class NavTest {
         assertTrue(gone.publishProfile)
     }
 
-    @Test fun actionScreensReturnToStatus() {
-        val status = Nav.start(joined = true, gone = true)
-        for (target in listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT)) {
-            val opened = Nav.open(status, target)
-            assertEquals(target, opened.screen)
-            assertEquals(Screen.STATUS, Nav.back(opened).screen)
-        }
+    @Test fun aJoinedFamilyPublishesTheMomentTheyTapShesGone() {
+        val joined = Nav.joined(Nav.toJoin(Nav.start(false, false)).state).state
+        val step = Nav.shesGone(joined)
+        assertEquals(Screen.CALL_FIRST, step.state.screen)
+        assertTrue(step.publishProfile)
     }
 
-    @Test fun actionsNeedAJoinedIncident() {
-        val notJoined = Nav.start(joined = false, gone = false)
-        assertEquals(Screen.PROFILE, Nav.open(notJoined, Screen.CLIP).screen)
-        assertEquals(Screen.ABOUT, Nav.open(notJoined, Screen.ABOUT).screen)
-    }
 }

@@ -23,6 +23,7 @@ fun StatusScreen(
     rejected: Int,
     onOpen: (Screen) -> Unit,
     onRetry: () -> Unit,
+    shareFailed: Boolean = false,
 ) {
     val ring = MaterialTheme.colorScheme.outline
     val open = status != "found" && status != "closed"
@@ -31,6 +32,7 @@ fun StatusScreen(
             drawCircle(ring, radius = size.minDimension / 2 - 4.dp.toPx(), style = Stroke(width = 3.dp.toPx()))
         }
         Sentence(Copy.status(status))
+        if (shareFailed) Note("The profile did not reach command. It will be sent again when you save it.")
         if (pending > 0) Note(if (pending == 1) "1 item waiting to send." else "$pending items waiting to send.")
         if (rejected > 0) {
             Note(if (rejected == 1) "1 item was not accepted." else "$rejected items were not accepted.")

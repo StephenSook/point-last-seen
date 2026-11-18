@@ -101,6 +101,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var sightingBusy by mutableStateOf(false)
         private set
+    var profileShareFailed by mutableStateOf(false)
+        private set
     private var clipUri: Uri? = null
     private var lastClip: Pair<ClipOutcome.Read, Long>? = null
 
@@ -109,6 +111,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { writer.run() }
         session.incidentId()?.let { watch.watch(it) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
+        // After a restart in the gone-and-joined state, write the profile again (idempotent).
+        publishIfGone()
     }
 
     fun warnings(): List<String> = Profiles.warnings(profile, System.currentTimeMillis(), zone)
@@ -162,7 +166,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun publishIfGone() {
         val inc = session.incidentId() ?: return
-        if (nav.gone && nav.joined) publisher.publish(inc, profile) {}
+        if (nav.gone && nav.joined) publisher.publish(inc, profile) { ok -> profileShareFailed = !ok }
     }
 
     private fun context() = session.context(
