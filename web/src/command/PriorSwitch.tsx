@@ -2,7 +2,7 @@
 // walker prior is a seeded simulation on the site's route graph. Both options are ours and
 // say so. A change rebuilds the prior for every team, so it asks first.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export const WALKER_SENTENCE = "The walker model is a prior for planning. It does not predict where a person is.";
 
@@ -34,6 +34,8 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
+  // Each run's result applies only while it is the latest one sent.
+  const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
 
   async function apply() {
@@ -42,12 +44,14 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
     setError(null);
     try {
       const r = await onApply({ model: want, attract, lowMobility });
+      const id = ++latest.current;
       setRun(r.run);
       setSent(r.version);
       setWant(null);
       r.ack.then(
-        () => setAcked(r.version),
+        () => id === latest.current && setAcked(r.version),
         () => {
+          if (id !== latest.current) return;
           setSent(null);
           setError("The prior was not saved. Try again.");
         },

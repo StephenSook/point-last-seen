@@ -51,3 +51,19 @@ test("Sending stays until the server acknowledges the write, not when the local 
   await page.getByRole("button", { name: "Server acknowledges" }).click();
   await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v5.");
 });
+
+test("a refusal of an older rebuild does not touch the newer rebuild's status", async ({ page }) => {
+  await page.goto("/harness/layers.html");
+  const roads = page.getByRole("switch", { name: "Near roads, trails and water" });
+  await roads.uncheck();
+  await page.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await page.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await page.getByRole("button", { name: "Server refuses the first" }).click();
+  await page.waitForTimeout(200);
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.getByRole("button", { name: "Server acknowledges" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v6.");
+});

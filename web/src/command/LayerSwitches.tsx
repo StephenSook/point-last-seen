@@ -3,7 +3,7 @@
 // n. A change rebuilds the prior for every team (the match code changes), so it asks first.
 
 import type { PriorLayers, Terrain } from "@pls/engine";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   layers: PriorLayers;
@@ -27,6 +27,8 @@ export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, mo
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
+  // Each rebuild's result applies only while it is the latest one sent.
+  const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   // Follow the stored settings when they change (another seat, or this rebuild arriving).
   useEffect(() => setDraft({ layers, terrain }), [layers.linear, layers.wedge, terrain]);
@@ -37,10 +39,12 @@ export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, mo
     setError(null);
     try {
       const { version, ack } = onApply(draft.layers, draft.terrain);
+      const id = ++latest.current;
       setSent(version);
       ack.then(
-        () => setAcked(version),
+        () => id === latest.current && setAcked(version),
         () => {
+          if (id !== latest.current) return;
           setSent(null);
           setError("The prior was not saved. Try again.");
         },

@@ -1045,3 +1045,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a read limited to triage's flagged seconds that finds no usable sighting now leaves the clip record open instead of storing `no_sighting`. The record is keyed by the clip's hash alone, so a stored miss from a window would have answered a later full-clip read (from a seat without on-device triage) with "Couldn't read" even if the person appears elsewhere in the clip. A full-clip miss is still stored and cached.
 - Source: second-model review of PR #16, round 2, finding 4 (medium).
 - Verified: new test (a windowed read with no person ends could-not-read with no completion written) failed first, then passed (23 in clipRead.test.ts); typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(prior): apply a write's result only while it is the latest one sent
+- What: the layer switches, the Rings/Walkers switch and the clip panel number each submission and apply its acknowledgement or refusal only if it is still the latest one, so a refused older rebuild can no longer clear a newer rebuild's "Sending" or show its error over it.
+- Source: second-model review of PR #16, round 2, finding 7 (medium).
+- Verified: new layers harness test (two rebuilds v5 and v6; refusing the first leaves "v6. Sending." with no alert; acknowledging the second shows "Prior rebuilt as v6.") failed first, then passed; the layers harness now numbers rebuilds and can refuse the first; 22 layers, prior-switch and clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

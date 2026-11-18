@@ -2,7 +2,7 @@
 // Confirm hands the reading to the post (events, start point, prior) once and is not awaited;
 // the status follows the prior version, like the other prior rebuilds.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ClipReadOutcome } from "../ai/clipRead";
 import type { LatLon } from "../map/geo";
 import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
@@ -27,6 +27,8 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
+  // A result applies only while its Confirm is the latest one sent.
+  const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const clip = useMemo(() => (read ? new Blob([read.input.bytes as BlobPart], { type: read.input.mimeType }) : null), [read]);
 
@@ -53,10 +55,12 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     setError(null);
     try {
       const { version, ack } = onConfirm(read.o, read.input);
+      const id = ++latest.current;
       setSent(version);
       ack.then(
-        () => setAcked(version),
+        () => id === latest.current && setAcked(version),
         () => {
+          if (id !== latest.current) return;
           setSent(null);
           setError("The sighting was not saved. Try again.");
         },
