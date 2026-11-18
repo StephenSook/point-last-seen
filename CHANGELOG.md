@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the `@pls/functions` workspace (`functions/package.json`, `tsconfig.json`; lockfile updated):
+  firebase-functions 7.4.0 and firebase-admin 14.5.1 at runtime; firebase 13.4.0 (client SDK, for rules tests
+  with emulator mock tokens), TypeScript 6.0.3 and Vitest 5.1.0 for tests. Node 22 runtime, ESM.
+  `@firebase/rules-unit-testing` is not used: 6.0.0 needs Node 24.12 or later and 5.x pins firebase 12.
+  Source: plan Task 11.
+  Verified: Socket scores (supply chain 94 to 98, vulnerability 100); `npm install` exit 0;
+  `npm audit --omit=dev` finds 0; `bash scripts/ci-local.sh` exits 0.
 - Add the `Engine` workflow (`.github/workflows/engine.yml`) with jobs `ts` (npm ci, engine typecheck, lint,
   tests) and `vectors-parity` (regenerate `search.json`, fail on `git diff`, run the engine vector suite), on
   every branch push touching shared/, tools/, the root package files or the workflow; mirrored in `ci-local.sh`.
