@@ -8,6 +8,7 @@ test.describe("phone fit", () => {
     await page.getByLabel("Join code").waitFor();
     for (const label of ["Incident id", "Join code"]) {
       expect(await page.getByLabel(label).evaluate((e) => getComputedStyle(e).fontSize), label).toBe("16px");
+      expect((await page.getByLabel(label).boundingBox())!.height, label).toBeGreaterThanOrEqual(44);
     }
     const button = await page.getByRole("button", { name: /Join as command|Connecting/ }).boundingBox();
     expect(button!.height).toBeGreaterThanOrEqual(44);

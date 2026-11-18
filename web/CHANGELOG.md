@@ -945,3 +945,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `.btn.ghost` borders use fg-4 (#898583) instead of the line color (#403c3a), so a ghost control's edge stands out on the dark ground.
 - Source: design review (ghost button border fg-4).
 - Verified: new harness test (the Walkers button's border is rgb(137, 133, 131)) failed first (rgb(64, 60, 58)), then passed; the prior-switch and clip harness tests and axe and contrast on the preview still pass. scripts/ci-local.sh exit 0.
+
+### test(e2e): require 44 px join fields on phones
+- What: the phone-fit test now requires the join page's Incident id and Join code fields to be at least 44 px tall at 390 px wide. The CSS rule for it (`input` other than checkboxes and radios, and `select`, at least 44 px on phones) went in with 5b01fdf by mistake, bundled with the ghost-border change, because both edits sat in base.css when that commit staged the file; this entry records it.
+- Source: design review (join inputs 44 px on phones).
+- Verified: the test failed first on the preview (fields under 44 px), then passed with the rule. scripts/ci-local.sh exit 0.
