@@ -6,6 +6,6 @@ if (getApps().length === 0) initializeApp();
 
 /** joinIncident (callable): checks the join code and sets custom claims { inc, role, team }. App Check enforced. */
 export const joinIncident = onCall<JoinRequest>(
-  { enforceAppCheck: true, region: "us-central1" },
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
   request => handleJoin(request.auth?.uid ?? null, request.data),
 );

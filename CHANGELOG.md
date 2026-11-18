@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Cap `joinIncident` at 5 instances (`maxInstances: 5`, us-central1) to bound cost under abuse, alongside the
+  per-caller attempt budget. Test reads the function's deploy manifest.
+  Source: fresh-context review minor 6.
+  Verified: the new test failed first, now 85 emulator tests pass; ci-local exits 0. Not deployed.
 - firebase.json builds the functions before every deploy (`predeploy: npm --prefix "$RESOURCE_DIR" run build`),
   so a deploy can never ship a stale `functions/lib` (it is gitignored and only built locally).
   Source: fresh-context review minor 1.
