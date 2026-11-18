@@ -1,0 +1,111 @@
+import Foundation
+import Testing
+@testable import PLSCore
+
+private let raw = "cleared segment AC"
+private let fix = Position(lat: inside("AC").lat, lon: inside("AC").lon, accuracyM: 6)
+private let screen = EvidenceScreen(terms: ["blood", "weapon"])
+
+private func route() -> RouteRecord {
+    RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple-system", reason: .noNetwork, latencyMs: 900, sdkReported: false, blocked: nil, decidedAtMs: 5)
+}
+private func outcome(segmentIds: [String] = ["AC"], coverage: Double? = 1.0, kind: ReportKind = .cleared) -> ReadOutcome {
+    ReadOutcome(reading: reading(kind: kind, segmentIds: segmentIds, coverage: coverage, evidenceQuote: "cleared segment AC"), route: route(), validation: .ok)
+}
+private func clearedOutcome(segmentIds: [String], coverage: Double = 1.0) -> ReadOutcome { outcome(segmentIds: segmentIds, coverage: coverage) }
+private func ctxAssigned(_ assigned: [String]) -> OutcomeContext { outcomeCtx(assigned: assigned) }
+private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
+    OutcomeContext(incidentId: "I1", teamId: "T1", deviceId: "D1", authorUid: "u1", priorVersion: 1, clientTimeMs: 1_700_000_000_000,
+                   inputMethod: .typed, isTrainingInject: false,
+                   grid: grid,
+                   effect: EffectContext(grid: grid, assignedSegmentIds: assigned, position: nil, visualDetectionRangeM: 10, rdBasis: .openTarget),
+                   params: params)
+}
+
+@Suite struct ReadOutcomeTests {
+    @Test func readOutcomeWithoutFixUsesAssignment() {
+        let e = ReadOutcomeBuilder.event(from: clearedOutcome(segmentIds: []), rawText: raw, position: nil, context: ctxAssigned(["AC"]), seq: 7)
+        #expect(e.positionSource == .assignedSegment)
+        #expect(e.effect.clearedSegmentId == "AC")
+        #expect(e.eventId == EventID.make(incidentId: "I1", deviceId: "D1", seq: 7))
+        #expect(e.seq == 7)
+    }
+
+    @Test func percentCoverageIsNormalizedInTheStoredEffect() {
+        let e = ReadOutcomeBuilder.event(from: clearedOutcome(segmentIds: ["AC"], coverage: 80), rawText: raw, position: fix, context: outcomeCtx(), seq: 8)
+        #expect(e.effect.pod.map { abs($0 - 0.5506710358827784) < 1e-12 } == true)       // 1 - e^-0.8
+        #expect(e.positionSource == .gps)
+        #expect(e.reading?["coverage"] == .number(0.8))
+    }
+
+    @Test func invalidReadingGivesNoEffect() {
+        #expect(ReadOutcomeBuilder.event(from: outcome(segmentIds: ["ZZ"]), rawText: raw, position: fix, context: outcomeCtx(), seq: 9).effect == .none(why: .invalid))
+        #expect(ReadOutcomeBuilder.event(from: outcome(coverage: 400), rawText: raw, position: fix, context: outcomeCtx(), seq: 10).effect == .none(why: .invalid))
+    }
+
+    @Test func kindsMapToEventTypes() {
+        #expect(ReadOutcomeBuilder.event(from: outcome(kind: .clue), rawText: raw, position: fix, context: outcomeCtx(), seq: 1).type == .clue)
+        let s = ReadOutcomeBuilder.event(from: outcome(kind: .sighting), rawText: raw, position: fix, context: outcomeCtx(), seq: 2)
+        #expect(s.type == .sighting)
+        #expect(s.effect == .clue(influences: ["AC": .strongFor], authenticity: .medium))
+        #expect(ReadOutcomeBuilder.event(from: outcome(kind: .found), rawText: raw, position: fix, context: outcomeCtx(), seq: 3).effect == .none(why: .informational))
+        let u = ReadOutcomeBuilder.event(from: outcome(kind: .unclear), rawText: raw, position: fix, context: outcomeCtx(), seq: 4)
+        #expect(u.type == .clue)
+        #expect(u.effect == .none(why: .needsCommand))
+    }
+
+    @Test func theEventCarriesTheRouteTextAndIdentity() {
+        let e = ReadOutcomeBuilder.event(from: outcome(), rawText: raw, position: fix, context: outcomeCtx(), seq: 11)
+        #expect(e.route == route())
+        #expect(e.rawText == raw)
+        #expect(e.role == .searcher)
+        #expect(e.reporter == .searcher)
+        #expect(e.authorUid == "u1")
+        #expect(e.priorVersion == 1)
+        #expect(e.schemaVersion == 1)
+    }
+
+    @Test func phoneNumbersAreRemovedFromStoredText() {
+        let e = ReadOutcomeBuilder.event(from: outcome(), rawText: "cleared segment AC, call me at 404-555-0123", position: fix, context: outcomeCtx(), seq: 12)
+        #expect(e.rawText == "cleared segment AC, call me at [number removed]")
+    }
+
+    @Test func evidenceTextNeverReachesAModel() {
+        let plan = ReadPlan.make(text: "there is blood on a rock by the creek", decision: .init(path: .onDevice, reason: .onDeviceDefault), screen: screen, incidentMode: "drill")
+        #expect(plan.stages == [.evidenceProtocol])
+        #expect(plan.callsModel == false)
+        #expect(plan.decision == RouteDecision(path: .rules, reason: .possibleEvidence))
+    }
+
+    @Test func readPlansFollowTheRoute() {
+        let onDevice = ReadPlan.make(text: raw, decision: .init(path: .onDevice, reason: .noNetwork), screen: screen, incidentMode: "drill")
+        #expect(onDevice.stages == [.guided, .permissiveText, .deterministicParser])
+        #expect(onDevice.callsModel)
+        #expect(ReadPlan.make(text: raw, decision: .init(path: .cloud, reason: .onDeviceUnavailable), screen: screen, incidentMode: "judge").stages == [.guided, .deterministicParser])
+        let rules = ReadPlan.make(text: raw, decision: .init(path: .rules, reason: .onDeviceUnavailable), screen: screen, incidentMode: "drill")
+        #expect(rules.stages == [.deterministicParser])
+        #expect(rules.callsModel == false)
+    }
+
+    @Test func emptyOrOverlongTextCallsNoModel() {
+        #expect(ReadPlan.make(text: "  ", decision: .init(path: .onDevice, reason: .onDeviceDefault), screen: screen, incidentMode: "drill").callsModel == false)
+        #expect(ReadPlan.make(text: String(repeating: "a", count: 2000), decision: .init(path: .cloud, reason: .onDeviceUnavailable), screen: screen, incidentMode: "judge").callsModel == false)
+    }
+
+    @Test func noModelIsCalledOutsideADrillOrJudgeIncident() {
+        for mode in [nil, "", "live", "Drill"] as [String?] {
+            let plan = ReadPlan.make(text: raw, decision: .init(path: .onDevice, reason: .onDeviceDefault), screen: screen, incidentMode: mode)
+            #expect(plan.callsModel == false)
+            #expect(plan.decision == RouteDecision(path: .rules, reason: .notDrillMode))
+        }
+    }
+
+    @Test func evidenceProtocolOutcomeIsLoggedAsPlainTextForCommand() {
+        let r = RouteRecord(platform: .ios, path: .rules, stage: .evidenceProtocol, model: "none", reason: .possibleEvidence, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 1)
+        let e = ReadOutcomeBuilder.event(from: ReadOutcome(reading: .unclear(), route: r, validation: .ok), rawText: "blood on a rock", position: fix, context: outcomeCtx(), seq: 13)
+        #expect(e.effect == .none(why: .needsCommand))
+        #expect(e.reading == nil)
+        #expect(e.rawText == "blood on a rock")
+        #expect(e.route?.stage == .evidenceProtocol)
+    }
+}
