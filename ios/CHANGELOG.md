@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): classify Gemini route failures, App Check refusal included
+- What: `CloudFailure.classify` maps the Gemini error case and HTTP status to a `ReadFailure`:
+  401 or 403 is `app_check_refused`, network and 503 are `network`, a bad response is
+  `parse_failed`, anything else `other`. The app reads the case from `GeminiLanguageModel.Error`,
+  whose initializers are internal, so this pure part is what can be tested.
+- Source: Task 13; firebase-ios-sdk 13.2.0 `GeminiErrorMapper.swift`.
+- Verified: `CloudFailureTests` red, then green; full suite 146 tests.
+
 ### feat(ios-core): add the read orchestrator and the tolerant permissive-line parser
 - What: `ReadOrchestrator.read` runs one report end to end behind a `ReadModelRunner`
   protocol: evidence screen and drill/judge gate first, then the route decision, guided
