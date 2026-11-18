@@ -10,6 +10,12 @@ final class AppModel {
     let connectivity = ConnectivityMonitor()
     let location = LocationProvider()
     let gate = LiveGateBox(LiveGate(networkOnline: false, cloudConsent: false, killCloud: false, incidentMode: nil))
+    let signIn: SignIn
+    private(set) var signedIn = false
+
+    init(signIn: SignIn = .firebase()) {
+        self.signIn = signIn
+    }
     var config = RemoteConfigValues.defaults
     var cloudConsent = false { didSet { refreshGate() } }
     private(set) var mission: Mission?
@@ -27,6 +33,7 @@ final class AppModel {
         started = true
         connectivity.onChange = { [weak self] in self?.connectivityChanged() }
         connectivity.start()
+        Task { await self.trySignIn() }
         do {
             identity = try DeviceIdentity()
             reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config,
@@ -43,8 +50,15 @@ final class AppModel {
     func connectivityChanged() {
         refreshGate()
         let online = connectivity.isOnline
-        if online && !wasOnline { store?.reconcileUnresolved() }
+        if online && !wasOnline {
+            store?.reconcileUnresolved()
+            Task { await trySignIn() }
+        }
         wasOnline = online
+    }
+
+    func trySignIn() async {
+        signedIn = await signIn.ensure()
     }
 
     /// Back in the foreground: the same check, in case the reconnect happened while suspended.
@@ -77,6 +91,7 @@ final class AppModel {
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
         guard let mission, let reader, let identity, let store else { problem = "No pack loaded."; return false }
+        await trySignIn()
         guard let uid = identity.uid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }

@@ -11,6 +11,7 @@ struct ReadyCheckView: View {
                 Text("Training drill. Nobody is missing.").font(.headline)
             }
             Section("Before you leave signal") {
+                Label(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", systemImage: "person.badge.key")
                 Label(model.mission == nil ? "Pack: not loaded" : "Pack: loaded", systemImage: "shippingbox")
                 Label(ModelSessionFactory.unavailableReason() ?? "On-device model: ready (\(ModelSessionFactory.onDeviceStatus().variant))",
                       systemImage: "cpu")

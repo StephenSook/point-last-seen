@@ -1,5 +1,4 @@
 import FirebaseAppCheck
-import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
 import SwiftUI
@@ -27,10 +26,6 @@ struct PLSApp: App {
         settings.cacheSettings = PersistentCacheSettings(sizeBytes: FirestoreCacheSizeUnlimited as NSNumber)
         Firestore.firestore().settings = settings
 
-        // Sign in before leaving signal; never sign out mid-mission (the offline write queue is per user).
-        if Auth.auth().currentUser == nil {
-            Auth.auth().signInAnonymously { _, _ in }
-        }
     }
 
     var body: some Scene {

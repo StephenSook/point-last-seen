@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): retry anonymous sign-in and show it on the Ready check
+- What: `SignIn` tries anonymous sign-in at start, again on every return to signal and before a
+  send, and never while one attempt is running. The Ready check shows "Signed in" or "Not signed
+  in. Stay in signal." Before, one failed attempt at first launch (offline) was never retried
+  and its error was dropped.
+- Source: fresh-eyes review I4; spec section 11.1 (sign in before leaving signal).
+- Verified: `SignInTests` (a failure is tried again; no attempt once signed in) compile-red
+  without the type, then green; 26 app tests pass on the iOS 27.2 simulator. CI: Actions budget
+  block; local `ci-local.sh` and `swift test` exit 0.
+
 ### fix(ios): keep the searcher's words in the field until the report is journaled
 - What: `AppModel.submit` returns the text to leave in the field: empty once the event is in the
   journal, the same words when it is not (no pack, not signed in, a journal error), so nothing a
