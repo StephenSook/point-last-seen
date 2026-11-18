@@ -296,3 +296,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: merges origin/main 2bc711c: the engine's `approachNoteIds`, `profileForSearchers`, `profileForCommand`, `profileForModel`, `profileWarnings`, `detectionProfile`, `placeToCheck`, and `shared/constants/approach-notes.json` (copy, order, footer, first-screen limit 7, source role per note).
 - Source: lane A's Task 35a, which Task 35c builds on.
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree; web typecheck and unit tests pass.
+
+### feat(profile): split the subject profile into the shared and command documents at the command post
+- What: `profile.ts`: `emptyProfile` (mayNotRespond on, every other flag off); `profileDocs` uses the engine's `profileForSearchers` (exactly the 20 keys the rules allow; dementia type only with the family's consent) and `profileForCommand` (history, places, water, vehicle); `profileFromDocs` reads both back into the form, with the family-only fields left empty; `approachLines` turns the shared document's note ids into the card's lines from `approach-notes.json` (family text and language filled into their templates, an id without copy skipped, seven lines first and the rest under More) plus the footer; `commandWarnings` shows only the photo-age warning, because the profile update date never leaves the family phone; `writeProfile` and `subscribeProfile` for `profile/shared` and `profile/command`.
+- Source: plan Task 35c, spec 13.2 and 13.3, lane A's 35a and the rules allowlist (3feb2a7).
+- Verified: `src/data/profile.test.ts`, 11 tests, failed first (module missing), then passed: no key in both documents, no family-only field in either, consent-gated dementia type, the first-screen limit, template filling.
