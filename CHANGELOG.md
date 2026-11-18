@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Grid builder: build the walker route graph (`tools/grid-builder/src/graph.ts`, Task 37a). Stations every
+  25 m with x and y in local metres, a unit heading, a unit normal and the segment under each; a junction is
+  inserted wherever a road or trail line crosses a stream or meets a water edge (OSM draws them as separate
+  lines that often share no point, PLS-DESIGN 10.6), so a walker on a trail is offered the creek. The
+  builder writes the stored `RouteGraph` shape from shared/schemas and adapts it to the indexed
+  `WalkerRouteGraph` for simulation; the original extract bounds are passed back in on reload to restore
+  boundary exits, because the stored schema has no field for them.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: the 3 new tests failed first (missing module), then pass (25 m stations with unit headings; one
+  shared junction where a road crosses a stream; a walker can turn onto the stream there, 40.8 percent of
+  walkers stopped on a stream station, seed 6) plus a JSON round-trip regression; grid-builder suite 14
+  passed; `bash scripts/ci-local.sh` exit 0 on the series head.
 - Add the seeded Monte Carlo walker prior (Task 37a, PLS-DESIGN 10.6): `mulberry32` (32-bit state, divide
   by 2^32), `simulateWalkers` (ISRID distance draw, first edge weighted 2.045 inside the 66 degree travel
   wedge and 0.395 outside, turn weights 4/2/1 with no reversal except at a dead end, water edges x2.0,
