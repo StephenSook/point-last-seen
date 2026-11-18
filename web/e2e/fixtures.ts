@@ -26,3 +26,35 @@ export const test = base.extend<{ consoleErrors: string[] }>({
 });
 
 export { expect };
+
+/** Joins the seeded drill incident as command. Under CI a missing fixture fails; it never skips. */
+export async function joinCommand(page: Page): Promise<string> {
+  const incident = process.env["PLS_SMOKE_INCIDENT"];
+  const code = process.env["PLS_SMOKE_JOIN_CODE"];
+  if (!incident || !code) throw new Error("PLS_SMOKE_INCIDENT and PLS_SMOKE_JOIN_CODE are required");
+  await page.goto(`/?incident=${encodeURIComponent(incident)}`);
+  await page.getByLabel("Join code").fill(code);
+  await page.getByRole("button", { name: "Join as command" }).click();
+  await expect(page.getByTestId("convergence-code")).toBeVisible();
+  return incident;
+}
+
+/** A synthetic sign image drawn in the page (no personal photo), as JPEG bytes for a file input. */
+export async function syntheticSignJpeg(page: Page): Promise<Buffer> {
+  const b64 = await page.evaluate(async () => {
+    const c = new OffscreenCanvas(768, 512);
+    const g = c.getContext("2d")!;
+    g.fillStyle = "#f2efe8"; g.fillRect(0, 0, 768, 512);
+    g.fillStyle = "#1b3a5c"; g.fillRect(64, 96, 640, 260);
+    g.fillStyle = "#ffffff"; g.font = "bold 72px sans-serif"; g.fillText("HARDWARE", 170, 210);
+    g.font = "bold 48px sans-serif"; g.fillText("OPEN 8-6", 260, 300);
+    const blob = await c.convertToBlob({ type: "image/jpeg", quality: 0.9 });
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let s = ""; for (const b of bytes) s += String.fromCharCode(b);
+    return btoa(s);
+  });
+  return Buffer.from(b64, "base64");
+}
+
+/** POST requests to the AI Logic and Gemini hosts. Preflights are not counted. */
+export const AI_HOSTS = /firebasevertexai\.googleapis\.com|generativelanguage\.googleapis\.com|firebaseml\.googleapis\.com/;
