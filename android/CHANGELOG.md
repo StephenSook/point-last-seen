@@ -4,6 +4,10 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Espresso pinned to 3.7.0.** Compose ui-test brought espresso-core 3.5.0, which calls
+  `InputManager.getInstance`, removed on Android 37, so every Compose UI test died with
+  NoSuchMethodException on the emulator. Source: systematic debugging of the first UI test run.
+  Verified: the same tests then pass, 13 of 13 instrumented tests.
 - **App flow.** `Nav` holds the family flow: the profile is home until someone is missing; "She's
   gone" always shows "Call 911 first" next; an unjoined family joins after that; the profile
   documents are written once the family has both said she is gone and joined; action screens need
