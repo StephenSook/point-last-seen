@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the grid builder workspace (`tools/grid-builder`, Task 10): `buildCells` cuts the site into 125 m cells,
+  rows north to south, clipped to the site (slivers under 1 m2 dropped before ids), two-letter row-major ids
+  and edge neighbours; `applyFeatures` sets each segment's nearFrac (share within 71 m of a road, trail,
+  stream or water edge, from a 20 x 20 sample grid) and featureClasses (structures listed, not counted);
+  `applyStreams` links downstream and upstream from OSM way order (flow direction); `classifyOsm` maps OSM
+  tags to the grid classes. Pins: @turf along, area, bbox, boolean-point-in-polygon, centroid, helpers,
+  intersect, length, point-to-line-distance, polygon-to-line 7.4.0 and tsx 4.23.15 (dev), all exact.
+  The CLI and the drill-site data wait for Stephen's site (plan Task 10 step 5).
+  Source: plan Task 10; spec section 10.5.
+  Verified: the 10 tests failed first (no modules), now pass (16 cells for a 500 m site, AA neighbours AB and
+  AE, areas sum to the site, a west-edge trail gives about 71/125 near, a stream east through AA, AB, AC
+  links in order); typecheck exits 0; Socket scores 80 to 100; `npm audit --omit=dev` 0; ci-local exits 0.
 - The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
   standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
   the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
