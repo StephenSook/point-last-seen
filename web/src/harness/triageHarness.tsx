@@ -10,7 +10,7 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { frameCheckGenerator } from "../ai/client";
 import { FRAME_OPTS } from "../ai/frameCheck";
-import { availabilityOf } from "../ai/gate";
+import { availabilityOf, onDeviceCreateOptions } from "../ai/gate";
 import { jpegAt, sampleFrames } from "../camera/frames";
 import { triageClip, type TriageResult } from "../camera/triage";
 import { readEnv } from "../firebaseConfig";
@@ -18,7 +18,7 @@ import "../theme/fonts.css";
 import "../theme/base.css";
 
 type Check = { atS: number; ms: number; text: string };
-type Report = { availability: string; samples: number; sampleMs: number; checks: Check[]; result: TriageResult; totalMs: number; googleRequests: string[] };
+type Report = { availability: string; textOnlyAvailability: string; samples: number; sampleMs: number; checks: Check[]; result: TriageResult; totalMs: number; googleRequests: string[] };
 
 // Hosts outside this page's own origin that belong to Google or Firebase.
 const GOOGLE_HOST = /(^|\.)(googleapis\.com|google\.com|gstatic\.com|firebaseio\.com|firebaseapp\.com|web\.app)$/;
@@ -29,6 +29,8 @@ async function measure(clipUrl: string): Promise<Report> {
   const check = frameCheckGenerator(ai);
   const clip = await (await fetch(clipUrl)).blob();
   const availability = await availabilityOf(FRAME_OPTS);
+  // The same model asked for text input only: tells "no model" apart from "no image input yet". It downloads nothing.
+  const textOnlyAvailability = await availabilityOf(onDeviceCreateOptions("text"));
   const checks: Check[] = [];
   let samples = 0;
   let atS = -1;
@@ -62,7 +64,7 @@ async function measure(clipUrl: string): Promise<Report> {
       const host = new URL(n).host;
       return host !== location.host && GOOGLE_HOST.test(host);
     });
-  return { availability, samples, sampleMs: Math.round(sampleMs), checks, result, totalMs: Math.round(performance.now() - t0), googleRequests };
+  return { availability, textOnlyAvailability, samples, sampleMs: Math.round(sampleMs), checks, result, totalMs: Math.round(performance.now() - t0), googleRequests };
 }
 
 function Page() {
