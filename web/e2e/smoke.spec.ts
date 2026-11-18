@@ -23,7 +23,7 @@ test("the live site serves this commit", async ({ request }) => {
   if (process.env["BASE_URL"]) expect(v.dirty).toBe(false);
 });
 
-test("a joined command post draws the map with the license line", async ({ page, consoleErrors }) => {
+test("a joined command post draws the map and credits OpenStreetMap only when its data is drawn", async ({ page, consoleErrors }) => {
   const incident = process.env["PLS_SMOKE_INCIDENT"];
   const code = process.env["PLS_SMOKE_JOIN_CODE"];
   // Under CI a missing fixture is a failure, never a skip.
@@ -41,7 +41,12 @@ test("a joined command post draws the map with the license line", async ({ page,
   await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
   // The map's workers start after the canvas appears; wait for the map to settle before reading errors.
   await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
-  await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap");
+  // The OpenStreetMap credit shows exactly when OSM-derived segments are drawn.
+  await expect(async () => {
+    const empty = await page.locator(".map-empty").count();
+    const credit = await page.getByTestId("map-credit").allInnerTexts();
+    expect(credit).toEqual(empty ? [] : ["Map data from OpenStreetMap"]);
+  }).toPass({ timeout: 10_000 });
   await expect(page.getByText(DRILL)).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });

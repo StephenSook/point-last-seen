@@ -377,3 +377,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: at 390 px the header squeezed the convergence code until each character wrapped onto its own line. The code block no longer shrinks or wraps.
 - Source: still of the joined post at 390x844 taken while fixing UI review D1.
 - Verified: new layout test "the match code stays on one line in the header" failed first (56 px tall), then passed (under 40 px); the map layout test still passes. scripts/ci-local.sh exit 0.
+
+### fix(map): credit OpenStreetMap only while OSM-derived data is drawn
+- What: `map/credit.ts` `mapCredit` returns "Map data from OpenStreetMap" only when segments from the search grid (built from an OpenStreetMap extract by tools/grid-builder, which stamps every grid with the ODbL attribution) or a basemap are on screen. `MapView` shows the line from it; an empty map shows no credit. No basemap is drawn yet, so today the segments decide.
+- Source: UI review D4 (orchestrator P0 item 2): the credit sat on an empty map with no OpenStreetMap layer.
+- Verified: `src/map/credit.test.ts` (3 tests) failed first (module missing), then passed. The joined smoke now asserts the credit appears exactly when segments are drawn: it failed against the live site (credit over an empty map), then passed against the local preview. scripts/ci-local.sh exit 0.

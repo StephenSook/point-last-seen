@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
 // build emits it as an asset and MapLibre is told where it is.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { mapCredit } from "./credit";
 import { useEffect, useRef } from "react";
 import type { LatLon } from "./geo";
 import { POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
@@ -103,11 +104,17 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
     pinMarker.current = new Marker({ element: el }).setLngLat([pin.lon, pin.lat]).addTo(m);
   }, [pin]);
 
+  // No basemap is drawn yet, so only the OSM-derived segments earn the credit.
+  const credit = mapCredit({ segments: segments.length, basemap: false });
   return (
     <div className={onMapClick ? "map-wrap picking" : "map-wrap"}>
       <div ref={el} className="map" data-testid="map" />
       {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
-      <div className="map-credit" data-testid="map-credit">Map data from OpenStreetMap</div>
+      {credit && (
+        <div className="map-credit" data-testid="map-credit">
+          {credit}
+        </div>
+      )}
     </div>
   );
 }
