@@ -1,12 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { CommandPost } from "./command/CommandPost";
+import { JudgePage } from "./judge/JudgePage";
 import "./theme/base.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root element");
 createRoot(root).render(
   <StrictMode>
-    <CommandPost />
+    {location.pathname.replace(/\/+$/, "") === "/judge" ? <JudgePage /> : <CommandPost />}
   </StrictMode>,
 );

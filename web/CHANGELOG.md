@@ -332,3 +332,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Firebase Hosting rewrites every unknown path to the app, so a missing `/evidence/published-run.json` comes back as the app's HTML with status 200. `loadPublishedRun` now reads a `text/html` answer as "none", so the page says "No published run yet." instead of calling the file incomplete.
 - Source: found by the new judge e2e against the preview server, which rewrites the same way.
 - Verified: new unit test failed first ("treats the app's own HTML ... as no run"), then passed (9 of 9); the e2e then saw "No published run yet." inside the Numbers section.
+
+### feat(judge): add the judge page at /judge with the laptop check and the run state
+- What: `/judge` renders `JudgePage` (no login, no key, no Firebase start-up needed for it): the drill line; section 1 says "No published run yet." until the drill run is published; section 2 has "Get this laptop ready" and shows the D2 state lines, with the measured Chrome 157 note (downloadable before a 77 s download, text and image input after); section 5 shows "No published run yet.", a load failure, an incomplete file, or the run id. The D1 replay, the sample photos button, the numbers panel and the TestFlight and APK links are added when the sandbox function, the published run and the builds exist. Styles for the page.
+- Source: plan Task 23c, spec section 16, S4 step 3.
+- Verified: typecheck and build clean; `e2e/judge.spec.ts` (next commit) passed against the local preview.
