@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): let a searcher undo a report for 5 seconds
+- What: each report echo shows an Undo button for 5 seconds after sending (re-checked every
+  second). `AppModel.undo` journals a new `retraction` event that targets the report, built by
+  `ReadOutcomeBuilder.retraction` with the signed-in uid as device and author; the report itself
+  is never edited. No Undo on a retraction, on a report already undone, or on another person's
+  report. `send` and `undo` now read the uid from one injectable source.
+- Source: Task 13 (`ReportEchoView`: "5-second undo (a `retraction`)").
+- Verified: two `UndoTests` (within 5 s a retraction targets the report and Undo goes away;
+  after 5 s nothing is written) compile-red, then green; 57 app tests pass on the iOS 27.2
+  simulator; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): show the drill banner, link glyph and route glyphs
 - What: the field screen's header (`DrillBanner`) shows the team's segments in the accent
   colour, a DRILL tag and the link glyph (`LinkGlyph`: shape plus a count badge, its words only

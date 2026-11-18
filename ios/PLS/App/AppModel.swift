@@ -1,3 +1,4 @@
+import FirebaseAuth
 import FirebaseFirestore
 import Foundation
 import Observation
@@ -19,12 +20,48 @@ final class AppModel {
     /// Speaks new assignments (on-device voice, or the AI Logic voice when Remote Config names one).
     let speaker: AssignmentSpeaker
 
+    /// The signed-in uid (the device id in event ids) and the clock; seams for tests.
+    private let uid: () -> String?
+    private let nowMs: () -> Double
+
     init(signIn: SignIn = .firebase(),
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
-         speaker: AssignmentSpeaker? = nil) {
+         speaker: AssignmentSpeaker? = nil,
+         uid: @escaping () -> String? = { Auth.auth().currentUser?.uid },
+         nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 }) {
         self.signIn = signIn
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
+        self.uid = uid
+        self.nowMs = nowMs
+    }
+
+    /// Uses a journal and identity made elsewhere (tests).
+    func attach(store: EventStore, identity: DeviceIdentity) {
+        self.store = store
+        self.identity = identity
+    }
+
+    /// True for 5 seconds after this phone sent a report, until it is undone.
+    func canUndo(_ eventId: String) -> Bool {
+        guard let entries = store?.entries, let entry = entries.first(where: { $0.eventId == eventId }),
+              entry.doc.type != .retraction, entry.doc.authorUid == uid(),
+              !entries.contains(where: { $0.doc.type == .retraction && $0.doc.targetEventId == eventId }) else { return false }
+        return ReadOutcomeBuilder.canUndo(sentAtMs: entry.doc.clientTimeMs, nowMs: nowMs())
+    }
+
+    /// Undo is a new `retraction` event that targets the report; the report itself is never edited.
+    func undo(_ eventId: String) {
+        guard canUndo(eventId), let store, let identity, let uid = uid(),
+              let entry = store.entries.first(where: { $0.eventId == eventId }) else { return }
+        do {
+            let retraction = try ReadOutcomeBuilder.retraction(of: entry.doc, authorUid: uid, deviceId: uid,
+                                                               seq: try identity.nextSeq(), clientTimeMs: nowMs())
+            try store.append(retraction)
+            problem = nil
+        } catch {
+            problem = "The undo was not saved on this phone. Try again."
+        }
     }
 
     /// The header's link glyph: signal and reports still on this phone.
@@ -140,7 +177,7 @@ final class AppModel {
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
         guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         await trySignIn()
-        guard let uid = identity.uid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        guard let uid = self.uid() else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         refreshGate()

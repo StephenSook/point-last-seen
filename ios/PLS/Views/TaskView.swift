@@ -49,12 +49,16 @@ struct TaskView: View {
                     Label(problem, systemImage: "exclamationmark.triangle.fill").font(.title3.bold())
                         .foregroundStyle(theme.text(.primary))
                 }
-                List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
-                    ReportEchoView(entry: entry) { model.retry(entry.eventId) }
-                        .listRowBackground(theme.backgroundColor)
+                // Re-checked each second so the 5-second Undo goes away on time.
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
+                        ReportEchoView(entry: entry, retry: { model.retry(entry.eventId) },
+                                       canUndo: model.canUndo(entry.eventId), undo: { model.undo(entry.eventId) })
+                            .listRowBackground(theme.backgroundColor)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             } else {
                 ContentUnavailableView("No pack loaded", systemImage: "shippingbox",
                                        description: Text("Load your team's pack at the Ready check before you leave signal."))
