@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- P-04 evidence adds the window test: a server prompt template cannot pass a video window. With a 12-second
+  clip of red, blue and green spans, both template forms (with and without start and end offset arguments)
+  answered "red, blue, green" with 808 prompt tokens, while a direct call with `videoMetadata` 4 s to 8 s
+  answered "blue" with 281. The web's triage-window clip read stays direct; a whole-clip read can be a
+  template.
+  Source: review (the clip template had to carry the triage window).
+  Verified: run live with a limited-use App Check token and a throwaway anonymous user, both spike templates
+  deleted afterwards; `bash scripts/ci-local.sh` exit 0.
 - P-04 spike evidence (`docs/evidence/spikes/P-04.md`, `P-04.json`): through `templateGenerateContent` on the
   live project, a server prompt template takes an inline image (200, 1.6 s), a 13,788,183-byte inline MP4 just
   under our clip limit (200, 18.7 s) and returns text-to-speech audio (200, `audio/wav`, 318,750 bytes), with
