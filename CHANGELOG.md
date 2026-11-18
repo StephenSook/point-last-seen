@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/rules/gen_rules_validators.py` compiles shared/schemas into Firestore rules validator functions
+  (schema_Position, schema_ReportReading, schema_RouteRecord, schema_CameraSighting,
+  schema_CameraSightingReading, schema_SharedProfile) and writes them between GENERATED markers in
+  firestore.rules. It refuses any unbounded string or list. Event-carried shapes use a shape mode that keeps
+  every size bound but spends fewer rules expressions (string enums bounded by length, short string lists by
+  joined length, numbers by type, all-required key sets pinned by size). The gates job and ci-local run it with
+  `--check`, so the rules can never drift from the schemas. The block is not used yet; the next commits use it.
+  Source: rules audit 2026-11-18 (fresh agent with the firebase rules-auditor checklist: events and
+  profile/shared values unbounded or untyped).
+  Verified: 8 generator tests (each failed first) pass; `--check` exits 0 and fails on a stale block;
+  `bash scripts/ci-local.sh` exit 0.
 - `tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N` (admin, gcloud OAuth)
   writes the grid builder's segment docs under incidents/{id}/segments, deletes segment docs the new grid no
   longer has, then updates only gridId, ipp, terrain, priorLayers, gridAttribution and priorVersion on the
