@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `scripts/hygiene_guard.py` (CI gates job and ci-local): repository text must name no internal build process,
+  private rule id, private playbook or notes, or private path. It walks tracked files plus untracked files that
+  .gitignore does not exclude, skips itself and its test by pathspec, and fails below a 300-file floor. It
+  reports hits while the repository is private and fails CI once it is public, armed off GitHub's
+  `github.event.repository.private`. File contents only; history is not rewritten. Whole-word and
+  case-insensitive, so a type such as ReadOrchestrator, the owner's name in NOTICE and the project id do not
+  match.
+  Source: review (the repository goes public on 2026-11-28).
+  Verified: the 5 tests (public-only failure, whole-word patterns and the allowed names, untracked versus
+  ignored files, the guard skipping itself, the floor) failed first, now pass; on this repo it walks 620 files
+  and reports 91 hits, and with --public it exits 1 (proven red before the scrub); `bash scripts/ci-local.sh`
+  exit 0.
 - `shared/test-vectors/pack-segments-sample.json`: three segment docs (AC, ordinary; AA, with upstream or
   downstream links; and ROW) and the incident fields a pack carries (gridId, ipp, terrain, priorVersion), read
   from the drill incident on 2026-11-18 in Firestore's typed REST form, so integer and double values keep the
