@@ -1,0 +1,30 @@
+{
+  "question": "With videoMetadata startOffset/endOffset on an inline video part, are the model's MM:SS times counted from the clip's start or from the window's start?",
+  "date": "2026-11-18",
+  "timeUtc": "20:13:22Z",
+  "model": "gemini-3.5-flash-lite",
+  "route": "Firebase AI Logic web SDK (firebase 13.4.0), ONLY_IN_CLOUD, Gemini Developer API backend, App Check limited-use token, signed-in user, local dev origin http://127.0.0.1:5173",
+  "clip": {
+    "kind": "synthetic, generated with ffmpeg",
+    "durationS": 20,
+    "size": "320x240, 10 fps, H.264, 7,579 bytes",
+    "content": "grey frame; a red 40x40 square visible only from 8.0 s to 12.0 s"
+  },
+  "window": {
+    "startOffset": "6s",
+    "endOffset": "14s"
+  },
+  "prompt": "A red square is in this video. Give the time it first appears and the time it is last visible, as MM:SS from the start of the video.",
+  "responseSchema": {
+    "firstSeen": "string",
+    "lastSeen": "string"
+  },
+  "answer": {
+    "firstSeen": "00:08",
+    "lastSeen": "00:11"
+  },
+  "latencyMs": 3463,
+  "reading": "Counted from the clip's start: a window-relative answer would have been 00:02 to 00:06. lastSeen 00:11 is the last whole second before the square's last frame at 11.9 s.",
+  "n": 1,
+  "caveat": "One call, one model, one synthetic clip. It settles the default reading for the triage design; it is not an accuracy measurement. Repeat on the staged clips before any claim."
+}
