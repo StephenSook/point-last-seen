@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios-core): match the shared comparer rule at zero and relative to the expected value
+- What: the test comparer uses an absolute 1e-12 when the expected value is 0 and a tolerance
+  relative to the expected value otherwise, as `shared/test-vectors/README.md` states. Before,
+  it was stricter at zero (relative to the larger operand), which could fail a correct engine.
+- Source: found while fixing Codex review M9; shared vectors README.
+- Verified: the new test failed on the old comparer (1e-13 against 0), then passed; 150 vector
+  cases pass; full suite 166 tests.
+
 ### test(ios-core): the vector comparer rejects infinity and NaN
 - What: the test comparer now fails any non-finite number. Before, an infinite result matched
   a finite expected value, because the error and the tolerance were both infinite.

@@ -16,7 +16,8 @@ func near(_ a: Double?, _ b: Double, rel: Double = 1e-12) -> Bool {
     guard let a else { return false }
     guard a.isFinite, b.isFinite else { return false }     // infinity would satisfy any tolerance
     if a == b { return true }
-    return abs(a - b) <= rel * max(abs(a), abs(b))
+    if b == 0 { return abs(a) <= 1e-12 }                   // shared README: absolute 1e-12 when expected is 0
+    return abs(a - b) <= rel * abs(b)
 }
 
 /// A 2 x 2 test grid of 0.001-degree squares on the equator (so east-west and north-south

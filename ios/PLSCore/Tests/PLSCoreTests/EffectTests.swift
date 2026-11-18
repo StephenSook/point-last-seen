@@ -17,6 +17,12 @@ import Testing
         #expect(throws: VectorMismatch.self) { try expectVector(.bool(true), .number(1)) }
     }
 
+    @Test func expectVectorUsesAnAbsoluteToleranceWhenTheExpectedValueIsZero() throws {
+        try expectVector(.number(1e-13), .number(0))                              // shared README: absolute 1e-12 at 0
+        #expect(throws: VectorMismatch.self) { try expectVector(.number(1e-11), .number(0)) }
+        #expect(throws: VectorMismatch.self) { try expectVector(.number(1 + 1e-10), .number(1)) }
+    }
+
     @Test func expectVectorRejectsNonFiniteNumbers() {
         #expect(throws: VectorMismatch.self) { try expectVector(.number(.infinity), .number(2808)) }
         #expect(throws: VectorMismatch.self) { try expectVector(.number(-.infinity), .number(-1)) }
