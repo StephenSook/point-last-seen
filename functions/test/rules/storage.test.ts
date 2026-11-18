@@ -8,6 +8,7 @@ const bytes = (n: number) => new Uint8Array(n);
 
 beforeEach(async () => {
   await clearFirestore();
+  await getAdminStorage(adminApp).bucket().deleteFiles({ force: true });
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
 });
 afterAll(closeClients);
@@ -39,6 +40,20 @@ describe("storage rules (spec section 7)", () => {
     await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
     await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+  it("media are create-only: an existing clip or photo cannot be replaced at its hash path", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${SHA}.mp4`), bytes(2000), { contentType: "video/mp4" }));
+    await assertSucceeds(uploadBytes(ref(fam, `photos/I1/${SHA}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
+    await assertFails(uploadBytes(ref(fam, `photos/I1/${SHA}.jpg`), bytes(2000), { contentType: "image/jpeg" }));
+  });
+  it("media file names must be a lowercase sha256 with the right extension", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    for (const name of ["clip.mp4", `${"A".repeat(64)}.mp4`, `${SHA}.mov`, `${SHA.slice(1)}.mp4`]) {
+      await assertFails(uploadBytes(ref(fam, `clips/I1/${name}`), bytes(1000), { contentType: "video/mp4" }));
+    }
+    await assertFails(uploadBytes(ref(fam, `photos/I1/${SHA}.png`), bytes(1000), { contentType: "image/jpeg" }));
   });
   it("no client writes packs", async () => {
     await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1/v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));

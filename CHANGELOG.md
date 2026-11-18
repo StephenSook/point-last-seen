@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Clips and photos are create-only at their hash names: `clips/{incidentId}/{sha256}.mp4` and
+  `photos/{incidentId}/{sha256}.jpg` must match a lowercase 64-hex name with the right extension, and no
+  object may already exist there (`resource == null`; the emulator allowed an overwrite under the create
+  rule alone). A cached reading or consent record tied to a hash can no longer point at replaced bytes.
+  Rules cannot hash the bytes, so the reader checks the SHA-256 of what it reads (Task 18). Storage tests
+  clear the bucket before each test.
+  Source: Codex adversarial review M6.
+  Verified: 2 new tests (replacing a clip and a photo refused; four bad clip names and a .png photo
+  refused) failed first, then the overwrite case still passed until `resource == null` was added; now 75
+  emulator tests pass; ci-local exits 0.
 - Packs are per team: the pack record `packs/{teamId}` and the bundle are readable by command and by that
   team only. Bundles move to `packs/{incidentId}/{teamId}/v{n}.bundle` (the spec's `{teamId}-v{n}.bundle`
   file name could not be matched by team in Storage rules); the pack function (Task 12) writes this path.

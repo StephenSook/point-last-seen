@@ -25,9 +25,15 @@ service firebase.storage {
       return isMember(incidentId) && request.auth.token.role in ['command', 'family'];
     }
 
+    // Media are create-only at clips/{incidentId}/{sha256}.mp4 and photos/{incidentId}/{sha256}.jpg, so a
+    // reading cached under a hash can never point at replaced bytes. `resource == null` (no existing object)
+    // is required too, because the emulator allowed an overwrite under the create rule alone. Rules cannot
+    // hash the bytes; the reader checks the SHA-256 of what it reads against the name.
     match /clips/{incidentId}/{file} {
       allow read: if isMember(incidentId);
-      allow create, update: if isCommandOrFamily(incidentId)
+      allow create: if isCommandOrFamily(incidentId)
+        && resource == null
+        && file.matches('^[0-9a-f]{64}[.]mp4$')
         && request.resource.size <= 14000000
         && request.resource.contentType.matches('video/.*');
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
@@ -35,7 +41,9 @@ service firebase.storage {
 
     match /photos/{incidentId}/{file} {
       allow read: if isCommandOrFamily(incidentId);
-      allow create, update: if isCommandOrFamily(incidentId)
+      allow create: if isCommandOrFamily(incidentId)
+        && resource == null
+        && file.matches('^[0-9a-f]{64}[.]jpg$')
         && request.resource.size <= 2 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg';
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
