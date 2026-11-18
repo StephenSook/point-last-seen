@@ -13,8 +13,20 @@ final class AppModel {
     let signIn: SignIn
     private(set) var signedIn = false
 
-    init(signIn: SignIn = .firebase()) {
+    /// This build's version (CFBundleShortVersionString), compared with `minimum_version_ios`.
+    let appVersion: String
+
+    init(signIn: SignIn = .firebase(),
+         appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") {
         self.signIn = signIn
+        self.appVersion = appVersion
+    }
+
+    /// Shown when command has raised the minimum version above this build. It asks, it does not
+    /// block: a searcher in the field can still send reports on an old build.
+    var updatePrompt: String? {
+        config.needsUpdate(appVersion: appVersion)
+            ? "Update this app. Command needs version \(config.minimumVersionIOS) or newer. Reports still send." : nil
     }
     /// Remote Config values. Read at the moment of each send, and a change reaches the live
     /// gate at once, so a kill-switch flip takes effect without a restart.

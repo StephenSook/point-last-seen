@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): ask an old build to update when command raises the minimum version
+- What: `AppModel.updatePrompt` is set when `minimum_version_ios` is above this build's
+  CFBundleShortVersionString: "Update this app. Command needs version X or newer. Reports still
+  send." The field screen shows it as an accent banner under the drill line and the Ready check
+  as a row (otherwise "App version 0.1.0: current"). It asks and does not block, so a searcher
+  on an old build can still send reports.
+- Source: J10 (`minimum_version_ios` upgrade prompt), promotion plan.
+- Ruling: prompt, not block. Cost if wrong: an old build with a known defect keeps sending until
+  its user updates; command can still flip `kill_cloud`.
+- Verified: two `AppModelTests` (a raised minimum sets and clears the prompt; the version comes
+  from the bundle) compile-red, then green; 41 app tests pass; stills of a local-only build with
+  the minimum at 9.9.9 (never committed) show the banner by day and the row at night;
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): read Remote Config at start and on every live update
 - What: `RemoteConfigStore` sets the built-in defaults, fetches and activates at start, and
   listens for real-time updates (activate, then publish), so a kill-switch flip or a raised

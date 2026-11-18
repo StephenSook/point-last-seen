@@ -13,6 +13,13 @@ struct TaskView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Training drill. Nobody is missing.").font(.headline)
+            if let prompt = model.updatePrompt {
+                Label(prompt, systemImage: "arrow.down.app.fill").font(.headline)
+                    .foregroundStyle(theme.onAccentColor)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 12))
+            }
             if let mission = model.mission {
                 Text("Your segments: \(mission.assignedSegmentIds.joined(separator: ", "))")
                 Text("Your assignment changes only when command approves.").font(.footnote)
