@@ -7,7 +7,7 @@ export const SCAM_LIMITS = { timeS: 120, bearingDeg: 45 } as const;
 /** At least 5 of 6 clips pass, and no night clip names a color it cannot see. */
 const GATE_PASS_OF_SIX = 5;
 
-export type MissReason = "time" | "bearing" | "night_color" | "not_read";
+export type MissReason = "time" | "bearing" | "night_color" | "night_color_not_recorded" | "not_read";
 export type ScamClip = {
   id: string;
   lighting: "day" | "night_ir" | "low_light" | "unknown";
@@ -23,7 +23,7 @@ export type ClipSource = "staged" | "stock";
 export type ScamResult = { runAt: string; n: number; passed: number; clips: ScamClip[]; gatePassed: boolean; clipSource: ClipSource };
 
 const LIGHTING = new Set(["day", "night_ir", "low_light", "unknown"]);
-const REASONS = new Set<MissReason>(["time", "bearing", "night_color", "not_read"]);
+const REASONS = new Set<MissReason>(["time", "bearing", "night_color", "night_color_not_recorded", "not_read"]);
 const FILE_FIELDS = new Set(["spike", "runAt", "model", "clipSource", "n", "passed", "clips"]);
 const CLIP_FIELDS = new Set(["id", "lighting", "timeErrorS", "bearingErrorDeg", "nightColorsUnknown", "pass", "missReasons"]);
 
@@ -38,8 +38,10 @@ export function recomputePass(c: Omit<ScamClip, "pass" | "missReasons">): { pass
     if (Math.abs(c.timeErrorS) > SCAM_LIMITS.timeS) missReasons.push("time");
     if (Math.abs(c.bearingErrorDeg) > SCAM_LIMITS.bearingDeg) missReasons.push("bearing");
   }
-  // A night clip whose color answer was not recorded cannot be shown to pass.
-  if (isNight(c.lighting) && c.nightColorsUnknown !== true) missReasons.push("night_color");
+  // A night clip whose color answer was not recorded cannot be shown to pass; it gets its own reason, because the
+  // page must not say it named a color nobody checked.
+  if (isNight(c.lighting) && c.nightColorsUnknown === false) missReasons.push("night_color");
+  if (isNight(c.lighting) && c.nightColorsUnknown === null) missReasons.push("night_color_not_recorded");
   return { pass: missReasons.length === 0, missReasons };
 }
 
@@ -72,7 +74,7 @@ export function parseScam(json: unknown): { ok: true; result: ScamResult } | { o
   if (json["n"] !== clips.length) return no("The clip count does not match the clips.");
   const passed = clips.filter((c) => c.pass).length;
   if (json["passed"] !== passed) return no("The passed count does not match the clips.");
-  const nightColorMiss = clips.some((c) => c.missReasons.includes("night_color"));
+  const nightColorMiss = clips.some((c) => c.missReasons.includes("night_color") || c.missReasons.includes("night_color_not_recorded"));
   const gatePassed = clips.length >= 6 && passed * 6 >= clips.length * GATE_PASS_OF_SIX && !nightColorMiss;
   return { ok: true, result: { runAt: json["runAt"], n: clips.length, passed, clips, gatePassed, clipSource } };
 }
@@ -92,6 +94,8 @@ export function missLine(c: ScamClip): string {
         return `direction off by ${Math.abs(c.bearingErrorDeg ?? 0)} degrees (limit ${SCAM_LIMITS.bearingDeg})`;
       case "night_color":
         return "named a color it could not see at night";
+      case "night_color_not_recorded":
+        return "whether it named colors at night was not recorded";
       case "not_read":
         return "not read";
     }

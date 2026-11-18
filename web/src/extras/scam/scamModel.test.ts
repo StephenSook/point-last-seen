@@ -20,8 +20,8 @@ describe("recomputePass", () => {
   it("a night clip that names a color misses on night_color", () => {
     expect(recomputePass(clip({ id: "night-1", lighting: "night_ir", nightColorsUnknown: false }))).toEqual({ pass: false, missReasons: ["night_color"] });
     expect(recomputePass(clip({ id: "night-1", lighting: "night_ir", nightColorsUnknown: true })).pass).toBe(true);
-    // A night clip whose color answer was not recorded cannot be shown to pass.
-    expect(recomputePass(clip({ id: "night-1", lighting: "low_light", nightColorsUnknown: null })).missReasons).toEqual(["night_color"]);
+    // A night clip whose color answer was not recorded cannot be shown to pass, and is not said to have named a color.
+    expect(recomputePass(clip({ id: "night-1", lighting: "low_light", nightColorsUnknown: null })).missReasons).toEqual(["night_color_not_recorded"]);
   });
 
   it("a clip with no reading misses as not_read", () => {
@@ -82,6 +82,9 @@ describe("missLine", () => {
       "Night clip 3: named a color it could not see at night.",
     );
     expect(missLine(scamClipFixture({ id: "day-2", timeErrorS: null, bearingErrorDeg: null, pass: false, missReasons: ["not_read"] }))).toBe("Day clip 2: not read.");
+    expect(missLine(scamClipFixture({ id: "night-1", lighting: "low_light", nightColorsUnknown: null, pass: false, missReasons: ["night_color_not_recorded"] }))).toBe(
+      "Night clip 1: whether it named colors at night was not recorded.",
+    );
   });
 });
 
