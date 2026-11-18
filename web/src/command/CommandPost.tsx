@@ -360,7 +360,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
 
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
-  const saveProfile = (p: FamilyProfile) => writeProfile(pls.db, incidentId, p);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const saveProfile = (p: FamilyProfile) => {
+    setProfileError(null);
+    writeProfile(pls.db, incidentId, p).catch(() => setProfileError("The profile was not saved. Edit it and save again."));
+  };
   const shareDestination = async (place: Place) => {
     const w = writer();
     write(placeToCheck(place, { incidentId: w.incidentId, uid: w.uid, seq: w.seq, clientTimeMs: w.clientTimeMs, priorVersion: w.priorVersion }));
@@ -432,6 +436,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <button type="button" className="btn ghost" onClick={() => setEditingProfile(true)} disabled={!incident}>
               {profile?.shared ? "Edit profile" : "Add profile"}
             </button>
+          )}
+          {profileError && (
+            <p className="error" role="alert">
+              {profileError}
+            </p>
           )}
           {picker && <p role="status">Click the map to place it.</p>}
           {adding ? (
