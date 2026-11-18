@@ -29,4 +29,11 @@ else
   echo "== swift-core: skipped, ios/PLSCore not on this branch"
 fi
 
+if [ -x android/gradlew ]; then
+  echo "== android: unit tests and debug build"
+  (cd android && ./gradlew --no-daemon testDebugUnitTest assembleDebug)
+else
+  echo "== android: skipped, android/ not on this branch"
+fi
+
 echo "ci-local: all checks passed"

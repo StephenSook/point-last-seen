@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the `android` CI job (`.github/workflows/android.yml`): lane D's snippet, Temurin 21,
+  `./gradlew --no-daemon testDebugUnitTest assembleDebug`, on pull requests to main and on main only,
+  triggered by `android/**` until android/ is on main (then widen to shared/**). Mirrored in `ci-local.sh`.
+  Source: plan Task 19a; lane D handover; orchestrator CI-minutes ruling.
+  Verified: action SHAs re-read with gh (setup-java v6.3.0 d1374f8, setup-gradle v6.4.1 8da46b5, both latest);
+  `bash scripts/ci-local.sh` exits 0 (android skipped on main). Lane D reports the gradle command green locally.
 - Narrow the `swift-core` trigger to `ios/PLSCore/**` until lane B's package is on main. With the shared
   paths, the next vector or constants change on main would have started a job with no package and failed.
   Widen to shared/test-vectors/** and shared/constants/** after the lane B merge.
