@@ -1,0 +1,153 @@
+// Plan wording on the SDK's own hybrid mode, cloud first. The plan itself is
+// drafted by code; a model only words it, in a closed schema, and code
+// rejects wording whose teams differ from the draft. Any failure falls to a
+// fixed template, and the route says "rules".
+
+import { InferenceMode, type HybridParams } from "firebase/ai";
+import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
+import { onDeviceCreateOptions } from "./gate";
+
+export type PlanDraft = { eventSetHash: string; priorVersion: number; rank: RankedSegment[]; assignments: DraftAssignment[] };
+
+/** Cloud replies on gemini-3.5-flash-lite took 0.8 to 1.8 s (S4 step 4 controls, 2026-11-17); 15 s leaves room for a long table. */
+export const REPLY_TIMEOUT_MS = 15_000;
+
+const MAX_TEXT = 200;
+
+export const PLAN_WORDING_JSON = {
+  type: "object",
+  properties: {
+    assignments: {
+      type: "array",
+      maxItems: 12,
+      items: {
+        type: "object",
+        properties: { teamId: { type: "string" }, taskText: { type: "string" }, reason: { type: "string" } },
+        required: ["teamId", "taskText", "reason"],
+      },
+    },
+    summary: { type: "string" },
+  },
+  required: ["assignments", "summary"],
+} as const;
+
+const SYSTEM = [
+  "You word a search plan that code has already decided. You never change which team searches which segment.",
+  "For each team, write taskText: one short instruction naming its segment ids, and reason: one short line from the table.",
+  "Use plain words. Never say the person will be found or where the person is.",
+  "Return JSON with assignments (teamId, taskText, reason) and a one-sentence summary.",
+].join(" ");
+
+export function wordingParams(model: string): HybridParams {
+  return {
+    mode: InferenceMode.PREFER_IN_CLOUD,
+    inCloudParams: {
+      model,
+      systemInstruction: SYSTEM,
+      generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON },
+    },
+    onDeviceParams: {
+      createOptions: onDeviceCreateOptions("text", SYSTEM),
+      promptOptions: { responseConstraint: PLAN_WORDING_JSON },
+    },
+  };
+}
+
+const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
+
+/** The engine's table, in the user text (the SDK passes only contents and our prompt options to Chrome). */
+export function planPrompt(draft: PlanDraft): string {
+  const lines = [
+    "Assignments decided by code:",
+    ...draft.assignments.map((a) => `${a.teamId}: ${a.segmentIds.join(", ")}`),
+    "Segments by POA, highest first:",
+    ...draft.rank.slice(0, 10).map((r) => `${r.segmentId} ${pct(r.poa)} (was ${pct(r.priorPoa)})`),
+  ];
+  return lines.join("\n");
+}
+
+export function templateWording(draft: PlanDraft): PlanWording {
+  const poa = new Map(draft.rank.map((r) => [r.segmentId, r.poa]));
+  return {
+    assignments: draft.assignments.map((a) => ({
+      teamId: a.teamId,
+      taskText: `Search segment ${a.segmentIds.join(", ")}.`,
+      reason: a.segmentIds.length > 0 ? `POA now ${pct(poa.get(a.segmentIds[0]!) ?? 0)}.` : "No segment left to assign.",
+    })),
+    summary: "Assignments follow the current POA ranking.",
+  };
+}
+
+export function checkWording(draft: PlanDraft, wording: PlanWording): { ok: true } | { ok: false; reason: string } {
+  if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
+  const want = draft.assignments.map((a) => a.teamId).sort();
+  const got = wording.assignments.map((a) => a?.teamId).sort();
+  if (want.length !== got.length || want.some((t, i) => t !== got[i])) return { ok: false, reason: "team ids differ from the draft" };
+  for (const a of wording.assignments) {
+    for (const s of [a.taskText, a.reason]) {
+      if (typeof s !== "string" || s.trim() === "" || s.length > MAX_TEXT) return { ok: false, reason: "empty or overlong text" };
+    }
+  }
+  if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
+  return { ok: true };
+}
+
+export type WordingDeps = {
+  generate: (text: string) => Promise<{ text: string; inferenceSource: string | undefined }>;
+  now: () => number;
+  timeoutMs: number;
+  model: string;
+};
+
+export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null };
+
+class ReplyTimeout extends Error {}
+
+function statusOf(e: unknown): number | null {
+  const s = (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status;
+  return typeof s === "number" ? s : null;
+}
+
+/** Fixed plain sentences only: no raw error text ever reaches the page. */
+function noticeFor(e: unknown): string {
+  if (e instanceof ReplyTimeout) return "The cloud took too long. The plan below uses fixed wording.";
+  const status = statusOf(e);
+  if (status === 401 || status === 403) return "Cloud step refused by App Check. Try a normal browser window.";
+  if (status === 429) return "The cloud is busy right now. The plan below uses fixed wording.";
+  if (status === 503) return "The cloud is unavailable right now. The plan below uses fixed wording.";
+  return "The cloud step did not answer. The plan below uses fixed wording.";
+}
+
+function route(path: RouteRecord["path"], reason: RouteRecord["reason"], model: string, latencyMs: number, sdkReported: boolean, at: number): RouteRecord {
+  return { platform: "web", path, stage: "sdk", model, reason, latencyMs, sdkReported, blocked: null, decidedAtMs: at };
+}
+
+export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<WordedPlan> {
+  const t0 = deps.now();
+  const template = (notice: string | null): WordedPlan => {
+    const t1 = deps.now();
+    return { wording: templateWording(draft), route: route("rules", "template_fallback", "template", t1 - t0, false, t1), notice };
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new ReplyTimeout()), deps.timeoutMs);
+    });
+    const reply = await Promise.race([Promise.resolve().then(() => deps.generate(planPrompt(draft))), late]);
+    const t1 = deps.now();
+    let wording: PlanWording;
+    try {
+      wording = JSON.parse(reply.text) as PlanWording;
+    } catch {
+      return template(null);
+    }
+    if (!checkWording(draft, wording).ok) return template(null);
+    if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "sdk_prefer_in_cloud", deps.model, t1 - t0, true, t1), notice: null };
+    if (reply.inferenceSource === "on_device") return { wording, route: route("on_device", "link_down_fallback", "chrome-built-in", t1 - t0, true, t1), notice: null };
+    return { wording, route: route("unknown", "sdk_prefer_in_cloud", deps.model, t1 - t0, false, t1), notice: null };
+  } catch (e) {
+    return template(noticeFor(e));
+  } finally {
+    clearTimeout(timer);
+  }
+}
