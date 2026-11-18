@@ -6,13 +6,15 @@ type Props = {
   draft: PlanDraft | null;
   draftSource: "server" | "local";
   onSuggest: () => Promise<WordedPlan>;
-  onApprove: (worded: WordedPlan) => Promise<number>;
+  /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
+  onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
+  planStatus: (version: number) => "unknown" | "sending" | "sent";
 };
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, draftSource, onSuggest, onApprove }: Props) {
+export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus }: Props) {
   const [suggested, setSuggested] = useState<WordedPlan | null>(null);
-  const [busy, setBusy] = useState<"suggest" | "approve" | null>(null);
+  const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
   const hash = draft?.eventSetHash ?? null;
@@ -35,17 +37,19 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove }: Props)
     }
   }
 
-  async function approve() {
+  function approve() {
     if (!suggested) return;
-    setBusy("approve");
     setError(null);
     try {
-      setApproved(await onApprove(suggested));
+      const { version, ack } = onApprove(suggested);
+      setApproved(version);
       setSuggested(null);
+      ack.catch(() => {
+        setApproved((v) => (v === version ? null : v));
+        setError(`Plan v${version} was not saved: another plan was approved first. Suggest again.`);
+      });
     } catch {
-      setError("The plan was not saved. Another plan may have been approved first. Suggest again.");
-    } finally {
-      setBusy(null);
+      setError("The plan was not saved. Suggest again.");
     }
   }
 
@@ -77,7 +81,7 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove }: Props)
             ))}
           </ul>
           <button type="button" className="btn" onClick={approve} disabled={busy !== null}>
-            {busy === "approve" ? "Approving" : "Approve"}
+            Approve
           </button>
         </div>
       )}
@@ -86,7 +90,11 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove }: Props)
           {error}
         </p>
       )}
-      {approved !== null && <p role="status">Approved as plan v{approved}.</p>}
+      {approved !== null && (
+        <p role="status" data-testid="plan-status">
+          {planStatus(approved) === "sent" ? `Approved as plan v${approved}. Sent.` : `Approved on this laptop as plan v${approved}. Sending.`}
+        </p>
+      )}
     </section>
   );
 }

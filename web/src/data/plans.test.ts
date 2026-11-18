@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { localDraft, nextPlanVersion, planChange, planDocFor, planDocId } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, planSendState } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -79,5 +79,34 @@ describe("planChange", () => {
 
   it("marks nothing when the latest plan is unchanged", () => {
     expect(planChange(2, [p(1, ["T1"]), p(2, ["T2"])])).toEqual({ latest: 2, newTeamIds: [] });
+  });
+});
+
+describe("approving with the link down", () => {
+  const existing = [planDocFor(draft, wording, route, 1, "uid-1", 1), planDocFor(draft, wording, route, 2, "uid-1", 2)];
+
+  it("takes the next version from the local plans and returns at once, without waiting for the server", () => {
+    let writes = 0;
+    const neverAcked = () => {
+      writes++;
+      return new Promise<void>(() => {});
+    };
+    const r = approveNow({ plans: existing, draft, wording, route, uid: "uid-1", nowMs: 9, write: neverAcked });
+    expect(r.version).toBe(3);
+    expect(writes).toBe(1);
+    expect(r.ack).toBeInstanceOf(Promise);
+  });
+
+  it("hands the write the plan document for that version", () => {
+    let written: { version: number } | null = null;
+    approveNow({ plans: [], draft, wording, route, uid: "uid-1", nowMs: 9, write: (plan) => { written = plan; return Promise.resolve(); } });
+    expect(written!.version).toBe(1);
+  });
+
+  it("says sending while the write is pending, sent once the server has it, unknown before it appears", () => {
+    expect(planSendState(3, existing, [])).toBe("unknown");
+    const withNew = [...existing, planDocFor(draft, wording, route, 3, "uid-1", 3)];
+    expect(planSendState(3, withNew, [3])).toBe("sending");
+    expect(planSendState(3, withNew, [])).toBe("sent");
   });
 });

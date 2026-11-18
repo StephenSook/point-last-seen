@@ -23,7 +23,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
-import { approvePlan, existingPlanVersions, localDraft, nextPlanVersion, planChange, planDocFor, subscribeDraft, subscribePlans } from "../data/plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribeDraft, subscribePlans, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
@@ -209,7 +209,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
       failed,
     );
-    const stopPlans = subscribePlans(pls.db, incidentId, (p) => dispatch({ type: "plans", plans: p }), failed);
+    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending) => dispatch({ type: "plans", plans: p, pending }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
       stopIncident();
@@ -371,12 +371,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       setPicker(null);
     });
 
-  const approve = async (worded: WordedPlan): Promise<number> => {
+  // Approve never waits for the server: the plan shows at once from the local snapshot
+  // (sending), then sent when the server has it; a refusal comes back through `ack`.
+  const approve = (worded: WordedPlan): { version: number; ack: Promise<void> } => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
-    const version = nextPlanVersion(await existingPlanVersions(pls.db, incidentId));
-    await approvePlan(pls.db, incidentId, planDocFor(draft, worded.wording, worded.route, version, uid, Date.now()));
-    return version;
+    return approveNow({ plans: state.plans, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
   };
 
   if (denied) {
@@ -459,7 +459,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
           />
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
+          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <PhotoTray
             photos={photos}

@@ -55,6 +55,13 @@ describe("postReducer with plans", () => {
     expect(denied.plans).toEqual([]);
     expect(postReducer(denied, { type: "plans", plans: [plan] })).toBe(denied);
   });
+
+  it("keeps which plan versions are still being sent, and clears them on a denial", () => {
+    const sending = postReducer(loaded, { type: "plans", plans: [plan], pending: [1] });
+    expect(sending.pendingPlans).toEqual([1]);
+    expect(postReducer(sending, { type: "plans", plans: [plan], pending: [] }).pendingPlans).toEqual([]);
+    expect(postReducer(sending, { type: "failed", error: { code: "permission-denied" } }).pendingPlans).toEqual([]);
+  });
 });
 
 describe("postReducer with the profile", () => {
