@@ -1,14 +1,18 @@
 name: CI
 
+# Actions minutes are budgeted: runs only on pull requests to main and on main. Lane branch pushes
+# run no CI; lanes verify each commit with scripts/ci-local.sh and record its exit code.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Branch pushes supersede each other; every main commit keeps its own run.
+# Pushes to one pull request supersede each other; every main commit keeps its own run.
 concurrency:
   group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true

@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
+  to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
+  Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
+  entry; CI verifies once per lane at each merge point through one pull request. This entry's own commit
+  and the one before it are pushed together, so CI runs for the head SHA only.
+  Source: orchestrator, after the Actions budget was reached (300 runs today); Stephen set the November
+  budget to $15, so the remaining $10 is spent only at merge points.
+  Verified: no workflow keeps a `branches: ["**"]` push trigger (grep count 0); `bash scripts/ci-local.sh`
+  exit 0.
 - `functions/package.json` lists only its runtime dependencies (firebase-admin, firebase-functions); the test
   toolchain it used (firebase client 13.4.0, TypeScript 6.0.3, Vitest 5.1.0, @types/node 22.20.5) moves to
   the root devDependencies, still hoisted for the workspace tests. Cloud Build generates a lockfile from the
