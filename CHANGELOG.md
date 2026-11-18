@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Rules gate bans Storage token URLs (`getDownloadURL`, `downloadURL`, `downloadUrl`) in web/, ios/ and
+  android/ code: a download URL carries a token that bypasses Storage rules, so a URL saved before a judge
+  sandbox expires would keep serving its clip. Client reads go through getBytes/getBlob, which evaluate the
+  rules. Docs may name the calls.
+  Source: Codex adversarial review round 3 (MEDIUM), items 1 and 3.
+  Verified: the new gate test failed first, now 18 gate tests pass; the gate is clean on main and a grep
+  finds 0 uses on origin/lane-ios, lane-web and lane-android; ci-local exits 0.
 - Clips and photos are create-only at their hash names: `clips/{incidentId}/{sha256}.mp4` and
   `photos/{incidentId}/{sha256}.jpg` must match a lowercase 64-hex name with the right extension, and no
   object may already exist there (`resource == null`; the emulator allowed an overwrite under the create
