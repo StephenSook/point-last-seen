@@ -22,13 +22,13 @@ class SightingScreenTest {
     private val now = 10_000_000L
 
     @Test fun theFormWarnsAgainstTypingTheCallersName() {
-        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, nowMs = { now }, onSend = {}, onBack = {}) } }
+        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, error = null, nowMs = { now }, onSend = {}, onBack = {}) } }
         rule.onNodeWithText("Do not type the caller's name.").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun sendNeedsATimeAndAPlaceThenCarriesWhatWasTyped() {
         var sent: FamilySightingInput? = null
-        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, nowMs = { now }, onSend = { sent = it }, onBack = {}) } }
+        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, error = null, nowMs = { now }, onSend = { sent = it }, onBack = {}) } }
         rule.onNodeWithText("Send to command").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithText("30 min ago").performScrollTo().performClick()
         rule.onNodeWithText("Where").performScrollTo().performTextInput("gas station on Elm")
@@ -45,7 +45,12 @@ class SightingScreenTest {
     }
 
     @Test fun sendIsDisabledDuringTheWrite() {
-        rule.setContent { PaperTheme { SightingScreen(null, false, busy = true, nowMs = { now }, onSend = {}, onBack = {}) } }
+        rule.setContent { PaperTheme { SightingScreen(null, false, busy = true, error = null, nowMs = { now }, onSend = {}, onBack = {}) } }
         rule.onNodeWithText("Send to command").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun aSendThatFailedSaysWhyBesideTheButton() {
+        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, error = "Join the search first.", nowMs = { now }, onSend = {}, onBack = {}) } }
+        rule.onNodeWithText("Join the search first.").performScrollTo().assertIsDisplayed()
     }
 }

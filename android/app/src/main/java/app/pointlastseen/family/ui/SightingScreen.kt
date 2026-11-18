@@ -28,6 +28,7 @@ fun SightingScreen(
     mode: String?,
     killCloud: Boolean,
     busy: Boolean,
+    error: String?,
     nowMs: () -> Long,
     onSend: (FamilySightingInput) -> Unit,
     onBack: () -> Unit,
@@ -61,6 +62,7 @@ fun SightingScreen(
             note, { note = it.take(2000) }, label = { Text("What they said") },
             supportingText = { Text("Do not type the caller's name.") }, minLines = 3, modifier = Modifier.fillMaxWidth(),
         )
+        error?.let { Note(it) }
         MainAction("Send to command", enabled = !busy && ago != null && place.isNotBlank()) {
             val minutes = ago ?: return@MainAction
             onSend(

@@ -33,7 +33,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             Screen.CLIP -> ClipScreen(mode, rc.killCloud, vm.clipLabel, vm.clipUi, onPick = onPickClip, onRead = vm::readClip, onConfirm = vm::confirmClip, onBack = vm::back)
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back)
             Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back)
-            Screen.SIGHTING -> SightingScreen(mode, rc.killCloud, vm.sightingBusy, nowMs = System::currentTimeMillis, onSend = vm::sendSighting, onBack = vm::back)
+            Screen.SIGHTING -> SightingScreen(mode, rc.killCloud, busy = false, error = vm.sightingError, nowMs = System::currentTimeMillis, onSend = vm::sendSighting, onBack = vm::back)
             Screen.ABOUT -> AboutPhoneScreen(vm.deviceStatus, mode, rc.killCloud, rc.cloudModelAndroid, AppCheckSetup.PROVIDER, BuildConfig.VERSION_NAME, onBack = vm::back)
         }
     }

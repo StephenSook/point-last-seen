@@ -99,7 +99,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var photosUi by mutableStateOf(PhotosUi(0, false, null))
         private set
-    var sightingBusy by mutableStateOf(false)
+    var sightingError by mutableStateOf<String?>(null)
         private set
     var profileShareFailed by mutableStateOf(false)
         private set
@@ -177,9 +177,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         if (nav.gone && nav.joined) publisher.publish(inc, profile) { ok -> profileShareFailed = !ok }
     }
 
+    /** Throws IllegalStateException when the family has not joined or is not signed in. */
     private fun context() = session.context(
-        incidentId = requireNotNull(session.incidentId()),
-        uid = requireNotNull(Firebase.auth.currentUser?.uid) { "not signed in" },
+        incidentId = checkNotNull(session.incidentId()) { "not joined" },
+        uid = checkNotNull(Firebase.auth.currentUser?.uid) { "not signed in" },
         priorVersion = incident.value?.priorVersion ?: 1L,
         nowMs = System.currentTimeMillis(),
     )
@@ -195,9 +196,17 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     // Someone saw them
     fun sendSighting(input: FamilySightingInput) {
-        sightingBusy = true
-        runCatching { writer.submit(Events.familySighting(input, context())) }
-        sightingBusy = false
+        sightingError = null
+        val doc = try {
+            Events.familySighting(input, context())
+        } catch (e: IllegalArgumentException) {
+            sightingError = e.message ?: "This sighting could not be sent."
+            return
+        } catch (e: IllegalStateException) {
+            sightingError = "Join the search first."
+            return
+        }
+        writer.submit(doc)
         back()
     }
 
@@ -275,11 +284,14 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun confirmClip() {
         val (read, startMs) = lastClip ?: return
-        runCatching {
-            val events = Events.confirmClip(read.reading, startMs, cameraPosition = null, route = read.route, ctx = context())
-            writer.submit(events.cameraSighting)
-            writer.submit(events.confirmation)
+        val events = try {
+            Events.confirmClip(read.reading, startMs, cameraPosition = null, route = read.route, ctx = context())
+        } catch (e: Exception) {
+            clipUi = ClipUi.Done(ClipOutcome.Refused("The clip could not be sent to command. Join the search, then read it again."))
+            return
         }
+        writer.submit(events.cameraSighting)
+        writer.submit(events.confirmation)
         lastClip = null
         clipUri = null
         clipLabel = null
