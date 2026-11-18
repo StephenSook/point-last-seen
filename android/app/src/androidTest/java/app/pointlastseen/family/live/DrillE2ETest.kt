@@ -38,6 +38,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -53,7 +54,7 @@ import kotlin.random.Random
 
 /**
  * The family loop against the deployed project and the synthetic drill incident:
- * join with the family code (passed as the instrumentation argument plsJoinCode,
+ * join with the family code (read by DrillCode from a file run-drill-e2e.sh writes,
  * never logged), publish the profile, write a sighting and a duplicate of it, read a
  * device-made clip through the consent-first flow, and upload a photo. Logs only
  * PLS-E2E lines with outcomes, never the code, a token or a uid.
@@ -65,8 +66,7 @@ class DrillE2ETest {
     private fun log(s: String) = Log.i("PLS-E2E", s)
 
     @Test fun theFamilyLoopRunsAgainstTheDeployedProject(): Unit = runBlocking {
-        val code = InstrumentationRegistry.getArguments().getString("plsJoinCode")
-        assertNotNull("pass -Pandroid.testInstrumentationRunnerArguments.plsJoinCode", code)
+        val code: String? = DrillCode.read()
 
         // 1. Join: the callable checks the code; the refreshed token carries the family claims.
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(code!!) }
@@ -125,15 +125,24 @@ class DrillE2ETest {
         )
         log("clip outcome=${outcome::class.simpleName}")
         assertTrue("clip outcome $outcome", outcome is ClipOutcome.CouldNotRead || outcome is ClipOutcome.Read)
-        val record = Firebase.firestore.collection("incidents").document(incidentId).collection("clipReadings").document(sha).get(Source.SERVER).await()
+        val clipDoc = Firebase.firestore.collection("incidents").document(incidentId).collection("clipReadings").document(sha)
+        // The completion is written without waiting (Firestore sends it when it can): read it back for up to 15 s.
+        var record = clipDoc.get(Source.SERVER).await()
+        for (i in 0 until 15) {
+            if (record.get("reading") != null) break
+            delay(1_000)
+            record = clipDoc.get(Source.SERVER).await()
+        }
         assertEquals(uid, record.getString("createdByUid"))
         assertTrue("clip stored", deps.clipExists(sha))
         log("clip consent record and stored clip present")
 
-        // 5b. A retry of the same clip. With no reading stored (this clip has no person), the
-        //     record is renewed by its creator: fresh consent, a new expiry and createdAt, every
-        //     other field as stored. The live rules must accept it, and the stored clip is reused.
-        if (record.get("reading") == null) {
+        // 5b. A could-not-read result completes the record as a typed no-sighting, so it is cached: a
+        //     retry of the same clip makes no model call and no write.
+        if (outcome is ClipOutcome.CouldNotRead) {
+            val reading = record.get("reading") as Map<*, *>
+            assertEquals("no_sighting", reading["status"])
+            log("clip completed as no_sighting reasons=${reading["reasons"]}")
             val later = System.currentTimeMillis()
             val again = ClipReader(deps).read(
                 ClipRequest(
@@ -142,17 +151,12 @@ class DrillE2ETest {
                     killCloud = { false }, modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
                 ),
             )
-            log("clip retry outcome=${again::class.simpleName}")
-            assertTrue("clip retry outcome $again", again is ClipOutcome.CouldNotRead || again is ClipOutcome.Read)
-            val renewed = Firebase.firestore.collection("incidents").document(incidentId).collection("clipReadings").document(sha).get(Source.SERVER).await()
-            assertTrue("renewed createdAt", renewed.getTimestamp("createdAt")!! > record.getTimestamp("createdAt")!!)
-            assertTrue("renewed expiresAt", renewed.getTimestamp("expiresAt")!! > record.getTimestamp("expiresAt")!!)
-            for (k in listOf("sha256", "storagePath", "durationS", "clipStartMs", "clockConfirmed", "cameraFacingDeg", "createdByUid")) {
-                assertEquals("renewal kept $k", record.get(k), renewed.get(k))
-            }
-            log("clip retry renewed the consent record; other fields unchanged")
+            assertEquals(ClipOutcome.CouldNotRead, again)
+            val after = clipDoc.get(Source.SERVER).await()
+            assertEquals(record.getTimestamp("createdAt"), after.getTimestamp("createdAt"))
+            log("clip retry served from the cached no-sighting; record unchanged")
         } else {
-            log("clip retry skipped: the first read stored a reading, so a retry is the cached path")
+            log("clip retry skipped: the first read found a sighting")
         }
 
         // 6. Photo: a 1536 px JPEG with no EXIF, under its hash.
