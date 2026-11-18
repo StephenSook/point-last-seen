@@ -502,3 +502,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `segmentFeatures(segments, poa, before?)` adds `clsOld`, the lightness class under the previous POA (with its own maximum), when `before` is given; without it the features are unchanged.
 - Source: plan Task 39.4 (the REPORT beat cross-fades lightness from the old map to the new one).
 - Verified: new test in `src/map/poaStyle.test.ts` failed first, then passed (11 of 11). scripts/ci-local.sh exit 0.
+
+### feat(map): measure metres from a report to each changed segment for the beat order
+- What: `metresBetween` (great circle) and `beatDistances(origin, changedIds, segments)` in `map/geo.ts`: metres from the report's position to each changed segment's centre, or from the largest move's centre when the report has no position. The beat staggers lightness nearest first by these.
+- Source: plan Task 39.4 ("lightness is staggered by distance, nearest first").
+- Verified: two new tests in `src/map/geo.test.ts` failed first, then passed (0 m at the origin; about 925 m for 0.01 degree of longitude at 33.78 N; over 1,100 m for 0.01 degree of latitude). scripts/ci-local.sh exit 0.
