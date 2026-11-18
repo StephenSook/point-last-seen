@@ -27,9 +27,9 @@ def evaluate(d, now: datetime) -> list[str]:
         problems.append("ops/storage has no checkedAt")
     else:
         checked = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        age = int((now - checked).total_seconds() // 60)
-        if age > STALE_MIN:
-            problems.append(f"the sweep last ran {age} min ago (limit {STALE_MIN})")
+        age_s = (now - checked).total_seconds()
+        if age_s > STALE_MIN * 60:
+            problems.append(f"the sweep last ran {age_s / 60:g} min ago (limit {STALE_MIN})")
     return problems
 
 

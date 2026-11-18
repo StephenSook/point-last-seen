@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- media_probe compares the sweep's age in raw seconds: 120 min 30 s now fails the 120-minute limit (it used to
+  floor to 120 and pass).
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now 4 probe tests pass; `bash scripts/ci-local.sh` exit 0.
 - Command can no longer write `mediaDeletedAt` on an incident; only the media sweep (admin) sets it, so a
   command member cannot mark a sandbox's media as deleted and hide that it is still stored.
   Source: review of 2bdb778..dc762be (low).

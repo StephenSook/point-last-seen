@@ -30,3 +30,9 @@ def test_a_missing_rule_a_stale_sweep_or_a_missing_doc_fails_with_a_reason():
 
 def test_fractional_seconds_in_the_timestamp_parse():
     assert mp.evaluate(doc(checked="2026-12-12T14:59:59.123456Z"), NOW) == []
+
+
+def test_staleness_compares_raw_seconds_not_rounded_minutes():
+    # 120 min 30 s is past the 120-minute limit; flooring to whole minutes used to let it pass.
+    assert mp.evaluate(doc(checked="2026-12-12T12:59:30Z"), NOW) == ["the sweep last ran 120.5 min ago (limit 120)"]
+    assert mp.evaluate(doc(checked="2026-12-12T13:00:00Z"), NOW) == []
