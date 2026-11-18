@@ -75,6 +75,8 @@ type Props = {
   onClose: () => void;
 };
 
+const NO_CONSENT: ClipConsents = { personInClip: false, footageOwner: false, cloudProcessing: false, publicUse: false };
+
 const HELD = {
   "no-motion": "Nothing moves in this clip. Nothing was sent.",
   "no-person": "No person found on this laptop. Nothing was sent.",
@@ -86,7 +88,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
   const [start, setStart] = useState("");
   const [clockConfirmed, setClock] = useState(false);
   const [facing, setFacing] = useState<number | null>(null);
-  const [consents, setConsents] = useState<ClipConsents>({ personInClip: false, footageOwner: false, cloudProcessing: false, publicUse: false });
+  const [consents, setConsents] = useState<ClipConsents>(NO_CONSENT);
   const [busy, setBusy] = useState<false | "checking" | "reading">(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
   const [held, setHeld] = useState<{ input: ClipIntakeInput; kind: keyof typeof HELD } | null>(null);
@@ -99,6 +101,8 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     setDurationS(null);
     setMessage(null);
     setHeld(null);
+    // Consent is given for one clip: a new selection starts with none.
+    setConsents(NO_CONSENT);
     if (f && !sizeProblem(f.size)) setDurationS(await readDurationS(f));
   }
 
@@ -150,7 +154,16 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
 
   const consent = (key: keyof ClipConsents, label: string) => (
     <label className="check">
-      <input type="checkbox" checked={consents[key]} onChange={(e) => setConsents((c) => ({ ...c, [key]: e.target.checked }))} disabled={busy !== false} />
+      <input
+        type="checkbox"
+        checked={consents[key]}
+        onChange={(e) => {
+          setConsents((c) => ({ ...c, [key]: e.target.checked }));
+          // A held clip was read with the consents as they were; any change withdraws the override.
+          setHeld(null);
+        }}
+        disabled={busy !== false}
+      />
       {label}
     </label>
   );

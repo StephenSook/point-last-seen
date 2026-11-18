@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // The synthetic clip is generated, not committed (the repo keeps every .mp4 out); this needs ffmpeg.
@@ -127,4 +127,21 @@ test("the card's band says when the person is in view, and a click opens the cli
   await expect(card.locator(".clip-box")).toHaveCount(0);
   await band.press("Enter");
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => (v.readyState >= 2 ? v.currentTime : -1))).toBe(1);
+});
+
+test("choosing another clip clears every consent, so consent never carries over to a different file", async ({ page }) => {
+  await page.goto("/harness/clip.html");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading", "Public use"]) await page.getByLabel(c).check();
+  await page.getByLabel("Clip", { exact: true }).setInputFiles({ name: "other.mp4", mimeType: "video/mp4", buffer: Buffer.concat([readFileSync(CLIP), Buffer.from([0])]) });
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading", "Public use"]) await expect(page.getByLabel(c)).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeDisabled();
+});
+
+test("unchecking a consent while triage holds the clip withdraws Read in the cloud anyway", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=no-person");
+  await expect(page.getByRole("button", { name: "Read in the cloud anyway" })).toBeVisible();
+  await page.getByLabel("Cloud reading").uncheck();
+  await expect(page.getByRole("button", { name: "Read in the cloud anyway" })).toHaveCount(0);
+  await expect(page.getByTestId("asked")).toHaveText("");
 });

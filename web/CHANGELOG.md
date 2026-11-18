@@ -960,3 +960,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-18-triage-chrome.json`: four runs of the triage measurement page in an installed Chrome 157 with the built-in model (downloaded through the site's own button), on three generated clips with no person. Zero Google or Firebase requests in every run; a warm frame check about 1 s (949 and 1,069 ms), the first after the download 18.0 s; sampling 12 frames in 37 to 45 ms, 40 in 158 ms; a still clip ends at no-motion with no model asked. The model said a person was visible in a red square: a false positive, so the person check is recorded as not validated until the staged clips exist.
 - Source: request to measure P-39 on a real built-in model before any number is used.
 - Verified: values copied from the page's own report in each run. scripts/ci-local.sh exit 0.
+
+### fix(camera): clear clip consent on a new file and withdraw a held override when consent changes
+- What: choosing a clip resets all four consents (consent is given for one clip), and changing any consent while triage holds a clip clears the hold, so "Read in the cloud anyway" can never send with consent that was withdrawn or given for another file.
+- Source: second-model review of PR #16, finding 1 (high): consent carried over to a different file and survived being unchecked.
+- Verified: two new harness tests (all consents cleared after choosing another file, Read disabled; unchecking cloud consent removes the override and nothing is passed on) failed first, then passed; all 11 clip harness tests pass. scripts/ci-local.sh exit 0.
