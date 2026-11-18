@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): no token count for evidence text or outside a drill
+- What: `ReportReader` runs the evidence screen and the drill or judge check before it counts
+  tokens with Apple's model, and skips the count when either stops the read. Before, the report
+  text went to `SystemLanguageModel.tokenCount` even when the card then said "Not sent to any
+  model." The estimator is now a seam for tests.
+- Source: fresh-eyes review I1; hard rule (a report with a possible-evidence term goes to no
+  model; no model call outside a drill or judge incident).
+- Verified: a counting test failed with the seam but without the guard (count above 0), then
+  passed; 22 app tests pass on the iOS 27.2 simulator.
+
 ### fix(ios): settle unresolved reports on reconnect and foreground, never leave them stuck
 - What: `EventStore` now talks to an `EventServer` protocol (`FirestoreEventServer` in the app,
   a scripted fake in tests). Unresolved entries are settled at launch, on every offline-to-online

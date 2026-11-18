@@ -35,4 +35,19 @@ import Testing
         #expect(d.killCloud == false)
         #expect(d.useLimitedUseTokens == true)
     }
+
+    @Test func evidenceTextAndNonDrillTextNeverReachTheTokenCounter() async throws {
+        let counter = CallCounter()
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in await counter.bump(); return 100 })
+        _ = await r.read("there is blood on a rock by the creek", situation: situation(mode: "drill"))
+        _ = await r.read("cleared segment AC, coverage point eight", situation: situation(mode: nil))
+        #expect(await counter.count == 0)
+    }
 }
+
+actor CallCounter {
+    private(set) var count = 0
+    func bump() { count += 1 }
+}
+
