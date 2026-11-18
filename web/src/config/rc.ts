@@ -10,8 +10,6 @@ export const RC_DEFAULTS = {
   cloud_model_android: "gemini-3.5-flash-lite",
   kill_cloud: false,
   use_limited_use_tokens: true,
-  judge_seed_run_id: "",
-  judge_sessions_per_day: 300,
   minimum_version_ios: "",
   minimum_version_android: "",
 } as const;
@@ -20,8 +18,6 @@ export type WebRc = {
   cloudModelWeb: string;
   killCloud: boolean;
   useLimitedUseTokens: boolean;
-  judgeSeedRunId: string;
-  judgeSessionsPerDay: number;
 };
 
 // Live paths use the flash-lite family only. A larger flash model took 116 s
@@ -40,20 +36,12 @@ function bool(v: string | undefined, fallback: boolean): boolean {
   return s === "true" ? true : s === "false" ? false : fallback;
 }
 
-function num(v: string | undefined, fallback: number, ok: (n: number) => boolean): number {
-  if (v === undefined || v.trim() === "") return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) && ok(n) ? n : fallback;
-}
-
 export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>>): WebRc {
   const d = RC_DEFAULTS;
   return {
     cloudModelWeb: model(values.cloud_model_web, d.cloud_model_web),
     killCloud: bool(values.kill_cloud, d.kill_cloud),
     useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
-    judgeSeedRunId: values.judge_seed_run_id?.trim() ?? d.judge_seed_run_id,
-    judgeSessionsPerDay: num(values.judge_sessions_per_day, d.judge_sessions_per_day, (n) => Number.isInteger(n) && n >= 0),
   };
 }
 

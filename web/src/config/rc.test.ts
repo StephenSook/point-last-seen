@@ -9,19 +9,16 @@ describe("Remote Config", () => {
       cloud_model_android: "gemini-3.5-flash-lite",
       kill_cloud: false,
       use_limited_use_tokens: true,
-      judge_seed_run_id: "",
-      judge_sessions_per_day: 300,
       minimum_version_ios: "",
       minimum_version_android: "",
     });
   });
 
   it("reads typed values for the web seat", () => {
-    const rc = parseRc({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: "true", use_limited_use_tokens: "false", judge_sessions_per_day: "12" });
+    const rc = parseRc({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: "true", use_limited_use_tokens: "false" });
     expect(rc.cloudModelWeb).toBe("gemini-3.5-flash-lite");
     expect(rc.killCloud).toBe(true);
     expect(rc.useLimitedUseTokens).toBe(false);
-    expect(rc.judgeSessionsPerDay).toBe(12);
   });
 
   it("falls back to the default for missing keys", () => {
@@ -41,10 +38,6 @@ describe("Remote Config", () => {
     expect(parseRc({ cloud_model_web: "gpt-x" }).cloudModelWeb).toBe("gemini-3.5-flash-lite");
   });
 
-  it("keeps numbers in range", () => {
-    expect(parseRc({ judge_sessions_per_day: "-1" }).judgeSessionsPerDay).toBe(300);
-  });
-
   it("does not parse clip_model: the clip read (Task 18) is not built, so nothing would read it", () => {
     expect("clipModel" in parseRc({})).toBe(false);
   });
@@ -55,6 +48,12 @@ describe("Remote Config", () => {
 
   it("does not parse replan_use_tools: plan wording on the web calls no tools", () => {
     expect("replanUseTools" in parseRc({})).toBe(false);
+  });
+
+  it("does not parse the judge-door keys: the startJudgeSession function reads them", () => {
+    const rc = parseRc({});
+    expect("judgeSeedRunId" in rc).toBe(false);
+    expect("judgeSessionsPerDay" in rc).toBe(false);
   });
 
   it("reads a boolean only from true or false", () => {
