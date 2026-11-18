@@ -4,6 +4,7 @@
 // model reads only the flagged seconds. Without the built-in model, or when triage fails, the clip
 // goes to the consented cloud read as before.
 
+import type { RouteRecord } from "@pls/engine";
 import type { ClipWindow } from "../ai/clipRead";
 import { parseFrameCheck } from "../ai/frameCheck";
 import { MOTION, motionWindows, type MotionFrame, type MotionWindow } from "./motion";
@@ -43,4 +44,19 @@ export async function triageClip(d: TriageDeps): Promise<TriageResult> {
   } catch {
     return { kind: "unavailable" };
   }
+}
+
+/**
+ * The route of a triage result that sent nothing, for the hybrid-inference trace (it is never
+ * stored): no motion is a code decision, no person is this laptop's model. Other results are
+ * traced by the cloud read they lead to.
+ */
+export function triageRoute(t: TriageResult, nowMs: number): RouteRecord | null {
+  if (t.kind === "no-motion") {
+    return { platform: "web", path: "rules", stage: "deterministic_parser", model: "motion-check", reason: "triage_no_motion", latencyMs: t.latencyMs, sdkReported: false, blocked: null, decidedAtMs: nowMs };
+  }
+  if (t.kind === "no-person") {
+    return { platform: "web", path: "on_device", stage: "sdk", model: "chrome-built-in", reason: "on_device_triage_no_person", latencyMs: t.latencyMs, sdkReported: true, blocked: null, decidedAtMs: nowMs };
+  }
+  return null;
 }

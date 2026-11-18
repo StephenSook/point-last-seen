@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import { FRAME_JSON, FRAME_OPTS, frameCheckParams, parseFrameCheck } from "../ai/frameCheck";
-import { triageClip, type TriageDeps } from "./triage";
+import { triageClip, triageRoute, type TriageDeps } from "./triage";
 import type { MotionFrame } from "./motion";
 
 const W = 64;
@@ -90,5 +90,20 @@ describe("triageClip", () => {
   it("a failed check or an undecodable clip ends triage, leaving the consented cloud read", async () => {
     expect(await triageClip(deps({ checkFrame: async () => { throw new Error("x"); } }))).toEqual({ kind: "unavailable" });
     expect(await triageClip(deps({ sample: async () => { throw new Error("x"); } }))).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("triageRoute", () => {
+  it("records a still clip as a code decision with no model asked", () => {
+    expect(triageRoute({ kind: "no-motion", latencyMs: 40 }, 1000)).toEqual({
+      platform: "web", path: "rules", stage: "deterministic_parser", model: "motion-check", reason: "triage_no_motion", latencyMs: 40, sdkReported: false, blocked: null, decidedAtMs: 1000,
+    });
+  });
+  it("records no person as this laptop's model deciding", () => {
+    expect(triageRoute({ kind: "no-person", windows: [], latencyMs: 900 }, 1000)).toMatchObject({ path: "on_device", stage: "sdk", model: "chrome-built-in", reason: "on_device_triage_no_person", latencyMs: 900 });
+  });
+  it("records nothing for the other results (the cloud read traces itself)", () => {
+    expect(triageRoute({ kind: "no-model" }, 1)).toBeNull();
+    expect(triageRoute({ kind: "flagged", window: { startS: 0, endS: 1 }, windows: [], latencyMs: 1 }, 1)).toBeNull();
   });
 });
