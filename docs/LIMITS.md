@@ -77,6 +77,9 @@ each line says what the limit is and why.
   the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. A record
   left by a reinstalled app (a new anonymous user cannot renew it) is cleared by command, and its clip goes
   with it.
+- An incident's command can delete all its clips, photos and their readings at once with
+  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
+  are not included; they are rebuilt from the incident and expire with the lifecycle rule.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next

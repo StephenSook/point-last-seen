@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteIncidentMediaNow` (callable, App Check enforced, command only): removes an incident's clips and
+  photos and their reading documents at once, for example when a family withdraws consent, instead of waiting
+  for the 30-day lifecycle. The caller's claims must name the incident and the command role; a malformed id is
+  refused before anything is listed. This is the spec's command-only `deleteIncidentMedia` callable under a new
+  name, because that name is the scheduled sandbox sweep. SECURITY.md row 14 and LIMITS name it.
+  Source: plan Task 18a (spec section 6.5).
+  Verified: the 4 tests (command removes its files and readings and nothing of another incident; searcher,
+  family, another incident's command and a signed-out caller refused with nothing deleted; malformed ids
+  refused; the exported callable refuses a signed-in request with no or a bad App Check token, capped at 5
+  instances in us-central1) failed first, now pass; emulator suite 128; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The raw-callable test harness (a request through the Functions wrapper, and an Auth emulator ID token) moves
   from the join tests into `functions/test/callable.ts`, so other callables can prove App Check enforcement the
   same way. The caller now names the function it calls. No behaviour change.

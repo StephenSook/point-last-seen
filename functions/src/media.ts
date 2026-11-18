@@ -1,5 +1,6 @@
 import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { getStorage } from "firebase-admin/storage";
+import { HttpsError } from "firebase-functions/v2/https";
 
 type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
@@ -82,6 +83,37 @@ export async function deleteClipForReading(bucket: Pick<Bucket, "file">, inciden
   if (!found) return false;
   await file.delete({ ignoreNotFound: true });
   return true;
+}
+
+/**
+ * deleteIncidentMediaNow (callable, command only): removes an incident's clips and photos and their reading
+ * documents at once, for example when a family withdraws consent or a search closes, instead of waiting for the
+ * 30-day lifecycle. The caller's claims must name this incident and the command role. Returns the number of
+ * files and documents removed.
+ */
+export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "getFiles">,
+  auth: { uid: string; token: Record<string, unknown> } | null, data: { incidentId?: unknown } | null): Promise<{ deleted: number }> {
+  const incidentId = data && typeof data === "object" ? data.incidentId : undefined;
+  if (typeof incidentId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(incidentId)) {
+    throw new HttpsError("invalid-argument", "incidentId is malformed.");
+  }
+  if (auth === null) throw new HttpsError("unauthenticated", "Sign in before deleting an incident's media.");
+  if (auth.token.inc !== incidentId || auth.token.role !== "command") {
+    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
+  }
+  let deleted = 0;
+  for (const prefix of ["clips", "photos"]) {
+    const [found] = await bucket.getFiles({ prefix: `${prefix}/${incidentId}/` });
+    await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
+    deleted += found.length;
+  }
+  for (const collection of ["clipReadings", "photoReadings"]) {
+    const docs = await db.collection(`incidents/${incidentId}/${collection}`).listDocuments();
+    await Promise.all(docs.map(d => d.delete()));
+    deleted += docs.length;
+  }
+  console.log(JSON.stringify({ event: "deleteIncidentMediaNow", incidentId, deleted }));
+  return { deleted };
 }
 
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
