@@ -1,0 +1,11 @@
+{
+  "parameters": {
+    "tts_model_ios": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash-lite-tts"
+      },
+      "valueType": "STRING",
+      "description": "Cloud voice model for spoken assignment changes on iOS; empty means on-device speech only. Must be on shared/constants/models.json."
+    }
+  }
+}

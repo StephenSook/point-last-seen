@@ -24,6 +24,9 @@
       { "source": "**", "destination": "/index.html" }
     ]
   },
+  "remoteconfig": {
+    "template": "remoteconfig.template.json"
+  },
   "auth": {
     "providers": {
       "anonymous": true

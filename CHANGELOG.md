@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The iOS cloud voice model is named only through Remote Config: `remoteconfig.template.json` (wired in
+  firebase.json, deployed with the next production deploy) sets `tts_model_ios` to gemini-3.8-flash-lite-tts,
+  whose in-app default is empty (on-device speech only). The model joins the allow-list in
+  shared/constants/models.json: Stable, no shutdown date, billing not required, as read on the live models page
+  on 2026-11-18. The rules gate checks the template's model ids against the list like any source file.
+  Source: lane B (spoken assignment changes; the model name lives in Remote Config only).
+  Verified: the gate passes on the tree (589 files, 0 problems) with the template naming the listed model;
+  firebase.json parses and its emulator config tests pass; `bash scripts/ci-local.sh` exit 0.
 - The rules gate bans gemini-3.8-flash by whole model id, not by substring: the TTS models whose ids start with
   the same text (gemini-3.8-flash-lite-tts) are different models and no longer trip it.
   Source: lane B (the substring check would have failed the TTS model everywhere).
