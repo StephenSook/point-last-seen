@@ -58,3 +58,6 @@
 .extras-replay-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
 .extras-replay-legs ol { margin: 0; padding-inline-start: 1.25rem; }
 .extras-replay-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The judge page's replay sits inline under door D1. */
+.extras-judge-replay { display: grid; gap: 8px; margin-block: 16px; }

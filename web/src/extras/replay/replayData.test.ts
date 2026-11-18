@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../laneC";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs } from "./replayData";
-import { PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunEvent } from "./runContract";
+import { runEvent } from "../testdata/replayIncident";
+import { PUBLISHED_RUN_VERSION, type PublishedRunV1 } from "./runContract";
 
 const MIN = 60_000;
 const DAY = 24 * 3_600_000;
@@ -139,11 +140,6 @@ describe("fromLive", () => {
     expect(r.ok && r.data.gridAttribution).toBe("Grid from OpenStreetMap (ODbL)");
   });
 });
-
-function runEvent(doc: EventDoc, serverTimeMs: number): RunEvent {
-  const { serverTime: _serverTime, rawText: _rawText, reading, ...rest } = doc;
-  return { ...rest, authorUid: "author-1", rawText: null, reading: reading as RunEvent["reading"], serverTimeMs };
-}
 
 // Typed as the contract, so a change to the contract the reader does not follow fails the typecheck.
 function runV1(): PublishedRunV1 {
