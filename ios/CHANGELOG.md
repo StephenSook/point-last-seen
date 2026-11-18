@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): keep an event whose route reason this build does not know
+- What: `RouteReason` decodes any value it does not know as `unknown` (decode only, never
+  produced here) instead of failing, so the shared filter keeps the event. The rules bound the
+  reason by length only, so a newer client's reason can reach this phone; before this the whole
+  event was dropped.
+- Source: review of merge point 2.
+- Verified: `anUnknownReasonKeepsTheEvent` (an event with reason "a_future_reason" decodes, is
+  not counted as malformed, and carries `unknown`) and `aKnownReasonStillDecodesAsItself`
+  compile-red, then green; 252 tests; the app builds; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): start the events listener with the pack and use team events in the posterior
 - What: `AppModel.load` starts the events listener when a pack for a new incident loads (once
   per incident; an earlier registration is removed), and the posterior is computed over every
