@@ -30,19 +30,22 @@ export async function deleteEndedSandboxMedia(db: Firestore, bucket: Bucket, now
 }
 
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
-const LIFECYCLE_MAX_DAYS = 30;
-interface BucketMetadata { lifecycle?: { rule?: { action?: { type?: string }; condition?: { age?: number; matchesPrefix?: string[] } }[] } }
+const LIFECYCLE_DAYS = 30;
+interface BucketMetadata { lifecycle?: { rule?: { action?: { type?: string }; condition?: Record<string, unknown> }[] } }
 
 /**
- * Whether the bucket keeps a Delete rule within 30 days that covers clips/, photos/ and packs/ (a rule
- * with no prefix covers everything). docs/LIMITS.md promises drill media is deleted within 30 days.
+ * Whether the bucket keeps exactly the rule docs/LIMITS.md promises: action Delete, condition keys exactly
+ * {age, matchesPrefix}, age exactly 30, prefixes exactly clips/, photos/ and packs/. A looser rule (a
+ * bucket-wide or shorter delete, an extra condition such as isLive) would delete drill media early or not at
+ * all, so it does not count.
  */
 export function lifecycleOk(meta: BucketMetadata): { ok: boolean; ageDays: number | null } {
   for (const r of meta.lifecycle?.rule ?? []) {
-    const age = r.condition?.age;
-    if (r.action?.type !== "Delete" || typeof age !== "number" || age > LIFECYCLE_MAX_DAYS) continue;
-    const prefixes = r.condition?.matchesPrefix ?? [];
-    if (prefixes.length === 0 || LIFECYCLE_PREFIXES.every(p => prefixes.includes(p))) return { ok: true, ageDays: age };
+    const c = r.condition ?? {};
+    const keys = Object.keys(c).sort();
+    const prefixes = Array.isArray(c.matchesPrefix) ? [...(c.matchesPrefix as string[])].sort() : [];
+    if (r.action?.type === "Delete" && keys.join(",") === "age,matchesPrefix" && c.age === LIFECYCLE_DAYS
+      && prefixes.join(",") === [...LIFECYCLE_PREFIXES].sort().join(",")) return { ok: true, ageDays: LIFECYCLE_DAYS };
   }
   return { ok: false, ageDays: null };
 }

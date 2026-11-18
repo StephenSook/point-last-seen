@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The lifecycle check behind ops/storage (and so the daily probe) accepts only the exact rule LIMITS promises:
+  action Delete, condition keys exactly age and matchesPrefix, age exactly 30, prefixes exactly clips/, photos/
+  and packs/ in any order. Before, a bucket-wide or shorter delete, an extra condition such as isLive, or a
+  fourth prefix read as OK while deleting drill media early or not at all.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M6 (verified by the orchestrator and against
+  the code).
+  Verified: the new exact-rule test failed first (the 7-day bucket-wide rule read OK), now passes; emulator
+  suite 105; `bash scripts/ci-local.sh` exit 0.
 - A stored RouteGraph now carries its own extract `bounds` (or an explicit null for a graph with no exits) and
   its `projection` (metres per degree at the origin). `indexRouteGraph(graph)` takes no outside bounds and
   refuses a graph without either field. Before, a reload without the second argument silently marked every

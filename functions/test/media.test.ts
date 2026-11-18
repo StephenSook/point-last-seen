@@ -53,11 +53,18 @@ describe("storage health for the daily probe (ops/storage)", () => {
   const rule = (age: number, prefixes: string[]) => ({ action: { type: "Delete" }, condition: { age, matchesPrefix: prefixes } });
   it("the lifecycle check needs a Delete rule within 30 days covering clips/, photos/ and packs/", () => {
     expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } })).toEqual({ ok: true, ageDays: 30 });
+    expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["packs/", "clips/", "photos/"])] } }).ok).toBe(true);
     expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/"])] } }).ok).toBe(false);
     expect(lifecycleOk({ lifecycle: { rule: [rule(60, ["clips/", "photos/", "packs/"])] } }).ok).toBe(false);
     expect(lifecycleOk({ lifecycle: { rule: [{ action: { type: "SetStorageClass" }, condition: { age: 1 } }] } }).ok).toBe(false);
     expect(lifecycleOk({})).toEqual({ ok: false, ageDays: null });
-    expect(lifecycleOk({ lifecycle: { rule: [rule(7, [])] } })).toEqual({ ok: true, ageDays: 7 });
+  });
+  it("only the exact rule counts (Codex MP2 review M6): age 30, exactly the three prefixes, no other condition", () => {
+    // A bucket-wide 7-day delete, an extra condition such as isLive, or a fourth prefix would read OK before.
+    expect(lifecycleOk({ lifecycle: { rule: [rule(7, [])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [rule(7, ["clips/", "photos/", "packs/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/", "other/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [{ action: { type: "Delete" }, condition: { age: 30, matchesPrefix: ["clips/", "photos/", "packs/"], isLive: false } }] } }).ok).toBe(false);
   });
   it("writes ops/storage with the lifecycle state and a server time", async () => {
     const fake = { getMetadata: async () => [{ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } }] };
