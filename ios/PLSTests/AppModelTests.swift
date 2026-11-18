@@ -34,4 +34,18 @@ import Testing
         #expect(model.appVersion == Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String)
         #expect(!model.appVersion.isEmpty)
     }
+
+    @Test func loadingAPackSpeaksTheApprovedAssignmentOnce() async throws {
+        let voice = FakeVoice()
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }),
+                             speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }))
+        let mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                              assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                              profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
+                              assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
+        await model.load(mission)
+        await model.load(mission)
+        #expect(voice.spoken == ["New assignment. Segment A C. Walk the creek bank."])
+    }
 }
+

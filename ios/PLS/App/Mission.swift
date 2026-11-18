@@ -17,4 +17,7 @@ struct Mission: Sendable {
     var sharedProfile: SharedProfile?
     var visualDetectionRangeM: Double?
     var rdBasis: RdBasis
+    /// The team's assignment in the latest approved plan: segments and command's approved task
+    /// text. Spoken when it changes; nil until a plan is approved.
+    var assignment: Assignment? = nil
 }

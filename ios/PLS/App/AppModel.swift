@@ -16,10 +16,15 @@ final class AppModel {
     /// This build's version (CFBundleShortVersionString), compared with `minimum_version_ios`.
     let appVersion: String
 
+    /// Speaks new assignments (on-device voice, or the AI Logic voice when Remote Config names one).
+    let speaker: AssignmentSpeaker
+
     init(signIn: SignIn = .firebase(),
-         appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") {
+         appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+         speaker: AssignmentSpeaker? = nil) {
         self.signIn = signIn
         self.appVersion = appVersion
+        self.speaker = speaker ?? AssignmentSpeaker()
     }
 
     /// What the Live Activity shows; nil while no pack is loaded.
@@ -104,9 +109,12 @@ final class AppModel {
         if store?.retry(eventId) == .offline { problem = "No signal. Retry when you are back in signal." }
     }
 
-    func load(_ mission: Mission) {
+    /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
+    func load(_ mission: Mission) async {
         self.mission = mission
         refreshGate()
+        await speaker.update(mission.assignment, cloudModel: config.ttsModelIOS, online: connectivity.isOnline,
+                             killCloud: config.killCloud)
     }
 
     func refreshGate() {

@@ -5,6 +5,24 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): speak a new assignment when a pack loads
+- What: `AssignmentSpeaker` speaks the team's approved assignment (`SpokenAssignment` words:
+  segments and command's approved task text only) once per change, while the app is open.
+  `OnDeviceVoice` is the phone's speech synthesizer (offline, no AI); `CloudVoice` asks the AI
+  Logic voice model named by `tts_model_ios` for WAV audio (voice "Kore", 10 s limit) and plays
+  it. Any cloud failure falls back to the phone's voice. Each attempt records an
+  `assignment_speech` Performance trace (path, outcome, time to first sound), so the two voices
+  can be compared on measured numbers. `Mission.assignment` carries the latest approved
+  assignment; `AppModel.load` speaks it. Audio plays as spoken audio and lowers other sound.
+  A locked screen is not covered yet (that needs push delivery).
+- Source: spoken assignment changes (EXTRA-MILE F1); Firebase generate-speech page read
+  2026-11-18 (unary output is `audio/wav`, 24 kHz mono 16-bit; voice list includes Kore).
+- Verified: four `AssignmentSpeakerTests` (on-device once per change; cloud when named and
+  online; cloud failure falls back; no assignment says nothing) and
+  `loadingAPackSpeaksTheApprovedAssignmentOnce` compile-red, then green; 54 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0. Not measured yet: real latency of
+  either voice (needs a loaded pack, or a device run).
+
 ### feat(ios): read the voice model for spoken assignments from Remote Config
 - What: `RemoteConfigValues` reads `tts_model_ios` (default empty). Empty means the phone's own
   voice only; the app's source names no voice model id, so the model allow-list stays the only
