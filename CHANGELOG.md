@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteIncidentMedia` (scheduled every 15 minutes, us-central1, one instance, no model call) deletes every
+  clip, photo and pack of each judge sandbox whose expiresAt has passed and stamps mediaDeletedAt once; it
+  re-checks all ended sandboxes each run, so an upload in flight at the end is caught next time. Drills, live
+  sandboxes and look-alike prefixes (J1 vs J10) are left alone. Deleting the file is what ends a member's
+  no-sign-in download link (docs/LIMITS.md). Not deployed yet: it deploys with the rules at merge point 2,
+  and LIMITS stays PLANNED until the deploy is read back.
+  Source: rules audit 2026-11-18, finding (c); orchestrator go (build now, not with Task 23).
+  Verified: 3 emulator tests failed first (no module), now pass (an ended sandbox loses its 3 files and is
+  stamped; J2, D1, D2 and clips/J10 keep theirs; a second run is a no-op; a file added later goes on the next
+  run); emulator suite 101 passes; functions typecheck exits 0; rules gate 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - Add `storage.lifecycle.json` (delete clips/, photos/ and packs/ 30 days after upload) and apply it to the
   bucket; the storage.rules header said this was in place, but the bucket had no lifecycle rule at all.
   storage.rules and docs/LIMITS.md now say plainly that any member can create a no-sign-in link to a clip or
