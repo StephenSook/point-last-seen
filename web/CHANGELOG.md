@@ -101,3 +101,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `client.ts` creates one `getAI` instance on the Gemini Developer API with the limited-use App Check token switch, and `wordingGenerator` builds the plan-wording model with `wordingParams` and the 15 s request timeout. `generatorFor` maps a reply to its text and the SDK's `inferenceSource`. This is the only web file allowed to call the model builder (rules gate).
 - Source: plan Task 16c (`client.ts`), rival self-audit addendum (model builders only in their client files).
 - Verified: `src/ai/client.test.ts`, 3 tests, failed first (module missing), then passed; rules gate ok.
+
+### fix(web): never record Playwright traces, which would store the App Check debug secret
+- What: the e2e config sets `trace`, `video` and `screenshot` to off. A retained trace records request and response bodies, and the App Check debug-token exchange carries the debug secret in its request and the issued token in its response, so a failed run could have left the secret on disk or in a CI artifact. The fixtures already report failing responses as status, method and URL only.
+- Source: Codex privacy review of lane-web at c69c485, finding 3 (relayed by the orchestrator).
+- Verified: `src/e2eConfig.test.ts` failed first ("expected 'retain-on-failure' to be 'off'") and passes now; it also pins the list reporter, which writes no attachments. No trace file from earlier runs remains on disk (`find` for trace.zip found none).

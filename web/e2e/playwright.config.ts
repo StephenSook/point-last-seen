@@ -9,7 +9,10 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: deployed ?? "http://127.0.0.1:4173",
-    trace: "retain-on-failure",
+    // Off on purpose: a trace records the App Check debug-token exchange bodies (the secret and the issued token).
+    trace: "off",
+    video: "off",
+    screenshot: "off",
   },
   projects: [{ name: "chrome", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } } }],
   // Without BASE_URL the tests run against a local preview of web/dist (run `npm run build -w web` first).
