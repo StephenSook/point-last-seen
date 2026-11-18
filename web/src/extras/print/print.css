@@ -1,0 +1,90 @@
+.extras-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+  background: rgb(0 0 0 / 70%);
+  color: #141414;
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+}
+
+.extras-dialog-content {
+  width: min(100%, 30rem);
+  margin: 0 auto;
+  padding: 1rem;
+  background: #fff;
+}
+
+.extras-print-dialog .extras-dialog-content { width: min(100%, 8.5in); }
+.extras-dialog h2 { margin: 0 0 0.5rem; }
+.extras-dialog :focus-visible { outline: 2px solid #242424; outline-offset: 2px; }
+.extras-dialog input, .extras-dialog button { background: #fff; color: #141414; border: 1px solid #595959; }
+.extras-dialog input:not([type="checkbox"]), .extras-dialog button { padding: 0.4rem 0.55rem; }
+.extras-dialog button { font-weight: 600; cursor: pointer; }
+.extras-dialog button:disabled { color: #595959; cursor: default; }
+.extras-dialog-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.extras-print-toolbar { margin-bottom: 1rem; }
+.extras-edit-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.5rem; }
+.extras-edit-fields label, .extras-radio-check label { display: grid; gap: 0.25rem; }
+.extras-edit-fields input { width: 100%; }
+.extras-note-option { display: flex; gap: 0.35rem; align-items: center; margin-top: 0.5rem; }
+.extras-radio-check p { margin: 0.5rem 0; }
+
+.extras-ics-sheet, .extras-radio-sheet {
+  box-sizing: border-box;
+  border: 1px solid #000;
+  color: #000;
+  background: #fff;
+  font-size: 10pt;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.extras-ics-sheet + .extras-ics-sheet, .extras-radio-sheet + .extras-radio-sheet { margin-top: 1rem; }
+.extras-ics-sheet h2 { padding: 0.08in; margin: 0; text-align: center; font-size: 13pt; }
+.extras-ics-sheet [data-block] { border-top: 1px solid #000; padding: 0.04in 0.07in; }
+.extras-ics-sheet h3 { font-size: 10pt; margin: 0 0 0.025in; }
+.extras-ics-sheet p, .extras-ics-sheet dl, .extras-ics-sheet dd { margin: 0; }
+.extras-ics-top { display: grid; grid-template-columns: 1fr 2fr; }
+.extras-ics-top [data-block="2"] { border-left: 1px solid #000; }
+
+.extras-ics-fields, .extras-ics-footer { display: flex; gap: 0.09in; }
+.extras-ics-fields > div { flex: 1; min-width: 0; }
+.extras-ics-fields dd { min-height: 0.17in; border-bottom: 1px solid #000; }
+.extras-ics-lines { min-height: 0.17in; }
+.extras-ics-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.extras-ics-sheet th, .extras-ics-sheet td { border: 1px solid #000; text-align: left; vertical-align: top; padding: 0.025in 0.05in; }
+.extras-ics-sheet td { height: 0.22in; }
+.extras-ics-resources th:nth-child(3) { width: 10%; }
+.extras-ics-resources th:last-child { width: 31%; }
+.extras-ics-sheet footer { border-top: 1px solid #000; padding: 0.05in 0.07in; }
+.extras-ics-footer { justify-content: space-between; }
+.extras-ics-sheet footer p { margin-top: 0.04in; }
+
+.extras-radio-card { box-sizing: border-box; padding: 0.17in; }
+.extras-radio-card + .extras-radio-card { border-top: 1px dashed #000; }
+.extras-radio-card h2 { font-size: 15pt; margin: 0.035in 0; }
+.extras-radio-card h3 { font-size: 10pt; margin: 0.12in 0 0.035in; }
+.extras-radio-card p { margin: 0.035in 0; }
+.extras-drill-line { font-weight: 700; }
+.extras-spell-table { display: grid; grid-template-columns: repeat(auto-fit, minmax(0.75in, 1fr)); gap: 0.04in 0.06in; margin: 0.06in 0; }
+.extras-spell-table > div { display: flex; gap: 0.04in; }
+.extras-spell-table dt { font-weight: 700; }
+.extras-spell-table dd { margin: 0; }
+
+@page { size: letter; margin: 0.5in; }
+
+@media print {
+  body.extras-printing { height: auto; margin: 0; padding: 0; background: #fff; color: #000; }
+  body.extras-printing #root, .extras-screen-only, .extras-dialog:not(.extras-print-dialog) { display: none !important; }
+  .extras-print-dialog { position: static; overflow: visible; padding: 0; background: #fff; }
+  .extras-print-dialog .extras-dialog-content { width: auto; max-width: 7.5in; margin: 0; padding: 0; }
+  .extras-ics-sheet + .extras-ics-sheet, .extras-radio-sheet + .extras-radio-sheet { break-before: page; margin-top: 0; }
+  .extras-ics-sheet [data-block], .extras-ics-sheet tr, .extras-radio-card { break-inside: avoid; }
+  .extras-radio-sheet { border: 0; }
+  .extras-radio-card { min-height: 4.95in; border: 1px solid #000; }
+  .extras-radio-card + .extras-radio-card { border-top: 1px dashed #000; }
+}
