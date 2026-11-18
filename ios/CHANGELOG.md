@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios-core): pin everything the cloud route can send to an allow-list
+- What: `PromptText` (instruction text), `ToolText` (the three tools' names, descriptions and
+  outputs) and `CloudOutbound.texts` (instructions, report, every tool's name, description and
+  output) move the cloud payload into Core. `cloudPromptHoldsOnlyNamedFields` walks the
+  subject-profile schema, puts a findable value in every shared and command field, and asserts
+  only the report, the segment id, the assignment ids and the six appearance fields reach the
+  payload; no flag name, health, medication, address, phone number or contact word appears.
+- Source: orchestrator ruling 2026-11-18 on design section 9 (all three tools may run on the
+  cloud route; the test is an allow-list over the whole outbound prompt); Task 21b.
+- Verified: compile-red without the types, then green; a planted leak (hair read from
+  answersTo) turned it red on "field answersTo reached the cloud prompt", then restored; full
+  suite 213 tests; `scripts/ci-local.sh` exit 0. The Generable schema text of the reading is
+  fixed copy and is not in this list.
+
 ### fix(ios-core): hold stored effects to the rules' id length and influence cap
 - What: `EffectShape` now refuses a cleared effect whose segment id is empty or longer than 16
   characters, and a clue effect with more than 64 influences, as the Firestore create rule does.
