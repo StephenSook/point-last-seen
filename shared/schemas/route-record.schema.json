@@ -58,6 +58,7 @@
         "sdk_prefer_on_device",
         "sdk_only_in_cloud",
         "sdk_only_on_device",
+        "sdk_fallback",
         "link_down_fallback",
         "template_fallback",
         "consented_cloud_read"
@@ -92,7 +93,7 @@
     "#": {
       "ts": "shared/engine-ts/src/types.ts#RouteRecord",
       "ios": "ios/PLSCore/Sources/PLSCore/RouterPolicy.swift#RouteRecord",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#RouteRecord"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/EventDoc.kt#RouteRecord"
     }
   }
 }

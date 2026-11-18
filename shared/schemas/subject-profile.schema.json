@@ -447,11 +447,11 @@
     "#/$defs/SharedProfile": {
       "ts": "shared/engine-ts/src/types.ts#SharedProfile",
       "ios": "ios/PLSCore/Sources/PLSCore/Profile.swift#SharedProfile",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#SharedProfile"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/Profiles.kt#SharedProfile"
     },
     "#/$defs/CommandProfile": {
       "ts": "shared/engine-ts/src/types.ts#CommandProfile",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#CommandProfile"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/Profiles.kt#CommandProfile"
     }
   }
 }
