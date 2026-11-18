@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Remote Config can no longer be replaced by a partial template. `remoteconfig.template.json` holds every key
+  the three clients read, with the intended values (kill_cloud false, limited-use tokens on, every model key on
+  the allow-list, the iOS voice model set), and a test fails if any client's default key is missing from it.
+  `firebase.json` no longer names the template, so a plain `firebase deploy` cannot publish it; the new
+  `scripts/rc_publish.py` reads the live template and its ETag first, lists what it adds, changes and removes,
+  refuses any changed or dropped live value unless the key is named with `--allow`, validates, then publishes
+  with If-Match. It asks for gzip, because the API sends the ETag only then (found in the first dry run).
+  Source: review round 3 (medium: publishing the one-key template could clear a kill_cloud pause).
+  Verified: the 7 tests (every client key present, intended values, no template in firebase.json, the plan's
+  refusals for a changed, dropped or conditional value, an empty live template, gzip and ETag) failed first,
+  now pass; the dry run against the live project read an empty template and planned 10 additions, nothing
+  published; rules gate 0 problems; `bash scripts/ci-local.sh` exit 0.
 - Generated rules check each item of a short string list by index (segment ids, carried items): the list is
   padded with valid placeholders, so no size guard is needed, and each item gets one regex for type and length.
   The comma-joined regex is gone, so "ABCDEFGHIJKLMNOP,Q" is refused as one 18-character id and a carried item

@@ -30,6 +30,11 @@ must give.
 - [ ] The Storage lifecycle rule is in place: `gcloud storage buckets describe gs://buildhybridai-2026-yg3m.firebasestorage.app
   --format=json` shows one Delete rule, age 30, prefixes clips/, photos/, packs/; the daily probe
   (`scripts/media_probe.py`) checks the same thing without credentials.
+- [ ] Remote Config is published only with `python3 -I scripts/rc_publish.py --publish`, after its dry run: it
+  reads the live template and ETag, refuses any live value it would change or drop unless that key is named
+  with `--allow KEY`, validates, then publishes with If-Match. `firebase.json` names no template, so a plain
+  `firebase deploy` cannot replace it. The template holds every key the three clients read
+  (`scripts/test_rc_publish.py`).
 - [ ] The clipReadings TTL policy is ACTIVE: `gcloud firestore fields ttls list --project buildhybridai-2026-yg3m`
   lists `clipReadings/fields/expiresAt` as ACTIVE (it is declared in firestore.indexes.json and deployed with
   the indexes).
