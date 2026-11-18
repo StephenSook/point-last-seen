@@ -35,13 +35,16 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
-  // Each run's result applies only while it is the latest one sent.
+  // Each attempt's run result and refusal message apply only while it is the latest attempt.
   const latest = useRef(0);
+  // The write whose status line is on screen, by its attempt id: its own acknowledgement or refusal settles
+  // that line even after a newer attempt has started.
+  const shown = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function apply() {
     if (!want) return;
-    // Claimed before the run starts, so an earlier write refused during this run no longer owns the status.
+    // Claimed before the run starts, so an earlier write refused during this run shows no alert of its own.
     const id = ++latest.current;
     setBusy(true);
     setError(null);
@@ -49,14 +52,17 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
       const r = await onApply({ model: want, attract, lowMobility });
       if (id !== latest.current) return;
       setRun(r.run);
+      shown.current = id;
       setSent(r.version);
       setWant(null);
       r.ack.then(
-        () => id === latest.current && setAcked(r.version),
+        () => shown.current === id && setAcked(r.version),
         (e: unknown) => {
-          if (id !== latest.current) return;
-          setSent(null);
-          setError(priorRefusalMessage(e));
+          if (shown.current === id) {
+            shown.current = null;
+            setSent(null);
+          }
+          if (id === latest.current) setError(priorRefusalMessage(e));
         },
       );
     } catch (e) {

@@ -2,6 +2,7 @@
 // a run that takes 50 ms and reports 10,000 walkers in 1,840 ms. ?graph=absent has no graph.
 // ?race=1: the first apply returns v6 at once and its write is refused on "Refuse the first write";
 // the second apply's run ends only on "Second run finishes", then returns v7, acknowledged.
+// ?race=fail: the same, but the second run fails instead of returning.
 
 import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -11,7 +12,8 @@ import "../theme/base.css";
 
 const q = new URLSearchParams(location.search);
 const graph = q.get("graph") === "absent" ? "absent" : "ok";
-const race = q.get("race") === "1";
+const race = q.get("race") === "1" || q.get("race") === "fail";
+const secondFails = q.get("race") === "fail";
 const refused = () => Object.assign(new Error("Missing or insufficient permissions."), { code: "permission-denied" });
 
 function Harness() {
@@ -37,6 +39,7 @@ function Harness() {
               return { version: 6, ack, run: null };
             }
             await new Promise<void>((resolve) => (finishSecond.current = resolve));
+            if (secondFails) throw new Error("The walker run failed.");
             setModel(choice.model);
             return { version: 7, ack: Promise.resolve(), run: { n: 10_000, elapsedMs: 1840 } };
           }
