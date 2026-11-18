@@ -194,7 +194,9 @@ object Profiles {
      * past wandering spot joins its command-only list; clothing replaces clothingLastWorn.
      */
     fun applyNote(p: SubjectProfile, r: app.pointlastseen.family.ai.FamilyNoteReading): SubjectProfile {
-        val label = r.label.trim()
+        // The single write point for notes: the model's label, an edited label and a
+        // by-hand label (the raw note) all pass through phone-number removal here.
+        val label = app.pointlastseen.family.core.PhoneNumbers.remove(r.label).trim()
         fun same(a: String) = a.trim().equals(label, ignoreCase = true)
         return when (r.kind) {
             "place" -> if (p.placesFrequented.any { same(it.label) }) p else p.copy(placesFrequented = p.placesFrequented + PlaceEntry(label, null))
