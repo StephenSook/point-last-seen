@@ -362,3 +362,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `joinErrorMessage` in `data/join.ts` (moved out of CommandPost) maps `unauthenticated`, the code a callable returns when App Check does not trust the browser, to "Join refused by App Check. Try a normal browser window.", the same wording the plan step uses for an App Check refusal. Wrong code, no connection and other failures keep their sentences.
 - Source: plan Task 23c (appcheck check), spec section 14 ("Refusal message shown, never a silent failure"). The live site showed "Could not join. Check the incident id and the code." to a browser App Check refused.
 - Verified: two new tests in `src/data/join.test.ts` failed first (not a function), then passed (6 of 6); typecheck and build clean. scripts/ci-local.sh exit 0.
+
+### test(join): prove an unregistered App Check token sees the refusal message
+- What: `e2e/appcheck.spec.ts` sets a random debug token registered nowhere, submits the join form with a made-up code, and expects "Join refused by App Check. Try a normal browser window." No real join code is used: App Check refuses before the code is read.
+- Source: plan Task 23c ("an unregistered token shows the refusal message").
+- Verified: against the live site (old build e26fc23) it failed, receiving "Could not join. Check the incident id and the code.", which also shows the deployed joinIncident refusing an untrusted browser; against the local preview with the fix it passed. scripts/ci-local.sh exit 0.
