@@ -14,6 +14,7 @@ export type { PostState } from "../command/postAccess";
 export type { IncidentView, SegmentDoc, Team } from "../data/incident";
 export type { StreamedEvent } from "../data/events";
 export { mergeModel } from "../command/mergeModel";
+export { DeleteMedia } from "../command/DeleteMedia";
 export type { PublishedRun } from "../judge/judge";
 export {
   convergenceCode,

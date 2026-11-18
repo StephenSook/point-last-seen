@@ -9,6 +9,7 @@ import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
+import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
@@ -590,7 +591,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <span className="label">MATCH</span>
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
-        <ExtrasDock incidentId={incidentId} state={state} vs={vs} map={extrasMap} />
+        <ExtrasDock
+          incidentId={incidentId}
+          state={state}
+          vs={vs}
+          map={extrasMap}
+          deleteMedia={{ count: () => countMedia(pls.storage, incidentId), run: () => deleteMediaNow(pls.functions, incidentId) }}
+        />
       </header>
       {offline && (
         <p className="error" role="status">

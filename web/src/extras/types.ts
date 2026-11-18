@@ -11,4 +11,11 @@ export type ExtrasMapLike = {
   addImage(id: string, image: ImageData): unknown;
 };
 
-export type DockProps = { incidentId: string; state: PostState; vs: ViewState | null; map: unknown };
+export type DockProps = {
+  incidentId: string;
+  state: PostState;
+  vs: ViewState | null;
+  map: unknown;
+  /** The command post's delete-media control (counting and the server call); the menu shows it when given. */
+  deleteMedia?: { count: () => Promise<{ clips: number; photos: number }>; run: () => Promise<number> };
+};
