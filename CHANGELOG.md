@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/SECURITY.md`: Firebase's AI Logic security checklist, row by row, with the state read back from the
+  live project on 2026-11-18, and how anyone can check it: a keyless call a stranger can paste (with the site's
+  Referer it answers 401 "Firebase App Check token is invalid."; without it the key answers 403
+  API_KEY_HTTP_REFERRER_BLOCKED), App Check and replay protection enforced on AI Logic, authenticated-users
+  mode on, the browser and Android keys restricted, the 27-API allowlist kept (DECIDED-NO on narrowing, with
+  the reason), template-only mode DECIDED-NO (the SDK fact that forces it), Model Armor DECIDED-NO (Gemini
+  Developer API backend), the per-user limit still at the default 100, App Check on Firestore and Storage not
+  enforced yet with the plan, and every cloud model call with its mode and trigger.
+  Source: review (the sponsor's AI Logic security checklist as a requirement list).
+  Verified: each code claim grepped on main (providers, backends, limited-use wiring, enforceAppCheck, SDK
+  signatures in firebase/ai 3.1.0); both keyless answers sent with the same URL, headers and body from Python
+  on 2026-11-18 (curl is blocked on this machine); `bash scripts/ci-local.sh` exit 0.
 - The daily media probe sends the hosting origin as its Referer on the public ops/storage read, and a test pins
   that the App Check control already does, ahead of restricting the browser API key to the hosting origins.
   Source: review (API key application restrictions, AI Logic security checklist).
