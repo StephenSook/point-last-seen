@@ -39,6 +39,8 @@ test("a joined command post draws the map with the license line", async ({ page,
   await page.getByRole("button", { name: "Join as command" }).click();
   expect((await exchange).status()).toBe(200);
   await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
+  // The map's workers start after the canvas appears; wait for the map to settle before reading errors.
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
   await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap");
   await expect(page.getByText(DRILL)).toBeVisible();
   expect(consoleErrors).toEqual([]);

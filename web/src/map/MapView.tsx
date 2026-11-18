@@ -1,13 +1,18 @@
 // The command post map: segments filled by POA lightness, a printed percent
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
-import { Map as MlMap, Marker, type GeoJSONSource } from "maplibre-gl";
+import { Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
+// build emits it as an asset and MapLibre is told where it is.
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "react";
 import type { LatLon } from "./geo";
 import { POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
 
 const FILL_COLOR = ["match", ["get", "cls"], 0, POA_RAMP[0], 1, POA_RAMP[1], 2, POA_RAMP[2], 3, POA_RAMP[3], 4, POA_RAMP[4], 5, POA_RAMP[5], 6, POA_RAMP[6], POA_RAMP[7]];
+
+setWorkerUrl(workerUrl);
 
 type Props = {
   segments: readonly MapSegment[];
@@ -53,6 +58,7 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
       m.addLayer({ id: "seg-line", type: "line", source: "segments", paint: { "line-color": "#403C3A", "line-width": 1 } });
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
+    m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
     map.current = m;
     return () => {
       for (const mk of markers.current) mk.remove();

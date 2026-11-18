@@ -347,3 +347,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge page's section headings are now "Replay the training drill", "This laptop" and "Numbers". Doors 3 and 4 (TestFlight, APK) are not on the page yet, so the old numbering jumped from 2 to 5.
 - Source: looking at the live still of /judge at 1440 px.
 - Verified: build clean; `e2e/judge.spec.ts` updated to the new section names and passed against the local preview (2 passed).
+
+### fix(web): ship MapLibre's worker with the build so the deployed map can load its data
+- What: MapLibre 6 looks for `maplibre-gl-worker.mjs` next to its own module. After bundling that file was not in the build, the hosting rewrite answered with the app's HTML, and the browser logged "Worker failed to load" twice, so the map could never parse its segments. `MapView` now imports the worker with Vite's `?url` (emitted as `assets/maplibre-gl-worker-*.mjs`) and calls `setWorkerUrl`. The map container gets `data-map-state="idle"` when the map settles, and the joined smoke now waits for it before reading console errors (it used to check too early to see this).
+- Source: found on the live site with joinIncident live, by a one-off probe that listed console errors after the post loaded.
+- Verified: the joined smoke failed first against the local preview (the map never reached idle), then passed after the fix with zero console errors (3 passed); the worker asset is in `web/dist/assets`. scripts/ci-local.sh exit 0. Branch pushes run no CI now (merge-point flow).
