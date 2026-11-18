@@ -61,3 +61,20 @@
 
 /* The judge page's replay sits inline under door D1. */
 .extras-judge-replay { display: grid; gap: 8px; margin-block: 16px; }
+
+/* Space-time cube (judge page only). Neutral ink: no hue carries a meaning here. */
+.extras-cube { display: grid; gap: 8px; }
+.extras-cube-svg { width: 100%; max-width: 560px; height: auto; touch-action: none; cursor: grab; }
+.extras-cube-svg:focus-visible { outline: 2px solid var(--fg-1, #f8f4f1); outline-offset: 2px; }
+.extras-cube-floor path { fill: none; stroke: var(--line, #403c3a); stroke-width: 1; }
+.extras-cube-axis { stroke: var(--fg-4, #898583); stroke-width: 1; }
+.extras-cube-label { fill: var(--fg-3, #aeaaa7); font-family: var(--mono, monospace); font-size: 13px; }
+.extras-cube-drop { stroke: var(--fg-4, #898583); stroke-width: 1; stroke-dasharray: 1 3; }
+.extras-cube-order { fill: none; stroke: var(--fg-2, #d7d3d0); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.extras-cube-bar { stroke: var(--fg-1, #f8f4f1); stroke-width: 4; stroke-linecap: round; }
+.extras-cube-stem { stroke: var(--fg-3, #aeaaa7); stroke-width: 1.5; }
+.extras-cube-point { fill: var(--fg-1, #f8f4f1); }
+.extras-cube-legend p { margin: 0; }
+.extras-cube-table { border-collapse: collapse; font-size: 0.9rem; }
+.extras-cube-table caption { text-align: start; color: var(--fg-3, #aeaaa7); padding-block-end: 4px; }
+.extras-cube-table th, .extras-cube-table td { text-align: start; padding: 2px 12px 2px 0; border-block-end: 1px solid var(--line, #403c3a); }

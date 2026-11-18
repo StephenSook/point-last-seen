@@ -5,11 +5,13 @@ import { fromLive } from "../replay/replayData";
 import { harnessIncident, harnessRun } from "../testdata/replayIncident";
 
 // Made-up harness data for the judge replay e2e. Dev server only; never in the production build.
-// ?run=ok (default) passes the run file, ?run=broken one with a report missing its arrival time, ?run=none nothing.
+// ?run=ok (default) passes the run file, ?run=broken one with a report missing its arrival time, ?run=thin one with
+// only two positioned reports (below the cube's gate), ?run=none nothing.
 const which = new URLSearchParams(location.search).get("run") ?? "ok";
 const good = harnessRun();
 const broken = { ...good, events: good.events.map((e, i) => (i === 0 ? { ...e, serverTimeMs: undefined } : e)) };
-const run = (which === "none" ? null : which === "broken" ? broken : good) as unknown as PublishedRun | null;
+const thin = { ...good, events: good.events.map((e) => (e.type === "sighting" ? e : { ...e, position: null })) };
+const run = (which === "none" ? null : which === "broken" ? broken : which === "thin" ? thin : good) as unknown as PublishedRun | null;
 
 // The same incident's live map, as the command post computes it: the run's last frame must match it.
 const { view, events, plans } = harnessIncident();

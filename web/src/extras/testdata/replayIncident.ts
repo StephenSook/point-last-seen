@@ -24,12 +24,12 @@ const here = (col: number, row: number) => ({ lat: LAT + (row + 0.5) * D, lon: L
 const cmd = { role: "command", teamId: null, deviceId: "cmd" } as const;
 const docs: [EventDoc, number][] = [
   // Sent at +1 min, arrived at +9: eight minutes without signal.
-  [eventDoc({ eventId: "r1", clientTimeMs: T0 + MIN, deviceId: "d1", effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + 9 * MIN],
+  [eventDoc({ eventId: "r1", clientTimeMs: T0 + MIN, deviceId: "d1", position: here(1, 0), effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + 9 * MIN],
   [eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + 3 * MIN, observedAtMs: T0 + 3 * MIN, deviceId: "d1", position: here(0, 0), effect: { kind: "clue", influences: { AA: "for" }, authenticity: "high" } }), T0 + 4 * MIN],
   [eventDoc({ ...cmd, eventId: "c1", type: "confirmation", clientTimeMs: T0 + 5 * MIN, targetEventId: "s1", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 5 * MIN],
   [eventDoc({ eventId: "s2", type: "sighting", teamId: "bravo", clientTimeMs: T0 + 12 * MIN, observedAtMs: T0 + 12 * MIN, deviceId: "d2", position: here(1, 1), effect: { kind: "clue", influences: { BB: "for" }, authenticity: "high" } }), T0 + 13 * MIN],
   [eventDoc({ ...cmd, eventId: "c2", type: "confirmation", clientTimeMs: T0 + 14 * MIN, targetEventId: "s2", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 14 * MIN],
-  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" } }), T0 + 16 * MIN],
+  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", position: here(0, 1), effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" } }), T0 + 16 * MIN],
 ];
 
 /** One drill incident whose current prior came into use at +6 min, so the first five minutes have no stored map. */
