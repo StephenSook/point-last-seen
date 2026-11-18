@@ -559,3 +559,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `sharedFromDoc` and `commandFromDoc` in `data/profile.ts` read `profile/shared` and `profile/command`; every missing or wrong-typed field reads as its empty value (strings "", numbers and dates null, arrays [] with only valid items kept, every flag false unless stated true, vehicle null). `subscribeProfile` uses them, so the approach card, the profile form and the extras lane always get a full object. Before, a nickname-only document made `approachLines` call `flatMap` on undefined and the command view crashed.
 - Source: orchestrator, a verified MEDIUM from the Codex review of merge point 2 (the rules allow partial profile writes).
 - Verified: new `src/data/profileRead.test.tsx` (4 tests) failed first (readers missing), then passed, including a server render of the approach card from a nickname-only document and wrong-typed arrays and flags. All data tests pass (73). scripts/ci-local.sh exit 0.
+
+### chore(deps): add @axe-core/playwright 4.14.0 and axe-core 4.14.0 for accessibility checks
+- What: exact dev dependencies for running axe in the e2e suite; axe-core is pinned directly so the plugin uses the same single copy (4.14.0, released 2026-10-15) instead of the two-day-old 4.14.1 its range would pull. Test-only; nothing ships to the browser.
+- Source: orchestrator tool audit item 1 (axe on the deployed post and /judge at 1440 and 390 px).
+- Verified: socket depscore supply chain 99, vulnerability 100 for both (license 70: axe-core is MPL-2.0, acceptable for a test tool); `npm ls axe-core` shows one deduped copy; `npm ci` exit 0. scripts/ci-local.sh exit 0.
