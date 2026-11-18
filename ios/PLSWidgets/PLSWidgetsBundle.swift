@@ -5,5 +5,6 @@ import WidgetKit
 struct PLSWidgetsBundle: WidgetBundle {
     var body: some Widget {
         LogReportControl()
+        TaskLiveActivity()
     }
 }

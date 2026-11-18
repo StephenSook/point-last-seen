@@ -22,6 +22,11 @@ final class AppModel {
         self.appVersion = appVersion
     }
 
+    /// What the Live Activity shows; nil while no pack is loaded.
+    var taskStatus: TaskStatus? {
+        mission.map { TaskStatus.make(assignedSegmentIds: $0.assignedSegmentIds, states: store?.entries.map(\.state) ?? []) }
+    }
+
     /// Shown when command has raised the minimum version above this build. It asks, it does not
     /// block: a searcher in the field can still send reports on an old build.
     var updatePrompt: String? {

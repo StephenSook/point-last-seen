@@ -5,6 +5,25 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): show the team's task as a Live Activity
+- What: `TaskActivityAttributes` (in `ios/PLSShared`) carries the `TaskStatus` and the night
+  flag. `TaskActivityController` starts one Live Activity when a pack loads, updates it only when
+  what it shows changes (segments, reports waiting or needing a look, day or night colours), and
+  ends it when the pack is gone; a refused start is tried again on the next change.
+  `ActivityKitClient` is the real client (ends leftovers from an earlier run first). The widget
+  extension draws the lock screen ("Training drill. Nobody is missing.", "Your segments: AB,
+  AC", the status line) and the Dynamic Island in the field colours. The app declares
+  `NSSupportsLiveActivities`; `FieldColor` moved to `ios/PLSShared` so the extension can use the
+  theme; the extension links PLSCore. `@preconcurrency import ActivityKit` because Activity
+  predates Sendable; the client touches its one activity from the main actor only.
+- Source: promotion P-07 (Live Activity for the team's task).
+- Verified: two `TaskActivityControllerTests` (start once, update on change, end when the pack
+  goes; a refused start is retried) compile-red without the types, then green;
+  `theRealClientStartsAndEndsALiveActivity` puts an actual Live Activity up on the iOS 27.2
+  simulator and takes it down; 48 app tests pass; `scripts/ci-local.sh` exit 0. Not verified
+  yet: a still of the lock screen and Dynamic Island (the simulator still did not show it) and a
+  loaded pack driving it, which waits on the pack loader.
+
 ### feat(ios-core): sum up the team's task for the Live Activity
 - What: `TaskStatus.make(assignedSegmentIds:states:)` gives the sorted assigned segments, the
   reports still waiting for signal (pending or checking) and the ones refused by the server,
