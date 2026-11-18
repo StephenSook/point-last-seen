@@ -4,6 +4,10 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Photo upload.** `PhotoUpload` sends a standardized JPEG to
+  `photos/{incidentId}/{sha256}.jpg` (content type image/jpeg) and refuses anything that is not a
+  JPEG or is over the 2 MB cap; storage errors show a plain sentence. Source: spec 6.4 and 7.
+  Verified: `PhotoUploadTest` failed to compile first, then passes.
 - **Clip reading wiring.** `ClipReadingDoc` maps `incidents/{id}/clipReadings/{sha256}` with the
   spec 7 fields, the reading stored as an object and `expiresAt` and `createdAt` as Firestore
   timestamps for the TTL policy. `FirebaseClipDeps` connects ClipReader to that cache, to Cloud
