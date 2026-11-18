@@ -910,3 +910,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: in `web/CHANGELOG.md` and `web/CHANGELOG-EXTRAS.md`, the names of internal process roles are replaced by plain wording with the same meaning ("review ruling", "reviewed before commit", "run in review", "Review fix before commit"). Text only; history is not rewritten.
 - Source: lane A's public-hygiene guard (scripts/hygiene_guard.py), ahead of the repository going public.
 - Verified: the guard reports no hits in web/ (it reported 13 before: 4 in CHANGELOG.md, 9 in CHANGELOG-EXTRAS.md). scripts/ci-local.sh exit 0.
+
+### test(harness): add a page that measures clip triage in a browser with the built-in model
+- What: dev-only `web/harness/triage.html`: runs the real triage (the gate's answer for the frame check's options, the frame sampler, one on-device frame check per moving span) on a clip the dev server serves (`?clip=`), with a bare Firebase app (no App Check, no sign-in), and reports the gate's answer, samples and their decode time, each check's second, time and answer, the result, and every request the page made to a Google or Firebase host outside its own origin. For measuring in an installed Chrome that has the built-in model.
+- Source: review request to measure P-39 triage on a real built-in model before any number is used.
+- Verified: `e2e/harness/triage.spec.ts`: in Playwright's Chrome profile (no built-in model) the page stops at the gate: result no-model, 0 samples, 0 checks, 0 Google requests. A first version counted the dev server's own module URLs (they contain "firebase") as Google requests; it now matches external hosts only. scripts/ci-local.sh exit 0.
