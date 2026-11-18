@@ -11,4 +11,11 @@ export type ExtrasMapLike = {
   addImage(id: string, image: ImageData): unknown;
 };
 
-export type DockProps = { incidentId: string; state: PostState; vs: ViewState | null; map: unknown };
+export type DockProps = {
+  incidentId: string;
+  state: PostState;
+  vs: ViewState | null;
+  map: unknown;
+  /** Harness and tests only: where the site's elevation file comes from. Defaults to the app's own origin. */
+  loadElevation?: (gridId: string) => Promise<unknown>;
+};

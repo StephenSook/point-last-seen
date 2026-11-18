@@ -11,6 +11,8 @@ import { RadioCards } from "./radio/RadioCards";
 import { RadioCodeCheck } from "./radio/RadioCodeCheck";
 import { ReplayPanel } from "./replay/ReplayPanel";
 import { fromLive } from "./replay/replayData";
+import { TerrainLegend } from "./terrain/TerrainLegend";
+import { fetchElevation, useTerrain } from "./terrain/useTerrain";
 import type { DockProps } from "./types";
 import "./extras.css";
 
@@ -94,12 +96,15 @@ function PrintSession({ session, plans, matchCode, reportCount, onClose, returnF
   );
 }
 
-export function ExtrasDock({ incidentId, state, vs }: DockProps): JSX.Element | null {
+export function ExtrasDock({ incidentId, state, vs, map, loadElevation = fetchElevation }: DockProps): JSX.Element | null {
   if (state.denied || state.view === null) return null;
-  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} />;
+  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} map={map} loadElevation={loadElevation} />;
 }
 
-function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> & { view: IncidentView }) {
+function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProps, "state" | "vs" | "map"> & {
+  view: IncidentView;
+  loadElevation: (gridId: string) => Promise<unknown>;
+}) {
   const [open, setOpen] = useState(false);
   const [surface, setSurface] = useState<Surface | null>(null);
   const menuId = useId();
@@ -109,14 +114,15 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
   const reportCount = new Set(state.events.map(({ eventId }) => eventId)).size;
   // The replay follows the live state while it is open: a report that lands extends the window.
   const replayData = useMemo(() => fromLive(view, state.events, state.plans), [view, state.events, state.plans]);
+  const terrain = useTerrain(view, map, loadElevation);
   const snapshot = () => buildPrintModel({ view, plans: state.plans, code: matchCode, eventCount: reportCount, nowMs: Date.now() });
 
   function menuItems() {
-    return Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not([disabled])') ?? []);
+    return Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button[role^="menuitem"]:not([disabled])') ?? []);
   }
 
   useLayoutEffect(() => {
-    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]:not([disabled])')?.focus();
+    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role^="menuitem"]:not([disabled])')?.focus();
   }, [open]);
 
   function openPrint(kind: PrintSessionData["kind"]) {
@@ -181,8 +187,16 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
             setOpen(false);
           }}>{checkTitle}</button>
           {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} />}
+          <button type="button" role="menuitemcheckbox" aria-checked={terrain.on} disabled={!terrain.available} onClick={() => {
+            terrain.toggle();
+            setOpen(false);
+          }}>
+            Terrain
+            {!terrain.available && <small>Not available for this map.</small>}
+          </button>
         </div>
       </div>
+      {terrain.on && terrain.file && <TerrainLegend classes={terrain.classes} file={terrain.file} hasStart={terrain.hasStart} />}
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
           {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}

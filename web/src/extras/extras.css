@@ -82,3 +82,9 @@
 /* Camera read check (judge page only). */
 .extras-scam th[scope="row"] { white-space: nowrap; }
 .extras-scam-misses { margin: 0; padding-inline-start: 1.25rem; }
+
+/* Terrain legend: shown only while the terrain layer is on; neutral ink like the chevrons on the map. */
+.extras-terrain-legend { position: fixed; z-index: 3; inset-inline-start: 16px; inset-block-end: 16px; max-width: min(420px, calc(100vw - 32px)); padding: 8px 12px; background: var(--bg-1, #1c1917); color: var(--fg-1, #f8f4f1); border: 1px solid var(--line, #403c3a); }
+.extras-terrain-legend p { margin: 0 0 4px; }
+.extras-terrain-chevron { vertical-align: -2px; }
+.extras-terrain-chevron path { fill: none; stroke: var(--fg-3, #aeaaa7); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
