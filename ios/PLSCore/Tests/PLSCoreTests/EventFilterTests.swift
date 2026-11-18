@@ -111,3 +111,19 @@ import Testing
         #expect(ids([s, fam, cmd]).isEmpty)
     }
 }
+
+@Suite struct EventDecodingTests {
+    @Test func aMalformedStoredEventIsSkippedAndFlaggedNotThrown() throws {
+        let good = try JSONValue(encoding: doc("e1", .cleared, effect: clearAC))
+        guard case var .object(bad) = try JSONValue(encoding: doc("e2", .cleared, effect: clearAC)),
+              case var .object(effect)? = bad["effect"] else { Issue.record("setup"); return }
+        effect["inputs"] = nil                                   // a cleared effect with no inputs
+        bad["effect"] = .object(effect)
+        let noId: JSONValue = .object(["type": .string("cleared")])
+        let out = EventFilter.decode([good, .object(bad), noId])
+        #expect(out.docs.map(\.eventId) == ["e1"])
+        #expect(out.malformedIds == ["e2", "(no id)"])
+        #expect(EventFilter.toEngineEvents(out.docs, priorInputEventIds: []).map(\.eventId) == ["e1"])
+    }
+}
+

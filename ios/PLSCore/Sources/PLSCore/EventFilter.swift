@@ -2,7 +2,31 @@ import Foundation
 
 /// Which events change the map (spec section 8, twin of toEngineEvents). Prior inputs and
 /// camera sightings are never likelihoods, so no observation is used twice.
+/// Stored events read back from the pack or the listener: the ones that decoded, and the ids
+/// of the ones that did not.
+public struct DecodedEvents: Sendable, Equatable {
+    public var docs: [EventDoc]
+    public var malformedIds: [String]
+}
+
 public enum EventFilter {
+    /// Decodes stored events one by one. A malformed event (for example a clear with no inputs)
+    /// is skipped and its id flagged for command; it never stops the others or throws.
+    public static func decode(_ stored: [JSONValue]) -> DecodedEvents {
+        var docs: [EventDoc] = []
+        var malformed: [String] = []
+        for value in stored {
+            if let doc = try? value.decode(EventDoc.self) {
+                docs.append(doc)
+            } else if case let .string(id)? = value["eventId"] {
+                malformed.append(id)
+            } else {
+                malformed.append("(no id)")
+            }
+        }
+        return DecodedEvents(docs: docs, malformedIds: malformed)
+    }
+
     public static func toEngineEvents(_ docs: [EventDoc], priorInputEventIds: [String]) -> [EngineEvent] {
         // First copy of an id wins, in input order.
         var byId: [String: EventDoc] = [:]

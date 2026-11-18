@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): skip and flag a malformed stored event instead of throwing
+- What: `EventFilter.decode` reads stored events one by one; one that does not decode (for
+  example a clear with no inputs) is skipped and its id listed in `malformedIds` for command,
+  while the rest go on to the engine.
+- Source: lane A's security-rules review, relayed by the orchestrator.
+- Verified: the new test (a good clear, a clear with no inputs, a document with no id) failed
+  without `decode`, then passed; full suite 167 tests.
+
 ### test(ios-core): match the shared comparer rule at zero and relative to the expected value
 - What: the test comparer uses an absolute 1e-12 when the expected value is 0 and a tolerance
   relative to the expected value otherwise, as `shared/test-vectors/README.md` states. Before,
