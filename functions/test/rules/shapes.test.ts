@@ -32,6 +32,12 @@ describe("event position, reading and route take only their schema shapes", () =
                                carried: "c".repeat(40), evidenceQuote: "q".repeat(400), feature: "creek_or_drainage" }),
       route: routeRecord({ model: "m".repeat(80), blocked: "guardrail" }) })));
   });
+  it("a route with a clip triage reason is accepted (the four triage reasons)", async () => {
+    const reasons = ["on_device_triage_flagged", "on_device_triage_no_person", "triage_no_motion", "user_override_after_triage"];
+    for (const [i, reason] of reasons.entries()) {
+      await assertSucceeds(put(db(), validEvent(S, { seq: 40 + i, route: routeRecord({ reason }) })));
+    }
+  });
   it("a route whose stage is picklist (a person picked the report from a list; no model ran) is accepted", async () => {
     await assertSucceeds(put(db(), validEvent(S, { route: routeRecord({ stage: "picklist", path: "rules", model: "", latencyMs: 0, sdkReported: false }) })));
   });

@@ -205,7 +205,7 @@ service cloud.firestore {
         && (m.path.matches('(?s)^.{0,9}$'))
         && (m.stage.matches('(?s)^.{0,20}$'))
         && (m.model.matches('(?s)^.{0,80}$'))
-        && (m.reason.matches('(?s)^.{0,21}$'))
+        && (m.reason.matches('(?s)^.{0,26}$'))
         && (m.latencyMs is number && m.latencyMs >= 0)
         && (m.sdkReported is bool)
         && (m.blocked == null || (m.blocked.matches('(?s)^.{0,9}$')))

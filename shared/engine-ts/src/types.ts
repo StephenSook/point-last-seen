@@ -77,7 +77,10 @@ export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | 
 export type RouteReason =
   | "on_device_default" | "no_network" | "on_device_unavailable" | "locale_unsupported" | "over_token_budget"
   | "possible_evidence" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"
-  | "sdk_only_on_device" | "sdk_fallback" | "link_down_fallback" | "template_fallback" | "consented_cloud_read";
+  | "sdk_only_on_device" | "sdk_fallback" | "link_down_fallback" | "template_fallback" | "consented_cloud_read"
+  // Clip triage on the web: a flagged span read in the cloud; the laptop's model or a motion check finding
+  // nothing (nothing sent; trace only); and the consented cloud read anyway after such a result.
+  | "on_device_triage_flagged" | "on_device_triage_no_person" | "triage_no_motion" | "user_override_after_triage";
 
 export interface RouteRecord {
   platform: "ios" | "web" | "android";

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Four route reasons for clip triage on the web: "on_device_triage_flagged" (the cloud read of a span the
+  laptop's model flagged), "on_device_triage_no_person" and "triage_no_motion" (nothing sent; trace only), and
+  "user_override_after_triage" (the consented cloud read anyway after such a result). Added to the route-record
+  schema and the TypeScript RouteReason; the generated rules' bound on route.reason grows from 21 to 26
+  characters. iOS decodes an unknown reason as `unknown` and keeps the event.
+  Source: lane C (clip triage on Chrome), approved by review.
+  Verified: the rules test (an event with each reason) failed first, now passes; emulator suite 132 including
+  the heaviest events; schema parity 11 schemas 0 failures; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMediaNow` also requires, as the security rules do, that the incident exists and has not ended
   (expiresAt absent or in the future): custom claims outlive an incident, so claims alone no longer let a
   stale command delete media. An ended judge sandbox is swept by deleteIncidentMedia.
