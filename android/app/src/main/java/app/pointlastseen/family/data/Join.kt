@@ -2,6 +2,7 @@ package app.pointlastseen.family.data
 
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.functions
 import kotlinx.coroutines.tasks.await
 
@@ -10,6 +11,18 @@ interface JoinBackend {
     suspend fun ensureSignedIn(): String
     suspend fun callJoin(payload: Map<String, Any?>): Any?
     suspend fun refreshClaims(): Map<String, Any?>
+}
+
+/** The callable refused the code itself (wrong, expired, or for another role): not a connection problem. */
+class JoinRefused : Exception("join code refused") {
+    companion object {
+        fun isRefusal(code: FirebaseFunctionsException.Code): Boolean = code in setOf(
+            FirebaseFunctionsException.Code.PERMISSION_DENIED,
+            FirebaseFunctionsException.Code.INVALID_ARGUMENT,
+            FirebaseFunctionsException.Code.NOT_FOUND,
+            FirebaseFunctionsException.Code.FAILED_PRECONDITION,
+        )
+    }
 }
 
 sealed class JoinOutcome {
@@ -33,6 +46,8 @@ class Join(private val backend: JoinBackend) {
             val claims = backend.refreshClaims()
             if (claims["inc"] != incidentId || claims["role"] != ROLE) return JoinOutcome.Failed(REFUSED)
             JoinOutcome.Joined(incidentId, uid)
+        } catch (e: JoinRefused) {
+            JoinOutcome.Failed(REFUSED)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             JoinOutcome.Failed("Could not reach command. Check the connection and try again.")
@@ -52,8 +67,11 @@ class FirebaseJoinBackend : JoinBackend {
         return requireNotNull(user?.uid) { "anonymous sign-in returned no user" }
     }
 
-    override suspend fun callJoin(payload: Map<String, Any?>): Any? =
+    override suspend fun callJoin(payload: Map<String, Any?>): Any? = try {
         Firebase.functions.getHttpsCallable("joinIncident").call(payload).await().getData()
+    } catch (e: FirebaseFunctionsException) {
+        if (JoinRefused.isRefusal(e.code)) throw JoinRefused() else throw e
+    }
 
     override suspend fun refreshClaims(): Map<String, Any?> {
         val user = requireNotNull(Firebase.auth.currentUser)

@@ -36,6 +36,22 @@ class JoinTest {
         assertEquals(JoinOutcome.Failed("That code did not work. Check it with command."), out)
     }
 
+    @Test fun theServerRefusingTheCodeSaysTheCodeDidNotWork() = runTest {
+        // joinIncident throws HttpsError("permission-denied") for a wrong code; it never returns ok: false.
+        val be = object : JoinBackend {
+            override suspend fun ensureSignedIn() = "uid-1"
+            override suspend fun callJoin(payload: Map<String, Any?>): Any? = throw JoinRefused()
+            override suspend fun refreshClaims(): Map<String, Any?> = emptyMap()
+        }
+        assertEquals(JoinOutcome.Failed(Join.REFUSED), Join(be).join("ZZZ"))
+    }
+
+    @Test fun refusalCodesFromTheCallableAreTheCodeProblems() {
+        val c = com.google.firebase.functions.FirebaseFunctionsException.Code::class.java.enumConstants!!.associateBy { it.name }
+        for (n in listOf("PERMISSION_DENIED", "INVALID_ARGUMENT", "NOT_FOUND", "FAILED_PRECONDITION")) assertTrue(n, JoinRefused.isRefusal(c.getValue(n)))
+        for (n in listOf("UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL", "UNAUTHENTICATED")) assertTrue(n, !JoinRefused.isRefusal(c.getValue(n)))
+    }
+
     @Test fun claimsForAnotherIncidentOrRoleAreRefused() = runTest {
         assertTrue(Join(FakeBackend(claims = mapOf("inc" to "other", "role" to "family"))).join("AB") is JoinOutcome.Failed)
         assertTrue(Join(FakeBackend(claims = mapOf("inc" to "inc-9", "role" to "command"))).join("AB") is JoinOutcome.Failed)
