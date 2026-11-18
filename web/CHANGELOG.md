@@ -594,3 +594,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the main Playwright config now ignores `e2e/extras/**` as it already ignores `e2e/harness/**`. Those specs open `/extras-harness/*.html`, which only the Vite dev server serves; the extras lane runs them with `e2e/extras.config.ts`.
 - Source: the first full deployed run after merge point 2 picked them up and they failed against the live site (the harness pages are not deployed).
 - Verified: `--list` on the main config shows no extras spec; `npx playwright test -c e2e/extras.config.ts` passes (8 of 8) with the dock and judge hooks mounted. scripts/ci-local.sh exit 0.
+
+### test(e2e): give the join step 20 s, since joinIncident can start cold under parallel joins
+- What: `joinCommand` waits up to 20 s for the post after pressing Join instead of the 5 s default.
+- Source: the first full deployed run after merge point 2: the four tests that started together all timed out at the join while every later join passed (the callable starting cold under concurrent calls).
+- Verified: the same four tests then passed against the live site (change, basemap, the live beat, offline Approve). scripts/ci-local.sh exit 0.

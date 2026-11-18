@@ -46,7 +46,8 @@ export async function joinCommand(page: Page): Promise<string> {
   await page.goto(`/?incident=${encodeURIComponent(incident)}`);
   await page.getByLabel("Join code").fill(code);
   await page.getByRole("button", { name: "Join as command" }).click();
-  await expect(page.getByTestId("convergence-code")).toBeVisible();
+  // joinIncident can start cold, and parallel workers join at the same moment.
+  await expect(page.getByTestId("convergence-code")).toBeVisible({ timeout: 20_000 });
   return incident;
 }
 
