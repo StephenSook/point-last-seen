@@ -17,6 +17,14 @@ public enum RouteReason: String, Codable, Sendable, CaseIterable {
     case possibleEvidence = "possible_evidence"
     /// The incident is not a drill or a judge sandbox, so no model is called.
     case notDrillMode = "not_drill_mode"
+    /// Decode only: a reason this build does not know. The rules bound the reason by length,
+    /// so a newer client's value can reach this phone; the event still counts. Never produced here.
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = RouteReason(rawValue: raw) ?? .unknown
+    }
 }
 
 public enum ReadStage: String, Codable, Sendable, CaseIterable {
@@ -25,6 +33,8 @@ public enum ReadStage: String, Codable, Sendable, CaseIterable {
     case deterministicParser = "deterministic_parser"
     case evidenceProtocol = "evidence_protocol"
     case sdk
+    /// A person picked the report from a list; no model ran.
+    case picklist
 }
 
 public enum Platform: String, Codable, Sendable { case ios, web, android }
@@ -186,7 +196,7 @@ public enum RouterPolicy {
     /// the cloud: sending blocked text elsewhere would circumvent the guardrail.
     public static func afterFailure(_ failure: ReadFailure, path: RoutePath, stage: ReadStage) -> NextStep {
         switch stage {
-        case .deterministicParser, .evidenceProtocol:
+        case .deterministicParser, .evidenceProtocol, .picklist:
             return .pickList
         case .guided, .permissiveText, .sdk:
             break

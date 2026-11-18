@@ -6,9 +6,10 @@ import Testing
 @Suite struct RemoteConfigValuesTests {
     @Test func theFiveIOSKeysAreRead() {
         let v = RemoteConfigValues.from(["cloud_model_ios": "test-cloud-model", "token_budget_fraction": "0.4", "kill_cloud": "true",
-                                         "use_limited_use_tokens": "false", "minimum_version_ios": "0.2.0"].lookup)
+                                         "use_limited_use_tokens": "false", "minimum_version_ios": "0.2.0",
+                                         "tts_model_ios": "test-voice-model"].lookup)
         #expect(v == RemoteConfigValues(cloudModelIOS: "test-cloud-model", tokenBudgetFraction: 0.4, killCloud: true,
-                                        useLimitedUseTokens: false, minimumVersionIOS: "0.2.0"))
+                                        useLimitedUseTokens: false, minimumVersionIOS: "0.2.0", ttsModelIOS: "test-voice-model"))
     }
 
     @Test func missingOrBadValuesKeepTheDefaults() {
@@ -18,6 +19,11 @@ import Testing
         #expect(bad == .defaults)
         #expect(RemoteConfigValues.from(["token_budget_fraction": "nan"].lookup).tokenBudgetFraction == 0.5)
         #expect(RemoteConfigValues.from(["token_budget_fraction": "0"].lookup).tokenBudgetFraction == 0.5)
+    }
+
+    @Test func noCloudVoiceUnlessRemoteConfigNamesOne() {
+        #expect(RemoteConfigValues.defaults.ttsModelIOS == "")
+        #expect(RemoteConfigValues.keys.contains("tts_model_ios"))
     }
 
     @Test func theDefaultsAreWrittenUnderTheSameKeys() {

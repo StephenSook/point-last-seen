@@ -184,7 +184,7 @@ public enum ReadOrchestrator {
                     note(f, &blocked)
                     next = RouterPolicy.afterFailure(f, path: path, stage: .permissiveText)
                 }
-            case .deterministicParser, .evidenceProtocol, .sdk:
+            case .deterministicParser, .evidenceProtocol, .sdk, .picklist:
                 return finish(withCodeSegments(parse(text, context)), path: .rules, stage: .deterministicParser)
             }
             switch next {

@@ -13,8 +13,9 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
-    # Simulator builds sign ad hoc so the test bundle loads; device signing uses Stephen's
-    # team, set locally in Xcode, never committed.
+    # The Apple developer team that signs device builds; App Attest in Firebase is registered
+    # for this team. Simulator builds sign ad hoc so the test bundle loads.
+    DEVELOPMENT_TEAM: Y8XVCMLQCZ
     "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
 packages:
   Firebase:
@@ -37,6 +38,8 @@ targets:
       - path: ../shared/constants/evidence-terms.json
         buildPhase: resources
       - path: ../shared/constants/approach-notes.json
+        buildPhase: resources
+      - path: ../shared/constants/urgency.json
         buildPhase: resources
     info:
       path: PLS/Info.plist

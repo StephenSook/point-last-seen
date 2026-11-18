@@ -7,19 +7,29 @@ struct ReadyCheckView: View {
     @Bindable var model: AppModel
     @Environment(ThemeStore.self) private var themeStore
     @Environment(\.fieldTheme) private var theme
+    @AppStorage("pls.showSources") private var showSources = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Training drill. Nobody is missing.").font(.headline)
-                if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
+                if model.urgency != .none || model.mission?.sharedProfile != nil {
                     section("How to approach them") {
-                        ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                        if let text = model.urgency.chipText, let rule = try? BundledConstants.urgencyRule() {
+                            UrgencyChip(text: text, source: rule.sourceLine)
+                        }
+                        if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                            ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                        }
                     }
                 }
                 section("Screen") {
                     FieldChoice(options: [("Auto", ThemeMode.auto), ("Day", .day), ("Night", .night)],
                                 selection: Bindable(themeStore).mode, hint: "Screen colours. Auto turns red at dusk.")
+                }
+                section("Show sources") {
+                    Toggle("Say in words where each report was read (for filming)", isOn: $showSources)
+                        .toggleStyle(FieldToggleStyle())
                 }
                 section("Before you leave signal") {
                     row(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", icon: "person.badge.key")

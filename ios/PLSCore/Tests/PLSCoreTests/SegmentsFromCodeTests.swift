@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import PLSCore
 
-/// Coordinator ruling 2026-11-18 (spike S1): a reading's segment ids come from code, never the
+/// Review ruling 2026-11-18 (spike S1): a reading's segment ids come from code, never the
 /// model. The ids the report text names; else the segment under the GPS fix; the model's
 /// segment field is ignored. The kind comes from the model, with the parser's as fallback.
 @Suite struct SegmentsFromCodeTests {

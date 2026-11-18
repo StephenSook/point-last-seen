@@ -26,4 +26,17 @@ func sharedProfileJSON(ids: [String], language: String = "Spanish", unique: Stri
         #expect(Set(o.keys) == Set(required.compactMap { if case let .string(k) = $0 { k } else { nil } }))
     }
 
+
+    /// The rules let command write profile/shared in parts, so a nickname alone is a legal document.
+    @Test func aNicknameOnlyDocumentDecodesWithEverythingElseEmpty() throws {
+        let p = try JSONDecoder().decode(SharedProfile.self, from: Data(#"{"nickname":"Dottie"}"#.utf8))
+        #expect(p.nickname == "Dottie")
+        #expect(p.answersTo == "" && p.mobilityAids.isEmpty && p.flags.isEmpty && p.approachNoteIds.isEmpty)
+        #expect(p.ageYears == nil && p.dementiaType == nil && p.photoTakenOn == nil)
+        let notes = try ApproachNotes(json: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("constants/approach-notes.json")))
+        let card = ApproachCard.build(profile: p, notes: notes)
+        #expect(card.first.isEmpty && card.more.isEmpty && !card.footer.isEmpty)
+        #expect(ModelProfile(shared: .object(["nickname": .string("Dottie")])).toolText == "No description on file.")
+    }
 }
+
