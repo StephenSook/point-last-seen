@@ -1,0 +1,81 @@
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { afterAll, beforeEach, describe, it } from "vitest";
+import { validPlan } from "../fixtures";
+import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
+
+const S = "searcher-uid", C = "command-uid", F = "family-uid";
+
+beforeEach(async () => {
+  await clearFirestore();
+  await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+  await admin.db.doc("incidents/I1/segments/AC").set({ segmentId: "AC", priorPoa: 0.1 });
+  await admin.db.doc("incidents/I1/packs/T1").set({ packVersion: 1 });
+  await admin.db.doc("incidents/I1/planDrafts/h1").set({ eventSetHash: "h1" });
+});
+afterAll(closeClients);
+
+describe("incident, segments, teams", () => {
+  it("a non-member cannot read", async () => {
+    await assertFails(getDoc(doc(dbAs("x", {}), "incidents/I1")));
+    await assertFails(getDoc(doc(dbAs("y", { inc: "I2", role: "command", team: null }), "incidents/I1")));
+    await assertFails(getDoc(doc(dbAs(null), "incidents/I1/segments/AC")));
+  });
+  it("members read the incident, segments, packs and plan drafts", async () => {
+    const db = dbAs(S, searcherClaims);
+    await assertSucceeds(getDoc(doc(db, "incidents/I1")));
+    await assertSucceeds(getDoc(doc(db, "incidents/I1/segments/AC")));
+    await assertSucceeds(getDoc(doc(db, "incidents/I1/packs/T1")));
+    await assertSucceeds(getDoc(doc(db, "incidents/I1/planDrafts/h1")));
+  });
+  it("only command writes the incident doc, segments and teams", async () => {
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/segments/AD"), { segmentId: "AD" }));
+    await assertFails(setDoc(doc(dbAs(F, familyClaims), "incidents/I1/teams/T2"), { teamId: "T2" }));
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1"), { name: "x", mode: "drill", status: "open" }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/segments/AD"), { segmentId: "AD" }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/teams/T2"), { teamId: "T2", name: "Team 2", colorSlot: 2 }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Drill", mode: "drill", status: "open" }, { merge: true }));
+  });
+  it("command cannot switch the incident out of drill or judge mode", async () => {
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mode: "live" }, { merge: true }));
+  });
+});
+
+describe("join codes", () => {
+  it("no client reads or writes join codes", async () => {
+    await admin.db.doc(`joinCodes/${"0".repeat(64)}`).set({ incidentId: "I1", roles: ["command"] });
+    await assertFails(getDoc(doc(dbAs(C, commandClaims), `joinCodes/${"0".repeat(64)}`)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), `joinCodes/${"1".repeat(64)}`), { incidentId: "I1", roles: ["command"] }));
+  });
+  it("the member-readable incident doc cannot carry join code hashes", async () => {
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { joinCodeHash: "x" }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { commandJoinCodeHash: "x" }, { merge: true }));
+  });
+});
+
+describe("plans, plan drafts and packs", () => {
+  it("only command creates plans; no client writes planDrafts or packs", async () => {
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0001"), validPlan(C)));
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/plans/0002"), validPlan(S)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/planDrafts/abc"), {}));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/packs/T1"), { packVersion: 2 }));
+  });
+  it("a plan is approved by the signed-in command user and never changed", async () => {
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0003"), validPlan("someone-else")));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C)));
+  });
+});
+
+describe("devices and measurements", () => {
+  it("a device writes only its own device doc and measurements (device id is its auth uid)", async () => {
+    const db = dbAs(S, searcherClaims);
+    await assertSucceeds(setDoc(doc(db, `incidents/I1/teams/T1/devices/${S}`), { packVersion: 1, appVersion: "1.0" }));
+    await assertSucceeds(setDoc(doc(db, `incidents/I1/teams/T1/devices/${S}/measurements/${"a".repeat(32)}`),
+      { submittedAtMs: 1, readDoneAtMs: 2, redrawnAtMs: 3 }));
+    await assertFails(setDoc(doc(db, "incidents/I1/teams/T1/devices/another-uid"), { packVersion: 1 }));
+    await assertFails(setDoc(doc(db, `incidents/I1/teams/T1/devices/another-uid/measurements/${"a".repeat(32)}`), { submittedAtMs: 1 }));
+  });
+  it("a searcher writes device docs only under its own team", async () => {
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/teams/T2/devices/${S}`), { packVersion: 1 }));
+  });
+});

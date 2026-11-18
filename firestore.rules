@@ -1,0 +1,173 @@
+rules_version = '2';
+
+// Point Last Seen security rules (spec section 7). All incident data lives under
+// incidents/{incidentId}. Membership comes from custom claims set by joinIncident:
+// request.auth.token.inc (incident id), .role ("command", "searcher", "family"), .team.
+// Events are create only; idempotence lives in the client (a re-send of an existing
+// event is an update and is denied, and the client reads the first copy back).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMember(incidentId) {
+      return signedIn() && request.auth.token.inc == incidentId;
+    }
+    function role() {
+      return request.auth.token.role;
+    }
+    function isCommand(incidentId) {
+      return isMember(incidentId) && role() == 'command';
+    }
+    function isFamily(incidentId) {
+      return isMember(incidentId) && role() == 'family';
+    }
+    function isCommandOrFamily(incidentId) {
+      return isCommand(incidentId) || isFamily(incidentId);
+    }
+
+    // Join code hashes: admin only. A hash of a short code in a member-readable doc could be
+    // brute-forced offline, so no client may read or write these.
+    match /joinCodes/{codeHash} {
+      allow read, write: if false;
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if isMember(incidentId);
+      allow create, update: if isCommand(incidentId)
+        && request.resource.data.mode in ['drill', 'judge']
+        && !request.resource.data.keys().hasAny(['joinCodeHash', 'commandJoinCodeHash']);
+      allow delete: if false;
+
+      match /segments/{segmentId} {
+        allow read: if isMember(incidentId);
+        allow write: if isCommand(incidentId);
+      }
+
+      match /teams/{teamId} {
+        allow read: if isMember(incidentId);
+        allow write: if isCommand(incidentId);
+
+        // A device doc's id is its own auth uid, under its own team.
+        function ownDevice(deviceId) {
+          return isMember(incidentId) && deviceId == request.auth.uid && request.auth.token.team == teamId;
+        }
+
+        match /devices/{deviceId} {
+          allow read: if isMember(incidentId);
+          allow create, update: if ownDevice(deviceId);
+          allow delete: if false;
+
+          match /measurements/{eventId} {
+            allow read: if isMember(incidentId);
+            allow create, update: if ownDevice(deviceId);
+            allow delete: if false;
+          }
+        }
+      }
+
+      // profile/shared is readable by every member and carried in packs;
+      // profile/command (history, places, vehicle) is command and family only.
+      match /profile/shared {
+        allow read: if isMember(incidentId);
+        allow write: if isCommandOrFamily(incidentId);
+      }
+      match /profile/command {
+        allow read, write: if isCommandOrFamily(incidentId);
+      }
+
+      // Written by Cloud Functions only.
+      match /packs/{teamId} {
+        allow read: if isMember(incidentId);
+        allow write: if false;
+      }
+      match /planDrafts/{eventSetHash} {
+        allow read: if isMember(incidentId);
+        allow write: if false;
+      }
+
+      // An approved plan is written once by the command user who approved it.
+      match /plans/{version} {
+        allow read: if isMember(incidentId);
+        allow create: if isCommand(incidentId) && request.resource.data.approvedByUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /clipReadings/{sha256} {
+        allow read: if isMember(incidentId);
+        allow create, update: if isCommandOrFamily(incidentId);
+        allow delete: if isCommand(incidentId);
+      }
+      match /photoReadings/{sha256} {
+        allow read, write: if isCommand(incidentId);
+      }
+
+      match /events/{eventId} {
+        allow read: if isMember(incidentId);
+        allow create: if validEvent(incidentId, eventId);
+        allow update, delete: if false;
+      }
+    }
+
+    function eventFields() {
+      return ['eventId', 'schemaVersion', 'incidentId', 'teamId', 'deviceId', 'seq', 'authorUid', 'role',
+              'type', 'reporter', 'clientTimeMs', 'serverTime', 'observedAtMs', 'position', 'positionSource',
+              'rawText', 'inputMethod', 'isTrainingInject', 'reading', 'effect', 'route', 'targetEventId',
+              'decision', 'planVersion', 'priorVersion'];
+    }
+
+    function typeAllowed(type) {
+      return role() == 'command' && type in ['cleared', 'clue', 'sighting', 'camera_sighting', 'destination',
+                                             'confirmation', 'retraction', 'found', 'plan_ack']
+        || role() == 'searcher' && type in ['cleared', 'clue', 'sighting', 'found', 'plan_ack', 'retraction']
+        || role() == 'family' && type in ['sighting', 'camera_sighting', 'destination', 'confirmation', 'retraction'];
+    }
+
+    // A retraction targets an event that exists; only command may retract another author's event.
+    function retractionOk(incidentId, d) {
+      let targetPath = /databases/$(database)/documents/incidents/$(incidentId)/events/$(d.targetEventId);
+      return d.targetEventId is string
+        && exists(targetPath)
+        && (role() == 'command' || get(targetPath).data.authorUid == request.auth.uid);
+    }
+
+    function validEvent(incidentId, eventId) {
+      let d = request.resource.data;
+      return isMember(incidentId)
+        && eventId.matches('^[0-9a-f]{32}$')
+        && d.keys().hasOnly(eventFields())
+        && d.keys().hasAll(eventFields())
+        && d.eventId == eventId
+        && d.schemaVersion == 1
+        && d.incidentId == incidentId
+        && d.authorUid == request.auth.uid
+        && d.role == role()
+        && d.serverTime == request.time
+        && d.seq is int
+        && d.clientTimeMs is number
+        // eventId is derived from deviceId and seq, both readable by members, so deviceId is bound
+        // to the writer: nobody can pre-create another device's next event ids.
+        && d.deviceId == request.auth.uid
+        && (d.teamId == null || (d.teamId is string && d.teamId.size() <= 32))
+        && (role() != 'searcher' || d.teamId == request.auth.token.team)
+        && d.reporter in ['searcher', 'public_caller', 'family', 'camera', 'system']
+        && d.positionSource in ['gps', 'assigned_segment', 'manual', 'map_click', 'camera_pin', 'none']
+        && d.inputMethod in ['keyboard_dictation', 'typed', 'picklist', 'clip', 'photo', 'system']
+        && d.isTrainingInject is bool
+        && d.priorVersion is int
+        && (d.planVersion == null || d.planVersion is int)
+        && (d.observedAtMs == null || d.observedAtMs is number)
+        && (d.position == null || d.position is map)
+        && (d.rawText == null || (d.rawText is string && d.rawText.size() <= 2000))
+        && (d.reading == null || d.reading is map)
+        && (d.route == null || d.route is map)
+        && d.effect is map && d.effect.kind in ['cleared', 'clue', 'none']
+        && (d.targetEventId == null || (d.targetEventId is string && d.targetEventId.matches('^[0-9a-f]{32}$')))
+        && (d.decision == null || d.decision in ['confirmed', 'rejected'])
+        && typeAllowed(d.type)
+        && (d.type != 'retraction' || retractionOk(incidentId, d))
+        && (d.type != 'confirmation' || (d.targetEventId is string && d.decision in ['confirmed', 'rejected']));
+    }
+  }
+}

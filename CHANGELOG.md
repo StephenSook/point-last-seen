@@ -3,6 +3,21 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-18
+
+- Add the Firestore security rules (`firestore.rules`, spec section 7) and their emulator tests
+  (`functions/test/rules/{events,roles,profile}.test.ts`, with `helpers.ts`, `fixtures.ts`, `vitest.config.ts`):
+  membership from custom claims {inc, role, team}; events create only with the full 25-key EventDoc shape,
+  identity binding (authorUid, role, incidentId, searcher team, and deviceId == auth uid so nobody can
+  pre-create another device's event ids), serverTime == request.time, closed enums, rawText at most 2000,
+  types by role, own-only retractions for non-command; profile split (profile/command for command and
+  family only); plans create only by the approving command user; packs and planDrafts read only;
+  photoReadings command only; device docs keyed by the device's auth uid under its own team; an admin-only
+  `joinCodes` collection, and the incident doc may not carry join code hashes. Indexes file added empty.
+  Source: plan Task 11; spec sections 7 and 13.2; red-team pass with the security-rules auditor checklist
+  (event-id squatting, sizes, types); join-hash exposure finding (a 40-bit code hash readable by members).
+  Verified: under deny-all rules the suite failed (17 denials); now 33 Firestore rules tests pass in the
+  emulator; mutating events to allow update/delete failed 2 tests, then the restored rules passed.
 ## 2026-11-17
 
 - Ignore `functions/lib/` (TypeScript build output of the functions workspace).
