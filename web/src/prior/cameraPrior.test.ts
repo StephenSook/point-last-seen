@@ -1,0 +1,46 @@
+import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
+import { describe, expect, it } from "vitest";
+import { buildCameraSighting, type ClipFacts } from "../data/cameraSighting";
+import type { SegmentDoc } from "../data/incident";
+import { cameraPriorWrites } from "./cameraPrior";
+import { gridFromDocs } from "./rebuild";
+
+// A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
+const IPP = { lat: 33.78, lon: -84.38 };
+const D_LAT = 125 / 111_320;
+const D_LON = 125 / (111_320 * Math.cos((IPP.lat * Math.PI) / 180));
+const SEGS: SegmentDoc[] = Array.from({ length: 9 }, (_, i) => {
+  const [r, c] = [Math.floor(i / 3) - 1, (i % 3) - 1];
+  const [s, w] = [IPP.lat + (r - 0.5) * D_LAT, IPP.lon + (c - 0.5) * D_LON];
+  return {
+    segmentId: String.fromCharCode(65 + r + 1) + String.fromCharCode(65 + c + 1),
+    geometry: { type: "Polygon", coordinates: [[[w, s], [w + D_LON, s], [w + D_LON, s + D_LAT], [w, s + D_LAT], [w, s]]] },
+    centroid: { lat: s + D_LAT / 2, lon: w + D_LON / 2 },
+    areaM2: 125 * 125, priorPoa: 0.05, neighbors: [], upstream: [], downstream: [],
+  };
+});
+const CAMERA = { lat: IPP.lat + D_LAT, lon: IPP.lon };
+const reading = {
+  personVisible: true, firstSeen: "00:01", lastSeen: "00:05", entryEdge: "right" as const, exitEdge: "left" as const,
+  topColor: "blue", bottomColor: "black", topType: "", footwear: "", headwear: "", carriedItems: [],
+  keyFrame: { time: "00:04", box2d: [400, 300, 600, 700] }, lighting: "day" as const, legibility: "clear" as const, evidence: "x",
+};
+const clip: ClipFacts = { sha256: "d".repeat(64), reading, route: null, clipStartMs: 1, clockConfirmed: true, cameraFacingDeg: 90, camera: CAMERA };
+const writer = { incidentId: "i", uid: "u1", seq: 3, clientTimeMs: 2, priorVersion: 7, segments: [] };
+const incident = { gridId: "synthetic", gridAttribution: "a", ipp: IPP, terrain: "temperate_flat" as const, priorLayers: { linear: false, wedge: false }, priorVersion: 7, priorInputEventIds: ["x"] };
+
+describe("cameraPriorWrites", () => {
+  it("rebuilds the ring prior from the camera with the wedge on, adds the sighting to the inputs and raises the version", () => {
+    const cam = buildCameraSighting(clip, writer);
+    const w = cameraPriorWrites(SEGS, incident, cam, 0);
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), CAMERA, "temperate_flat", { linear: false, wedge: true }, 0, DEFAULT_PARAMS);
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(direct.segments.map((s) => s.priorPoa));
+    expect(w.incident).toEqual({ priorLayers: { linear: false, wedge: true }, terrain: "temperate_flat", priorVersion: 8, priorModel: "rings", ipp: CAMERA, priorInputEventIds: ["x", cam.eventId] });
+  });
+
+  it("keeps the start and the wedge setting when the camera has no place and there is no bearing", () => {
+    const cam = buildCameraSighting({ ...clip, camera: null, cameraFacingDeg: null }, writer);
+    const w = cameraPriorWrites(SEGS, incident, cam, null);
+    expect(w.incident).toMatchObject({ ipp: IPP, priorLayers: { linear: false, wedge: false }, priorVersion: 8 });
+  });
+});
