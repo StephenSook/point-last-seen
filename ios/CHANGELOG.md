@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): feed the network path into the router's connectivity
+- What: `ConnectivityMonitor` starts an `NWPathMonitor` and feeds the path, plus request
+  failures and successes, into PLSCore's `Connectivity`. `isOnline` is the router's
+  `networkOnline`: a satisfied path and no transport failure in the last minute since the last
+  success, so joined Wi-Fi with no internet counts as offline.
+- Source: Task 13; self-audit item (record how iOS `networkOnline` is computed).
+- Verified: app builds with only this commit's files; the rule itself is `ConnectivityTests`
+  in PLSCore (including the failed-request case).
+
 ### feat(ios): use the auth uid as device id and epoch-millisecond sequence numbers
 - What: `DeviceIdentity` gives the anonymous Firebase Auth uid as the event device id (the
   create rule checks `deviceId == request.auth.uid`) and the next sequence number from
