@@ -729,3 +729,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the walker job passes `onProgress` (engine hook from lane A, called every 1,000 walkers and once at the end, with an identical table) and posts each value; the job's own end-of-run progress message is gone.
 - Source: plan Task 37c ("the worker posts progress every 1,000 walkers").
 - Verified: the walker job test now runs 2,500 walkers and expects progress 0, 1000, 2000, 2500; it failed first (0, 2500), then passed. The Worker harness spec now reads progress 0 to 10,000 in steps of 1,000 and still matches the engine's table. scripts/ci-local.sh exit 0.
+
+### feat(walkers): read the grid builder's stored route graph and index it with the engine
+- What: `loadRouteGraph` now reads the stored `RouteGraph` the grid builder writes (`build-grid --graph`) and indexes it with the engine's `indexRouteGraph`; a file without edges and nodes, or one the engine refuses (no bounds or projection, which would read as a graph with no exits), is "invalid".
+- Source: plan Task 37c; lane A moved `indexRouteGraph` into @pls/engine and built the dev site's graph.
+- Verified: `src/prior/walkerPrior.test.ts` (5 tests, with a two-station stored graph) failed first (the old reader expected an indexed file), then passed, including a refused graph without a projection. scripts/ci-local.sh exit 0.

@@ -2,7 +2,7 @@
 // and the writes that make a walker run the shared prior. The ring prior stays stored in
 // ringPoa as the baseline and the comparison (spec 10.6).
 
-import type { WalkerResult, WalkerRouteGraph } from "@pls/engine";
+import { indexRouteGraph, type RouteGraph, type WalkerResult, type WalkerRouteGraph } from "@pls/engine";
 
 export type GraphLoad = { state: "ok"; graph: WalkerRouteGraph } | { state: "absent" } | { state: "invalid" } | { state: "unavailable" };
 
@@ -22,9 +22,15 @@ export async function loadRouteGraph(url: string, fetchFn: (url: string) => Prom
   } catch {
     return { state: "invalid" };
   }
-  const g = body as Partial<WalkerRouteGraph> | null;
-  const ok = !!g && Array.isArray(g.stations) && Array.isArray(g.edges) && Array.isArray(g.nodes) && g.stations.length > 0;
-  return ok ? { state: "ok", graph: g as WalkerRouteGraph } : { state: "invalid" };
+  // The file is the grid builder's stored RouteGraph; the engine indexes it (and refuses one
+  // without bounds or a projection, which would otherwise read as a graph with no exits).
+  const g = body as Partial<RouteGraph> | null;
+  if (!g || !Array.isArray(g.edges) || !Array.isArray(g.nodes) || g.edges.length === 0) return { state: "invalid" };
+  try {
+    return { state: "ok", graph: indexRouteGraph(g as RouteGraph) };
+  } catch {
+    return { state: "invalid" };
+  }
 }
 
 export type WalkerPriorWrites = {

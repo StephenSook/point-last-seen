@@ -2,20 +2,35 @@ import type { WalkerResult } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import { loadRouteGraph, walkerPriorWrites } from "./walkerPrior";
 
-const graphJson = { stations: [{ x: 0, y: 0, hx: 1, hy: 0, nx: 0, ny: 1, segmentId: "AA", edgeId: 0 }], edges: [{ id: 0, cls: "trail", from: 0, to: 1, stationIds: [0] }], nodes: [{ id: 0, edgeIds: [0], boundary: false }] };
+// A stored route graph as the grid builder writes it: one trail edge of two stations between two nodes.
+const st = (x: number) => ({ x, y: 0, hx: 1, hy: 0, nx: 0, ny: 1, segmentId: "AA" });
+const graphJson = {
+  graphId: "synthetic", gridId: "synthetic", stationSpacingM: 25, origin: { lat: 33.78, lon: -84.38 },
+  nodes: [{ nodeId: 0, x: 0, y: 0 }, { nodeId: 1, x: 25, y: 0 }],
+  edges: [{ edgeId: 0, class: "trail", from: 0, to: 1, stations: [st(0), st(25)] }],
+  bounds: [-84.381, 33.779, -84.379, 33.781], projection: { metresPerDegreeLat: 111_195, metresPerDegreeLon: 92_421 }, attribution: "synthetic",
+};
 const respond = (body: BodyInit, status = 200, type = "application/json") => async () => new Response(body, { status, headers: { "content-type": type } });
 
 describe("loadRouteGraph", () => {
-  it("accepts a graph with stations, edges and nodes", async () => {
+  it("indexes a stored route graph for the walker engine", async () => {
     const r = await loadRouteGraph("/tiles/x.graph.json", respond(JSON.stringify(graphJson)));
     expect(r.state).toBe("ok");
-    if (r.state === "ok") expect(r.graph.stations).toHaveLength(1);
+    if (r.state === "ok") {
+      expect(r.graph.stations).toHaveLength(2);
+      expect(r.graph.projection?.origin).toEqual({ lat: 33.78, lon: -84.38 });
+    }
+  });
+
+  it("refuses a stored graph the engine refuses (no projection)", async () => {
+    const { projection: _p, ...noProjection } = graphJson;
+    expect((await loadRouteGraph("/tiles/x.graph.json", respond(JSON.stringify(noProjection)))).state).toBe("invalid");
   });
 
   it("reads a missing file as absent and a malformed one as invalid", async () => {
     expect((await loadRouteGraph("/tiles/x.graph.json", respond("", 404))).state).toBe("absent");
     expect((await loadRouteGraph("/tiles/x.graph.json", respond("<!doctype html>", 200, "text/html"))).state).toBe("absent");
-    expect((await loadRouteGraph("/tiles/x.graph.json", respond(JSON.stringify({ stations: [] })))).state).toBe("invalid");
+    expect((await loadRouteGraph("/tiles/x.graph.json", respond(JSON.stringify({ edges: [] })))).state).toBe("invalid");
     expect((await loadRouteGraph("/tiles/x.graph.json", respond("not json"))).state).toBe("invalid");
   });
 });
