@@ -5,6 +5,30 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): speak assignments through the published voice template
+- What: the AI Logic voice now calls the published prompt template named by the new Remote Config
+  key `voice_template_id` (default `pls-voice-v1`) with the approved plan text as its only input,
+  instead of naming a voice model and its settings in the app. The template holds the model, the
+  voice and the audio settings and speaks the text's own language. Text outside 1 to 600
+  characters, an explicit empty template id, or any failure (an HTTP 500 from the server's model
+  guard included) gives the phone's own voice. `remoteconfig.template.json` replaces
+  `tts_model_ios` (read by no client now) with `voice_template_id`.
+- Source: the published voice template.
+- Verified: tests for the new key (default, an explicit empty value turns the voice off, the old
+  key is gone), the 1 to 600 character rule, and the speaker and app tests with the template id
+  pass (71 app tests); a one-off live call from the app's own bundle on the simulator returned
+  audio/wav (230,428 bytes in 2.6 s); `bash scripts/ci-local.sh` exit 0.
+
+### test(ios-core): parse the drill incident's real pack segment documents
+- What: `PackSegmentsSampleTests` reads `shared/test-vectors/pack-segments-sample.json` (three
+  real `pack-segments` documents from the drill incident, in Firestore's typed REST form),
+  converts each value the way the iOS Firestore SDK hands it to the app, and parses them with
+  `PackSegments.parse`: grid AA then AC in code-point order, ROW last in the prior, prior
+  version 5 equal to the incident's, AA's upstream link and AC's neighbours kept, every area
+  positive, and each real centroid inside its own real polygon.
+- Source: the pack segments sample added to the shared test vectors.
+- Verified: both tests pass against the real documents; `bash scripts/ci-local.sh` exit 0.
+
 ### test(ios): pin that a report is read only after sign-in succeeded
 - What: `AppModel` takes the report read as a `readReport` seam (the default is the same
   `ReportReader` on Apple's model and Firebase AI Logic). Two tests pin the order in `send`: a
