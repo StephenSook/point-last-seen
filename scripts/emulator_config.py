@@ -75,12 +75,17 @@ def busy_ports(root: Path) -> list[int]:
     return busy
 
 
-def emulator_holders(root: Path) -> list[str]:
+def emulator_holders(root: Path) -> list[str] | None:
     """Running emulator processes whose arguments name a port in this block: emulators:exec can return before
-    the Firestore JVM has exited, and a bind probe can miss it while it is still tearing down."""
+    the Firestore JVM has exited, and a bind probe can miss it while it is still tearing down. None when the
+    process list cannot be read (ps failed or printed nothing, which a live system never does): unknown, not
+    free."""
     base = port_base(root)
     block = {str(p) for p in range(base, base + BLOCK)}
-    out = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True).stdout
+    ps = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True)
+    out = ps.stdout
+    if ps.returncode != 0 or not out.strip():
+        return None
     held = []
     for line in out.splitlines():
         pid, _, cmd = line.strip().partition(" ")
@@ -96,6 +101,8 @@ def wait_ports(root: Path, seconds: float) -> int:
     deadline = time.monotonic() + seconds
     while True:
         busy, procs = busy_ports(root), emulator_holders(root)
+        if procs is None:
+            procs = ["process list unreadable (ps failed or was empty)"]
         if not busy and not procs:
             print("emulator ports free")
             return 0
@@ -118,7 +125,8 @@ def main(argv: list[str]) -> int:
         print(f"emulator ports {base}-{base + BLOCK - 1}:")
         out = subprocess.run(["lsof", "-nP", f"-iTCP:{base}-{base + BLOCK - 1}"], capture_output=True, text=True)
         print(out.stdout or "(no process holds them now)")
-        print("emulator processes naming a block port:", emulator_holders(root) or "none")
+        holders = emulator_holders(root)
+        print("emulator processes naming a block port:", "unreadable (ps failed)" if holders is None else holders or "none")
         net = subprocess.run(["netstat", "-an", "-p", "tcp"], capture_output=True, text=True).stdout
         ports = {f".{p} " for p in range(base, base + BLOCK)}
         print("kernel sockets on the block (TIME_WAIT and others):", [l.strip() for l in net.splitlines() if any(t in l for t in ports)] or "none")

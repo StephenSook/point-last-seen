@@ -168,3 +168,21 @@ def test_wait_ports_also_waits_for_an_emulator_process_that_names_a_block_port(t
         proc.wait()
     assert out.returncode == 1
     assert str(proc.pid) in out.stdout + out.stderr
+
+
+def _module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("emulator_config", SCRIPT)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_a_failed_or_empty_ps_is_unknown_never_free(tmp_path, monkeypatch, capsys):
+    # A wait that cannot list processes must not report the ports free (review round 3).
+    m = _module()
+    monkeypatch.setattr(m, "busy_ports", lambda root: [])
+    for result in (subprocess.CompletedProcess(["ps"], 1, "", ""), subprocess.CompletedProcess(["ps"], 0, "", "")):
+        monkeypatch.setattr(m.subprocess, "run", lambda *a, _r=result, **k: _r)
+        assert m.wait_ports(tmp_path, 0.5) == 1
+        assert "emulator ports free" not in capsys.readouterr().out

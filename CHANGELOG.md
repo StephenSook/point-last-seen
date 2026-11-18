@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The emulator port wait treats an unreadable process list (ps failing or printing nothing) as unknown: it
+  keeps waiting and then fails, naming the cause, instead of reporting the ports free. `--who-holds` says
+  "unreadable" in that case rather than "none".
+  Source: review round 3 (low).
+  Verified: the test with ps returning exit 1 and exit 0 with empty output failed first (the wait printed
+  "emulator ports free"), now 12 emulator-config tests pass; `bash scripts/ci-local.sh` exit 0.
 - The media sweep covers every ended judge sandbox whose last sweep was not empty, however old, and a missing
   stamp counts as unstamped (one equality query on mode; the sandbox count is small), replacing the 7-day
   window that missed an old sandbox with a stale stamp or no stamp field. Any failure inside one sandbox,
