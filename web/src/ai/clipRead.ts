@@ -215,7 +215,11 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     };
     // A reply with no usable sighting completes the record as a typed no-sighting result, so the
     // next seat gets it cached; a model or network failure (the catch below) leaves it open.
-    const noSighting = (reasons: ClipNoSightingReason[]) => deps.complete(sha, { status: "no_sighting", reasons }, route);
+    // Only a full-clip read is final for these bytes: a window that showed no one says nothing about
+    // the rest of the clip, so it leaves the record open for a full read.
+    const noSighting = async (reasons: ClipNoSightingReason[]) => {
+      if (!r.window) await deps.complete(sha, { status: "no_sighting", reasons }, route);
+    };
     const parsed = parseCameraSighting(reply.text);
     if (!parsed) {
       await noSighting(["unreadable_reply"]);

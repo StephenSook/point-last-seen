@@ -1040,3 +1040,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: on a retry, `readClip` asks Storage whether the clip is already stored, then checks the live cloud pause once more immediately before uploading. Before, the last check came before that lookup, so a pause that arrived during it still let the clip upload.
 - Source: second-model review of PR #16, round 2, finding 5 (medium).
 - Verified: new test (the pause turns on during the stored-clip lookup: refused, no upload) failed first, then passed (22 in clipRead.test.ts); typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): store a no-sighting result only for a full-clip read
+- What: a read limited to triage's flagged seconds that finds no usable sighting now leaves the clip record open instead of storing `no_sighting`. The record is keyed by the clip's hash alone, so a stored miss from a window would have answered a later full-clip read (from a seat without on-device triage) with "Couldn't read" even if the person appears elsewhere in the clip. A full-clip miss is still stored and cached.
+- Source: second-model review of PR #16, round 2, finding 4 (medium).
+- Verified: new test (a windowed read with no person ends could-not-read with no completion written) failed first, then passed (23 in clipRead.test.ts); typecheck clean. scripts/ci-local.sh exit 0.

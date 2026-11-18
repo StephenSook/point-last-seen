@@ -163,6 +163,12 @@ describe("readClip", () => {
     expect(t.completed[0]!.route).toMatchObject({ reason: "sdk_only_in_cloud" });
   });
 
+  it("a windowed read that finds no one stores nothing, so a later full-clip read is not blocked", async () => {
+    const t = await setup({ reply: { ...goodReply, personVisible: false } });
+    expect(await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+  });
+
   it("a reply it cannot read is stored as no sighting, reason unreadable_reply", async () => {
     const t = await setup({ reply: "not json" });
     expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
