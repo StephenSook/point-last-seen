@@ -2,10 +2,11 @@
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
 import { DEFAULT_PARAMS, type EventDoc } from "@pls/engine";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
-import { subscribeIncident, type IncidentView } from "../data/incident";
+import { initialPostState, postReducer } from "./postAccess";
+import { subscribeIncident } from "../data/incident";
 import { joinIncident, joinRequest } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
@@ -143,13 +144,21 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
 }
 
 function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
-  const [view, setView] = useState<IncidentView | null>(null);
-  const [events, setEvents] = useState<StreamedEvent[]>([]);
+  const [state, dispatch] = useReducer(postReducer, initialPostState);
+  const { view, events, denied, offline } = state;
   const [now, setNow] = useState(() => Date.now());
-  const [readError, setReadError] = useState<string | null>(null);
 
-  useEffect(() => subscribeIncident(pls.db, incidentId, setView, () => setReadError("Lost access to this incident's data.")), [pls, incidentId]);
-  useEffect(() => subscribeEvents(pls.db, incidentId, setEvents), [pls, incidentId]);
+  // On a denial the reducer clears the data and `denied` stops both listeners for good.
+  useEffect(() => {
+    if (denied) return;
+    const failed = (error: unknown) => dispatch({ type: "failed", error });
+    const stopIncident = subscribeIncident(pls.db, incidentId, (v) => dispatch({ type: "view", view: v }), failed);
+    const stopEvents = subscribeEvents(pls.db, incidentId, (e) => dispatch({ type: "events", events: e }), failed);
+    return () => {
+      stopIncident();
+      stopEvents();
+    };
+  }, [pls, incidentId, denied]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
@@ -169,6 +178,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
+  if (denied) {
+    return (
+      <main className="panel">
+        <p className="drill">{DRILL_LINE}</p>
+        <h1>This browser no longer has access to the incident</h1>
+        <p>Its data was cleared from the screen. Join again with a current code.</p>
+        <button type="button" onClick={() => location.assign(location.pathname)}>
+          Join again
+        </button>
+      </main>
+    );
+  }
+
   return (
     <div className="post">
       <header className="post-head">
@@ -179,9 +201,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
       </header>
-      {readError && (
-        <p className="error" role="alert">
-          {readError}
+      {offline && (
+        <p className="error" role="status">
+          No connection. Showing the last data received.
         </p>
       )}
       <div className="post-body">

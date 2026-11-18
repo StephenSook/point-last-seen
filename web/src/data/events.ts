@@ -109,14 +109,24 @@ export function firestoreWriteDeps(db: Firestore, onState: WriteDeps["onState"])
 export type StreamedEvent = Record<string, unknown> & { eventId: string; serverTimeMs: number | null; pendingWrite: boolean };
 
 /** Live events for an incident, with each event's server time and pending flag. */
-export function subscribeEvents(db: Firestore, incidentId: string, cb: (events: StreamedEvent[]) => void): Unsubscribe {
-  return onSnapshot(collection(db, "incidents", incidentId, "events"), { includeMetadataChanges: true }, (snap) => {
-    cb(
-      snap.docs.map((d) => {
-        const data = d.data();
-        const st = data["serverTime"] as { toMillis?: () => number } | null | undefined;
-        return { ...data, eventId: d.id, serverTimeMs: st?.toMillis ? st.toMillis() : null, pendingWrite: d.metadata.hasPendingWrites };
-      }),
-    );
-  });
+export function subscribeEvents(
+  db: Firestore,
+  incidentId: string,
+  cb: (events: StreamedEvent[]) => void,
+  onError: (e: unknown) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "incidents", incidentId, "events"),
+    { includeMetadataChanges: true },
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const st = data["serverTime"] as { toMillis?: () => number } | null | undefined;
+          return { ...data, eventId: d.id, serverTimeMs: st?.toMillis ? st.toMillis() : null, pendingWrite: d.metadata.hasPendingWrites };
+        }),
+      );
+    },
+    onError,
+  );
 }
