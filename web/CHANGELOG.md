@@ -779,3 +779,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a failed anonymous sign-in now keeps the join form disabled and shows one sentence with a Try again button that runs sign-in again; typed text stays. The sentence names the cause: Firebase Auth's per-network sign-up limit ("Too many sign-ins from this network. Try again later."), a lost connection, or a plain failure. Before, the form stayed live (a join with no user could only fail and then blamed the code), and the sign-in message never showed at all, because the join panel took its error from a prop only when it first mounted, while still connecting.
 - Source: UI review D10.
 - Verified: `signInErrorMessage` tests failed first, then passed (10 of 10 in join.test.ts); `e2e/signin.spec.ts` (local preview, empty browser, sign-up requests aborted) failed first (no alert), then passed: the alert reads "No connection. Try again when the link is back.", Join is disabled, Try again signs in and enables Join with the typed incident id kept. The join page's shift, product-name and axe checks still pass. scripts/ci-local.sh exit 0.
+
+### test(e2e): require the judge page's cloud model to come from Remote Config
+- What: the judge-page test no longer accepts the page's pinned default; it requires "Cloud model now: gemini-...-flash-lite." with no "(default)" and "Chosen by Remote Config (fetched HH:MM)".
+- Source: the project's Remote Config template is now published (version 1, cloud_model_web gemini-3.5-flash-lite), closing the C2 check that waited on it.
+- Verified: passed against the live site with the template published. scripts/ci-local.sh exit 0.
