@@ -10,12 +10,17 @@ struct RemoteConfigValues: Equatable, Sendable {
     var killCloud: Bool
     var useLimitedUseTokens: Bool
     var minimumVersionIOS: String
+    /// The AI Logic voice model for spoken assignments. Empty means the phone's own voice only;
+    /// no model id is named in the app's source.
+    var ttsModelIOS: String
 
     static let defaults = RemoteConfigValues(cloudModelIOS: "gemini-3.5-flash-lite", tokenBudgetFraction: 0.5,
-                                             killCloud: false, useLimitedUseTokens: true, minimumVersionIOS: "0.1.0")
+                                             killCloud: false, useLimitedUseTokens: true, minimumVersionIOS: "0.1.0",
+                                             ttsModelIOS: "")
 
     /// The keys this platform owns (design section 14).
-    static let keys = ["cloud_model_ios", "token_budget_fraction", "kill_cloud", "use_limited_use_tokens", "minimum_version_ios"]
+    static let keys = ["cloud_model_ios", "token_budget_fraction", "kill_cloud", "use_limited_use_tokens", "minimum_version_ios",
+                       "tts_model_ios"]
 
     /// Reads each key; a missing or unreadable value keeps its default.
     static func from(_ value: (String) -> String?) -> RemoteConfigValues {
@@ -25,13 +30,15 @@ struct RemoteConfigValues: Equatable, Sendable {
         if let b = flag(value("kill_cloud")) { v.killCloud = b }
         if let b = flag(value("use_limited_use_tokens")) { v.useLimitedUseTokens = b }
         if let s = text(value("minimum_version_ios")) { v.minimumVersionIOS = s }
+        if let s = text(value("tts_model_ios")) { v.ttsModelIOS = s }
         return v
     }
 
     /// The defaults as Remote Config strings, under the same keys.
     var asStrings: [String: String] {
         ["cloud_model_ios": cloudModelIOS, "token_budget_fraction": String(tokenBudgetFraction), "kill_cloud": String(killCloud),
-         "use_limited_use_tokens": String(useLimitedUseTokens), "minimum_version_ios": minimumVersionIOS]
+         "use_limited_use_tokens": String(useLimitedUseTokens), "minimum_version_ios": minimumVersionIOS,
+         "tts_model_ios": ttsModelIOS]
     }
 
     /// True when command has raised the minimum above this build's version.

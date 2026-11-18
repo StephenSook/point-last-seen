@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): read the voice model for spoken assignments from Remote Config
+- What: `RemoteConfigValues` reads `tts_model_ios` (default empty). Empty means the phone's own
+  voice only; the app's source names no voice model id, so the model allow-list stays the only
+  place a model is named.
+- Source: spoken assignment changes (EXTRA-MILE F1), key agreed with lane A.
+- Verified: `RemoteConfigValuesTests` updated (the key is read; the default is empty; defaults
+  round-trip) compile-red, then green; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): build the spoken assignment from the approved plan only
 - What: `SpokenAssignment.text` makes the words for a new assignment from command's approved
   plan only: the segment ids, read as letters ("Segments A B and A C."), and the approved task
