@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): start the events listener with the pack and use team events in the posterior
+- What: `AppModel.load` starts the events listener when a pack for a new incident loads (once
+  per incident; an earlier registration is removed), and the posterior is computed over every
+  member's events from the listener plus this phone's journal, once each by event id.
+- Source: Task 13 (listener; posterior after each report).
+- Verified: `loadingAPackStartsTheEventsListenerOncePerIncident` failed with the wiring line
+  removed, then passed; 62 app tests pass; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): listen to the incident's events with metadata changes
 - What: `EventServer.listen` opens a Firestore snapshot listener on `incidents/{id}/events` with
   `includeMetadataChanges: true`. `FirestoreJSON` turns stored values into `JSONValue` (booleans

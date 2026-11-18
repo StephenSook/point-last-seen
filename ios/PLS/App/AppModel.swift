@@ -162,8 +162,10 @@ final class AppModel {
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
     func load(_ mission: Mission) async {
+        let newIncident = self.mission?.incidentId != mission.incidentId
         self.mission = mission
         refreshGate()
+        if newIncident { store?.listen(incidentId: mission.incidentId) }
         await speaker.update(mission.assignment, cloudModel: config.ttsModelIOS, online: connectivity.isOnline,
                              killCloud: config.killCloud)
     }
@@ -235,7 +237,10 @@ final class AppModel {
     /// The posterior from the pack's prior and this phone's journal (events already in the prior
     /// are left out by the shared filter).
     private func recomputePosterior(_ mission: Mission) {
-        let docs = store?.entries.map(\.doc) ?? []
+        // Every member's events from the listener plus this phone's journal, once each.
+        var byId: [String: EventDoc] = [:]
+        for doc in (store?.teamEvents ?? []) + (store?.entries.map(\.doc) ?? []) { byId[doc.eventId] = doc }
+        let docs = Array(byId.values)
         posterior = Posterior.compute(prior: mission.prior,
                                       events: EventFilter.toEngineEvents(docs, priorInputEventIds: mission.priorInputEventIds),
                                       params: mission.params)

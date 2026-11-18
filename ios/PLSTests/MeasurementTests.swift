@@ -37,4 +37,19 @@ final class FakeMeasurementWriter: MeasurementWriter {
         #expect(w.m.submittedAtMs < w.m.readDoneAtMs && w.m.readDoneAtMs < w.m.redrawnAtMs)
         #expect(model.posterior != nil)
     }
+
+    @Test func loadingAPackStartsTheEventsListenerOncePerIncident() async throws {
+        let server = FakeEventServer()
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" })
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("lis-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        model.attach(store: try EventStore(server: server, outboxURL: dir.appendingPathComponent("o.json")),
+                     identity: try DeviceIdentity(directory: dir))
+        let mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                              assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                              profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+        await model.load(mission)
+        await model.load(mission)
+        #expect(server.listenedTo == ["I1"])
+    }
 }
