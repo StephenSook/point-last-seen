@@ -3,7 +3,7 @@
 // by this trigger, by Google's design (docs/SECURITY.md row 12).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, TTS_MAX_OUTPUT_TOKENS, guardLogLine, guardRequest } from "../src/cloudGuard";
+import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, MAX_REWRITE_MEDIA_CHARS, TTS_MAX_OUTPUT_TOKENS, guardLogLine, guardRequest } from "../src/cloudGuard";
 
 const listed = JSON.parse(readFileSync(new URL("../../shared/constants/models.json", import.meta.url), "utf8")).models.map((m: { id: string }) => m.id);
 const path = (id: string) => `projects/buildhybridai-2026-yg3m/locations/global/publishers/google/models/${id}`;
@@ -115,6 +115,27 @@ describe("cloudGuard on a live template call (seen 2026-11-18)", () => {
   });
 });
 
+describe("cloudGuard on a clip-size request (measured 2026-11-18)", () => {
+  // Live, the AI Logic proxy accepted a rewritten request of 11.3 MB and failed (HTTP 500) on 15.8 MB; an 18.4 MB
+  // request left as sent went through. A request with more inline media than the limit is checked for its model
+  // and otherwise left as sent, so a long clip read still works.
+  const withMedia = (chars: number, model = "gemini-3.5-flash-lite") => [path(model),
+    { contents: [{ role: "user", parts: [{ inlineData: { mimeType: "video/mp4", data: "A".repeat(chars) } }, { text: "read" }] }],
+      generationConfig: { maxOutputTokens: 50_000 } }] as const;
+  it("is left as sent above the limit, and rewritten at or below it", () => {
+    expect(MAX_REWRITE_MEDIA_CHARS).toBe(9_000_000);
+    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS + 1))).toBeUndefined();
+    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS))?.generationConfig?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
+  });
+  it("still refuses an off-list model", () => {
+    expect(() => guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS + 1, "gemini-9-pro"))).toThrow(expect.objectContaining({ code: "permission-denied" }));
+  });
+  it("says so in the log line, by size only", () => {
+    const [model, request] = withMedia(MAX_REWRITE_MEDIA_CHARS + 1);
+    expect(guardLogLine({ model, request }, guardRequest(model, request))).toMatchObject({ rewritten: false, mediaMB: 9 });
+  });
+});
+
 describe("cloudGuard's log line", () => {
   // One line per call says which path the guard took and which setting names it saw, so a live defect can be read
   // from the logs. It never carries the prompt, inputs, media or values.
@@ -124,7 +145,7 @@ describe("cloudGuard's log line", () => {
     const out = guardRequest(path("gemini-3.5-flash-lite"), request);
     expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), request }, out)).toEqual({ event: "cloudGuard", path: "direct",
       model: "gemini-3.5-flash-lite", template: null, requestKeys: ["contents", "generationConfig", "systemInstruction"],
-      configKeys: ["maxOutputTokens", "responseSchema", "temperature"], rewritten: true });
+      configKeys: ["maxOutputTokens", "responseSchema", "temperature"], mediaMB: 0, rewritten: true });
     expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), template: { templateName: "projects/p/locations/global/templates/pls-voice-v1" }, request }, undefined))
       .toMatchObject({ path: "template", template: "projects/p/locations/global/templates/pls-voice-v1", rewritten: false });
   });

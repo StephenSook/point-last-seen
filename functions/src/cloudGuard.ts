@@ -19,13 +19,33 @@ export const TTS_MAX_OUTPUT_TOKENS = 4096;
 const KEPT = new Set(["maxOutputTokens", "temperature", "topP", "topK", "stopSequences", "responseMimeType", "responseSchema",
   "responseJsonSchema", "_responseJsonSchema", "responseModalities", "speechConfig"]);
 
+/**
+ * Inline media above this many base64 characters is too big to rewrite: the AI Logic proxy accepted a rewritten
+ * request of 11.3 MB and failed (HTTP 500) on 15.8 MB, while an 18.4 MB request left as sent went through
+ * (measured 2026-11-18). Such a request is checked for its model and otherwise left as sent.
+ */
+export const MAX_REWRITE_MEDIA_CHARS = 9_000_000;
+
 type Config = Record<string, unknown> & { maxOutputTokens?: number };
+type Part = { inlineData?: { data?: unknown } };
 type Request = Record<string, unknown> & { generationConfig?: Config };
+
+/** Base64 characters of inline media in the request's turns. */
+function mediaChars(request: Request): number {
+  let n = 0;
+  const turns = Array.isArray(request.contents) ? (request.contents as { parts?: Part[] }[]) : [];
+  for (const turn of turns) for (const part of Array.isArray(turn?.parts) ? turn.parts : []) {
+    const data = part?.inlineData?.data;
+    if (typeof data === "string") n += data.length;
+  }
+  return n;
+}
 
 /**
  * cloudGuard's rule for one generateContent request: refuse a model that is not on the list; keep only the
  * generation settings our apps use; bound the output, by the speech cap on the speech model and by the text cap on
- * every other model, whatever modality the request asks for. A template call is only checked for its model.
+ * every other model, whatever modality the request asks for. A template call that names itself, or a request with
+ * more inline media than MAX_REWRITE_MEDIA_CHARS, is only checked for its model.
  * Returns the whole request when it changes it, or undefined to leave it as sent.
  */
 export function guardRequest(model: string, request: Request, template?: unknown): Request | undefined {
@@ -41,7 +61,8 @@ export function guardRequest(model: string, request: Request, template?: unknown
   if (!(typeof asked === "number" && asked > 0 && asked <= cap)) kept.maxOutputTokens = cap;
   const unchanged = request.generationConfig !== undefined && Object.keys(kept).length === Object.keys(config).length
     && kept.maxOutputTokens === config.maxOutputTokens;
-  return unchanged ? undefined : { ...request, generationConfig: kept };
+  if (unchanged || mediaChars(request) > MAX_REWRITE_MEDIA_CHARS) return undefined;
+  return { ...request, generationConfig: kept };
 }
 
 /**
@@ -56,6 +77,7 @@ export function guardLogLine(data: { model: string; template?: { templateName?: 
     template: data.template?.templateName ?? null,
     requestKeys: Object.keys(data.request).sort(),
     configKeys: Object.keys(data.request.generationConfig ?? {}).sort(),
+    mediaMB: Math.floor(mediaChars(data.request) / 1e6),
     rewritten: out !== undefined,
   };
 }

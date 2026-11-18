@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard leaves a request with more than 9,000,000 base64 characters of inline media as sent, after the model
+  check. Measured live on 2026-11-18 with the guard forcing a rewrite: requests of 1.6, 5.9 and 11.3 MB went
+  through, 15.8 MB failed with HTTP 500 from the AI Logic proxy, and an 18.4 MB request left as sent went
+  through. Without this, every long clip read failed, since template calls always arrive without a token limit
+  and so are rewritten. Such a request keeps the model allow-list but not the output cap; the log line reports
+  its media size in MB.
+  Source: the live burst check after the redeploy (six 13.8 MB clip calls, all HTTP 500) and the size sweep.
+  Verified: the tests (left as sent above the limit and rewritten at it; an off-list model still refused; the
+  log line reports `mediaMB` and no rewrite) failed first, now 18 cloudGuard tests pass; functions typecheck
+  exit 0; `bash scripts/ci-local.sh` exit 0.
 - cloudGuard keeps a server prompt template's output schema. The log line showed that live template calls
   arrive with no template name (`data.template` null) and carry the schema in generationConfig as
   `_responseJsonSchema`, with no token limit; the guard dropped that key, so the sighting template invented field
