@@ -31,6 +31,7 @@ targets:
     platform: iOS
     sources:
       - path: PLS
+      - path: PLSShared
       - path: ../shared/constants/engine-params.json
         buildPhase: resources
       - path: ../shared/constants/evidence-terms.json
@@ -94,6 +95,28 @@ targets:
         product: MapLibre
       - package: PLSCore
         product: PLSCore
+      - target: PLSWidgets
+  PLSWidgets:
+    # The Action-button control (P-08) and the team's Live Activity (P-07).
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PLSWidgets
+      - path: PLSShared
+    info:
+      path: PLSWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Point Last Seen
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
   PLSTests:
     type: bundle.unit-test
     platform: iOS

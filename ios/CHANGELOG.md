@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): add a Log report control for the Action button
+- What: a WidgetKit extension target `PLSWidgets` (in `ios/project.yml`, embedded in the app)
+  with the `LogReportControl` control. Its `LogReportIntent` (in `ios/PLSShared`, built into
+  both targets) runs in the app in the foreground (`supportedModes = .foreground(.immediate)`;
+  `openAppWhenRun` is deprecated in iOS 26) and asks `ReportFocus` for the Report field, which
+  the field screen focuses once when a pack is loaded. Assigned to the Action button, one press
+  opens the app with the keyboard and its microphone key ready.
+- Source: promotion P-08, Task 32 item 6.
+- Verified: two `LogReportIntentTests` (foreground mode; perform asks once, focus taken once)
+  compile-red without the types, then green; 45 app tests pass on the iOS 27.2 simulator; the
+  built app holds `PlugIns/PLSWidgets.appex` with extension point
+  `com.apple.widgetkit-extension`; `scripts/ci-local.sh` exit 0. Not verified yet: assigning
+  the control to the iPhone's Action button (a device step for Stephen).
+
 ### feat(ios): collect crash reports with Crashlytics
 - What: the app links `FirebaseCrashlytics` (pinned SDK, no new package) and a post-build
   script uploads the dSYMs for symbolication on Release builds only, with Firebase's

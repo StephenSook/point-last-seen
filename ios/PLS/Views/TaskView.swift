@@ -61,5 +61,9 @@ struct TaskView: View {
             }
         }
         .padding()
+        // The "Log report" control (Action button) asks for the Report field.
+        .task(id: ReportFocus.shared.pending) {
+            if ReportFocus.shared.take(), model.mission != nil { focused = true }
+        }
     }
 }
