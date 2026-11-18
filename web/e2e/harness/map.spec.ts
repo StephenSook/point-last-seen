@@ -14,3 +14,8 @@ test("each centre shows the second-signal dot, and its printed percent hangs bel
     expect(near(px, MAP_INK.dot), `plate ${i}: ${hex(px)} at the centre`).toBe(true);
   }
 });
+
+test("MapView hands its map to onReady once loaded", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.locator("body")).toHaveAttribute("data-map-ready", "map", { timeout: 20_000 });
+});

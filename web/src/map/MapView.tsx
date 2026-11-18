@@ -26,6 +26,8 @@ type Props = {
   attribution?: string | undefined;
   /** Segments moved by the newest report, largest move first. The three largest get the cyan outline and a chip. */
   moved?: readonly { segmentId: string; deltaPts: number }[];
+  /** Called with the map once its style and sources exist, and with null when it is removed. */
+  onReady?: (map: MlMap | null) => void;
 };
 
 const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
@@ -43,13 +45,15 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
   const fitted = useRef(false);
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
   const pinMarker = useRef<Marker | null>(null);
   const chips = useRef<Marker[]>([]);
   // Set once the style and our sources exist. isStyleLoaded() turns false again while a source updates,
@@ -83,6 +87,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
       m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
       ready.current = true;
+      readyRef.current?.(m);
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
@@ -92,6 +97,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       m.remove();
       map.current = null;
       ready.current = false;
+      readyRef.current?.(null);
     };
   }, []);
 

@@ -482,3 +482,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `motion/walkerCanvas.ts`: `cohortReleaseMs` (25 walkers per cohort, 100 ms apart) and `walkerFrame(tracks, t)`, each walker's point at time t walked at even speed along its polyline, with done once it arrives. Plain arithmetic; the canvas will draw these points with no animation object per walker.
 - Source: plan Task 39.5 (walker canvas; tracks come from Task 37).
 - Verified: `src/motion/walkerCanvas.test.ts` (the plan's test plus a bent track) failed first, then passed. scripts/ci-local.sh exit 0.
+
+### feat(map): hand the loaded map to an optional onReady callback
+- What: MapView takes `onReady?: (map) => void`, called with the MapLibre map once its style and sources exist and with null when it is removed. Nothing in this repo branch uses it yet; the extras lane's ExtrasDock will (hook H3).
+- Source: extras lane request H3 via the orchestrator.
+- Verified: new map harness test failed first (no call), then passed; all four harness specs pass. scripts/ci-local.sh exit 0.
