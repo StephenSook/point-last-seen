@@ -90,7 +90,8 @@ function cameraInterval(doc: EventDoc): ReplayEvent["camera"] {
 }
 
 function replayEvent(doc: EventDoc, arrivedAtMs: number | null, offsets: Record<string, number>): ReplayEvent {
-  const sentAtMs = doc.clientTimeMs + (offsets[doc.deviceId] ?? 0);
+  const offset = offsets[doc.deviceId] ?? 0;
+  const sentAtMs = doc.clientTimeMs + offset;
   let offlineForMs: number | null = null;
   let clockSuspect = false;
   if (arrivedAtMs !== null) {
@@ -106,7 +107,8 @@ function replayEvent(doc: EventDoc, arrivedAtMs: number | null, offsets: Record<
     deviceId: doc.deviceId,
     sentAtMs,
     arrivedAtMs,
-    observedAtMs: num(doc.observedAtMs) ? doc.observedAtMs : null,
+    // Read from the same phone clock as the sent time ("seen 20 minutes ago"), so it gets the same offset.
+    observedAtMs: num(doc.observedAtMs) ? doc.observedAtMs + offset : null,
     position: isObj(p) && num(p.lat) && num(p.lon) ? { lat: p.lat, lon: p.lon } : null,
     offlineForMs,
     clockSuspect,

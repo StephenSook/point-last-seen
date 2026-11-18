@@ -8,7 +8,8 @@ import type { ExtrasMapLike } from "../types";
 import type { ReplayEvent } from "./replayData";
 import type { ReplayFrame } from "./stateAt";
 
-export type TrailPoint = { eventId: string; kind: "sighting" | "camera" | "report"; lat: number; lon: number; tMs: number; confirmed: boolean };
+/** timeTrusted: false when the phone's clock is suspect or the seen time is after the report arrived. */
+export type TrailPoint = { eventId: string; kind: "sighting" | "camera" | "report"; lat: number; lon: number; tMs: number; confirmed: boolean; timeTrusted: boolean };
 export type Leg = { fromId: string; toId: string; metres: number; minutes: number; mps: number };
 
 /** Mean Earth radius (IUGG), metres. */
@@ -61,14 +62,19 @@ export function trailPoints(frame: ReplayFrame): TrailPoint[] {
   return frame.shown.flatMap((e): TrailPoint[] => {
     if (!e.position || NOT_A_PLACE.has(e.type) || retracted.has(e.eventId)) return [];
     const kind = e.type === "sighting" ? "sighting" : e.type === "camera_sighting" ? "camera" : "report";
-    return [{ eventId: e.eventId, kind, lat: e.position.lat, lon: e.position.lon, tMs: seenAtMs(e), confirmed: kind !== "report" && confirmed.has(e.eventId) }];
+    const tMs = seenAtMs(e);
+    const timeTrusted = !e.clockSuspect && e.arrivedAtMs !== null && tMs <= e.arrivedAtMs;
+    return [{ eventId: e.eventId, kind, lat: e.position.lat, lon: e.position.lon, tMs, confirmed: kind !== "report" && confirmed.has(e.eventId), timeTrusted }];
   });
 }
 
-/** Confirmed sightings and confirmed camera sightings, by the time the person was seen. */
+/**
+ * Confirmed sightings and confirmed camera sightings, by the time the person was seen. A point whose time is not
+ * trusted stays on the map but leaves the order: a wrong phone clock must not reorder the line or invent a leg.
+ */
 export function trailOrder(points: readonly TrailPoint[]): TrailPoint[] {
   return points
-    .filter((p) => p.confirmed && p.kind !== "report")
+    .filter((p) => p.confirmed && p.kind !== "report" && p.timeTrusted)
     .sort((a, b) => a.tMs - b.tMs || (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
 }
 

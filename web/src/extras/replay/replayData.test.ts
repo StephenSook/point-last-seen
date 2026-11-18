@@ -86,6 +86,11 @@ describe("fromLive", () => {
     expect(out[2]!.arrivedAtMs).toBeNull();
   });
 
+  it("the time a person was seen gets the phone's measured offset, like the sent time", () => {
+    const doc = eventDoc({ eventId: "seen", type: "sighting", deviceId: "d1", observedAtMs: T0, clientTimeMs: T0 + MIN });
+    expect(fromLive(replayView(), [streamed(doc, T0 + 2 * MIN)], [])!.events[0]!.observedAtMs).toBe(T0 + 5_000);
+  });
+
   it("a camera sighting with a confirmed clock gives a person-in-view interval", () => {
     const doc = eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() });
     const out = fromLive(replayView(), [streamed(doc, T0)], [])!.events[0]!;

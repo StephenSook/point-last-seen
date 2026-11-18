@@ -41,6 +41,11 @@ describe("cubeScene", () => {
     expect(s.points[0]).toMatchObject({ t0: T0 + MIN, t1: T0 + MIN, waitS: null });
   });
 
+  it("a sighting whose seen time is not trusted has no bar", () => {
+    const s = scene([[{ eventId: "late", type: "sighting", clientTimeMs: T0, observedAtMs: T0 + 9 * MIN, position: at(0) }, T0 + 2 * MIN]]);
+    expect(s.points[0]).toMatchObject({ t0: T0 + 2 * MIN, t1: T0 + 2 * MIN });
+  });
+
   it("each segment is on the floor once, in metres around the grid centre", () => {
     const s = scene(four);
     expect(s.floor.map((f) => f.segmentId)).toEqual(["AA", "AB", "AC"]);

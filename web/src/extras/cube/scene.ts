@@ -60,7 +60,8 @@ export function cubeScene(data: ReplayData, w: ReplayWindow): CubeScene {
     const e = byId.get(tp.eventId);
     if (!e || e.arrivedAtMs === null) return [];
     const local = toLocalM(tp, origin);
-    const bottom = tp.kind === "report" ? (e.clockSuspect ? e.arrivedAtMs : e.sentAtMs) : Math.min(tp.tMs, e.arrivedAtMs);
+    // No bar from a time that is not trusted (a suspect phone clock, or seen after it arrived).
+    const bottom = tp.kind === "report" ? (e.clockSuspect ? e.arrivedAtMs : e.sentAtMs) : tp.timeTrusted ? tp.tMs : e.arrivedAtMs;
     return [{ id: e.eventId, kind: tp.kind, x: local.x, y: local.y, t0: bottom, t1: e.arrivedAtMs, waitS: e.offlineForMs === null ? null : e.offlineForMs / 1000 }];
   });
 

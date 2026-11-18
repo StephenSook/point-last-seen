@@ -58,6 +58,24 @@ describe("trailPoints", () => {
     expect(trailPoints(f)).toEqual([]);
   });
 
+  it("a sighting from a phone with a suspect clock keeps its point but not its time", () => {
+    const f = frame([
+      // Sent "after" it arrived: the phone's clock is wrong, so its seen time is not trusted either.
+      { eventId: "s1", type: "sighting", position: at(0), observedAtMs: T0 + 30 * MIN, clientTimeMs: T0 + 31 * MIN },
+      { eventId: "s2", type: "sighting", position: at(0.01), observedAtMs: T0 },
+      confirm("c1", "s1"),
+      confirm("c2", "s2"),
+    ]);
+    const pts = trailPoints(f);
+    expect(pts.map((p) => [p.eventId, p.timeTrusted])).toEqual([["s1", false], ["s2", true]]);
+    expect(trailOrder(pts).map((p) => p.eventId)).toEqual(["s2"]);
+  });
+
+  it("a seen time later than the report's arrival is not trusted", () => {
+    const f = frame([{ eventId: "s1", type: "sighting", position: at(0), observedAtMs: T0 + 60 * MIN }, confirm("c1", "s1")]);
+    expect(trailPoints(f)[0]).toMatchObject({ eventId: "s1", timeTrusted: false });
+  });
+
   it("a camera sighting sits at the time the camera last saw the person", () => {
     const f = frame([{ eventId: "cam", type: "camera_sighting", position: at(0), reading: cameraReading({ clipStartMs: T0 }) }]);
     expect(trailPoints(f)[0]).toMatchObject({ kind: "camera", tMs: T0 + 134_000 });
@@ -66,10 +84,10 @@ describe("trailPoints", () => {
 
 describe("trailOrder and legs", () => {
   const pts: TrailPoint[] = [
-    { eventId: "a", kind: "sighting", lat: LAT, lon: LON, tMs: T0, confirmed: true },
-    { eventId: "rep", kind: "report", lat: LAT, lon: LON, tMs: T0 + MIN, confirmed: false },
-    { eventId: "un", kind: "sighting", lat: LAT, lon: LON, tMs: T0 + 2 * MIN, confirmed: false },
-    { eventId: "cam", kind: "camera", lat: LAT + NORTH_1100, lon: LON, tMs: T0 + 40 * MIN, confirmed: true },
+    { eventId: "a", kind: "sighting", lat: LAT, lon: LON, tMs: T0, confirmed: true, timeTrusted: true },
+    { eventId: "rep", kind: "report", lat: LAT, lon: LON, tMs: T0 + MIN, confirmed: false, timeTrusted: true },
+    { eventId: "un", kind: "sighting", lat: LAT, lon: LON, tMs: T0 + 2 * MIN, confirmed: false, timeTrusted: true },
+    { eventId: "cam", kind: "camera", lat: LAT + NORTH_1100, lon: LON, tMs: T0 + 40 * MIN, confirmed: true, timeTrusted: true },
   ];
 
   it("only confirmed sightings join the order line", () => {
@@ -95,7 +113,8 @@ describe("trailCollections", () => {
   it("gives every point and a line through the confirmed order, longitude first", () => {
     const f = frame([
       { eventId: "s1", type: "sighting", position: at(0), observedAtMs: T0 },
-      { eventId: "s2", type: "sighting", position: at(0.01), observedAtMs: T0 + MIN },
+      // Seen before it arrived (the frame helper's arrivals are a second apart).
+      { eventId: "s2", type: "sighting", position: at(0.01), observedAtMs: T0 + 500 },
       { eventId: "rep", type: "clue", position: at(0.02) },
       confirm("c1", "s1"),
       confirm("c2", "s2"),
