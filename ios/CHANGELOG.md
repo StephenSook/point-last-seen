@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): turn events into Firestore values and read the server identity
+- What: `JSONValue.firestoreValue` gives Foundation objects for a write: whole numbers as
+  integers (the rules require `seq` to be an int), fractions as doubles, null as `NSNull`.
+  `EventIdentity(json:)` reads deviceId, seq, authorUid and clientTimeMs from a server copy, so
+  the Outbox can tell "already delivered" from "a different event".
+- Source: Task 13 (EventStore read-back), lane A's rules contract (seq int).
+- Verified: two `FirestoreValueTests` red, then green; full suite 172 tests.
+
 ### feat(ios-core): allocate event sequence numbers from epoch milliseconds
 - What: `SeqAllocator` starts a fresh install at the current epoch milliseconds and counts up by
   one, persisting each number before handing it out. A reinstall keeps the anonymous uid (the
