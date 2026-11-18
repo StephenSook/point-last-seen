@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Checklist: the judging-window model line now points at the gate's allow-list and asks for a re-read of the
+  live models page on or after 2026-11-28, moving any newly retiring id to `banned` and updating `readOn`;
+  Remote Config values get the same check before the template is published.
+  Source: orchestrator ruling (turn the model line into a test; re-read the page on Nov 28).
+  Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - Model allow-list: `shared/constants/models.json` lists the model ids the project may name (today only
   gemini-3.5-flash-lite: Stable, released 2026-07-21, no shutdown date) and the banned ones
   (gemini-3.1-flash-tts-preview, shut down 2026-11-17), read from the live Firebase AI Logic models page on

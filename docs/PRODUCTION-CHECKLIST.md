@@ -49,7 +49,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public from 2026-11-28, last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |
 | Actions budget ($15, resets monthly on the 1st) | December has its own $15; the repo is public from 2026-11-28, so its minutes are free | Line below |
 | Gemini spend cap ($25 budget) | Judge sandboxes call the cloud; burn rate NOT MEASURED yet | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below measures it |
-| Model versions pinned in prompts and Remote Config | A model shut down inside the window breaks the cloud route | Line below |
+| Model versions pinned in prompts and Remote Config | A model shut down inside the window breaks the cloud route | The rules gate pins every id to `shared/constants/models.json` (read 2026-11-18); line below re-reads it |
 | Artifact Registry cleanup (1 day) | Deletes old function images only; running functions keep serving | Nothing; a rollback rebuilds from source |
 
 - [ ] Every judge-sandbox copy of a clip reading gets `expiresAt` set from the sandbox's own end (Task 23,
@@ -60,8 +60,10 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 - [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
   and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
   already used. If not, lower the daily cap before submit.
-- [ ] Every model id named in code and Remote Config has no shutdown date before 2026-12-17 on the Gemini
-  models page (date of the check written here). A model retiring inside the window is swapped before submit.
+- [ ] Re-read https://firebase.google.com/docs/ai-logic/models on 2026-11-28 or later: every id under `models`
+  in `shared/constants/models.json` still shows no shutdown date before 2026-12-17, any newly retiring id moves
+  to `banned`, and `readOn` is updated. The rules gate then fails on any source that still names a banned or
+  unlisted id. Remote Config values are checked the same way before the template is published.
 - [ ] `gh api repos/StephenSook/point-last-seen --jq .pushed_at` is after 2026-11-17 (the 60-day cutoff for
   scheduled workflows lands after 2026-12-16), and `gh api repos/StephenSook/point-last-seen/actions/workflows
   --jq '.workflows[] | "\(.state) \(.path)"'` shows probe.yml `active`, with its newest run under 26 hours old.
