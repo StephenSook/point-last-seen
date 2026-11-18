@@ -654,3 +654,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `workers/runWalkers.ts` `runWalkersInWorker(job, onProgress)` starts `walkers.worker.ts` as a module Worker, forwards progress, resolves with the result and the measured time, rejects with the engine's message, and ends the Worker either way. Dev-only harness `web/harness/walkers.html` runs the engine's toy graph (10,000 walkers, 300 sampled tracks) through the Worker and directly.
 - Source: plan Task 37c.
 - Verified: new `e2e/harness/walkers.spec.ts`: the Worker's table equals the engine's for the same seed, the time is measured, progress reads 0 then 10,000, 300 tracks come back; a mutant Worker running another seed fails it. scripts/ci-local.sh exit 0.
+
+### feat(walkers): turn sampled walker tracks into map polylines released in cohorts
+- What: `motion/walkerTracks.ts` `walkerTracksToLngLat(tracks, graph, durationMs)`: each sampled track's stations (and its end point when it stayed on the graph) become longitude and latitude through the graph's projection, released in cohorts of 25, 100 ms apart, so the canvas projects only each walker's current point per frame.
+- Source: plan Task 37c and 39.5 (walker canvas).
+- Verified: `src/motion/walkerTracks.test.ts` (2 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
