@@ -64,7 +64,7 @@ jobs:
       - name: Regenerate the vectors and fail on any difference
         run: |
           python3 -I tools/vectors/make_vectors.py
-          git diff --exit-code -- shared/test-vectors/search.json
+          git diff --exit-code -- shared/test-vectors/search.json shared/test-vectors/prior.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
@@ -72,4 +72,4 @@ jobs:
       - name: Install (clean, from the lockfile)
         run: npm ci
       - name: TypeScript engine against the regenerated vectors
-        run: npm test -w shared/engine-ts -- test/vectors.test.ts
+        run: npm test -w shared/engine-ts -- test/vectors.test.ts test/priorVectors.test.ts

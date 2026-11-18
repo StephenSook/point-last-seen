@@ -5,6 +5,21 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The linear-feature layer is neutral (every weight 1) when the grid's mass-weighted near share NEAR is at or
+  above 0.75, the ISRID share; below it the spec 10.5 formula is unchanged. `linearWeights` is now a pure
+  export of @pls/engine (buildPrior uses it), with a Python reference in tools/vectors/make_vectors.py and
+  TypeScript-only vectors in the new `shared/test-vectors/prior.json` (dense grid neutral, exactly 0.75
+  neutral, sparse grid on the formula, all far and zero mass unchanged), kept out of search.json because the
+  Swift and Kotlin twins only consume priors and refuse unknown sections. The rule is continuous at 0.75 and
+  removes the division by zero at NEAR = 1. LIMITS labels it as ours. NEAR stays mass-weighted, as since Task
+  10: mass weighting is what makes the target exact when segments are wholly near or far, and the guard must
+  use the same NEAR as the formula or the layer jumps at the threshold (the design note says "area-weighted";
+  flagged to the orchestrator).
+  Source: coordinator ruling 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
+  Verified: 2 engine tests failed first (no function; a dense grid was not neutral), now 174 pass with the 5
+  prior vectors; search.json byte-identical (no existing expected value changed); 15 generator tests pass;
+  `make_vectors.py --check` covers both files; the vectors-parity job diffs both and runs both TS vector tests;
+  `bash scripts/ci-local.sh` exit 0.
 - Production checklist, Android: raise the Remote Config key `minimum_version_android` only after the repo is
   public (not before 2026-11-28) and the release APK is a GitHub Release asset, because the family app's
   update screen opens the repo's latest release, a 404 while the repo is private; the line names the two `gh`

@@ -10,6 +10,14 @@ each line says what the limit is and why.
   `release.sh` and must report 0 hits for debug tokens, token resources, `FIREBASE_APPCHECK_DEBUG_TOKEN`
   and the debug provider (the debug APK reports 5).
 
+## Search model
+
+- The linear-feature layer (ISRID: 75% of found subjects within 71 m of a road, trail, stream or water edge)
+  is switched to neutral when 75% or more of the grid's prior mass is already that close to a feature. This
+  rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the
+  mass onto the small area far from every feature, the opposite of what the layer is for. The command post's
+  source line for the layer says so.
+
 ## Media retention
 
 - Any member of an incident can create a link to its photos and clips that works without signing in, until
