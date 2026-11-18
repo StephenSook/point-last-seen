@@ -182,7 +182,7 @@ final class AppModel {
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
-        await speaker.update(mission.assignment, cloudModel: config.ttsModelIOS, online: connectivity.isOnline,
+        await speaker.update(mission.assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,
                              killCloud: config.killCloud, signedIn: signIn.signedIn)
     }
 

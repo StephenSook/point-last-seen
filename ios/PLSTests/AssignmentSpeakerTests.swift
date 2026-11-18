@@ -27,8 +27,8 @@ final class FakeVoice: AssignmentVoice {
     @Test func speaksOnceOnTheDeviceWhenNoCloudVoiceIsNamed() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
         let s = speaker(onDevice: onDevice, cloud: cloud, log: log)
-        await s.update(assignment(["AC"]), cloudModel: "", online: true, killCloud: false, signedIn: true)
-        await s.update(assignment(["AC"]), cloudModel: "", online: true, killCloud: false, signedIn: true)
+        await s.update(assignment(["AC"]), voiceTemplate: "", online: true, killCloud: false, signedIn: true)
+        await s.update(assignment(["AC"]), voiceTemplate: "", online: true, killCloud: false, signedIn: true)
         #expect(onDevice.spoken == ["New assignment. Segment A C. Walk the creek bank."])
         #expect(cloud.spoken.isEmpty)
         #expect(log.entries == [SpeechRecord(path: .onDevice, outcome: "spoken", startMs: 120)])
@@ -37,7 +37,7 @@ final class FakeVoice: AssignmentVoice {
     @Test func usesTheCloudVoiceWhenNamedAndOnline() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
         cloud.startMs = 900
-        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), cloudModel: "voice-model", online: true, killCloud: false, signedIn: true)
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
         #expect(cloud.spoken.count == 1)
         #expect(onDevice.spoken.isEmpty)
         #expect(log.entries == [SpeechRecord(path: .cloud, outcome: "spoken", startMs: 900)])
@@ -46,7 +46,7 @@ final class FakeVoice: AssignmentVoice {
     @Test func aFailedCloudVoiceFallsBackToTheDevice() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
         cloud.fails = true
-        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), cloudModel: "voice-model", online: true, killCloud: false, signedIn: true)
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
         #expect(onDevice.spoken.count == 1)
         #expect(log.entries == [SpeechRecord(path: .cloud, outcome: "failed", startMs: nil),
                                 SpeechRecord(path: .onDevice, outcome: "spoken", startMs: 120)])
@@ -54,13 +54,13 @@ final class FakeVoice: AssignmentVoice {
 
     @Test func noAssignmentSaysNothing() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
-        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(nil, cloudModel: "", online: true, killCloud: false, signedIn: true)
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(nil, voiceTemplate: "", online: true, killCloud: false, signedIn: true)
         #expect(onDevice.spoken.isEmpty && cloud.spoken.isEmpty && log.entries.isEmpty)
     }
 
     @Test func neverUsesTheCloudVoiceBeforeSignIn() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
-        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), cloudModel: "voice-model", online: true,
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment(["AB"]), voiceTemplate: "voice-model", online: true,
                                                                         killCloud: false, signedIn: false)
         #expect(cloud.spoken.isEmpty)
         #expect(onDevice.spoken.count == 1)
