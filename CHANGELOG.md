@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The emulator port wait asks ps for unlimited width (`ps -wwAo`). On the Linux CI runner under pytest, ps cut
+  each line at 80 columns, dropping the "--port N" the wait looks for, so the wait reported the ports free
+  while an emulator process still held one. The CI gates job had failed on this test since f8d1547, and the
+  same cut would have hidden a real lingering Firestore JVM on Linux.
+  Source: CI failure on main (gates job), reproduced in a Linux container.
+  Verified: the process-holder test, now run with COLUMNS=40, failed in a python:3.12 Linux container (the ps
+  line ended "fake-firestore-") and passes there after the fix (11 tests; the lsof test needs lsof, which the
+  container lacks and the runner has); 12 emulator-config tests pass locally; `bash scripts/ci-local.sh` exit 0.
 - Remote Config can no longer be replaced by a partial template. `remoteconfig.template.json` holds every key
   the three clients read, with the intended values (kill_cloud false, limited-use tokens on, every model key on
   the allow-list, the iOS voice model set), and a test fails if any client's default key is missing from it.

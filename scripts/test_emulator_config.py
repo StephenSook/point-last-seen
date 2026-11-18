@@ -1,6 +1,7 @@
 """Tests for scripts/emulator_config.py (per-worktree emulator ports)."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -76,9 +77,9 @@ def ports_of(root):
     return sorted(ports(make(root)).values())
 
 
-def wait(root, seconds):
+def wait(root, seconds, env=None):
     return subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--wait-ports", str(seconds)],
-                          capture_output=True, text=True, timeout=seconds + 30)
+                          capture_output=True, text=True, timeout=seconds + 30, env=env)
 
 
 def holder(port):
@@ -162,7 +163,9 @@ def test_wait_ports_also_waits_for_an_emulator_process_that_names_a_block_port(t
     port = ports(make(root))["firestore"]
     proc = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(30)", "fake-firestore-emulator", "--port", str(port)])
     try:
-        out = wait(root, 2)
+        # A narrow COLUMNS makes ps cut each line (Linux CI under pytest cut at 80 and dropped "--port N"), so
+        # the wait must ask ps for unlimited width.
+        out = wait(root, 2, env={**os.environ, "COLUMNS": "40"})
     finally:
         proc.kill()
         proc.wait()
