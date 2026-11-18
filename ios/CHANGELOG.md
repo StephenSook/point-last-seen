@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): use the auth uid as device id and epoch-millisecond sequence numbers
+- What: `DeviceIdentity` gives the anonymous Firebase Auth uid as the event device id (the
+  create rule checks `deviceId == request.auth.uid`) and the next sequence number from
+  `SeqAllocator` in Application Support.
+- Source: lane A's security-rules contract (points 1 and 2), Task 13 (DeviceIdentity).
+- Verified: app builds for the simulator with only this commit's files; the allocator's own tests
+  cover the numbering. A reinstall check is on the morning device list.
+
 ### feat(ios): write events through the Outbox with a server read-back
 - What: `EventStore` journals each event, then calls `setData` with its completion callback and
   never awaits it (the callback does not run while offline). Success marks the entry delivered;
