@@ -26,6 +26,8 @@ echo "== ts: engine typecheck, lint and tests (uses the existing install; CI run
 npm run typecheck -w shared/engine-ts
 npm run lint -w shared/engine-ts
 npm test -w shared/engine-ts
+npm run typecheck -w tools/grid-builder
+npm test -w tools/grid-builder
 
 echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check

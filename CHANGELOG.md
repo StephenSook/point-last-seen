@@ -12,6 +12,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   parents kept its version.
   Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
   CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- The `ts` job (and `ci-local.sh`) now typecheck and test `tools/grid-builder`: its 10 tests ran in neither
+  until now. A multi-line `run:` in Actions uses `bash -e`, so a failing typecheck stops the step.
+  Source: own finding while checking what CI covers for Task 10.
+  Verified: `bash scripts/ci-local.sh` exit 0 with the grid builder's typecheck and 10 tests in its output.
 - Add `storage.cors.json` (GET from the two hosting origins; the headers the web SDK sends) and apply it to the
   bucket: the web photo tray's `getBytes` XHR was blocked with "No 'Access-Control-Allow-Origin' header is
   present". `docs/PRODUCTION-CHECKLIST.md` gains a Firebase project section: the CORS apply and read-back
