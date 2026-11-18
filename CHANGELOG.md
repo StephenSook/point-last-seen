@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Narrow the `swift-core` trigger to `ios/PLSCore/**` until lane B's package is on main. With the shared
+  paths, the next vector or constants change on main would have started a job with no package and failed.
+  Widen to shared/test-vectors/** and shared/constants/** after the lane B merge.
+  Source: self-review of a695a9c (same trap the workflow's own path had).
+  Verified: `git diff` shows only the path list and comment; `bash scripts/ci-local.sh` exits 0.
 - Add the `swift-core` CI job (`.github/workflows/swift.yml`): `swift test --package-path ios/PLSCore` in
   `swift:6.4.2-noble` pinned by index digest, on pull requests to main and on main only, path-filtered to
   ios/PLSCore, shared/test-vectors and shared/constants (not its own path, so it cannot run before

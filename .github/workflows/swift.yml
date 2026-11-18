@@ -1,21 +1,18 @@
 name: Swift core
 
-# Expensive (Swift in Docker): runs on pull requests to main and on main only,
-# when the Swift package or the shared vectors and constants change. The workflow's own
-# path is not a trigger: before ios/PLSCore lands on main the job would fail on a missing package.
+# Expensive (Swift in Docker): runs on pull requests to main and on main only.
+# Until ios/PLSCore is on main the only trigger is ios/PLSCore itself, so a shared/ change
+# cannot start a job that has no package to test. After the lane B merge, widen the paths to
+# shared/test-vectors/** and shared/constants/** (the Swift vector tests read them).
 on:
   push:
     branches: [main]
     paths:
       - "ios/PLSCore/**"
-      - "shared/test-vectors/**"
-      - "shared/constants/**"
   pull_request:
     branches: [main]
     paths:
       - "ios/PLSCore/**"
-      - "shared/test-vectors/**"
-      - "shared/constants/**"
   workflow_dispatch:
 
 permissions:
