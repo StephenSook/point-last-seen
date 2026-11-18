@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The seeding tool draws all three role codes and checks they are distinct (drawing again if not) before
+  any Keychain entry or Firestore doc is written.
+  Source: Codex re-review of the C1 fix.
+  Verified: the new test (a forced collision on the first draw) failed first, now 6 seed tests pass;
+  ci-local exits 0.
 - Run the rules suite under a per-worktree demo project id (`demo-pls-` + 8 hex of the worktree path, from
   `scripts/emulator_config.py --project-id`); test helpers read it from GCLOUD_PROJECT. Separate ports alone
   still let the emulator hub report "running multiple instances of the emulator suite for project demo-pls"
