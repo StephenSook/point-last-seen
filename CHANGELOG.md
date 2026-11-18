@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- firebase.json builds the functions before every deploy (`predeploy: npm --prefix "$RESOURCE_DIR" run build`),
+  so a deploy can never ship a stale `functions/lib` (it is gitignored and only built locally).
+  Source: fresh-context review minor 1.
+  Verified: the same command run from the root exits 0 and writes lib/index.js and lib/join.js; firebase.json
+  parses; ci-local exits 0. Nothing is deployed by this commit.
 - Schema parity checks more: for TypeScript, a string-enum property's values must equal the literal union of
   its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
   silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,
