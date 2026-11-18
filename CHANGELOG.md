@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N` (admin, gcloud OAuth)
+  writes the grid builder's segment docs under incidents/{id}/segments, deletes segment docs the new grid no
+  longer has, then updates only gridId, ipp, terrain, priorLayers, gridAttribution and priorVersion on the
+  incident (last, so the incident never points at a grid whose segments are missing), in commits of at most
+  500 writes, and reads the segment ids back. It refuses a payload whose prior does not sum to 1, has a
+  duplicate or malformed id, a negative mass, a non-polygon geometry, or ROW anywhere but last. Its tests join
+  the gates job and ci-local.
+  Source: orchestrator (development prior for drill-dev-1; the same tool seeds Stephen's site later).
+  Verified: 9 tests failed first (no module), now pass; `bash scripts/ci-local.sh` exit 0.
 - Grid builder `--prior <grid.json> --ipp <lat,lon> --terrain <...> [--linear] [--bearing <deg>] --out <file>`
   writes the segment docs the apps read under incidents/{id}/segments: one per segment (geometry as a GeoJSON
   string, centroid, area, neighbours, stream links, nearFrac, feature classes) with the engine's own
