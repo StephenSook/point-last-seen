@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): keep the screen choice and switch to night colours at dusk
+- What: `ThemeStore` keeps Auto, Day or Night on this phone (an unknown stored value falls back
+  to Auto); `FieldColor` turns the theme's hex values into colours; `RootView` re-checks each
+  minute, passes the chosen colours down as `fieldTheme`, and sets the tint, text colour and
+  black background. Auto uses the last GPS fix (`AppModel.lastFix`), else the pack's area.
+- Source: promotion P-16, Task 25 (`ThemeStore`).
+- Verified: four `ThemeStoreTests` (choice kept, unknown value, place order, hex parsing)
+  compile-red without the types, then green; 34 app tests pass on the iOS 27.2 simulator with
+  only this commit's app files; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): choose the field theme from the setting, the clock and the place
 - What: `ThemeMode` (auto, day, night) and `FieldTheme.resolve(mode:date:at:)`. Day and Night
   are fixed choices; Auto is night between civil dusk and civil dawn at the given place and day

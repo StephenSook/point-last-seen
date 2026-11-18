@@ -23,6 +23,8 @@ final class AppModel {
     private(set) var mission: Mission?
     private(set) var store: EventStore?
     private(set) var sending = false
+    /// The last GPS fix this phone got; the screen theme uses it to know when it is dusk here.
+    private(set) var lastFix: Position?
     var problem: String?
     private var identity: DeviceIdentity?
     private var screen: EvidenceScreen?
@@ -108,6 +110,7 @@ final class AppModel {
         refreshGate()
 
         let position = await location.fix(timeout: 10)
+        if let position { lastFix = position }
         let situation = ReportSituation(
             incidentMode: mission.mode, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds,
