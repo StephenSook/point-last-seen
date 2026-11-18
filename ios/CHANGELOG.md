@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): read "calling only, no visual search" as sound only
+- What: in the parser's method check, a method word right after a negation word ("no visual",
+  "without looking") does not count, and "only" or "just" next to a sound word makes the method
+  sound. So a sound-only clear gets effect none/sound_only instead of about 63% POD as "both".
+- Source: Codex review M6; spec section 10.4.
+- Verified: new tests failed on the old code (the sentence parsed as both and the clear
+  counted), then passed; "no calling, looked everywhere" stays visual; full suite 161 tests.
+
 ### fix(ios-core): keep the minus sign so a negative coverage is rejected
 - What: the tokenizer keeps a minus sign that starts a number (not one after a letter, as in
   "AC-2"), and the number reader accepts it, so "coverage -0.8" stays -0.8 and normalization

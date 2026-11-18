@@ -131,9 +131,26 @@ public enum ReportParser {
         return .unknown
     }
 
+    static let soundWords: Set<String> = ["called", "calling", "calls", "shouted", "shouting", "yelled", "yelling", "whistle", "whistled", "voice", "listened", "listening"]
+    static let visualWords: Set<String> = ["looked", "looking", "visual", "visually", "eyes", "checked", "inspected", "scanned", "flashlight"]
+    static let negations: Set<String> = ["no", "not", "without", "never", "didn't", "didnt", "nobody"]
+
+    /// How the team searched. A method word right after a negation word ("no visual search") does not
+    /// count, and "only" or "just" next to a sound word ("calling only") makes it sound only, so
+    /// a sound-only clear is never counted as a visual one.
     static func method(_ t: Tokens) -> SearchMethod {
-        let sound = t.hasAny(["called", "calling", "calls", "shouted", "shouting", "yelled", "yelling", "whistle", "whistled", "voice", "listened", "listening"])
-        let visual = t.hasAny(["looked", "looking", "visual", "visually", "eyes", "checked", "inspected", "scanned", "flashlight"])
+        let w = t.lower
+        func negated(_ i: Int) -> Bool { i > 0 && negations.contains(w[i - 1]) }
+        var sound = false, visual = false, soundOnly = false
+        for i in w.indices {
+            if soundWords.contains(w[i]), !negated(i) {
+                sound = true
+                let near = [i - 1, i + 1].filter { w.indices.contains($0) }.map { w[$0] }
+                if near.contains("only") || near.contains("just") { soundOnly = true }
+            }
+            if visualWords.contains(w[i]), !negated(i) { visual = true }
+        }
+        if soundOnly { return .sound }
         switch (sound, visual) {
         case (true, true): return .both
         case (true, false): return .sound

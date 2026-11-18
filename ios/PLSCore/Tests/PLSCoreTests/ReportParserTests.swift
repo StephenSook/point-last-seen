@@ -91,4 +91,17 @@ import Testing
         #expect(PermissiveLine.parse("cleared|AC|-0.8", known: ["AC"])?.coverage == -0.8)
         #expect(Tokens("AC-2 coverage 0.5").lower == ["ac", "2", "coverage", "0.5"])          // a hyphen after letters is not a sign
     }
+
+    @Test func negatedAndOnlyWordsDecideTheMethod() {
+        #expect(ReportParser.parse("cleared AC by calling only, no visual search, coverage 1", context: ctx).method == .sound)
+        #expect(ReportParser.parse("we just called out in AC", context: ctx).method == .sound)
+        #expect(ReportParser.parse("cleared AC, no calling, looked everywhere", context: ctx).method == .visual)
+        #expect(ReportParser.parse("cleared AB, called and looked", context: ctx).method == .both)
+    }
+
+    @Test func aSoundOnlyRulesReadingIsNotCounted() {
+        let text = "cleared AC by calling only, no visual search, coverage 1"
+        let r = ReportParser.parse(text, context: ctx)
+        #expect(EffectDeriver.cleared(reading: r, context: EffectContext(grid: grid, assignedSegmentIds: ["AC"], position: nil, visualDetectionRangeM: 10, rdBasis: .openTarget), params: params) == .none(why: .soundOnly))
+    }
 }
