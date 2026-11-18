@@ -56,3 +56,14 @@ describe("postReducer with plans", () => {
     expect(postReducer(denied, { type: "plans", plans: [plan] })).toBe(denied);
   });
 });
+
+describe("postReducer with the profile", () => {
+  const profile = { shared: undefined, command: { previousAddresses: [], placesFrequented: [], pastWandering: [], nearbyWater: "creek", vehicle: null } };
+  it("keeps the profile documents and clears them on a denial", () => {
+    const withProfile = postReducer(loaded, { type: "profile", profile });
+    expect(withProfile.profile).toBe(profile);
+    const denied = postReducer(withProfile, { type: "failed", error: { code: "permission-denied" } });
+    expect(denied.profile).toBeNull();
+    expect(postReducer(denied, { type: "profile", profile })).toBe(denied);
+  });
+});

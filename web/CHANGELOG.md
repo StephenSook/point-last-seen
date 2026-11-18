@@ -301,3 +301,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `profile.ts`: `emptyProfile` (mayNotRespond on, every other flag off); `profileDocs` uses the engine's `profileForSearchers` (exactly the 20 keys the rules allow; dementia type only with the family's consent) and `profileForCommand` (history, places, water, vehicle); `profileFromDocs` reads both back into the form, with the family-only fields left empty; `approachLines` turns the shared document's note ids into the card's lines from `approach-notes.json` (family text and language filled into their templates, an id without copy skipped, seven lines first and the rest under More) plus the footer; `commandWarnings` shows only the photo-age warning, because the profile update date never leaves the family phone; `writeProfile` and `subscribeProfile` for `profile/shared` and `profile/command`.
 - Source: plan Task 35c, spec 13.2 and 13.3, lane A's 35a and the rules allowlist (3feb2a7).
 - Verified: `src/data/profile.test.ts`, 11 tests, failed first (module missing), then passed: no key in both documents, no family-only field in either, consent-gated dementia type, the first-screen limit, template filling.
+
+### fix(profile): clear the profile documents with the rest of the incident on an access denial
+- What: the post's access reducer holds the two profile documents; a permission or auth denial clears them with the incident, events and plans, and later profile data is ignored.
+- Source: follow-on to Codex privacy finding 4 (the command profile holds private history).
+- Verified: new test in `src/command/postAccess.test.ts` failed first, then passed; 8 of 8.

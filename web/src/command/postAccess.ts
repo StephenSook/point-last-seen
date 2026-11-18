@@ -3,18 +3,20 @@
 // data leaves the screen and the listeners stop. A connection failure keeps
 // the last data for offline viewing and says so.
 
-import type { PlanDoc } from "@pls/engine";
+import type { CommandProfile, PlanDoc, SharedProfile } from "@pls/engine";
 import type { StreamedEvent } from "../data/events";
 import type { IncidentView } from "../data/incident";
 
-export type PostState = { view: IncidentView | null; events: StreamedEvent[]; plans: PlanDoc[]; denied: boolean; offline: boolean };
+export type ProfileDocs = { shared: SharedProfile | undefined; command: CommandProfile | undefined };
+export type PostState = { view: IncidentView | null; events: StreamedEvent[]; plans: PlanDoc[]; profile: ProfileDocs | null; denied: boolean; offline: boolean };
 
-export const initialPostState: PostState = { view: null, events: [], plans: [], denied: false, offline: false };
+export const initialPostState: PostState = { view: null, events: [], plans: [], profile: null, denied: false, offline: false };
 
 export type PostAction =
   | { type: "view"; view: IncidentView }
   | { type: "events"; events: StreamedEvent[] }
   | { type: "plans"; plans: PlanDoc[] }
+  | { type: "profile"; profile: ProfileDocs }
   | { type: "failed"; error: unknown };
 
 export function listenerFailure(error: unknown): "denied" | "transient" {
@@ -31,9 +33,11 @@ export function postReducer(state: PostState, action: PostAction): PostState {
       return { ...state, events: action.events, offline: false };
     case "plans":
       return { ...state, plans: action.plans, offline: false };
+    case "profile":
+      return { ...state, profile: action.profile, offline: false };
     case "failed":
       return listenerFailure(action.error) === "denied"
-        ? { view: null, events: [], plans: [], denied: true, offline: false }
+        ? { view: null, events: [], plans: [], profile: null, denied: true, offline: false }
         : { ...state, offline: true };
   }
 }
