@@ -59,3 +59,8 @@ export function effectSegments(segments: readonly GridSegmentDoc[]): Record<stri
     ]),
   );
 }
+
+/** Every segment by id with its centre: the keyboard way to place a sighting (the same point a map click there gives). */
+export function segmentChoices(segments: readonly MapSegment[]): { segmentId: string; centre: LatLon }[] {
+  return [...segments].sort((a, b) => a.segmentId.localeCompare(b.segmentId)).map((s) => ({ segmentId: s.segmentId, centre: { lat: s.centroid.lat, lon: s.centroid.lon } }));
+}

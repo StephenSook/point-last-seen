@@ -1,5 +1,5 @@
 // "Add sighting": a caller's or passer-by's sighting, entered at command.
-// The place comes from a map click. A callback name or number may be typed
+// The place comes from a map click or the Place list. A callback name or number may be typed
 // for the operator, but it stays in this form only and is cleared on save:
 // no field of the stored event holds it, and phone numbers are removed from
 // the note before it is stored or read.
@@ -22,6 +22,9 @@ type CloudRead = { reading: SightingCues } | { refused: string };
 type Props = {
   place: LatLon | null;
   placeSegmentId: string | null;
+  /** Every segment with its centre: the keyboard way to place the sighting. */
+  choices: readonly { segmentId: string; centre: LatLon }[];
+  onPlace: (p: LatLon) => void;
   onSave: (input: SightingInput) => Promise<void>;
   readNote: (text: string) => Promise<SightingRead>;
   readNoteInCloud: (text: string) => Promise<CloudRead>;
@@ -33,7 +36,7 @@ function localInput(ms: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, onSave, readNote, readNoteInCloud, onClose }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -112,6 +115,23 @@ export function SightingForm({ place, placeSegmentId, onSave, readNote, readNote
       <label>
         Seen at
         <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required />
+      </label>
+      <label>
+        Place
+        <select
+          value={placeSegmentId ?? ""}
+          onChange={(e) => {
+            const c = choices.find((x) => x.segmentId === e.target.value);
+            if (c) onPlace(c.centre);
+          }}
+        >
+          <option value="">{place && !placeSegmentId ? "Outside the search area" : "On the map"}</option>
+          {choices.map((c) => (
+            <option key={c.segmentId} value={c.segmentId}>
+              Segment {c.segmentId}
+            </option>
+          ))}
+        </select>
       </label>
       <p className="muted" data-testid="sighting-place">
         {place ? (placeSegmentId ? `Place: segment ${placeSegmentId}.` : "Place: outside the search area.") : "Click the map to place it."}

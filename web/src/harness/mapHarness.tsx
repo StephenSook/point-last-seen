@@ -39,4 +39,4 @@ function Harness() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<Harness />);
+if (document.title === "Map harness") createRoot(document.getElementById("root")!).render(<Harness />);

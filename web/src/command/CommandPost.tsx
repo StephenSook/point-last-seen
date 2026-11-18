@@ -16,7 +16,7 @@ import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
-import { segmentContaining, type LatLon } from "../map/geo";
+import { type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
@@ -411,6 +411,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <SightingForm
               place={pin}
               placeSegmentId={pin ? segmentContaining(pin, segments) : null}
+              choices={segmentChoices(segments)}
+              onPlace={setPin}
               onSave={saveSighting}
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
