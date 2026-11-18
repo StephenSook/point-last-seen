@@ -32,7 +32,7 @@ public enum Platform: String, Codable, Sendable { case ios, web, android }
 public enum BlockKind: String, Codable, Sendable { case guardrail, refusal }
 
 /// Why a read stage failed. The app maps thrown model errors to these cases.
-public enum ReadFailure: String, Codable, Sendable, CaseIterable {
+public enum ReadFailure: String, Codable, Sendable, CaseIterable, Error {
     case guardrailBlock = "guardrail_block"
     case refusal
     case parseFailed = "parse_failed"

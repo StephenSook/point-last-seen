@@ -65,3 +65,10 @@ func doc(_ id: String, _ type: EventType, effect: Effect = .none(why: .informati
 
 let clearAC = Effect.cleared(segmentId: "AC", pod: 1 - exp(-0.69), inputs: ClearedInputs(coverage: 0.69, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
 func clue(_ a: Authenticity) -> Effect { .clue(influences: ["AA": .strongFor], authenticity: a) }
+
+/// Returns the given times in order, then repeats the last one.
+final class FixedClock: ReadClock, @unchecked Sendable {
+    private var ms: [Double]
+    init(ms: [Double]) { self.ms = ms }
+    func nowMs() -> Double { ms.count > 1 ? ms.removeFirst() : ms[0] }
+}

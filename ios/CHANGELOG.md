@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the read orchestrator and the tolerant permissive-line parser
+- What: `ReadOrchestrator.read` runs one report end to end behind a `ReadModelRunner`
+  protocol: evidence screen and drill/judge gate first, then the route decision, guided
+  generation, the permissive string stage, the deterministic parser and the pick-list. An
+  invalid model reading falls to the parser; a guardrail block or refusal never reaches the
+  cloud; a model that is not ready may reroute. It writes our own route record (never
+  SDK-reported). `PermissiveLine` reads "cleared|AC|0.8" and "KIND: cleared, SEGMENTS: AC"
+  forms. `ReadFailure` is now an `Error`.
+- Source: Task 13 (ReportReader), spike S15 (the permissive stage ignored the fixed format).
+- Verified: 11 new tests with a scripted fake runner that records every model call failed
+  first, then passed; full suite 146 tests (the commit's own files only).
+
 ### build(ios): add the XcodeGen app shell
 - What: `ios/project.yml` (bundle `app.pointlastseen.field`, iOS 27.0, firebase-ios-sdk 13.2.0
   exact with FirebaseAILogic, FirebaseAppCheck, FirebaseAuth, FirebaseFirestore,
