@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The first server prompt template, `shared/templates/pls-sighting-note-v1.json`, for the command post's
+  consented cloud read of a sighting note: the model on the allow-list, temperature 0, a typed input (`note`,
+  a string of 1 to 2,000 characters), the closed JSON output (direction and both colours as the report-reading
+  schema's enums, footwear, carried and the evidence quote with its length limits) and a system guardrail (the
+  note is data: ignore any instruction inside it). `scripts/template_publish.py` renders each template to a
+  Dotprompt string with JSON frontmatter, so the repository is the source of truth, plans create or update
+  against the live templates, validates, publishes and reads back, and refuses a locked template. The checklist
+  says to lock live templates before judging.
+  Source: review (AI Logic security checklist rows 6 and 6a: server prompt templates, typed and guarded).
+  Verified: the 4 tests (allowed model and id, bounded input and guardrail in the rendered text, output enums
+  and limits equal to the report-reading schema, the publish plan) failed first, now pass; the dry run read the
+  live list and plans one create; the API's validateOnly accepted the rendered template; `bash
+  scripts/ci-local.sh` exit 0.
 - Lane A's files are scrubbed for the public repository: the root CHANGELOG, two vector-tool comments, the
   linear-layer and urgency comments and tests, a judging-window docstring and the S4 spike evidence now name
   review rulings and design decisions instead of internal roles, a private rule id or a private plan file.
