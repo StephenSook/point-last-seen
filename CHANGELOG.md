@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check control signs in anonymously before its model calls and sends the Firebase ID token, because
+  AI Logic's authenticated-users mode (on since 2026-11-18 19:30 UTC) refuses a call without one; the
+  throwaway user deletes itself afterwards. New `--ci` mode: the same positive read with the debug token from
+  `APPCHECK_DEBUG_TOKEN_CI` and no evidence file; without that variable it prints "no CI token" and makes no
+  call. The daily probe has the step, which skips until the secret exists (adding the secret needs the
+  owner's yes). The local run on 2026-11-18 21:15 UTC is committed as evidence.
+  Source: review (a positive daily read; the auth-mode change had broken the full control's 200 half).
+  Verified: the 3 tests (--ci skips with no network call, the token source, the model headers) failed first,
+  now 12 control tests pass; the local full run passed (no token 401, signed-in limited-use 200 with an
+  answer, replay 401, user deleted) with no key or token in the evidence; a --ci run with the token in the
+  environment passed and printed no token; the workflow pin lists the --ci step; `bash scripts/ci-local.sh`
+  exit 0.
 - `startJudgeSession` (callable, App Check enforced): a signed-in visitor gets their own practice incident,
   `incidents/judge-{uid}`, copied from the development drill on the Piedmont Park grid (its grid, IPP,
   terrain, prior and engine settings, segments, teams and shared profile; never its events, command profile

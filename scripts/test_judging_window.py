@@ -33,5 +33,6 @@ def test_the_daily_probes_retire_only_after_judging():
 
 def test_the_daily_probe_runs_every_probe_script():
     wf = (REPO / ".github/workflows/probe.yml").read_text()
-    for script in ("scripts/appcheck_control.py --no-token-only", "scripts/media_probe.py", "scripts/models_probe.py"):
+    for script in ("scripts/appcheck_control.py --no-token-only", "scripts/media_probe.py", "scripts/models_probe.py",
+                   "scripts/appcheck_control.py --ci"):
         assert f"python3 -I {script}" in wf, script
