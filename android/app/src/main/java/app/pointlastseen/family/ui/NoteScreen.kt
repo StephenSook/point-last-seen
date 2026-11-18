@@ -64,6 +64,7 @@ fun NoteScreen(
                 NoteOutcome.NeedsConsent -> {
                     Sentence("This phone has no on-device model. Send this note to the cloud to sort it?")
                     MainAction("Send to the cloud") { onSort(ui.text, true) }
+                    Note("Or sort it yourself, on this phone:")
                     ManualKind(ui.text, onAdd)
                 }
                 NoteOutcome.PossibleEvidence -> Sentence(Copy.EVIDENCE)

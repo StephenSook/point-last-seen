@@ -78,6 +78,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val watch = IncidentWatch()
     private val evidence = EvidenceTerms.screen(app)
     private val publisher = ProfilePublisher(FirestoreProfileSink())
+    private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
 
@@ -120,6 +121,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun open(target: Screen) {
         nav = Nav.open(nav, target)
+    }
+
+    fun systemBack() {
+        Nav.systemBack(nav)?.let { next ->
+            if (next.screen != nav.screen) back()
+        }
     }
 
     fun back() {
@@ -220,7 +227,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
-            noteUi = NoteUi.Done(FamilyNote(ai.familyNote, evidence).read(text, env), text)
+            val outcome = FamilyNote(ai.familyNote, evidence).read(text, env)
+            if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
+            noteUi = NoteUi.Done(outcome, text)
         }
     }
 
@@ -279,6 +288,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         )
         return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
             is ClipOutcome.Read -> {
+                if (!out.cached) out.route?.let { telemetry.record(it) }
                 lastClip = out to form
                 lastClipStartMs = startMs
                 val keySeconds = SightingCheck.seconds(out.reading.keyFrame.time) ?: 0

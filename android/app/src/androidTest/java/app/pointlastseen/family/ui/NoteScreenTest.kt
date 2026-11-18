@@ -1,5 +1,6 @@
 package app.pointlastseen.family.ui
 
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -13,6 +14,7 @@ import app.pointlastseen.family.ai.NoteOutcome
 import app.pointlastseen.family.data.RouteRecord
 import app.pointlastseen.family.ui.theme.PaperTheme
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,6 +22,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NoteScreenTest {
     @get:Rule val rule = createComposeRule()
+    @Before fun accessibilityChecks() = rule.enableAccessibilityChecks()
     private val route = RouteRecord("android", "cloud", "sdk", "m", "on_device_unavailable", 900, true, null, 1)
 
     @Test fun sortingSendsTheTypedNote() {
@@ -34,6 +37,7 @@ class NoteScreenTest {
         var sent: Pair<String, Boolean>? = null
         rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { t, c -> sent = t to c }, onAdd = {}, onBack = {}) } }
         rule.onNodeWithText("This phone has no on-device model. Send this note to the cloud to sort it?").assertIsDisplayed()
+        rule.onNodeWithText("Or sort it yourself, on this phone:").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Send to the cloud").performScrollTo().performClick()
         assertEquals("old mill" to true, sent)
     }

@@ -1,6 +1,6 @@
 package app.pointlastseen.family.ui
 
-enum class Screen { PROFILE, CALL_FIRST, JOIN, STATUS, CLIP, PHOTOS, NOTE, SIGHTING, ABOUT }
+enum class Screen { PROFILE, CALL_FIRST, JOIN, STATUS, CLIP, PHOTOS, NOTE, SIGHTING, ABOUT, SCRIPT_911 }
 
 data class NavState(val screen: Screen, val gone: Boolean, val joined: Boolean)
 
@@ -33,7 +33,28 @@ object Nav {
     fun open(s: NavState, target: Screen): NavState =
         if (target in ACTIONS && !(s.joined && s.gone)) s else s.copy(screen = target)
 
-    fun back(s: NavState): NavState = s.copy(screen = if (s.joined && s.gone) Screen.STATUS else Screen.PROFILE)
+    /** The 911 script is read during the call, so Back returns to "Call 911 first". */
+    fun back(s: NavState): NavState = s.copy(
+        screen = when {
+            s.screen == Screen.SCRIPT_911 -> Screen.CALL_FIRST
+            s.joined && s.gone -> Screen.STATUS
+            else -> Screen.PROFILE
+        },
+    )
+
+    /**
+     * The system back gesture: one step toward the home screen (the status card once
+     * gone and joined, else the profile). Null on the home screen, where the system
+     * closes the app. On "Call 911 first" it stays put so the step is not skipped.
+     */
+    fun systemBack(s: NavState): NavState? {
+        val home = if (s.joined && s.gone) Screen.STATUS else Screen.PROFILE
+        return when (s.screen) {
+            home -> null
+            Screen.CALL_FIRST -> s
+            else -> back(s)
+        }
+    }
 
     /** Leaving a search: this install is free for the next drill or incident; the profile stays. */
     fun leave(@Suppress("UNUSED_PARAMETER") s: NavState): NavState = NavState(Screen.PROFILE, gone = false, joined = false)
