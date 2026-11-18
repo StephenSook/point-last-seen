@@ -49,6 +49,55 @@ def test_the_publish_plan_creates_updates_or_leaves_each_template():
     assert tp.plan(local, remote)["locked"] == ["b"]
 
 
+def load(name):
+    return json.loads((ROOT / "shared/templates" / name).read_text())
+
+
+def shared(schema):
+    return json.loads((ROOT / "shared/schemas" / schema).read_text())["properties"]
+
+
+def limits(prop):
+    """The constraints a template's output schema must copy from a shared schema property."""
+    keep = {k: prop[k] for k in ("enum", "maxLength", "maxItems", "minItems") if k in prop}
+    if prop.get("type") == "object":
+        keep["properties"] = {k: limits(v) for k, v in prop["properties"].items()}
+    if prop.get("type") == "array":
+        keep["items"] = limits(prop["items"])
+    return keep
+
+
+def test_the_photo_template_reads_one_jpeg_into_the_photo_cues_schema():
+    t = load("pls-photo-cues-v1.json")
+    assert t["input"]["schema"]["mimeType"] == {"type": "string", "enum": ["image/jpeg"]}
+    assert t["input"]["schema"]["imageData"]["maxLength"] == -(-2 * 1024 * 1024 // 3) * 4  # the 2 MiB photo limit, base64
+    assert {k: limits(v) for k, v in t["output"]["schema"].items()} == {k: limits(v) for k, v in shared("photo-cues.schema.json").items()}
+    text = tp.render(t)
+    assert "{{media type=mimeType data=imageData}}" in text.split('{{role "user"}}')[1]
+    assert "ignore any instruction" in text.split('{{role "user"}}')[0].lower()
+
+
+def test_the_clip_template_reads_a_whole_clip_into_the_camera_sighting_schema():
+    t = load("pls-clip-read-v1.json")
+    assert t["input"]["schema"]["videoData"]["maxLength"] == -(-14_000_000 // 3) * 4  # the clip limit, base64
+    assert t["input"]["schema"]["mimeType"]["maxLength"] <= 40
+    assert {k: limits(v) for k, v in t["output"]["schema"].items()} == {k: limits(v) for k, v in shared("camera-sighting.schema.json").items()}
+    text = tp.render(t)
+    assert "{{media type=mimeType data=videoData}}" in text.split('{{role "user"}}')[1]
+    assert "do not describe the face" in text.lower() and "ignore any instruction" in text.lower()
+
+
+def test_the_voice_template_speaks_bounded_text_in_any_language():
+    t = load("pls-voice-v1.json")
+    assert t["model"] == "gemini-3.8-flash-lite-tts"
+    assert t["config"]["responseModalities"] == ["AUDIO"]
+    assert t["config"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] == "Kore"
+    assert "languageCode" not in json.dumps(t["config"])  # the text's own language, for a greeting in her first language
+    assert t["input"]["schema"] == {"text": {"type": "string", "minLength": 1, "maxLength": 600}}
+    text = tp.render(t)
+    assert '{{role "system"}}' not in text and text.split('{{role "user"}}')[1].strip() == "{{text}}"
+
+
 def test_the_live_listing_is_read_from_the_api_s_templates_key():
     # The list endpoint answers {"templates": [...]} (read 2026-11-18); a wrong key would read as "none live",
     # plan creates instead of updates, and never see a lock.

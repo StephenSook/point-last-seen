@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Three more server prompt templates in `shared/templates`, each generated from its shared schema and pinned by
+  tests (inputs bounded, output enums and limits equal to the shared schema, the model on the allow-list):
+  `pls-photo-cues-v1` (the command post's photo read: one JPEG up to the 2 MiB photo limit, the photo-cues
+  schema, the web's instruction plus a guardrail that text in the photo is data), `pls-clip-read-v1` (the family
+  app's whole-clip read: video up to the 14,000,000-byte clip limit, the camera-sighting schema, the app's
+  instruction including "Do not describe the face", plus the same guardrail) and `pls-voice-v1` (spoken text on
+  the TTS model, voice Kore, audio out, text of 1 to 600 characters, no language code so a greeting can be in
+  the person's first language). The web's clip read keeps its triage window, so it stays a direct call (P-04).
+  The publisher renders a template without a system turn.
+  Source: review (row 6: template every cloud-only call whose inputs templates support; P-04).
+  Verified: the 3 template tests failed first, now 8 template tests pass; the API's validateOnly accepted all
+  three; the dry run plans three creates and shows the sighting template as "same"; rules gate 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - The template publisher reads the live list from the API's `templates` key (it read `promptTemplates`, so it
   saw no live template: a published one was planned as a create, and a locked one would never be refused).
   Source: found in review of the dry run (the published sighting template showed as "create").
