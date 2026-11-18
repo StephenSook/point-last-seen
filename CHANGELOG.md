@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- joinIncident hardening: a code must be 8 Crockford symbols after normalization (refused before any
+  read); each caller spends one attempt from an atomic budget of 10 per rolling hour before the lookup
+  (`joinAttempts/{uid}`, admin only; the 11th call is refused even with the right code); every failed join,
+  including an unknown team, gets the same permission-denied message; an invite may carry `expiresAt` and
+  `maxUses`, with uses counted in a transaction. Test fixture codes no longer use I, L, O or U.
+  Source: Codex adversarial review M7.
+  Verified: 3 new tests (one refusal for unknown team and wrong code, the attempt budget with a second
+  caller unaffected, invite expiry and single use) failed first, now 78 emulator tests pass; functions
+  typecheck exits 0; ci-local exits 0.
 - `docs/LIMITS.md` gains a media retention section: expiry locks a judge sandbox's media at once through
   the rules; deleting the stored objects at expiry (`deleteIncidentMedia`, Task 23) and the 30-day drill
   lifecycle file (Task 18) are marked PLANNED, not built; no app uses Storage download URLs.
