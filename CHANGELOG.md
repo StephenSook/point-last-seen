@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Run the rules suite on per-worktree emulator ports: `scripts/emulator_config.py` writes a copy of
+  firebase.json with absolute paths and a port block derived from the worktree path (20000 to 34999), and
+  `npm run test:rules -w functions` passes it with `--config`. Several worktrees on one Mac run ci-local at
+  the same time, and the fixed ports collided ("Could not start Authentication Emulator, port taken").
+  Tests in `scripts/test_emulator_config.py`, added to the gates job and ci-local.
+  Source: a ci-local failure caused by another worktree's emulators during the C1 commit.
+  Verified: 3 tests failed first (no script), now pass; the emulator suite ran on ports 23910 to 23918 here
+  and passed 59; ci-local exits 0.
 - The drill seeding tool issues one join code per role (searcher, family, command), each stored in its own
   Keychain service (`pls-drill-searcher-code`, `pls-drill-family-code`, `pls-drill-command-code`, account =
   incident id), matching the one-role-per-code rule in joinIncident.
