@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Swift core CI also runs when the iOS view sources change (ios/PLS/**, ios/PLSWidgets/**, ios/PLSShared/**):
+  PLSCore's FieldTextSizeTests scans them for text styles below Title 3 or fixed point sizes, so a view-only
+  change must not skip it.
+  Source: lane B request (c8ec85a adds the test).
+  Verified: both path lists carry the three folders; `bash scripts/ci-local.sh` exit 0.
 - profile/shared must be written whole: all 20 keys the schema requires (the schema always required them; the
   rules allowed partial writes). A nickname-only write was accepted and then crashed readers that expect every
   field (the web approach card on approachNoteIds; the iOS decoder on answersTo). The web and Android writers
