@@ -37,7 +37,7 @@ struct TaskView: View {
                     Text(problem).font(.footnote).foregroundStyle(.red)
                 }
                 List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
-                    ReportEchoView(entry: entry) { model.store?.retry(entry.eventId) }
+                    ReportEchoView(entry: entry) { model.retry(entry.eventId) }
                 }
                 .listStyle(.plain)
             } else {

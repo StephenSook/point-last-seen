@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): settle unresolved reports on reconnect and foreground, never leave them stuck
+- What: `EventStore` now talks to an `EventServer` protocol (`FirestoreEventServer` in the app,
+  a scripted fake in tests). Unresolved entries are settled at launch, on every offline-to-online
+  change and on return to the foreground. An event the server does not hold and Firestore no
+  longer queues becomes "Not delivered" and retryable (reason `not-on-server`); our own
+  still-queued write and no answer leave an entry as it is. A Retry with no signal keeps the
+  entry retryable with its first reason and tells the person to retry in signal. A payload that
+  will not encode is rejected as `encode-failed`; a journal write error is shown, not swallowed.
+  `AppModel.start()` runs once.
+- Source: fresh-eyes review C2 (three stuck paths), I10 and M9.
+- Verified: five `EventStoreStateTests` with the fake server. The two that pin the old defects
+  (an absent entry after a restart; a retry while offline) failed with the old reconcile and
+  retry logic put back, then passed; 21 app tests pass on the iOS 27.2 simulator.
+
 ### fix(ios): a read-back that sees our own queued write is not a delivery
 - What: new `ServerCopy.stillQueued` and `ServerCopy.fromServerRead(local:exists:hasPendingWrites:server:)`.
   A server-source get in firebase-ios-sdk 13.2.0 answers through the local view, so a snapshot

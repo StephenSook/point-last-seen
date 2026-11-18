@@ -19,19 +19,41 @@ final class AppModel {
     private var identity: DeviceIdentity?
     private var reader: ReportReader?
 
+    private var started = false
+    private var wasOnline = false
+
     func start() {
-        connectivity.onChange = { [weak self] in self?.refreshGate() }
+        guard !started else { return }
+        started = true
+        connectivity.onChange = { [weak self] in self?.connectivityChanged() }
         connectivity.start()
         do {
             identity = try DeviceIdentity()
             reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config,
                                   screen: try BundledConstants.evidenceScreen())
-            store = try EventStore(db: Firestore.firestore(),
+            store = try EventStore(server: FirestoreEventServer(db: Firestore.firestore()),
                                    outboxURL: DeviceIdentity.storeDirectory().appendingPathComponent("outbox.json"))
             store?.reconcileUnresolved()
         } catch {
             problem = "This phone could not open its report journal. Tell command."
         }
+    }
+
+    /// Back in signal: settle every report that has no answer yet.
+    func connectivityChanged() {
+        refreshGate()
+        let online = connectivity.isOnline
+        if online && !wasOnline { store?.reconcileUnresolved() }
+        wasOnline = online
+    }
+
+    /// Back in the foreground: the same check, in case the reconnect happened while suspended.
+    func becameActive() {
+        if connectivity.isOnline { store?.reconcileUnresolved() }
+    }
+
+    func retry(_ eventId: String) {
+        if store?.retry(eventId) == .offline { problem = "No signal. Retry when you are back in signal." }
     }
 
     func load(_ mission: Mission) {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @State private var model = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -11,5 +12,8 @@ struct RootView: View {
                 }
         }
         .task { model.start() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.becameActive() }
+        }
     }
 }
