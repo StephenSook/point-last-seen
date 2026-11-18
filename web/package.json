@@ -12,6 +12,7 @@
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
+    "@pls/engine": "0.1.0",
     "firebase": "13.4.0",
     "maplibre-gl": "6.19.0",
     "pmtiles": "4.5.0",

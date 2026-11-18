@@ -76,3 +76,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: plan lanes rule (lanes stay current with main); a merge instead of a rebase because pushed history is not rewritten without the orchestrator's yes.
 - Verified: `scripts/ci-local.sh` on the merged tree exit 0 (rules gate 94 files, schema parity 10 schemas, engine 137 tests, vectors 124), web typecheck exit 0, web tests 68 of 68.
 - Not yet in CI (2026-11-18): the web unit tests and the Playwright smoke. The joined-post e2e needs Task 11 (rules, joinIncident) and a seeded drill incident; it is added to CI in the change set that lands those, and under CI a missing join code or incident fails it, never skips it.
+
+### chore(web): depend on the @pls/engine workspace and allow JSON imports
+- What: `web/package.json` depends on `@pls/engine` 0.1.0 (the workspace, linked by npm), and `web/tsconfig.json` sets `resolveJsonModule`, because the engine imports its constants from `shared/constants/engine-params.json`.
+- Source: plan Task 15 (`viewState` uses the engine), Task 8 interfaces.
+- Verified: `node_modules/@pls/engine` links to `shared/engine-ts`; web typecheck exit 0.
