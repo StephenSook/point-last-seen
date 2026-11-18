@@ -4,6 +4,7 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Status card.** One sentence ("Searchers are looking." or "Found. Safe."), a quiet grey ring, a count of items waiting to send, and the five things the family can do. Source: spec 6.4 and 22.1. Verified: `StatusScreenTest` failed to compile first, then passes on the emulator.
 - **Join screen.** One field for the code from command; Join is disabled while empty or during the call, and the error sits beside the field. Source: Task 19 step 4, Global Constraints UI rules. Verified: `JoinScreenTest` failed to compile first, then passes on the emulator.
 - **Call first screen.** After "She's gone" the first screen says "Call 911 first." with a dialer button, or in a drill "Training drill. Call the drill call-taker, not 911." with no dialer. Source: Task 19 step 4, spec 6.4. Verified: `CallFirstScreenTest` failed to compile first, then passes on the emulator.
 - **Paper theme and the screen frame.** `PaperTheme` uses the paper tokens (#EBE7E2 background,
