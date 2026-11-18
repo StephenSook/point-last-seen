@@ -40,12 +40,6 @@ export function photoParams(): HybridParams {
   return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: { createOptions: PHOTO_OPTS, promptOptions: { responseConstraint: PHOTO_CUES_JSON } } };
 }
 
-export function photoCloudParams(model: string): HybridParams {
-  return {
-    mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: { model, systemInstruction: SYSTEM, generationConfig: { responseMimeType: "application/json", responseJsonSchema: PHOTO_CUES_JSON } },
-  };
-}
 
 const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
 

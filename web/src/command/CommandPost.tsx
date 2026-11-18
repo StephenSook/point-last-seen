@@ -3,7 +3,7 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoCloudGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
@@ -408,7 +408,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
     const r = await readPhotoInCloud(bytesToBase64(p.bytes), uid ? { byUid: uid, atMs: Date.now() } : null, {
-      generateCloud: (b) => photoCloudGenerator(ai(), rc.cloudModelWeb)(b),
+      generateCloud: (b) => photoTemplateGenerator(ai(), rc.photoTemplateId)(b),
       killCloud: rc.killCloud,
     });
     if (!("cues" in r)) return r;
