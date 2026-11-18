@@ -4,6 +4,10 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **A remembered thing becomes a profile edit.** `Profiles.applyNote` adds a place, an old
+  address or a past wandering spot to its command-only list (no duplicates, case-insensitive) and
+  replaces the clothing last worn. Source: lane A ruling 6 (a profile edit, not an event).
+  Verified: `ProfileNoteTest` failed to compile first, then passes.
 - **Profile kept on the phone.** `ProfileStore` saves the full profile (medication details and
   the birthdate included) as JSON in app-private storage with backups off; `ProfileCodec` round-
   trips every field, and a missing or broken copy loads as an empty profile. Source: spec 13.2

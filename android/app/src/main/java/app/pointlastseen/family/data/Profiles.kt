@@ -189,6 +189,22 @@ object Profiles {
         return ids
     }
 
+    /**
+     * "I remembered something" becomes a profile edit: a place, an old address or a
+     * past wandering spot joins its command-only list; clothing replaces clothingLastWorn.
+     */
+    fun applyNote(p: SubjectProfile, r: app.pointlastseen.family.ai.FamilyNoteReading): SubjectProfile {
+        val label = r.label.trim()
+        fun same(a: String) = a.trim().equals(label, ignoreCase = true)
+        return when (r.kind) {
+            "place" -> if (p.placesFrequented.any { same(it.label) }) p else p.copy(placesFrequented = p.placesFrequented + PlaceEntry(label, null))
+            "address" -> if (p.previousAddresses.any { same(it.label) }) p else p.copy(previousAddresses = p.previousAddresses + PlaceEntry(label, null))
+            "wandering" -> if (p.pastWandering.any { same(it.foundWhere) }) p else p.copy(pastWandering = p.pastWandering + WanderingEntry(label, null))
+            "clothing" -> p.copy(clothingLastWorn = label)
+            else -> p
+        }
+    }
+
     /** "photo_old" after 60 days, "profile_stale" after 183, "clock_changed" after a clock change. */
     fun warnings(p: SubjectProfile, nowMs: Long, zone: ZoneId): List<String> {
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
