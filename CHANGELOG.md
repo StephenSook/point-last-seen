@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add `validateReading` (enums, limits and the segment count read from `report-reading.schema.json`, coverage
+  normalized first, evidenceQuote must be in the report text, every reason returned) and `assignTeams` (greedy,
+  stable, one segment per team, a team keeps its segment while it is in the top 2 x teamCount), with the plan's
+  behaviour tests: duplicate ids, ROW through a clear, eventSetHash and priorVersion, validation, coverage
+  normalization, sound-only, camera sighting as a prior input, and three assignment cases.
+  Source: plan Task 8; spec sections 10.3, 10.7, 11.4; Review Focus items 3, 4 and 5.
+  Verified: the tests failed before the modules existed; now 137 passed; typecheck and lint exit 0.
 - Add the TypeScript search engine core (`shared/engine-ts/src`: pod and track length, IOC, posterior, ranking,
   effect derivation, `toEngineEvents`, event ids and hashes, evidence pre-screen) and the vector suite that runs
   every non-router case of `shared/test-vectors/search.json` through the one comparer (`test/expectVector.ts`).

@@ -4,6 +4,8 @@ export { coverage, normalizeCoverage, pod, sweepWidth, trackLength } from "./pod
 export { ioc } from "./ioc";
 export { posterior } from "./posterior";
 export { rankSegments } from "./rank";
+export { assignTeams } from "./assign";
 export { deriveClearedEffect, deriveClueEffect, toEngineEvents } from "./effects";
+export { validateReading } from "./validate";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
