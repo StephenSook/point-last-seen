@@ -81,9 +81,9 @@ class ProfilesTest {
         assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(SubjectProfile()))
     }
 
-    @Test fun notesFollowTheSpecTableOrder() {
+    @Test fun mayNotRespondAndApproachCalmComeFirstThenTheTableOrder() {
         assertEquals(
-            listOf("may_not_respond", "likely_to_hide", "approach_calm", "validate_feelings", "language", "triggers", "best_approach", "unique"),
+            listOf("may_not_respond", "approach_calm", "likely_to_hide", "validate_feelings", "language", "triggers", "best_approach", "unique"),
             Profiles.approachNoteIds(full),
         )
     }
