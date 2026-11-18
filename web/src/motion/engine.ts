@@ -60,3 +60,24 @@ export function playRipple(delaysMs: readonly number[], reduced: boolean, apply:
   });
   return { cancel: () => void tl.cancel() };
 }
+
+/**
+ * FLIP: each moved row starts at its old place (translateY by dy) and slides to its
+ * new place over 350 ms inOut(3), after `delayMs`. Reduced motion: no slide.
+ */
+export function playFlip(items: readonly { el: HTMLElement; dy: number }[], delayMs: number, reduced: boolean): { cancel(): void } {
+  if (reduced || items.length === 0) return { cancel: () => {} };
+  const reset = () => items.forEach(({ el }) => (el.style.transform = ""));
+  for (const { el, dy } of items) el.style.transform = `translateY(${dy}px)`;
+  const tl = createTimeline({ onComplete: reset });
+  for (const { el, dy } of items) {
+    const o = { t: 0 };
+    tl.add(o, { t: 1, duration: MOTION.swap.ms, ease: MOTION.swap.ease, onUpdate: () => (el.style.transform = `translateY(${dy * (1 - o.t)}px)`) }, delayMs);
+  }
+  return {
+    cancel: () => {
+      tl.cancel();
+      reset();
+    },
+  };
+}

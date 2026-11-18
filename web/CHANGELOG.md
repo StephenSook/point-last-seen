@@ -634,3 +634,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `flipOffsets(before, after)` in `motion/flip.ts`: for each row in both measurements that moved, its old top minus its new top, in the new order. FLIP is written by hand, as spec 22.1 says.
 - Source: plan Task 39.4 (the beat's reorder step).
 - Verified: `src/motion/flip.test.ts` (2 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(motion): slide reordered rank rows from their old place, on the beat's reorder step
+- What: `playFlip` in `motion/engine.ts` starts each moved row at its old place and slides it to the new one over 350 ms inOut(3) after a delay; reduced motion skips the slide. `PoaRank` measures its rows before and after an order change (`offsetTop`, which ignores transforms) and plays it; the post passes a 1,100 ms delay once the server has answered, so a reorder from a new report lands on the REPORT beat's reorder step. Dev-only harness `web/harness/rank.html`.
+- Source: plan Task 39.4, spec 22.1 ("the ranked list reorders by FLIP over 350 ms").
+- Verified: new `e2e/harness/rank.spec.ts`: right after a reorder the moved row is still at its old place and it reaches its new place after the delay plus 350 ms (failed first: it jumped at once, 55.5 px away); with reduced motion it is at the new place at once. All 18 harness specs pass. scripts/ci-local.sh exit 0.
