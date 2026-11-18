@@ -92,7 +92,10 @@ class ClipReader(
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead
                 val check = SightingCheck.check(s, hit.durationS)
                 if (!check.ok) return ClipOutcome.CouldNotRead
-                return ClipOutcome.Read(sha, check.cleaned, check, Bearing.fromExit(hit.cameraFacingDeg, s.exitEdge), hit.route, cached = true)
+                // No second model call, but the facing, clock and consents the family just
+                // gave replace the stored ones, so a corrected facing takes effect.
+                deps.storeReading(hit.copy(clipStartMs = r.clipStartMs, clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, consent = r.consent))
+                return ClipOutcome.Read(sha, check.cleaned, check, Bearing.fromExit(r.cameraFacingDeg, s.exitEdge), hit.route, cached = true)
             }
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)

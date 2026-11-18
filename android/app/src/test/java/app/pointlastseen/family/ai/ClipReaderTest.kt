@@ -125,8 +125,24 @@ class ClipReaderTest {
         val deps = FakeDeps(cached = cached)
         val out = ClipReader(deps).read(r) as ClipOutcome.Read
         assertTrue(out.cached)
-        assertEquals(listOf("find"), deps.log)
+        assertEquals(listOf("find", "store"), deps.log)
         assertNotNull(out.check)
+    }
+
+    @Test fun aRereadUsesTheFacingAndClockJustGivenAndUpdatesTheStoredReading() = runTest {
+        val r = request(1000).copy(cameraFacingDeg = 0, clipStartMs = 7_000L)
+        val sha = Hashes.sha256Hex(r.bytes)
+        val cached = StoredClipReading(
+            sha256 = sha, storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = false,
+            cameraFacingDeg = null, readingJson = readingJson, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L,
+        )
+        val deps = FakeDeps(cached = cached)
+        val out = ClipReader(deps).read(r) as ClipOutcome.Read
+        assertEquals(270, out.bearingDeg) // facing north, exit left
+        assertEquals(listOf("find", "store"), deps.log)
+        assertEquals(0, deps.stored!!.cameraFacingDeg)
+        assertEquals(7_000L, deps.stored!!.clipStartMs)
+        assertEquals(true, deps.stored!!.clockConfirmed)
     }
 
     @Test fun aCachedReadingThatFailsItsChecksIsCouldNotRead() = runTest {
