@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/seed/seed_drill.py --rotate <project> <incidentId> <role>` replaces one role's join code: the new code
+  (distinct from every current code) is kept in the Keychain before anything changes, then one atomic commit
+  creates its joinCodes doc only if absent and deletes the old doc only if present, so a failure leaves the old
+  code working; no code is printed. Used on 2026-11-18 to rotate the drill-dev-1 family code after it appeared
+  in a local session output.
+  Source: review (a code shown in a local tool output counts as exposed).
+  Verified: the commit-shape and fresh-code tests failed first, now 8 seed tests pass; after the rotation the
+  only family joinCodes doc for drill-dev-1 is the new code's hash, a live join with the new code answered 200
+  and a wrong code 403 PERMISSION_DENIED (throwaway anonymous user, deleted after); `bash scripts/ci-local.sh`
+  exit 0.
 - The App Check control's full mode asks the debug-token exchange for a limited-use token
   (`{"debugToken": ..., "limitedUse": true}`) and adds a replay half: the same token used a second time must
   be refused with 401. App Check replay protection was enforced on AI Logic on 2026-11-18, after which the old
