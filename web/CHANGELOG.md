@@ -895,3 +895,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post gives the clip panel its triage step: only when the gate says this laptop's model is available (`FRAME_OPTS`), the clip's frames are decoded here, one frame per moving span is checked on the laptop's model (`frameCheckGenerator`, no cloud fallback), and a result that sends nothing is traced with its route. The cloud read now carries triage's window and reason (`on_device_triage_flagged` or `user_override_after_triage`) into the stored route. On a browser without the built-in model nothing changes: the plain consented read. Unmeasured on a real built-in model.
 - Source: promoted item P-39.
 - Verified: typecheck and build clean; the deployed suite runs right after this commit (on this Mac's Chrome there is no built-in model, so the live clip test takes the plain path). scripts/ci-local.sh exit 0.
+
+### feat(extras): add the person-in-view band model for a clip timeline
+- What: `web/src/extras/clip/band.ts` (extras Task 10, P-40, owned by lane C now): the cloud reading's first seen to last seen as one interval, clamped to the clip's length, at least 2 px wide, scaled to the last interval and marked open ended when the length is unknown, with the key frame's mark; "Person in view 00:10 to 02:14" or "No person seen.". Intervals from on-device checks keep their own source, but none are stored or passed today (triage keeps no per-window checks).
+- Source: hand-off H4 (orchestrator: no extras session, lane C owns it).
+- Verified: `src/extras/clip/band.test.ts` (8 tests, the plan's seven plus the text) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
