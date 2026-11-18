@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
+  emulator keeps uploaded blobs under $TMPDIR/firebase, which was shared by every worktree, so another
+  lane's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
+  Source: lane C report of two storage test timeouts during a parallel run.
+  Verified: the new test failed first, now 5 emulator-config tests pass; the suite wrote its `firebase`
+  folder into the per-worktree temp dir and passed 69; ci-local exits 0.
 - README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
   data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
   Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).
