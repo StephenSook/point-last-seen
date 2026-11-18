@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/LIMITS.md` gains a media retention section: expiry locks a judge sandbox's media at once through
+  the rules; deleting the stored objects at expiry (`deleteIncidentMedia`, Task 23) and the 30-day drill
+  lifecycle file (Task 18) are marked PLANNED, not built; no app uses Storage download URLs.
+  Source: Codex adversarial review round 3, item 2 (the function itself lands with Task 23 and its tests).
+  Verified: wording checked against the repo (no deleteIncidentMedia or storage.lifecycle.json yet);
+  ci-local exits 0.
 - Rules gate bans Storage token URLs (`getDownloadURL`, `downloadURL`, `downloadUrl`) in web/, ios/ and
   android/ code: a download URL carries a token that bypasses Storage rules, so a URL saved before a judge
   sandbox expires would keep serving its clip. Client reads go through getBytes/getBlob, which evaluate the
