@@ -487,3 +487,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: MapView takes `onReady?: (map) => void`, called with the MapLibre map once its style and sources exist and with null when it is removed. Nothing in this repo branch uses it yet; the extras lane's ExtrasDock will (hook H3).
 - Source: extras lane request H3 via the orchestrator.
 - Verified: new map harness test failed first (no call), then passed; all four harness specs pass. scripts/ci-local.sh exit 0.
+
+### chore(deps): add animejs 4.5.0 for the command post motion
+- What: `animejs` 4.5.0, exact pin, web runtime dependency (spec 22.1: MIT, Julian Garnier, never 5.0 beta; only `web/src/motion/engine.ts` will import it). No dependencies of its own; the lockfile gains one entry.
+- Source: plan Task 39.3 and 39.4.
+- Verified: socket depscore supply chain 100, vulnerability 100, license 100; release date 2026-06-22. The 4.5.0 type files export `createTimeline` (add, label, call), `createScope` with `mediaQueries`, and `spring` taking `bounce` and `duration` (plan step 8 check). `npm ci` exit 0. scripts/ci-local.sh exit 0.
