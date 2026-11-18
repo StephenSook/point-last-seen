@@ -36,3 +36,10 @@ def test_config_comes_from_hosting_init_json():
 def test_the_daily_probe_retires_after_judging():
     assert not ac.retired(date(2026, 12, 16))
     assert ac.retired(date(2026, 12, 18))
+
+
+def test_a_200_counts_only_with_a_non_empty_answer():
+    ok = {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}
+    assert ac.answered(ok)
+    for body in [{}, {"candidates": []}, {"candidates": [{"content": {"parts": [{"text": ""}]}}]}, {"candidates": [{"content": {}}]}]:
+        assert not ac.answered(body)

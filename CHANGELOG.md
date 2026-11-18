@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check control counts the debug-token call as passed only when the 200 carries a non-empty answer
+  (candidates with text); a 200 with {} or no text now fails the control.
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now 6 control tests pass; `bash scripts/ci-local.sh` exit 0.
 - media_probe compares the sweep's age in raw seconds: 120 min 30 s now fails the 120-minute limit (it used to
   floor to 120 and pass).
   Source: review of 2bdb778..dc762be (low).
