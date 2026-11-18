@@ -87,7 +87,7 @@ class EventsTest {
     )
     private val route = RouteRecord(
         platform = "android", path = "cloud", stage = "sdk", model = "gemini-3.5-flash-lite",
-        reason = "cloud_only_task", latencyMs = 1200, sdkReported = true, blocked = null, decidedAtMs = 999_000L,
+        reason = "sdk_only_in_cloud", latencyMs = 1200, sdkReported = true, blocked = null, decidedAtMs = 999_000L,
     )
 
     @Test fun confirmingAClipWritesACameraSightingAndItsConfirmation() {

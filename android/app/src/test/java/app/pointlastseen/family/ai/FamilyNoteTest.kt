@@ -77,8 +77,23 @@ class FamilyNoteTest {
         assertEquals("sdk", out.route.stage)
         assertTrue(out.route.sdkReported)
         assertEquals(42L, out.route.latencyMs)
+        assertEquals("on_device_unavailable", out.route.reason)
         assertEquals("place", out.reading.kind)
         assertEquals("the old mill", out.reading.label)
+    }
+
+    @Test fun aCloudAnswerWithALocalModelIsTheSdkFallback() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
+        assertEquals("cloud", out.route.path)
+        assertEquals("sdk_fallback", out.route.reason)
+    }
+
+    @Test fun anOnDeviceAnswerIsTheDefault() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
+        val out = FamilyNote(model, screen).read(note, env(DeviceModelStatus.AVAILABLE, consent = false)) as NoteOutcome.Read
+        assertEquals("on_device", out.route.path)
+        assertEquals("on_device_default", out.route.reason)
     }
 
     @Test fun aReadingWhoseQuoteIsNotInTheNoteIsDropped() = runTest {

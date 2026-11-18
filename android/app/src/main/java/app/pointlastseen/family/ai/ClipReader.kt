@@ -89,7 +89,7 @@ class ClipReader(private val deps: ClipDeps) {
             val now = deps.nowMs()
             val route = RouteRecord(
                 platform = "android", path = if (reply.source == Source.ON_DEVICE) "on_device" else "cloud",
-                stage = "sdk", model = r.modelName, reason = "cloud_only_task", latencyMs = reply.latencyMs,
+                stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
                 sdkReported = true, blocked = null, decidedAtMs = now,
             )
             deps.storeReading(

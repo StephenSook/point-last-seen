@@ -85,6 +85,7 @@ class ClipReaderTest {
         assertTrue(out.check!!.ok)
         assertEquals(0, out.bearingDeg) // facing 90, exit left: 90 - 90
         assertEquals("cloud", out.route!!.path)
+        assertEquals("sdk_only_in_cloud", out.route.reason)
         assertTrue(out.route.sdkReported)
         val stored = deps.stored!!
         assertEquals(Hashes.sha256Hex(request(1000).bytes), stored.sha256)

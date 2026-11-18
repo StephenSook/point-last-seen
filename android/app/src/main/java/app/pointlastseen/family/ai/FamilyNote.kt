@@ -70,7 +70,7 @@ class FamilyNote(private val model: NoteModel, private val screen: EvidenceScree
         val reason = when {
             reply.source == Source.ON_DEVICE -> "on_device_default"
             local -> "sdk_fallback"
-            else -> "no_on_device_model"
+            else -> "on_device_unavailable"
         }
         val route = RouteRecord(
             platform = "android", path = path, stage = "sdk", model = env.modelName, reason = reason,

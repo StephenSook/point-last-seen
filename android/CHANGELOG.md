@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Route reasons use the shared names.** The family note writes `on_device_default` (answered on
+  this phone), `sdk_fallback` (PREFER_ON_DEVICE answered from the cloud while a local model
+  exists) or `on_device_unavailable` (no local model); the clip read writes `sdk_only_in_cloud`.
+  Source: lane A ruling 3 and `shared/schemas/route-record.schema.json`. Verified: the reason
+  assertions failed first, then 86 unit tests pass.
 - **Evidence screen follows the shared matching rule.** Words are now NFKD-normalized with
   combining marks dropped and split on anything that is not a letter or digit, so accented and
   fullwidth text folds the same way as on iOS and the web. Unit tests read the repo's
