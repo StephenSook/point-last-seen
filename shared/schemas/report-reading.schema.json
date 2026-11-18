@@ -177,8 +177,7 @@
   "x-parity": {
     "#": {
       "ts": "shared/engine-ts/src/types.ts#ReportReading",
-      "ios": "ios/PLSCore/Sources/PLSCore/ReportReading.swift#ReportReading",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#ReportReading"
+      "ios": "ios/PLSCore/Sources/PLSCore/ReportReading.swift#ReportReading"
     }
   }
 }

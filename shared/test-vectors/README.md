@@ -97,6 +97,9 @@ Effect derivation (`fn: "clue"`), for kinds "clue" and "sighting"
 
 Events to the engine (`docToEngine`)
 - Deduplicate by `eventId` (first copy wins); output sorted by `eventId`.
+- Skip any doc whose stored effect is malformed (same shape the security rules enforce: exact keys per variant,
+  known enums, finite numbers in bounds, at least one clue influence). Never throw on one; command can list
+  them with `malformedEventIds`.
 - Skip ids in `priorInputEventIds`, and retracted ids. A retraction counts from role command or from the target's own `authorUid`.
 - `cleared` counts when its effect is a clear whose `inputs.coverage` is finite and at least 0 and whose `pod` is within 1e-9 of `1 - exp(-coverage)`. Computed coverage may exceed 3.
 - `clue` counts when its effect is a clue with authenticity high or medium.

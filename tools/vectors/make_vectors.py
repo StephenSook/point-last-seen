@@ -152,6 +152,43 @@ def derive_clue(reading, ctx):
             "authenticity": AUTHENTICITY[reading["matchesProfile"]]}
 
 
+INFLUENCES = ("strong_for", "for", "neutral", "against", "strong_against")
+RD_BASES = ("hidden_target", "open_target", "default", "stated")
+NONE_REASONS = ("needs_command", "informational", "invalid", "sound_only", "outside_area", "incorporated_in_prior")
+
+
+def _num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def well_formed_effect(eff):
+    """The same shape the security rules enforce. A malformed stored effect is skipped, never fatal."""
+    if not isinstance(eff, dict):
+        return False
+    kind = eff.get("kind")
+    if kind == "cleared":
+        i = eff.get("inputs")
+        return (set(eff) == {"kind", "segmentId", "pod", "inputs"} and isinstance(eff["segmentId"], str)
+                and _num(eff["pod"]) and 0 <= eff["pod"] <= 1 and isinstance(i, dict)
+                and set(i) == {"coverage", "sweepWidthM", "trackLengthM", "areaM2", "rdBasis"}
+                and _num(i["coverage"]) and i["coverage"] >= 0
+                and all(i[k] is None or (_num(i[k]) and i[k] >= 0) for k in ("sweepWidthM", "trackLengthM"))
+                and _num(i["areaM2"]) and i["areaM2"] > 0 and i["rdBasis"] in RD_BASES)
+    if kind == "clue":
+        infl = eff.get("influences")
+        return (set(eff) == {"kind", "influences", "authenticity"} and isinstance(infl, dict) and len(infl) >= 1
+                and all(isinstance(k, str) and v in INFLUENCES for k, v in infl.items())
+                and eff["authenticity"] in ("high", "medium", "low"))
+    if kind == "none":
+        return set(eff) == {"kind", "why"} and eff["why"] in NONE_REASONS
+    return False
+
+
+def malformed_event_ids(docs):
+    """Ids of stored events whose effect is malformed, for a banner at command. Sorted, deduplicated."""
+    return sorted({d["eventId"] for d in docs if not well_formed_effect(d.get("effect"))})
+
+
 def stored_clear_is_consistent(eff):
     """A stored clear counts only when its pod is what its coverage gives."""
     c, p_ = eff["inputs"]["coverage"], eff["pod"]
@@ -190,7 +227,9 @@ def to_engine_events(docs, prior_input_ids):
         d = by_id[eid]
         if eid in prior_inputs or eid in retracted:
             continue
-        eff, kind = d["effect"], d["type"]
+        eff, kind = d.get("effect"), d["type"]
+        if not well_formed_effect(eff):
+            continue
         likely = eff["kind"] == "clue" and eff["authenticity"] in ("high", "medium")
         if kind == "cleared" and eff["kind"] == "cleared" and stored_clear_is_consistent(eff):
             out.append({"eventId": eid, "effect": eff})
@@ -583,6 +622,19 @@ def build():
         ("command_retracts_other_author", [clear_doc, doc("cmd1", 8, "retraction", none("informational"), role="command",
                                                           targetEventId=clear_doc["eventId"])], []),
         ("inconsistent_stored_clear_dropped", [doc("dev1", 13, "cleared", dict(ce, pod=0.9))], []),
+        ("malformed_cleared_without_inputs_skipped",
+         [doc("dev3", 1, "cleared", {"kind": "cleared", "segmentId": "AB", "pod": 0.5})], []),
+        ("malformed_cleared_pod_as_text_skipped", [doc("dev3", 2, "cleared", dict(ce, pod="0.5"))], []),
+        ("malformed_cleared_unknown_rd_basis_skipped",
+         [doc("dev3", 3, "cleared", dict(ce, inputs=dict(ce["inputs"], rdBasis="guess")))], []),
+        ("malformed_clue_unknown_influence_skipped",
+         [doc("dev3", 4, "clue", clue_eff({"AB": "certain"}, "high"))], []),
+        ("malformed_clue_empty_influences_skipped", [doc("dev3", 5, "clue", clue_eff({}, "high"))], []),
+        ("malformed_effect_null_skipped", [doc("dev3", 6, "cleared", None)], []),
+        ("malformed_none_without_reason_skipped", [doc("dev3", 7, "found", {"kind": "none"})], []),
+        ("malformed_beside_good_events_keeps_the_good",
+         [doc("dev3", 8, "cleared", {"kind": "cleared", "segmentId": "AB", "pod": 0.5}), clear_doc,
+          doc("dev1", 15, "clue", hi)], []),
         ("large_computed_coverage_counts", [doc("dev1", 14, "cleared", cleared_eff("AB", 1 - math.exp(-5.2)))], []),
         ("confirmed_camera_sighting", [cam, confirm(cam["eventId"], "confirmed", 4)], [cam["eventId"]]),
         ("camera_sighting_never_a_likelihood", [cam, confirm(cam["eventId"], "confirmed", 4)], []),

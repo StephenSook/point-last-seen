@@ -1,0 +1,63 @@
+name: Engine
+
+# TypeScript engine and vector parity. Cheap, so it runs on every branch push that touches
+# shared code, the tools, the root package files or this workflow.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "shared/**"
+      - "tools/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/engine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  ts:
+    name: ts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install (clean, from the lockfile)
+        run: npm ci
+      - name: Engine typecheck
+        run: npm run typecheck -w shared/engine-ts
+      - name: Engine lint (unused symbols)
+        run: npm run lint -w shared/engine-ts
+      - name: Engine tests
+        run: npm test -w shared/engine-ts
+
+  vectors-parity:
+    name: vectors-parity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Regenerate the vectors and fail on any difference
+        run: |
+          python3 -I tools/vectors/make_vectors.py
+          git diff --exit-code -- shared/test-vectors/search.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install (clean, from the lockfile)
+        run: npm ci
+      - name: TypeScript engine against the regenerated vectors
+        run: npm test -w shared/engine-ts -- test/vectors.test.ts

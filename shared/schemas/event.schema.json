@@ -388,7 +388,7 @@
     "#": {
       "ts": "shared/engine-ts/src/types.ts#EventDoc",
       "ios": "ios/PLSCore/Sources/PLSCore/EventDoc.swift#EventDoc",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#EventDoc"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/EventDoc.kt#EventDoc"
     }
   }
 }
