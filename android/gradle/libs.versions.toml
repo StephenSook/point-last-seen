@@ -2,6 +2,7 @@
 agp = "9.5.1"
 kotlin = "2.4.21"
 googleServices = "4.6.0"
+crashlyticsPlugin = "3.0.8"
 firebaseBom = "35.2.0"
 # Pinned exactly by the project plan; firebase-bom 35.2.0 carries the same firebase-ai.
 firebaseAi = "18.2.0"
@@ -28,6 +29,9 @@ firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-functions = { module = "com.google.firebase:firebase-functions" }
 firebase-storage = { module = "com.google.firebase:firebase-storage" }
 firebase-config = { module = "com.google.firebase:firebase-config" }
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-appcheck-playintegrity = { module = "com.google.firebase:firebase-appcheck-playintegrity" }
 firebase-appcheck-debug = { module = "com.google.firebase:firebase-appcheck-debug" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -52,3 +56,4 @@ espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref =
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }

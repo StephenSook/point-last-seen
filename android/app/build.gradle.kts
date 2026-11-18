@@ -9,6 +9,8 @@ plugins {
 // release build) process it; CI builds and tests without it.
 if (file("google-services.json").exists()) {
     pluginManager.apply("com.google.gms.google-services")
+    // Crashlytics needs its build id injected; without Firebase config the app has no Firebase at all.
+    pluginManager.apply("com.google.firebase.crashlytics")
 }
 
 val localProps = Properties().apply {
@@ -136,6 +138,9 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.config)
     implementation(libs.firebase.appcheck.playintegrity)
+    implementation(libs.firebase.perf)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
     debugImplementation(libs.firebase.appcheck.debug)
 
     implementation(platform(libs.compose.bom))
