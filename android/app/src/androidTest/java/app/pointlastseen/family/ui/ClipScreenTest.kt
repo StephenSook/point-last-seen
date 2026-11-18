@@ -56,6 +56,20 @@ class ClipScreenTest {
         rule.onNodeWithText("Suggested from the clip").assertIsDisplayed()
     }
 
+    @Test fun consentTicksDoNotCarryOverToANewClip() {
+        val label = androidx.compose.runtime.mutableStateOf("door.mp4")
+        rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = label.value, ui = ClipUi.Idle, onPick = {}, onRead = {}, onConfirm = {}, onBack = {}) } }
+        tick("The person in the clip agrees")
+        tick("I own this footage or have the owner's OK")
+        tick("Send it to the cloud to read it")
+        rule.onNodeWithText("When the clip starts (HH:MM)").performScrollTo().performTextInput("14:01")
+        tick("The camera's clock is right")
+        rule.onNodeWithText("Read the clip").performScrollTo().assertIsEnabled()
+        label.value = "garage.mp4"
+        rule.waitForIdle()
+        rule.onNodeWithText("Read the clip").performScrollTo().assertIsNotEnabled()
+    }
+
     @Test fun withNoClipChosenTheFamilyIsAskedToPickOne() {
         var picked = 0
         rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = null, ui = ClipUi.Idle, onPick = { picked++ }, onRead = {}, onConfirm = {}, onBack = {}) } }

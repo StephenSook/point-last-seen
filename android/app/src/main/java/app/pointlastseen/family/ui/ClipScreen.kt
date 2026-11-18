@@ -90,13 +90,14 @@ fun ClipScreen(
     FamilyScaffold(mode, killCloud) {
         when (ui) {
             ClipUi.Idle, ClipUi.Busy -> {
-                var person by rememberSaveable { mutableStateOf(false) }
-                var owner by rememberSaveable { mutableStateOf(false) }
-                var cloud by rememberSaveable { mutableStateOf(false) }
-                var public by rememberSaveable { mutableStateOf(false) }
-                var clock by rememberSaveable { mutableStateOf(false) }
-                var start by rememberSaveable { mutableStateOf("") }
-                var facing by rememberSaveable { mutableStateOf<Int?>(null) }
+                // Consents, clock and facing belong to one clip: a new clip starts them over.
+                var person by rememberSaveable(clipLabel) { mutableStateOf(false) }
+                var owner by rememberSaveable(clipLabel) { mutableStateOf(false) }
+                var cloud by rememberSaveable(clipLabel) { mutableStateOf(false) }
+                var public by rememberSaveable(clipLabel) { mutableStateOf(false) }
+                var clock by rememberSaveable(clipLabel) { mutableStateOf(false) }
+                var start by rememberSaveable(clipLabel) { mutableStateOf("") }
+                var facing by rememberSaveable(clipLabel) { mutableStateOf<Int?>(null) }
                 Sentence("Share a camera clip.")
                 if (clipLabel == null) {
                     MainAction("Choose a clip", onClick = onPick)
