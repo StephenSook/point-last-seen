@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): draw the field screens in the day and night colours only
+- What: the Report bar is filled with the theme accent (amber by day, red at night) with black
+  text; secondary text, problems and the approach card footer use theme colours; the Ready
+  check is plain black rows with 2 pt theme lines, a three-button Auto/Day/Night choice (60 pt
+  targets for gloves), a theme-coloured switch and a theme-coloured title and back button. The
+  system title, back chevron, segmented picker and switch knob stayed white at night, so they
+  are replaced.
+- Source: promotion P-16, Task 25 step 5 (stills of every screen in each theme).
+- Verified: simulator stills of the field screen and the Ready check in Day and in Night, and a
+  live Night-to-Day switch from the Ready check: no white left at night except the iOS status
+  bar, which the app cannot colour. Two defects found in the stills and fixed before this
+  commit: VoiceOver read every choice as the hint text (now Auto, Day, Night with the hint
+  separate), and the back chevron kept the night tint after a switch. 34 app tests pass;
+  `scripts/ci-local.sh` exit 0. No unit test covers the drawing; the stills are the check.
+
 ### feat(ios): keep the screen choice and switch to night colours at dusk
 - What: `ThemeStore` keeps Auto, Day or Night on this phone (an unknown stored value falls back
   to Auto); `FieldColor` turns the theme's hex values into colours; `RootView` re-checks each

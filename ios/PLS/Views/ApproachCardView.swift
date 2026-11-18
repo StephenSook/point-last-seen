@@ -5,6 +5,7 @@ import SwiftUI
 struct ApproachCardView: View {
     let card: ApproachCard
     @State private var showMore = false
+    @Environment(\.fieldTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -18,7 +19,7 @@ struct ApproachCardView: View {
                     }
                 }
             }
-            Text(card.footer).font(.footnote).foregroundStyle(.secondary)
+            Text(card.footer).font(.footnote).foregroundStyle(theme.text(.secondary))
         }
     }
 }
