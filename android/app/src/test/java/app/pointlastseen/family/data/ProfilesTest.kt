@@ -118,8 +118,8 @@ class ProfilesTest {
         assertFalse(Profiles.warnings(full.copy(profileUpdatedOn = LocalDate.of(2026, 11, 2)), now, zone).contains("clock_changed"))
     }
 
-    @Test fun aProfileNeverUpdatedIsStale() {
-        assertTrue(Profiles.warnings(SubjectProfile(), now, zone).contains("profile_stale"))
+    @Test fun aProfileNeverSavedHasNoUpdatePrompt() {
+        assertEquals(emptyList<String>(), Profiles.warnings(SubjectProfile(), now, zone))
     }
 
     @Test fun freeTextIsCappedAtTheSchemaLengths() {

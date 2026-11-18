@@ -212,7 +212,8 @@ object Profiles {
         val photo = p.photoTakenOn
         if (photo != null && ChronoUnit.DAYS.between(photo, today) > PHOTO_WARN_DAYS) out += "photo_old"
         val updated = p.profileUpdatedOn
-        if (updated == null || ChronoUnit.DAYS.between(updated, today) > UPDATE_PROMPT_DAYS) out += "profile_stale"
+        // A profile never saved is new, not stale: the prompt starts after the first save.
+        if (updated != null && ChronoUnit.DAYS.between(updated, today) > UPDATE_PROMPT_DAYS) out += "profile_stale"
         if (updated != null && clockChangedSince(updated, nowMs, zone)) out += "clock_changed"
         return out
     }
