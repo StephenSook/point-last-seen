@@ -1,7 +1,7 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
-import { DEFAULT_PARAMS, type Assignment, type EventDoc, type RouteRecord } from "@pls/engine";
+import { DEFAULT_PARAMS, placeToCheck, type Assignment, type EventDoc, type FamilyProfile, type Place, type RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
@@ -17,6 +17,9 @@ import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } 
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
 import { segmentContaining, type LatLon } from "../map/geo";
+import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
+import { ApproachCard } from "./ApproachCard";
+import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
@@ -164,7 +167,7 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
 
 function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [state, dispatch] = useReducer(postReducer, initialPostState);
-  const { view, events, plans, denied, offline } = state;
+  const { view, events, plans, profile, denied, offline } = state;
   const [now, setNow] = useState(() => Date.now());
   const [rc, setRc] = useState<WebRc>(() => parseRc({}));
   const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
@@ -177,6 +180,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [photos, setPhotos] = useState<TrayPhoto[]>([]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
+  const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
   const reloadPhotos = () => loadPhotos(pls.storage, incidentId).then(setPhotos, () => setPhotos([]));
   useEffect(() => {
@@ -193,10 +199,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const stopIncident = subscribeIncident(pls.db, incidentId, (v) => dispatch({ type: "view", view: v }), failed);
     const stopEvents = subscribeEvents(pls.db, incidentId, (e) => dispatch({ type: "events", events: e }), failed);
     const stopPlans = subscribePlans(pls.db, incidentId, (p) => dispatch({ type: "plans", plans: p }), failed);
+    const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
       stopIncident();
       stopEvents();
       stopPlans();
+      stopProfile();
     };
   }, [pls, incidentId, denied]);
 
@@ -324,6 +332,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     await reloadPhotos();
   };
 
+  const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
+  const saveProfile = (p: FamilyProfile) => writeProfile(pls.db, incidentId, p);
+  const shareDestination = async (place: Place) => {
+    const w = writer();
+    write(placeToCheck(place, { incidentId: w.incidentId, uid: w.uid, seq: w.seq, clientTimeMs: w.clientTimeMs, priorVersion: w.priorVersion }));
+  };
+  const pickPlace = (_list: string, _i: number, done: (p: LatLon) => void) =>
+    setPicker(() => (p: LatLon) => {
+      done(p);
+      setPicker(null);
+    });
+
   const approve = async (worded: WordedPlan): Promise<number> => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
@@ -362,7 +382,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={poa} onMapClick={adding ? setPin : undefined} pin={adding ? pin : null} />
+        <MapView segments={segments} poa={poa} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -377,6 +397,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
+          {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
+          {editingProfile ? (
+            <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
+          ) : (
+            <button type="button" className="btn ghost" onClick={() => setEditingProfile(true)} disabled={!incident}>
+              {profile?.shared ? "Edit profile" : "Add profile"}
+            </button>
+          )}
+          {picker && <p role="status">Click the map to place it.</p>}
           {adding ? (
             <SightingForm
               place={pin}
