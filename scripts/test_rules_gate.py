@@ -210,3 +210,25 @@ def test_no_remote_font_host_in_the_web_page_or_css(tmp_path):
     assert out.returncode == 1
     assert "web/index.html:1" in out.stdout and "web/src/styles/fonts.css:1" in out.stdout
     assert "local.css" not in out.stdout
+
+
+MODELS = '{"models": [{"id": "gemini-3.5-flash-lite"}], "banned": [{"id": "gemini-3.1-flash-tts-preview"}]}'
+
+
+def test_model_ids_in_source_must_be_on_the_allow_list(tmp_path):
+    write(tmp_path, "shared/constants/models.json", MODELS)
+    write(tmp_path, "web/src/config/rc.ts", 'cloud_model_web: "gemini-3.5-flash-lite",\n')
+    write(tmp_path, "ios/PLS/Config/Values.swift", 'let m = "gemini-3.6-flash-lite"\n')
+    write(tmp_path, "web/src/config/rc.test.ts", 'parseRc({ cloud_model_web: "gemini-3.6-flash-lite" })\n')
+    write(tmp_path, "docs/models.md", "We tried gemini-3.6-flash-lite once.\n")
+    out = run_gate(tmp_path)
+    assert out.returncode == 1
+    assert "ios/PLS/Config/Values.swift:1" in out.stdout
+    assert "rc.ts:1" not in out.stdout and "rc.test.ts" not in out.stdout and "models.md" not in out.stdout
+
+
+def test_a_model_shut_down_before_judging_ends_fails_even_in_tests(tmp_path):
+    write(tmp_path, "shared/constants/models.json", MODELS)
+    write(tmp_path, "android/app/src/test/java/TtsTest.kt", 'val m = "gemini-3.1-flash-tts-preview"\n')
+    out = run_gate(tmp_path)
+    assert out.returncode == 1 and "TtsTest.kt:1" in out.stdout

@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Model allow-list: `shared/constants/models.json` lists the model ids the project may name (today only
+  gemini-3.5-flash-lite: Stable, released 2026-07-21, no shutdown date) and the banned ones
+  (gemini-3.1-flash-tts-preview, shut down 2026-11-17), read from the live Firebase AI Logic models page on
+  2026-11-18, to be re-read by 2026-11-28. The rules gate fails on any model id in source that is not listed,
+  and on a banned id anywhere outside docs, tests included; test files may name other ids as data.
+  Source: orchestrator (judging-window audit: a model shutting down inside the window would break the cloud
+  route; read of the models page 2026-11-18).
+  Verified: 2 gate tests failed first, now 25 pass; the gate passes on this tree and on the trees of lane-ios,
+  lane-web, lane-android, codex-walkers and lane-extras (each walked with this gate and list);
+  `bash scripts/ci-local.sh` exit 0.
 - P-12 urgency chip: `shared/constants/urgency.json` (coldF 40, the CDC sentence it rests on, its URL and the
   date it was read), `urgencyLevel(tempF, wet)` in @pls/engine, and shared vectors in
   `shared/test-vectors/urgency.json` from the Python reference so web (lane C) and iOS (lane B) agree: cold at
