@@ -130,6 +130,31 @@ class DrillE2ETest {
         assertTrue("clip stored", deps.clipExists(sha))
         log("clip consent record and stored clip present")
 
+        // 5b. A retry of the same clip. With no reading stored (this clip has no person), the
+        //     record is renewed by its creator: fresh consent, a new expiry and createdAt, every
+        //     other field as stored. The live rules must accept it, and the stored clip is reused.
+        if (record.get("reading") == null) {
+            val later = System.currentTimeMillis()
+            val again = ClipReader(deps).read(
+                ClipRequest(
+                    bytes = bytes, mimeType = "video/mp4", durationS = 2, clipStartMs = now - 60_000L, clockConfirmed = true,
+                    cameraFacingDeg = 90, consent = ClipConsent(sha, ConsentMark(uid, later), ConsentMark(uid, later), ConsentMark(uid, later), null),
+                    killCloud = { false }, modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+                ),
+            )
+            log("clip retry outcome=${again::class.simpleName}")
+            assertTrue("clip retry outcome $again", again is ClipOutcome.CouldNotRead || again is ClipOutcome.Read)
+            val renewed = Firebase.firestore.collection("incidents").document(incidentId).collection("clipReadings").document(sha).get(Source.SERVER).await()
+            assertTrue("renewed createdAt", renewed.getTimestamp("createdAt")!! > record.getTimestamp("createdAt")!!)
+            assertTrue("renewed expiresAt", renewed.getTimestamp("expiresAt")!! > record.getTimestamp("expiresAt")!!)
+            for (k in listOf("sha256", "storagePath", "durationS", "clipStartMs", "clockConfirmed", "cameraFacingDeg", "createdByUid")) {
+                assertEquals("renewal kept $k", record.get(k), renewed.get(k))
+            }
+            log("clip retry renewed the consent record; other fields unchanged")
+        } else {
+            log("clip retry skipped: the first read stored a reading, so a retry is the cached path")
+        }
+
         // 6. Photo: a 1536 px JPEG with no EXIF, under its hash.
         val bmp = Bitmap.createBitmap(2400, 1600, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.rgb(Random.nextInt(255), 120, 80)) }
         val photoFile = File(ctx.cacheDir, "e2e.jpg").apply { outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
