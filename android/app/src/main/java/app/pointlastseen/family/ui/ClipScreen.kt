@@ -115,6 +115,7 @@ fun ClipScreen(
                     Compass.FACINGS.forEach { (word, deg) -> FilterChip(selected = facing == deg, onClick = { facing = deg }, label = { Text(word) }) }
                     FilterChip(selected = facing == null, onClick = { facing = null }, label = { Text("I don't know") })
                 }
+                if (ui == ClipUi.Busy) Note("Reading the clip. This can take a minute.")
                 val m = HHMM.matchEntire(start.trim())
                 MainAction("Read the clip", enabled = ui == ClipUi.Idle && clipLabel != null && person && owner && cloud && clock && m != null) {
                     val match = m ?: return@MainAction
@@ -143,7 +144,7 @@ fun ClipScreen(
                 is ClipOutcome.Read -> Sentence("Read.")
             }
         }
-        OtherAction("Back", enabled = ui != ClipUi.Busy, onClick = onBack)
+        OtherAction("Back", onClick = onBack)
     }
 }
 

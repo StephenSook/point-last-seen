@@ -42,6 +42,14 @@ class ClipScreenTest {
         assertEquals(270, f.facingDeg)
     }
 
+    @Test fun whileReadingTheScreenSaysSoAndBackStaysAvailable() {
+        var back = 0
+        rule.setContent { PaperTheme { ClipScreen(null, false, "door.mp4", ClipUi.Busy, onPick = {}, onRead = {}, onConfirm = {}, onBack = { back++ }) } }
+        rule.onNodeWithText("Reading the clip. This can take a minute.").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Back").performScrollTo().performClick()
+        assertEquals(1, back)
+    }
+
     @Test fun withNoClipChosenTheFamilyIsAskedToPickOne() {
         var picked = 0
         rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = null, ui = ClipUi.Idle, onPick = { picked++ }, onRead = {}, onConfirm = {}, onBack = {}) } }
