@@ -2,7 +2,7 @@ import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import { buildCameraSighting, type ClipFacts } from "../data/cameraSighting";
 import type { SegmentDoc } from "../data/incident";
-import { cameraPriorWrites } from "./cameraPrior";
+import { cameraConfirmWrites, cameraPriorWrites } from "./cameraPrior";
 import { gridFromDocs } from "./rebuild";
 
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
@@ -42,5 +42,25 @@ describe("cameraPriorWrites", () => {
     const cam = buildCameraSighting({ ...clip, camera: null, cameraFacingDeg: null }, writer);
     const w = cameraPriorWrites(SEGS, incident, cam, null);
     expect(w.incident).toMatchObject({ ipp: IPP, priorLayers: { linear: false, wedge: false }, priorVersion: 8 });
+  });
+});
+
+describe("cameraPriorWrites with no bearing", () => {
+  it("turns the stored wedge off when the newest camera sighting gives no direction", () => {
+    const cam = buildCameraSighting({ ...clip, cameraFacingDeg: null }, writer);
+    const w = cameraPriorWrites(SEGS, { ...incident, priorLayers: { linear: false, wedge: true } }, cam, null);
+    expect(w.incident.priorLayers).toEqual({ linear: false, wedge: false });
+  });
+});
+
+describe("cameraConfirmWrites", () => {
+  it("builds the camera sighting, its confirmation and the prior before anything is written", () => {
+    const out = cameraConfirmWrites(clip, [writer, { ...writer, seq: 4 }], SEGS, incident, 0);
+    expect(out.events.map((e) => e.type)).toEqual(["camera_sighting", "confirmation"]);
+    expect(out.events[1]!.targetEventId).toBe(out.events[0]!.eventId);
+    expect(out.prior.incident.priorInputEventIds).toEqual(["x", out.events[0]!.eventId]);
+  });
+  it("throws, with nothing to write, when the prior cannot be built", () => {
+    expect(() => cameraConfirmWrites({ ...clip, cameraFacingDeg: 10 }, [writer, { ...writer, seq: 4 }], SEGS, incident, null)).toThrow(/8 compass points/);
   });
 });

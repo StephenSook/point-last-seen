@@ -9,8 +9,8 @@ import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
-import { buildCameraSighting, travelBearingFromInputs } from "../data/cameraSighting";
-import { cameraPriorWrites } from "../prior/cameraPrior";
+import { travelBearingFromInputs } from "../data/cameraSighting";
+import { cameraConfirmWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
@@ -529,20 +529,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // that rebuilds the ring prior from the camera with the wedge on and the sighting as an input.
   const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const cam = buildCameraSighting(
+    // Everything is built first; if any part cannot be built, nothing is written.
+    const { events: built, prior } = cameraConfirmWrites(
       { sha256: o.sha256, reading: o.reading, route: o.route, clipStartMs: input.clipStartMs, clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg, camera: input.camera },
-      writer(),
-    );
-    write(cam);
-    write(buildConfirmation(cam, "confirmed", writer()));
-    const w = cameraPriorWrites(
+      [writer(), writer()],
       segments,
       { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds },
-      cam,
       o.bearingDeg,
     );
+    built.forEach(write);
     setPin(null);
-    return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
+    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior) };
   };
   const saveProfile = (p: FamilyProfile) => {
     setProfileError(null);
