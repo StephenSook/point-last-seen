@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): test the cloud gate at dispatch and name a mode exit in the route
+- What: when the live gate closes a cloud route at the moment of dispatch because the incident
+  left drill or judge mode, the route record now says `not_drill_mode`; other closures keep the
+  reason step 1 failed, as the router does. New tests pin the dispatch check itself (a cloud
+  route from the snapshot with the kill switch on calls no model) and the mode exit on both the
+  reroute and the dispatch paths.
+- Source: fresh-eyes review M3 (no test of the dispatch check) and M10 (old reason kept).
+- Verified: of three new tests, the dispatch mode-exit test failed before (old reason), then
+  passed; the other two are guards that pass on the H1 fix; full suite 202 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): read "half an hour" as 30 minutes
 - What: "half an hour ago" now gives a sighting 30 minutes before the send (it gave 60), and
   "for half an hour" gives a search of 30 minutes.

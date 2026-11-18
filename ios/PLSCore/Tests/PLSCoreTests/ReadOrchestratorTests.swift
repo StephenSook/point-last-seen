@@ -175,6 +175,37 @@ final class LiveGateBox: @unchecked Sendable {
         }
     }
 
+    @Test func aCloudRouteChosenFromTheSnapshotIsCheckedAgainAtDispatch() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: true, incidentMode: "drill"))
+        var c = context(box)
+        c.onDevice.available = false                                      // the snapshot says: cloud
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules)
+    }
+
+    @Test func aCloudRouteClosedByAModeChangeBeforeDispatchSaysSo() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "closed"))
+        var c = context(box)
+        c.onDevice.available = false
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.reason == .notDrillMode)
+    }
+
+    @Test func anIncidentThatLeftDrillModeIsRecordedAsSuch() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        r.duringOnDeviceCall = { box.gate.incidentMode = "closed" }
+        let o = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.reason == .notDrillMode)
+    }
+
     @Test func aContextLimitKeepsItsOwnReasonOnTheCloud() async {
         let r = FakeRunner()
         r.guidedResults[.onDevice] = [.failure(.contextExceeded)]

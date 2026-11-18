@@ -136,6 +136,9 @@ public enum ReadOrchestrator {
             if stage == .guided && path == .cloud {
                 let modeOK = refreshGate()
                 if !modeOK || !input.networkOnline || !input.cloudConsent || input.killCloud {
+                    // Like the router, rules keep the reason step 1 failed, except when the
+                    // incident has left drill or judge mode, which is said as such.
+                    if !modeOK { decision = RouteDecision(path: .rules, reason: .notDrillMode) }
                     path = .rules
                     stage = .deterministicParser
                 }
