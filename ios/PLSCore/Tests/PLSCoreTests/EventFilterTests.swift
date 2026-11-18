@@ -127,3 +127,41 @@ import Testing
     }
 }
 
+@Suite struct EffectShapeTests {
+    let cleared: JSONValue = .object(["kind": .string("cleared"), "segmentId": .string("AC"), "pod": .number(0.5),
+        "inputs": .object(["coverage": .number(0.69), "sweepWidthM": .null, "trackLengthM": .null, "areaM2": .number(15625), "rdBasis": .string("open_target")])])
+
+    func with(_ base: JSONValue, _ path: [String], _ value: JSONValue?) -> JSONValue {
+        guard case var .object(o) = base else { return base }
+        if path.count == 1 { o[path[0]] = value } else { o[path[0]] = with(o[path[0]] ?? .null, Array(path.dropFirst()), value) }
+        return .object(o)
+    }
+
+    @Test func wellFormedEffectsPass() {
+        #expect(EffectShape.isValid(cleared))
+        #expect(EffectShape.isValid(.object(["kind": .string("clue"), "influences": .object(["AA": .string("strong_for")]), "authenticity": .string("high")])))
+        #expect(EffectShape.isValid(.object(["kind": .string("none"), "why": .string("sound_only")])))
+    }
+
+    @Test func everyBrokenShapeFails() {
+        #expect(!EffectShape.isValid(.null))
+        #expect(!EffectShape.isValid(with(cleared, ["extra"], .number(1))))
+        #expect(!EffectShape.isValid(with(cleared, ["pod"], .number(1.5))))
+        #expect(!EffectShape.isValid(with(cleared, ["pod"], .string("0.5"))))
+        #expect(!EffectShape.isValid(with(cleared, ["inputs", "areaM2"], .number(0))))
+        #expect(!EffectShape.isValid(with(cleared, ["inputs", "coverage"], .number(-0.1))))
+        #expect(!EffectShape.isValid(with(cleared, ["inputs", "sweepWidthM"], .number(-1))))
+        #expect(!EffectShape.isValid(with(cleared, ["inputs", "rdBasis"], .string("guess"))))
+        #expect(!EffectShape.isValid(with(cleared, ["inputs", "trackLengthM"], nil)))
+        #expect(!EffectShape.isValid(.object(["kind": .string("clue"), "influences": .object([:]), "authenticity": .string("high")])))
+        #expect(!EffectShape.isValid(.object(["kind": .string("clue"), "influences": .object(["AA": .string("maybe")]), "authenticity": .string("high")])))
+        #expect(!EffectShape.isValid(.object(["kind": .string("none")])))
+    }
+
+    @Test func decodeSkipsAnEffectThatDecodesButBreaksTheShape() throws {
+        guard case var .object(d) = try JSONValue(encoding: doc("e9", .clue, effect: clue(.high))) else { Issue.record("setup"); return }
+        d["effect"] = .object(["kind": .string("clue"), "influences": .object([:]), "authenticity": .string("high")])
+        #expect(EventFilter.decode([.object(d)]).malformedIds == ["e9"])
+    }
+}
+

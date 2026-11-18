@@ -82,7 +82,9 @@ func run(_ c: VectorCase) throws -> JSONValue {
             ? EffectDeriver.cleared(reading: reading, context: ctx, params: try field(i, "params"))
             : EffectDeriver.clue(reading: reading, context: ctx))
     case "docToEngine":
-        return try JSONValue(encoding: EventFilter.toEngineEvents(try field(i, "docs"), priorInputEventIds: try field(i, "priorInputEventIds")))
+        // Stored events are decoded one by one, as the app reads them; malformed ones are skipped.
+        let decoded = EventFilter.decode(try field(i, "docs", as: [JSONValue].self))
+        return try JSONValue(encoding: EventFilter.toEngineEvents(decoded.docs, priorInputEventIds: try field(i, "priorInputEventIds")))
     case "rank":
         return try JSONValue(encoding: Ranking.rank(try field(i, "result"), prior: try field(i, "prior")))
     case "ids":

@@ -10,13 +10,14 @@ public struct DecodedEvents: Sendable, Equatable {
 }
 
 public enum EventFilter {
-    /// Decodes stored events one by one. A malformed event (for example a clear with no inputs)
-    /// is skipped and its id flagged for command; it never stops the others or throws.
+    /// Decodes stored events one by one. A malformed event (an effect that fails the exact
+    /// stored shape, or any field that does not decode) is skipped and its id flagged for
+    /// command; it never stops the others or throws.
     public static func decode(_ stored: [JSONValue]) -> DecodedEvents {
         var docs: [EventDoc] = []
         var malformed: [String] = []
         for value in stored {
-            if let doc = try? value.decode(EventDoc.self) {
+            if let effect = value["effect"], EffectShape.isValid(effect), let doc = try? value.decode(EventDoc.self) {
                 docs.append(doc)
             } else if case let .string(id)? = value["eventId"] {
                 malformed.append(id)

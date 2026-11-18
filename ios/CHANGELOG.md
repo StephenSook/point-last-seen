@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): check every stored effect against its exact shape before use
+- What: `EffectShape.isValid` checks a stored effect exactly as the create rule and the shared
+  vectors do (cleared: exact keys, pod 0 to 1, inputs with coverage at least 0, sweep and track
+  null or at least 0, area above 0, a known rdBasis; clue: one or more known influences and a
+  known authenticity; none: a known reason; null is malformed). `EventFilter.decode` skips and
+  flags any event that fails it, and the vector harness now decodes docToEngine events one by
+  one, as the app does.
+- Source: lane A 6c4dc21 (malformed_* docToEngine vectors), relayed by the orchestrator.
+- Verified: 8 malformed vector cases failed before (whole-array decode errors, an empty
+  influence map applied), then passed; 158 of 158 vector cases; 3 new `EffectShapeTests`;
+  full suite 175 tests.
+
 ### feat(ios-core): turn events into Firestore values and read the server identity
 - What: `JSONValue.firestoreValue` gives Foundation objects for a write: whole numbers as
   integers (the rules require `seq` to be an int), fractions as doubles, null as `NSNull`.
