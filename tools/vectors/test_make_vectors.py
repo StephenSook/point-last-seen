@@ -81,11 +81,23 @@ def frame(fields):
     return out
 
 
-def test_event_id_layout_is_length_prefixed_sha256():
+def test_event_id_layout_is_text_length_prefixed_sha256():
+    # eventId framing (coordinator decision H1): decimal UTF-8 byte length, ":", value, per field, so the
+    # security rules can recompute it. Worked example: "ab", "c", 1 hashes the string "2:ab1:c1:1".
     c = case(load(V), "ids", "ab_c_1")
-    expect = hashlib.sha256(frame(["ab", "c", "1"])).hexdigest()[:32]
     assert c["input"] == {"fn": "eventId", "incidentId": "ab", "deviceId": "c", "seq": 1}
-    assert c["expected"] == {"eventId": expect}
+    assert c["expected"] == {"eventId": hashlib.sha256(b"2:ab1:c1:1").hexdigest()[:32]}
+    assert case(load(V), "ids", "a_bc_1")["expected"]["eventId"] == hashlib.sha256(b"1:a2:bc1:1").hexdigest()[:32]
+
+
+def test_event_id_utf8_and_epoch_ms_cases():
+    v = load(V)
+    u = case(v, "ids", "utf8_lengths_are_bytes")
+    raw = "5:caf\u00e97:\u00e9quipe1:3".encode("utf-8")
+    assert u["expected"]["eventId"] == hashlib.sha256(raw).hexdigest()[:32]
+    e = case(v, "ids", "epoch_ms_seq")
+    assert e["input"]["seq"] == 1795860000000
+    assert e["expected"]["eventId"] == hashlib.sha256(b"11:drill-dev-19:uid123ABC13:1795860000000").hexdigest()[:32]
 
 
 def test_event_set_hash_layout_and_convergence_code():

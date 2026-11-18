@@ -107,8 +107,11 @@ Events to the engine (`docToEngine`)
 - `camera_sighting`, `destination`, `confirmation`, `retraction`, `found` and `plan_ack` never count.
 
 Ids
-- Field framing: each field is a 4-byte big-endian byte length, then its UTF-8 bytes.
-- `eventId`: SHA-256 over incidentId, deviceId and decimal seq; the first 16 bytes as 32 lowercase hex characters.
+- `eventId`: SHA-256 over the UTF-8 string made of, per field (incidentId, deviceId, decimal seq), the
+  decimal UTF-8 byte length, a colon and the value; the first 16 bytes as 32 lowercase hex characters.
+  Worked example: ("ab", "c", 1) hashes the string `2:ab1:c1:1`; ("a", "bc", 1) hashes `1:a2:bc1:1`.
+  The security rules rebuild this string, so an event can only be created at its own id.
+- `eventSetHash` framing: each field is a 4-byte big-endian byte length, then its UTF-8 bytes.
 - `eventSetHash`: deduplicate the ids, sort by code point, SHA-256 over [decimal priorVersion] + sorted ids; 64 lowercase hex characters. An empty set hashes the priorVersion field alone.
 - `convergenceCode`: the first 20 bits of the hash, 4 groups of 5 bits, most significant first, through `0123456789ABCDEFGHJKMNPQRSTVWXYZ`.
 

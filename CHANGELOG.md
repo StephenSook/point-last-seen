@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Change the eventId framing so the security rules can recompute it: SHA-256 over the UTF-8 string made of,
+  per field (incidentId, deviceId, decimal seq), the decimal UTF-8 byte length, ":" and the value (example:
+  ("ab", "c", 1) hashes "2:ab1:c1:1"); first 32 lowercase hex characters. eventSetHash and convergenceCode
+  keep their binary framing. Reference generator, regenerated vectors (159; ids now include an epoch-ms seq
+  case; the ("ab","c") vs ("a","bc") pair and the UTF-8 byte-length case stay), README and the TS engine
+  change in ONE commit, because the vectors alone would turn the Engine job red on their own SHA.
+  Source: Codex adversarial review H1 (a member could occupy another device's future event id), option 1
+  approved by the orchestrator after an emulator probe showed rules can compute hashing.sha256 over this
+  string; recorded in the design's coordinator decisions. The Swift and Kotlin twins follow against this SHA.
+  Verified: new anchors (hand-computed hashes of "2:ab1:c1:1", "1:a2:bc1:1", the UTF-8 case and the
+  epoch-ms case) failed first, now 13 generator tests pass; the TS suite failed on 7 id-dependent cases, now
+  154 pass; typecheck and lint exit 0.
 - Run the rules suite on per-worktree emulator ports: `scripts/emulator_config.py` writes a copy of
   firebase.json with absolute paths and a port block derived from the worktree path (20000 to 34999), and
   `npm run test:rules -w functions` passes it with `--config`. Several worktrees on one Mac run ci-local at
