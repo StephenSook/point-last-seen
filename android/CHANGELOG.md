@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Profile publisher.** After "She's gone", `ProfilePublisher` writes the shared fields to
+  `incidents/{id}/profile/shared` and the history to `incidents/{id}/profile/command`, and reports
+  when both writes finish. Source: Task 19 step 4, spec 7 and 13.2. Verified:
+  `ProfilePublisherTest` failed to compile first, then passes (each document gets its own map;
+  no medication, special concern or birthdate value is written).
 - **A remembered thing becomes a profile edit.** `Profiles.applyNote` adds a place, an old
   address or a past wandering spot to its command-only list (no duplicates, case-insensitive) and
   replaces the clothing last worn. Source: lane A ruling 6 (a profile edit, not an event).
