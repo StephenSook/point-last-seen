@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -157,7 +158,7 @@ fun ProfileScreen(
             DEMENTIA_LABELS.forEach { (v, label) -> FilterChip(selected = p.dementiaType == v, onClick = { p = p.copy(dementiaType = v) }, label = { Text(label) }) }
         }
         Row(
-            Modifier.fillMaxWidth().toggleable(p.shareDementiaType, role = Role.Switch) { p = p.copy(shareDementiaType = it) },
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(p.shareDementiaType, role = Role.Switch) { p = p.copy(shareDementiaType = it) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Share the type with searchers", modifier = Modifier.weight(1f))
@@ -166,7 +167,7 @@ fun ProfileScreen(
         Note("What searchers should know")
         Profiles.FLAGS.forEach { f ->
             Row(
-                Modifier.fillMaxWidth().toggleable(f in p.flags, role = Role.Checkbox) { p = p.copy(flags = p.flags.toggle(f)) },
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(f in p.flags, role = Role.Checkbox) { p = p.copy(flags = p.flags.toggle(f)) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = f in p.flags, onCheckedChange = null)
@@ -188,7 +189,7 @@ fun ProfileScreen(
         Field("Where they were found before", wandering, max = 800) { wandering = it }
         Field("Water nearby", p.nearbyWater) { p = p.copy(nearbyWater = it) }
         Row(
-            Modifier.fillMaxWidth().toggleable(p.vehicle?.involved == true, role = Role.Switch) {
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(p.vehicle?.involved == true, role = Role.Switch) {
                 p = p.copy(vehicle = Vehicle(it, p.vehicle?.description ?: ""))
             },
             verticalAlignment = Alignment.CenterVertically,
