@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Event ids checked against the shared vectors.** `IdVectorsTest` runs all six `eventId` cases
+  in `shared/test-vectors/search.json` (including the UTF-8 byte-length case) through
+  `EventIds.eventId`. Test only; the code already matched. Source: spec section 8 and lane A's
+  vectors. Verified: passes on the real code; fails on a mutant that encodes UTF-16
+  (`ab_c_1` mismatch); the restored file is byte-identical (`git diff --stat` empty).
 - **Route reasons use the shared names.** The family note writes `on_device_default` (answered on
   this phone), `sdk_fallback` (PREFER_ON_DEVICE answered from the cloud while a local model
   exists) or `on_device_unavailable` (no local model); the clip read writes `sdk_only_in_cloud`.
