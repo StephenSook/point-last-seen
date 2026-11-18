@@ -5,13 +5,9 @@ import type { FirebaseApp } from "firebase/app";
 import { activate, fetchAndActivate, getAll, getRemoteConfig, onConfigUpdate } from "firebase/remote-config";
 
 export const RC_DEFAULTS = {
-  cloud_model_ios: "gemini-3.5-flash-lite",
   cloud_model_web: "gemini-3.5-flash-lite",
-  cloud_model_android: "gemini-3.5-flash-lite",
   kill_cloud: false,
   use_limited_use_tokens: true,
-  minimum_version_ios: "",
-  minimum_version_android: "",
 } as const;
 
 export type WebRc = {

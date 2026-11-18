@@ -2,16 +2,18 @@ import { describe, expect, it } from "vitest";
 import { RC_DEFAULTS, parseRc } from "./rc";
 
 describe("Remote Config", () => {
-  it("has the design's keys and defaults", () => {
-    expect(RC_DEFAULTS).toEqual({
-      cloud_model_ios: "gemini-3.5-flash-lite",
-      cloud_model_web: "gemini-3.5-flash-lite",
-      cloud_model_android: "gemini-3.5-flash-lite",
-      kill_cloud: false,
-      use_limited_use_tokens: true,
-      minimum_version_ios: "",
-      minimum_version_android: "",
-    });
+  it("sets in-app defaults only for the keys the web reads", () => {
+    expect(RC_DEFAULTS).toEqual({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: false, use_limited_use_tokens: true });
+  });
+
+  it("every value the web parses has a reader in web code (wired, not just parsed)", () => {
+    const files = Object.entries(import.meta.glob("../**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true }) as Record<string, string>)
+      .filter(([path]) => !path.includes("/config/rc") && !path.endsWith(".test.ts") && !path.endsWith(".test.tsx"));
+    expect(files.length).toBeGreaterThan(10);
+    for (const field of Object.keys(parseRc({}))) {
+      const readers = files.filter(([, src]) => src.includes(`rc.${field}`)).map(([p]) => p);
+      expect(readers, `rc.${field}`).not.toEqual([]);
+    }
   });
 
   it("reads typed values for the web seat", () => {
