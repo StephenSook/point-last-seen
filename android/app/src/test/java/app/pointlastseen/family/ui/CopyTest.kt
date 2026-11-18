@@ -18,6 +18,10 @@ class CopyTest {
         assertEquals("Call 911 first.", Copy.callFirst(null))
     }
 
+    @Test fun theUnjoinedCallFirstScreenNamesTheDrillCallTaker() {
+        assertEquals("In a training drill, call the drill call-taker, not 911.", Copy.UNJOINED_DRILL_HINT)
+    }
+
     @Test fun drillBannerOnEveryDrillScreen() {
         assertEquals("Training drill. Nobody is missing.", Copy.drillBanner("drill"))
         assertEquals("Training drill. Nobody is missing.", Copy.drillBanner("judge"))

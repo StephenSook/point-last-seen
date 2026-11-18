@@ -7,6 +7,7 @@ object Copy {
     const val DRILL = "Training drill. Nobody is missing."
     const val KILL_CLOUD = "Cloud reading is paused. You can still type everything in."
     const val EVIDENCE = "This may be evidence. Do not touch it. Call command now."
+    const val UNJOINED_DRILL_HINT = "In a training drill, call the drill call-taker, not 911."
 
     private fun isDrill(mode: String?) = mode == "drill" || mode == "judge"
 

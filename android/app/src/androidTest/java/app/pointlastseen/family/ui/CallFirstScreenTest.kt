@@ -31,4 +31,15 @@ class CallFirstScreenTest {
         rule.onNodeWithText("Call 911").performClick()
         assertEquals(1, dialed)
     }
+
+    @Test fun beforeJoiningTheScreenAlsoSaysWhatToDoInADrill() {
+        rule.setContent { PaperTheme { CallFirstScreen(mode = null, killCloud = false, onDial = {}, onDone = {}) } }
+        rule.onNodeWithText("Call 911 first.").assertIsDisplayed()
+        rule.onNodeWithText("In a training drill, call the drill call-taker, not 911.").assertIsDisplayed()
+    }
+
+    @Test fun aJoinedDrillDoesNotRepeatTheUnjoinedLine() {
+        rule.setContent { PaperTheme { CallFirstScreen(mode = "drill", killCloud = false, onDial = {}, onDone = {}) } }
+        rule.onNodeWithText("In a training drill, call the drill call-taker, not 911.").assertDoesNotExist()
+    }
 }
