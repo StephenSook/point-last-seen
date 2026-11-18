@@ -28,3 +28,31 @@ export async function deleteEndedSandboxMedia(db: Firestore, bucket: Bucket, now
   }
   return { incidents, files };
 }
+
+const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
+const LIFECYCLE_MAX_DAYS = 30;
+interface BucketMetadata { lifecycle?: { rule?: { action?: { type?: string }; condition?: { age?: number; matchesPrefix?: string[] } }[] } }
+
+/**
+ * Whether the bucket keeps a Delete rule within 30 days that covers clips/, photos/ and packs/ (a rule
+ * with no prefix covers everything). docs/LIMITS.md promises drill media is deleted within 30 days.
+ */
+export function lifecycleOk(meta: BucketMetadata): { ok: boolean; ageDays: number | null } {
+  for (const r of meta.lifecycle?.rule ?? []) {
+    const age = r.condition?.age;
+    if (r.action?.type !== "Delete" || typeof age !== "number" || age > LIFECYCLE_MAX_DAYS) continue;
+    const prefixes = r.condition?.matchesPrefix ?? [];
+    if (prefixes.length === 0 || LIFECYCLE_PREFIXES.every(p => prefixes.includes(p))) return { ok: true, ageDays: age };
+  }
+  return { ok: false, ageDays: null };
+}
+
+/**
+ * Writes ops/storage, the one doc anyone may read: the lifecycle state and a server time. The daily probe
+ * reads it without credentials and fails if the rule is gone or the time is stale (the sweep stopped).
+ */
+export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "getMetadata">): Promise<void> {
+  const [meta] = await bucket.getMetadata();
+  const lc = lifecycleOk(meta as BucketMetadata);
+  await db.doc("ops/storage").set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, checkedAt: FieldValue.serverTimestamp() });
+}

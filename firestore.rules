@@ -50,6 +50,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ops/storage holds only the bucket's lifecycle state and the sweep time, written by the scheduled
+    // deleteIncidentMedia; the daily probe reads it without credentials. No other ops doc is readable.
+    match /ops/{docId} {
+      allow read: if docId == 'storage';
+      allow write: if false;
+    }
+
     match /incidents/{incidentId} {
       allow read: if isMember(incidentId);
       // Incidents are created by admin tools only. Command may edit an open incident, but mode and

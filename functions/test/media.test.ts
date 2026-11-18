@@ -3,7 +3,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxMedia } from "../src/media";
+import { deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth } from "../src/media";
 import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const bucket = getStorage(adminApp).bucket();
@@ -46,5 +46,25 @@ describe("deleteIncidentMedia", () => {
     expect(await deleteEndedSandboxMedia(admin.db, bucket, NOW + 900_000)).toEqual({ incidents: [], files: 0 });
     await put(`clips/J1/${"c".repeat(64)}.mp4`);
     expect(await deleteEndedSandboxMedia(admin.db, bucket, NOW + 1_800_000)).toEqual({ incidents: ["J1"], files: 1 });
+  });
+});
+
+describe("storage health for the daily probe (ops/storage)", () => {
+  const rule = (age: number, prefixes: string[]) => ({ action: { type: "Delete" }, condition: { age, matchesPrefix: prefixes } });
+  it("the lifecycle check needs a Delete rule within 30 days covering clips/, photos/ and packs/", () => {
+    expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } })).toEqual({ ok: true, ageDays: 30 });
+    expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [rule(60, ["clips/", "photos/", "packs/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [{ action: { type: "SetStorageClass" }, condition: { age: 1 } }] } }).ok).toBe(false);
+    expect(lifecycleOk({})).toEqual({ ok: false, ageDays: null });
+    expect(lifecycleOk({ lifecycle: { rule: [rule(7, [])] } })).toEqual({ ok: true, ageDays: 7 });
+  });
+  it("writes ops/storage with the lifecycle state and a server time", async () => {
+    const fake = { getMetadata: async () => [{ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } }] };
+    await recordStorageHealth(admin.db, fake as never);
+    const d = (await admin.db.doc("ops/storage").get()).data()!;
+    expect(d.lifecycleOk).toBe(true);
+    expect(d.lifecycleAgeDays).toBe(30);
+    expect(d.checkedAt).toBeInstanceOf(Timestamp);
   });
 });

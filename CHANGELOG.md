@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Storage health record: each 15-minute deleteIncidentMedia run also reads the bucket's lifecycle and writes
+  `ops/storage` (lifecycleOk, the rule's age, a server time); a new rules match makes that one doc readable
+  without sign-in and no ops doc writable, so a probe can check it with no credential.
+  Source: orchestrator (a privacy check that fails if the lifecycle rule ever disappears).
+  Verified: 3 emulator tests failed first (the lifecycle check cases, the ops/storage write, the public-read
+  rule), now pass; suite 104; `bash scripts/ci-local.sh` exit 0.
 - `scripts/appcheck_control.py`: a live App Check control for Firebase AI Logic on the deployed project. A
   raw generateContent call with no App Check token must be refused with 401 "Firebase App Check token is
   invalid."; only then is a debug-token call made, which must answer 200. Evidence goes to
