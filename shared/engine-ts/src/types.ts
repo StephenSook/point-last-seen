@@ -76,7 +76,7 @@ export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | 
 export type RouteReason =
   | "on_device_default" | "no_network" | "on_device_unavailable" | "locale_unsupported" | "over_token_budget"
   | "possible_evidence" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"
-  | "sdk_only_on_device" | "link_down_fallback" | "template_fallback" | "consented_cloud_read";
+  | "sdk_only_on_device" | "sdk_fallback" | "link_down_fallback" | "template_fallback" | "consented_cloud_read";
 
 export interface RouteRecord {
   platform: "ios" | "web" | "android";

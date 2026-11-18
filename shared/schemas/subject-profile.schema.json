@@ -446,7 +446,7 @@
   "x-parity": {
     "#/$defs/SharedProfile": {
       "ts": "shared/engine-ts/src/types.ts#SharedProfile",
-      "ios": "ios/PLSCore/Sources/PLSCore/Profile.swift#SharedProfile",
+      "ios": "pending:ios/PLSCore/Sources/PLSCore/Profile.swift#SharedProfile",
       "android": "android/app/src/main/java/app/pointlastseen/family/data/Profiles.kt#SharedProfile"
     },
     "#/$defs/CommandProfile": {

@@ -96,11 +96,11 @@
   "x-parity": {
     "#": {
       "ts": "shared/engine-ts/src/types.ts#PlanDoc",
-      "ios": "ios/PLSCore/Sources/PLSCore/Plan.swift#PlanDoc"
+      "ios": "pending:ios/PLSCore/Sources/PLSCore/Plan.swift#PlanDoc"
     },
     "#/$defs/Assignment": {
       "ts": "shared/engine-ts/src/types.ts#Assignment",
-      "ios": "ios/PLSCore/Sources/PLSCore/Plan.swift#Assignment"
+      "ios": "pending:ios/PLSCore/Sources/PLSCore/Plan.swift#Assignment"
     }
   }
 }

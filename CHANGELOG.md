@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Schema parity checks more: for TypeScript, a string-enum property's values must equal the literal union of
+  its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
+  silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,
+  ios/PLSCore, android/app) exists, unless the mapping is marked `pending:` (iOS Plan.swift and Profile.swift
+  are marked pending until lane B builds them). The check found and this commit fixes a real drift:
+  `sdk_fallback` was in route-record.schema.json but not in the TS RouteReason type.
+  Source: fresh-context review I5.
+  Verified: 4 new parity tests failed first (enum alias, inline union, missing file with root, real repo),
+  now 15 pass; dry runs against origin/lane-ios, lane-android and lane-web: 0 failures; ci-local exits 0.
 - Clip readings are written before the upload and the model call (ruling I9): `clipReadings/{sha256}` is
   created by command or family with exactly the spec section 7 fields plus `createdByUid`, the three required
   consents (person in clip, footage owner, cloud processing; each `{byUid, atMs}` recorded by the writer),
