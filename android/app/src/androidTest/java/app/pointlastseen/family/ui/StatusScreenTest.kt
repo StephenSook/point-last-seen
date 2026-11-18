@@ -18,7 +18,7 @@ class StatusScreenTest {
 
     @Test fun anOpenSearchShowsSearchersAreLookingAndEveryAction() {
         val opened = mutableListOf<Screen>()
-        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = "drill", killCloud = false, pending = 0, onOpen = { opened += it }) } }
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = { opened += it }, onRetry = {}) } }
         rule.onNodeWithText("Searchers are looking.").assertIsDisplayed()
         rule.onNodeWithText("Training drill. Nobody is missing.").assertIsDisplayed()
         for ((label, screen) in listOf("Share a camera clip" to Screen.CLIP, "Add recent photos" to Screen.PHOTOS, "I remembered something" to Screen.NOTE, "Someone saw them" to Screen.SIGHTING, "About this phone" to Screen.ABOUT)) {
@@ -27,13 +27,29 @@ class StatusScreenTest {
         assertEquals(listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT), opened)
     }
 
-    @Test fun aFoundIncidentSaysFoundSafe() {
-        rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, onOpen = {}) } }
+    @Test fun aFoundIncidentSaysFoundSafeAndOffersNothingToSend() {
+        rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}) } }
         rule.onNodeWithText("Found. Safe.").assertIsDisplayed()
+        rule.onNodeWithText("Share a camera clip").assertDoesNotExist()
+        rule.onNodeWithText("Someone saw them").assertDoesNotExist()
+    }
+
+    @Test fun aClosedSearchOffersNothingToSend() {
+        rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}) } }
+        rule.onNodeWithText("The search is closed.").assertIsDisplayed()
+        rule.onNodeWithText("I remembered something").assertDoesNotExist()
     }
 
     @Test fun unsentItemsAreCounted() {
-        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 2, onOpen = {}) } }
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 2, rejected = 0, onOpen = {}, onRetry = {}) } }
         rule.onNodeWithText("2 items waiting to send.").assertIsDisplayed()
+    }
+
+    @Test fun refusedItemsAreShownWithATryAgain() {
+        var retried = 0
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 0, rejected = 1, onOpen = {}, onRetry = { retried++ }) } }
+        rule.onNodeWithText("1 item was not accepted.").assertIsDisplayed()
+        rule.onNodeWithText("Try again").performScrollTo().performClick()
+        assertEquals(1, retried)
     }
 }

@@ -172,7 +172,14 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         nowMs = System.currentTimeMillis(),
     )
 
-    fun pendingCount(states: Map<String, WriteState>) = states.values.count { it != WriteState.ACKNOWLEDGED }
+    fun pendingCount(states: Map<String, WriteState>) = states.values.count { it == WriteState.PENDING }
+
+    fun rejectedCount(states: Map<String, WriteState>) = states.values.count { it == WriteState.REJECTED }
+
+    /** Sends every refused event again with its same id (a landed copy reads back as acknowledged). */
+    fun retryRejected() {
+        writes.value.filterValues { it == WriteState.REJECTED }.keys.forEach { writer.retry(it) }
+    }
 
     // Someone saw them
     fun sendSighting(input: FamilySightingInput) {

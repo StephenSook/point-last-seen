@@ -25,7 +25,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin)
             Screen.CALL_FIRST -> CallFirstScreen(mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst)
             Screen.JOIN -> JoinScreen(vm.joinBusy, vm.joinError, onJoin = vm::join, onBack = vm::back)
-            Screen.STATUS -> StatusScreen(incident?.status, mode, rc.killCloud, vm.pendingCount(writes), onOpen = vm::open)
+            Screen.STATUS -> StatusScreen(incident?.status, mode, rc.killCloud, vm.pendingCount(writes), vm.rejectedCount(writes), onOpen = vm::open, onRetry = vm::retryRejected)
             Screen.CLIP -> ClipScreen(mode, rc.killCloud, vm.clipLabel, vm.clipUi, onPick = onPickClip, onRead = vm::readClip, onConfirm = vm::confirmClip, onBack = vm::back)
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back)
             Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back)
