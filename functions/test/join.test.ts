@@ -5,7 +5,7 @@ import { handleJoin } from "../src/join";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
 const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
-const CODE = "ABCD2345", COMMAND_CODE = "WXYZ6789";
+const CODE = "ABCD2345", FAMILY_CODE = "FMLY2345", COMMAND_CODE = "WXYZ6789";
 let uid = "";
 
 async function freshUser(): Promise<string> {
@@ -19,12 +19,15 @@ beforeEach(async () => {
   // member-readable doc could be brute-forced offline into the command code).
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
   await admin.db.doc("incidents/I1/teams/T1").set({ teamId: "T1", name: "Team 1", colorSlot: 1 });
-  await admin.db.doc(`joinCodes/${hash(CODE)}`).set({ incidentId: "I1", roles: ["searcher", "family"] });
+  // One code per role: a searcher's code must never admit family (profile/command) or command.
+  await admin.db.doc(`joinCodes/${hash(CODE)}`).set({ incidentId: "I1", roles: ["searcher"] });
+  await admin.db.doc(`joinCodes/${hash(FAMILY_CODE)}`).set({ incidentId: "I1", roles: ["family"] });
   await admin.db.doc(`joinCodes/${hash(COMMAND_CODE)}`).set({ incidentId: "I1", roles: ["command"] });
   await admin.db.doc("incidents/I9").set({ name: "Old drill", mode: "drill", status: "closed" });
-  await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["searcher", "family"] });
+  await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["family"] });
   await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
-  await admin.db.doc(`joinCodes/${hash("JUDG2345")}`).set({ incidentId: "J1", roles: ["searcher", "family"] });
+  await admin.db.doc(`joinCodes/${hash("JUDG2345")}`).set({ incidentId: "J1", roles: ["family"] });
+  await admin.db.doc(`joinCodes/${hash("TWOR2345")}`).set({ incidentId: "I1", roles: ["searcher", "family"] });
   uid = await freshUser();
 });
 afterAll(closeClients);
@@ -71,13 +74,23 @@ describe("joinIncident (spec sections 7 and 14)", () => {
     expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "searcher", team: "T1" });
   });
   it("finds the open incident from the code alone and normalizes case, spaces and hyphens", async () => {
-    await expect(handleJoin(uid, { joinCode: "abcd-2345 ", role: "family" })).resolves.toEqual({ ok: true, incidentId: "I1" });
+    await expect(handleJoin(uid, { joinCode: "fmly-2345 ", role: "family" })).resolves.toEqual({ ok: true, incidentId: "I1" });
     expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "family", team: null });
   });
   it("command needs the command code; the team code never grants command", async () => {
     await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "command" }), "permission-denied");
     await expect(handleJoin(uid, { incidentId: "I1", joinCode: COMMAND_CODE, role: "command" })).resolves.toEqual({ ok: true, incidentId: "I1" });
     expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "command", team: null });
+  });
+  it("each code admits exactly its own role: the searcher code never grants family or command", async () => {
+    await expectCode(handleJoin(uid, { joinCode: CODE, role: "family" }), "permission-denied");
+    await expectCode(handleJoin(uid, { joinCode: FAMILY_CODE, role: "searcher", teamId: "T1" }), "permission-denied");
+    await expectCode(handleJoin(uid, { joinCode: FAMILY_CODE, role: "command" }), "permission-denied");
+    expect(await claimsOf(uid)).toBeUndefined();
+  });
+  it("a code doc that lists more than one role is refused for every role", async () => {
+    await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "searcher", teamId: "T1" }), "permission-denied");
+    await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "family" }), "permission-denied");
   });
   it("a searcher must name a team that exists", async () => {
     await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher" }), "invalid-argument");

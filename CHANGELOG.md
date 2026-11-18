@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- joinIncident admits exactly one role per code: a code doc must list a single role and the caller must ask
+  for that role, so the searcher code can never grant family (read and write on profile/command, confirming
+  sightings, clip uploads) or command. Tests use one code per role and add two cases: each code admits only
+  its own role, and a code doc listing two roles is refused for both.
+  Source: fresh-context review C1 (critical; the team code listed [searcher, family] and the caller chose
+  the role).
+  Verified: the multi-role test failed first, now the emulator suite passes 59; ci-local exits 0.
 - Engines skip a malformed stored effect instead of throwing: the reference (`make_vectors.py`) and the TS
   engine (`isWellFormedEffect`, used by `toEngineEvents`; `malformedEventIds` lists them for a banner at
   command) check the same shape the rules now enforce. Eight new docToEngine vectors (cleared without
