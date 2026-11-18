@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- docs/LIMITS.md gains "On-device safety (Android)": the family app's on-device path (firebase-ai-ondevice
+  16.0.0-beta08 over the ML Kit GenAI Prompt API and AICore), Google's own statements about its safety
+  filters and the 4,000-token input window (three quotes, each with its URL), our own checks on every path, the
+  byte bound for our largest request, and what was not tested (no Gemini Nano phone; non-English notes).
+  Source: lane D hand-over (promotion item F5); the "128K" figure from the talk is left out, as lane D
+  found it in no Google doc.
+  Verified: a fetch agent found all four quoted passages word for word on the three live pages (2026-11-18);
+  no dashes in the file; `bash scripts/ci-local.sh` exit 0.
 - The linear-feature layer is neutral (every weight 1) when the grid's mass-weighted near share NEAR is at or
   above 0.75, the ISRID share; below it the spec 10.5 formula is unchanged. `linearWeights` is now a pure
   export of @pls/engine (buildPrior uses it), with a Python reference in tools/vectors/make_vectors.py and
