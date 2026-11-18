@@ -20,7 +20,7 @@ struct SpeechRecord: Equatable, Sendable {
 
 /// Speaks a new assignment while the app is open (P-06 push brings it to a locked screen later).
 /// The words are command's approved plan only (`SpokenAssignment`). The cloud voice is used only
-/// when `tts_model_ios` names a model and the phone is online and signed in; any failure falls back to the
+/// when `voice_template_id` names a template and the phone is online and signed in; any failure falls back to the
 /// phone's own voice. Every attempt is recorded, so the two voices can be compared on real numbers.
 @MainActor
 final class AssignmentSpeaker {
@@ -30,19 +30,19 @@ final class AssignmentSpeaker {
     private var lastSpoken: Assignment?
 
     init(onDevice: AssignmentVoice = OnDeviceVoice(),
-         makeCloud: @escaping (String) -> AssignmentVoice = { CloudVoice(model: $0) },
+         makeCloud: @escaping (String) -> AssignmentVoice = { CloudVoice(templateId: $0) },
          record: @escaping (SpeechRecord) -> Void = AssignmentSpeaker.trace) {
         self.onDevice = onDevice
         self.makeCloud = makeCloud
         self.record = record
     }
 
-    func update(_ assignment: Assignment?, cloudModel: String, online: Bool, killCloud: Bool, signedIn: Bool) async {
+    func update(_ assignment: Assignment?, voiceTemplate: String, online: Bool, killCloud: Bool, signedIn: Bool) async {
         guard SpokenAssignment.shouldSpeak(previous: lastSpoken, current: assignment), let assignment else { return }
         lastSpoken = assignment
         let text = SpokenAssignment.text(assignment)
-        if SpokenAssignment.path(cloudModel: cloudModel, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
-            let start = await makeCloud(cloudModel.trimmingCharacters(in: .whitespaces)).speak(text)
+        if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
+            let start = await makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces)).speak(text)
             record(SpeechRecord(path: .cloud, outcome: start == nil ? "failed" : "spoken", startMs: start))
             if start != nil { return }
         }
@@ -101,22 +101,29 @@ final class OnDeviceVoice: NSObject, AssignmentVoice, AVSpeechSynthesizerDelegat
     }
 }
 
-/// The AI Logic voice model named by Remote Config. Its input is the approved plan text only.
+/// The AI Logic voice: the published prompt template named by Remote Config (it holds the voice
+/// model, the voice and the audio settings, and speaks the text's own language). Its only input is
+/// the approved plan text. Any failure (an HTTP 500 from the server's model guard included) gives
+/// nil, and the speaker falls back to the phone's own voice.
 @MainActor
 final class CloudVoice: AssignmentVoice {
-    private let model: String
+    private let templateId: String
     private var player: AVAudioPlayer?
-    static let voiceName = "Kore"
     static let timeoutSeconds: Double = 10
 
-    init(model: String) { self.model = model }
+    init(templateId: String) { self.templateId = templateId }
+
+    /// The template takes 1 to 600 characters of text.
+    nonisolated static func fitsTemplate(_ text: String) -> Bool { (1...600).contains(text.count) }
 
     func speak(_ text: String) async -> Double? {
+        guard Self.fitsTemplate(text) else { return nil }
         let requested = Date()
-        let config = GenerationConfig(responseModalities: [.audio], speechConfig: SpeechConfig(voiceName: Self.voiceName, languageCode: "en-US"))
-        let generator = AIClient.make(useLimitedUseTokens: true).generativeModel(modelName: model, generationConfig: config)
+        let model = AIClient.make(useLimitedUseTokens: true).templateGenerativeModel()
+        let templateId = templateId
         let wav = await Timeout.run(seconds: Self.timeoutSeconds) {
-            try? await generator.generateContent(text).inlineDataParts.first { $0.mimeType.hasPrefix("audio/") }?.data
+            try? await model.generateContent(templateID: templateId, inputs: ["text": text])
+                .inlineDataParts.first { $0.mimeType.hasPrefix("audio/") }?.data
         }
         guard let data = wav ?? nil, let player = try? AVAudioPlayer(data: data) else { return nil }
         AssignmentSpeaker.activateAudio()

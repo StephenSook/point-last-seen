@@ -10,17 +10,17 @@ struct RemoteConfigValues: Equatable, Sendable {
     var killCloud: Bool
     var useLimitedUseTokens: Bool
     var minimumVersionIOS: String
-    /// The AI Logic voice model for spoken assignments. Empty means the phone's own voice only;
-    /// no model id is named in the app's source.
-    var ttsModelIOS: String
+    /// The published AI Logic prompt template that speaks an assignment (it holds the voice model,
+    /// the voice and the audio settings). Empty means the phone's own voice only.
+    var voiceTemplateId: String
 
     static let defaults = RemoteConfigValues(cloudModelIOS: "gemini-3.5-flash-lite", tokenBudgetFraction: 0.5,
                                              killCloud: false, useLimitedUseTokens: true, minimumVersionIOS: "0.1.0",
-                                             ttsModelIOS: "")
+                                             voiceTemplateId: "pls-voice-v1")
 
     /// The keys this platform owns (design section 14).
     static let keys = ["cloud_model_ios", "token_budget_fraction", "kill_cloud", "use_limited_use_tokens", "minimum_version_ios",
-                       "tts_model_ios"]
+                       "voice_template_id"]
 
     /// Reads each key; a missing or unreadable value keeps its default.
     static func from(_ value: (String) -> String?) -> RemoteConfigValues {
@@ -30,7 +30,8 @@ struct RemoteConfigValues: Equatable, Sendable {
         if let b = flag(value("kill_cloud")) { v.killCloud = b }
         if let b = flag(value("use_limited_use_tokens")) { v.useLimitedUseTokens = b }
         if let s = text(value("minimum_version_ios")) { v.minimumVersionIOS = s }
-        if let s = text(value("tts_model_ios")) { v.ttsModelIOS = s }
+        // An explicit empty value turns the cloud voice off; a missing one keeps the default.
+        if let raw = value("voice_template_id") { v.voiceTemplateId = raw.trimmingCharacters(in: .whitespacesAndNewlines) }
         return v
     }
 
@@ -38,7 +39,7 @@ struct RemoteConfigValues: Equatable, Sendable {
     var asStrings: [String: String] {
         ["cloud_model_ios": cloudModelIOS, "token_budget_fraction": String(tokenBudgetFraction), "kill_cloud": String(killCloud),
          "use_limited_use_tokens": String(useLimitedUseTokens), "minimum_version_ios": minimumVersionIOS,
-         "tts_model_ios": ttsModelIOS]
+         "voice_template_id": voiceTemplateId]
     }
 
     /// True when command has raised the minimum above this build's version.

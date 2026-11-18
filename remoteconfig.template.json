@@ -49,12 +49,12 @@
       "valueType": "STRING",
       "description": "Server prompt template for the Android family app's consented cloud read of a camera clip (shared/templates)."
     },
-    "tts_model_ios": {
+    "voice_template_id": {
       "defaultValue": {
-        "value": "gemini-3.8-flash-lite-tts"
+        "value": "pls-voice-v1"
       },
       "valueType": "STRING",
-      "description": "Cloud voice model for spoken assignment changes on iOS; empty means on-device speech only. Must be on shared/constants/models.json."
+      "description": "Server prompt template for spoken assignment changes on iOS (shared/templates); empty means on-device speech only."
     },
     "token_budget_fraction": {
       "defaultValue": {

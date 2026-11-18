@@ -7,9 +7,9 @@ import Testing
     @Test func theFiveIOSKeysAreRead() {
         let v = RemoteConfigValues.from(["cloud_model_ios": "test-cloud-model", "token_budget_fraction": "0.4", "kill_cloud": "true",
                                          "use_limited_use_tokens": "false", "minimum_version_ios": "0.2.0",
-                                         "tts_model_ios": "test-voice-model"].lookup)
+                                         "voice_template_id": " pls-voice-v2 "].lookup)
         #expect(v == RemoteConfigValues(cloudModelIOS: "test-cloud-model", tokenBudgetFraction: 0.4, killCloud: true,
-                                        useLimitedUseTokens: false, minimumVersionIOS: "0.2.0", ttsModelIOS: "test-voice-model"))
+                                        useLimitedUseTokens: false, minimumVersionIOS: "0.2.0", voiceTemplateId: "pls-voice-v2"))
     }
 
     @Test func missingOrBadValuesKeepTheDefaults() {
@@ -21,9 +21,19 @@ import Testing
         #expect(RemoteConfigValues.from(["token_budget_fraction": "0"].lookup).tokenBudgetFraction == 0.5)
     }
 
-    @Test func noCloudVoiceUnlessRemoteConfigNamesOne() {
-        #expect(RemoteConfigValues.defaults.ttsModelIOS == "")
-        #expect(RemoteConfigValues.keys.contains("tts_model_ios"))
+    /// The cloud voice is the published prompt template; an explicit empty value turns it off.
+    @Test func theCloudVoiceIsThePublishedTemplate() {
+        #expect(RemoteConfigValues.defaults.voiceTemplateId == "pls-voice-v1")
+        #expect(RemoteConfigValues.keys.contains("voice_template_id") && !RemoteConfigValues.keys.contains("tts_model_ios"))
+        #expect(RemoteConfigValues.from(["voice_template_id": "  "].lookup).voiceTemplateId == "")
+        #expect(RemoteConfigValues.from([:].lookup).voiceTemplateId == "pls-voice-v1")
+    }
+
+    /// The template takes 1 to 600 characters of text; anything else stays on the phone's own voice.
+    @Test func onlyTextTheTemplateTakesGoesToTheCloudVoice() {
+        #expect(CloudVoice.fitsTemplate("New assignment. Segment A C."))
+        #expect(CloudVoice.fitsTemplate(String(repeating: "a", count: 600)))
+        #expect(!CloudVoice.fitsTemplate(String(repeating: "a", count: 601)) && !CloudVoice.fitsTemplate(""))
     }
 
     @Test func theDefaultsAreWrittenUnderTheSameKeys() {
