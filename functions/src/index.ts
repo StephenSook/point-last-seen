@@ -2,9 +2,11 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
+import { beforeGenerateContent } from "firebase-functions/v2/ai";
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
 import { deleteClipForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
@@ -71,3 +73,11 @@ export const deleteEndedSandboxesJob = onSchedule(
     console.log(JSON.stringify({ event: "deleteEndedSandboxes", deleted: ids.length }));
   },
 );
+
+/**
+ * cloudGuard (AI Logic beforeGenerateContent): every generateContent call through AI Logic, templated or not,
+ * may name only a listed model, and a text reply is bounded. generateContentStream and the Live API do not
+ * trigger it, by Google's design (docs/SECURITY.md row 12). No database or outside call; no minimum instances.
+ */
+export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInstances: 10 }, event =>
+  guardRequest(event.data.model, event.data.request as never, event.data.template));

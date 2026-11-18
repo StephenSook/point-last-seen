@@ -26,10 +26,14 @@ def templates(root: Path) -> list[dict]:
 
 def render(t: dict) -> str:
     """The Dotprompt string: frontmatter (model, config, input, output) as JSON, then the system and user turns."""
-    front = {"model": t["model"], "config": t.get("config", {}), "input": t["input"], "output": t["output"]}
-    return ("---\n" + json.dumps(front, indent=2) + "\n---\n"
-            + '{{role "system"}}\n' + t["system"] + "\n\n"
-            + '{{role "user"}}\n' + t["user"] + "\n")
+    front = {k: v for k, v in (("model", t["model"]), ("config", t.get("config", {})), ("input", t["input"]), ("output", t.get("output"))) if v is not None}
+    system = '{{role "system"}}\n' + t["system"] + "\n\n" if t.get("system") else ""
+    return "---\n" + json.dumps(front, indent=2) + "\n---\n" + system + '{{role "user"}}\n' + t["user"] + "\n"
+
+
+def live_templates(listing: dict) -> dict[str, dict]:
+    """The list endpoint's answer, keyed by template id (the API returns them under "templates")."""
+    return {t["name"].rsplit("/", 1)[1]: t for t in listing.get("templates", [])}
 
 
 def plan(local: dict[str, str], remote: dict[str, dict]) -> dict[str, list[str]]:
@@ -64,7 +68,7 @@ def main(argv: list[str]) -> int:
         return 1
     local_t = {t["templateId"]: t for t in templates(ROOT)}
     local = {tid: render(t) for tid, t in local_t.items()}
-    remote = {t["name"].rsplit("/", 1)[1]: t for t in _request("GET", BASE, token).get("promptTemplates", [])}
+    remote = live_templates(_request("GET", BASE, token))
     p = plan(local, remote)
     for kind in ("create", "update", "same", "locked"):
         for tid in p[kind]:

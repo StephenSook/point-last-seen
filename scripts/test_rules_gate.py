@@ -102,6 +102,42 @@ def test_functions_make_no_model_call(tmp_path):
     assert run_gate(tmp_path).returncode == 0
 
 
+def test_functions_may_host_the_ai_logic_trigger_but_not_call_a_model(tmp_path):
+    # cloudGuard is a beforeGenerateContent trigger: it names the event and calls no model.
+    write(tmp_path, "functions/src/index.ts",
+          'import { beforeGenerateContent } from "firebase-functions/v2/ai";\n'
+          "// every generateContent call is checked\n"
+          "export const guard = beforeGenerateContent(e => undefined);")
+    assert run_gate(tmp_path).returncode == 0
+    for call in ("await model.generateContent(x)", "model.generateContentStream (x)"):
+        write(tmp_path, "functions/src/index.ts", call)
+        assert run_gate(tmp_path).returncode == 1, call
+
+
+def test_shipped_code_reaches_models_only_through_firebase_ai_logic(tmp_path):
+    # Review: a direct call to a model host (Google's Gemini API, Vertex AI REST, OpenAI, Anthropic, Ollama,
+    # Hume and the like) would bypass App Check, auth mode, the per-user limit and cloudGuard.
+    planted = {
+        "web/src/ai/direct.ts": 'await fetch("https://generativelanguage.googleapis.com/v1beta/models/x:generateContent")',
+        "ios/PLS/AI/Direct.swift": 'let url = URL(string: "https://api.openai.com/v1/chat/completions")',
+        "android/app/src/main/java/app/pointlastseen/family/ai/Direct.kt": 'val host = "http://localhost:11434/api/generate"',
+        "functions/src/direct.ts": 'import Anthropic from "@anthropic-ai/sdk";',
+        "web/src/ai/voice.ts": 'const ws = new WebSocket("wss://api.hume.ai/v0/evi/chat");',
+        "web/src/ai/vertex.ts": 'fetch("https://us-central1-aiplatform.googleapis.com/v1/projects/p")',
+    }
+    for path, line in planted.items():
+        root = tmp_path / path.replace("/", "_")
+        root.mkdir()
+        write(root, path, line)
+        assert run_gate(root).returncode == 1, path
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    write(clean, "web/src/ai/hosts.ts", 'const host = "firebasevertexai.googleapis.com";')
+    write(clean, "docs/LIMITS.md", "We never call api.openai.com or Ollama.")
+    write(clean, "web/src/ai/direct.test.ts", 'expect(url).not.toContain("generativelanguage.googleapis.com")')
+    assert run_gate(clean).returncode == 0
+
+
 def test_start_chat_is_banned(tmp_path):
     write(tmp_path, "web/src/ai/replanWording.ts", "const chat = model.startChat()")
     assert run_gate(tmp_path).returncode == 1

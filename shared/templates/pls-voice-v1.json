@@ -1,0 +1,28 @@
+{
+  "templateId": "pls-voice-v1",
+  "displayName": "PLS spoken text (assignment changes, greeting)",
+  "model": "gemini-3.8-flash-lite-tts",
+  "config": {
+    "responseModalities": [
+      "AUDIO"
+    ],
+    "speechConfig": {
+      "voiceConfig": {
+        "prebuiltVoiceConfig": {
+          "voiceName": "Kore"
+        }
+      }
+    },
+    "maxOutputTokens": 4096
+  },
+  "input": {
+    "schema": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 600
+      }
+    }
+  },
+  "user": "{{text}}"
+}

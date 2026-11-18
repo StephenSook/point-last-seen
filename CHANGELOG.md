@@ -5,6 +5,122 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules move the prior one version at a time. An incident update that changes `priorVersion` must
+  raise it by exactly 1, and a segment (or ROW) write that changes `priorPoa` or `priorVersion` lands only in
+  the batch that moves the incident to the next version, taking that version. Two command seats that rebuild
+  from the same version can no longer both land: the second batch, built from older inputs, is refused instead
+  of overwriting the newer prior.
+  Source: review (walker results could race across two laptops).
+  Verified: `functions/test/rules/prior.test.ts` (a fresh rebuild lands and a second seat's rebuild from the
+  same version is refused; +2 and a decrease are refused, a status change is allowed; a segment cannot take a
+  version the incident lacks; a full-size 68-segment batch with ROW and the incident passes) failed first
+  (3 of 4), now all 95 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0. The live
+  access-call limit is checked after deploy.
+- `shared/grid/piedmont-park-dev.grid.json`: the development site's grid (Piedmont Park, Atlanta; 67 segments
+  built from an OpenStreetMap extract on 2026-11-18), the same grid the drill incident and every judge's
+  practice search use, committed so the terrain work can build against a real site before the drill site is
+  chosen. `shared/grid/README.md` gives the credit ("Map data © OpenStreetMap contributors", ODbL 1.0, with
+  the copyright link); the file's own `attribution` field carries it too.
+  Source: review (the extras lane's terrain task needs a site grid on main).
+  Verified: the test (the file parses as the engine's Grid: unique ids, positive areas, centroids inside the
+  box, neighbours that exist, no ROW, and the OpenStreetMap credit) failed first (file missing), now passes;
+  engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- Every server prompt template bounds its own output (`maxOutputTokens` 2,048 for text, 4,096 for speech, the
+  same caps cloudGuard applies to direct calls), because cloudGuard leaves a template call's config as the
+  template sets it.
+  Source: review (template calls must be bounded too).
+  Verified: the test (every template's bound within its cap) failed first, now 10 template tests pass; the dry
+  run plans four updates; `bash scripts/ci-local.sh` exit 0.
+- cloudGuard leaves a template call's request alone after checking its model. Deployed at 21:47 UTC on
+  2026-11-18, it set a generationConfig on template calls, which replaced the template's own config: the
+  sighting template answered with made-up field names (`directionOfTravel`, `topColour`). It was deleted
+  (`firebase functions:delete cloudGuard`) at about 21:55 UTC, the template answered correctly again, and this
+  fix comes back through the same deploy and live checks. The live run also showed the latency gate holds
+  (median 1,060 ms against an 839 ms baseline over 10 warm calls, +221 ms) and that an off-list model is
+  refused: the function logged permission-denied (403) and the AI Logic proxy answered the client 500.
+  Source: the live check after the first deploy.
+  Verified: the template-call test (a template call is checked for its model and left as sent) failed first,
+  now 7 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- The rules gate fails CI when shipped code (web, iOS, the Android app's main sources, functions) names a
+  model host outside Firebase AI Logic: Google's Gemini API host, Vertex AI REST, OpenAI, Ollama (including
+  localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
+  would skip App Check, authenticated-users mode, the per-user limit and cloudGuard. Docs and tests may name
+  them; AI Logic's own host does not match.
+  Source: review (a rival lost a stage for calling model hosts directly).
+  Verified: the test (six planted hits across the four trees each fail; a clean tree with AI Logic's host, a
+  doc and a test mention passes) failed first, now 28 gate tests pass; the repo walks with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- cloudGuard bounds output whatever the request asks for: only the speech model gets the speech cap (4,096
+  tokens); any other model gets the 2,048-token text cap even when the request asks for audio. It keeps only
+  the generation settings our apps use (token limit, temperature, top-p and top-k, stop sequences, the response
+  type and schema, modalities and voice) and drops the rest, so extra candidates or a thinking budget cannot
+  multiply the output past the cap, even when the token limit is already within it.
+  Source: automated security review of dd365d1 (a client-set audio modality skipped the cap; candidateCount
+  and thinkingConfig multiplied output).
+  Verified: the 2 new tests (speech cap only on the TTS model, audio asked on a text model gets the text cap;
+  extra settings dropped within the cap) failed first, now 6 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The photo and clip templates give every enum field `"type": "string"`. The shared schemas leave the type off
+  enum fields, and without it the template reads `{"enum": [...]}` as an object with a field named "enum": the
+  live photo and clip reads answered `"placeType": {"enum": "unknown"}`, which the clients' validation refuses.
+  A test now requires a type on every output field at every depth.
+  Source: the live check of the published templates (2026-11-18).
+  Verified: the typed-fields test failed first (it listed the clip and photo enum fields), now 9 template tests
+  pass; the dry run plans two updates; `bash scripts/ci-local.sh` exit 0.
+- `cloudGuard` (AI Logic `beforeGenerateContent` trigger): every generateContent call through AI Logic,
+  templated or not, may name only a model on the allow-list (a test keeps the function's copy equal to
+  shared/constants/models.json), and a text reply is bounded to 2,048 output tokens (speech output is not
+  text-bounded). No database or outside call, no minimum instances. Streaming calls and the Live API do not
+  trigger it, by Google's design, so the iOS report read is not covered; SECURITY row 12 is updated after the
+  live latency and refusal checks.
+  Source: review (row 12 reversed: a trigger that does a real job, claimed honestly).
+  Verified: the 5 tests (the list equals the shared one; off-list models refused in any path form; the clamp
+  lowers or sets the bound and leaves the rest of the request; speech untouched; registered as the
+  before-generate trigger) failed first (module missing), now pass; functions typecheck exit 0; baseline before
+  deploy: median 839 ms over 10 warm direct calls; `bash scripts/ci-local.sh` exit 0.
+- The rules gate's "no model call in any Cloud Function" rule now matches a call (`.generateContent(` or
+  `.generateContentStream(`, `getGenerativeModel`, the model SDK imports) instead of any occurrence of the word,
+  so a function can host the AI Logic `beforeGenerateContent` trigger, which calls no model, and mention the
+  method in a comment.
+  Source: review (cloudGuard needs the trigger's name in functions code).
+  Verified: the new test (the trigger and a comment pass; a generateContent and a generateContentStream call
+  still fail) failed first, now 27 gate tests pass; the gate walks the repo with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- Three more server prompt templates in `shared/templates`, each generated from its shared schema and pinned by
+  tests (inputs bounded, output enums and limits equal to the shared schema, the model on the allow-list):
+  `pls-photo-cues-v1` (the command post's photo read: one JPEG up to the 2 MiB photo limit, the photo-cues
+  schema, the web's instruction plus a guardrail that text in the photo is data), `pls-clip-read-v1` (the family
+  app's whole-clip read: video up to the 14,000,000-byte clip limit, the camera-sighting schema, the app's
+  instruction including "Do not describe the face", plus the same guardrail) and `pls-voice-v1` (spoken text on
+  the TTS model, voice Kore, audio out, text of 1 to 600 characters, no language code so a greeting can be in
+  the person's first language). The web's clip read keeps its triage window, so it stays a direct call (P-04).
+  The publisher renders a template without a system turn.
+  Source: review (row 6: template every cloud-only call whose inputs templates support; P-04).
+  Verified: the 3 template tests failed first, now 8 template tests pass; the API's validateOnly accepted all
+  three; the dry run plans three creates and shows the sighting template as "same"; rules gate 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- The template publisher reads the live list from the API's `templates` key (it read `promptTemplates`, so it
+  saw no live template: a published one was planned as a create, and a locked one would never be refused).
+  Source: found in review of the dry run (the published sighting template showed as "create").
+  Verified: the listing test failed first, now passes; the dry run now shows pls-sighting-note-v1 as "same";
+  `bash scripts/ci-local.sh` exit 0.
+- P-04 evidence adds the window test: a server prompt template cannot pass a video window. With a 12-second
+  clip of red, blue and green spans, both template forms (with and without start and end offset arguments)
+  answered "red, blue, green" with 808 prompt tokens, while a direct call with `videoMetadata` 4 s to 8 s
+  answered "blue" with 281. The web's triage-window clip read stays direct; a whole-clip read can be a
+  template.
+  Source: review (the clip template had to carry the triage window).
+  Verified: run live with a limited-use App Check token and a throwaway anonymous user, both spike templates
+  deleted afterwards; `bash scripts/ci-local.sh` exit 0.
+- P-04 spike evidence (`docs/evidence/spikes/P-04.md`, `P-04.json`): through `templateGenerateContent` on the
+  live project, a server prompt template takes an inline image (200, 1.6 s), a 13,788,183-byte inline MP4 just
+  under our clip limit (200, 18.7 s) and returns text-to-speech audio (200, `audio/wav`, 318,750 bytes), with
+  the media type and data passed as request variables. So the web photo read, both clip reads and the iOS
+  cloud voice can each become a template.
+  Source: review (P-04: which cloud calls can be templates).
+  Verified: run with a limited-use App Check token and a throwaway anonymous user's ID token (both deleted or
+  expired), the spike templates deleted afterwards; the evidence holds no key or token; `bash
+  scripts/ci-local.sh` exit 0.
 - The App Check control signs in anonymously before its model calls and sends the Firebase ID token, because
   AI Logic's authenticated-users mode (on since 2026-11-18 19:30 UTC) refuses a call without one; the
   throwaway user deletes itself afterwards. New `--ci` mode: the same positive read with the debug token from

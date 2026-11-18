@@ -34,8 +34,15 @@ AVAILABILITY_ONLY_IN = "web/src/ai/gate.ts"
 COUNT_TOKENS_BANNED_IN = ("web/src/ai/photoCues.ts", "web/src/ai/sightingText.ts")
 WALKERS_FILE = "shared/engine-ts/src/walkers.ts"
 SLOW_MODEL = "gemini-3.8-flash"
-FUNCTION_MODEL_CALLS = ("firebase/ai", "@google/genai", "@google/generative-ai",
-                        "generateContent", "getGenerativeModel")
+# Shipped code reaches models only through Firebase AI Logic (App Check, auth mode, per-user limit, cloudGuard).
+SHIPPED_DIRS = ("web/src/", "web/public/", "web/index.html", "ios/", "android/app/src/main/", "functions/src/")
+DIRECT_MODEL_HOST = re.compile(
+    r"generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|\bopenai\b|\banthropic\b"
+    r"|\bollama\b|localhost:11434|\bhume\b|api\.mistral\.ai|api\.cohere\.|api-inference\.huggingface\.co"
+    r"|api\.replicate\.com|api\.groq\.com", re.IGNORECASE)
+FUNCTION_MODEL_CALLS = ("firebase/ai", "@google/genai", "@google/generative-ai", "getGenerativeModel")
+# A model call, not the AI Logic trigger's name (beforeGenerateContent) or a comment that mentions the method.
+FUNCTION_MODEL_CALL = re.compile(r"\.generateContent(?:Stream)?\s*\(")
 
 FORBIDDEN_NAMES = re.compile(
     r"(^|/)(GoogleService-Info\.plist|google-services\.json|service-account[^/]*\.json)$"
@@ -151,10 +158,16 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
                     bad(f"model '{mid}' shuts down before judging ends ({MODELS_FILE})")
                 elif not is_test and mid not in allowed_models and mid != SLOW_MODEL:
                     bad(f"model '{mid}' is not on the allow-list in {MODELS_FILE}")
+        if not is_doc and not is_test and rel.startswith(SHIPPED_DIRS):
+            m = DIRECT_MODEL_HOST.search(line)
+            if m:
+                bad(f"direct model host '{m.group(0)}': shipped code reaches models only through Firebase AI Logic")
         if in_functions:
             for token in FUNCTION_MODEL_CALLS:
                 if token in line:
                     bad(f"no model call in any Cloud Function, found '{token}'")
+            if FUNCTION_MODEL_CALL.search(line):
+                bad("no model call in any Cloud Function, found a generateContent call")
     return problems
 
 
