@@ -564,3 +564,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: exact dev dependencies for running axe in the e2e suite; axe-core is pinned directly so the plugin uses the same single copy (4.14.0, released 2026-10-15) instead of the two-day-old 4.14.1 its range would pull. Test-only; nothing ships to the browser.
 - Source: orchestrator tool audit item 1 (axe on the deployed post and /judge at 1440 and 390 px).
 - Verified: socket depscore supply chain 99, vulnerability 100 for both (license 70: axe-core is MPL-2.0, acceptable for a test tool); `npm ls axe-core` shows one deduped copy; `npm ci` exit 0. scripts/ci-local.sh exit 0.
+
+### test(a11y): check the join, judge and joined post pages with axe at 1440 and 390 px
+- What: `e2e/a11y.spec.ts` runs axe with the WCAG 2.0, 2.1 and 2.2 A and AA rules on the join page, `/judge` and the joined drill post (map canvas excluded: MapLibre draws it), at 1440 x 900 and 390 x 844, and expects zero violations, printing each rule and node when one appears. A control plants an image with no alt text and expects axe to report it.
+- Source: tool audit item 1 (axe beside Lighthouse; Lighthouse accessibility measured 100 on `/` and `/judge` at desktop and mobile).
+- Verified: all six page checks pass against the local preview on the drill; the control passes (axe reports image-alt). scripts/ci-local.sh exit 0.
