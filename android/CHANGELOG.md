@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Incident watcher.** `IncidentWatch` listens to `incidents/{id}`; `IncidentInfo` reads the drill
+  mode (drill or judge, anything else is no drill), the status (open, found, closed; unknown reads
+  as open) and the prior version that new events carry. Source: Task 19 step 4 ("Status shows
+  'Found. Safe.' when the incident is found"), spec 7. Verified: `IncidentInfoTest` failed to
+  compile first, then passes.
 - **Photo upload.** `PhotoUpload` sends a standardized JPEG to
   `photos/{incidentId}/{sha256}.jpg` (content type image/jpeg) and refuses anything that is not a
   JPEG or is over the 2 MB cap; storage errors show a plain sentence. Source: spec 6.4 and 7.
