@@ -8,8 +8,10 @@ import PLSCore
 enum ModelSessionFactory {
     static func onDeviceStatus(locale: Locale = .current) -> OnDeviceStatus {
         let model = SystemLanguageModel.default
+        // The simulator reports an empty variant name; fall back to a plain name.
+        let name = model.variant.displayName.trimmingCharacters(in: .whitespaces)
         return OnDeviceStatus(available: model.isAvailable, localeSupported: model.supportsLocale(locale),
-                              contextSize: model.contextSize, variant: model.variant.displayName)
+                              contextSize: model.contextSize, variant: name.isEmpty ? "Apple on-device model" : name)
     }
 
     /// Why the on-device model is not available, for the Ready check.

@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): never record an empty on-device model name
+- What: when Apple's model reports an empty variant name (the iOS 27.2 simulator does), the
+  status uses "Apple on-device model", so the route record and the Ready check always name it.
+- Source: found on the simulator: the Ready check showed "ready ()".
+- Verified: `OnDeviceStatusTests` failed on the simulator before the fix, then passed; 16 app
+  tests pass.
+
 ### feat(ios): hold the live cloud gate in a lock-protected box
 - What: `LiveGateBox` keeps the current `LiveGate` (connectivity, consent, kill switch,
   incident mode) behind a `Mutex`, so PLSCore's orchestrator can read it from any thread at the
