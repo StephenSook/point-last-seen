@@ -13,3 +13,6 @@ export { buildPrior } from "./prior";
 export { approachNoteIds, detectionProfile, placeToCheck, profileForCommand, profileForModel, profileForSearchers, profileWarnings } from "./approach";
 export type { FamilyProfile, ModelProfile, PlaceToCheckContext, ProfileWarning } from "./approach";
 export type { PriorLayers, PriorResult } from "./prior";
+export { mulberry32 } from "./prng";
+export { COMPASS_UNITS, DEFAULT_WALKER_PARAMS, nearestWalkerStation, projectWalkerPoint, simulateWalkers, walkerSegmentLookup } from "./walkers";
+export type { WalkerGrid, WalkerOptions, WalkerParams, WalkerProjection, WalkerResult, WalkerRouteGraph, WalkerTrack } from "./walkers";

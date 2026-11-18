@@ -5,6 +5,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the seeded Monte Carlo walker prior (Task 37a, PLS-DESIGN 10.6): `mulberry32` (32-bit state, divide
+  by 2^32), `simulateWalkers` (ISRID distance draw, first edge weighted 2.045 inside the 66 degree travel
+  wedge and 0.395 outside, turn weights 4/2/1 with no reversal except at a dead end, water edges x2.0,
+  attractors x1.5 within 66 degrees, low mobility limited to the first 75 percent of the curve, a path
+  cap of 3 times the target, the ISRID track offset, ROW for draws above 0.95, graph exits and points
+  outside every segment), the per-segment standard error sqrt(p(1-p)/N) and 300 sampled tracks. Arithmetic
+  only (add, subtract, multiply, divide, compare; a fixed Newton square root), so the table is
+  bit-identical across JavaScript engines. Constants in `shared/constants/walker-params.json`, each traced
+  to PLS-DESIGN:400 and 10.6 and PLS-PLAN:900. Ours, labelled as ours: the offset tail above the 0.95
+  quantile is capped at 307 m (the ISRID offset table ends there). A golden toy table is committed.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane from the orchestrator's brief, reviewed by the
+  orchestrator against the spec line by line.
+  Verified: the 10 engine tests failed first (missing API), then pass: straight road 25.33 percent stop
+  within 300 m and ROW 4.79 percent (seed 1), fork stream share 0.6641 (seed 2), wedge 0.8360 (seed 3),
+  attractor 0.5956 (seed 4), low mobility max 2,400 m and ROW 0 (seed 5), all 10,000 walkers and inside
+  the plan's tolerances; engine suite 177 passed; `bash scripts/ci-local.sh` exit 0 on the series head.
 - Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
   `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
   test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
