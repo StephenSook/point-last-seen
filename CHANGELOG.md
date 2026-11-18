@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Storage rules: membership also reads the incident from Firestore (cross-service rules) and refuses an
+  incident past its `expiresAt`, matching the Firestore rules. New test: an expired judge sandbox takes no
+  clip upload; the storage tests now seed incident I1 first. Deploy note: the first deploy of cross-service
+  storage rules grants Cloud Storage read access to Firestore (the CLI asks).
+  Source: same commit security review finding (stale access after expiry).
+  Verified: the new test failed first; now the full emulator suite passes, 53 tests; `bash scripts/ci-local.sh`
+  exits 0. (The previous commit was checked with the emulator subset and ci-local ran after it, also green.)
 - Firestore rules: claims outlive an incident, so membership now also needs the incident doc to exist and
   not be past its `expiresAt` (judge sandboxes), and a closed incident takes no new events or plans while
   staying readable to its members. New tests in `functions/test/rules/roles.test.ts`: expired sandbox locks
