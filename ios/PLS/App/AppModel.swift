@@ -30,6 +30,7 @@ final class AppModel {
     private var screen: EvidenceScreen?
 
     private var started = false
+    private var remoteConfig: RemoteConfigStore?
     private var wasOnline = false
 
     func start() {
@@ -37,6 +38,10 @@ final class AppModel {
         started = true
         connectivity.onChange = { [weak self] in self?.connectivityChanged() }
         connectivity.start()
+        let remoteConfig = RemoteConfigStore()
+        remoteConfig.onChange = { [weak self] in self?.config = $0 }
+        remoteConfig.start()
+        self.remoteConfig = remoteConfig
         Task { await self.trySignIn() }
         // Each failure gets its own message, so the person and command know what to fix.
         do { identity = try DeviceIdentity() } catch {

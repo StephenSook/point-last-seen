@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): read Remote Config at start and on every live update
+- What: `RemoteConfigStore` sets the built-in defaults, fetches and activates at start, and
+  listens for real-time updates (activate, then publish), so a kill-switch flip or a raised
+  `minimum_version_ios` reaches the phone without a restart. `RemoteConfigValues.from` reads
+  the five iOS keys (`cloud_model_ios`, `token_budget_fraction`, `kill_cloud`,
+  `use_limited_use_tokens`, `minimum_version_ios`); a missing or unreadable value keeps its
+  default. `AppModel.start` feeds every update into `config`, which updates the live gate.
+- Source: J10 and Task 21b (RemoteConfigStore fetch), promotion plan.
+- Verified: four `RemoteConfigValuesTests` (keys read, bad values keep defaults, defaults
+  written under the same keys, old build asked to update) compile-red, then green; 39 app
+  tests pass; the app launches on the simulator and is still running 8 s later against the
+  project's template, which is empty today (so the defaults are in force);
+  `scripts/ci-local.sh` exit 0. Not verified yet: a live update arriving, which needs the
+  template that lane A publishes.
+
 ### feat(ios-core): compare app versions for the minimum version check
 - What: `AppVersion.isBelow(_:minimum:)` compares dotted versions part by part as numbers
   (0.9 is below 0.10; a missing part is 0; spaces trimmed). A value that is not a dotted
