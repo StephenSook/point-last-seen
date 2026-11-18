@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The `android` job and ci-local also compile the instrumented tests (`compileDebugAndroidTestKotlin`, no
+  emulator needed), so a broken androidTest fails at merge instead of only when lane D runs it by hand.
+  Source: lane D via the orchestrator.
+  Verified: `./gradlew --no-daemon compileDebugAndroidTestKotlin` BUILD SUCCESSFUL on main's android/;
+  `bash scripts/ci-local.sh` exit 0.
 - Checklist: the judging-window model line now points at the gate's allow-list and asks for a re-read of the
   live models page on or after 2026-11-28, moving any newly retiring id to `banned` and updating `readOn`;
   Remote Config values get the same check before the template is published.
