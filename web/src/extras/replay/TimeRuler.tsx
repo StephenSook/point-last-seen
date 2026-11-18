@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import type { ReplayData } from "./replayData";
-import { clockLabel, elapsedLabel, nextMark, rulerModel, valueText, type MarkKind } from "./ruler";
+import { clockLabel, elapsedLabel, nextMark, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
 import type { ReplayWindow } from "./stateAt";
 
 // The SVG is drawn in CSS pixels at the track's measured width, so labels and shapes are never stretched.
@@ -48,6 +48,7 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
   }, []);
   const m = useMemo(() => rulerModel(data, w, W, timeZone), [data, w, W, timeZone]);
   const span = Math.max(w.endMs - w.startMs, 1);
+  const scale = useMemo(() => sliderScale(w), [w]);
   const toX = (t: number) => Math.min(W, Math.max(0, ((t - w.startMs) / span) * W));
   const toT = (x: number) => w.startMs + (x / W) * span;
 
@@ -91,13 +92,13 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
         <input
           type="range"
           className="extras-ruler-input"
-          min={w.startMs}
-          max={w.endMs}
+          min={0}
+          max={scale.max}
           step={1000}
-          value={tMs}
+          value={scale.valueOf(tMs)}
           aria-label="Replay time"
           aria-valuetext={valueText(tMs, w.startMs, timeZone)}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(scale.timeOf(Number(e.target.value)))}
           onKeyDown={onKeyDown}
         />
       </div>

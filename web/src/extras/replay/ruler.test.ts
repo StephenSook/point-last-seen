@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { elapsedLabel, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
+import { elapsedLabel, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, sliderScale, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -126,6 +126,20 @@ describe("valueText", () => {
     expect(valueText(Date.UTC(2026, 10, 22, 14, 45, 10), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:45, 42 minutes in");
     expect(valueText(Date.UTC(2026, 10, 22, 14, 4, 30), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:04, 1 minute in");
     expect(valueText(Date.UTC(2026, 10, 22, 14, 45), Date.UTC(2026, 10, 22, 14, 3), "America/New_York")).toBe("09:45, 42 minutes in");
+  });
+});
+
+describe("sliderScale", () => {
+  it("the slider's last step reaches the window end even when the span is not a whole number of seconds", () => {
+    const w = { startMs: T0 + 1_000, endMs: T0 + 15 * MIN + 1_123, priorInUseFromMs: T0 };
+    const s = sliderScale(w);
+    expect(s.max % 1000).toBe(0);
+    expect(s.max).toBeGreaterThanOrEqual(w.endMs - w.startMs);
+    expect(s.timeOf(s.max)).toBe(w.endMs);
+    expect(s.timeOf(0)).toBe(w.startMs);
+    // At the end the thumb sits on the last step, never snapped one step short.
+    expect(s.valueOf(w.endMs)).toBe(s.max);
+    expect(s.timeOf(s.valueOf(T0 + 5 * MIN))).toBe(T0 + 5 * MIN);
   });
 });
 

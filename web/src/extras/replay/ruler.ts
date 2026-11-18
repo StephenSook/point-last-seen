@@ -132,6 +132,20 @@ export function nextMarkTime(times: readonly number[], t: number, dir: 1 | -1): 
   return null;
 }
 
+/**
+ * The slider's scale. A range input only takes min + k * step, so it runs in whole-second offsets from the window
+ * start, up to the first whole second at or past the end; that last step maps to the end itself. Real server times
+ * are not whole seconds, and the end frame must be reachable by a drag or the End key.
+ */
+export function sliderScale(w: ReplayWindow): { max: number; valueOf(t: number): number; timeOf(v: number): number } {
+  const span = Math.max(0, w.endMs - w.startMs);
+  return {
+    max: Math.ceil(span / 1000) * 1000,
+    valueOf: (t) => (t >= w.endMs ? Math.ceil(span / 1000) * 1000 : Math.min(span, Math.max(0, t - w.startMs))),
+    timeOf: (v) => Math.min(w.endMs, Math.max(w.startMs, w.startMs + v)),
+  };
+}
+
 /** Playback: advance by dtMs of real time; the whole window takes PLAY_WINDOW_IN_MS. Stops at the end. */
 export function playbackStep(tMs: number, dtMs: number, w: ReplayWindow): number {
   const rate = (w.endMs - w.startMs) / PLAY_WINDOW_IN_MS;

@@ -22,6 +22,8 @@ function cell(segmentId: string, col: number, row: number, priorPoa: number): Se
 const segments = [cell("AA", 0, 0, 0.3), cell("AB", 1, 0, 0.25), cell("BA", 0, 1, 0.2), cell("BB", 1, 1, 0.15)];
 const here = (col: number, row: number) => ({ lat: LAT + (row + 0.5) * D, lon: LON + (col + 0.5) * D, accuracyM: 5 });
 const cmd = { role: "command", teamId: null, deviceId: "cmd" } as const;
+// Server times are not whole seconds on real data: the last arrival is 123 ms past one, so the slider's end must
+// still reach it.
 const docs: [EventDoc, number][] = [
   // Sent at +1 min, arrived at +9: eight minutes without signal.
   [eventDoc({ eventId: "r1", clientTimeMs: T0 + MIN, deviceId: "d1", position: here(1, 0), effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + 9 * MIN],
@@ -29,7 +31,7 @@ const docs: [EventDoc, number][] = [
   [eventDoc({ ...cmd, eventId: "c1", type: "confirmation", clientTimeMs: T0 + 5 * MIN, targetEventId: "s1", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 5 * MIN],
   [eventDoc({ eventId: "s2", type: "sighting", teamId: "bravo", clientTimeMs: T0 + 12 * MIN, observedAtMs: T0 + 12 * MIN, deviceId: "d2", position: here(1, 1), effect: { kind: "clue", influences: { BB: "for" }, authenticity: "high" } }), T0 + 13 * MIN],
   [eventDoc({ ...cmd, eventId: "c2", type: "confirmation", clientTimeMs: T0 + 14 * MIN, targetEventId: "s2", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 14 * MIN],
-  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", position: here(0, 1), effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" } }), T0 + 16 * MIN],
+  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", position: here(0, 1), effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" } }), T0 + 16 * MIN + 123],
 ];
 
 /** One drill incident whose current prior came into use at +6 min, so the first five minutes have no stored map. */
