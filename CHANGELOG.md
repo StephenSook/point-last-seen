@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard's tests send events through the exported trigger, as AI Logic does: a template call is answered with
+  no request (so the template's own config, schema included, stands), a direct call that asks too much is
+  answered with the bounded request, and an off-list model is refused with permission-denied (code 7, HTTP 500
+  from the trigger) whether or not it is a template call.
+  Source: review (the earlier tests called the rule function directly and missed the live template defect).
+  Verified: with the template line removed from `guardRequest`, the trigger-level template test fails; restored,
+  10 cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
 - Firestore rules move the prior one version at a time. An incident update that changes `priorVersion` must
   raise it by exactly 1, and a segment (or ROW) write that changes `priorPoa` or `priorVersion` lands only in
   the batch that moves the incident to the next version, taking that version. Two command seats that rebuild

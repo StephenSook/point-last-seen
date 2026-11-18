@@ -48,3 +48,40 @@ describe("cloudGuard", () => {
     expect(ep.blockingTrigger?.eventType).toBe("google.firebase.ailogic.v1.beforeGenerate");
   });
 });
+
+/** Sends one AI Logic event through the exported trigger, as the platform does, and returns its HTTP answer. */
+async function throughTrigger(data: Record<string, unknown>): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { cloudGuard } = await import("../src/index");
+  let status = 0, body: Record<string, unknown> = {};
+  const res = { status(s: number) { status = s; return res; }, send(b: Record<string, unknown>) { body = b; return res; } };
+  const event = { specversion: "1.0", id: "e1", source: "test", type: "google.firebase.ailogic.v1.beforeGenerate",
+    data: { api: "google.ai.generativelanguage.v1beta", ...data } };
+  await (cloudGuard as unknown as (req: unknown, res: unknown) => Promise<void>)({ headers: {}, body: event }, res);
+  return { status, body };
+}
+
+describe("cloudGuard through the exported trigger", () => {
+  const model = path("gemini-3.5-flash-lite");
+  // A template call's request carries the template's own config, including settings direct calls never send.
+  const templateConfig = { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json",
+    responseJsonSchema: { type: "object", properties: { direction: { type: "string" } } }, thinkingConfig: { thinkingBudget: 0 } };
+  it("answers a template call with no request, so the template's own config stands (live 2026-11-18)", async () => {
+    const { status, body } = await throughTrigger({ model, template: { templateName: "projects/p/locations/global/templates/pls-sighting-note-v1" },
+      request: { contents: [{ role: "user", parts: [{ text: "note" }] }], generationConfig: templateConfig } });
+    expect(status).toBe(200);
+    expect(Object.keys(body).filter(k => k !== "@type")).toEqual([]);
+  });
+  it("answers a direct call that asks too much with the bounded request", async () => {
+    const { status, body } = await throughTrigger({ model,
+      request: { contents: [], generationConfig: { maxOutputTokens: 50_000, candidateCount: 4 } } });
+    expect(status).toBe(200);
+    expect(body.generationConfig).toEqual({ maxOutputTokens: MAX_OUTPUT_TOKENS });
+  });
+  it("refuses an off-list model with permission-denied, template call or not", async () => {
+    for (const template of [undefined, { templateName: "x" }]) {
+      const { status, body } = await throughTrigger({ model: path("gemini-9-pro"), template, request: { contents: [] } });
+      expect(status).toBe(500);
+      expect(body).toEqual({ code: 7, message: "This model is not allowed here." });
+    }
+  });
+});
