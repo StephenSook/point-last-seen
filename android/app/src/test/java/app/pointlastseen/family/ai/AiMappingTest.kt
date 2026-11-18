@@ -23,8 +23,20 @@ class AiMappingTest {
     }
 
     @Test fun noteModesMapToSdkModes() {
-        assertEquals(InferenceMode.ONLY_ON_DEVICE, AiMapping.mode(NoteMode.ONLY_ON_DEVICE))
-        assertEquals(InferenceMode.PREFER_ON_DEVICE, AiMapping.mode(NoteMode.PREFER_ON_DEVICE))
+        assertEquals(InferenceMode.ONLY_ON_DEVICE, AiMapping.mode(NoteMode.ONLY_ON_DEVICE, killCloud = false))
+        assertEquals(InferenceMode.PREFER_ON_DEVICE, AiMapping.mode(NoteMode.PREFER_ON_DEVICE, killCloud = false))
+    }
+
+    @Test fun killCloudKeepsTheHybridModeOnTheDevice() {
+        assertEquals(InferenceMode.ONLY_ON_DEVICE, AiMapping.mode(NoteMode.PREFER_ON_DEVICE, killCloud = true))
+        assertEquals(InferenceMode.PREFER_ON_DEVICE, AiMapping.mode(NoteMode.PREFER_ON_DEVICE, killCloud = false))
+        assertEquals(InferenceMode.ONLY_ON_DEVICE, AiMapping.mode(NoteMode.ONLY_ON_DEVICE, killCloud = false))
+    }
+
+    @Test fun theClipCallRefusesWhileTheCloudIsPaused() {
+        val client = AiClient { app.pointlastseen.family.config.RcValues.DEFAULTS.copy(killCloud = true) }
+        val e = runCatching { kotlinx.coroutines.runBlocking { client.readClip(byteArrayOf(1), "video/mp4") } }.exceptionOrNull()
+        assertEquals(CloudPausedException::class, e?.let { it::class })
     }
 
     @Test fun theClipSchemaNamesEveryCameraSightingField() {

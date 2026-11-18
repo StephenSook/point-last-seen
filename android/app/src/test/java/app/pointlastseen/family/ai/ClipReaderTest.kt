@@ -41,7 +41,7 @@ class ClipReaderTest {
     private fun request(size: Int, consent: ClipConsent? = null, killCloud: Boolean = false) = ClipRequest(
         bytes = bytes(size), mimeType = "video/mp4", durationS = 30,
         clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent ?: consentFor(bytes(size)),
-        killCloud = killCloud, modelName = "gemini-3.5-flash-lite",
+        killCloud = { killCloud }, modelName = "gemini-3.5-flash-lite",
     )
 
     @Test fun aClipOverTheCapIsRefusedBeforeAnything() = runTest {
@@ -72,6 +72,19 @@ class ClipReaderTest {
             override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { log += "model"; error("must not be called") }
         }
         val out = ClipReader(deps).read(request(1000))
+        assertTrue(out is ClipOutcome.Refused)
+        assertEquals(listOf("upload"), deps.log)
+    }
+
+    @Test fun killCloudTurningOnDuringTheUploadStopsTheModelCall() = runTest {
+        var paused = false
+        val inner = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        val deps = object : ClipDeps by inner {
+            val log = mutableListOf<String>()
+            override suspend fun upload(sha256: String, bytes: ByteArray): String { log += "upload"; paused = true; return "p" }
+            override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { log += "model"; error("must not be called") }
+        }
+        val out = ClipReader(deps).read(request(1000).copy(killCloud = { paused }))
         assertTrue(out is ClipOutcome.Refused)
         assertEquals(listOf("upload"), deps.log)
     }

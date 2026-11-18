@@ -26,11 +26,15 @@ object AiMapping {
         else -> DeviceModelStatus.UNKNOWN
     }
 
-    fun mode(m: NoteMode): InferenceMode = when (m) {
-        NoteMode.ONLY_ON_DEVICE -> InferenceMode.ONLY_ON_DEVICE
-        NoteMode.PREFER_ON_DEVICE -> InferenceMode.PREFER_ON_DEVICE
+    /** With kill_cloud on, the hybrid mode is pinned to this phone whatever the caller asked. */
+    fun mode(m: NoteMode, killCloud: Boolean): InferenceMode = when {
+        killCloud || m == NoteMode.ONLY_ON_DEVICE -> InferenceMode.ONLY_ON_DEVICE
+        else -> InferenceMode.PREFER_ON_DEVICE
     }
 }
+
+/** Thrown at the cloud-call boundary while Remote Config's kill_cloud is on. */
+class CloudPausedException : IllegalStateException("kill_cloud is on")
 
 /**
  * Every model call in the family app goes through Firebase AI Logic here, on the
@@ -56,7 +60,7 @@ class AiClient(private val rc: () -> RcValues) {
     /** FamilyNote's model: the SDK's hybrid mode, with the source it reports. */
     val familyNote: NoteModel = NoteModel { mode, prompt ->
         val t0 = System.nanoTime()
-        val r = noteModel(AiMapping.mode(mode)).generateContent(prompt)
+        val r = noteModel(AiMapping.mode(mode, rc().killCloud)).generateContent(prompt)
         ModelReply(r.text, AiMapping.source(r.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
     }
 
@@ -67,6 +71,7 @@ class AiClient(private val rc: () -> RcValues) {
 
     /** The clip read: cloud only, inline video, closed schema. */
     suspend fun readClip(bytes: ByteArray, mimeType: String): ModelReply {
+        if (rc().killCloud) throw CloudPausedException()
         val model = ai().generativeModel(
             modelName = rc().clipModel,
             generationConfig = generationConfig {
