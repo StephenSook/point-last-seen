@@ -46,8 +46,9 @@ ENV_FILE = re.compile(r"(^|/)\.env(\..+)?$")
 # builder moved and this list is stale, so that fails too (the floor).
 MODEL_BUILDERS = {
     "getGenerativeModel(": ("web/src/ai/client.ts",),
-    "geminiLanguageModel(": ("ios/PLS/AI/ReportReader.swift",),
-    "SystemLanguageModel": ("ios/PLS/AI/ReportReader.swift",),
+    "geminiLanguageModel(": ("ios/PLS/AI/ModelSessionFactory.swift",),
+    "SystemLanguageModel": ("ios/PLS/AI/ModelSessionFactory.swift",),
+    "FirebaseAI.firebaseAI(": ("ios/PLS/AI/AIClient.swift",),
     "Firebase.ai(": ("android/app/src/main/java/app/pointlastseen/family/ai/AiClient.kt",),
 }
 AVAILABILITY = re.compile(r"(?<!System)LanguageModel\.availability")

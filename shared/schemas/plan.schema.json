@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/plan.schema.json",
+  "title": "PlanDoc",
+  "description": "An approved plan version, written only by a person at command (spec section 7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "basedOnEventSetHash",
+    "priorVersion",
+    "assignments",
+    "wordingRoute",
+    "approvedByUid",
+    "approvedAt",
+    "createdClientTimeMs"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "basedOnEventSetHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "priorVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Assignment"
+      }
+    },
+    "wordingRoute": {
+      "anyOf": [
+        {
+          "$ref": "route-record.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvedByUid": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1
+    },
+    "approvedAt": {
+      "description": "Firestore server timestamp"
+    },
+    "createdClientTimeMs": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "Assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "teamId",
+        "segmentIds",
+        "taskText",
+        "reason"
+      ],
+      "properties": {
+        "teamId": {
+          "type": "string",
+          "maxLength": 32,
+          "minLength": 1
+        },
+        "segmentIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1
+          },
+          "maxItems": 6
+        },
+        "taskText": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#PlanDoc",
+      "ios": "ios/PLSCore/Sources/PLSCore/Plan.swift#PlanDoc"
+    },
+    "#/$defs/Assignment": {
+      "ts": "shared/engine-ts/src/types.ts#Assignment",
+      "ios": "ios/PLSCore/Sources/PLSCore/Plan.swift#Assignment"
+    }
+  }
+}
