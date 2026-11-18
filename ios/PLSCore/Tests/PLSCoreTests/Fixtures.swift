@@ -63,5 +63,5 @@ func doc(_ id: String, _ type: EventType, effect: Effect = .none(why: .informati
              reading: nil, effect: effect, route: nil, targetEventId: target, decision: decision, planVersion: nil, priorVersion: 1)
 }
 
-let clearAC = Effect.cleared(segmentId: "AC", pod: 0.5, inputs: ClearedInputs(coverage: 0.69, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
+let clearAC = Effect.cleared(segmentId: "AC", pod: 1 - exp(-0.69), inputs: ClearedInputs(coverage: 0.69, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
 func clue(_ a: Authenticity) -> Effect { .clue(influences: ["AA": .strongFor], authenticity: a) }

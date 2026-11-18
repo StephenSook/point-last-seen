@@ -21,3 +21,19 @@ import Testing
         #expect(EvidenceScreen(terms: []).isPossibleEvidence("blood") == false)
     }
 }
+
+@Suite struct EvidenceScreenBypassTests {
+    let screen = EvidenceScreen(terms: ["blood", "shell casing"])
+
+    @Test func possessivesAndQuotesStillMatch() {
+        #expect(screen.isPossibleEvidence("the blood's on the rock"))
+        #expect(screen.isPossibleEvidence("I saw 'blood' there"))
+        #expect(screen.isPossibleEvidence("blood\u{2019}s on the rock"))          // curly apostrophe
+        #expect(screen.isPossibleEvidence("a shell casing's by the road"))
+    }
+
+    @Test func accentsAndFullWidthLettersAreFolded() {
+        #expect(screen.isPossibleEvidence("BL\u{00D3}OD on the trail"))            // O with acute accent
+        #expect(screen.isPossibleEvidence("\u{FF42}\u{FF4C}\u{FF4F}\u{FF4F}\u{FF44} near the creek"))  // full-width letters
+    }
+}

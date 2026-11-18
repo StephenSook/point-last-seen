@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PLSCore
 
@@ -58,5 +59,29 @@ import Testing
 
     @Test func otherTypesHaveNoEffect() {
         #expect(ids([doc("f", .found), doc("p", .planAck)]).isEmpty)
+    }
+}
+
+@Suite struct EventFilterRoleTests {
+    func ids(_ docs: [EventDoc]) -> [String] { EventFilter.toEngineEvents(docs, priorInputEventIds: []).map(\.eventId) }
+
+    @Test func aSearcherCannotConfirmASighting() {
+        let s = doc("s1", .sighting, effect: clue(.high))
+        #expect(ids([s, doc("k1", .confirmation, target: "s1", decision: .confirmed, role: .searcher)]).isEmpty)
+        #expect(ids([s, doc("k1", .confirmation, target: "s1", decision: .confirmed, role: .family)]) == ["s1"])
+    }
+
+    @Test func onlyTheAuthorOrCommandCanRetract() {
+        let e = doc("e1", .cleared, effect: clearAC, author: "u1")
+        #expect(ids([e, doc("r1", .retraction, target: "e1", role: .searcher, author: "u2")]) == ["e1"])
+        #expect(ids([e, doc("r1", .retraction, target: "e1", role: .searcher, author: "u1")]).isEmpty)
+        #expect(ids([e, doc("r1", .retraction, target: "e1", role: .command, author: "u9")]).isEmpty)
+    }
+
+    @Test func aClearWhosePodDisagreesWithItsCoverageIsDropped() {
+        let bad = Effect.cleared(segmentId: "AC", pod: 1.0, inputs: ClearedInputs(coverage: 0.2, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
+        let good = Effect.cleared(segmentId: "AC", pod: 1 - exp(-0.2), inputs: ClearedInputs(coverage: 0.2, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
+        let tooBig = Effect.cleared(segmentId: "AC", pod: 1 - exp(-9), inputs: ClearedInputs(coverage: 9, sweepWidthM: nil, trackLengthM: nil, areaM2: 15_625, rdBasis: .openTarget))
+        #expect(ids([doc("e1", .cleared, effect: bad), doc("e2", .cleared, effect: good), doc("e3", .cleared, effect: tooBig)]) == ["e2"])
     }
 }
