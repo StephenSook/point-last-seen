@@ -30,6 +30,12 @@ describe("clip read parameters", () => {
     expect(CLIP_PROMPT).toContain("Do not guess who the person is.");
   });
 
+  it("with a window, the model reads only those seconds (videoMetadata offsets, times still from the clip start)", () => {
+    expect(clipParts("AAAA", "video/mp4", { startS: 4, endS: 11.5 })[0]).toEqual({
+      type: "inlineData", inlineData: { mimeType: "video/mp4", data: "AAAA" }, videoMetadata: { startOffset: "4s", endOffset: "11.5s" },
+    });
+  });
+
   it("sends the clip inline with its own type, then the prompt", () => {
     expect(clipParts("AAAA", "video/quicktime")).toEqual([
       { type: "inlineData", inlineData: { mimeType: "video/quicktime", data: "AAAA" } },

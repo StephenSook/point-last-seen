@@ -57,12 +57,18 @@ export function clipCloudParams(model: string): HybridParams {
   };
 }
 
-/** The request: the clip inline with its own type, then the prompt. */
-export function clipParts(base64: string, mimeType: string): Part[] {
-  return [
-    { type: "inlineData", inlineData: { mimeType, data: base64 } },
-    { type: "text", text: CLIP_PROMPT },
-  ];
+/** A span of the clip in seconds from its start (on-device triage's flagged seconds). */
+export type ClipWindow = { startS: number; endS: number };
+
+/**
+ * The request: the clip inline with its own type, then the prompt. With a window the model reads
+ * only those seconds (videoMetadata); its times stay counted from the clip's start (measured
+ * once: docs/evidence/web/2026-11-18-video-offsets.json).
+ */
+export function clipParts(base64: string, mimeType: string, window?: ClipWindow): Part[] {
+  const video: Part = { type: "inlineData", inlineData: { mimeType, data: base64 } };
+  if (window) video.videoMetadata = { startOffset: `${window.startS}s`, endOffset: `${window.endS}s` };
+  return [video, { type: "text", text: CLIP_PROMPT }];
 }
 
 export const NEEDS_CONSENT = "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing.";

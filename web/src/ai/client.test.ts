@@ -46,6 +46,13 @@ describe("clipGeneratorFor", () => {
     expect(sent).toEqual(clipParts("AAAA", "video/mp4"));
   });
 
+  it("passes a window on to the request", async () => {
+    let sent: unknown;
+    const gen = clipGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}" } }; }) as never });
+    await gen("AAAA", "video/mp4", { startS: 2, endS: 9 });
+    expect(sent).toEqual(clipParts("AAAA", "video/mp4", { startS: 2, endS: 9 }));
+  });
+
   it("gives a clip of up to 14 MB two minutes, longer than a text or photo read", () => {
     expect(CLIP_TIMEOUT_MS).toBe(120_000);
   });

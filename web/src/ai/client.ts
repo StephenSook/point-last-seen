@@ -6,7 +6,7 @@ import { getAI, getGenerativeModel, GoogleAIBackend, type AI, type GenerativeMod
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
 import { photoCloudParams, photoParams, type PhotoDeps } from "./photoCues";
 import { sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
-import { clipCloudParams, clipParts } from "./clipRead";
+import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 
 let instance: AI | undefined;
 
@@ -73,11 +73,11 @@ export function photoCloudGenerator(ai: AI, model: string): PhotoDeps["generate"
 /** A clip of up to 14,000,000 bytes is sent inline and read as video, so it gets longer than a text or photo read. */
 export const CLIP_TIMEOUT_MS = 120_000;
 
-export type ClipGenerate = (base64: string, mimeType: string) => Promise<{ text: string; inferenceSource?: string }>;
+export type ClipGenerate = (base64: string, mimeType: string, window?: ClipWindow) => Promise<{ text: string; inferenceSource?: string }>;
 
 export function clipGeneratorFor(model: ImageModel): ClipGenerate {
-  return async (base64, mimeType) => {
-    const r = await model.generateContent(clipParts(base64, mimeType));
+  return async (base64, mimeType, window) => {
+    const r = await model.generateContent(clipParts(base64, mimeType, window));
     return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
   };
 }
