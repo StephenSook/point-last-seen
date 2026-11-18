@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### build(ios): add the XcodeGen app shell
+- What: `ios/project.yml` (bundle `app.pointlastseen.field`, iOS 27.0, firebase-ios-sdk 13.2.0
+  exact with FirebaseAILogic, FirebaseAppCheck, FirebaseAuth, FirebaseFirestore,
+  FirebaseRemoteConfig; MapLibre 7.0.0 exact; local PLSCore), the location usage string, the
+  export flag, the App Attest entitlement; `PLSApp` (App Attest in release, debug provider only in
+  debug builds, unlimited Firestore cache, anonymous sign-in); a first Ready check screen; the
+  shared constants bundled into the app with a loader; a `PLSTests` target. The generated
+  `PLS.xcodeproj`, `Info.plist`, entitlements file and `GoogleService-Info.plist` stay untracked.
+- Source: Task 12b step 5.
+- Verified: `xcodebuild build` for `generic/platform=iOS Simulator` and (unsigned)
+  `generic/platform=iOS` both succeed; `xcodebuild test` on an iPhone 17 Pro simulator (iOS 27.2)
+  runs 2 tests, which failed first without the loader and then passed.
+
 ### fix(ios-core): drop segment ids the report never names
 - What: before validation, a known segment id that the report text does not name (capital
   letters, or after "segment") is dropped; with none left the clear uses the team's assignment.
