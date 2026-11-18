@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "footer": "General guidance from dementia care practitioners and search teams. Not medical advice.",
+  "firstScreenMax": 7,
+  "sourceRoles": {
+    "practitioner": "general guidance from dementia care practitioners, in our own words",
+    "search_team": "general guidance from search and rescue teams, in our own words",
+    "family": "the family's own words from the profile",
+    "ours": "ours"
+  },
+  "order": [
+    "may_not_respond", "approach_calm", "likely_to_hide", "afraid_of_uniforms", "validate_feelings", "looking_for_home",
+    "gait_unsteady", "freezing", "fall_risk", "soft_voice", "fluctuates", "sensitive_to_touch", "sensitive_to_light",
+    "may_strike_out", "seizures", "medication_alert", "medication_timing", "language", "triggers", "best_approach", "unique"
+  ],
+  "notes": {
+    "may_not_respond": { "text": "They may not answer when called. Search with your eyes.", "shownWhen": "default (flags.mayNotRespond is not false)", "sourceRole": "search_team" },
+    "approach_calm": { "text": "Come from the front. Speak softly. Be patient.", "shownWhen": "always", "sourceRole": "search_team" },
+    "likely_to_hide": { "text": "They may hide. Check under cover, in brush and inside structures.", "shownWhen": "flags.likelyToHide", "sourceRole": "practitioner" },
+    "afraid_of_uniforms": { "text": "Uniforms may frighten them. Send someone in plain clothes first if you can.", "shownWhen": "flags.afraidOfUniforms", "sourceRole": "practitioner" },
+    "validate_feelings": { "text": "If they see or believe things that are not real, do not argue. Say you understand how they feel.", "shownWhen": "flags.hallucinationsOrDelusions, or dementiaType lewy_body when the family shares it", "sourceRole": "practitioner" },
+    "looking_for_home": { "text": "They may say they are looking for home.", "shownWhen": "flags.lookingForHome", "sourceRole": "practitioner" },
+    "gait_unsteady": { "text": "Their walk may look unsteady, like someone who has been drinking. It can be their condition.", "shownWhen": "flags.gaitUnsteady", "sourceRole": "practitioner" },
+    "freezing": { "text": "Their feet may stop moving. Wait. Do not pull.", "shownWhen": "flags.freezing", "sourceRole": "practitioner" },
+    "fall_risk": { "text": "High fall risk. Help them sit. Stand up slowly.", "shownWhen": "flags.fallRisk", "sourceRole": "practitioner" },
+    "soft_voice": { "text": "Their voice may be very soft. Answers may be slow or not come.", "shownWhen": "flags.softVoice or flags.slowToRespond", "sourceRole": "practitioner" },
+    "fluctuates": { "text": "How clear they are can change fast.", "shownWhen": "flags.fluctuates", "sourceRole": "practitioner" },
+    "sensitive_to_touch": { "text": "Ask before you touch.", "shownWhen": "flags.sensitiveToTouch", "sourceRole": "practitioner" },
+    "sensitive_to_light": { "text": "Do not shine a light in their face.", "shownWhen": "flags.sensitiveToLight", "sourceRole": "practitioner" },
+    "may_strike_out": { "text": "They may push or strike out. Keep space.", "shownWhen": "flags.likelyToFight", "sourceRole": "practitioner" },
+    "seizures": { "text": "Tell medics: seizures.", "shownWhen": "flags.seizures", "sourceRole": "practitioner" },
+    "medication_alert": { "text": "Tell medics: sensitive to some medicines. Look for a medical alert wallet card.", "shownWhen": "flags.medicationSensitivity or flags.carriesMedicalAlertCard", "sourceRole": "practitioner" },
+    "medication_timing": { "text": "Tell medics how long they have been missing. Medicine timing matters.", "shownWhen": "flags.medicationTimingMatters", "sourceRole": "practitioner" },
+    "language": { "text": "Primary language: {primaryLanguage}.", "shownWhen": "primaryLanguage is set", "sourceRole": "ours" },
+    "triggers": { "text": "{triggersToAvoid}", "shownWhen": "triggersToAvoid is set", "sourceRole": "family" },
+    "best_approach": { "text": "{bestApproach}", "shownWhen": "bestApproach is set", "sourceRole": "family" },
+    "unique": { "text": "{uniqueDescription}", "shownWhen": "uniqueDescription is set", "sourceRole": "family" }
+  }
+}
