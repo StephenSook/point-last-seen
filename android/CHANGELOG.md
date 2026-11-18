@@ -4,6 +4,14 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Clip reading wiring.** `ClipReadingDoc` maps `incidents/{id}/clipReadings/{sha256}` with the
+  spec 7 fields, the reading stored as an object and `expiresAt` and `createdAt` as Firestore
+  timestamps for the TTL policy. `FirebaseClipDeps` connects ClipReader to that cache, to Cloud
+  Storage at `clips/{incidentId}/{sha256}.mp4` (content type video/mp4) and to the AI Logic clip
+  call. Source: Task 19 step 4 ("ClipReader is a cloud call with Task 18's schema, checks, cap and
+  consents"), spec 7 and 12.1. Verified: `ClipReadingDocTest` failed to compile first, then
+  passes (fields, object reading, round trip, timestamp converter); `assembleDebug` passes. The
+  live clip read waits for a staged, consented drill clip.
 - **Profile publisher.** After "She's gone", `ProfilePublisher` writes the shared fields to
   `incidents/{id}/profile/shared` and the history to `incidents/{id}/profile/command`, and reports
   when both writes finish. Source: Task 19 step 4, spec 7 and 13.2. Verified:
