@@ -86,4 +86,12 @@ class ProfileScreenTest {
         rule.onNodeWithText("Back").performScrollTo().performClick()
         assertEquals(1, back)
     }
+
+    @Test fun joiningKeepsWhatWasTyped() {
+        var joinedWith: SubjectProfile? = null
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), false, null, {}, {}, onJoin = { joinedWith = it }, gone = false, onBack = {}) } }
+        type("Name they answer to", "Mae")
+        tap("Join with a code")
+        assertEquals("Mae", joinedWith!!.answersTo)
+    }
 }

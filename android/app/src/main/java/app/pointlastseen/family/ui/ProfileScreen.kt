@@ -95,7 +95,7 @@ fun ProfileScreen(
     mode: String?,
     onSave: (SubjectProfile) -> Unit,
     onGone: (SubjectProfile) -> Unit,
-    onJoin: () -> Unit,
+    onJoin: (SubjectProfile) -> Unit,
     gone: Boolean,
     onBack: () -> Unit,
 ) {
@@ -125,7 +125,7 @@ fun ProfileScreen(
         } else {
             Sentence("Who might go missing?")
             MainAction("She's gone") { onGone(edited()) }
-            if (!joined) OtherAction("Join with a code", onClick = onJoin)
+            if (!joined) OtherAction("Join with a code") { onJoin(edited()) }
         }
 
         Heading("Searchers see this")

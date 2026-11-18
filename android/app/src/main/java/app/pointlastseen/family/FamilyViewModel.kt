@@ -150,7 +150,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         nav = Nav.leave(nav)
     }
 
-    fun toJoin() = apply(Nav.toJoin(nav))
+    /** Keeps what the family typed before leaving the profile for the join screen. */
+    fun toJoin(p: SubjectProfile) {
+        saveProfile(p)
+        apply(Nav.toJoin(nav))
+    }
 
     fun join(code: String) {
         joinBusy = true
