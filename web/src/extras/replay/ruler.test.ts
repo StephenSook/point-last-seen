@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { elapsedLabel, nextMark, playbackStep, rulerModel, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
+import { elapsedLabel, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -96,6 +96,20 @@ describe("nextMark", () => {
     expect(nextMark(m, xs[xs.length - 1]!, 1)).toBeNull();
     expect(nextMark(m, xs[0]!, -1)).toBeNull();
     expect(nextMark(m, WIDTH, -1)).toBe(xs[xs.length - 1]);
+  });
+});
+
+describe("markTimes and nextMarkTime", () => {
+  it("lists each marked time once, in order, and steps between them", () => {
+    const d = data();
+    const times = markTimes(d, replayWindow(d)!);
+    expect(times).toEqual([...new Set(times)].sort((a, b) => a - b));
+    // Reports at +2.5, +5, +6, +8 and +10 min, the prior at +3 and the plan at +4; never the acknowledgement at +11.
+    expect(times).toEqual([2.5, 3, 4, 5, 6, 8, 10].map((m) => T0 + m * MIN));
+    expect(nextMarkTime(times, T0 + 4 * MIN, 1)).toBe(T0 + 5 * MIN);
+    expect(nextMarkTime(times, T0 + 4 * MIN, -1)).toBe(T0 + 3 * MIN);
+    expect(nextMarkTime(times, T0 + 10 * MIN, 1)).toBeNull();
+    expect(nextMarkTime(times, T0 + 2.5 * MIN, -1)).toBeNull();
   });
 });
 

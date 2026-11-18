@@ -131,6 +131,13 @@ describe("fromLive", () => {
     );
     expect(fromLive(replayView(), [], [])!.priorBuiltAtMs).toBeNull();
   });
+
+  it("carries the grid's own licence line for the map credit", () => {
+    expect(fromLive(replayView({ gridAttribution: "Grid from OpenStreetMap (ODbL)" }), [], [])!.gridAttribution).toBe("Grid from OpenStreetMap (ODbL)");
+    expect(fromLive(replayView(), [], [])!.gridAttribution).toBeNull();
+    const r = fromPublishedRun(run({ incident: { ...runV1().incident, gridAttribution: "Grid from OpenStreetMap (ODbL)" } }));
+    expect(r.ok && r.data.gridAttribution).toBe("Grid from OpenStreetMap (ODbL)");
+  });
 });
 
 function runEvent(doc: EventDoc, serverTimeMs: number): RunEvent {

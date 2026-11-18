@@ -118,6 +118,20 @@ export function nextMark(m: RulerModel, x: number, dir: 1 | -1): number | null {
   return null;
 }
 
+/** Every marked time once, in order: arrived reports (never a plan acknowledgement), plan approvals, the prior. */
+export function markTimes(data: ReplayData, w: ReplayWindow): number[] {
+  const times = new Set<number>([w.priorInUseFromMs, ...data.plans.map((p) => p.approvedAtMs)]);
+  for (const e of data.events) if (e.arrivedAtMs !== null && markKind(e) !== null) times.add(e.arrivedAtMs);
+  return [...times].sort((a, b) => a - b);
+}
+
+/** The first marked time after t (dir 1) or the last one before it (dir -1); null past the end. */
+export function nextMarkTime(times: readonly number[], t: number, dir: 1 | -1): number | null {
+  if (dir === 1) return times.find((x) => x > t) ?? null;
+  for (let i = times.length - 1; i >= 0; i--) if (times[i]! < t) return times[i]!;
+  return null;
+}
+
 /** Playback: advance by dtMs of real time; the whole window takes PLAY_WINDOW_IN_MS. Stops at the end. */
 export function playbackStep(tMs: number, dtMs: number, w: ReplayWindow): number {
   const rate = (w.endMs - w.startMs) / PLAY_WINDOW_IN_MS;

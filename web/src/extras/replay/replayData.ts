@@ -42,6 +42,8 @@ export type ReplayData = {
   source: "live" | "published_run";
   incidentName: string;
   drillLabel: string | null;
+  /** The grid's own licence line, shown as the map credit; null when the incident has none. */
+  gridAttribution: string | null;
   priorVersion: number;
   priorInputEventIds: string[];
   priorBuiltAtMs: number | null;
@@ -150,6 +152,7 @@ export function fromLive(view: IncidentView | null, events: readonly StreamedEve
     source: "live",
     incidentName: inc.name,
     drillLabel: drillLabelOf(inc.mode, inc.drillLabel),
+    gridAttribution: str(inc.gridAttribution) ? inc.gridAttribution : null,
     priorVersion: inc.priorVersion,
     priorInputEventIds: [...(inc.priorInputEventIds ?? [])],
     priorBuiltAtMs: millis(extra["priorBuiltAtMs"]),
@@ -245,6 +248,7 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
       source: "published_run",
       incidentName: incident["name"],
       drillLabel: drillLabelOf(incident["mode"], incident["drillLabel"]),
+      gridAttribution: str(incident["gridAttribution"]) ? incident["gridAttribution"] : null,
       priorVersion: incident["priorVersion"],
       priorInputEventIds: Array.isArray(ids) ? ids.filter(str) : [],
       priorBuiltAtMs: millis(incident["priorBuiltAtMs"]),

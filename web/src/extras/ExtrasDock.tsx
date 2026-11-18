@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import { ExportButton } from "./export/ExportButton";
 import { printableApproachLines, type IncidentView, type PlanDoc } from "./laneC";
@@ -9,9 +9,12 @@ import { ExtrasDialog, PrintRoot } from "./print/PrintRoot";
 import { radioCards } from "./radio/radioCard";
 import { RadioCards } from "./radio/RadioCards";
 import { RadioCodeCheck } from "./radio/RadioCodeCheck";
+import { ReplayPanel } from "./replay/ReplayPanel";
+import { fromLive } from "./replay/replayData";
 import type { DockProps } from "./types";
 import "./extras.css";
 
+const replayTitle = "Replay";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
 const checkTitle = "Check a radio code";
@@ -22,7 +25,7 @@ const editFields = [
 ] as const;
 
 type PrintSessionData = { kind: "assignment" | "cards"; model: PrintModel; approachLines: string[] };
-type Surface = PrintSessionData | { kind: "check"; planVersion: number | null };
+type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "replay" };
 
 function PrintSession({ session, plans, matchCode, reportCount, onClose, returnFocus }: {
   session: PrintSessionData;
@@ -104,6 +107,8 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
   const menu = useRef<HTMLDivElement>(null);
   const matchCode = vs?.code ?? null;
   const reportCount = new Set(state.events.map(({ eventId }) => eventId)).size;
+  // The replay follows the live state while it is open: a report that lands extends the window.
+  const replayData = useMemo(() => fromLive(view, state.events, state.plans), [view, state.events, state.plans]);
   const snapshot = () => buildPrintModel({ view, plans: state.plans, code: matchCode, eventCount: reportCount, nowMs: Date.now() });
 
   function menuItems() {
@@ -111,7 +116,7 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
   }
 
   useLayoutEffect(() => {
-    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]')?.focus();
+    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]:not([disabled])')?.focus();
   }, [open]);
 
   function openPrint(kind: PrintSessionData["kind"]) {
@@ -162,6 +167,13 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
           More
         </button>
         <div id={menuId} ref={menu} className="extras-menu" role="menu" aria-label="More" hidden={!open}>
+          <button type="button" role="menuitem" disabled={replayData === null} onClick={() => {
+            setSurface({ kind: "replay" });
+            setOpen(false);
+          }}>
+            {replayTitle}
+            {replayData === null && <small>Available once the prior is built.</small>}
+          </button>
           <button type="button" role="menuitem" onClick={() => openPrint("assignment")}>{assignmentTitle}</button>
           <button type="button" role="menuitem" onClick={() => openPrint("cards")}>{cardsTitle}</button>
           <button type="button" role="menuitem" onClick={() => {
@@ -178,7 +190,13 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
-      {surface && surface.kind !== "check" && (
+      {surface?.kind === "replay" && replayData && (
+        <ExtrasDialog title={replayTitle} onClose={closeDialog} returnFocus={more} className="extras-replay-dialog">
+          <ReplayPanel data={replayData} />
+          <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
+        </ExtrasDialog>
+      )}
+      {surface && surface.kind !== "check" && surface.kind !== "replay" && (
         <PrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
       )}
     </>
