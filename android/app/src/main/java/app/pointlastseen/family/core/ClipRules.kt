@@ -8,8 +8,13 @@ data class ConsentMark(val byUid: String, val atMs: Long) {
     fun toMap(): Map<String, Any> = mapOf("byUid" to byUid, "atMs" to atMs)
 }
 
-/** Four separate consents; public use is needed only for a clip shown in the film or on the judge page. */
+/**
+ * Four separate consents for one clip, bound to that clip's SHA-256. Public use is
+ * needed only for a clip shown in the film or on the judge page. The hash is the
+ * clipReadings document id, so it is not repeated inside the stored consent map.
+ */
 data class ClipConsent(
+    val clipSha256: String,
     val personInClip: ConsentMark?,
     val footageOwner: ConsentMark?,
     val cloudProcessing: ConsentMark?,
@@ -33,6 +38,7 @@ object ClipRules {
         else -> null
     }
 
-    fun consentComplete(c: ClipConsent): Boolean =
-        c.personInClip != null && c.footageOwner != null && c.cloudProcessing != null
+    /** The three required consents, given for exactly these bytes. */
+    fun consentComplete(c: ClipConsent, clipSha256: String): Boolean =
+        c.clipSha256 == clipSha256 && c.personInClip != null && c.footageOwner != null && c.cloudProcessing != null
 }

@@ -39,7 +39,7 @@ object ClipReadingDoc {
             cameraFacingDeg = (m["cameraFacingDeg"] as Number?)?.toInt(),
             readingJson = toJson(m["reading"]).toString(),
             route = (m["route"] as Map<*, *>?)?.let { route(it) },
-            consent = consent(m["consent"] as Map<*, *>),
+            consent = consent(m["sha256"] as String, m["consent"] as Map<*, *>),
             expiresAtMs = toMs(m["expiresAt"]),
             createdAtMs = toMs(m["createdAt"]),
         )
@@ -54,7 +54,7 @@ object ClipReadingDoc {
 
     private fun mark(v: Any?) = (v as Map<*, *>?)?.let { ConsentMark(it["byUid"] as String, (it["atMs"] as Number).toLong()) }
 
-    private fun consent(c: Map<*, *>) = ClipConsent(mark(c["personInClip"]), mark(c["footageOwner"]), mark(c["cloudProcessing"]), mark(c["publicUse"]))
+    private fun consent(sha256: String, c: Map<*, *>) = ClipConsent(sha256, mark(c["personInClip"]), mark(c["footageOwner"]), mark(c["cloudProcessing"]), mark(c["publicUse"]))
 
     private fun toJson(v: Any?): JsonElement = when (v) {
         null -> JsonNull

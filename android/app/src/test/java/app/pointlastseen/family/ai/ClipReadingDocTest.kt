@@ -12,7 +12,7 @@ class ClipReadingDocTest {
         sha256 = "ab".repeat(32), storagePath = "clips/inc-1/x.mp4", durationS = 30, clipStartMs = 500L,
         clockConfirmed = true, cameraFacingDeg = 90, readingJson = json,
         route = RouteRecord("android", "cloud", "sdk", "gemini-3.5-flash-lite", "sdk_only_in_cloud", 900, true, null, 1_000L),
-        consent = ClipConsent(ConsentMark("u", 1L), ConsentMark("u", 2L), ConsentMark("u", 3L), null),
+        consent = ClipConsent("ab".repeat(32), ConsentMark("u", 1L), ConsentMark("u", 2L), ConsentMark("u", 3L), null),
         expiresAtMs = 9_000L, createdAtMs = 1_000L,
     )
 

@@ -8,7 +8,8 @@ import org.junit.Test
 
 class ClipRulesTest {
     private val mark = ConsentMark(byUid = "u1", atMs = 5L)
-    private val full = ClipConsent(personInClip = mark, footageOwner = mark, cloudProcessing = mark, publicUse = null)
+    private val sha = "a".repeat(64)
+    private val full = ClipConsent(clipSha256 = sha, personInClip = mark, footageOwner = mark, cloudProcessing = mark, publicUse = null)
 
     @Test fun theCapIsFourteenMillionBytes() {
         assertEquals(14_000_000L, MAX_CLIP_BYTES)
@@ -26,9 +27,13 @@ class ClipRulesTest {
     }
 
     @Test fun threeConsentsAreRequiredAndPublicUseIsNot() {
-        assertTrue(ClipRules.consentComplete(full))
-        assertFalse(ClipRules.consentComplete(full.copy(cloudProcessing = null)))
-        assertFalse(ClipRules.consentComplete(full.copy(personInClip = null)))
-        assertFalse(ClipRules.consentComplete(full.copy(footageOwner = null)))
+        assertTrue(ClipRules.consentComplete(full, sha))
+        assertFalse(ClipRules.consentComplete(full.copy(cloudProcessing = null), sha))
+        assertFalse(ClipRules.consentComplete(full.copy(personInClip = null), sha))
+        assertFalse(ClipRules.consentComplete(full.copy(footageOwner = null), sha))
+    }
+
+    @Test fun consentGivenForOneClipDoesNotCoverAnother() {
+        assertFalse(ClipRules.consentComplete(full, "b".repeat(64)))
     }
 }

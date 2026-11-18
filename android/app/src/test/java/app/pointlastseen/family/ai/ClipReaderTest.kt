@@ -13,7 +13,6 @@ import org.junit.Test
 
 class ClipReaderTest {
     private val mark = ConsentMark("u1", 5L)
-    private val consent = ClipConsent(mark, mark, mark, null)
 
     private val readingJson = """
         {"personVisible":true,"firstSeen":"00:03","lastSeen":"00:12","entryEdge":"right","exitEdge":"left",
@@ -35,9 +34,13 @@ class ClipReaderTest {
         override fun nowMs(): Long = 1_000L
     }
 
-    private fun request(size: Int, consent: ClipConsent = this.consent, killCloud: Boolean = false) = ClipRequest(
-        bytes = ByteArray(size) { (it % 7).toByte() }, mimeType = "video/mp4", durationS = 30,
-        clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent,
+    private fun bytes(size: Int) = ByteArray(size) { (it % 7).toByte() }
+    private fun consentFor(b: ByteArray) = ClipConsent(Hashes.sha256Hex(b), mark, mark, mark, null)
+    private val consent = consentFor(bytes(1000))
+
+    private fun request(size: Int, consent: ClipConsent? = null, killCloud: Boolean = false) = ClipRequest(
+        bytes = bytes(size), mimeType = "video/mp4", durationS = 30,
+        clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent ?: consentFor(bytes(size)),
         killCloud = killCloud, modelName = "gemini-3.5-flash-lite",
     )
 
@@ -53,6 +56,24 @@ class ClipReaderTest {
         val out = ClipReader(deps).read(request(1000, consent.copy(cloudProcessing = null)))
         assertTrue(out is ClipOutcome.Refused && out.message.contains("consent"))
         assertTrue(deps.log.isEmpty())
+    }
+
+    @Test fun consentForAnotherClipIsRefused() = runTest {
+        val deps = FakeDeps()
+        val out = ClipReader(deps).read(request(1000, consentFor(bytes(999))))
+        assertTrue(out is ClipOutcome.Refused && out.message.contains("consent"))
+        assertTrue(deps.log.isEmpty())
+    }
+
+    @Test fun bytesChangedAfterConsentAreRefusedBeforeInference() = runTest {
+        val deps = object : ClipDeps by FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900)) {
+            val log = mutableListOf<String>()
+            override suspend fun upload(sha256: String, bytes: ByteArray): String { log += "upload"; bytes[0] = 99; return "p" }
+            override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { log += "model"; error("must not be called") }
+        }
+        val out = ClipReader(deps).read(request(1000))
+        assertTrue(out is ClipOutcome.Refused)
+        assertEquals(listOf("upload"), deps.log)
     }
 
     @Test fun killCloudRefusesTheCloudOnlyRead() = runTest {

@@ -68,12 +68,12 @@ class ClipReader(private val deps: ClipDeps) {
 
     suspend fun read(r: ClipRequest): ClipOutcome {
         ClipRules.sizeProblem(r.bytes.size.toLong())?.let { return ClipOutcome.Refused(it) }
-        if (!ClipRules.consentComplete(r.consent)) {
-            return ClipOutcome.Refused("Three consents are needed first: the person in the clip, the owner of the footage, and cloud processing.")
-        }
-        if (r.killCloud) return ClipOutcome.Refused("Clip reading is paused right now. Tell command about the clip.")
-
         val sha = Hashes.sha256Hex(r.bytes)
+        if (!ClipRules.consentComplete(r.consent, sha)) return ClipOutcome.Refused(NEEDS_CONSENT)
+        if (r.killCloud) return ClipOutcome.Refused("Clip reading is paused right now. Tell command about the clip.")
+        // The consent covers these exact bytes: check them again at each boundary they cross.
+        val unchanged = { Hashes.sha256Hex(r.bytes) == sha }
+
         val bearingOf = { s: CameraSighting -> Bearing.fromExit(r.cameraFacingDeg, s.exitEdge) }
         try {
             deps.findReading(sha)?.let { hit ->
@@ -81,7 +81,9 @@ class ClipReader(private val deps: ClipDeps) {
                 val check = SightingCheck.check(s, hit.durationS)
                 return ClipOutcome.Read(sha, check.cleaned, check, Bearing.fromExit(hit.cameraFacingDeg, s.exitEdge), hit.route, cached = true)
             }
+            if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             val path = deps.upload(sha, r.bytes)
+            if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             val reply = deps.callModel(r.bytes, r.mimeType)
             val parsed = CameraSightingJson.parse(reply.text) ?: return ClipOutcome.CouldNotRead
             val check = SightingCheck.check(parsed, r.durationS)
@@ -109,5 +111,7 @@ class ClipReader(private val deps: ClipDeps) {
 
     companion object {
         const val READING_TTL_MS = 30L * 24 * 3600 * 1000
+        const val NEEDS_CONSENT =
+            "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing."
     }
 }
