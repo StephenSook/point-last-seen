@@ -599,3 +599,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `joinCommand` waits up to 20 s for the post after pressing Join instead of the 5 s default.
 - Source: the first full deployed run after merge point 2: the four tests that started together all timed out at the join while every later join passed (the callable starting cold under concurrent calls).
 - Verified: the same four tests then passed against the live site (change, basemap, the live beat, offline Approve). scripts/ci-local.sh exit 0.
+
+### docs(evidence): record the web Lighthouse, axe and bundle-scan results
+- What: `docs/evidence/web/2026-11-18-audit.md`: Lighthouse scores for `/` and `/judge` at desktop and mobile (accessibility 100 on all four), the axe results for the join page, `/judge` and the joined post at 1440 and 390 px (0 violations, with a control), and the scan of the live bundle (one public Firebase key, our public site key, no secret markers, one model name as the Remote Config fallback, prompt text present because on-device reads run in the browser), with what each failing audit means and what is to be fixed.
+- Source: tool audit items 1 and 4 (Lighthouse and axe on the deployed pages; bundle inspection before the merge point).
+- Verified: numbers copied from the Lighthouse runs, the axe e2e run and the scan output in this session; no secret value appears. scripts/ci-local.sh exit 0.
