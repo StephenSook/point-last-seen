@@ -116,3 +116,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `plans.ts`: `planDocFor` joins the draft's segments with the wording's task line and reason per team (in draft order) into exactly the plan schema's eight fields, with `approvedByUid` the signed-in command uid and `approvedAt` a server timestamp, and refuses wording that lacks a draft team; `nextPlanVersion` and `planDocId` ("0001"); `localDraft` runs the engine's `assignTeams` so the post can draft with the link down; `approvePlan` writes `plans/{version}` and is called only from Approve.
 - Source: plan Task 16c (`approvePlan`), spec 11.4 (plans have one writer; a local draft with the link down), lane A's rules contract (plans create-only, `approvedByUid` is the command uid).
 - Verified: `src/data/plans.test.ts`, 6 tests, failed first (module missing), then passed; typecheck clean.
+
+### feat(web): keep plan wording off the cloud while kill_cloud is on
+- What: `wordPlan` takes `killCloud` (Remote Config `kill_cloud`). When it is on, the model is never called; the plan uses the template on path "rules" with the notice "Cloud paused by command. The plan below uses fixed wording." A template plan can still be approved.
+- Source: spec section 14 (`kill_cloud`), plan Task 23 test "with kill_cloud on, the banner shows and a template plan can still be approved".
+- Verified: new test in `src/ai/replanWording.test.ts` failed first (the model was called), then passed with zero model calls; 17 of 17.

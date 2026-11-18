@@ -153,3 +153,14 @@ describe("wordingParams", () => {
     expect(p.inCloudParams?.systemInstruction).toBeDefined();
   });
 });
+
+describe("wordPlan with the cloud paused", () => {
+  it("never calls the model and uses the template with a plain notice", async () => {
+    let calls = 0;
+    const out = await wordPlan(draft, deps({ killCloud: true, generate: async () => { calls++; return { text: good, inferenceSource: "in_cloud" }; } }));
+    expect(calls).toBe(0);
+    expect(out.wording).toEqual(templateWording(draft));
+    expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
+    expect(out.notice).toBe("Cloud paused by command. The plan below uses fixed wording.");
+  });
+});

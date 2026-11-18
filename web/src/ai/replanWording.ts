@@ -97,6 +97,8 @@ export type WordingDeps = {
   now: () => number;
   timeoutMs: number;
   model: string;
+  /** Remote Config kill_cloud: when true the cloud is never called. */
+  killCloud?: boolean;
 };
 
 export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null };
@@ -128,6 +130,7 @@ export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<Wor
     const t1 = deps.now();
     return { wording: templateWording(draft), route: route("rules", "template_fallback", "template", t1 - t0, false, t1), notice };
   };
+  if (deps.killCloud) return template("Cloud paused by command. The plan below uses fixed wording.");
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const late = new Promise<never>((_, reject) => {
