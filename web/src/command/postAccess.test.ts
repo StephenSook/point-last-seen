@@ -55,6 +55,13 @@ describe("postReducer with plans", () => {
     expect(denied.plans).toEqual([]);
     expect(postReducer(denied, { type: "plans", plans: [plan] })).toBe(denied);
   });
+
+  it("keeps which plan versions are still being sent, and clears them on a denial", () => {
+    const sending = postReducer(loaded, { type: "plans", plans: [plan], pending: [1] });
+    expect(sending.pendingPlans).toEqual([1]);
+    expect(postReducer(sending, { type: "plans", plans: [plan], pending: [] }).pendingPlans).toEqual([]);
+    expect(postReducer(sending, { type: "failed", error: { code: "permission-denied" } }).pendingPlans).toEqual([]);
+  });
 });
 
 describe("postReducer with the profile", () => {
@@ -65,5 +72,17 @@ describe("postReducer with the profile", () => {
     const denied = postReducer(withProfile, { type: "failed", error: { code: "permission-denied" } });
     expect(denied.profile).toBeNull();
     expect(postReducer(denied, { type: "profile", profile })).toBe(denied);
+  });
+});
+
+describe("plan history", () => {
+  it("is loaded once a snapshot comes from the server (even an empty one), and stays loaded offline", () => {
+    expect(initialPostState.plansLoaded).toBe(false);
+    // A first snapshot from this laptop's cache (a fresh seat offline) does not know the server's versions.
+    const cached = postReducer(initialPostState, { type: "plans", plans: [], fromServer: false });
+    expect(cached.plansLoaded).toBe(false);
+    const served = postReducer(cached, { type: "plans", plans: [], fromServer: true });
+    expect(served.plansLoaded).toBe(true);
+    expect(postReducer(served, { type: "plans", plans: [], fromServer: false }).plansLoaded).toBe(true);
   });
 });

@@ -1,11 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import { AUTH_STATE } from "./authState";
 
 const deployed = process.env["BASE_URL"];
 
 export default defineConfig({
   testDir: ".",
-  // Harness specs need the dev server; they run under e2e/harness.config.ts.
-  testIgnore: ["harness/**"],
+  // Harness specs need the dev server: e2e/harness.config.ts runs harness/**, and the
+  // extras lane's e2e/extras.config.ts runs extras/**.
+  testIgnore: ["harness/**", "extras/**"],
   timeout: 60_000,
   retries: 0,
   reporter: [["list"]],
@@ -16,7 +18,14 @@ export default defineConfig({
     video: "off",
     screenshot: "off",
   },
-  projects: [{ name: "chrome", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"], channel: "chrome" } },
+    {
+      name: "chrome",
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 }, storageState: AUTH_STATE },
+    },
+  ],
   // Without BASE_URL the tests run against a local preview of web/dist (run `npm run build -w web` first).
   webServer: deployed
     ? undefined

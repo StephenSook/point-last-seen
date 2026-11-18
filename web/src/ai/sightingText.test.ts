@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import template from "../../../shared/templates/pls-sighting-note-v1.json";
 import { InferenceMode } from "firebase/ai";
-import { SIGHTING_CUES_JSON, SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { SIGHTING_CUES_JSON, SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingTextParams, type SightingTextDeps } from "./sightingText";
 
 const text = "saw a woman in a blue coat walking north by the creek";
 const goodReply = JSON.stringify({ direction: "n", topColor: "blue", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
@@ -103,11 +104,15 @@ describe("sightingTextParams", () => {
   });
 });
 
-describe("sightingCloudParams", () => {
-  it("is strictly in the cloud with the same closed schema", () => {
-    const p = sightingCloudParams("gemini-3.5-flash-lite");
-    expect(p.mode).toBe(InferenceMode.ONLY_IN_CLOUD);
-    expect(p.inCloudParams).toMatchObject({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json", responseJsonSchema: SIGHTING_CUES_JSON } });
-    expect(p.onDeviceParams).toBeUndefined();
+describe("the cloud read's server template", () => {
+  it("returns the same closed fields, lists and caps the reply is checked against", () => {
+    const out = template.output.schema as Record<string, { enum?: string[]; maxLength?: number }>;
+    expect(Object.keys(out).sort()).toEqual(Object.keys(SIGHTING_CUES_JSON.properties).sort());
+    for (const [k, v] of Object.entries(SIGHTING_CUES_JSON.properties) as [string, { enum?: readonly string[]; maxLength?: number }][]) {
+      if (v.enum) expect(out[k]!.enum, k).toEqual([...v.enum]);
+      if (v.maxLength) expect(out[k]!.maxLength, k).toBe(v.maxLength);
+    }
+    expect(template.templateId).toBe("pls-sighting-note-v1");
+    expect(template.input.schema.note.maxLength).toBe(2000);
   });
 });

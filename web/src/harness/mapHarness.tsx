@@ -4,6 +4,7 @@
 
 import { createRoot } from "react-dom/client";
 import { MapView } from "../map/MapView";
+import { cohortReleaseMs, type Track } from "../motion/walkerCanvas";
 import type { MapSegment } from "../map/poaStyle";
 import "../theme/fonts.css";
 import "../theme/base.css";
@@ -31,11 +32,24 @@ const RAW = HARNESS_SEGMENTS.filter((s) => s.segmentId !== "DF").map((s) => {
 const TOTAL = RAW.reduce((a, [, v]) => a + v, 0);
 export const HARNESS_POA: Record<string, number> = Object.fromEntries(RAW.map(([id, v]) => [id, v / TOTAL]));
 
+// 300 synthetic tracks fanning out from cell AB's centre to every cell's centre, released in cohorts.
+const START = HARNESS_SEGMENTS[1]!.centroid;
+const HARNESS_TRACKS: Track[] = Array.from({ length: 300 }, (_, i) => {
+  const end = HARNESS_SEGMENTS[i % HARNESS_SEGMENTS.length]!.centroid;
+  return { pts: [[START.lon, START.lat], [end.lon, end.lat]], releaseMs: cohortReleaseMs(i), durationMs: 1500 };
+});
+
 function Harness() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "auto 1fr" }}>
       <p className="drill" style={{ margin: 0, padding: 8 }}>Synthetic test grid, not drill data.</p>
-      <MapView segments={HARNESS_SEGMENTS} poa={HARNESS_POA} onReady={(m) => (document.body.dataset["mapReady"] = m ? "map" : "none")} />
+      <MapView
+        segments={HARNESS_SEGMENTS}
+        poa={HARNESS_POA}
+        onReady={(m) => (document.body.dataset["mapReady"] = m ? "map" : "none")}
+        ripple={new URLSearchParams(location.search).has("ripple") ? { key: "prior-1", origin: HARNESS_SEGMENTS[1]!.centroid } : null}
+        walkers={new URLSearchParams(location.search).has("walkers") ? { key: "walkers-1", tracks: HARNESS_TRACKS } : null}
+      />
     </div>
   );
 }

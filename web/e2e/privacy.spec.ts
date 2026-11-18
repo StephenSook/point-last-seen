@@ -21,12 +21,20 @@ test("with LanguageModel hidden, private reads send nothing to Firebase hosts", 
   expect(hits).toEqual([]);
 });
 
-test("positive control: a consented cloud read sends exactly one AI Logic request", async ({ page }) => {
+// It also checks the cloud call is signed in and carries App Check, so AI Logic can require both
+// (App Check replay protection and authenticated users) without the web read breaking.
+test("positive control: a consented cloud read sends exactly one AI Logic request, signed in and with App Check", async ({ page }) => {
   deployedOnly();
   await withDebugToken(page);
   await page.addInitScript(() => { delete (window as { LanguageModel?: unknown }).LanguageModel; });
   const hits: string[] = [];
-  page.on("request", (r) => { if (AI_HOSTS.test(r.url()) && r.method() === "POST") hits.push(r.url()); });
+  const signed: { auth: boolean; appCheck: boolean }[] = [];
+  page.on("request", (r) => {
+    if (!AI_HOSTS.test(r.url()) || r.method() !== "POST") return;
+    hits.push(r.url());
+    const h = r.headers();
+    signed.push({ auth: /^Firebase \S+$/.test(h["authorization"] ?? ""), appCheck: (h["x-firebase-appcheck"] ?? "").length > 0 });
+  });
   await joinCommand(page);
   await page.locator('input[type="file"]').setInputFiles({ name: "sign.jpg", mimeType: "image/jpeg", buffer: await syntheticSignJpeg(page) });
   await page.getByRole("button", { name: "Read on this laptop" }).first().click();
@@ -34,4 +42,5 @@ test("positive control: a consented cloud read sends exactly one AI Logic reques
   await page.getByRole("button", { name: "I consent for this photo" }).first().click();
   await expect(page.getByTestId("photo-cues").first()).toBeVisible();
   expect(hits).toHaveLength(1);
+  expect(signed).toEqual([{ auth: true, appCheck: true }]);
 });

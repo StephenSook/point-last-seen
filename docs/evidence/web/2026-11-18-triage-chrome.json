@@ -1,0 +1,74 @@
+{
+  "what": "P-39 on-device clip triage measured in an installed Chrome with the built-in model, on generated clips only",
+  "date": "2026-11-18",
+  "browser": "Stephen's Google Chrome 157 stable on this Mac (macOS), after the model download through the site's own 'Get this laptop ready' button; the built-in model reported available for image + text and for text only",
+  "page": "web/harness/triage.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in",
+  "clips": "ALL SYNTHETIC, generated with ffmpeg: no person in any of them",
+  "runs": [
+    {
+      "clip": "moving-box.mp4: 6 s, a red 40 x 40 square crossing a grey 320 x 240 frame",
+      "run": "first (cold)",
+      "samples": 12,
+      "sampleMs": 45,
+      "spans": 1,
+      "checks": [
+        {
+          "atS": 0.5,
+          "ms": 18027,
+          "answer": "personVisible true"
+        }
+      ],
+      "result": "flagged 0 to 6 s",
+      "googleRequests": 0
+    },
+    {
+      "clip": "moving-box.mp4",
+      "run": "second (warm)",
+      "samples": 12,
+      "sampleMs": 37,
+      "spans": 1,
+      "checks": [
+        {
+          "atS": 0.5,
+          "ms": 1069,
+          "answer": "personVisible true"
+        }
+      ],
+      "result": "flagged 0 to 6 s",
+      "googleRequests": 0
+    },
+    {
+      "clip": "two-spans.mp4: 20 s, the square visible 4 to 8 s; a second span intended at 14 to 17 s was off-frame (generator error), so one span is correct",
+      "run": "warm",
+      "samples": 40,
+      "sampleMs": 158,
+      "spans": 1,
+      "checks": [
+        {
+          "atS": 4,
+          "ms": 949,
+          "answer": "personVisible true"
+        }
+      ],
+      "result": "flagged 2.5 to 9.5 s",
+      "googleRequests": 0
+    },
+    {
+      "clip": "still.mp4: 6 s grey frame, nothing moves",
+      "run": "warm",
+      "samples": 12,
+      "sampleMs": 37,
+      "spans": 0,
+      "checks": [],
+      "result": "no-motion (no model asked)",
+      "googleRequests": 0
+    }
+  ],
+  "findings": [
+    "Zero requests to Google or Firebase hosts in every run: the frame checks ran on this laptop.",
+    "One frame check per span: about 1 s warm (949 and 1,069 ms); the first check after the download took 18.0 s (model load).",
+    "Sampling cost: 12 frames in 37 to 45 ms, 40 frames in 158 ms.",
+    "The model answered personVisible true for a red square with no person: a false positive. Triage errs toward sending (with consent), so this costs a cloud read, but the on-device person check is NOT validated; that needs the staged clips with and without people."
+  ],
+  "n": "4 runs, 3 synthetic clips; timings are single observations, not distributions"
+}

@@ -1,0 +1,4 @@
+# Site basemaps (PMTiles). The dev extract stays out of git; a real site is copied in at build.
+public/tiles/
+# The e2e run's saved test session (tokens of an anonymous test user).
+e2e/.auth/

@@ -1,7 +1,7 @@
 name: web
 
-# Web command post: typecheck, unit tests and a build with placeholder config (proves it compiles; never
-# deployed). Runs on pull requests to main and on main (Actions minutes are budgeted), when web/, the
+# Web command post: typecheck, unit tests, a build with placeholder config (proves it compiles; never
+# deployed) and the browser checks that need no backend, run against that build. Runs on pull requests to main and on main (Actions minutes are budgeted), when web/, the
 # shared engine and constants it imports, the root package files or this workflow change.
 on:
   push:
@@ -56,3 +56,11 @@ jobs:
           VITE_FIREBASE_APP_ID: "1:0:web:0"
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ci-build-check
         run: npm run build -w web
+      # Browser checks that need no Firebase backend (tagged @no-backend: the judge page, the join
+      # page, /llms.txt, phone fit and axe on both pages), against the placeholder build above.
+      - name: Install the Playwright browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Browser checks with no backend
+        working-directory: web
+        run: npx playwright test -c e2e/ci.config.ts

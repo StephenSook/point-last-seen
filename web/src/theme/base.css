@@ -20,6 +20,9 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+/* The panel's top margin stays inside #root instead of collapsing into body, which made the
+   whole page jump down when the app first rendered (layout shift 0.075 on the join page). */
+#root { display: flow-root; }
 body { background: var(--bg-0); color: var(--fg-1); font: 15px/1.4 var(--ui); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--fg-1); outline-offset: 2px; }
@@ -76,6 +79,10 @@ button, input, select { font: inherit; color: inherit; }
   .post-body { grid-template-columns: 1fr; grid-template-rows: 55vh auto auto; }
   .map-wrap { order: -1; }
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
+  /* Phones: 16 px field text keeps iOS Safari from zooming on focus; 44 px tap targets. */
+  input, select, textarea { font-size: 16px; }
+  input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+  button, .btn { min-height: 44px; }
 }
 
 .muted { color: var(--fg-3); }
@@ -90,7 +97,7 @@ button, input, select { font: inherit; color: inherit; }
 .teams .new { color: var(--fg-1); font-weight: 700; margin-left: 6px; }
 .map-wrap.picking { cursor: crosshair; }
 .pin { width: 16px; height: 16px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
-.btn.ghost { background: transparent; color: var(--fg-1); border: 1px solid var(--line); }
+.btn.ghost { background: transparent; color: var(--fg-1); border: 1px solid var(--fg-4); }
 .btn.ghost:disabled { color: var(--fg-4); background: transparent; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .sighting-form { display: grid; gap: 10px; background: var(--bg-2); padding: 12px; }
@@ -131,3 +138,28 @@ button, input, select { font: inherit; color: inherit; }
 .change { display: grid; gap: 4px; }
 .change p { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.layers { display: grid; gap: 10px; }
+.layer { display: grid; gap: 4px; }
+.layer p { margin: 0; }
+.layer select { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
+.layer label { display: grid; gap: 4px; color: var(--fg-2); }
+.layer label.check { display: flex; gap: 6px; align-items: center; }
+.report-pin { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
+.beat-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
+.walker-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 350ms; }
+@media (prefers-reduced-motion: reduce) { .walker-canvas { transition: none; } }
+.map-note { position: absolute; left: 8px; bottom: 6px; margin: 0; max-width: calc(100% - 320px); font-size: 12px; color: var(--fg-2); background: var(--bg-0); padding: 2px 6px; }
+.wordmark { margin: 0 0 4px; font: 600 12px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
+/* A pressed choice (Rings or Walkers) is filled, so the chosen one reads at a glance. */
+.btn.ghost[aria-pressed="true"] { background: var(--fg-1); color: var(--bg-0); border-color: var(--fg-1); }
+/* Camera sighting card: three facts, then the key frame with the model's box drawn on it. */
+.clip-card { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--bg-3); }
+.clip-card p { margin: 0; }
+.clip-frame { position: relative; margin-top: 4px; line-height: 0; }
+.clip-frame video { width: 100%; height: auto; display: block; }
+.clip-box { position: absolute; border: 2px solid var(--fg-1); box-shadow: 0 0 0 1px var(--bg-0); pointer-events: none; }
+fieldset.facing, fieldset.consents { border: 0; padding: 0; margin: 0; display: grid; gap: 2px; }
+fieldset.facing { grid-template-columns: repeat(3, auto); }
+.sighting-form label.check { display: flex; gap: 6px; align-items: center; }
+.sighting-form label.check input { padding: 0; }
