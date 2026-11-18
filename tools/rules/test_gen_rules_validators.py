@@ -42,20 +42,23 @@ def test_arrays_are_bounded_and_items_checked():
     assert expr({"type": "array", "items": {"enum": ["cane", "walker"]}}) == "(m.k is list && m.k.size() <= 2 && m.k.hasOnly(['cane', 'walker']))"
 
 
-def test_shape_mode_bounds_string_enums_by_length_instead_of_listing_them():
-    # Inside event-carried shapes the risk is size; clients and engines enforce the enums.
+def test_shape_mode_keeps_every_value_constraint_and_only_drops_key_lists():
+    # Codex MP2 review (M3 and generator drift): shape mode saves rules expressions only on key-list literals;
+    # enums, numeric ranges and per-item checks stay exactly as the schema says.
     assert gen.value_check({"enum": ["n", "ne", "upstream"]}, "m.k", {}, shape=True) == "(m.k is string && m.k.size() <= 8)"
-    assert gen.value_check({"enum": [0, 45, 90]}, "m.k", {}, shape=True) == "(m.k in [0, 45, 90])"
-    assert gen.value_check({"type": "array", "items": {"enum": ["a", "bb"]}}, "m.k", {}, shape=True) == "(m.k is list && m.k.size() <= 2 && m.k.hasOnly(['a', 'bb']))"
-    # Short string lists: the joined length bounds the whole list (join fails, so the rule denies, on a non-string).
-    assert gen.value_check({"type": "array", "items": {"type": "string", "maxLength": 16}, "maxItems": 3}, "m.k", {}, shape=True) \
-        == "(m.k is list && m.k.size() <= 3 && m.k.join('').size() <= 48)"
+    assert gen.value_check({"enum": ["cleared", "clue"]}, "m.kind", {}, shape=True) == "(m.kind in ['cleared', 'clue'])"
+    assert gen.value_check({"type": "integer", "minimum": 1}, "m.k", {}, shape=True) == "(m.k is int)"
+    assert gen.value_check({"type": "number", "minimum": 0}, "m.latencyMs", {}, shape=True) == "(m.latencyMs is number && m.latencyMs >= 0)"
+    box = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 1000}, "minItems": 2, "maxItems": 2}
+    assert gen.value_check(box, "m.b", {}, shape=True) == ("(m.b is list && m.b.size() == 2 && (m.b[0] is int && m.b[0] >= 0 && m.b[0] <= 1000)"
+                                                         " && (m.b[1] is int && m.b[1] >= 0 && m.b[1] <= 1000))")
+    # Short string lists: bounded by count and joined length (join fails, so the rule denies, on a non-string).
+    ids = {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 16}, "maxItems": 3}
+    assert gen.value_check(ids, "m.k", {}, shape=True) == "(m.k is list && m.k.size() <= 3 && m.k.join('').size() <= 48)"
     # All keys required, shape mode: size() == n plus a check that reads every named key pins the key set
     # (a missing key is an error, and an error denies), with no list literal.
     obj = {"type": "object", "additionalProperties": False, "required": ["a", "b"], "properties": {"a": {"type": "boolean"}, "b": {"type": "boolean"}}}
     assert gen.object_check(obj, "m", {}, shape=True) == "(m is map && m.size() == 2 && (m.a is bool) && (m.b is bool))"
-    # A number cannot grow, so shape mode keeps only its type.
-    assert gen.value_check({"type": "integer", "minimum": 1}, "m.k", {}, shape=True) == "(m.k is int)"
 
 
 def test_unbounded_strings_and_lists_are_refused():
@@ -82,5 +85,5 @@ def test_the_block_defines_every_validator_from_the_schemas():
     for name in ("schema_Position", "schema_ReportReading", "schema_RouteRecord", "schema_CameraSighting", "schema_SharedProfile"):
         assert f"function {name}(m)" in block
     assert "'lewy_body'" in block and "matches('^[0-9]{2}:[0-5][0-9]$')" in block
-    assert "m.reason.size() <= " in block and "'possible_evidence'" not in block
+    assert "m.reason.size() <= " in block and "m.latencyMs >= 0" in block and "m.kind in ['cleared'" in block
     assert "approachNoteIds.hasOnly(['may_not_respond', 'approach_calm'" in block

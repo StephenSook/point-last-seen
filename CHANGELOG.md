@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Rules validators, review findings M3 and generator drift: each keyFrame.box2d entry must be an integer from 0
+  to 1000 (before, only the count of 4 was checked), a reading's `kind` must be one of the schema's values, and
+  a route's latencyMs must be 0 or more. To fit the heaviest real events under Firestore's 1,000-expression
+  limit per request (a camera sighting with a GPS position and a route record went over), validEvent reads
+  the incident once, reads the event type once and drops a redundant signed-in check, and shape mode keeps
+  the kind enum, latencyMs and array item ranges while other string enums stay length-bounded, other numbers
+  type-only, short string lists bounded by joined length, and Position type-only. Clients and engines
+  validate those values; the rules guarantee every field's type and size.
+  Source: review of 2bdb778..dc762be (M3; low: generator drift).
+  Verified: generator tests rewritten first (8 pass); the heaviest-event tests went over the limit until the
+  cuts, now the emulator suite passes 108; the position test now refuses an extra key, a missing key and a
+  wrong type (ranges no longer checked, recorded as a ruling); `bash scripts/ci-local.sh` exit 0.
 - deleteIncidentMedia runs every 5 minutes (still one Cloud Scheduler job), so "a sandbox's media is deleted
   within 15 minutes of its end" (docs/LIMITS.md) holds even when a run starts late; a 15-minute schedule
   could not keep a 15-minute promise. The timeout drops to 240 s so a run ends before the next starts.
