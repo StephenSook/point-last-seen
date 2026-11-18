@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the `rules` CI job (`.github/workflows/rules.yml`): Temurin 21, firebase-tools 15.36.0, cached emulator
+  jars, functions typecheck, then `npm run test:rules -w functions` (Firestore, Auth and Storage emulators,
+  project demo-pls). Runs on pull requests to main and on main when rules, functions, firebase.json or the
+  lockfile change; mirrored in `ci-local.sh`.
+  Source: plan Task 11 step 4; orchestrator CI-minutes ruling.
+  Verified: `bash scripts/ci-local.sh` exits 0 with the emulator suite (48 tests); action SHAs re-read with gh
+  (cache v6.1.0 55cc834; checkout, setup-node, setup-java as already pinned).
+  Correction to the joinIncident entry above: the join suite has 11 tests, not 14 (37 rules + 11 join = 48).
 - Add the `joinIncident` callable (`functions/src/{join,index}.ts`, App Check enforced, us-central1) and its
   tests (`functions/test/join.test.ts`): request {incidentId?, joinCode, role, teamId?}, response
   {ok: true, incidentId}; codes normalized (case, spaces, hyphens) and looked up by SHA-256 in the admin-only

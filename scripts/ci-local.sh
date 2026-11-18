@@ -31,6 +31,10 @@ echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check
 npm test -w shared/engine-ts -- test/vectors.test.ts
 
+echo "== rules: functions typecheck, rules and joinIncident tests in the emulators"
+npm run typecheck -w functions
+npm run test:rules -w functions
+
 if [ -d ios/PLSCore ]; then
   echo "== swift-core: Swift core tests"
   swift test --package-path ios/PLSCore
