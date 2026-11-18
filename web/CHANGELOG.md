@@ -201,3 +201,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: merges origin/main: the length-prefixed eventId framing and the rules that recompute each event id, one join code per role, effect validation in rules and engines, and emulator runs on per-worktree ports. The web computes event ids only through the engine's `eventId`, so nothing in web/ changed.
 - Source: orchestrator (merge main when lane A's engine framing lands, then re-run the tests).
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree (engine 155, vectors 134, rules and joinIncident 63 in the emulators on this worktree's ports); web typecheck exit 0 and 153 unit tests pass, including the sighting tests that compare ids with the engine's `eventId`.
+
+### fix(web): stop parsing clip_model until the clip read exists
+- What: `rc.ts` no longer parses `clip_model` (wired-or-cut: no web code read it). The clip read is Task 18; it brings the key back together with a test that the value picks the clip model.
+- Source: orchestrator self-audit sweep (5 of 8 parsed Remote Config values had no reader).
+- Verified: `src/config/rc.test.ts` changed first to expect no `clip_model` (2 tests failed), then passed after the removal; `grep -c clip web/src/config/rc.ts` is 0.
