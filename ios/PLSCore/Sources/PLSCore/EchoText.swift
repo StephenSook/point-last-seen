@@ -47,7 +47,7 @@ public enum EchoText {
     }
 
     public static func routeLine(_ route: RouteRecord) -> String {
-        if route.stage == .evidenceProtocol { return "Not sent to any model." }
+        if route.stage == .evidenceProtocol || route.stage == .picklist { return "Not sent to any model." }
         switch route.path {
         case .onDevice: return "Suggested by Apple's on-device model on this iPhone"
         case .cloud: return "Suggested by Gemini in the cloud"

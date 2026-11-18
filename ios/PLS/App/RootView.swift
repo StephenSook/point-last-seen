@@ -22,6 +22,7 @@ struct RootView: View {
             .environment(themeStore)
             .tint(theme.accentColor)
             .foregroundStyle(theme.text(.primary))
+            .font(.title3.weight(.semibold))           // the field floor: Title 3, semibold or heavier
             .background(theme.backgroundColor.ignoresSafeArea())
             .preferredColorScheme(.dark)
             .onChange(of: ActivityInput(teamId: model.mission?.teamId, status: model.taskStatus, night: theme == FieldTheme.night),

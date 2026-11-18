@@ -54,7 +54,12 @@ final class FakeActivityClient: LiveActivityClient {
         #expect(client.start(teamId: "T-test", state: state))
         #expect(Activity<TaskActivityAttributes>.activities.contains { $0.attributes.teamId == "T-test" && $0.activityState == .active })
         client.end()
-        try await Task.sleep(for: .seconds(1))
-        #expect(!Activity<TaskActivityAttributes>.activities.contains { $0.attributes.teamId == "T-test" && $0.activityState == .active })
+        // The end is an async system call: wait for it, at most 10 seconds.
+        var stillUp = true
+        for _ in 0..<100 where stillUp {
+            stillUp = Activity<TaskActivityAttributes>.activities.contains { $0.attributes.teamId == "T-test" && $0.activityState == .active }
+            if stillUp { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(!stillUp)
     }
 }

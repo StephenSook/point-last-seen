@@ -66,8 +66,10 @@ public enum ReadOutcomeBuilder {
         // Segment ids come from code, never the model (`SegmentChoice`): the ids the report
         // names, else the segment under this fix; with neither, the effect falls back to the
         // team's assignment. An unknown id the report names is kept so the validator rejects it.
-        reading.segmentIds = SegmentChoice.ids(rawText: rawText, known: Array(context.effect.segments.keys),
-                                               positionSegmentId: ctx.positionSegmentId)
+        if outcome.route.stage != .picklist {
+            reading.segmentIds = SegmentChoice.ids(rawText: rawText, known: Array(context.effect.segments.keys),
+                                                   positionSegmentId: ctx.positionSegmentId)
+        }
         let effect: Effect
         var storedReading: ReportReading? = reading
         if outcome.route.stage == .evidenceProtocol {

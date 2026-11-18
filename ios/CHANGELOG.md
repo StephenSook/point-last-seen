@@ -5,6 +5,285 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios): pin that a report is read only after sign-in succeeded
+- What: `AppModel` takes the report read as a `readReport` seam (the default is the same
+  `ReportReader` on Apple's model and Firebase AI Logic). Two tests pin the order in `send`: a
+  failed sign-in reads nothing, journals nothing and leaves the words in the field; a successful
+  one signs in first and only then reads.
+- Source: review (AI Logic is moving to signed-in users only).
+- Verified: the tests failed to compile without the seam, then passed; a mutant that reads
+  without a signed-in user fails the first test; 70 app tests pass; `bash scripts/ci-local.sh`
+  exit 0.
+
+### fix(ios): use the cloud voice only after the phone is signed in
+- What: the AI Logic voice for a new assignment is an AI Logic call, so it now also needs the
+  phone to be signed in (`SpokenAssignment.path` takes `signedIn`); before sign-in the phone's
+  own voice speaks. `AppModel.load` passes the sign-in state. The connectivity monitor's path
+  handler now goes through `pathChanged(satisfied:)`.
+- Source: review (AI Logic is moving to signed-in users only).
+- Verified: a core test (signed out gives the on-device voice), a speaker test, and an app test
+  that loads a pack online with and without sign-in (the signed-in run is the control that
+  reaches the cloud voice) failed to compile, then passed; a mutant that drops the sign-in
+  condition fails the core test; 68 app tests pass; `bash scripts/ci-local.sh` exit 0.
+
+### docs(ios): record why the iPhone retries a 429 and the web does not
+- What: the 429 retry entry below now states the difference from the web command post and the
+  reason for it.
+- Source: review.
+- Verified: `bash scripts/ci-local.sh` exit 0 (tone and hygiene checks included).
+
+### fix(ios): retry a cloud report read once after a 429
+- What: the guided cloud read now runs through `CloudRetry`. The SDK reports an HTTP 429 as a
+  rate limit (`LanguageModelError.rateLimited`, with the server's retry delay as a reset date
+  when one was sent); `ModelSessionFactory.cloudAttempt(failing:now:)` turns that into a retry
+  and every other error into the read failure it was before. Each try is a new session. The
+  on-device path is unchanged.
+- Deliberate difference from the web command post, which does not retry a 429: the field phone
+  is on a weak signal in the middle of a search, where one short retry is worth it; the command
+  post already falls back to fixed wording, and its user is at a desk and can press again.
+- Source: review (a lower per-user AI Logic limit makes a 429 more likely).
+- Verified: a mapping test (delay, no delay, other error) passes and fails on a mutant that
+  ignores the rate limit; all 66 app tests pass on the simulator.
+
+### feat(ios-core): add a single cloud retry after a rate limit
+- What: `CloudRetry.run` gives a cloud 429 one retry after a wait: the server's delay when it
+  sends one, else 2 s, never below 0. A delay over 5 s is not waited, because the wait and a
+  second call would not fit in the 20 s stage limit. A second 429 returns `other`, the normal
+  failure path to the parser. No other failure retries.
+- Source: review (a lower per-user AI Logic limit makes a 429 more likely).
+- Verified: six tests failed to compile without the type, then passed; `bash scripts/ci-local.sh`
+  exit 0.
+
+### feat(ios): let a searcher report by picking instead of typing
+- What: a "Pick instead of typing" button on the field screen opens `PickListView`: what
+  happened (Cleared, Clue, Saw them, Found), where (the team's segments, or here by GPS), and for
+  a clear how long and how many searched, all as large buttons. `AppModel.submitPick` journals it
+  with input method `picklist` and route stage `picklist` (no model runs), through the same
+  journaling step as a read report (`journal`: the event, the posterior and the timings).
+- Source: Task 13 (pick-list in `TaskView`).
+- Verified: `aPickedReportIsJournaledWithThePersonsSegment` compile-red without `submitPick`,
+  then green; 65 app tests pass; the Title 3 scan passes; `scripts/ci-local.sh` exit 0. Not
+  verified yet: a still of the sheet, which needs a loaded pack.
+
+### feat(ios-core): turn a pick-list choice into a report reading
+- What: `PickList.outcome` turns what a person picked (kind, segment, and for a clear the
+  minutes and number of searchers) into the same reading shape a read report has, with route
+  stage `picklist`, path rules, model "none", latency 0. Coverage is left to code (minutes,
+  searchers and the measured detection range), as for a typed report. The outcome builder keeps
+  the person's segment for a picked report; the "segments from the text or the GPS fix" rule
+  stays for read reports, where it overrules a model.
+- Source: Task 13 (pick-list), with the picklist stage the schema now allows.
+- Verified: three `PickListTests` (the route and reading; the stored event keeps AB although the
+  fix is in AD; a clue with no segment) compile-red, then green; 260 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### fix(ios-core): accept the picklist route stage
+- What: `ReadStage.picklist` ("a person picked the report from a list; no model ran"), which the
+  schema and rules now allow. Before this, the shared filter dropped a valid pick-list event. Its
+  route glyph and route sentence say "Not sent to any model."; the router treats it like the
+  parser stage (a failure there goes to the pick-list).
+- Source: review round 3 (the schema gained the stage; Swift lacked it).
+- Verified: `aPicklistEventDecodesAndCounts` (stage picklist, reason on_device_default, decoded,
+  not malformed, counted) and `itsGlyphSaysNoModelRan` compile-red, then green; 257 tests; the
+  app builds; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): show the urgency chip in the approach card header
+- What: `Mission.conditions` carries the incident's typed temperature and wet answer;
+  `AppModel.urgency` applies the bundled `urgency.json` rule. The Ready check's "How to approach
+  them" section shows "Cold raises urgency" or "Cool and wet raises urgency" (`UrgencyChip`) with
+  the CDC sentence word for word and its read date under it. Search urgency only, no treatment
+  advice; clothing does not enter. The section appears when there is a chip or a profile.
+- Source: P-12, using the shared rule and lane A's conditions schema.
+- Verified: `theAppBundleCarriesTheUrgencyRule` and
+  `theUrgencyChipFollowsTheIncidentsConditions` compile-red, then green; 64 app tests pass; the
+  Title 3 scan passes; a night still of a local-only build with the chip forced on (never
+  committed) shows the chip and the full sentence fitting; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): read the incident's conditions for the urgency chip
+- What: `IncidentConditions` (`tempF`, `wet`, `setAtMs`; all three keys written, nulls out)
+  matches `shared/schemas/incident-conditions.schema.json`. `init(incidentField:)` reads the
+  incident document's field leniently (absent or not an object gives nil).
+  `UrgencyRule.level(conditions:)` gives no chip with no conditions, as the shared engine does.
+  The schema's iOS parity entry is no longer pending, so the parity check now enforces it.
+- Source: P-12; lane A's conditions schema (a79f54a).
+- Verified: three `IncidentConditionsTests` compile-red, then green; 255 tests;
+  `check_schema_parity.py` reports iOS incident-conditions with 3 fields, 0 failures;
+  `scripts/ci-local.sh` exit 0.
+
+### build(ios): sign device builds with the team App Attest is registered for
+- What: `DEVELOPMENT_TEAM` is set in `ios/project.yml`. The Firebase iOS app now carries the same
+  team id (it had none before, so App Attest could not verify on a device), and its App Attest
+  provider is registered.
+- Source: App Check setup for the field app (team id set on the Firebase app, read back).
+- Verified: the project generates and the app builds for the simulator; `scripts/ci-local.sh`
+  exit 0.
+
+### fix(ios-core): keep an event whose route reason this build does not know
+- What: `RouteReason` decodes any value it does not know as `unknown` (decode only, never
+  produced here) instead of failing, so the shared filter keeps the event. The rules bound the
+  reason by length only, so a newer client's reason can reach this phone; before this the whole
+  event was dropped.
+- Source: review of merge point 2.
+- Verified: `anUnknownReasonKeepsTheEvent` (an event with reason "a_future_reason" decodes, is
+  not counted as malformed, and carries `unknown`) and `aKnownReasonStillDecodesAsItself`
+  compile-red, then green; 252 tests; the app builds; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): start the events listener with the pack and use team events in the posterior
+- What: `AppModel.load` starts the events listener when a pack for a new incident loads (once
+  per incident; an earlier registration is removed), and the posterior is computed over every
+  member's events from the listener plus this phone's journal, once each by event id.
+- Source: Task 13 (listener; posterior after each report).
+- Verified: `loadingAPackStartsTheEventsListenerOncePerIncident` failed with the wiring line
+  removed, then passed; 62 app tests pass; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): listen to the incident's events with metadata changes
+- What: `EventServer.listen` opens a Firestore snapshot listener on `incidents/{id}/events` with
+  `includeMetadataChanges: true`. `FirestoreJSON` turns stored values into `JSONValue` (booleans
+  kept apart from numbers, a Timestamp as epoch milliseconds). `EventStore` decodes them with the
+  shared `EventFilter` (malformed events are skipped and counted), keeps every member's events in
+  `teamEvents`, and settles this phone's own unresolved entries when the server copy arrives with
+  no pending writes: the same identity is delivered, a different one is a conflict, using the
+  same classification as the read-back.
+- Source: Task 13 (`EventStore`: "listener with `includeMetadataChanges: true`").
+- Verified: `FirestoreJSONTests` and two `EventListenerTests` (our queued copy leaves the entry
+  pending, the server copy marks it delivered; another member's event reaches `teamEvents` and a
+  broken one is counted) compile-red, then green; 62 app tests pass; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): write each report's timings and recompute the posterior
+- What: after a report is journaled, `AppModel` recomputes the posterior from the pack's prior
+  and this phone's journal (`EventFilter.toEngineEvents`, leaving out `priorInputEventIds`, then
+  `Posterior.compute`), and writes the three timings (Send, reading done, posterior redrawn) to
+  `devices/{deviceId}/measurements/{eventId}` through `MeasurementWriter`. The Firestore writer
+  never awaits, like the event write. The event's client time is the Send time. These are the
+  measured read and redraw latencies for the judge-facing numbers.
+- Source: Task 13 ("after the append the view recomputes Posterior.compute and writes the three
+  timings").
+- Verified: `aSentReportWritesItsTimingsAndRecomputesThePosterior` (a real `submit` of evidence
+  text writes one measurement at the event's path, times in order, posterior set) compile-red,
+  then green; 58 app tests pass; `scripts/ci-local.sh` exit 0. Not verified yet: the document
+  arriving in Firestore (needs a signed-in run with a pack).
+
+### feat(ios): let a searcher undo a report for 5 seconds
+- What: each report echo shows an Undo button for 5 seconds after sending (re-checked every
+  second). `AppModel.undo` journals a new `retraction` event that targets the report, built by
+  `ReadOutcomeBuilder.retraction` with the signed-in uid as device and author; the report itself
+  is never edited. No Undo on a retraction, on a report already undone, or on another person's
+  report. `send` and `undo` now read the uid from one injectable source.
+- Source: Task 13 (`ReportEchoView`: "5-second undo (a `retraction`)").
+- Verified: two `UndoTests` (within 5 s a retraction targets the report and Undo goes away;
+  after 5 s nothing is written) compile-red, then green; 57 app tests pass on the iOS 27.2
+  simulator; `scripts/ci-local.sh` exit 0.
+
+### feat(ios): show the drill banner, link glyph and route glyphs
+- What: the field screen's header (`DrillBanner`) shows the team's segments in the accent
+  colour, a DRILL tag and the link glyph (`LinkGlyph`: shape plus a count badge, its words only
+  for VoiceOver). Each report echo carries a `RouteGlyph` (phone, cloud, the phone's rules, or a
+  raised hand when no model saw it). The route sentence now shows only when "Show sources" is
+  on (a per-phone setting on the Ready check, for filming and judges). `AppModel.linkState`
+  counts the reports still on this phone.
+- Source: Task 25 (route glyph, four link states, VoiceOver labels, drill banner); "proof is a
+  glyph, not a sentence".
+- Verified: `theLinkGlyphFollowsSignalAndWaitingReports` compile-red, then green; 55 app tests
+  pass; the Title 3 scan passes with the new components; `scripts/ci-local.sh` exit 0. Not
+  verified yet: a still of the banner and echo glyphs, which need a loaded pack.
+
+### feat(ios): keep every field screen at Title 3 or larger
+- What: every smaller text style on the field screens, the Ready check, the report echo, the
+  evidence card, the approach card and the Live Activity is raised to Title 3 (semibold, or bold
+  where it was bold), and the root view and the Live Activity default to Title 3 semibold, so
+  unstyled text is covered too. `FieldTextSizeTests` scans the app's, widget's and shared view
+  sources and fails on any style below Title 3 or any fixed point size.
+- Source: Task 25 step 3 ("nothing below Title 3", Dynamic Type only); design 22.1 (iPhone text
+  semibold or heavier).
+- Verified: the scan failed on 20 lines, then passed; app builds; a night still of the Ready
+  check shows everything fits; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): describe the link state and each report's route as glyphs
+- What: `LinkState.make(online:waiting:)` gives the header glyph's four states, which differ in
+  SF Symbol shape and a count badge, never in colour alone (signal; no signal; no signal with
+  reports waiting; sending), each with a VoiceOver line ("No signal. 2 reports waiting to
+  send."). `RouteMark.make` gives each read report's source glyph from our own router's route:
+  phone, cloud, the phone's rules, or "Not sent to any model." for the evidence protocol.
+- Source: Task 25 (route glyph, link glyph shapes, VoiceOver labels); design 22.1 (states by
+  shape and number).
+- Verified: three tests compile-red, then green; 249 tests; `scripts/ci-local.sh` exit 0.
+
+### docs(ios): name no internal process in the changelog or comments
+- What: changelog entries and three code comments now say "review" or name the
+  `ReadOrchestrator` type where they named the team's internal process. No behaviour changes.
+- Source: repo rule for public text (commit messages, changelogs, comments and docs).
+- Verified: a case-insensitive search of `ios/` for the internal names returns 0 lines;
+  246 Swift tests pass; `scripts/ci-local.sh` exit 0.
+
+### fix(ios-core): read a partial shared profile with the missing fields empty
+- What: `SharedProfile` decodes every missing or null key as empty ("" for text, [] for
+  lists, [:] for flags, nil for optional values) instead of failing. The rules let command write
+  `profile/shared` in parts, so a nickname alone is a legal document; before this it failed with
+  `keyNotFound: answersTo`. The approach card from such a document shows only its footer, and
+  the model sees "No description on file."
+- Source: review of merge point 2 (the web reader crashed on a missing `approachNoteIds`).
+- Verified: `aNicknameOnlyDocumentDecodesWithEverythingElseEmpty` red with
+  `DecodingError.keyNotFound`, then green; 246 tests; `scripts/ci-local.sh` exit 0.
+
+### test(ios): take the timing out of the trace and Live Activity tests
+- What: the route-trace test records synchronously (a `Mutex`-backed log) instead of waiting
+  200 ms for detached tasks; the Live Activity test waits for the real "ended" state, at most
+  10 s, instead of a fixed 1 s sleep.
+- Source: one app test run failed with no failure shown and passed on rerun; both fixed waits
+  could lose under load.
+- Verified: the app suite passed twice in a row afterwards (54 tests each);
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios): speak a new assignment when a pack loads
+- What: `AssignmentSpeaker` speaks the team's approved assignment (`SpokenAssignment` words:
+  segments and command's approved task text only) once per change, while the app is open.
+  `OnDeviceVoice` is the phone's speech synthesizer (offline, no AI); `CloudVoice` asks the AI
+  Logic voice model named by `tts_model_ios` for WAV audio (voice "Kore", 10 s limit) and plays
+  it. Any cloud failure falls back to the phone's voice. Each attempt records an
+  `assignment_speech` Performance trace (path, outcome, time to first sound), so the two voices
+  can be compared on measured numbers. `Mission.assignment` carries the latest approved
+  assignment; `AppModel.load` speaks it. Audio plays as spoken audio and lowers other sound.
+  A locked screen is not covered yet (that needs push delivery).
+- Source: spoken assignment changes (EXTRA-MILE F1); Firebase generate-speech page read
+  2026-11-18 (unary output is `audio/wav`, 24 kHz mono 16-bit; voice list includes Kore).
+- Verified: four `AssignmentSpeakerTests` (on-device once per change; cloud when named and
+  online; cloud failure falls back; no assignment says nothing) and
+  `loadingAPackSpeaksTheApprovedAssignmentOnce` compile-red, then green; 54 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0. Not measured yet: real latency of
+  either voice (needs a loaded pack, or a device run).
+
+### feat(ios): read the voice model for spoken assignments from Remote Config
+- What: `RemoteConfigValues` reads `tts_model_ios` (default empty). Empty means the phone's own
+  voice only; the app's source names no voice model id, so the model allow-list stays the only
+  place a model is named.
+- Source: spoken assignment changes (EXTRA-MILE F1), key agreed with lane A.
+- Verified: `RemoteConfigValuesTests` updated (the key is read; the default is empty; defaults
+  round-trip) compile-red, then green; `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): build the spoken assignment from the approved plan only
+- What: `SpokenAssignment.text` makes the words for a new assignment from command's approved
+  plan only: the segment ids, read as letters ("Segments A B and A C."), and the approved task
+  text, cut at 400 characters. The plan's reason line, report text and profile fields are
+  never spoken. `shouldSpeak` speaks only when the words would change. `path` picks the cloud
+  voice only when Remote Config names a model (`tts_model_ios`, default empty), the phone is
+  online and the kill switch is off; otherwise the phone's own synthesizer.
+- Source: TTS first cut approved in review 2026-11-18 (EXTRA-MILE F1); lane A's key
+  name `tts_model_ios`.
+- Verified: five `SpokenAssignmentTests` compile-red, then green; 245 tests;
+  `scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): add the urgency rule from the shared constants
+- What: `UrgencyRule` reads `shared/constants/urgency.json` (40 °F, the CDC sentence, its URL
+  and read date). `level(tempF:wet:)` gives cold at or below 40 °F, cool and wet above it when
+  the person is typed as wet, and no chip with no temperature, an unanswered wet question or a
+  value that is not a number. Clothing does not enter. `UrgencyLevel.chipText` is "Cold raises
+  urgency" or "Cool and wet raises urgency"; `sourceLine` quotes the CDC sentence word for word
+  with its read date. Search urgency only, no treatment advice.
+- Source: promotion P-12; review ruling 2026-11-18 (CDC winter-weather page, read
+  2026-11-18); lane A's constants and vectors on main.
+- Verified: three `UrgencyTests` (all 7 shared vectors agree, words and source line, nonsense
+  temperatures give no chip) compile-red, then green; 240 tests; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): show the team's task as a Live Activity
 - What: `TaskActivityAttributes` (in `ios/PLSShared`) carries the `TaskStatus` and the night
   flag. `TaskActivityController` starts one Live Activity when a pack loads, updates it only when
@@ -52,7 +331,7 @@ finding) and how it was verified. Newest first.
   script uploads the dSYMs for symbolication on Release builds only, with Firebase's
   documented input files so it runs under user script sandboxing. The app sets no custom keys
   or logs, so crash reports hold stack traces only, never report text or subject data.
-- Source: promotion P-15 (Crashlytics on iOS); orchestrator tool note (all target and script
+- Source: promotion P-15 (Crashlytics on iOS); review note (all target and script
   changes in `ios/project.yml`, never in the generated project).
 - Verified: `crashReportsAreCollected` failed to build without the product ("Unable to resolve
   module dependency: 'FirebaseCrashlytics'"), then green; 43 app tests pass; a Release
@@ -125,7 +404,7 @@ finding) and how it was verified. Newest first.
 - What: `ReportReader` sets `ReadContext.positionSegmentId` from the report's situation, so a
   report that names no segment is read as being about the segment the searcher stands in,
   whatever the model copied.
-- Source: coordinator ruling 2026-11-18 (segment ids from code).
+- Source: review ruling 2026-11-18 (segment ids from code).
 - Verified: `theGPSSegmentReachesTheReadNotTheModelsCopy` (a model that copies AC; GPS in AB;
   text names nothing; result AB) red with this line removed, then green; 35 app tests pass on
   the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
@@ -134,15 +413,15 @@ finding) and how it was verified. Newest first.
 - What: `SegmentChoice.ids` picks a reading's segments in code: the ids the report names (the
   parser's rule; an unknown named id is kept so the validator rejects it), else the segment
   under the GPS fix (`ReadContext.positionSegmentId`), else none (the effect then uses the
-  assignment). The orchestrator applies it to every model and parser reading before
+  assignment). `ReadOrchestrator` applies it to every model and parser reading before
   validation, and the outcome builder applies it before the write, so the model's segment
   field never counts. The kind still comes from the model, with the parser's kind on a
   timeout, a failure or an unknown kind.
-- Source: coordinator ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
+- Source: review ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
   team's assignment, AC, instead of the segment the report named).
 - Verified: five `SegmentsFromCodeTests` (the choice order; AB named while assigned AC gives
   AB; nothing named gives the GPS segment; "maybe" as the kind falls back to the parser; the
-  stored event uses the code choice) red with the orchestrator override removed, then green.
+  stored event uses the code choice) red with the `ReadOrchestrator` override removed, then green.
   Two older tests used the model's own unknown id "ZZ" to make a reading invalid; they now use
   a report naming ZZ and a coverage of 400. 230 tests; `scripts/ci-local.sh` exit 0.
 
@@ -205,7 +484,7 @@ finding) and how it was verified. Newest first.
 - What: `SegmentAtTool`, `TeamAssignmentTool` and `SubjectProfileTool` take their names,
   descriptions and outputs from `ToolText`; `ReportPrompt` wraps `PromptText`. The words the app
   sends are now the exact words `cloudPromptHoldsOnlyNamedFields` checks.
-- Source: orchestrator ruling 2026-11-18 (design section 9), Task 21b.
+- Source: review ruling 2026-11-18 (design section 9), Task 21b.
 - Verified: `ToolsTests` rewritten to compare each tool's name, description and output, and both
   instruction texts, with the Core text: compile-red without `guidedText`/`permissiveText`, then
   green; 30 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
@@ -217,7 +496,7 @@ finding) and how it was verified. Newest first.
   subject-profile schema, puts a findable value in every shared and command field, and asserts
   only the report, the segment id, the assignment ids and the six appearance fields reach the
   payload; no flag name, health, medication, address, phone number or contact word appears.
-- Source: orchestrator ruling 2026-11-18 on design section 9 (all three tools may run on the
+- Source: review ruling 2026-11-18 on design section 9 (all three tools may run on the
   cloud route; the test is an allow-list over the whole outbound prompt); Task 21b.
 - Verified: compile-red without the types, then green; a planted leak (hair read from
   answersTo) turned it red on "field answersTo reached the cloud prompt", then restored; full
@@ -228,7 +507,7 @@ finding) and how it was verified. Newest first.
 - What: `EffectShape` now refuses a cleared effect whose segment id is empty or longer than 16
   characters, and a clue effect with more than 64 influences, as the Firestore create rule does.
   A stored event that fails is skipped and flagged, never applied.
-- Source: fresh-eyes review M6; orchestrator ruling 2026-11-18 ("a mismatch with the rules is a
+- Source: fresh-eyes review M6; review ruling 2026-11-18 ("a mismatch with the rules is a
   real defect").
 - Verified: `sizesFollowTheCreateRule` red on the three missing limits, then green; full suite
   211 tests; `scripts/ci-local.sh` exit 0.
@@ -354,7 +633,7 @@ finding) and how it was verified. Newest first.
   offline for the next minute, as the earlier changelog entry for the monitor already said; before
   this commit no code called those methods.
 - Source: fresh-eyes review I6; plan self-audit addendum (test the failed-request case).
-- Verified: two orchestrator tests (a network failure is reported; a success and an on-device
+- Verified: two `ReadOrchestrator` tests (a network failure is reported; a success and an on-device
   read are reported) compile-red without the field, then green; full suite 196 tests; app builds.
 
 ### fix(ios): retry anonymous sign-in and show it on the Ready check
@@ -502,7 +781,7 @@ finding) and how it was verified. Newest first.
 
 ### feat(ios): hold the live cloud gate in a lock-protected box
 - What: `LiveGateBox` keeps the current `LiveGate` (connectivity, consent, kill switch,
-  incident mode) behind a `Mutex`, so PLSCore's orchestrator can read it from any thread at the
+  incident mode) behind a `Mutex`, so PLSCore's `ReadOrchestrator` can read it from any thread at the
   moment of a cloud dispatch while the app updates it on the main actor.
 - Source: Codex review H1 follow-through (the app side of the live gate).
 - Verified: `LiveGateBoxTests` (latest value read from a detached task) red without the type,
@@ -526,7 +805,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   frame(incidentId) + frame(deviceId) + frame(decimal seq), frame(s) = decimal byte length, ":",
   s, and keeps the first 32 hex characters; ("ab", "c", 1) hashes "2:ab1:c1:1". The Firestore
   rules can recompute this form. `eventSetHash` and `convergenceCode` keep the binary framing.
-  Source: lane A ae8446e (coordinator decision). Verified: all 7 eventId vector cases and the
+  Source: lane A ae8446e (review decision). Verified: all 7 eventId vector cases and the
   new `epoch_ms_seq` case failed on the old framing, then passed; unit-test reference values
   recomputed independently in Python.
 - Detection range measured first. What: the team's measured `visualDetectionRangeM` (with its
@@ -580,7 +859,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   known authenticity; none: a known reason; null is malformed). `EventFilter.decode` skips and
   flags any event that fails it, and the vector harness now decodes docToEngine events one by
   one, as the app does.
-- Source: lane A 6c4dc21 (malformed_* docToEngine vectors), relayed by the orchestrator.
+- Source: lane A 6c4dc21 (malformed_* docToEngine vectors).
 - Verified: 8 malformed vector cases failed before (whole-array decode errors, an empty
   influence map applied), then passed; 158 of 158 vector cases; 3 new `EffectShapeTests`;
   full suite 175 tests.
@@ -607,7 +886,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - What: `EventFilter.decode` reads stored events one by one; one that does not decode (for
   example a clear with no inputs) is skipped and its id listed in `malformedIds` for command,
   while the rest go on to the engine.
-- Source: lane A's security-rules review, relayed by the orchestrator.
+- Source: lane A's security-rules review.
 - Verified: the new test (a good clear, a clear with no inputs, a document with no id) failed
   without `decode`, then passed; full suite 167 tests.
 
@@ -682,17 +961,17 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   word such as "by" or "in"), and the outcome builder adds such an id back when a model left it
   out, so "cleared segment ZZ, coverage 1" gives effect none/invalid instead of clearing the
   team's assigned segment. The assignment is used only when the report names no segment.
-- Source: Codex review H2, verified by the orchestrator; plan Review Focus 3.
+- Source: Codex review H2, verified against the code; plan Review Focus 3.
 - Verified: new parser and builder tests (parser path and model path) failed on the old code,
   then passed; "the segment by the creek" still names nothing; full suite 155 tests.
 
 ### fix(ios-core): check the cloud gate live at dispatch, keep the context-limit reason
-- What: the orchestrator reads a live gate (connectivity, consent, kill switch, incident mode)
+- What: `ReadOrchestrator` reads a live gate (connectivity, consent, kill switch, incident mode)
   again when it reroutes and right before any cloud call; if the gate closed during the
   on-device call, the report goes to the parser, not the cloud. A context-limit failure now
   reroutes as `over_token_budget` instead of `on_device_unavailable`. `ReportSituation` gains an
   optional `liveGate` that `ReportReader` passes through.
-- Source: Codex review H1 (gpt-6.2-sol, 11664c5..cec3596), verified by the orchestrator.
+- Source: Codex review H1 (gpt-6.2-sol, 11664c5..cec3596), verified against the code.
 - Verified: three new tests (kill switch flipped mid-call; signal lost or consent withdrawn
   mid-call; context limit keeps its reason) failed on the old code with the cloud actually
   called, then passed; full suite 152 tests; app builds.
@@ -757,7 +1036,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - Source: Task 13; firebase-ios-sdk 13.2.0 `GeminiErrorMapper.swift`.
 - Verified: `CloudFailureTests` red, then green; full suite 146 tests.
 
-### feat(ios-core): add the read orchestrator and the tolerant permissive-line parser
+### feat(ios-core): add `ReadOrchestrator` and the tolerant permissive-line parser
 - What: `ReadOrchestrator.read` runs one report end to end behind a `ReadModelRunner`
   protocol: evidence screen and drill/judge gate first, then the route decision, guided
   generation, the permissive string stage, the deterministic parser and the pick-list. An

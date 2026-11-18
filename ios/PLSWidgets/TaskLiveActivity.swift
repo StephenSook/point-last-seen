@@ -9,11 +9,12 @@ struct TaskLiveActivity: Widget {
         ActivityConfiguration(for: TaskActivityAttributes.self) { context in
             let theme = context.state.night ? FieldTheme.night : FieldTheme.day
             VStack(alignment: .leading, spacing: 6) {
-                Text("Training drill. Nobody is missing.").font(.headline)
+                Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
                 Text("Your segments: \(context.state.status.segments)").font(.title2.bold())
-                Text(context.state.status.line).font(.headline).foregroundStyle(theme.text(.secondary))
+                Text(context.state.status.line).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))
             }
             .foregroundStyle(theme.text(.primary))
+            .font(.title3.weight(.semibold))
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
             .activityBackgroundTint(theme.backgroundColor)
@@ -23,20 +24,20 @@ struct TaskLiveActivity: Widget {
             let status = context.state.status
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Drill").font(.headline).foregroundStyle(theme.accentColor)
+                    Text("Drill").font(.title3.weight(.semibold)).foregroundStyle(theme.accentColor)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(status.segments).font(.headline.bold())
+                    Text(status.segments).font(.title3.bold())
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(status.line).font(.headline)
+                    Text(status.line).font(.title3.weight(.semibold))
                 }
             } compactLeading: {
-                Text(status.segments).font(.headline.bold())
+                Text(status.segments).font(.title3.bold())
             } compactTrailing: {
-                Text("\(status.waiting)").font(.headline).accessibilityLabel("\(status.waiting) waiting")
+                Text("\(status.waiting)").font(.title3.weight(.semibold)).accessibilityLabel("\(status.waiting) waiting")
             } minimal: {
-                Text("\(status.waiting)").font(.headline)
+                Text("\(status.waiting)").font(.title3.weight(.semibold))
             }
             .keylineTint(theme.accentColor)
         }

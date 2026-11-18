@@ -78,7 +78,7 @@ private struct FieldNavigation: ViewModifier {
                     .id(theme.name)            // the toolbar keeps a stale tint unless rebuilt on a theme change
                 }
                 ToolbarItem(placement: .principal) {
-                    Text(title).font(.headline).foregroundStyle(theme.text(.primary))
+                    Text(title).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.primary))
                         .accessibilityAddTraits(.isHeader)
                 }
             }
