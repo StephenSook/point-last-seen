@@ -3,7 +3,7 @@
 // by this trigger, by Google's design (docs/SECURITY.md row 12).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, guardRequest } from "../src/cloudGuard";
+import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, TTS_MAX_OUTPUT_TOKENS, guardRequest } from "../src/cloudGuard";
 
 const listed = JSON.parse(readFileSync(new URL("../../shared/constants/models.json", import.meta.url), "utf8")).models.map((m: { id: string }) => m.id);
 const path = (id: string) => `projects/buildhybridai-2026-yg3m/locations/global/publishers/google/models/${id}`;
@@ -23,9 +23,18 @@ describe("cloudGuard", () => {
     expect(guardRequest("models/gemini-3.5-flash-lite", { contents: [] })).toEqual({ contents: [], generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS } });
     expect(guardRequest("gemini-3.5-flash-lite", { contents: [], generationConfig: { maxOutputTokens: 100 } })).toBeUndefined();
   });
-  it("leaves a speech request's output alone: audio is not bounded by the text limit", () => {
+  it("bounds speech by its own cap, only on the TTS model; asking for audio on a text model gets the text cap (review)", () => {
     const tts = { contents: [], generationConfig: { responseModalities: ["AUDIO"], maxOutputTokens: 50_000 } };
-    expect(guardRequest(path("gemini-3.8-flash-lite-tts"), tts)).toBeUndefined();
+    expect(guardRequest(path("gemini-3.8-flash-lite-tts"), tts)).toEqual({ contents: [], generationConfig: { responseModalities: ["AUDIO"], maxOutputTokens: TTS_MAX_OUTPUT_TOKENS } });
+    expect(guardRequest(path("gemini-3.8-flash-lite-tts"), { contents: [], generationConfig: { responseModalities: ["AUDIO"], maxOutputTokens: 1000 } })).toBeUndefined();
+    const sneaky = { contents: [], generationConfig: { responseModalities: ["AUDIO"], maxOutputTokens: 50_000 } };
+    expect(guardRequest(path("gemini-3.5-flash-lite"), sneaky)?.generationConfig?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
+  });
+  it("keeps only the generation settings our apps use, dropping extra candidates and thinking even within the cap (review)", () => {
+    const req = { contents: [], generationConfig: { maxOutputTokens: 100, temperature: 0, responseMimeType: "application/json", responseJsonSchema: { type: "object" },
+      candidateCount: 8, thinkingConfig: { thinkingBudget: 24_000 }, somethingNew: 1 } };
+    expect(guardRequest(path("gemini-3.5-flash-lite"), req)).toEqual({ contents: [],
+      generationConfig: { maxOutputTokens: 100, temperature: 0, responseMimeType: "application/json", responseJsonSchema: { type: "object" } } });
   });
   it("is registered as the AI Logic before-generate trigger", async () => {
     const { cloudGuard } = await import("../src/index");

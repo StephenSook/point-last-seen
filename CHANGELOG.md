@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard bounds output whatever the request asks for: only the speech model gets the speech cap (4,096
+  tokens); any other model gets the 2,048-token text cap even when the request asks for audio. It keeps only
+  the generation settings our apps use (token limit, temperature, top-p and top-k, stop sequences, the response
+  type and schema, modalities and voice) and drops the rest, so extra candidates or a thinking budget cannot
+  multiply the output past the cap, even when the token limit is already within it.
+  Source: automated security review of dd365d1 (a client-set audio modality skipped the cap; candidateCount
+  and thinkingConfig multiplied output).
+  Verified: the 2 new tests (speech cap only on the TTS model, audio asked on a text model gets the text cap;
+  extra settings dropped within the cap) failed first, now 6 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The photo and clip templates give every enum field `"type": "string"`. The shared schemas leave the type off
   enum fields, and without it the template reads `{"enum": [...]}` as an object with a field named "enum": the
   live photo and clip reads answered `"placeType": {"enum": "unknown"}`, which the clients' validation refuses.
