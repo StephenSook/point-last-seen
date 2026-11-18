@@ -32,6 +32,9 @@ must give.
   (`scripts/media_probe.py`) checks the same thing without credentials.
 - [ ] `python3 -I scripts/check_rc_keys.py .` exits 0 (a CI gate): every template key is read by a client, every
   key a client reads is in the template, and no engine number is in Remote Config.
+- [ ] Server prompt templates are published only from `shared/templates` with `python3 -I scripts/template_publish.py
+  --publish` (dry run first; it reads each template back and refuses a locked one). Lock each live template before
+  judging (`templates.modifyLock`), so the console cannot change what the apps call.
 - [ ] Remote Config is published only with `python3 -I scripts/rc_publish.py --publish`, after its dry run: it
   reads the live template and ETag, refuses any live value it would change or drop unless that key is named
   with `--allow KEY`, validates, then publishes with If-Match. `firebase.json` names no template, so a plain

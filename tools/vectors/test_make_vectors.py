@@ -82,7 +82,7 @@ def frame(fields):
 
 
 def test_event_id_layout_is_text_length_prefixed_sha256():
-    # eventId framing (coordinator decision H1): decimal UTF-8 byte length, ":", value, per field, so the
+    # eventId framing (design decision H1): decimal UTF-8 byte length, ":", value, per field, so the
     # security rules can recompute it. Worked example: "ab", "c", 1 hashes the string "2:ab1:c1:1".
     c = case(load(V), "ids", "ab_c_1")
     assert c["input"] == {"fn": "eventId", "incidentId": "ab", "deviceId": "c", "seq": 1}
@@ -181,7 +181,7 @@ def _mv():
 
 def test_linear_weights_are_neutral_at_or_above_the_isrid_share():
     mv = _mv()
-    # Coordinator ruling 2026-11-18: the layer only raises density near features toward 75%.
+    # Review ruling 2026-11-18: the layer only raises density near features toward 75%.
     assert mv.linear_weights([0.1, 0.2, 0.3], [1.0, 0.95, 0.9]) == [1.0, 1.0, 1.0]
     assert mv.linear_weights([1.0, 1.0], [1.0, 0.5]) == [1.0, 1.0]
     assert mv.linear_weights([0.5, 0.5], [1.0, 0.0]) == [1.5, 0.5]

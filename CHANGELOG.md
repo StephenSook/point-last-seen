@@ -5,6 +5,61 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- clip-no-sighting's parity map now names Android's `ClipNoSighting` class (3603f3c) instead of a pending
+  target, so the schema parity check covers it. LIMITS says a model or network error stores nothing: a
+  completed reading never changes, so the record stays open and the next reader retries (both clients do this;
+  `model_error` stays in the schema, unused).
+  Source: lane D (3603f3c, 30ef4eb) and lane C (readClip), with review.
+  Verified: schema parity 12 schemas, 30 platform types, 0 failures; `bash scripts/ci-local.sh` exit 0.
+- The first server prompt template, `shared/templates/pls-sighting-note-v1.json`, for the command post's
+  consented cloud read of a sighting note: the model on the allow-list, temperature 0, a typed input (`note`,
+  a string of 1 to 2,000 characters), the closed JSON output (direction and both colours as the report-reading
+  schema's enums, footwear, carried and the evidence quote with its length limits) and a system guardrail (the
+  note is data: ignore any instruction inside it). `scripts/template_publish.py` renders each template to a
+  Dotprompt string with JSON frontmatter, so the repository is the source of truth, plans create or update
+  against the live templates, validates, publishes and reads back, and refuses a locked template. The checklist
+  says to lock live templates before judging.
+  Source: review (AI Logic security checklist rows 6 and 6a: server prompt templates, typed and guarded).
+  Verified: the 4 tests (allowed model and id, bounded input and guardrail in the rendered text, output enums
+  and limits equal to the report-reading schema, the publish plan) failed first, now pass; the dry run read the
+  live list and plans one create; the API's validateOnly accepted the rendered template; `bash
+  scripts/ci-local.sh` exit 0.
+- Lane A's files are scrubbed for the public repository: the root CHANGELOG, two vector-tool comments, the
+  linear-layer and urgency comments and tests, a judging-window docstring and the S4 spike evidence now name
+  review rulings and design decisions instead of internal roles, a private rule id or a private plan file.
+  Meaning is unchanged; no code behaviour changes. The remaining hits are in the web changelogs, scrubbed
+  separately.
+  Source: review (the repository goes public on 2026-11-28).
+  Verified: hygiene_guard reports 0 hits outside web/ (35 remain in web changelogs); vector generator --check
+  and engine tests unchanged; `bash scripts/ci-local.sh` exit 0.
+- SECURITY.md rows 7 and 12 name a fact read in the Firebase iOS SDK source: the iOS report read runs through
+  the Foundation Models adapter (`geminiLanguageModel`), which sends its own `streamGenerateContent` request
+  with tools, so it can be neither a server prompt template nor seen by the AI Logic before and after triggers.
+  Source: review (rows 6, 7 and 12 of the AI Logic security checklist).
+  Verified: GeminiLanguageModelExecutor calls `client.generateContentStream`, and GeminiAPIClient sends action
+  `streamGenerateContent` with `alt=sse` (the SDK checkout the iOS build resolves); `bash scripts/ci-local.sh`
+  exit 0.
+- SECURITY.md row 12 is DECIDED-NO with the reason quoted from Firebase's page (generateContentStream and the
+  Live API do not trigger the before and after functions, so a model allow-list there could be skipped) and
+  the accepted risk named (another model through our project, at most 20 calls a minute, within the $25 cap).
+  Row 10 records the quotas read for a judge surge and the reCAPTCHA cost of limited-use tokens; the project
+  has no organization, so a shared free allowance is NOT VERIFIED.
+  Source: review (rows 10 and 12 of the AI Logic security checklist).
+  Verified: the quoted sentences read from firebase.google.com/docs/ai-logic/pre-and-post-request-scripts on
+  2026-11-18; quotas read by the Cloud Quotas API; the project's parent read by gcloud (empty);
+  `bash scripts/ci-local.sh` exit 0.
+- `scripts/hygiene_guard.py` (CI gates job and ci-local): repository text must name no internal build process,
+  private rule id, private playbook or notes, or private path. It walks tracked files plus untracked files that
+  .gitignore does not exclude, skips itself and its test by pathspec, and fails below a 300-file floor. It
+  reports hits while the repository is private and fails CI once it is public, armed off GitHub's
+  `github.event.repository.private`. File contents only; history is not rewritten. Whole-word and
+  case-insensitive, so a type such as ReadOrchestrator, the owner's name in NOTICE and the project id do not
+  match.
+  Source: review (the repository goes public on 2026-11-28).
+  Verified: the 5 tests (public-only failure, whole-word patterns and the allowed names, untracked versus
+  ignored files, the guard skipping itself, the floor) failed first, now pass; on this repo it walks 620 files
+  and reports 91 hits, and with --public it exits 1 (proven red before the scrub); `bash scripts/ci-local.sh`
+  exit 0.
 - `shared/test-vectors/pack-segments-sample.json`: three segment docs (AC, ordinary; AA, with upstream or
   downstream links; and ROW) and the incident fields a pack carries (gridId, ipp, terrain, priorVersion), read
   from the drill incident on 2026-11-18 in Firestore's typed REST form, so integer and double values keep the
@@ -385,7 +440,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - deleteIncidentMedia runs every 5 minutes (still one Cloud Scheduler job), so "a sandbox's media is deleted
   within 15 minutes of its end" (docs/LIMITS.md) holds even when a run starts late; a 15-minute schedule
   could not keep a 15-minute promise. The timeout drops to 240 s so a run ends before the next starts.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M2 (orchestrator preferred 5 minutes).
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M2 (review preferred 5 minutes).
   Verified: the schedule test (reads the function's own endpoint metadata) failed first with "every 15
   minutes", now passes; emulator suite 108; `bash scripts/ci-local.sh` exit 0.
 - deleteIncidentMedia handles each ended sandbox on its own: a failed delete (a Storage hold, a transient
@@ -394,7 +449,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   one throw left every later sandbox's media in place. A sandbox stamped and ended more than 24 hours ago is
   no longer listed, so the work stays flat as sandboxes pile up; inside the 24 hours an upload in flight at the
   end is still caught.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M1 (verified by the orchestrator and against
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M1 (verified in review and against
   the code).
   Verified: 2 new tests (a held sandbox does not stop the next and stays unstamped; a long-stamped sandbox is
   not listed) and the updated ones failed first, now pass; emulator suite 107; functions typecheck exit 0;
@@ -403,7 +458,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   action Delete, condition keys exactly age and matchesPrefix, age exactly 30, prefixes exactly clips/, photos/
   and packs/ in any order. Before, a bucket-wide or shorter delete, an extra condition such as isLive, or a
   fourth prefix read as OK while deleting drill media early or not at all.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M6 (verified by the orchestrator and against
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M6 (verified in review and against
   the code).
   Verified: the new exact-rule test failed first (the 7-day bucket-wide rule read OK), now passes; emulator
   suite 105; `bash scripts/ci-local.sh` exit 0.
@@ -421,24 +476,24 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
   whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
   Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.
-  Source: lane D via the orchestrator.
+  Source: lane D.
   Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - The `android` job and ci-local also compile the instrumented tests (`compileDebugAndroidTestKotlin`, no
   emulator needed), so a broken androidTest fails at merge instead of only when lane D runs it by hand.
-  Source: lane D via the orchestrator.
+  Source: lane D.
   Verified: `./gradlew --no-daemon compileDebugAndroidTestKotlin` BUILD SUCCESSFUL on main's android/;
   `bash scripts/ci-local.sh` exit 0.
 - Checklist: the judging-window model line now points at the gate's allow-list and asks for a re-read of the
   live models page on or after 2026-11-28, moving any newly retiring id to `banned` and updating `readOn`;
   Remote Config values get the same check before the template is published.
-  Source: orchestrator ruling (turn the model line into a test; re-read the page on Nov 28).
+  Source: review ruling (turn the model line into a test; re-read the page on Nov 28).
   Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - Model allow-list: `shared/constants/models.json` lists the model ids the project may name (today only
   gemini-3.5-flash-lite: Stable, released 2026-07-21, no shutdown date) and the banned ones
   (gemini-3.1-flash-tts-preview, shut down 2026-11-17), read from the live Firebase AI Logic models page on
   2026-11-18, to be re-read by 2026-11-28. The rules gate fails on any model id in source that is not listed,
   and on a banned id anywhere outside docs, tests included; test files may name other ids as data.
-  Source: orchestrator (judging-window audit: a model shutting down inside the window would break the cloud
+  Source: review (judging-window audit: a model shutting down inside the window would break the cloud
   route; read of the models page 2026-11-18).
   Verified: 2 gate tests failed first, now 25 pass; the gate passes on this tree and on the trees of lane-ios,
   lane-web, lane-android, codex-walkers and lane-extras (each walked with this gate and list);
@@ -449,7 +504,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   or below 40 F, cool_wet above it when typed wet, none otherwise. Clothing does not enter. Ruling: no typed
   temperature gives none (no chip without data) and an unanswered wet question counts as dry. The vectors sit
   in their own file because the Swift vector test refuses unknown sections in search.json.
-  Source: coordinator ruling (P-12), PLS-DESIGN Coordinator decisions.
+  Source: review ruling (P-12), design decisions.
   Verified: the CDC sentence was found word for word on the live page (reviewed 2026-08-25, read 2026-11-18);
   the urgency tests failed first (no constants file), now 183 engine tests pass with the 7 vectors;
   search.json unchanged; 16 generator tests pass; `make_vectors.py --check` covers the file; the
@@ -489,8 +544,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   removes the division by zero at NEAR = 1. LIMITS labels it as ours. NEAR stays mass-weighted, as since Task
   10: mass weighting is what makes the target exact when segments are wholly near or far, and the guard must
   use the same NEAR as the formula or the layer jumps at the threshold (the design note says "area-weighted";
-  flagged to the orchestrator).
-  Source: coordinator ruling 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
+  flagged in review).
+  Source: review ruling 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
   Verified: 2 engine tests failed first (no function; a dense grid was not neutral), now 174 pass with the 5
   prior vectors; search.json byte-identical (no existing expected value changed); 15 generator tests pass;
   `make_vectors.py --check` covers both files; the vectors-parity job diffs both and runs both TS vector tests;
@@ -499,7 +554,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   public (not before 2026-11-28) and the release APK is a GitHub Release asset, because the family app's
   update screen opens the repo's latest release, a 404 while the repo is private; the line names the two `gh`
   checks to run first. The in-app default stays 0 (lane D's RcValuesTest pins it).
-  Source: lane D hand-over (J10), ruled by the orchestrator.
+  Source: lane D hand-over (J10), ruled in review.
   Verified: text as handed over; no code change.
 - `docs/PRODUCTION-CHECKLIST.md`: a Judging window (2026-12-10 to 2026-12-16) section lists every time-based
   value on a judged path (Storage lifecycle, clipReadings TTL, judge sandbox limits, App Check token TTLs and
@@ -509,7 +564,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   cap key exists, the Gemini burn rate fits the cap, no model shuts down before Dec 17, the probe workflow is
   active and recent, December's Actions budget). The Firebase project section gains the lifecycle and TTL
   read-back lines.
-  Source: orchestrator (HR217 judging-window audit).
+  Source: review (judging-window audit).
   Verified: App Check token TTLs read back 3600 s on all four app configs; the Remote Config server template
   has no parameters; `bash scripts/ci-local.sh` exit 0.
 - The clipReadings TTL policy was missing in production although the spec and LIMITS promise it: it is now
@@ -518,7 +573,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   values judging depends on: the lifecycle age cannot delete anything before 2026-12-16 (project created
   2026-11-17), the TTL is declared and the rules allow at least 30 days, and both probes retire only after
   2026-12-16.
-  Source: orchestrator (BYT's stale-data finding; HR217 judging-window audit).
+  Source: review (BYT's stale-data finding; judging-window audit).
   Verified: the TTL test failed first (no override), now 3 tests pass; `gcloud firestore fields ttls update`
   exit 0, state CREATING (re-checked at merge point 2); `bash scripts/ci-local.sh` exit 0.
 - ci-local: when the emulator suite fails, it now prints who holds this worktree's emulator ports
@@ -527,20 +582,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   port wait said the block was free; the cause is not known yet, so this records evidence instead of
   hiding the flake with a retry or a longer timeout. A new test shows the wait already counts a socket held
   on the 0.0.0.0 wildcard as busy, so the wildcard is ruled out.
-  Source: lane B flake report via the orchestrator (ledgered as a flake).
+  Source: lane B flake report (ledgered as a flake).
   Verified: the who-holds test failed first, now 10 emulator_config tests pass (the wildcard test passed at
   once, which is its finding); `bash scripts/ci-local.sh` exit 0.
 - `scripts/media_probe.py` reads ops/storage with the site's public key and fails if the 30-day lifecycle rule
   is gone or the sweep is more than 2 hours stale (which also catches a dead scheduler).
   `.github/workflows/probe.yml` runs it and the App Check no-token check daily at 13:23 UTC on a pinned
   runner, credential-free; each step runs even if the other fails, and both scripts retire after 2026-12-17.
-  Source: orchestrator (daily checks for two security defaults that can change silently).
+  Source: review (daily checks for two security defaults that can change silently).
   Verified: 3 probe tests written with the script pass; the live probe exits 1 today (ops/storage 403, rules
   not deployed yet), as it must until merge point 2; `bash scripts/ci-local.sh` exit 0.
 - Storage health record: each 15-minute deleteIncidentMedia run also reads the bucket's lifecycle and writes
   `ops/storage` (lifecycleOk, the rule's age, a server time); a new rules match makes that one doc readable
   without sign-in and no ops doc writable, so a probe can check it with no credential.
-  Source: orchestrator (a privacy check that fails if the lifecycle rule ever disappears).
+  Source: review (a privacy check that fails if the lifecycle rule ever disappears).
   Verified: 3 emulator tests failed first (the lifecycle check cases, the ops/storage write, the public-read
   rule), now pass; suite 104; `bash scripts/ci-local.sh` exit 0.
 - `scripts/appcheck_control.py`: a live App Check control for Firebase AI Logic on the deployed project. A
@@ -550,7 +605,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   daily half (config from the site's /__/firebase/init.json, no model call) and retires itself after
   2026-12-17. Firebase's documented automatic App Check enforcement for AI Logic did not happen on a project
   created 2026-11-17, so this control proves the manual enforcement is still on.
-  Source: orchestrator (BYT upstream finding; self-audit gap SA:86).
+  Source: review (BYT upstream finding; self-audit gap SA:86).
   Verified: 5 tests failed first (no module), now pass; the live run gave 401 then 200 (evidence
   2026-11-18T08-55-34+00-00.json, 0 key matches in it and in the logs); the App Check API reads
   firebaseml ENFORCED since 2026-11-17T18:32Z; `bash scripts/ci-local.sh` exit 0.
@@ -560,7 +615,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   sandboxes and look-alike prefixes (J1 vs J10) are left alone. Deleting the file is what ends a member's
   no-sign-in download link (docs/LIMITS.md). Not deployed yet: it deploys with the rules at merge point 2,
   and LIMITS stays PLANNED until the deploy is read back.
-  Source: rules audit 2026-11-18, finding (c); orchestrator go (build now, not with Task 23).
+  Source: rules audit 2026-11-18, finding (c); review go (build now, not with Task 23).
   Verified: 3 emulator tests failed first (no module), now pass (an ended sandbox loses its 3 files and is
   stamped; J2, D1, D2 and clips/J10 keep theirs; a second run is a no-op; a file added later goes on the next
   run); emulator suite 101 passes; functions typecheck exits 0; rules gate 0 problems;
@@ -581,7 +636,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   away, so a client can no longer keep it forever or delete it at once; and an incident update must leave
   `status` as open, found or closed, so command can no longer remove it (which silently paused events, plans
   and joins) or set a look-alike such as "Closed".
-  Source: rules audit 2026-11-18 (two minors folded into the fix, with the orchestrator's go).
+  Source: rules audit 2026-11-18 (two minors folded into the fix, with review's go).
   Verified: new shapes cases (a past and a 40-day expiry are refused, 30 days passes; "Closed" and a write
   without status are refused, "found" passes) fail against the previous rules; emulator suite passes;
   `bash scripts/ci-local.sh` exit 0.
@@ -629,14 +684,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   500 writes, and reads the segment ids back. It refuses a payload whose prior does not sum to 1, has a
   duplicate or malformed id, a negative mass, a non-polygon geometry, or ROW anywhere but last. Its tests join
   the gates job and ci-local.
-  Source: orchestrator (development prior for drill-dev-1; the same tool seeds Stephen's site later).
+  Source: review (development prior for drill-dev-1; the same tool seeds Stephen's site later).
   Verified: 9 tests failed first (no module), now pass; `bash scripts/ci-local.sh` exit 0.
 - Grid builder `--prior <grid.json> --ipp <lat,lon> --terrain <...> [--linear] [--bearing <deg>] --out <file>`
   writes the segment docs the apps read under incidents/{id}/segments: one per segment (geometry as a GeoJSON
   string, centroid, area, neighbours, stream links, nearFrac, feature classes) with the engine's own
   `buildPrior` result, ROW last with the mass outside the mapped area, plus the inputs (gridId, ipp, terrain,
   layers, bearing, attribution). A malformed IPP or an unknown terrain prints usage and exits 2.
-  Source: orchestrator (seed a development prior so the map, replan and POA beats run against deployed data).
+  Source: review (seed a development prior so the map, replan and POA beats run against deployed data).
   Verified: 4 new tests failed first (no module), now 18 grid-builder tests pass (one doc per segment and ROW
   last; the prior sums to 1 within 1e-12; cells wholly inside the 300 m first ring have equal mass per m2 and
   the far corner cell less than half); typecheck exits 0; `bash scripts/ci-local.sh` exit 0.
@@ -661,7 +716,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   walker table (AA 0.2664, AB 0.1372, ROW 0.5964) and whose one event clears AA at POD 0.5 (expected AA
   0.15367, AB 0.15828, ROW 0.68805). The Swift engine never runs walkers, so this case is how it proves it
   consumes walker output exactly as TypeScript does (PLS-DESIGN 10.6, "Determinism").
-  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Source: plan Task 37a; built in the Codex build lane, then reviewed.
   Verified: `make_vectors.py --check` reports 161 vectors current; removing the new case gives exact JSON
   equality with all 160 existing cases; TypeScript vector suite 135 passed and Swift core 205 tests passed
   (VectorTests and PosteriorTests run every posterior case, this one included); `bash scripts/ci-local.sh`
@@ -673,7 +728,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   builder writes the stored `RouteGraph` shape from shared/schemas and adapts it to the indexed
   `WalkerRouteGraph` for simulation; the original extract bounds are passed back in on reload to restore
   boundary exits, because the stored schema has no field for them.
-  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Source: plan Task 37a; built in the Codex build lane, then reviewed.
   Verified: the 3 new tests failed first (missing module), then pass (25 m stations with unit headings; one
   shared junction where a road crosses a stream; a walker can turn onto the stream there, 40.8 percent of
   walkers stopped on a stream station, seed 6) plus a JSON round-trip regression; grid-builder suite 14
@@ -688,8 +743,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   bit-identical across JavaScript engines. Constants in `shared/constants/walker-params.json`, each traced
   to PLS-DESIGN:400 and 10.6 and PLS-PLAN:900. Ours, labelled as ours: the offset tail above the 0.95
   quantile is capped at 307 m (the ISRID offset table ends there). A golden toy table is committed.
-  Source: PLS-PLAN Task 37a; built in the Codex build lane from the orchestrator's brief, reviewed by the
-  orchestrator against the spec line by line.
+  Source: plan Task 37a; built in the Codex build lane from a written brief, reviewed against the
+  spec line by line.
   Verified: the 10 engine tests failed first (missing API), then pass: straight road 25.33 percent stop
   within 300 m and ROW 4.79 percent (seed 1), fork stream share 0.6641 (seed 2), wedge 0.8360 (seed 3),
   attractor 0.5956 (seed 4), low mobility max 2,400 m and ROW 0 (seed 5), all 10,000 walkers and inside
@@ -732,7 +787,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
   entry; CI verifies once per lane at each merge point through one pull request. This entry's own commit
   and the one before it are pushed together, so CI runs for the head SHA only.
-  Source: orchestrator, after the Actions budget was reached (300 runs today); Stephen set the November
+  Source: review, after the Actions budget was reached (300 runs today); Stephen set the November
   budget to $15, so the remaining $10 is spent only at merge points.
   Verified: no workflow keeps a `branches: ["**"]` push trigger (grep count 0); `bash scripts/ci-local.sh`
   exit 0.
@@ -761,7 +816,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
   the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
   once android/ is on main or on a pull request that carries it.
-  Source: orchestrator request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  Source: review request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
   cases exit 1).
   Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
   main).
@@ -812,7 +867,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   `publicUse` null or a consent, `reading` and `route` null, a timestamp `expiresAt` and a server
   `createdAt`; only its creator may then add `reading` and `route`, once, with the consents untouched.
   Storage refuses a clip upload unless the uploader's own clip reading with those consents exists.
-  Source: orchestrator ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
+  Source: review ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
   Verified: 3 new tests (create needs the consents and no reading; one creator-only update; upload needs the
   uploader's own reading) failed first, now 84 emulator tests pass; ci-local exits 0.
 - A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
@@ -820,7 +875,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules
   check that exact shape and that `clipReadings/{clipSha256}` exists. Command places and confirms the
   sighting from it; no extra event field is added.
-  Source: orchestrator ruling I10 (lane D found the camera sighting had no link to its clip reading).
+  Source: review ruling I10 (lane D found the camera sighting had no link to its clip reading).
   Verified: 2 new tests (valid readings accepted; null reading, unknown clip, bad hash, 10-degree facing,
   text clock flag, extra key, missing parts and a text sighting refused) failed first (1 of 2), now 81
   emulator tests pass; schema parity checks 14 TS types (0 failures); typecheck and ci-local exit 0.
@@ -883,7 +938,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to
   shared/**, the lockfile and the workflow at the lane C merge). Mirrored in `ci-local.sh` behind a
   web/package.json guard.
-  Source: orchestrator (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
+  Source: review (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
   Verified: action SHAs are the ones already pinned in engine.yml; `bash scripts/ci-local.sh` exits 0 here
   (web skipped on main). First run expected on the next lane-web push.
 - Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
@@ -894,7 +949,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   folder into the per-worktree temp dir and passed 69; ci-local exits 0.
 - README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
   data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
-  Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).
+  Source: self-audit sweep (a README path that does not exist is a checkable claim).
   Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
 - Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
   never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
@@ -938,7 +993,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   hidden-target measurement. Reference, vectors (160; new cases measured_range_beats_stated and
   stated_range_used_without_measurement replace stated_detection_range_basis_stated), README and the TS
   engine in one commit (vectors alone would turn the Engine job red).
-  Source: fresh-context review, ruling sent to the coordinator, reversed on its decision.
+  Source: fresh-context review, ruling sent for review, reversed on review.
   Verified: the new anchor failed first, now 14 generator tests pass; the TS vector case failed first, now
   155 engine tests pass; typecheck and lint exit 0.
 - Change the eventId framing so the security rules can recompute it: SHA-256 over the UTF-8 string made of,
@@ -948,8 +1003,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   case; the ("ab","c") vs ("a","bc") pair and the UTF-8 byte-length case stay), README and the TS engine
   change in ONE commit, because the vectors alone would turn the Engine job red on their own SHA.
   Source: Codex adversarial review H1 (a member could occupy another device's future event id), option 1
-  approved by the orchestrator after an emulator probe showed rules can compute hashing.sha256 over this
-  string; recorded in the design's coordinator decisions. The Swift and Kotlin twins follow against this SHA.
+  approved in review after an emulator probe showed rules can compute hashing.sha256 over this
+  string; recorded in the design's decisions. The Swift and Kotlin twins follow against this SHA.
   Verified: new anchors (hand-computed hashes of "2:ab1:c1:1", "1:a2:bc1:1", the UTF-8 case and the
   epoch-ms case) failed first, now 13 generator tests pass; the TS suite failed on 7 id-dependent cases, now
   154 pass; typecheck and lint exit 0.
@@ -979,7 +1034,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   inputs, pod as text, unknown rdBasis, unknown influence, empty influences, null effect, none without a
   reason, and a malformed event beside good ones), README rule added; 158 vectors in total.
   Source: Codex adversarial review H2 (engine side) and the fresh-context review I3; the Swift and Kotlin
-  twins must mirror this (relayed through the orchestrator).
+  twins must mirror this (relayed in review).
   Verified: the TS vector suite failed first on the new cases (6 cases plus the count check; one threw on
   `eff.inputs.coverage`), now 153 engine tests pass; generator anchors 12 pass; typecheck and lint exit 0.
 - Firestore rules validate each stored effect variant (spec section 8): cleared needs exactly kind, segmentId
@@ -987,7 +1042,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   >= 0), areaM2 (> 0) and a known rdBasis; clue needs 1 to 64 influences with known values and a known
   authenticity; none needs a known reason and nothing else. Every other device applies a stored effect
   without re-deriving it, so a malformed one must never be stored.
-  Source: Codex adversarial review H2 (rules side), verified by the orchestrator.
+  Source: Codex adversarial review H2 (rules side), verified in review.
   Verified: 4 new emulator tests (17 malformed effects rejected, 3 well-formed accepted) failed first (3 of 4),
   now the suite passes 57; `bash scripts/ci-local.sh` exits 0.
 - Add the ISRID ring prior (`shared/engine-ts/src/prior.ts`, `buildPrior`): ring layer by annulus area share
@@ -1001,12 +1056,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Socket scores for the turf modules 84 to 100, `npm audit --omit=dev` finds 0; typecheck and lint exit 0.
 - Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
   closest an unrelated game; a site-scoped devpost.com search found no project).
-  Source: plan addendum (rival self-audit, name search line); searches run by the orchestrator.
-  Verified: text matches the orchestrator's recorded results; `bash scripts/ci-local.sh` exits 0.
+  Source: plan addendum (rival self-audit, name search line); searches run in review.
+  Verified: text matches the recorded search results; `bash scripts/ci-local.sh` exits 0.
 - Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
   Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
   FIREBASE_APPCHECK_DEBUG_TOKEN and debug-provider hits on the exact signed APK (the debug APK reports 5).
-  Source: lane D handover via the orchestrator.
+  Source: lane D handover.
   Verified: text matches the handover; no dashes or curly quotes; `bash scripts/ci-local.sh` exits 0.
 - Run the seeding tool's tests in the `gates` job and in `ci-local.sh`.
   Source: CI mirrors every test suite in the repo.
@@ -1016,7 +1071,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   constants), its teams, and the two admin-only join code docs (team code for searchers and family, separate
   command code). Codes are 8 Crockford symbols from `secrets`, stored only in the macOS Keychain, never
   printed; every write is create-only. Tests in `tools/seed/test_seed_drill.py`.
-  Source: orchestrator go for one drill incident (lane D end-to-end test); plan Task 11 join design.
+  Source: review go for one drill incident (lane D end-to-end test); plan Task 11 join design.
   Verified: 5 tests pass (code alphabet and length, hash equals join.ts normalization, labelled drill with no
   join hashes on the incident doc, role scopes, Firestore value encoding); rules gate clean.
 - Storage rules: membership also reads the incident from Firestore (cross-service rules) and refuses an
@@ -1039,7 +1094,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   jars, functions typecheck, then `npm run test:rules -w functions` (Firestore, Auth and Storage emulators,
   project demo-pls). Runs on pull requests to main and on main when rules, functions, firebase.json or the
   lockfile change; mirrored in `ci-local.sh`.
-  Source: plan Task 11 step 4; orchestrator CI-minutes ruling.
+  Source: plan Task 11 step 4; CI-minutes ruling.
   Verified: `bash scripts/ci-local.sh` exits 0 with the emulator suite (48 tests); action SHAs re-read with gh
   (cache v6.1.0 55cc834; checkout, setup-node, setup-java as already pinned).
   Correction to the joinIncident entry above: the join suite has 11 tests, not 14 (37 rules + 11 join = 48).
@@ -1101,7 +1156,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Add the TypeScript search engine core (`shared/engine-ts/src`: pod and track length, IOC, posterior, ranking,
   effect derivation, `toEngineEvents`, event ids and hashes, evidence pre-screen) and the vector suite that runs
   every non-router case of `shared/test-vectors/search.json` through the one comparer (`test/expectVector.ts`).
-  Source: plan Task 8; spec sections 8, 10.1 to 10.4; coordinator byte layouts for eventSetHash and convergenceCode.
+  Source: plan Task 8; spec sections 8, 10.1 to 10.4; design byte layouts for eventSetHash and convergenceCode.
   Verified: before the code existed the suite failed ("Cannot find module ../src/index"); now 124 passed
   (122 vectors plus the section-count checks); a mutation (unlisted clue entries as "for" instead of
   "neutral") failed 6 vectors, then the restored file passed; `tsc` typecheck and the unused-symbol lint exit 0.
@@ -1122,7 +1177,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Add the `android` CI job (`.github/workflows/android.yml`): lane D's snippet, Temurin 21,
   `./gradlew --no-daemon testDebugUnitTest assembleDebug`, on pull requests to main and on main only,
   triggered by `android/**` until android/ is on main (then widen to shared/**). Mirrored in `ci-local.sh`.
-  Source: plan Task 19a; lane D handover; orchestrator CI-minutes ruling.
+  Source: plan Task 19a; lane D handover; CI-minutes ruling.
   Verified: action SHAs re-read with gh (setup-java v6.3.0 d1374f8, setup-gradle v6.4.1 8da46b5, both latest);
   `bash scripts/ci-local.sh` exits 0 (android skipped on main). Lane D reports the gradle command green locally.
 - Narrow the `swift-core` trigger to `ios/PLSCore/**` until lane B's package is on main. With the shared
@@ -1134,7 +1189,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   `swift:6.4.2-noble` pinned by index digest, on pull requests to main and on main only, path-filtered to
   ios/PLSCore, shared/test-vectors and shared/constants (not its own path, so it cannot run before
   ios/PLSCore lands). `ci-local.sh` runs it when ios/PLSCore exists.
-  Source: plan Task 9a; orchestrator CI-minutes ruling (expensive suites on PR to main and main only).
+  Source: plan Task 9a; CI-minutes ruling (expensive suites on PR to main and main only).
   Verified: tag resolved with `docker buildx imagetools inspect swift:6.4.2-noble`; checkout SHA reused from
   ci.yml; lane B reports the same suite green in swift 6.4.2 on Linux; `bash scripts/ci-local.sh` exits 0 here.
 - Point the schema parity map at lane D's Kotlin files: `data/EventDoc.kt` (EventDoc, RouteRecord),

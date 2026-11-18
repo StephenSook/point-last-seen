@@ -1,4 +1,4 @@
-// P-12 urgency chip (coordinator ruling): typed temperature and typed wet yes/no; clothing does not enter.
+// P-12 urgency chip (review ruling): typed temperature and typed wet yes/no; clothing does not enter.
 import { describe, expect, it } from "vitest";
 import constants from "../../constants/urgency.json";
 import vectors from "../../test-vectors/urgency.json";

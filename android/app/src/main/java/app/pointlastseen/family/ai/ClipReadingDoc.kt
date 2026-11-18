@@ -32,9 +32,12 @@ object ClipReadingDoc {
         "createdByUid" to d.createdByUid,
     )
 
-    /** The one completion update: only the reading (an object) and the route. */
+    /** The one completion update: the reading (a sighting or a typed no-sighting) and the route. */
     fun completion(readingJson: String, route: RouteRecord): Map<String, Any?> = linkedMapOf(
-        "reading" to requireNotNull(CameraSightingJson.parse(readingJson)) { "reading is not a CameraSighting" }.toMap(),
+        "reading" to (
+            ClipNoSighting.parse(readingJson)?.toMap()
+                ?: requireNotNull(CameraSightingJson.parse(readingJson)) { "reading is neither a CameraSighting nor a no-sighting" }.toMap()
+            ),
         "route" to route.toMap(),
     )
 
