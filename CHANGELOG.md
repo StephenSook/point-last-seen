@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- P-04 spike evidence (`docs/evidence/spikes/P-04.md`, `P-04.json`): through `templateGenerateContent` on the
+  live project, a server prompt template takes an inline image (200, 1.6 s), a 13,788,183-byte inline MP4 just
+  under our clip limit (200, 18.7 s) and returns text-to-speech audio (200, `audio/wav`, 318,750 bytes), with
+  the media type and data passed as request variables. So the web photo read, both clip reads and the iOS
+  cloud voice can each become a template.
+  Source: review (P-04: which cloud calls can be templates).
+  Verified: run with a limited-use App Check token and a throwaway anonymous user's ID token (both deleted or
+  expired), the spike templates deleted afterwards; the evidence holds no key or token; `bash
+  scripts/ci-local.sh` exit 0.
 - The App Check control signs in anonymously before its model calls and sends the Firebase ID token, because
   AI Logic's authenticated-users mode (on since 2026-11-18 19:30 UTC) refuses a call without one; the
   throwaway user deletes itself afterwards. New `--ci` mode: the same positive read with the debug token from
