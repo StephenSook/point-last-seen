@@ -3,7 +3,7 @@
 // (the same function the grid tools seeded the incident with) gives the new prior,
 // and the writes raise the prior version so every seat's match code changes.
 
-import { buildPrior, DEFAULT_PARAMS, type Grid, type PriorLayers, type SegmentPrior, type Terrain } from "@pls/engine";
+import { buildPrior, DEFAULT_PARAMS, type EngineParams, type Grid, type PriorLayers, type SegmentPrior, type Terrain } from "@pls/engine";
 import type { SegmentDoc } from "../data/incident";
 
 export function gridFromDocs(segments: readonly SegmentDoc[], gridId: string, attribution: string): Grid {
@@ -34,12 +34,14 @@ export function rebuildPrior(
   site: { gridId: string; attribution: string; ipp: { lat: number; lon: number }; terrain: Terrain },
   layers: PriorLayers,
   travelBearingDeg: number | null,
+  /** The incident's engine parameters (its ring radii and layer weights); the defaults only when it has none. */
+  params: EngineParams = DEFAULT_PARAMS,
 ): RebuiltPrior {
   if (layers.wedge && travelBearingDeg === null) throw new Error("The wedge needs a confirmed direction of travel.");
   const grid = gridFromDocs(segments, site.gridId, site.attribution);
-  const prior = buildPrior(grid, site.ipp, site.terrain, layers, travelBearingDeg, DEFAULT_PARAMS);
+  const prior = buildPrior(grid, site.ipp, site.terrain, layers, travelBearingDeg, params);
   // The ring prior is stored beside it as the baseline (spec 10.5); it depends on the terrain only.
-  const ring = buildPrior(grid, site.ipp, site.terrain, { linear: false, wedge: false }, null, DEFAULT_PARAMS);
+  const ring = buildPrior(grid, site.ipp, site.terrain, { linear: false, wedge: false }, null, params);
   return { segments: prior.segments, row: prior.row, ring: ring.segments };
 }
 

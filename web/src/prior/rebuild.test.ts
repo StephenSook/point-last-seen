@@ -54,6 +54,16 @@ describe("rebuilding the prior from the stored segments", () => {
     expect(w.incident).toEqual({ priorLayers: { linear: false, wedge: false }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings" });
   });
 
+  it("uses the incident's own engine parameters, not the defaults, for the prior and its ring baseline", () => {
+    const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, temperate_flat: DEFAULT_PARAMS.rings.temperate_flat.map((r) => r / 4) as typeof DEFAULT_PARAMS.rings.temperate_flat } };
+    const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
+    const r = rebuildPrior(SEGS, site, { linear: false, wedge: false }, null, params);
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), IPP, "temperate_flat", { linear: false, wedge: false }, null, params);
+    expect(r.segments).toEqual(direct.segments);
+    expect(r.ring).toEqual(direct.segments);
+    expect(r.segments).not.toEqual(rebuildPrior(SEGS, site, { linear: false, wedge: false }, null).segments);
+  });
+
   it("refuses the wedge without a travel direction", () => {
     expect(() => rebuildPrior(SEGS, { gridId: "s", attribution: "a", ipp: IPP, terrain: "temperate_flat" }, { linear: false, wedge: true }, null)).toThrow(/direction of travel/);
   });

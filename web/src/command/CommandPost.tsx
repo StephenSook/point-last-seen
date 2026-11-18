@@ -466,7 +466,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
       const layers = incident.priorLayers ?? { linear: false, wedge: false };
-      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing);
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
@@ -491,7 +491,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing);
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
     const w = priorWrites(rebuilt, incident, layers, terrain);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
   };
@@ -538,7 +538,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       { sha256: o.sha256, reading: o.reading, route: o.route, clipStartMs: input.clipStartMs, clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg, camera: input.camera },
       [writer(), writer()],
       segments,
-      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds },
+      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
       o.bearingDeg,
     );
     built.forEach(write);
