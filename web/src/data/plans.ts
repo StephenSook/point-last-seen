@@ -3,7 +3,7 @@
 // adds a task line and a reason per team.
 
 import { assignTeams, type DraftAssignment, type PlanDoc, type PlanWording, type RankedSegment, type RouteRecord } from "@pls/engine";
-import { collection, doc, getDocs, serverTimestamp, setDoc, type Firestore } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, serverTimestamp, setDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
 import type { PlanDraft } from "../ai/replanWording";
 
 export function planDocFor(draft: PlanDraft, wording: PlanWording, route: RouteRecord | null, version: number, uid: string, nowMs: number): PlanDoc {
@@ -46,4 +46,36 @@ export async function approvePlan(db: Firestore, incidentId: string, plan: PlanD
 export async function existingPlanVersions(db: Firestore, incidentId: string): Promise<number[]> {
   const snap = await getDocs(collection(db, "incidents", incidentId, "plans"));
   return snap.docs.map((d) => Number(d.data()["version"])).filter((v) => Number.isInteger(v));
+}
+
+/** Approved plans, oldest first. */
+export function subscribePlans(db: Firestore, incidentId: string, cb: (plans: PlanDoc[]) => void, onError: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(
+    collection(db, "incidents", incidentId, "plans"),
+    (snap) => cb(snap.docs.map((d) => d.data() as PlanDoc).sort((a, b) => a.version - b.version)),
+    onError,
+  );
+}
+
+/** The server's draft for one event set (written by the draftPlanOnEvent function), or null while there is none. */
+export function subscribeDraft(db: Firestore, incidentId: string, eventSetHash: string, cb: (draft: PlanDraft | null) => void, onError: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(
+    doc(db, "incidents", incidentId, "planDrafts", eventSetHash),
+    (snap) => {
+      const d = snap.data();
+      cb(d ? { eventSetHash: String(d["eventSetHash"]), priorVersion: Number(d["priorVersion"]), rank: d["rank"] as RankedSegment[], assignments: d["assignments"] as DraftAssignment[] } : null);
+    },
+    onError,
+  );
+}
+
+/**
+ * Which teams to mark "New". `prevLatest` is undefined before the first plan
+ * snapshot (nothing is new on page load) and null when the incident had no plan.
+ */
+export function planChange(prevLatest: number | null | undefined, plans: readonly PlanDoc[]): { latest: number | null; newTeamIds: string[] } {
+  const last = plans.length > 0 ? plans[plans.length - 1]! : null;
+  const latest = last ? last.version : null;
+  if (prevLatest === undefined || !last || (prevLatest !== null && last.version <= prevLatest)) return { latest, newTeamIds: [] };
+  return { latest, newTeamIds: last.assignments.map((a) => a.teamId) };
 }

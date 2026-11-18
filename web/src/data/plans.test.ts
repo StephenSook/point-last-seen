@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { localDraft, nextPlanVersion, planDocFor, planDocId } from "./plans";
+import { localDraft, nextPlanVersion, planChange, planDocFor, planDocId } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -61,5 +61,23 @@ describe("localDraft", () => {
     const d = localDraft("b".repeat(64), 3, draft.rank, ["T1", "T2"], []);
     expect(d.assignments).toEqual(draft.assignments);
     expect(d.eventSetHash).toBe(draft.eventSetHash);
+  });
+});
+
+describe("planChange", () => {
+  const p = (version: number, teams: string[]) => ({ version, basedOnEventSetHash: "", priorVersion: 1, assignments: teams.map((teamId) => ({ teamId, segmentIds: [], taskText: "", reason: "" })), wordingRoute: null, approvedByUid: "u", approvedAt: null, createdClientTimeMs: 0 });
+
+  it("marks no team new on the first load", () => {
+    expect(planChange(undefined, [p(1, ["T1"])])).toEqual({ latest: 1, newTeamIds: [] });
+    expect(planChange(undefined, [])).toEqual({ latest: null, newTeamIds: [] });
+  });
+
+  it("marks the teams of a newer plan as new", () => {
+    expect(planChange(1, [p(1, ["T1"]), p(2, ["T1", "T2"])])).toEqual({ latest: 2, newTeamIds: ["T1", "T2"] });
+    expect(planChange(null, [p(1, ["T2"])])).toEqual({ latest: 1, newTeamIds: ["T2"] });
+  });
+
+  it("marks nothing when the latest plan is unchanged", () => {
+    expect(planChange(2, [p(1, ["T1"]), p(2, ["T2"])])).toEqual({ latest: 2, newTeamIds: [] });
   });
 });
