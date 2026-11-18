@@ -7,6 +7,7 @@ import { bearingFromExit, checkSighting, consentComplete, sizeProblem, type Came
 import clipSchema from "../../../shared/schemas/camera-sighting.schema.json";
 import { consentRecord, takeOverConsent, type ClipRecordDoc, type StoredClipReading } from "../data/clips";
 import { bytesToBase64, sha256Hex } from "../data/photos";
+import { CLOUD_MAX_OUTPUT_TOKENS } from "./limits";
 
 const P = clipSchema.properties;
 const mmss = (description: string) => ({ type: "string", pattern: P.firstSeen.pattern, description }) as const;
@@ -53,7 +54,10 @@ export const CLIP_PROMPT =
 export function clipCloudParams(model: string): HybridParams {
   return {
     mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: { model, generationConfig: { responseMimeType: "application/json", responseJsonSchema: CAMERA_SIGHTING_JSON } },
+    inCloudParams: {
+      model,
+      generationConfig: { responseMimeType: "application/json", responseJsonSchema: CAMERA_SIGHTING_JSON, maxOutputTokens: CLOUD_MAX_OUTPUT_TOKENS },
+    },
   };
 }
 

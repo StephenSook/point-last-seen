@@ -6,6 +6,7 @@
 import { InferenceMode, type HybridParams } from "firebase/ai";
 import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
 import { onDeviceCreateOptions } from "./gate";
+import { CLOUD_MAX_OUTPUT_TOKENS } from "./limits";
 
 export type PlanDraft = { eventSetHash: string; priorVersion: number; rank: RankedSegment[]; assignments: DraftAssignment[] };
 
@@ -44,7 +45,7 @@ export function wordingParams(model: string): HybridParams {
     inCloudParams: {
       model,
       systemInstruction: SYSTEM,
-      generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON },
+      generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON, maxOutputTokens: CLOUD_MAX_OUTPUT_TOKENS },
     },
     onDeviceParams: {
       createOptions: onDeviceCreateOptions("text", SYSTEM),
