@@ -50,6 +50,15 @@ class FamilyNoteTest {
         assertEquals(listOf("signin", "model:PREFER_ON_DEVICE"), order)
     }
 
+    /** A server error (for example the AI Logic guard refusing a model: HTTP 500 INTERNAL) is a plain "could not be sorted", never raw text. */
+    @Test fun aServerErrorFromTheModelIsAPlainFailure() = runTest {
+        val model = object : NoteModel {
+            override suspend fun structure(mode: NoteMode, prompt: String): ModelReply = throw RuntimeException("HTTP 500 INTERNAL")
+        }
+        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        assertEquals(NoteOutcome.Failed, out)
+    }
+
     @Test fun aFailedSignInWithNoLocalModelSendsNothing() = runTest {
         val order = mutableListOf<String>()
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
