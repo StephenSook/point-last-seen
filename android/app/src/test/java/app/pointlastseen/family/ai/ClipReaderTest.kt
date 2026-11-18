@@ -229,6 +229,21 @@ class ClipReaderTest {
         assertEquals(listOf("find"), deps.log)
     }
 
+    /** While no reading exists, anyone allowed takes a stalled record over as themselves: new owner, own consent, every other field as stored. */
+    @Test fun aStalledRecordFromAnotherUserIsTakenOver() = runTest {
+        val r = request(1000)
+        val stalled = StoredClipReading(
+            sha256 = Hashes.sha256Hex(r.bytes), storagePath = "clips/inc-1/x.mp4", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
+            cameraFacingDeg = 90, readingJson = null, route = null, consent = consentFor(bytes(1000)).copy(personInClip = ConsentMark("other", 1L)),
+            expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "other",
+        )
+        val deps = FakeDeps(cached = stalled, reply = ModelReply(readingJson, Source.IN_CLOUD, 900), alreadyUploaded = true)
+        assertTrue(ClipReader(deps).read(r) is ClipOutcome.Read)
+        val day = 24L * 3600 * 1000
+        assertEquals(stalled.copy(createdByUid = "u1", consent = r.consent, expiresAtMs = 1_000L + 32L * day, createdAtMs = 1_000L), deps.consents.single())
+        assertEquals(listOf("find", "consent", "exists", "model:video/mp4", "complete"), deps.log)
+    }
+
     @Test fun aConsentOnlyRecordIsNotACachedReading() = runTest {
         val r = request(1000)
         val consentOnly = StoredClipReading(

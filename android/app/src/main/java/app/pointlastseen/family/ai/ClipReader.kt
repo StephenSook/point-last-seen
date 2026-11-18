@@ -121,12 +121,13 @@ class ClipReader(
             // even when the read later fails.
             val path = deps.storagePath(sha)
             val started = deps.nowMs()
-            // A retry finds the record of an earlier attempt and renews it: the same document with
-            // fresh consent, a new expiry and a new createdAt, every other field exactly as stored
-            // (the rules refuse any other change). The upload is accepted only while the expiry is
-            // at least 31 days away, so an attempt interrupted for a day would otherwise strand the clip.
+            // A retry finds a record with no reading and takes it over as this user (the creator
+            // renewing is the same case): this user as owner, their fresh consent, a new expiry and a
+            // new createdAt, every other field exactly as stored (the rules refuse any other change).
+            // The upload is accepted only while the expiry is at least 31 days away, and a stalled
+            // record from another sign-in would otherwise block this clip for everyone.
             deps.createConsentRecord(
-                found?.copy(consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started)
+                found?.copy(createdByUid = r.uploaderUid, consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started)
                     ?: StoredClipReading(
                         sha256 = sha, storagePath = path, durationS = r.durationS, clipStartMs = r.clipStartMs,
                         clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, readingJson = null,
