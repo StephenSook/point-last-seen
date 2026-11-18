@@ -28,7 +28,11 @@ data class Vehicle(val involved: Boolean, val description: String) {
  */
 data class SubjectProfile(
     val answersTo: String = "",
-    val nickname: String = "",
+    /**
+     * Other names they may answer to (a maiden name, a childhood or old nickname): someone with
+     * dementia may answer only to a name from long ago. Up to [Profiles.MAX_OTHER_NAMES].
+     */
+    val otherNames: List<String> = emptyList(),
     val birthdate: LocalDate? = null,
     val ageYears: Int? = null,
     val gender: String = "",
@@ -120,8 +124,15 @@ object Profiles {
     val MOBILITY_AIDS = listOf("cane", "walker", "wheelchair", "other")
     const val PHOTO_WARN_DAYS = 60L
     const val UPDATE_PROMPT_DAYS = 183L
+    const val MAX_OTHER_NAMES = 5
 
     private fun cap(s: String, n: Int) = s.trim().take(n)
+
+    /** The other names as kept and shared: trimmed, at most 60 characters, no blanks or repeats, at most five. */
+    fun otherNames(names: List<String>): List<String> {
+        val seen = mutableSetOf<String>()
+        return names.map { cap(it, 60) }.filter { it.isNotEmpty() && seen.add(it.lowercase()) }.take(MAX_OTHER_NAMES)
+    }
     private fun inRange(v: Int?, r: IntRange) = v?.takeIf { it in r }
 
     private fun sharedDementiaType(p: SubjectProfile) =
@@ -129,7 +140,8 @@ object Profiles {
 
     fun forSearchers(p: SubjectProfile): SharedProfile = SharedProfile(
         answersTo = cap(p.answersTo, 60),
-        nickname = cap(p.nickname, 60),
+        // The shared packet has one nickname field: it carries the first other name.
+        nickname = otherNames(p.otherNames).firstOrNull() ?: "",
         ageYears = inRange(p.ageYears, 18..120),
         gender = cap(p.gender, 40),
         appearance = cap(p.appearance, 200),

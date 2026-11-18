@@ -15,7 +15,7 @@ class ProfilesTest {
     private val now = today.atStartOfDay(zone).toInstant().toEpochMilli()
 
     private val full = SubjectProfile(
-        answersTo = "Mae", nickname = "Mama Mae", birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
+        answersTo = "Mae", otherNames = listOf("Mama Mae", "Margaret"), birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
         gender = "female", appearance = "short, grey curls", heightFt = 5, heightIn = 2, weightLb = 130,
         hair = "grey", eyeColor = "brown", primaryLanguage = "English", clothingLastWorn = "blue coat",
         mobilityAids = setOf("cane"), dementiaType = "lewy_body", shareDementiaType = true,
@@ -28,6 +28,19 @@ class ProfilesTest {
         pastWandering = listOf(WanderingEntry("the old mill", null)),
         nearbyWater = "creek behind the house", vehicle = null,
     )
+
+    /** Up to five other names, each trimmed and at most 60 characters, with blanks and repeats dropped. */
+    @Test fun otherNamesAreTrimmedDedupedAndCappedAtFive() {
+        val typed = listOf(" Peggy ", "", "peggy", "Margaret", "a".repeat(70), "B", "C", "D", "E")
+        assertEquals(listOf("Peggy", "Margaret", "a".repeat(60), "B", "C"), Profiles.otherNames(typed))
+    }
+
+    /** The shared packet still has one nickname field: it carries the first other name. */
+    @Test fun theSharedNicknameIsTheFirstOtherName() {
+        assertEquals("Mama Mae", Profiles.forSearchers(full).nickname)
+        assertEquals("", Profiles.forSearchers(full.copy(otherNames = emptyList())).nickname)
+        assertEquals("Peggy", Profiles.forSearchers(full.copy(otherNames = listOf("  ", " Peggy "))).nickname)
+    }
 
     @Test fun sharedAndCommandProfilesShareNoKey() {
         val a = Profiles.forSearchers(full).toMap().keys
