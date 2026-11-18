@@ -4,6 +4,13 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Paper theme and the screen frame.** `PaperTheme` uses the paper tokens (#EBE7E2 background,
+  #292624 ink, #585452 secondary) and the system font; `Paper.crossfade()` is the only motion
+  (350 ms, no spring). `FamilyScaffold` puts "Training drill. Nobody is missing." on every drill
+  screen and the kill_cloud banner when Remote Config pauses the cloud, then one sentence and the
+  actions. Source: spec 22 and 22.1, plan visual addendum item 5, Global Constraints UI copy.
+  Verified: `ComponentsTest` and the new `CopyTest` case failed to compile first, then pass on the
+  emulator and the JVM.
 - **Espresso pinned to 3.7.0.** Compose ui-test brought espresso-core 3.5.0, which calls
   `InputManager.getInstance`, removed on Android 37, so every Compose UI test died with
   NoSuchMethodException on the emulator. Source: systematic debugging of the first UI test run.

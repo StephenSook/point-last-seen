@@ -24,6 +24,10 @@ class CopyTest {
         assertNull(Copy.drillBanner(null))
     }
 
+    @Test fun killCloudBannerSaysWhatStillWorks() {
+        assertEquals("Cloud reading is paused. You can still type everything in.", Copy.KILL_CLOUD)
+    }
+
     @Test fun aboutThisPhone() {
         assertEquals("This phone has no on-device model.", Copy.aboutModel(DeviceModelStatus.UNAVAILABLE))
         assertEquals("This phone has an on-device model.", Copy.aboutModel(DeviceModelStatus.AVAILABLE))

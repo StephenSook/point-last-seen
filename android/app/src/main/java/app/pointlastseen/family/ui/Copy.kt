@@ -5,6 +5,7 @@ import app.pointlastseen.family.ai.DeviceModelStatus
 /** Fixed app copy, in one place so tests pin it. */
 object Copy {
     const val DRILL = "Training drill. Nobody is missing."
+    const val KILL_CLOUD = "Cloud reading is paused. You can still type everything in."
 
     private fun isDrill(mode: String?) = mode == "drill" || mode == "judge"
 
