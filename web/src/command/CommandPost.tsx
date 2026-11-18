@@ -6,7 +6,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
+import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
@@ -16,7 +16,7 @@ import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
-import { segmentContaining, type LatLon } from "../map/geo";
+import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
@@ -28,13 +28,14 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { joinIncident, joinRequest } from "../data/join";
+import { joinErrorMessage, joinIncident, joinRequest } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
-import { viewState } from "./viewState";
+import { lastReportChange, viewState } from "./viewState";
+import { ChangeBeat } from "./ChangeBeat";
 import { WhatChanged } from "./WhatChanged";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
@@ -57,13 +58,6 @@ function asMergeDoc(e: StreamedEvent): MergeDoc {
     clientTimeMs: Number(e["clientTimeMs"] ?? 0),
     serverTimeMs: e.serverTimeMs,
   };
-}
-
-function plainError(e: unknown): string {
-  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  if (code.endsWith("permission-denied")) return "That code did not match this incident.";
-  if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
-  return "Could not join. Check the incident id and the code.";
 }
 
 export function CommandPost() {
@@ -133,7 +127,7 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
       history.replaceState(null, "", `?incident=${encodeURIComponent(req.incidentId)}`);
       onJoined(req.incidentId);
     } catch (x) {
-      setErr(plainError(x));
+      setErr(joinErrorMessage(x));
     } finally {
       setBusy(false);
     }
@@ -180,11 +174,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [photos, setPhotos] = useState<TrayPhoto[]>([]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  const [eventsSynced, setEventsSynced] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
-  const reloadPhotos = () => loadPhotos(pls.storage, incidentId).then(setPhotos, () => setPhotos([]));
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const reloadPhotos = async () => {
+    const r = await loadPhotosOrError(() => loadPhotos(pls.storage, incidentId));
+    setPhotos(r.photos);
+    setPhotoError(r.error);
+  };
   useEffect(() => {
     if (!denied) void reloadPhotos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,7 +197,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (denied) return;
     const failed = (error: unknown) => dispatch({ type: "failed", error });
     const stopIncident = subscribeIncident(pls.db, incidentId, (v) => dispatch({ type: "view", view: v }), failed);
-    const stopEvents = subscribeEvents(pls.db, incidentId, (e) => dispatch({ type: "events", events: e }), failed);
+    const stopEvents = subscribeEvents(
+      pls.db,
+      incidentId,
+      (e, fromCache) => {
+        dispatch({ type: "events", events: e });
+        if (!fromCache) setEventsSynced(true);
+      },
+      failed,
+    );
     const stopPlans = subscribePlans(pls.db, incidentId, (p) => dispatch({ type: "plans", plans: p }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
@@ -226,13 +234,26 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
-  const vs = useMemo(() => {
+  const engineIn = useMemo(() => {
     if (!incident || typeof incident.priorVersion !== "number" || segments.length === 0 || view?.rowPrior === null || view?.rowPrior === undefined) return null;
     const prior = [...segments.map((s) => ({ segmentId: s.segmentId, priorPoa: s.priorPoa })), { segmentId: "ROW", priorPoa: view.rowPrior }];
     // Engine parameters travel with the incident (spec rule R6); the shared constants match a fresh incident.
-    const params = incident.engineParams ?? DEFAULT_PARAMS;
-    return viewState(prior, events as unknown as EventDoc[], incident.priorInputEventIds ?? [], params, incident.priorVersion);
-  }, [incident, segments, view?.rowPrior, events]);
+    return { prior, params: incident.engineParams ?? DEFAULT_PARAMS, priorIds: incident.priorInputEventIds ?? [], priorVersion: incident.priorVersion };
+  }, [incident, segments, view?.rowPrior]);
+  const vs = useMemo(
+    () => (engineIn ? viewState(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, engineIn.priorVersion) : null),
+    [engineIn, events],
+  );
+  const last = useMemo(() => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params) : null), [engineIn, events]);
+  const [holding, setHolding] = useState(false);
+  const beat = useMemo(() => {
+    // Until the server has answered, the events may be a partial cached set: no beat yet.
+    if (!last || !eventsSynced) return null;
+    const cause = (events as unknown as EventDoc[]).find((e) => e.eventId === last.causeEventId);
+    const origin = cause?.position ? { lat: cause.position.lat, lon: cause.position.lon } : null;
+    const distanceM = beatDistances(origin, last.change.changed.map((c) => c.segmentId), segments);
+    return { key: last.causeEventId, before: last.before, change: last.change, distanceM };
+  }, [last, events, segments, eventsSynced]);
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
@@ -321,15 +342,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     setDevice(st);
   };
   const addPhotoFiles = async (files: File[]) => {
+    let skipped = 0;
     for (const f of files) {
       try {
         const jpeg = await toStandardJpeg(f);
         if (jpeg.length <= 2 * 1024 * 1024) await uploadPhoto(pls.storage, incidentId, jpeg);
+        else skipped++;
       } catch {
-        // an unreadable file is skipped; the list below shows what was stored
+        skipped++;
       }
     }
     await reloadPhotos();
+    if (skipped > 0) setPhotoError(skipped === 1 ? "One photo was not added." : `${skipped} photos were not added.`);
   };
 
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
@@ -382,7 +406,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={poa} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -410,6 +434,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <SightingForm
               place={pin}
               placeSegmentId={pin ? segmentContaining(pin, segments) : null}
+              choices={segmentChoices(segments)}
+              onPlace={setPin}
               onSave={saveSighting}
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
@@ -428,10 +454,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
             onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
           />
+          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <PhotoTray
             photos={photos}
+            loadError={photoError}
             deviceState={device}
             onCheckDevice={checkDevice}
             downloadPct={downloadPct}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinRequest } from "./join";
+import { joinErrorMessage, joinRequest } from "./join";
 
 describe("joinRequest", () => {
   it("trims, upper-cases and drops spaces and hyphens from the code", () => {
@@ -19,5 +19,19 @@ describe("joinRequest", () => {
     expect(joinRequest("I1", "AB12CD34", "searcher", "T1")).toEqual({ incidentId: "I1", joinCode: "AB12CD34", role: "searcher", teamId: "T1" });
     expect(() => joinRequest("I1", "AB12CD34", "searcher")).toThrow(/team/);
     expect(joinRequest("I1", "AB12CD34", "command", "T1")).toEqual({ incidentId: "I1", joinCode: "AB12CD34", role: "command" });
+  });
+});
+
+describe("joinErrorMessage", () => {
+  const err = (code: string) => Object.assign(new Error("x"), { code });
+
+  it("says App Check refused this browser instead of blaming the code", () => {
+    expect(joinErrorMessage(err("functions/unauthenticated"))).toBe("Join refused by App Check. Try a normal browser window.");
+  });
+
+  it("keeps the wrong-code and no-connection messages", () => {
+    expect(joinErrorMessage(err("functions/permission-denied"))).toBe("That code did not match this incident.");
+    expect(joinErrorMessage(err("functions/unavailable"))).toBe("No connection. Try again when the link is back.");
+    expect(joinErrorMessage(new Error("other"))).toBe("Could not join. Check the incident id and the code.");
   });
 });

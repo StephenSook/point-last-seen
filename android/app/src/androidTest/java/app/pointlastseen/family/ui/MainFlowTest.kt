@@ -1,5 +1,6 @@
 package app.pointlastseen.family.ui
 
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -9,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.pointlastseen.family.MainActivity
 import org.junit.BeforeClass
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +26,7 @@ class MainFlowTest {
     }
 
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @Before fun accessibilityChecks() = rule.enableAccessibilityChecks()
 
     @Test fun shesGoneLeadsToCallFirstThenTheJoinScreen() {
         rule.onNodeWithText("Who might go missing?").assertIsDisplayed()

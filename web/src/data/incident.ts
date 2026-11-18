@@ -15,6 +15,8 @@ export type IncidentDoc = {
   engineParams?: EngineParams;
   ipp?: { lat: number; lon: number };
   gridId?: string;
+  /** The license line the grid builder stamps on the incident, shown wherever its segments draw. */
+  gridAttribution?: string;
 };
 
 export type Team = { teamId: string; name: string };

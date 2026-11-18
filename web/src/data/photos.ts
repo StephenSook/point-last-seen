@@ -61,3 +61,12 @@ export async function uploadPhoto(storage: FirebaseStorage, incidentId: string, 
 export async function savePhotoReading(db: Firestore, incidentId: string, reading: ReturnType<typeof photoReadingDoc>): Promise<void> {
   await setDoc(doc(db, "incidents", incidentId, "photoReadings", reading.sha256), reading);
 }
+
+/** A failed load is said in plain words; it is never shown as an empty tray. */
+export async function loadPhotosOrError(load: () => Promise<{ sha256: string; bytes: Uint8Array }[]>): Promise<{ photos: { sha256: string; bytes: Uint8Array }[]; error: string | null }> {
+  try {
+    return { photos: await load(), error: null };
+  } catch {
+    return { photos: [], error: "Photos could not be loaded. Reload to try again." };
+  }
+}

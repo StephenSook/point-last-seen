@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pls/engine": "0.1.0",
+    "animejs": "4.5.0",
     "firebase": "13.4.0",
     "maplibre-gl": "6.19.0",
     "pmtiles": "4.5.0",
@@ -26,6 +27,7 @@
     "@vitejs/plugin-react": "6.3.0",
     "typescript": "6.0.3",
     "vite": "8.3.8",
+    "vite-plugin-pwa": "2.0.0",
     "vitest": "5.1.0"
   }
 }

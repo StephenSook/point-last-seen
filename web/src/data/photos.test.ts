@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bytesToBase64, photoPath, photoReadingDoc, sha256Hex } from "./photos";
+import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, sha256Hex } from "./photos";
 
 const cues = { placeType: "store" as const, placeName: "", signText: "OPEN", landmarks: [], outdoors: "yes" as const, evidence: "a shop" };
 const route = { platform: "web" as const, path: "on_device" as const, stage: "sdk" as const, model: "chrome-built-in", reason: "sdk_only_on_device" as const, latencyMs: 1200, sdkReported: true, blocked: null, decidedAtMs: 1 };
@@ -40,5 +40,16 @@ describe("bytesToBase64", () => {
     const big = new Uint8Array(300_000).fill(65);
     expect(bytesToBase64(big).slice(0, 8)).toBe("QUFBQUFB");
     expect(bytesToBase64(new TextEncoder().encode("hi"))).toBe("aGk=");
+  });
+});
+
+describe("loadPhotosOrError", () => {
+  it("returns the photos when the load works", async () => {
+    const photos = [{ sha256: "a".repeat(64), bytes: new Uint8Array([1]) }];
+    expect(await loadPhotosOrError(async () => photos)).toEqual({ photos, error: null });
+  });
+
+  it("says plainly when photos could not be loaded, instead of an empty list", async () => {
+    expect(await loadPhotosOrError(async () => { throw new Error("CORS"); })).toEqual({ photos: [], error: "Photos could not be loaded. Reload to try again." });
   });
 });

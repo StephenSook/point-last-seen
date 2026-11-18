@@ -244,6 +244,43 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: 4 new tests failed first (no module), now 14 grid-builder tests pass (same inputs give the same
   bytes; the centre cell sees the pond and the stream but not the trail 125 m away); typecheck exits 0; the
   CLI run by hand printed the query (exit 0) and usage (exit 2); `bash scripts/ci-local.sh` exit 0.
+- Shared vectors: add the posterior case `walker_prior_then_cleared`, whose prior is the committed golden
+  walker table (AA 0.2664, AB 0.1372, ROW 0.5964) and whose one event clears AA at POD 0.5 (expected AA
+  0.15367, AB 0.15828, ROW 0.68805). The Swift engine never runs walkers, so this case is how it proves it
+  consumes walker output exactly as TypeScript does (PLS-DESIGN 10.6, "Determinism").
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: `make_vectors.py --check` reports 161 vectors current; removing the new case gives exact JSON
+  equality with all 160 existing cases; TypeScript vector suite 135 passed and Swift core 205 tests passed
+  (VectorTests and PosteriorTests run every posterior case, this one included); `bash scripts/ci-local.sh`
+  exit 0.
+- Grid builder: build the walker route graph (`tools/grid-builder/src/graph.ts`, Task 37a). Stations every
+  25 m with x and y in local metres, a unit heading, a unit normal and the segment under each; a junction is
+  inserted wherever a road or trail line crosses a stream or meets a water edge (OSM draws them as separate
+  lines that often share no point, PLS-DESIGN 10.6), so a walker on a trail is offered the creek. The
+  builder writes the stored `RouteGraph` shape from shared/schemas and adapts it to the indexed
+  `WalkerRouteGraph` for simulation; the original extract bounds are passed back in on reload to restore
+  boundary exits, because the stored schema has no field for them.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: the 3 new tests failed first (missing module), then pass (25 m stations with unit headings; one
+  shared junction where a road crosses a stream; a walker can turn onto the stream there, 40.8 percent of
+  walkers stopped on a stream station, seed 6) plus a JSON round-trip regression; grid-builder suite 14
+  passed; `bash scripts/ci-local.sh` exit 0 on the series head.
+- Add the seeded Monte Carlo walker prior (Task 37a, PLS-DESIGN 10.6): `mulberry32` (32-bit state, divide
+  by 2^32), `simulateWalkers` (ISRID distance draw, first edge weighted 2.045 inside the 66 degree travel
+  wedge and 0.395 outside, turn weights 4/2/1 with no reversal except at a dead end, water edges x2.0,
+  attractors x1.5 within 66 degrees, low mobility limited to the first 75 percent of the curve, a path
+  cap of 3 times the target, the ISRID track offset, ROW for draws above 0.95, graph exits and points
+  outside every segment), the per-segment standard error sqrt(p(1-p)/N) and 300 sampled tracks. Arithmetic
+  only (add, subtract, multiply, divide, compare; a fixed Newton square root), so the table is
+  bit-identical across JavaScript engines. Constants in `shared/constants/walker-params.json`, each traced
+  to PLS-DESIGN:400 and 10.6 and PLS-PLAN:900. Ours, labelled as ours: the offset tail above the 0.95
+  quantile is capped at 307 m (the ISRID offset table ends there). A golden toy table is committed.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane from the orchestrator's brief, reviewed by the
+  orchestrator against the spec line by line.
+  Verified: the 10 engine tests failed first (missing API), then pass: straight road 25.33 percent stop
+  within 300 m and ROW 4.79 percent (seed 1), fork stream share 0.6641 (seed 2), wedge 0.8360 (seed 3),
+  attractor 0.5956 (seed 4), low mobility max 2,400 m and ROW 0 (seed 5), all 10,000 walkers and inside
+  the plan's tolerances; engine suite 177 passed; `bash scripts/ci-local.sh` exit 0 on the series head.
 - Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
   `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
   test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was

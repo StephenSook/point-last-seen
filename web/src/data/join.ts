@@ -24,3 +24,12 @@ export async function joinIncident(functions: Functions, auth: Auth, req: JoinRe
   await httpsCallable<JoinRequest, { ok: true }>(functions, "joinIncident")(req);
   await auth.currentUser?.getIdToken(true);
 }
+
+/** The join form's sentence for a failed join. An App Check refusal never reads as a wrong code. */
+export function joinErrorMessage(e: unknown): string {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (code.endsWith("unauthenticated")) return "Join refused by App Check. Try a normal browser window.";
+  if (code.endsWith("permission-denied")) return "That code did not match this incident.";
+  if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
+  return "Could not join. Check the incident id and the code.";
+}

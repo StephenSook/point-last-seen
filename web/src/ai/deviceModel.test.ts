@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deviceState, downloadDeviceModel } from "./deviceModel";
+import { deviceState, downloadDeviceModel, getLaptopReady, type DeviceState } from "./deviceModel";
 
 const lm = (answer: (o: { expectedInputs?: { type: string }[] }) => string | Promise<string>) => ({ LanguageModel: { availability: async (o: { expectedInputs?: { type: string }[] }) => answer(o) } });
 const wantsImage = (o: { expectedInputs?: { type: string }[] }) => (o.expectedInputs ?? []).some((i) => i.type === "image");
@@ -33,5 +33,32 @@ describe("downloadDeviceModel", () => {
 
   it("says plainly when Chrome cannot download a model, never with raw error text", async () => {
     await expect(downloadDeviceModel(() => {}, async () => { throw new Error("[AI/api-not-enabled] internal"); })).rejects.toThrow(/^This browser cannot download a local model\.$/);
+  });
+});
+
+describe("getLaptopReady", () => {
+  const states = (...seq: DeviceState[]) => { let i = 0; return async () => seq[Math.min(i++, seq.length - 1)]!; };
+
+  it("does not download when the model is already there or missing", async () => {
+    let downloads = 0;
+    const r = await getLaptopReady({ readState: states("text"), initialize: async () => { downloads++; }, onPct: () => {} });
+    expect(r).toEqual({ state: "text", downloadFailed: false });
+    expect(downloads).toBe(0);
+  });
+
+  it("starts the download when the model is downloadable, reports percents, then re-reads the state", async () => {
+    const pcts: (number | null)[] = [];
+    const r = await getLaptopReady({
+      readState: states("downloadable", "image"),
+      initialize: async (onProgress) => { onProgress(0.5); onProgress(1); },
+      onPct: (p) => pcts.push(p),
+    });
+    expect(r).toEqual({ state: "image", downloadFailed: false });
+    expect(pcts).toEqual([0, 50, 100, null]);
+  });
+
+  it("says the download failed instead of looping back to the same state", async () => {
+    const r = await getLaptopReady({ readState: states("downloadable", "downloadable"), initialize: async () => { throw new Error("x"); }, onPct: () => {} });
+    expect(r).toEqual({ state: "downloadable", downloadFailed: true });
   });
 });

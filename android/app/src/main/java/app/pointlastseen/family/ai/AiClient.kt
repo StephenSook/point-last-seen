@@ -48,20 +48,17 @@ class AiClient(private val rc: () -> RcValues) {
         useLimitedUseAppCheckTokens = rc().useLimitedUseTokens,
     )
 
+    /** Hybrid, so no manual schema: the note's structure comes from the @Generable NoteReply. */
     private fun noteModel(mode: InferenceMode) = ai().generativeModel(
         modelName = rc().cloudModelAndroid,
-        generationConfig = generationConfig {
-            responseMimeType = "application/json"
-            responseSchema = AiSchemas.note
-        },
         onDeviceConfig = OnDeviceConfig(mode = mode),
     )
 
     /** FamilyNote's model: the SDK's hybrid mode, with the source it reports. */
     val familyNote: NoteModel = NoteModel { mode, prompt ->
         val t0 = System.nanoTime()
-        val r = noteModel(AiMapping.mode(mode, rc().killCloud)).generateContent(prompt)
-        ModelReply(r.text, AiMapping.source(r.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
+        val r = noteModel(AiMapping.mode(mode, rc().killCloud)).generateObject(NoteReply.firebaseAISchema(), prompt)
+        ModelReply(noteReplyText(r), AiMapping.source(r.response.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
     }
 
     /** checkStatus() for "About this phone". */

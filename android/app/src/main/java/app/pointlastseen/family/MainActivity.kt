@@ -11,6 +11,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.IntentCompat
+import app.pointlastseen.family.ui.Copy
 import app.pointlastseen.family.ui.FamilyRoot
 import app.pointlastseen.family.ui.Screen
 import app.pointlastseen.family.ui.theme.PaperTheme
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     onPickClip = { pickClip.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
                     onPickPhotos = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     onDial = { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))) },
+                    onOpenDownloads = { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Copy.DOWNLOAD_PAGE))) },
                 )
             }
         }

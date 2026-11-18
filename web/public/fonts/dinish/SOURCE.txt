@@ -1,0 +1,1 @@
+https://github.com/playbeing/dinish 56416a590a5b4ef7f121d1c20cbbd173ebbfab51 (release v4.007, dinish-woff2.zip, file DINish[slnt,wdth,wght].woff2 renamed DINish-Variable.woff2; font data unmodified)

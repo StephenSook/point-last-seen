@@ -4,6 +4,8 @@ const deployed = process.env["BASE_URL"];
 
 export default defineConfig({
   testDir: ".",
+  // Harness specs need the dev server; they run under e2e/harness.config.ts.
+  testIgnore: ["harness/**"],
   timeout: 60_000,
   retries: 0,
   reporter: [["list"]],

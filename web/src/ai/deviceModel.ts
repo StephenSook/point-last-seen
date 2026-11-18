@@ -28,3 +28,27 @@ export async function downloadDeviceModel(onPct: (pct: number) => void, initiali
     throw new Error("This browser cannot download a local model.");
   }
 }
+
+/**
+ * "Get this laptop ready" in one place for the post and the judge page: read the
+ * state; when Chrome can download the model, start the download from this click
+ * with percents (null when it ends), then read the state again. A failed download
+ * is reported, so the page never loops back to the same "press to download" line.
+ */
+export async function getLaptopReady(deps: {
+  readState: () => Promise<DeviceState>;
+  initialize: (onProgress: (v: number) => void) => Promise<void>;
+  onPct: (pct: number | null) => void;
+}): Promise<{ state: DeviceState; downloadFailed: boolean }> {
+  const first = await deps.readState();
+  if (first !== "downloadable") return { state: first, downloadFailed: false };
+  deps.onPct(0);
+  let downloadFailed = false;
+  try {
+    await downloadDeviceModel(deps.onPct, deps.initialize);
+  } catch {
+    downloadFailed = true;
+  }
+  deps.onPct(null);
+  return { state: await deps.readState(), downloadFailed };
+}

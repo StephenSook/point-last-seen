@@ -3,12 +3,17 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // @Generable types: the Firebase AI KSP processor writes their schemas at compile time.
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // google-services.json is never committed. Builds that have it (this Mac, the
 // release build) process it; CI builds and tests without it.
 if (file("google-services.json").exists()) {
     pluginManager.apply("com.google.gms.google-services")
+    // Crashlytics needs its build id injected; without Firebase config the app has no Firebase at all.
+    pluginManager.apply("com.google.firebase.crashlytics")
 }
 
 val localProps = Properties().apply {
@@ -21,6 +26,10 @@ val localProps = Properties().apply {
 // pls.appcheck.debugToken is the emulator's; -Ppls.device=a16 reads
 // pls.appcheck.debugToken.a16 instead. Release builds never carry one.
 val debugDevice: String? = providers.gradleProperty("pls.device").orNull
+
+// The full 911 script screen (promotion P-14) ships only when Stephen says yes:
+// off unless a build passes -Ppls.script911=true.
+val script911: Boolean = providers.gradleProperty("pls.script911").orNull == "true"
 val debugToken: String = localProps.getProperty(
     if (debugDevice == null) "pls.appcheck.debugToken" else "pls.appcheck.debugToken.$debugDevice",
     "",
@@ -77,6 +86,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "SCRIPT_911", script911.toString())
         // Tests that write to the deployed drill incident run only when asked for.
         testInstrumentationRunnerArguments["notAnnotation"] = "app.pointlastseen.family.live.DrillE2E"
     }
@@ -130,12 +140,16 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.ai)
     implementation(libs.firebase.ai.ondevice)
+    ksp(libs.firebase.ai.ksp.processor)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.config)
     implementation(libs.firebase.appcheck.playintegrity)
+    implementation(libs.firebase.perf)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
     debugImplementation(libs.firebase.appcheck.debug)
 
     implementation(platform(libs.compose.bom))
@@ -158,5 +172,6 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
     debugImplementation(libs.compose.ui.test.manifest)
 }
