@@ -4,6 +4,12 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Profile kept on the phone.** `ProfileStore` saves the full profile (medication details and
+  the birthdate included) as JSON in app-private storage with backups off; `ProfileCodec` round-
+  trips every field, and a missing or broken copy loads as an empty profile. Source: spec 13.2
+  ("The profile lives on the family phone before anyone is missing"), Task 19 step 4. Verified:
+  `ProfileStoreTest` failed to compile first, then passes (full and empty round trips, broken
+  JSON).
 - **Event writer with read-back.** `EventWriter` sets the server timestamp sentinel and writes to
   `incidents/{id}/events/{eventId}` without awaiting; a denied write is read back from the server
   and shows as acknowledged when the first copy landed, rejected (and retryable with the same id)
