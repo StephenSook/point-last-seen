@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): accept the picklist route stage
+- What: `ReadStage.picklist` ("a person picked the report from a list; no model ran"), which the
+  schema and rules now allow. Before this, the shared filter dropped a valid pick-list event. Its
+  route glyph and route sentence say "Not sent to any model."; the router treats it like the
+  parser stage (a failure there goes to the pick-list).
+- Source: review round 3 (the schema gained the stage; Swift lacked it).
+- Verified: `aPicklistEventDecodesAndCounts` (stage picklist, reason on_device_default, decoded,
+  not malformed, counted) and `itsGlyphSaysNoModelRan` compile-red, then green; 257 tests; the
+  app builds; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): show the urgency chip in the approach card header
 - What: `Mission.conditions` carries the incident's typed temperature and wet answer;
   `AppModel.urgency` applies the bundled `urgency.json` rule. The Ready check's "How to approach

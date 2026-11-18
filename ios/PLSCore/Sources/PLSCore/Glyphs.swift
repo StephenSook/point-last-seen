@@ -27,6 +27,7 @@ public struct RouteMark: Sendable, Equatable {
 
     public static func make(_ route: RouteRecord) -> RouteMark {
         if route.stage == .evidenceProtocol { return RouteMark(symbol: "hand.raised", label: "Not sent to any model.") }
+        if route.stage == .picklist { return RouteMark(symbol: "hand.tap", label: "Not sent to any model.") }
         switch route.path {
         case .onDevice: return RouteMark(symbol: "iphone", label: "Read on this phone.")
         case .cloud: return RouteMark(symbol: "cloud", label: "Read in the cloud.")
