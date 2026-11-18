@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the approved plan and its per-team assignment
+- What: `PlanDoc` and `Assignment` with the field names of `shared/schemas/plan.schema.json`
+  (all keys encoded, nulls written out); `assignment(for:)` gives a team its segments. The phone
+  takes its current assignment from the latest approved plan in the pack (lane A's pack ruling).
+- Source: Task 12b/16b (phone reads the plan), lane A's parity map (Plan.swift#PlanDoc and
+  #Assignment).
+- Verified: two `PlanTests` (decode and look up a team; encoded keys equal the schema's required
+  list) red without the type, then green; `check_schema_parity.py` passes; full suite 182 tests.
+
 ### feat(ios): add the field screen with the Report bar and the echo card
 - What: `AppModel` holds the phone's state and its one action, `send`: a location fix (10 s),
   the report read through `ReportReader` with the live gate, the next sequence number, the event
