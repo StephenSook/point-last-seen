@@ -61,3 +61,19 @@ test("a reading shows three facts, and See the frame pauses the clip at the key 
   await expect(card.locator(".clip-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 40%/);
   await page.screenshot({ path: test.info().outputPath("card.png"), fullPage: true });
 });
+
+test("Confirm hands the reading on once and reports the rebuilt prior", async ({ page }) => {
+  await page.goto("/harness/clip.html?outcome=read");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  await page.getByRole("radio", { name: "East", exact: true }).check();
+  await page.getByRole("combobox", { name: /^Camera at\b/ }).selectOption("AB");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await page.getByRole("button", { name: "Confirm sighting" }).click();
+  await expect(page.getByRole("status")).toHaveText("Confirmed. Prior rebuilt as v8.");
+  await expect(page.getByRole("button", { name: "Confirm sighting" })).toHaveCount(0);
+  const confirmed = JSON.parse(await page.getByTestId("confirmed").innerText()) as { sha256: string; bearingDeg: number; camera: { lon: number } };
+  expect(confirmed.bearingDeg).toBe(0);
+  expect(confirmed.camera.lon).toBeCloseTo(0.003, 9);
+});
