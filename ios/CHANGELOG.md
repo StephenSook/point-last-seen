@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): get one location fix with a timeout
+- What: `LocationProvider` asks Core Location for one fix (`requestLocation`) and returns nil on
+  error, without permission, or after the timeout (30 s by default until spike S-GPS measures
+  the site). With no fix the report takes its segment from the team's assignment.
+- Source: Task 13 (LocationProvider), Review Focus 1, spike S-GPS (timeout to be measured).
+- Verified: app builds with only this commit's files. Behaviour in airplane mode is device
+  acceptance (spike S-GPS), on the morning list.
+
 ### feat(ios): feed the network path into the router's connectivity
 - What: `ConnectivityMonitor` starts an `NWPathMonitor` and feeds the path, plus request
   failures and successes, into PLSCore's `Connectivity`. `isOnline` is the router's
