@@ -29,6 +29,10 @@ describe("joinErrorMessage", () => {
     expect(joinErrorMessage(err("functions/unauthenticated"))).toBe("Join refused by App Check. Try a normal browser window.");
   });
 
+  it("names the join limit (10 attempts an hour) instead of blaming the code", () => {
+    expect(joinErrorMessage(err("functions/resource-exhausted"))).toBe("Too many join attempts from this browser. Try again in an hour.");
+  });
+
   it("keeps the wrong-code and no-connection messages", () => {
     expect(joinErrorMessage(err("functions/permission-denied"))).toBe("That code did not match this incident.");
     expect(joinErrorMessage(err("functions/unavailable"))).toBe("No connection. Try again when the link is back.");

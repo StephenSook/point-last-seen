@@ -759,3 +759,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a pressed ghost button (`aria-pressed="true"`) is filled fg-1 on bg-0 text, so Rings or Walkers reads as chosen at a glance.
 - Source: the still of the first live walker run on the drill (both buttons looked the same).
 - Verified: new harness test failed first (transparent background), then passed (fg-1); all prior-switch harness tests pass. Live run evidence from the same session: 10,000 walkers in 0.09 s on this laptop on the dev site's route graph (1,549 edges), the flow drew and handed over to the grid with the planning-only line under the map, and switching back to Rings restored the earlier numbers exactly. scripts/ci-local.sh exit 0.
+
+### fix(join): name the hourly join limit instead of blaming the code
+- What: when `joinIncident` refuses with `resource-exhausted` (10 join attempts per user per rolling hour, the guard against code guessing), the join form now says "Too many join attempts from this browser. Try again in an hour." instead of "Could not join. Check the incident id and the code."
+- Source: found when the e2e suite, joining as one shared test user, ran past the limit; a real person retrying a code would have been told to check a correct code.
+- Verified: new test in `src/data/join.test.ts` failed first, then passed (7 of 7). scripts/ci-local.sh exit 0.
