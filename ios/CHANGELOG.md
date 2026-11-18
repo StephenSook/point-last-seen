@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the words on the report echo card
+- What: `EchoText` gives the card's lines: "Cleared AC. Coverage 0.8. POD 55%."; a clue's
+  segment; what to do for each "none" reason ("Calling alone is not counted for this person.",
+  "Ask command."); the delivery badge ("On this phone only", "Delivered", "Not delivered.
+  Retry"); and the route ("Suggested by Apple's on-device model on this iPhone", "Read by rules,
+  not a model", "Not sent to any model."). The iOS route is never described as SDK-reported.
+- Source: Task 13 (ReportEchoView, EvidenceProtocolView), spec sections 9 and 10.4, UI copy
+  rules (every model output is "Suggested").
+- Verified: four `EchoTextTests` red without the type, then green; full suite 180 tests.
+
 ### fix(ios-core): match lane A's regenerated vectors (eventId framing, measured range first)
 One commit for two changes: the shared `search.json` carries both, so no tree with only one of
 them passes the Swift suite in `scripts/ci-local.sh`.
