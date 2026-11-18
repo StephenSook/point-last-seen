@@ -30,6 +30,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
 }) {
   const [open, setOpen] = useState(false);
   const [surface, setSurface] = useState<Surface | null>(null);
+  const [exportFailed, setExportFailed] = useState(false);
   const menuId = useId();
   const more = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -87,7 +88,10 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
         }}
       >
         <button ref={more} className="btn ghost" type="button" aria-haspopup="menu" aria-expanded={open}
-          aria-controls={menuId} onClick={() => setOpen(!open)}
+          aria-controls={menuId} onClick={() => {
+            setExportFailed(false);
+            setOpen(!open);
+          }}
           onKeyDown={(event) => {
             if (!open && event.key === "ArrowDown") {
               event.preventDefault();
@@ -110,7 +114,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
             setSurface({ kind: "check", planVersion: snapshot().planVersion });
             setOpen(false);
           }}>{checkTitle}</button>
-          {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} />}
+          {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} onError={() => setExportFailed(true)} />}
           <button type="button" role="menuitemcheckbox" aria-checked={terrain.on} disabled={!terrain.available} onClick={() => {
             terrain.toggle();
             setOpen(false);
@@ -120,6 +124,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
           </button>
         </div>
       </div>
+      {exportFailed && <p role="alert" className="extras-dock-alert">GeoJSON could not be exported.</p>}
       {terrain.on && terrain.file && <TerrainLegend classes={terrain.classes} file={terrain.file} hasStart={terrain.hasStart} />}
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>

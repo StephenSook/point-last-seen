@@ -88,3 +88,6 @@
 .extras-terrain-legend p { margin: 0 0 4px; }
 .extras-terrain-chevron { vertical-align: -2px; }
 .extras-terrain-chevron path { fill: none; stroke: var(--fg-3, #aeaaa7); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* An export that failed after its menu closed. */
+.extras-dock-alert { margin: 0 0 0 8px; color: var(--fg-1, #f8f4f1); }

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { IncidentView, PlanDoc, ViewState } from "../laneC";
 import { loadGeoJsonExport } from "../lazyPanels";
 import { buildPrintModel } from "../print/printModel";
@@ -9,14 +8,13 @@ type Props = {
   vs: ViewState | null;
   reportCount: number;
   onExported: () => void;
+  /** Called when the export fails. The dock shows it, because this item unmounts when the menu closes. */
+  onError: () => void;
 };
 
-export function ExportButton({ view, plans, vs, reportCount, onExported }: Props) {
-  const [error, setError] = useState(false);
-
+export function ExportButton({ view, plans, vs, reportCount, onExported, onError }: Props) {
   async function save() {
     if (vs === null) return;
-    setError(false);
     try {
       // Loaded on first use (and prefetched when the page is idle, so it also works with the link down).
       const { exportFileName, segmentsToGeoJson } = await loadGeoJsonExport();
@@ -38,18 +36,15 @@ export function ExportButton({ view, plans, vs, reportCount, onExported }: Props
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
     } catch {
-      setError(true);
+      onError();
       return;
     }
     onExported();
   }
 
   return (
-    <>
-      <button type="button" role="menuitem" disabled={vs === null} onClick={() => void save()} title="GeoJSON (RFC 7946)">
-        Export GeoJSON{vs === null && <small>Build the prior first.</small>}
-      </button>
-      {error && <p role="alert">GeoJSON could not be exported.</p>}
-    </>
+    <button type="button" role="menuitem" disabled={vs === null} onClick={() => void save()} title="GeoJSON (RFC 7946)">
+      Export GeoJSON{vs === null && <small>Build the prior first.</small>}
+    </button>
   );
 }
