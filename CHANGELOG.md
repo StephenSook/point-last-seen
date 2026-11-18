@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The daily media probe sends the hosting origin as its Referer on the public ops/storage read, and a test pins
+  that the App Check control already does, ahead of restricting the browser API key to the hosting origins.
+  Source: review (API key application restrictions, AI Logic security checklist).
+  Verified: the probe's Referer test failed first, now 6 probe tests and 9 control tests pass; the probe passed
+  live with the header; `bash scripts/ci-local.sh` exit 0.
 - `tools/seed/seed_drill.py --rotate <project> <incidentId> <role>` replaces one role's join code: the new code
   (distinct from every current code) is kept in the Keychain before anything changes, then one atomic commit
   creates its joinCodes doc only if absent and deletes the old doc only if present, so a failure leaves the old

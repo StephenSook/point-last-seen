@@ -37,6 +37,12 @@ def evaluate(d, now: datetime) -> list[str]:
     return problems
 
 
+def ops_storage_request(cfg: dict) -> urllib.request.Request:
+    """The public ops/storage read, sent from the hosting origin: the browser API key accepts only its referrers."""
+    url = f"https://firestore.googleapis.com/v1/projects/{cfg['projectId']}/databases/(default)/documents/ops/storage?key={cfg['apiKey']}"
+    return urllib.request.Request(url, headers={"Referer": SITE + "/"})
+
+
 def main() -> int:
     now = datetime.now(timezone.utc)
     if now.date() > RETIRE_AFTER:
@@ -44,9 +50,8 @@ def main() -> int:
         return 0
     with urllib.request.urlopen(SITE + "/__/firebase/init.json", timeout=30) as r:
         cfg = json.loads(r.read())
-    url = f"https://firestore.googleapis.com/v1/projects/{cfg['projectId']}/databases/(default)/documents/ops/storage?key={cfg['apiKey']}"
     try:
-        with urllib.request.urlopen(url, timeout=30) as r:
+        with urllib.request.urlopen(ops_storage_request(cfg), timeout=30) as r:
             d = json.loads(r.read())
     except urllib.error.HTTPError as e:
         d = None if e.code == 404 else {"fields": {}}

@@ -43,3 +43,10 @@ def test_two_failing_sweeps_in_a_row_fail_the_probe_one_does_not():
     two = doc(); two["fields"]["sweepFailureStreak"] = {"integerValue": "2"}
     assert mp.evaluate(one, NOW) == []
     assert mp.evaluate(two, NOW) == ["the media sweep failed on 2 runs in a row"]
+
+
+def test_the_firestore_read_sends_the_hosting_origin_as_referer():
+    # The browser API key is restricted to the hosting origins, so the probe's REST read must name one.
+    req = mp.ops_storage_request({"projectId": "p", "apiKey": "k"})
+    assert req.get_header("Referer") == "https://buildhybridai-2026-yg3m.web.app/"
+    assert req.full_url.endswith("/projects/p/databases/(default)/documents/ops/storage?key=k")
