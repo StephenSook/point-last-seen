@@ -23,7 +23,7 @@ export const deleteIncidentMedia = onSchedule(
   async () => {
     const db = getFirestore(), bucket = getStorage().bucket();
     const r = await deleteEndedSandboxMedia(db, bucket, Date.now());
-    await recordStorageHealth(db, bucket);
-    console.log(JSON.stringify({ event: "deleteIncidentMedia", incidents: r.incidents, files: r.files }));
+    await recordStorageHealth(db, bucket, r.failed.length);
+    console.log(JSON.stringify({ event: "deleteIncidentMedia", incidents: r.incidents, files: r.files, failed: r.failed.length }));
   },
 );

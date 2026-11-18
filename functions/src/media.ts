@@ -6,27 +6,40 @@ const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
 
 /**
  * Deletes every clip, photo and pack of each judge sandbox whose expiresAt has passed, and stamps
- * mediaDeletedAt the first time. A member can mint a no-sign-in download link that works as long as the
- * file exists (docs/LIMITS.md), so deleting the file is what ends access. Every run re-checks all ended
- * sandboxes, so an upload that was in flight at the end is caught on the next run. No model call.
+ * mediaDeletedAt once that sandbox's delete succeeded. A member can mint a no-sign-in download link that works
+ * as long as the file exists (docs/LIMITS.md), so deleting the file is what ends access. Each sandbox is
+ * handled on its own: one failure (a hold, a transient error) is reported and left unstamped for the next
+ * run, and never stops the others. A sandbox stamped and ended more than RECHECK_MS ago is not listed again,
+ * so the work does not grow with history; inside that window an upload in flight at the end is still caught.
+ * No model call.
  */
-export async function deleteEndedSandboxMedia(db: Firestore, bucket: Bucket, nowMs: number): Promise<{ incidents: string[]; files: number }> {
+const RECHECK_MS = 24 * 3_600_000;
+export async function deleteEndedSandboxMedia(db: Firestore, bucket: Pick<Bucket, "getFiles">, nowMs: number):
+  Promise<{ incidents: string[]; files: number; failed: string[] }> {
   const ended = await db.collection("incidents").where("expiresAt", "<=", Timestamp.fromMillis(nowMs)).get();
-  const incidents: string[] = [];
+  const incidents: string[] = [], failed: string[] = [];
   let files = 0;
   for (const inc of ended.docs) {
     if (inc.get("mode") !== "judge") continue;
-    let deleted = 0;
-    for (const prefix of MEDIA_PREFIXES) {
-      const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
-      await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
-      deleted += found.length;
+    const stamped = inc.get("mediaDeletedAt") != null;
+    const endedAt = (inc.get("expiresAt") as Timestamp).toMillis();
+    if (stamped && nowMs - endedAt > RECHECK_MS) continue;
+    try {
+      let deleted = 0;
+      for (const prefix of MEDIA_PREFIXES) {
+        const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
+        await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
+        deleted += found.length;
+      }
+      if (deleted > 0) incidents.push(inc.id);
+      files += deleted;
+      if (!stamped) await inc.ref.update({ mediaDeletedAt: FieldValue.serverTimestamp() });
+    } catch (e) {
+      failed.push(inc.id);
+      console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, error: String(e) }));
     }
-    if (deleted > 0) incidents.push(inc.id);
-    files += deleted;
-    if (inc.get("mediaDeletedAt") == null) await inc.ref.update({ mediaDeletedAt: FieldValue.serverTimestamp() });
   }
-  return { incidents, files };
+  return { incidents, files, failed };
 }
 
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
@@ -51,11 +64,12 @@ export function lifecycleOk(meta: BucketMetadata): { ok: boolean; ageDays: numbe
 }
 
 /**
- * Writes ops/storage, the one doc anyone may read: the lifecycle state and a server time. The daily probe
+ * Writes ops/storage, the one doc anyone may read: the lifecycle state, the last sweep's failure count and a server time. The daily probe
  * reads it without credentials and fails if the rule is gone or the time is stale (the sweep stopped).
  */
-export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "getMetadata">): Promise<void> {
+export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "getMetadata">, sweepFailures = 0): Promise<void> {
   const [meta] = await bucket.getMetadata();
   const lc = lifecycleOk(meta as BucketMetadata);
-  await db.doc("ops/storage").set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, checkedAt: FieldValue.serverTimestamp() });
+  // Public doc: a count only; the failed incident ids go to the function log.
+  await db.doc("ops/storage").set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, sweepFailures, checkedAt: FieldValue.serverTimestamp() });
 }

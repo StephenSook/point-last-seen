@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- deleteIncidentMedia handles each ended sandbox on its own: a failed delete (a Storage hold, a transient
+  error) is logged with the incident id, counted in ops/storage (`sweepFailures`, a count only since the doc
+  is public) and left unstamped so the next run retries it, and the other sandboxes are still cleaned. Before,
+  one throw left every later sandbox's media in place. A sandbox stamped and ended more than 24 hours ago is
+  no longer listed, so the work stays flat as sandboxes pile up; inside the 24 hours an upload in flight at the
+  end is still caught.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M1 (verified by the orchestrator and against
+  the code).
+  Verified: 2 new tests (a held sandbox does not stop the next and stays unstamped; a long-stamped sandbox is
+  not listed) and the updated ones failed first, now pass; emulator suite 107; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The lifecycle check behind ops/storage (and so the daily probe) accepts only the exact rule LIMITS promises:
   action Delete, condition keys exactly age and matchesPrefix, age exactly 30, prefixes exactly clips/, photos/
   and packs/ in any order. Before, a bucket-wide or shorter delete, an extra condition such as isLive, or a
