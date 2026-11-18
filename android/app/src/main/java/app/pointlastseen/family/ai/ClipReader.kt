@@ -106,6 +106,8 @@ class ClipReader(
             deps.ensureSignedIn()
             val found = deps.findReading(sha)
             found?.takeIf { it.readingJson != null }?.let { hit ->
+                // A completed no-sighting is cached too: no second model call.
+                if (ClipNoSighting.parse(hit.readingJson) != null) return ClipOutcome.CouldNotRead
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead
                 val check = SightingCheck.check(s, hit.durationS)
                 if (!check.ok) return ClipOutcome.CouldNotRead
@@ -119,12 +121,13 @@ class ClipReader(
             // even when the read later fails.
             val path = deps.storagePath(sha)
             val started = deps.nowMs()
-            // A retry finds the record of an earlier attempt and renews it: the same document with
-            // fresh consent, a new expiry and a new createdAt, every other field exactly as stored
-            // (the rules refuse any other change). The upload is accepted only while the expiry is
-            // at least 31 days away, so an attempt interrupted for a day would otherwise strand the clip.
+            // A retry finds a record with no reading and takes it over as this user (the creator
+            // renewing is the same case): this user as owner, their fresh consent, a new expiry and a
+            // new createdAt, every other field exactly as stored (the rules refuse any other change).
+            // The upload is accepted only while the expiry is at least 31 days away, and a stalled
+            // record from another sign-in would otherwise block this clip for everyone.
             deps.createConsentRecord(
-                found?.copy(consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started)
+                found?.copy(createdByUid = r.uploaderUid, consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started)
                     ?: StoredClipReading(
                         sha256 = sha, storagePath = path, durationS = r.durationS, clipStartMs = r.clipStartMs,
                         clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, readingJson = null,
@@ -137,16 +140,27 @@ class ClipReader(
             if (found == null || !deps.clipExists(sha)) deps.upload(sha, r.bytes)
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
-            val reply = deps.callModel(r.bytes, r.mimeType)
-            val parsed = CameraSightingJson.parse(reply.text) ?: return ClipOutcome.CouldNotRead
-            val check = SightingCheck.check(parsed, r.durationS)
-            if (!check.ok) return ClipOutcome.CouldNotRead
+            // A model error is not a reading: the record stays open (consent only), and the next reader
+            // takes it over and tries again. A completed reading never changes, so caching a passing
+            // error as "no sighting" would hide a real sighting from everyone.
+            val reply = try {
+                deps.callModel(r.bytes, r.mimeType)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                return ClipOutcome.Failed
+            }
             val now = deps.nowMs()
             val route = RouteRecord(
                 platform = "android", path = if (reply.source == Source.ON_DEVICE) "on_device" else "cloud",
                 stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
                 sdkReported = true, blocked = null, decidedAtMs = now,
             )
+            // A reply that cannot be read, or one that fails the shared checks, completes the record as a
+            // typed no-sighting with its reasons, so the result is cached for everyone.
+            val parsed = CameraSightingJson.parse(reply.text)
+                ?: return ClipOutcome.CouldNotRead.also { deps.completeReading(sha, ClipNoSighting(listOf("unreadable_reply")).toJson(), route) }
+            val check = SightingCheck.check(parsed, r.durationS)
+            if (!check.ok) return ClipOutcome.CouldNotRead.also { deps.completeReading(sha, ClipNoSighting.of(check.reasons).toJson(), route) }
             deps.completeReading(sha, CameraSightingJson.toJson(check.cleaned), route)
             return ClipOutcome.Read(sha, check.cleaned, check, bearingOf(check.cleaned), route, cached = false)
         } catch (e: Exception) {

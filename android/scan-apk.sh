@@ -12,14 +12,20 @@ aapt2="$sdk/build-tools/37.0.0/aapt2"
 resources="$(mktemp)"
 trap 'python3 -I -c "import os,sys; os.remove(sys.argv[1])" "$resources"' EXIT
 "$aapt2" dump resources "$apk" > "$resources"
-tokens=()
-for service in pls-appcheck-debug-android-emulator pls-appcheck-debug-android-a16; do
-  if t="$(security find-generic-password -w -s "$service" 2>/dev/null)" && [ -n "$t" ]; then tokens+=("$t"); fi
-done
-[ "${#tokens[@]}" -gt 0 ] || { echo "scan-apk: no debug token in the Keychain to scan for" >&2; exit 2; }
-python3 -I - "$apk" "$resources" "${tokens[@]}" <<'PY'
-import sys, zipfile, re
-apk, res, toks = sys.argv[1], sys.argv[2], [t.encode() for t in sys.argv[3:]]
+# The tokens are read from the Keychain inside the Python step, so no token is ever a
+# command-line argument (other processes can read argv).
+python3 -I - "$apk" "$resources" pls-appcheck-debug-android-emulator pls-appcheck-debug-android-a16 <<'PY'
+import sys, zipfile, re, subprocess
+apk, res, services = sys.argv[1], sys.argv[2], sys.argv[3:]
+toks = []
+for service in services:
+    r = subprocess.run(["security", "find-generic-password", "-w", "-s", service], capture_output=True, text=True)
+    t = r.stdout.strip()
+    if r.returncode == 0 and t:
+        toks.append(t.encode())
+if not toks:
+    print("scan-apk: no debug token in the Keychain to scan for", file=sys.stderr)
+    sys.exit(2)
 hits = []
 z = zipfile.ZipFile(apk)
 entries = z.namelist()
