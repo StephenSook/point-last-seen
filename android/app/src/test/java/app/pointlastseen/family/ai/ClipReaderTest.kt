@@ -186,7 +186,10 @@ class ClipReaderTest {
         assertEquals("sdk_only_in_cloud", out.route.reason)
         assertTrue(out.route.sdkReported)
         assertEquals(Hashes.sha256Hex(request(1000).bytes), record.sha256)
-        assertEquals(1_000L + 30L * 24 * 3600 * 1000, record.expiresAtMs)
+        // The rules accept expiresAt only between server time + 31 days and + 33 days.
+        val day = 24L * 3600 * 1000
+        assertEquals(1_000L + 32L * day, record.expiresAtMs)
+        assertTrue(record.expiresAtMs - record.createdAtMs in (31L * day + 1)..(33L * day - 1))
         assertEquals(90, record.cameraFacingDeg)
     }
 

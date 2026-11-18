@@ -149,7 +149,8 @@ class ClipReader(
     }
 
     companion object {
-        const val READING_TTL_MS = 30L * 24 * 3600 * 1000
+        /** 32 days: the rules accept a clip reading's expiresAt only between server time + 31 and + 33 days. */
+        const val READING_TTL_MS = 32L * 24 * 3600 * 1000
         const val PAUSED = "Clip reading is paused right now. Tell command about the clip."
         const val NEEDS_CONSENT =
             "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing."
