@@ -73,3 +73,14 @@ button, input, select { font: inherit; color: inherit; }
   .post-body { grid-template-columns: 1fr; grid-template-rows: 50vh auto auto; }
   .rail { border: 0; border-top: 1px solid var(--line); }
 }
+
+.muted { color: var(--fg-3); }
+.btn { background: var(--fg-1); color: var(--bg-0); border: 0; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.btn:disabled { background: var(--fg-4); cursor: default; }
+.route { display: inline-flex; align-items: center; gap: 4px; color: var(--fg-2); font-size: 13px; }
+.suggested { background: var(--bg-2); padding: 10px; margin-top: 10px; display: grid; gap: 8px; }
+.suggested ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.suggested-head { display: flex; align-items: center; justify-content: space-between; }
+.tag { font: 600 12px/1.2 var(--mono); text-transform: uppercase; color: var(--fg-1); }
+.teams .assign { display: block; color: var(--fg-3); font-size: 13px; }
+.teams .new { color: var(--fg-1); font-weight: 700; margin-left: 6px; }
