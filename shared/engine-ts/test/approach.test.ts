@@ -38,6 +38,14 @@ describe("approach notes and profile split (spec section 13)", () => {
   it("default profile shows may_not_respond and approach_calm first", () => {
     expect(approachNoteIds(base).slice(0, 2)).toEqual(["may_not_respond", "approach_calm"]);
   });
+  it("stop_calling_name follows the first two whenever may_not_respond shows (field expert)", () => {
+    expect(approachNoteIds(base).slice(0, 3)).toEqual(["may_not_respond", "approach_calm", "stop_calling_name"]);
+    const answers = withFlags(base, { mayNotRespond: false });
+    expect(approachNoteIds(answers)).not.toContain("may_not_respond");
+    expect(approachNoteIds(answers)).not.toContain("stop_calling_name");
+    expect(notes.stop_calling_name).toEqual({ text: "If they may not come when called, stop calling their name.",
+      shownWhen: notesFile.notes.may_not_respond.shownWhen, sourceRole: "search_team" });
+  });
   it("hide and uniform flags add notes and set the hidden target", () => {
     const p = withFlags(base, { likelyToHide: true, afraidOfUniforms: true });
     expect(approachNoteIds(p)).toEqual(expect.arrayContaining(["likely_to_hide", "afraid_of_uniforms"]));

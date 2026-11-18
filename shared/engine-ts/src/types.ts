@@ -292,6 +292,17 @@ export interface RouteGraph {
 }
 
 /** shared/schemas/incident-conditions.schema.json: the incident's typed conditions for the urgency chip. */
+/** incidents/{id}/debriefs/{segmentId} (shared/schemas/debrief.schema.json). The engine never reads it. */
+export interface Debrief {
+  tookMinutes: number;
+  worked?: string;
+  didNotWork?: string;
+  byUid: string;
+  /** Firestore server timestamp of the first write. */
+  createdAt: unknown;
+  clearedEventId?: string | null;
+}
+
 export interface IncidentConditions {
   tempF: number | null;
   wet: boolean | null;

@@ -5,6 +5,29 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Segment debriefs: `incidents/{id}/debriefs/{segmentId}` holds how long the clear took (`tookMinutes`, 0 to
+  1,440) and what worked or did not (`worked`, `didNotWork`, up to 500 characters each), written by `byUid` at
+  server time. Command writes any; a searcher writes only for a segment they cleared, pointing `clearedEventId`
+  at their own cleared event (rules cannot search events, so the pointer is how they check it). Command alone
+  edits, keeping the writer, time and pointer; nobody deletes, so only incident cleanup removes one. Members read
+  them. The engine never reads them, so no coverage claim comes from a debrief. Schema
+  `shared/schemas/debrief.schema.json` with the TS type `Debrief`; the iOS type is pending.
+  Source: review (field expert: a debrief after each segment).
+  Verified: the rules tests (command writes any; the clearing searcher writes theirs; another searcher, the wrong
+  segment, no pointer, a missing event and family are refused; bounds, exact keys, writer and server time
+  enforced; only command edits and keeps the writer, time and pointer; nobody deletes; members read; a second
+  member create is refused) failed first, now 109 rules tests pass; schema parity checks `Debrief` in TS (6
+  fields); engine typecheck exit 0.
+- A new approach note, `stop_calling_name`: "If they may not come when called, stop calling their name." It shows
+  whenever `may_not_respond` shows (the default), third after the two notes the spec puts first, and comes from
+  search teams. The rules' list of note ids is regenerated from the notes file, and the shapes test now derives
+  its too-long list from that file.
+  Source: review (field expert: a person who may not come when called).
+  Verified: the engine test (third by default; hidden with `may_not_respond` when the family says she answers;
+  the exact text, condition and source role) failed first, now 229 engine tests and 103 rules tests pass;
+  engine typecheck exit 0. In `bash scripts/ci-local.sh`, schema parity still waits for the iOS and Android
+  `otherNames` types, and the web test that pins exactly two default notes waits for the web change; both land
+  in this same pull request.
 - The shared profile carries `otherNames`: up to five other names she may answer to, each 1 to 60 characters,
   optional so profiles saved before it stay valid. Writers mirror the first name into `nickname` ("" for an
   empty list); readers call her by `namesToCall` (the list, else the nickname). Firestore rules take the new
