@@ -28,18 +28,40 @@ describe("replayWindow", () => {
 
   it("spans the first send to the last arrival or approval", () => {
     const d = data();
-    expect(replayWindow(d)).toEqual({ startMs: T0 + MIN, endMs: T0 + 20 * MIN, priorInUseFromMs: T0 + MIN });
+    // No priorBuiltAtMs: the current prior (version 2) is in use from the first server time stamped with version 2.
+    expect(replayWindow(d)).toEqual({ startMs: T0 + MIN, endMs: T0 + 20 * MIN, priorInUseFromMs: T0 + 3 * MIN });
   });
 
   it("with priorBuiltAtMs on the incident, that time is used", () => {
     expect(replayWindow(data({ priorBuiltAtMs: T0 + 12 * MIN }))!.priorInUseFromMs).toBe(T0 + 12 * MIN);
   });
 
-  it("without it, the latest arrival of a prior input or an older-prior report is used", () => {
-    const old = streamed(eventDoc({ eventId: "old", priorVersion: 1, clientTimeMs: T0 + 7 * MIN, deviceId: "d9" }), T0 + 8 * MIN);
-    const input = streamed(eventDoc({ eventId: "e0", clientTimeMs: T0 + 3 * MIN, deviceId: "d9" }), T0 + 4 * MIN);
-    expect(replayWindow(data({}, [old, input]))!.priorInUseFromMs).toBe(T0 + 8 * MIN);
-    expect(replayWindow(data({}, [input]))!.priorInUseFromMs).toBe(T0 + 4 * MIN);
+  it("without it, the current prior is in use from the earliest server time stamped with its version, never earlier", () => {
+    // Version 1 reports keep arriving after the rebuild; command promoted a sighting to rebuild at some unknown time
+    // before the first version 2 report reached the server.
+    const old = (id: string, sent: number, arrived: number) => streamed(eventDoc({ eventId: id, priorVersion: 1, clientTimeMs: sent, deviceId: "d9" }), arrived);
+    const now = (id: string, sent: number, arrived: number) => streamed(eventDoc({ eventId: id, priorVersion: 2, clientTimeMs: sent, deviceId: "d9" }), arrived);
+    const events = [old("o1", T0 + MIN, T0 + 2 * MIN), old("o2", T0 + 3 * MIN, T0 + 4 * MIN), now("n1", T0 + 9 * MIN, T0 + 10 * MIN), old("late", T0 + 5 * MIN, T0 + 12 * MIN)];
+    const d = fromLive(replayView(), events, [])!;
+    expect(replayWindow(d)!.priorInUseFromMs).toBe(T0 + 10 * MIN);
+    // A plan approved on the current prior bounds it too, from its approval time.
+    const withPlan = fromLive(replayView(), events, [replayPlan(1, T0 + 7 * MIN)])!;
+    expect(replayWindow(withPlan)!.priorInUseFromMs).toBe(T0 + 7 * MIN);
+  });
+
+  it("with nothing stamped with the current version, only the end of the window shows a map", () => {
+    const old = streamed(eventDoc({ eventId: "o1", priorVersion: 1, clientTimeMs: T0 + MIN, deviceId: "d9" }), T0 + 2 * MIN);
+    const d = fromLive(replayView(), [old], [])!;
+    const w = replayWindow(d)!;
+    expect(w.priorInUseFromMs).toBe(w.endMs);
+    expect(stateAt(d, w.endMs).phase).toBe("replayable");
+    expect(stateAt(d, w.endMs - 1).phase).toBe("before_prior");
+  });
+
+  it("the first prior (version 1) was in use from the start", () => {
+    const e = streamed(eventDoc({ eventId: "a", priorVersion: 1, clientTimeMs: T0 + MIN, deviceId: "d9" }), T0 + 5 * MIN);
+    const d = fromLive(replayView({ priorVersion: 1 }), [e], [])!;
+    expect(replayWindow(d)!.priorInUseFromMs).toBe(T0 + MIN);
   });
 
   it("a prior that came into use after the last report extends the window to it", () => {

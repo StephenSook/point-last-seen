@@ -22,7 +22,10 @@ export type PublishedRunV1 = {
     priorInputEventIds: string[];
     /** As stored on the incident. Absent: the shared engine constants, which the live command post also uses. */
     engineParams?: EngineParams;
-    /** When the current prior came into use. Absent or null: the replay uses its conservative rule. */
+    /**
+     * When the current prior came into use. Absent or null: the replay shows a map only from the first server time
+     * stamped with the current prior version, so writing this makes the replay cover more of the run.
+     */
     priorBuiltAtMs?: number | null;
     gridId?: string;
     gridAttribution?: string;

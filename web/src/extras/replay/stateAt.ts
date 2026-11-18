@@ -11,19 +11,23 @@ export type ReplayFrame =
   | { phase: "replayable"; tMs: number; shown: ReplayEvent[]; view: ViewState; planVersion: number | null };
 
 /**
- * When the current prior came into use. `priorBuiltAtMs` when the incident records it. Otherwise the latest arrival
- * among the prior's own input reports and reports written under an older prior: conservative, it can hide a span
- * that was replayable, and never shows a map command did not see. Null when nothing bounds it.
+ * When the current prior came into use. `priorBuiltAtMs` when the incident records it. The first prior (version 1)
+ * was in use from the start. Otherwise the earliest server time stamped with the current prior's version (a report's
+ * arrival or a plan's approval): no phone or seat can stamp a version before it exists, so the prior was in use by
+ * then, and earlier frames show reports only. That can hide a replayable span; it never shows a map command did not
+ * see. "end" when nothing carries the version: only the end of the window shows a map.
  */
-function priorInUseFrom(data: ReplayData): number | null {
+function priorInUseFrom(data: ReplayData): number | "start" | "end" {
   if (data.priorBuiltAtMs !== null) return data.priorBuiltAtMs;
-  const inputs = new Set(data.priorInputEventIds);
-  let latest: number | null = null;
+  if (data.priorVersion <= 1) return "start";
+  let earliest: number | null = null;
   for (const e of data.events) {
-    if (e.arrivedAtMs === null) continue;
-    if (inputs.has(e.eventId) || e.doc.priorVersion < data.priorVersion) latest = Math.max(latest ?? e.arrivedAtMs, e.arrivedAtMs);
+    if (e.arrivedAtMs !== null && e.doc.priorVersion === data.priorVersion) earliest = Math.min(earliest ?? e.arrivedAtMs, e.arrivedAtMs);
   }
-  return latest;
+  for (const p of data.plans) {
+    if (p.priorVersion === data.priorVersion) earliest = Math.min(earliest ?? p.approvedAtMs, p.approvedAtMs);
+  }
+  return earliest ?? "end";
 }
 
 /** From the first send to the last arrival or plan approval; null when no event has arrived. */
@@ -39,8 +43,8 @@ export function replayWindow(data: ReplayData): ReplayWindow | null {
   const startMs = Math.min(...starts);
   const from = priorInUseFrom(data);
   // A prior that came into use after the last report is still the one the live map draws, so the window reaches it.
-  const endMs = Math.max(...ends, from ?? -Infinity);
-  return { startMs, endMs, priorInUseFromMs: from === null ? startMs : from };
+  const endMs = Math.max(...ends, typeof from === "number" ? from : -Infinity);
+  return { startMs, endMs, priorInUseFromMs: from === "start" ? startMs : from === "end" ? endMs : from };
 }
 
 /** Every event that had arrived by tMs (pending writes never), and, once the current prior is in use, its map. */

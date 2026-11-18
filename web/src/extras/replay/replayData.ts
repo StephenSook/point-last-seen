@@ -36,7 +36,7 @@ export type ReplayEvent = {
   doc: EventDoc;
 };
 
-export type ReplayPlan = { version: number; approvedAtMs: number; assignments: Assignment[] };
+export type ReplayPlan = { version: number; priorVersion: number; approvedAtMs: number; assignments: Assignment[] };
 
 export type ReplayData = {
   source: "live" | "published_run";
@@ -146,7 +146,7 @@ export function fromLive(view: IncidentView | null, events: readonly StreamedEve
   });
   const replayPlans = plans.flatMap((p): ReplayPlan[] => {
     const at = millis(p.approvedAt) ?? (num(p.createdClientTimeMs) ? p.createdClientTimeMs : null);
-    return at === null ? [] : [{ version: p.version, approvedAtMs: at, assignments: p.assignments }];
+    return at === null ? [] : [{ version: p.version, priorVersion: p.priorVersion, approvedAtMs: at, assignments: p.assignments }];
   });
   return {
     source: "live",
@@ -236,9 +236,9 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
 
   const replayPlans: ReplayPlan[] = [];
   for (const p of plans) {
-    if (!isObj(p) || !num(p["version"]) || !Array.isArray(p["assignments"])) return refuse("The run has a plan it cannot read.");
+    if (!isObj(p) || !num(p["version"]) || !num(p["priorVersion"]) || !Array.isArray(p["assignments"])) return refuse("The run has a plan it cannot read.");
     if (!num(p["approvedAtMs"])) return refuse("The run has no approval time for a plan.");
-    replayPlans.push({ version: p["version"], approvedAtMs: p["approvedAtMs"], assignments: p["assignments"] as Assignment[] });
+    replayPlans.push({ version: p["version"], priorVersion: p["priorVersion"], approvedAtMs: p["approvedAtMs"], assignments: p["assignments"] as Assignment[] });
   }
 
   const ids = incident["priorInputEventIds"];

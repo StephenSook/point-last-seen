@@ -180,7 +180,7 @@ describe("fromPublishedRun", () => {
     expect(r.data.segments.map((s) => s.geometry)).toEqual(replayView().segments.map((s) => s.geometry));
     expect(r.data.events.map((e) => e.eventId)).toEqual(["e2", "e1"]);
     expect(r.data.events[1]).toMatchObject({ eventId: "e1", sentAtMs: live.events[0]!.sentAtMs, arrivedAtMs: T0 + 10 * MIN });
-    expect(r.data.plans).toEqual([{ version: 1, approvedAtMs: T0 + 4 * MIN, assignments: replayPlan(1, 0).assignments }]);
+    expect(r.data.plans).toEqual([{ version: 1, priorVersion: 2, approvedAtMs: T0 + 4 * MIN, assignments: replayPlan(1, 0).assignments }]);
     expect(r.data.drillLabel).toBe("Training drill. Nobody is missing.");
   });
 
@@ -198,7 +198,8 @@ describe("fromPublishedRun", () => {
   });
 
   it("a published run whose plan has no approval time is refused", () => {
-    expect(fromPublishedRun(run({ plans: [{ version: 1, assignments: [] }] }))).toEqual({ ok: false, reason: "The run has no approval time for a plan." });
+    expect(fromPublishedRun(run({ plans: [{ version: 1, priorVersion: 2, assignments: [] }] }))).toEqual({ ok: false, reason: "The run has no approval time for a plan." });
+    expect(fromPublishedRun(run({ plans: [{ version: 1, approvedAtMs: T0, assignments: [] }] }))).toEqual({ ok: false, reason: "The run has a plan it cannot read." });
   });
 
   it("a public run that carries report text is refused", () => {
