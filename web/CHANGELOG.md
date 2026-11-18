@@ -30,3 +30,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `MapView` draws segment fills by `poaClass8` with the eight-step ramp, segment borders in the line colour, the printed percent on a bg-0 plate at each centre (HTML markers, so no remote glyph host is needed), fits the map to the segments once, and always shows the text line "Map data from OpenStreetMap". No basemap layers yet: those need the drill-site PMTiles extract from Task 10.
 - Source: plan Task 15 (`web/src/map/MapView.tsx`), spec 22.1 (number on a plate, never on a fill), spec section 3 (OpenStreetMap license line).
 - Verified: named exports checked in the maplibre-gl 6.19.0 type file (no default export); typecheck and build clean.
+
+### feat(web): show merge lanes with sent and arrived times
+- What: `MergeLanes` renders one lane per team from `mergeModel`: "No reports yet." while silent, and per card "sent 14:03 / arrived 14:21 (18 min without signal)", "on its way" before arrival, and "(phone clock looks wrong)" when the gap is negative or above 24 hours.
+- Source: plan Task 15, spec 11.2 merge lanes.
+- Verified: the lane data comes from `mergeModel` (10 unit tests); typecheck and build clean.
