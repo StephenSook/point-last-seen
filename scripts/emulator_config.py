@@ -21,6 +21,7 @@ import errno
 import hashlib
 import json
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -95,6 +96,13 @@ def project_id(root: Path) -> str:
 def main(argv: list[str]) -> int:
     args = [a for i, a in enumerate(argv) if not a.startswith("--") and (i == 0 or argv[i - 1] != "--wait-ports")]
     root = Path(args[0] if args else ".").resolve()
+    if "--who-holds" in argv:
+        # Diagnostics after an emulator bind failure: which processes hold this worktree's ports.
+        base = port_base(root)
+        print(f"emulator ports {base}-{base + BLOCK - 1}:")
+        out = subprocess.run(["lsof", "-nP", f"-iTCP:{base}-{base + BLOCK - 1}"], capture_output=True, text=True)
+        print(out.stdout or "(no process holds them now)")
+        return 0
     if "--wait-ports" in argv:
         return wait_ports(root, float(argv[argv.index("--wait-ports") + 1]))
     if "--project-id" in argv:

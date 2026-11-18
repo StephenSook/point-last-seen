@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- ci-local: when the emulator suite fails, it now prints who holds this worktree's emulator ports
+  (`scripts/emulator_config.py --who-holds`, lsof over the 10-port block) and still fails with exit 1.
+  Lane B saw one WebChannel bind failure ("Address already in use") on its websocketPort right after the
+  port wait said the block was free; the cause is not known yet, so this records evidence instead of
+  hiding the flake with a retry or a longer timeout. A new test shows the wait already counts a socket held
+  on the 0.0.0.0 wildcard as busy, so the wildcard is ruled out.
+  Source: lane B flake report via the orchestrator (ledgered as a flake).
+  Verified: the who-holds test failed first, now 10 emulator_config tests pass (the wildcard test passed at
+  once, which is its finding); `bash scripts/ci-local.sh` exit 0.
 - `scripts/media_probe.py` reads ops/storage with the site's public key and fails if the 30-day lifecycle rule
   is gone or the sweep is more than 2 hours stale (which also catches a dead scheduler).
   `.github/workflows/probe.yml` runs it and the App Check no-token check daily at 13:23 UTC on a pinned

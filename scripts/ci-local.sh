@@ -41,7 +41,11 @@ echo "== rules: functions typecheck, rules and joinIncident tests in the emulato
 # made the Firestore emulator fail to bind, so wait (at most 180 s) until the block is free.
 python3 -I scripts/emulator_config.py . --wait-ports 180
 npm run typecheck -w functions
-npm run test:rules -w functions
+if ! npm run test:rules -w functions; then
+  # Lane B saw a one-off WebChannel bind failure right after "ports free"; record who held the ports.
+  python3 -I scripts/emulator_config.py . --who-holds
+  exit 1
+fi
 
 if [ -e web/package.json ]; then
   echo "== web: typecheck, unit tests and build (CI's placeholder config, built into a temp folder)"
