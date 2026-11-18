@@ -1,9 +1,14 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
-import { DEFAULT_PARAMS, type Assignment, type EventDoc } from "@pls/engine";
+import { DEFAULT_PARAMS, type Assignment, type EventDoc, type RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
+import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
+import { bytesToBase64, loadPhotos, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
+import { toStandardJpeg } from "../photos/jpeg";
+import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -169,6 +174,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [adding, setAdding] = useState(false);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
+  const [photos, setPhotos] = useState<TrayPhoto[]>([]);
+  const [device, setDevice] = useState<DeviceState | null>(null);
+  const [downloadPct, setDownloadPct] = useState<number | null>(null);
+
+  const reloadPhotos = () => loadPhotos(pls.storage, incidentId).then(setPhotos, () => setPhotos([]));
+  useEffect(() => {
+    if (!denied) void reloadPhotos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pls, incidentId, denied]);
 
   useEffect(() => startRemoteConfig(pls.app, setRc), [pls]);
 
@@ -259,6 +273,57 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingCloudGenerator(ai(), rc.cloudModelWeb)(t), killCloud: rc.killCloud });
   };
 
+  const photoRoute = (path: "on_device" | "cloud", latencyMs: number): RouteRecord => ({
+    platform: "web",
+    path,
+    stage: "sdk",
+    model: path === "on_device" ? "chrome-built-in" : rc.cloudModelWeb,
+    reason: path === "on_device" ? "sdk_only_on_device" : "consented_cloud_read",
+    latencyMs,
+    sdkReported: true,
+    blocked: null,
+    decidedAtMs: Date.now(),
+  });
+  const readPhotoHere = async (p: TrayPhoto) => {
+    const t0 = Date.now();
+    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: 30_000 });
+    return "cues" in r ? { cues: r.cues, route: photoRoute("on_device", Date.now() - t0) } : r;
+  };
+  const readPhotoCloud = async (p: TrayPhoto) => {
+    const t0 = Date.now();
+    const uid = pls.auth.currentUser?.uid ?? "";
+    const r = await readPhotoInCloud(bytesToBase64(p.bytes), uid ? { byUid: uid, atMs: Date.now() } : null, {
+      generateCloud: (b) => photoCloudGenerator(ai(), rc.cloudModelWeb)(b),
+      killCloud: rc.killCloud,
+    });
+    return "cues" in r ? { cues: r.cues, route: photoRoute("cloud", Date.now() - t0) } : r;
+  };
+  const checkDevice = async () => {
+    let st = await readDeviceState();
+    if (st === "downloadable") {
+      setDownloadPct(0);
+      try {
+        await downloadDeviceModel(setDownloadPct, deviceModelInitializer(ai()));
+      } catch {
+        // the state line below says what the browser can do
+      }
+      setDownloadPct(null);
+      st = await readDeviceState();
+    }
+    setDevice(st);
+  };
+  const addPhotoFiles = async (files: File[]) => {
+    for (const f of files) {
+      try {
+        const jpeg = await toStandardJpeg(f);
+        if (jpeg.length <= 2 * 1024 * 1024) await uploadPhoto(pls.storage, incidentId, jpeg);
+      } catch {
+        // an unreadable file is skipped; the list below shows what was stored
+      }
+    }
+    await reloadPhotos();
+  };
+
   const approve = async (worded: WordedPlan): Promise<number> => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
@@ -336,6 +401,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
+          <PhotoTray
+            photos={photos}
+            deviceState={device}
+            onCheckDevice={checkDevice}
+            downloadPct={downloadPct}
+            onAddFiles={addPhotoFiles}
+            readOnLaptop={readPhotoHere}
+            readInCloud={readPhotoCloud}
+            onDecide={(p, cues, route, d) => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now()))}
+          />
           <MergeLanes lanes={lanes} />
         </aside>
       </div>
