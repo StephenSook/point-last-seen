@@ -135,6 +135,17 @@ export type ClipReadDeps = {
   nowMs: () => number;
 };
 
+/** The Storage and Firestore side of a clip read (everything except the model and the clock). */
+export type ClipIo = Omit<ClipReadDeps, "generate" | "nowMs">;
+
+/**
+ * The read's dependencies. The generator is passed through as it is: a wrapper that forwards
+ * only (clip, type) would drop triage's window and send the model the whole clip's timeline.
+ */
+export function clipReadDeps(io: ClipIo, generate: ClipReadDeps["generate"], nowMs: () => number = () => Date.now()): ClipReadDeps {
+  return { ...io, generate, nowMs };
+}
+
 export type ClipReadOutcome =
   | { kind: "refused"; message: string }
   | { kind: "could-not-read" }

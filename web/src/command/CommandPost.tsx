@@ -7,8 +7,8 @@ import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerat
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
-import { readClip, type ClipReadOutcome } from "../ai/clipRead";
-import { clipExists, clipPath, completeClipReading, findClipReading, uploadClip, writeConsentRecord } from "../data/clips";
+import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
+import { firestoreClipIo } from "../data/clips";
 import { buildCameraSighting, travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraPriorWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
@@ -503,15 +503,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
         killCloud: () => rc.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
       },
-      {
-        findReading: (s) => findClipReading(pls.db, incidentId, s),
-        writeConsent: (r) => writeConsentRecord(pls.db, incidentId, r),
-        clipExists: (s) => clipExists(pls.storage, clipPath(incidentId, s)),
-        upload: (s, b, m) => uploadClip(pls.storage, clipPath(incidentId, s), b, m),
-        generate: (b64, m) => clipCloudGenerator(ai(), rc.cloudModelWeb)(b64, m),
-        complete: (s, reading, route) => completeClipReading(pls.db, incidentId, s, reading as unknown as Record<string, unknown>, route),
-        nowMs: () => Date.now(),
-      },
+      clipReadDeps(firestoreClipIo(pls.db, pls.storage, incidentId), clipCloudGenerator(ai(), rc.cloudModelWeb)),
     );
     if (o.kind === "read" && !o.cached && o.route) traced(o.route);
     return o;

@@ -965,3 +965,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: choosing a clip resets all four consents (consent is given for one clip), and changing any consent while triage holds a clip clears the hold, so "Read in the cloud anyway" can never send with consent that was withdrawn or given for another file.
 - Source: second-model review of PR #16, finding 1 (high): consent carried over to a different file and survived being unchecked.
 - Verified: two new harness tests (all consents cleared after choosing another file, Read disabled; unchecking cloud consent removes the override and nothing is passed on) failed first, then passed; all 11 clip harness tests pass. scripts/ci-local.sh exit 0.
+
+### fix(camera): pass the flagged window to the cloud model instead of dropping it
+- What: the post wrapped the clip generator in `(b64, m) => generate(b64, m)`, which dropped triage's window, so a flagged clip reached the model with no video offsets while its route said `on_device_triage_flagged`. The read's dependencies now come from `clipReadDeps(firestoreClipIo(...), clipCloudGenerator(...))`, which passes the generator through unchanged. The claim stays "the model reads only the flagged seconds": the whole clip is still in the request (offsets, not trimming).
+- Source: second-model review of PR #16, finding 4 (medium).
+- Verified: new test (readClip through `clipReadDeps` with a flagged window: the generator receives the window) failed first (factory missing), then passed; the generator test already pins that a window becomes `videoMetadata` in the request; typecheck clean. scripts/ci-local.sh exit 0.

@@ -184,3 +184,14 @@ export async function uploadClip(storage: FirebaseStorage, path: string, bytes: 
 export async function completeClipReading(db: Firestore, incidentId: string, sha256: string, reading: Record<string, unknown>, route: RouteRecord): Promise<void> {
   await updateDoc(recordRef(db, incidentId, sha256), completion(reading, route));
 }
+
+/** The clip read's Storage and Firestore calls for one incident. */
+export function firestoreClipIo(db: Firestore, storage: FirebaseStorage, incidentId: string) {
+  return {
+    findReading: (sha256: string) => findClipReading(db, incidentId, sha256),
+    writeConsent: (record: ClipRecordDoc) => writeConsentRecord(db, incidentId, record),
+    clipExists: (sha256: string) => clipExists(storage, clipPath(incidentId, sha256)),
+    upload: (sha256: string, bytes: Uint8Array, mimeType: string) => uploadClip(storage, clipPath(incidentId, sha256), bytes, mimeType),
+    complete: (sha256: string, reading: object, route: RouteRecord) => completeClipReading(db, incidentId, sha256, reading as Record<string, unknown>, route),
+  };
+}

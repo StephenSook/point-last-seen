@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import shared from "../../../shared/schemas/camera-sighting.schema.json";
-import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, clipCloudParams, clipParts, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
+import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, clipCloudParams, clipParts, clipReadDeps, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
 import { sha256Hex } from "../data/photos";
 import type { StoredClipReading } from "../data/clips";
 
@@ -183,5 +183,19 @@ describe("parseCameraSighting", () => {
     expect(parseCameraSighting(JSON.stringify({ ...goodReply, legibility: "ok" }))).toBeNull();
     expect(parseCameraSighting(JSON.stringify({ ...goodReply, keyFrame: { time: "00:07" } }))).toBeNull();
     expect(parseCameraSighting("{")).toBeNull();
+  });
+});
+
+describe("clipReadDeps", () => {
+  it("hands the cloud model the flagged window: the generator is passed through, not wrapped", async () => {
+    const t = await setup();
+    const seen: unknown[] = [];
+    const generate = async (_b: string, _m: string, w?: { startS: number; endS: number }) => {
+      seen.push(w);
+      return { text: JSON.stringify(goodReply), inferenceSource: "in_cloud" };
+    };
+    const { generate: _g, nowMs: _n, ...io } = t.deps;
+    await readClip({ ...t.req, window: { startS: 4, endS: 8 }, reason: "on_device_triage_flagged" }, clipReadDeps(io, generate, () => 0));
+    expect(seen).toEqual([{ startS: 4, endS: 8 }]);
   });
 });
