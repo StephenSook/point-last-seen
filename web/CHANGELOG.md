@@ -629,3 +629,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `playRipple` in `motion/engine.ts` grows each dot over 400 ms out(3) after its delay (one RIPPLE timeline); MapView multiplies the dot radius and ring by a per-dot feature state and plays it when its `ripple` key first draws, marking `data-ripple` playing then done. The post keys it by prior version with the incident's start point, so it plays on load and again after a prior rebuild. Reduced motion draws the dots at once.
 - Source: plan Task 39.6, spec 22.1 "Grid ripple".
 - Verified: two new map harness tests failed first (no ripple), then passed: a far dot is not drawn early in the ripple and is drawn when it is done (pixels); with reduced motion the dots are there at once. All 16 harness specs pass. Typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(motion): measure how far each rank row moved for the FLIP reorder
+- What: `flipOffsets(before, after)` in `motion/flip.ts`: for each row in both measurements that moved, its old top minus its new top, in the new order. FLIP is written by hand, as spec 22.1 says.
+- Source: plan Task 39.4 (the beat's reorder step).
+- Verified: `src/motion/flip.test.ts` (2 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
