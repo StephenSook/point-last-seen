@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- NOTICE lists the three web fonts under the SIL Open Font License 1.1 (DINish v4.007, Ioskeley Mono v2.2.0,
+  DSEG7 Classic v0.46) with their repositories and commits; the files arrive with lane C's merge.
+  Source: plan Task 39, lane C hand-over.
+  Verified: each tag resolves to the stated commit and each repository's license reads OFL-1.1 through the
+  GitHub API (2026-11-18); `bash scripts/ci-local.sh` exit 0.
 - Rules gate, Task 39: the font names "Berkeley Mono" and "Digital-7" fail outside docs (only the OFL fonts in
   web/public/fonts ship); animejs may be imported only by web/src/motion/engine.ts (dynamic imports and
   require included; package.json may list it); and web/index.html and web CSS may not load a font from a
