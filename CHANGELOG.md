@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Profile documents take only their own fields: `profile/shared` (readable by every member and carried in
+  packs) accepts only the 20 shared fields of spec section 13.2, with the 18 flag names as booleans, free
+  text at most 200 characters and at most 40 approach note ids; `profile/command` accepts only its 5 fields.
+  A field-mapping slip can no longer put previous addresses, places, past wandering, water, vehicle or
+  medication text where searchers read it.
+  Source: Codex adversarial review M4; fresh-context review minor 4.
+  Verified: 2 new tests (9 leaking writes to shared and 2 to command refused, valid writes accepted) failed
+  first, now 71 emulator tests pass; ci-local exits 0.
 - Add the `web` CI job (`.github/workflows/web.yml`, lane C's snippet): npm ci, web typecheck, Vitest, and a
   Vite build with placeholder config (no real value in the repo; the build refuses to run without config).
   Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to

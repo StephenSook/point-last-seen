@@ -29,6 +29,24 @@ describe("subject profile split (spec section 13.2)", () => {
       await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/command"), { nearbyWater: "creek" }));
     }
   });
+  it("profile/shared takes only the shared fields, so private history can never land in a searcher-readable doc", async () => {
+    const db = dbAs(F, familyClaims);
+    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), {
+      answersTo: "Mom", ageYears: 81, clothingLastWorn: "red coat", mobilityAids: ["cane"],
+      flags: { mayNotRespond: true, likelyToHide: true }, approachNoteIds: ["may_not_respond"],
+    }));
+    for (const leak of [{ previousAddresses: [] }, { placesFrequented: [] }, { pastWandering: [] }, { vehicle: null },
+                        { nearbyWater: "creek" }, { medications: "x" }, { flags: { notAFlag: true } }, { flags: { likelyToHide: "yes" } },
+                        { appearance: "x".repeat(201) }]) {
+      await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), leak, { merge: true }));
+    }
+  });
+  it("profile/command takes only the command fields", async () => {
+    const db = dbAs(C, commandClaims);
+    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/command"), { nearbyWater: "creek", vehicle: null }));
+    await assertFails(setDoc(doc(db, "incidents/I1/profile/command"), { medications: "x" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1/profile/command"), { answersTo: "Mom" }, { merge: true }));
+  });
   it("no other profile document exists for clients", async () => {
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/profile/medical"), { x: 1 }));
   });

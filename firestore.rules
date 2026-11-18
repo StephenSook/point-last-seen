@@ -92,10 +92,13 @@ service cloud.firestore {
       // profile/command (history, places, vehicle) is command and family only.
       match /profile/shared {
         allow read: if isMember(incidentId);
-        allow write: if isCommandOrFamily(incidentId);
+        allow write: if isCommandOrFamily(incidentId) && validSharedProfile(request.resource.data);
       }
       match /profile/command {
-        allow read, write: if isCommandOrFamily(incidentId);
+        allow read: if isCommandOrFamily(incidentId);
+        allow write: if isCommandOrFamily(incidentId)
+          && request.resource.data.keys().hasOnly(['previousAddresses', 'placesFrequented', 'pastWandering',
+                                                   'nearbyWater', 'vehicle']);
       }
 
       // Written by Cloud Functions only.
@@ -130,6 +133,29 @@ service cloud.firestore {
         allow create: if validEvent(incidentId, eventId);
         allow update, delete: if false;
       }
+    }
+
+    // profile/shared is readable by every member and carried in packs, so it takes only the "shared with
+    // searchers" fields of spec section 13.2: a field-mapping slip cannot put private history there.
+    function validSharedProfile(p) {
+      return p.keys().hasOnly(['answersTo', 'nickname', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn',
+                               'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids',
+                               'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription',
+                               'photoTakenOn', 'approachNoteIds'])
+        && (!('flags' in p) || (p.flags is map
+              && p.flags.keys().hasOnly(['mayNotRespond', 'likelyToHide', 'afraidOfUniforms', 'sensitiveToTouch',
+                                         'sensitiveToLight', 'likelyToFight', 'seizures', 'hallucinationsOrDelusions',
+                                         'lookingForHome', 'gaitUnsteady', 'freezing', 'fallRisk', 'softVoice',
+                                         'slowToRespond', 'fluctuates', 'medicationSensitivity',
+                                         'carriesMedicalAlertCard', 'medicationTimingMatters'])
+              && p.flags.values().hasOnly([true, false])))
+        && shortText(p, 'appearance', 200) && shortText(p, 'clothingLastWorn', 200)
+        && shortText(p, 'triggersToAvoid', 200) && shortText(p, 'bestApproach', 200)
+        && shortText(p, 'uniqueDescription', 200)
+        && (!('approachNoteIds' in p) || (p.approachNoteIds is list && p.approachNoteIds.size() <= 40));
+    }
+    function shortText(m, key, max) {
+      return !(key in m) || (m[key] is string && m[key].size() <= max);
     }
 
     function eventFields() {
