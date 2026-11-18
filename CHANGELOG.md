@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the `web` CI job (`.github/workflows/web.yml`, lane C's snippet): npm ci, web typecheck, Vitest, and a
+  Vite build with placeholder config (no real value in the repo; the build refuses to run without config).
+  Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to
+  shared/**, the lockfile and the workflow at the lane C merge). Mirrored in `ci-local.sh` behind a
+  web/package.json guard.
+  Source: orchestrator (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
+  Verified: action SHAs are the ones already pinned in engine.yml; `bash scripts/ci-local.sh` exits 0 here
+  (web skipped on main). First run expected on the next lane-web push.
 - Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
   emulator keeps uploaded blobs under $TMPDIR/firebase, which was shared by every worktree, so another
   lane's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
