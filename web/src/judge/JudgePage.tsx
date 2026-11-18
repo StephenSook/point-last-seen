@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { aiClient, deviceModelInitializer } from "../ai/client";
 import { deviceState as readDeviceState, getLaptopReady, type DeviceState } from "../ai/deviceModel";
 import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
-import { getPls } from "../firebase";
+import { practiceErrorMessage, practiceSearch } from "../data/practice";
+import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
@@ -19,6 +20,7 @@ export function JudgePage() {
   const [downloadFailed, setDownloadFailed] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
   const [rc, setRc] = useState<WebRc | null>(null);
+  const [practice, setPractice] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
   // Remote Config picks the cloud model; the real-time listener shows a swap as it happens (C2).
   useEffect(() => {
     try {
@@ -49,6 +51,20 @@ export function JudgePage() {
     }
   }
 
+  // A practice search: sign in, ask the server for this browser's own capped training incident
+  // (a command seat on it), then open the command post on it. No code is needed.
+  async function startPractice() {
+    setPractice({ busy: true, error: null });
+    try {
+      const p = getPls();
+      await ensureSignedIn(p.auth);
+      const id = await practiceSearch(p.functions, p.auth);
+      location.assign(`/?incident=${encodeURIComponent(id)}`);
+    } catch (e) {
+      setPractice({ busy: false, error: practiceErrorMessage(e) });
+    }
+  }
+
   const copy = device ? d2Copy(device, { replay: REPLAY_LIVE && run?.state === "run", downloadFailed }) : null;
   // Before Remote Config starts (or if it cannot), the pinned default is still named.
   const [modelLine, sourceLine, ...more] = rc
@@ -60,6 +76,19 @@ export function JudgePage() {
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
       <p className="muted">No login and no key. About three minutes.</p>
+
+      <section aria-labelledby="practice-h">
+        <h2 id="practice-h" className="label">Try a practice search</h2>
+        <p>A training incident on a real park map with the real engine. Add one sighting and watch the map and the plan change.</p>
+        <button type="button" className="btn" onClick={() => void startPractice()} disabled={practice.busy}>
+          {practice.busy ? "Starting" : "Try a practice search"}
+        </button>
+        {practice.error && (
+          <p className="error" role="alert">
+            {practice.error}
+          </p>
+        )}
+      </section>
 
       <section aria-labelledby="d1-h">
         <h2 id="d1-h" className="label">Replay the training drill</h2>
@@ -101,14 +130,16 @@ export function JudgePage() {
         <p className="muted small">Measured on Chrome 157 stable, a fresh profile: before the download the model is downloadable; after a 77 s download, text and image input are available.</p>
       </details>
 
-      <section aria-labelledby="d5-h">
-        <h2 id="d5-h" className="label">Numbers</h2>
-        {run === null && <p className="muted">Loading.</p>}
-        {run?.state === "none" && <p>No published run yet.</p>}
-        {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
-        {run?.state === "invalid" && <p>The published run file is incomplete, so no numbers are shown.</p>}
-        {run?.state === "run" && <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>}
-      </section>
+      {/* Said once: with no published run the Replay section already says so. */}
+      {run?.state !== "none" && (
+        <section aria-labelledby="d5-h">
+          <h2 id="d5-h" className="label">Numbers</h2>
+          {run === null && <p className="muted">Loading.</p>}
+          {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
+          {run?.state === "invalid" && <p>The published run file is incomplete, so no numbers are shown.</p>}
+          {run?.state === "run" && <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>}
+        </section>
+      )}
     </main>
   );
 }

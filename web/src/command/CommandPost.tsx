@@ -583,7 +583,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   return (
     <div className="post">
       <header className="post-head">
-        <span className="drill">{DRILL_LINE}</span>
+        {/* A practice incident carries its own label ("Training drill. Practice search; nobody is missing."). */}
+        <span className="drill">{incident?.drillLabel ?? DRILL_LINE}</span>
         <span className="incident">{view?.incident?.name ?? incidentId}</span>
         <span className="code">
           <span className="label">MATCH</span>
