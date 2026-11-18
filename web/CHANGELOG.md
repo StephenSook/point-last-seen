@@ -844,3 +844,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-18-video-offsets.json`: one live AI Logic call with a 20 s synthetic clip (a red square visible 8.0 to 12.0 s) sent inline with `videoMetadata` 6 s to 14 s. `gemini-3.5-flash-lite` answered first 00:08, last 00:11: counted from the clip's start, not the window's (that would read 00:02). n = 1, stated as such.
 - Source: P-39 decision (a): settle the timestamp question with one live call before the triage sends windows.
 - Verified: the call answered in 3,463 ms through the web SDK with App Check and a signed-in user; the spike page and spec were temporary and removed (tree clean after). scripts/ci-local.sh exit 0.
+
+### feat(camera): find the moving spans of a clip from sampled grey frames
+- What: `camera/motion.ts` `motionWindows` (P-39 triage, step one, no model): grey frames sampled every 0.5 s at 64 x 36 are compared in pairs after removing the whole-frame brightness change (so an exposure shift is not motion); pairs whose mean local change is above a low floor (0.004, provisional until measured on the staged clips) form spans, spans less than 1 s apart merge, each is padded by 1 s within the clip, and the four strongest are kept in time order with their peak time.
+- Source: promoted item P-39 ("pixel differencing finds motion windows").
+- Verified: `src/camera/motion.test.ts` (6 tests on synthetic frames: still with noise, exposure ramp, one crossing with its padded span and peak, two crossings apart and clamped to the clip, two close crossings merged, at most four windows in time order) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
