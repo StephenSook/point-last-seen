@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The rules gate fails CI when shipped code (web, iOS, the Android app's main sources, functions) names a
+  model host outside Firebase AI Logic: Google's Gemini API host, Vertex AI REST, OpenAI, Ollama (including
+  localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
+  would skip App Check, authenticated-users mode, the per-user limit and cloudGuard. Docs and tests may name
+  them; AI Logic's own host does not match.
+  Source: review (a rival lost a stage for calling model hosts directly).
+  Verified: the test (six planted hits across the four trees each fail; a clean tree with AI Logic's host, a
+  doc and a test mention passes) failed first, now 28 gate tests pass; the repo walks with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - cloudGuard bounds output whatever the request asks for: only the speech model gets the speech cap (4,096
   tokens); any other model gets the 2,048-token text cap even when the request asks for audio. It keeps only
   the generation settings our apps use (token limit, temperature, top-p and top-k, stop sequences, the response
