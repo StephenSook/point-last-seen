@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): build the undo event as a retraction of the searcher's own report
+- What: `ReadOutcomeBuilder.retraction(of:authorUid:deviceId:seq:clientTimeMs:)` makes a
+  `retraction` event that targets the report (effect none/informational, no text, no reading, no
+  route), and refuses another author's event; `canUndo` keeps the echo card's Undo to 5 s. The
+  engine then drops the report.
+- Source: Task 13 (ReportEchoView: 5-second undo, a retraction), spec section 8, lane A's rules
+  (searchers retract own events only).
+- Verified: three `RetractionTests` red without the API, then green; full suite 189 tests.
+
 ### feat(ios-core): read the pack's segments into the grid and the prior
 - What: `PackSegments.parse` turns `pack-segments` documents into the grid (segmentId code-point
   order, `geometryJson` parsed as a GeoJSON Polygon string, `centroid` {lat, lon}) and the

@@ -105,6 +105,28 @@ public enum ReadOutcomeBuilder {
             targetEventId: nil, decision: nil, planVersion: nil, priorVersion: context.priorVersion)
     }
 
+    public enum RetractionError: Error, Equatable { case notTheAuthor }
+
+    /// The undo window on the echo card.
+    public static let undoWindowMs: Double = 5_000
+
+    public static func canUndo(sentAtMs: Double, nowMs: Double) -> Bool {
+        nowMs - sentAtMs <= undoWindowMs
+    }
+
+    /// Undo is a new `retraction` event that targets the report (events are never edited).
+    /// A searcher may retract only its own events.
+    public static func retraction(of target: EventDoc, authorUid: String, deviceId: String, seq: Int, clientTimeMs: Double) throws -> EventDoc {
+        guard target.authorUid == authorUid else { throw RetractionError.notTheAuthor }
+        return EventDoc(
+            eventId: EventID.make(incidentId: target.incidentId, deviceId: deviceId, seq: seq), schemaVersion: 1,
+            incidentId: target.incidentId, teamId: target.teamId, deviceId: deviceId, seq: seq, authorUid: authorUid,
+            role: .searcher, type: .retraction, reporter: .searcher, clientTimeMs: clientTimeMs, serverTime: nil,
+            observedAtMs: nil, position: nil, positionSource: .none, rawText: nil, inputMethod: .system,
+            isTrainingInject: target.isTrainingInject, reading: nil, effect: .none(why: .informational), route: nil,
+            targetEventId: target.eventId, decision: nil, planVersion: nil, priorVersion: target.priorVersion)
+    }
+
     /// When a sighting was seen: the time picked in the app, else "N minutes ago" or "an hour
     /// ago" in the report, else nil so the app asks. Never the time the report was sent.
     static func observedAt(_ rawText: String, _ context: OutcomeContext) -> Double? {
