@@ -1,0 +1,258 @@
+import Foundation
+import Testing
+@testable import PLSCore
+
+/// A runner that replays scripted results and records every call, so the tests can prove
+/// which model was asked, in which order.
+final class FakeRunner: ReadModelRunner, @unchecked Sendable {
+    enum Call: Equatable { case guided(RoutePath), permissive }
+    var guidedResults: [RoutePath: [Result<ReportReading, ReadFailure>]] = [:]
+    var permissiveResults: [Result<String, ReadFailure>] = []
+    var duringOnDeviceCall: (() -> Void)?
+    private(set) var calls: [Call] = []
+
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        calls.append(.guided(path))
+        if path == .onDevice { duringOnDeviceCall?() }
+        guard var list = guidedResults[path], !list.isEmpty else { return .failure(.other) }
+        let r = list.removeFirst(); guidedResults[path] = list; return r
+    }
+
+    func permissive(_ text: String) async -> Result<String, ReadFailure> {
+        calls.append(.permissive)
+        guard !permissiveResults.isEmpty else { return .failure(.other) }
+        return permissiveResults.removeFirst()
+    }
+}
+
+private let report = "Team two cleared segment AC, coverage point eight, nothing found"
+private func okReading(_ ids: [String] = ["AC"]) -> ReportReading {
+    reading(segmentIds: ids, coverage: 0.8, evidenceQuote: "cleared segment AC")
+}
+private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = true, kill: Bool = false, mode: String? = "drill") -> ReadContext {
+    ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
+                onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
+                estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
+                cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
+}
+private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
+
+@Suite struct ReadOrchestratorTests {
+    @Test func onDeviceGuidedReadingIsUsedWhenValid() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.reading.segmentIds == ["AC"])
+        #expect(o.route.path == .onDevice)
+        #expect(o.route.stage == .guided)
+        #expect(o.route.reason == .noNetwork)
+        #expect(o.route.model == "AFM 3 Core Advanced")
+        #expect(o.route.sdkReported == false)
+        #expect(o.route.latencyMs == 850)
+        #expect(r.calls == [.guided(.onDevice)])
+    }
+
+    @Test func aBlockedReportStaysOnDeviceAndNeverReachesTheCloud() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.guardrailBlock)]
+        r.permissiveResults = [.failure(.guardrailBlock)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .permissive])
+        #expect(o.route.stage == .deterministicParser)
+        #expect(o.route.blocked == .guardrail)
+        #expect(o.reading.coverage == 0.8)                 // the parser read it
+    }
+
+    @Test func permissiveLineFillsKindSegmentsAndCoverage() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.refusal)]
+        r.permissiveResults = [.success("KIND: cleared, SEGMENTS: AC, COVERAGE: 0.6")]
+        let o = await ReadOrchestrator.read(text: "we cleared AC, about sixty percent", context: rctx(), runner: r, clock: clock)
+        #expect(o.route.stage == .permissiveText)
+        #expect(o.route.blocked == .refusal)
+        #expect(o.reading.kind == .cleared)
+        #expect(o.reading.segmentIds == ["AC"])
+        #expect(o.reading.coverage == 0.6)
+    }
+
+    @Test func anInvalidModelReadingFallsToTheParser() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading(["ZZ"]))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(o.route.stage == .deterministicParser)
+        #expect(o.reading.segmentIds == ["AC"])
+        #expect(r.calls == [.guided(.onDevice)])
+    }
+
+    @Test func aModelThatIsNotReadyReroutesToTheCloudWhenAllowed() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .guided(.cloud)])
+        #expect(o.route.path == .cloud)
+        #expect(o.route.reason == .onDeviceUnavailable)
+        #expect(o.route.model == "gemini-3.5-flash-lite")
+    }
+
+    @Test func noConsentMeansRulesNotCloud() async {
+        let r = FakeRunner()
+        let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false, consent: false), runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules)
+        #expect(o.route.stage == .deterministicParser)
+    }
+
+    @Test func evidenceTextCallsNoModelAtAll() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: "there is blood on a rock in AC", context: rctx(), runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.stage == .evidenceProtocol)
+        #expect(o.route.reason == .possibleEvidence)
+        #expect(o.route.model == "none")
+    }
+
+    @Test func outsideADrillNoModelIsCalled() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(mode: "live"), runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.reason == .notDrillMode)
+    }
+
+    @Test func anUnreadableReportEndsAtThePickList() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.failure(.guardrailBlock)]; r.permissiveResults = [.success("no idea")]
+        let o = await ReadOrchestrator.read(text: "hmm", context: rctx(), runner: r, clock: clock)
+        #expect(o.reading.kind == .unclear)
+        #expect(o.route.stage == .deterministicParser)
+        #expect(o.needsPickList)
+    }
+}
+
+@Suite struct PermissiveLineTests {
+    @Test func pipeAndLabelledFormsBothParse() {
+        #expect(PermissiveLine.parse("cleared|AC|0.8", known: ["AC"]) == PermissiveLine(kind: .cleared, segmentIds: ["AC"], coverage: 0.8))
+        #expect(PermissiveLine.parse("KIND: found, SEGMENTS: AB, COVERAGE: none", known: ["AB"]) == PermissiveLine(kind: .found, segmentIds: ["AB"], coverage: nil))
+    }
+
+    @Test func unknownKindsAndIdsAreRefused() {
+        #expect(PermissiveLine.parse("KIND: teleported, SEGMENTS: AB", known: ["AB"]) == nil)
+        #expect(PermissiveLine.parse("KIND: clue, SEGMENTS: subject injured by the creek in ZZ, COVERAGE: creek", known: ["AB"]) == PermissiveLine(kind: .clue, segmentIds: [], coverage: nil))
+    }
+}
+
+/// The cloud gate as it is right now; the test flips it while the on-device call runs.
+final class LiveGateBox: @unchecked Sendable {
+    var gate: LiveGate
+    init(_ gate: LiveGate) { self.gate = gate }
+}
+
+@Suite struct ReadOrchestratorLiveGateTests {
+    func context(_ box: LiveGateBox) -> ReadContext {
+        var c = rctx()
+        c.liveGate = { box.gate }
+        return c
+    }
+
+    @Test func aKillSwitchFlippedDuringTheOnDeviceCallKeepsTheReportOffTheCloud() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        r.duringOnDeviceCall = { box.gate.killCloud = true }
+        let o = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.path == .rules)
+    }
+
+    @Test func lostSignalOrWithdrawnConsentAlsoKeepItOff() async {
+        for flip in [{ (g: inout LiveGate) in g.networkOnline = false }, { (g: inout LiveGate) in g.cloudConsent = false }] {
+            let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+            let r = FakeRunner()
+            r.guidedResults[.onDevice] = [.failure(.unavailable)]
+            r.guidedResults[.cloud] = [.success(okReading())]
+            r.duringOnDeviceCall = { flip(&box.gate) }
+            _ = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+            #expect(r.calls == [.guided(.onDevice)])
+        }
+    }
+
+    @Test func aCloudRouteChosenFromTheSnapshotIsCheckedAgainAtDispatch() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: true, incidentMode: "drill"))
+        var c = context(box)
+        c.onDevice.available = false                                      // the snapshot says: cloud
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules)
+    }
+
+    @Test func aCloudRouteClosedByAModeChangeBeforeDispatchSaysSo() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "closed"))
+        var c = context(box)
+        c.onDevice.available = false
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.reason == .notDrillMode)
+    }
+
+    @Test func anIncidentThatLeftDrillModeIsRecordedAsSuch() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        r.duringOnDeviceCall = { box.gate.incidentMode = "closed" }
+        let o = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.reason == .notDrillMode)
+    }
+
+    @Test func aContextLimitKeepsItsOwnReasonOnTheCloud() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.contextExceeded)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .guided(.cloud)])
+        #expect(o.route.reason == .overTokenBudget)
+    }
+}
+
+/// A runner whose guided call takes far longer than any stage limit.
+final class SlowRunner: ReadModelRunner, @unchecked Sendable {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        try? await Task.sleep(for: .seconds(30))
+        return .failure(.other)
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> {
+        try? await Task.sleep(for: .seconds(30))
+        return .failure(.other)
+    }
+}
+
+@Suite struct ReadOrchestratorTimeoutTests {
+    @Test func aModelStageThatTakesTooLongFallsToTheParser() async {
+        var c = rctx()
+        c.stageTimeoutSeconds = 0.2
+        let start = Date()
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: SlowRunner(), clock: SystemClock())
+        #expect(Date().timeIntervalSince(start) < 5)
+        #expect(o.route.stage == .deterministicParser)
+        #expect(o.reading.coverage == 0.8)
+    }
+}
+
+@Suite struct ReadOrchestratorTransportTests {
+    @Test func aCloudNetworkFailureIsReportedSoConnectivityCanLearnFromIt() async {
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.failure(.network)]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(o.cloudTransport == .failed)
+        #expect(o.route.stage == .deterministicParser)
+    }
+
+    @Test func aCloudSuccessAndAnOnDeviceReadReportWhatHappened() async {
+        let ok = FakeRunner(); ok.guidedResults[.cloud] = [.success(okReading())]
+        #expect(await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: ok, clock: clock).cloudTransport == .succeeded)
+        let local = FakeRunner(); local.guidedResults[.onDevice] = [.success(okReading())]
+        #expect(await ReadOrchestrator.read(text: report, context: rctx(), runner: local, clock: clock).cloudTransport == .notUsed)
+    }
+}
+
