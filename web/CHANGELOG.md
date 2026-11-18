@@ -2,6 +2,8 @@
 
 Each entry names what changed, its source (plan task or finding) and how it was verified, in commit order.
 
+The extras lane (print sheets, radio cards, export, 3D views) keeps its own log in `web/CHANGELOG-EXTRAS.md`.
+
 Commits before this file (gate, config, events, merge lanes, offline check, version.json, Remote Config, POA style) are listed in `git log -- web`.
 
 ## 2026-11-17
@@ -547,3 +549,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the Workbox precache adds `extras/**/*.json` (the extras lane's scam.json and terrain files once they ship) beside the existing patterns; `version.json` at the root stays network-only. The lazy extras chunks were already covered by the js pattern (hook H6).
 - Source: extras lane request H6.
 - Verified: build clean (11 precache entries today; no extras json exists yet, so the pattern matches nothing until it does); offline e2e passes. scripts/ci-local.sh exit 0.
+
+### docs(web): point the web changelog at the extras lane's changelog
+- What: one line under the heading of `web/CHANGELOG.md` points at `web/CHANGELOG-EXTRAS.md` (hook H5).
+- Source: extras lane request H5.
+- Verified: the target file exists on this branch after merge point 2. scripts/ci-local.sh exit 0.
