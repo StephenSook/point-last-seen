@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PRIVATE_REQUEST_OPTIONS, generatorFor, photoGeneratorFor } from "./client";
+import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, generatorFor, photoGeneratorFor } from "./client";
+import { clipParts } from "./clipRead";
 
 describe("generatorFor", () => {
   it("returns the reply text and the SDK's reported route", async () => {
@@ -34,5 +35,18 @@ describe("photoGeneratorFor", () => {
     const gen = photoGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}", inferenceSource: "on_device" } }; }) as never });
     expect(await gen("QUJD")).toEqual({ text: "{}", inferenceSource: "on_device" });
     expect(sent).toEqual([{ type: "text", text: "Read this photo." }, { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: "QUJD" } }]);
+  });
+});
+
+describe("clipGeneratorFor", () => {
+  it("sends the clip inline with its type and the clip prompt, and returns the text and the reported route", async () => {
+    let sent: unknown;
+    const gen = clipGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}", inferenceSource: "in_cloud" } }; }) as never });
+    expect(await gen("AAAA", "video/mp4")).toEqual({ text: "{}", inferenceSource: "in_cloud" });
+    expect(sent).toEqual(clipParts("AAAA", "video/mp4"));
+  });
+
+  it("gives a clip of up to 14 MB two minutes, longer than a text or photo read", () => {
+    expect(CLIP_TIMEOUT_MS).toBe(120_000);
   });
 });

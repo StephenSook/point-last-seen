@@ -784,3 +784,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge-page test no longer accepts the page's pinned default; it requires "Cloud model now: gemini-...-flash-lite." with no "(default)" and "Chosen by Remote Config (fetched HH:MM)".
 - Source: the project's Remote Config template is now published (version 1, cloud_model_web gemini-3.5-flash-lite), closing the C2 check that waited on it.
 - Verified: passed against the live site with the template published. scripts/ci-local.sh exit 0.
+
+### feat(ai): add the cloud-only camera clip read with the shared CameraSighting schema
+- What: `ai/clipRead.ts` builds the clip read's parameters: `ONLY_IN_CLOUD`, JSON reply with the response schema taken from `shared/schemas/camera-sighting.schema.json` (same fields, closed lists and caps), and the same prompt the Android family app sends (no face, no guessing who it is). `ai/client.ts` adds `clipCloudGenerator`, which sends the clip inline with its own video type, then the prompt, with a 120 s timeout. Nothing calls it yet; the intake and the read come next.
+- Source: plan Task 18c (Step 3: "The model call is ONLY_IN_CLOUD with inlineData and responseSchema").
+- Verified: `src/ai/clipRead.test.ts` (4 tests, schema compared field by field with the shared file) and two new `client.test.ts` tests failed first (module and export missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
