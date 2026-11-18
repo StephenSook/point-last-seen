@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { centreFeatures, contrastRatio, formatPct, MAP_INK, POA_RAMP, poaClass8, segmentFeatures } from "./poaStyle";
+import { contrast as contrastRatio } from "../theme/contrast";
+import { centreFeatures, formatPct, MAP_INK, POA_RAMP, poaClass8, segmentFeatures } from "./poaStyle";
 
 describe("poaClass8", () => {
   it("gives eight classes by share of the largest POA", () => {
