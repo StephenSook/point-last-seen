@@ -43,6 +43,14 @@ describe("deleteIncidentMediaNow", () => {
     await expect(handleDeleteMedia(admin.db, bucket, null, { incidentId: "I1" })).rejects.toMatchObject({ code: "unauthenticated" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
   });
+  it("like the security rules, a missing or ended incident refuses even its command (review: stale claims)", async () => {
+    await admin.db.doc("incidents/I1").set({ name: "Ended sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, bucket, command("I7"), { incidentId: "I7" })).rejects.toMatchObject({ code: "permission-denied" });
+    expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
+    await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) });
+    expect((await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).deleted).toBe(4);
+  });
   it("a malformed incident id is refused before anything is listed", async () => {
     for (const data of [{ incidentId: "../I1" }, { incidentId: "" }, {}, null]) {
       await expect(handleDeleteMedia(admin.db, bucket, command("../I1"), data as never)).rejects.toMatchObject({ code: "invalid-argument" });

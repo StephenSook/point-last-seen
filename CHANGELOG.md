@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteIncidentMediaNow` also requires, as the security rules do, that the incident exists and has not ended
+  (expiresAt absent or in the future): custom claims outlive an incident, so claims alone no longer let a
+  stale command delete media. An ended judge sandbox is swept by deleteIncidentMedia.
+  Source: automated security review of e80aced (sibling gate parity, stale claims).
+  Verified: the test (an ended sandbox and a missing incident refuse even their command, with nothing deleted;
+  a live sandbox's command deletes 4) failed first, now passes; emulator suite 131; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - A test pins that the repo's `storage.lifecycle.json` passes the exact rule the live health check demands
   (Delete at 30 days on exactly clips/, photos/ and packs/), so the file applied to the bucket and the check the
   daily probe reads cannot drift apart. It completes Task 18a's lifecycle test.

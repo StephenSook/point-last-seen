@@ -101,6 +101,13 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   if (auth.token.inc !== incidentId || auth.token.role !== "command") {
     throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
   }
+  // As in the security rules (notExpired): claims outlive an incident, so the incident must exist and must not
+  // have ended. An ended judge sandbox is swept by deleteIncidentMedia instead.
+  const incident = await db.doc(`incidents/${incidentId}`).get();
+  const exp = incident.get("expiresAt");
+  if (!incident.exists || !(exp == null || (exp instanceof Timestamp && exp.toMillis() > Date.now()))) {
+    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
+  }
   let deleted = 0;
   for (const prefix of ["clips", "photos"]) {
     const [found] = await bucket.getFiles({ prefix: `${prefix}/${incidentId}/` });
