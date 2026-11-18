@@ -46,7 +46,7 @@ A key whose value is null is present, never omitted.
 | ids | `{ fn: "eventSet", priorVersion, eventIds }` | `{ eventSetHash, convergenceCode }` |
 | ids | `{ fn: "convergenceCode", hash }` | `{ convergenceCode }` |
 | router | `{ fn: "decide", input: RouterInput }` | `{ path, reason }` |
-| router | `{ fn: "afterFailure", failure, path, stage }` | `{ next: "stage", stage }` or `{ next: "pick_list" }` |
+| router | `{ fn: "afterFailure", failure, path, stage }` | `{ next: "stage", stage }`, `{ next: "pick_list" }` or `{ next: "reroute_without_on_device" }` |
 | evidence | `{ text }` | boolean |
 
 ## Types used above

@@ -5,6 +5,46 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
+  standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
+  the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
+  once android/ is on main or on a pull request that carries it.
+  Source: orchestrator request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  cases exit 1).
+  Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
+  main).
+- Task 35a: approach notes and the profile split. `shared/constants/approach-notes.json` holds the spec 13.3
+  copy (ours), the display order (may_not_respond and approach_calm first), when each note shows, a source
+  role per note and the card footer. `shared/engine-ts/src/approach.ts` exports approachNoteIds,
+  profileForSearchers (exactly the 20 profile/shared fields; dementiaType null without the family's
+  consent), profileForCommand (the 5 command fields), profileForModel (appearance and clothing only),
+  profileWarnings (photo past 60 days, profile past 183 days, or a missing date), detectionProfile (sound
+  counts only if the family says they answer; hide or uniform fears ask for a hidden target) and
+  placeToCheck (one destination event with a label and position only, effect none/informational).
+  Source: plan Task 35a; spec sections 10.4, 13.2 and 13.3. Lane C (web form) and lane B (iOS card) build on it.
+  Verified: the 11 new tests failed first (no module), now 166 engine tests pass; typecheck and lint exit 0;
+  the shared keys match the rules' profile/shared allowlist; ci-local exits 0. The plan's device check
+  (step 5) is lane B's.
+- The vectors README's section table lists all three afterFailure result shapes, including
+  `{ next: "reroute_without_on_device" }`, matching the rule text below it and the router vectors.
+  Source: fresh-context review minor 10.
+  Verified: the router vectors contain that shape (`grep -c reroute_without_on_device` on search.json is
+  above 0); ci-local exits 0.
+- The rules gate's `LanguageModel.availability` rule also catches optional chaining (`LanguageModel?.availability`)
+  and bracket access (`LanguageModel["availability"]`), so the call stays confined to web/src/ai/gate.ts.
+  Source: fresh-context review minor 11.
+  Docs may name the call (this entry tripped the first version).
+  Verified: the new tests failed first, now 20 gate tests pass; the gate is clean on main and on archives of
+  lane-web, lane-ios and lane-android; ci-local exits 0.
+- Cap `joinIncident` at 5 instances (`maxInstances: 5`, us-central1) to bound cost under abuse, alongside the
+  per-caller attempt budget. Test reads the function's deploy manifest.
+  Source: fresh-context review minor 6.
+  Verified: the new test failed first, now 85 emulator tests pass; ci-local exits 0. Not deployed.
+- firebase.json builds the functions before every deploy (`predeploy: npm --prefix "$RESOURCE_DIR" run build`),
+  so a deploy can never ship a stale `functions/lib` (it is gitignored and only built locally).
+  Source: fresh-context review minor 1.
+  Verified: the same command run from the root exits 0 and writes lib/index.js and lib/join.js; firebase.json
+  parses; ci-local exits 0. Nothing is deployed by this commit.
 - Schema parity checks more: for TypeScript, a string-enum property's values must equal the literal union of
   its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
   silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,

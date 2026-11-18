@@ -176,6 +176,11 @@ describe("joinIncident (spec sections 7 and 14)", () => {
     }
     expect(await claimsOf(caller)).toBeUndefined();
   });
+  it("the deployed function is capped at 5 instances in us-central1 (cost control)", () => {
+    const ep = (joinIncident as unknown as { __endpoint: { maxInstances?: number; region?: string[] } }).__endpoint;
+    expect(ep.maxInstances).toBe(5);
+    expect(ep.region).toEqual(["us-central1"]);
+  });
   it("control: the same request succeeds through a callable built without App Check enforcement", async () => {
     const { idToken, uid: caller } = await emulatorIdToken();
     const unenforced = onCall<JoinRequest>({ enforceAppCheck: false }, request => handleJoin(request.auth?.uid ?? null, request.data));

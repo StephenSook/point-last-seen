@@ -37,3 +37,5 @@ jobs:
       - name: Android unit tests and debug build
         working-directory: android
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+      - name: Count Android unit tests (fails on zero, on fewer than 150, or on any failure or skip)
+        run: python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 150

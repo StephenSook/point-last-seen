@@ -164,3 +164,17 @@ def test_storage_token_urls_are_banned_in_client_code(tmp_path):
         (tmp_path / rel).unlink()
     write(tmp_path, "docs/LIMITS.md", "The apps never call getDownloadURL.\n")
     assert run_gate(tmp_path).returncode == 0
+
+
+def test_availability_ban_covers_optional_chaining_and_brackets(tmp_path):
+    write(tmp_path, "web/src/ai/gate.ts", "LanguageModel?.availability(o)")
+    assert run_gate(tmp_path).returncode == 0
+    for text in ("window.LanguageModel?.availability(o)", 'LanguageModel["availability"](o)', "LanguageModel ?. availability(o)"):
+        write(tmp_path, "web/src/ai/other.ts", text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and "other.ts" in out.stdout, text
+
+
+def test_docs_may_name_the_availability_call(tmp_path):
+    write(tmp_path, "CHANGELOG.md", "The gate keeps `LanguageModel?.availability` in web/src/ai/gate.ts.\n")
+    assert run_gate(tmp_path).returncode == 0
