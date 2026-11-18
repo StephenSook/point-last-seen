@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bearingDeg, effectSegments, segmentContaining, type GridSegmentDoc } from "./geo";
+import { bearingDeg, beatDistances, effectSegments, type GridSegmentDoc, segmentChoices, segmentContaining } from "./geo";
 
 // Two 0.01-degree squares side by side, west (AA) and east (AB), and one north of AA (AC).
 const sq = (lon: number, lat: number) => ({ type: "Polygon" as const, coordinates: [[[lon, lat], [lon + 0.01, lat], [lon + 0.01, lat + 0.01], [lon, lat + 0.01], [lon, lat]]] });
@@ -45,5 +45,42 @@ describe("effectSegments", () => {
 
   it("drops a neighbour id that is not in the grid", () => {
     expect(effectSegments([{ ...segs[1]!, neighbors: ["AA", "ZZ"] }, segs[0]!])["AB"]!.neighbors.map((n) => n.segmentId)).toEqual(["AA"]);
+  });
+});
+
+describe("segmentChoices", () => {
+  const seg = (segmentId: string, lat: number, lon: number) => ({
+    segmentId,
+    geometry: { type: "Polygon" as const, coordinates: [[[lon - 0.001, lat - 0.001], [lon + 0.001, lat - 0.001], [lon + 0.001, lat + 0.001], [lon - 0.001, lat - 0.001]]] },
+    centroid: { lat, lon },
+  });
+
+  it("lists every segment by id with its centre, so a sighting can be placed from the keyboard", () => {
+    expect(segmentChoices([seg("AC", 1, 3), seg("AA", 1, 1), seg("AB", 1, 2)])).toEqual([
+      { segmentId: "AA", centre: { lat: 1, lon: 1 } },
+      { segmentId: "AB", centre: { lat: 1, lon: 2 } },
+      { segmentId: "AC", centre: { lat: 1, lon: 3 } },
+    ]);
+  });
+});
+
+describe("beatDistances", () => {
+  const seg = (segmentId: string, lat: number, lon: number) => ({
+    segmentId,
+    geometry: { type: "Polygon" as const, coordinates: [[[lon, lat], [lon + 0.001, lat], [lon, lat + 0.001], [lon, lat]]] },
+    centroid: { lat, lon },
+  });
+  const segs = [seg("AA", 33.78, -84.38), seg("AB", 33.78, -84.37), seg("AC", 33.79, -84.38)];
+
+  it("measures metres from the report's position to each changed segment's centre", () => {
+    const d = beatDistances({ lat: 33.78, lon: -84.38 }, ["AA", "AB", "AC"], segs);
+    expect(d["AA"]).toBeCloseTo(0, 6);
+    expect(d["AB"]).toBeGreaterThan(900);
+    expect(d["AB"]).toBeLessThan(940); // 0.01 degree of longitude at 33.78 N is about 925 m
+    expect(d["AC"]).toBeGreaterThan(1100); // 0.01 degree of latitude is about 1112 m
+  });
+
+  it("measures from the largest move's centre when the report has no position", () => {
+    expect(beatDistances(null, ["AB", "AA"], segs)["AB"]).toBe(0);
   });
 });

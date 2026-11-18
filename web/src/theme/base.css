@@ -12,8 +12,9 @@
   --fg-4: #898583;
   --change-cyan: #40e2f3;
   --alert-red: #f84b4b;
-  --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --ui: "DINish", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Ioskeley Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --clock: "DSEG7 Classic", var(--mono);
   color-scheme: dark;
 }
 
@@ -23,14 +24,14 @@ body { background: var(--bg-0); color: var(--fg-1); font: 15px/1.4 var(--ui); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--fg-1); outline-offset: 2px; }
 
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { font-family: var(--ui); font-variant-numeric: tabular-nums; }
 .label { font: 600 12px/1.2 var(--mono); letter-spacing: 0.01em; text-transform: uppercase; color: var(--fg-3); }
 
 .post { display: grid; grid-template-rows: auto 1fr; height: 100%; }
 .post-head { display: flex; align-items: center; gap: 24px; padding: 10px 16px; background: var(--bg-1); border-bottom: 1px solid var(--line); }
 .drill { font-weight: 700; color: var(--fg-1); }
 .post-head .incident { color: var(--fg-2); }
-.post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; }
+.post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; white-space: nowrap; }
 .post-head .code .num { font-size: 20px; letter-spacing: 0.08em; }
 
 .post-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 0; }
@@ -42,7 +43,7 @@ button, input, select { font: inherit; color: inherit; }
 .map { position: absolute; inset: 0; }
 .map-credit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--fg-3); background: var(--bg-0); padding: 1px 6px; }
 .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-3); pointer-events: none; }
-.plate { background: var(--bg-0); color: var(--fg-1); padding: 1px 4px; font: 600 12px/1.2 var(--mono); font-variant-numeric: tabular-nums; pointer-events: none; }
+.plate { background: var(--bg-0); color: var(--fg-1); padding: 1px 4px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
 
 .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .teams li { color: var(--fg-4); }
@@ -63,15 +64,18 @@ button, input, select { font: inherit; color: inherit; }
 .panel h1 { margin: 0 0 4px; font-size: 20px; }
 .panel form { display: grid; gap: 12px; margin-top: 16px; }
 .panel label { display: grid; gap: 4px; color: var(--fg-2); }
-.panel input { background: var(--bg-0); border: 1px solid var(--line); padding: 8px 10px; }
+.panel input { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 8px 10px; }
 .panel button { background: var(--fg-1); color: var(--bg-0); border: 0; padding: 10px 14px; font-weight: 700; cursor: pointer; }
 .panel button:disabled { background: var(--fg-4); cursor: default; }
 /* alert-red is for hazards only (with an icon and a word), so errors use neutral ink */
 .error { color: var(--fg-1); background: var(--bg-2); border-left: 3px solid var(--fg-1); padding: 6px 10px; }
 
 @media (max-width: 900px) {
-  .post-body { grid-template-columns: 1fr; grid-template-rows: 50vh auto auto; }
-  .rail { border: 0; border-top: 1px solid var(--line); }
+  /* Phones: the map takes the first row and the page scrolls; rails follow it at full height. */
+  .post { height: auto; min-height: 100%; }
+  .post-body { grid-template-columns: 1fr; grid-template-rows: 55vh auto auto; }
+  .map-wrap { order: -1; }
+  .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
 }
 
 .muted { color: var(--fg-3); }
@@ -91,7 +95,8 @@ button, input, select { font: inherit; color: inherit; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .sighting-form { display: grid; gap: 10px; background: var(--bg-2); padding: 12px; }
 .sighting-form label { display: grid; gap: 4px; color: var(--fg-2); font-size: 14px; }
-.sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--line); padding: 6px 8px; color: var(--fg-1); }
+/* field edges use fg-4: 4.79:1 on bg-1 and 4.33:1 on bg-2 (WCAG 1.4.11 asks 3:1) */
+.sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
 .sighting-form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sighting-form .callback { border: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .sighting-form .callback legend { color: var(--fg-3); font-size: 13px; }
@@ -101,6 +106,8 @@ button, input, select { font: inherit; color: inherit; }
 .sighting p { margin: 0; }
 .tray .file { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
 .tray .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+/* the input is invisible, so its keyboard focus is drawn on the label */
+.tray .file:has(input:focus-visible) { outline: 2px solid var(--fg-1); outline-offset: 2px; }
 .photos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
 .photo { background: var(--bg-2); padding: 8px; display: grid; gap: 6px; }
 .photo p { margin: 0; }
@@ -119,3 +126,8 @@ button, input, select { font: inherit; color: inherit; }
 .judge h1 { margin: 0; font-size: 28px; }
 .judge section { display: grid; gap: 8px; background: var(--bg-1); border: 1px solid var(--line); padding: 16px; }
 .judge section p { margin: 0; }
+/* change-cyan means "moved by the last report" and nothing else (22.1) */
+.delta-chip { background: var(--bg-0); color: var(--change-cyan); border: 1px solid var(--change-cyan); padding: 1px 5px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
+.change { display: grid; gap: 4px; }
+.change p { margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

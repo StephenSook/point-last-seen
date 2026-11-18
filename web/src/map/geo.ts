@@ -59,3 +59,29 @@ export function effectSegments(segments: readonly GridSegmentDoc[]): Record<stri
     ]),
   );
 }
+
+/** Every segment by id with its centre: the keyboard way to place a sighting (the same point a map click there gives). */
+export function segmentChoices(segments: readonly MapSegment[]): { segmentId: string; centre: LatLon }[] {
+  return [...segments].sort((a, b) => a.segmentId.localeCompare(b.segmentId)).map((s) => ({ segmentId: s.segmentId, centre: { lat: s.centroid.lat, lon: s.centroid.lon } }));
+}
+
+/** Great-circle distance in metres. */
+export function metresBetween(a: LatLon, b: LatLon): number {
+  const r = (d: number) => (d * Math.PI) / 180;
+  const h = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lon - a.lon) / 2) ** 2;
+  return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Metres from the report to each changed segment's centre, for the beat's nearest-first
+ * order. A report with no position is measured from the largest move's centre.
+ */
+export function beatDistances(origin: LatLon | null, changedIds: readonly string[], segments: readonly MapSegment[]): Record<string, number> {
+  const byId = new Map(segments.map((s) => [s.segmentId, s.centroid]));
+  const from = origin ?? (changedIds[0] ? byId.get(changedIds[0]) : undefined);
+  if (!from) return {};
+  return Object.fromEntries(changedIds.flatMap((id) => {
+    const c = byId.get(id);
+    return c ? [[id, metresBetween(from, c)]] : [];
+  }));
+}

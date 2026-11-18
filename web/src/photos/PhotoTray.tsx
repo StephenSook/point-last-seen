@@ -13,6 +13,7 @@ type Read = { cues: PhotoCues; route: RouteRecord } | { couldNot: string } | { n
 
 type Props = {
   photos: readonly TrayPhoto[];
+  loadError: string | null;
   deviceState: DeviceState | null;
   onCheckDevice: () => Promise<void>;
   downloadPct: number | null;
@@ -42,7 +43,7 @@ function Thumb({ bytes }: { bytes: Uint8Array }) {
   return <img src={url} alt="Family photo" className="thumb" />;
 }
 
-export function PhotoTray({ photos, deviceState, onCheckDevice, downloadPct, onAddFiles, readOnLaptop, readInCloud, onDecide }: Props) {
+export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downloadPct, onAddFiles, readOnLaptop, readInCloud, onDecide }: Props) {
   const [reads, setReads] = useState<Record<string, Read>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [decided, setDecided] = useState<Record<string, FamilyDecision>>({});
@@ -87,7 +88,12 @@ export function PhotoTray({ photos, deviceState, onCheckDevice, downloadPct, onA
       </div>
       {deviceState && <p role="status" className="muted">{STATE_LINE[deviceState]}</p>}
       {downloadPct !== null && downloadPct < 100 && <p role="status" className="muted num">Downloading the model: {downloadPct}%</p>}
-      {photos.length === 0 && <p className="muted">No photos yet.</p>}
+      {loadError && (
+        <p className="error" role="alert">
+          {loadError}
+        </p>
+      )}
+      {photos.length === 0 && !loadError && <p className="muted">No photos yet.</p>}
       <ul className="photos">
         {photos.map((p) => {
           const r = reads[p.sha256];

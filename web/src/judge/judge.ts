@@ -4,10 +4,17 @@
 
 import type { DeviceState } from "../ai/deviceModel";
 
-export function d2Copy(state: DeviceState): { lines: string[]; photoButton: string | null } {
+/** `replay` is true only when a published run exists, so the line never points at a replay that is not there. */
+export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[]; photoButton: string | null } {
+  if (opts.downloadFailed && state !== "text" && state !== "image") {
+    return { lines: ["This browser could not download its built-in model. Nothing private was sent."], photoButton: null };
+  }
   switch (state) {
     case "no-model":
-      return { lines: ["This browser has no built-in model. Nothing private was sent. Use the replay above, which runs in the cloud."], photoButton: null };
+      return {
+        lines: [opts.replay ? "This browser has no built-in model. Nothing private was sent. Use the replay above, which runs in the cloud." : "This browser has no built-in model. Nothing private was sent."],
+        photoButton: null,
+      };
     case "downloadable":
       return { lines: ["This browser can download its built-in model first. Press Get this laptop ready to start; it can take a few minutes."], photoButton: null };
     case "text":
