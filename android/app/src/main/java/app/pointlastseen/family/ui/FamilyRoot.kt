@@ -12,13 +12,13 @@ import app.pointlastseen.family.ui.theme.Paper
 
 /** The family app: one screen at a time, cross-faded. */
 @Composable
-fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> Unit, onDial: () -> Unit) {
+fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> Unit, onDial: () -> Unit, onOpenDownloads: () -> Unit) {
     val rc by vm.rc.values.collectAsState()
     val incident by vm.incident.collectAsState()
     val writes by vm.writes.collectAsState()
     val mode = incident?.mode
     if (rc.needsUpdate(BuildConfig.VERSION_CODE.toLong())) {
-        FamilyScaffold(mode, rc.killCloud) { Sentence("Update this app to keep using it.") }
+        UpdateScreen(mode, onOpenDownloads)
         return
     }
     BackHandler(enabled = Nav.systemBack(vm.nav) != null) { vm.systemBack() }
