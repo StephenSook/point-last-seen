@@ -11,4 +11,7 @@ export PLS_RELEASE_PASSWORD
 ./gradlew --no-configuration-cache assembleRelease
 apk=app/build/outputs/apk/release/app-release.apk
 "${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/37.0.0/apksigner" verify --print-certs "$apk"
+# The public APK is this Play Integrity release build, never a debug build, which
+# carries its App Check debug token in its resources. Scan the exact signed file.
+./scan-apk.sh "$apk"
 echo "release APK: $apk"
