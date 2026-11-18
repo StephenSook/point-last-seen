@@ -27,11 +27,14 @@ class ClipReaderTest {
         val reply: ModelReply = ModelReply(null, Source.IN_CLOUD, 0),
     ) : ClipDeps {
         val log = mutableListOf<String>()
-        var stored: StoredClipReading? = null
+        val consents = mutableListOf<StoredClipReading>()
+        val completed = mutableListOf<Pair<String, String>>()
         override suspend fun findReading(sha256: String): StoredClipReading? { log += "find"; return cached }
-        override suspend fun upload(sha256: String, bytes: ByteArray): String { log += "upload"; return "clips/inc-1/$sha256.mp4" }
+        override fun storagePath(sha256: String) = "clips/inc-1/$sha256.mp4"
+        override suspend fun upload(sha256: String, bytes: ByteArray): String { log += "upload"; return storagePath(sha256) }
         override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { log += "model:$mimeType"; return reply }
-        override suspend fun storeReading(doc: StoredClipReading) { log += "store"; stored = doc }
+        override suspend fun createConsentRecord(doc: StoredClipReading) { log += "consent"; consents += doc }
+        override suspend fun completeReading(sha256: String, readingJson: String, route: app.pointlastseen.family.data.RouteRecord) { log += "complete"; completed += sha256 to readingJson }
         override fun nowMs(): Long = 1_000L
     }
 
@@ -42,7 +45,7 @@ class ClipReaderTest {
     private fun request(size: Int, consent: ClipConsent? = null, killCloud: Boolean = false) = ClipRequest(
         bytes = bytes(size), mimeType = "video/mp4", durationS = 30,
         clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent ?: consentFor(bytes(size)),
-        killCloud = { killCloud }, modelName = "gemini-3.5-flash-lite",
+        killCloud = { killCloud }, modelName = "gemini-3.5-flash-lite", uploaderUid = "u1",
     )
 
     @Test fun theReadRunsOnTheGivenWorkerNotTheCallersThread() = runTest {
@@ -120,29 +123,27 @@ class ClipReaderTest {
         val cached = StoredClipReading(
             sha256 = sha, storagePath = "clips/inc-1/$sha.mp4", durationS = 30, clipStartMs = 500L,
             clockConfirmed = true, cameraFacingDeg = 90, readingJson = readingJson, route = null,
-            consent = consent, expiresAtMs = 9L, createdAtMs = 1L,
+            consent = consent, expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
         )
         val deps = FakeDeps(cached = cached)
         val out = ClipReader(deps).read(r) as ClipOutcome.Read
         assertTrue(out.cached)
-        assertEquals(listOf("find", "store"), deps.log)
+        assertEquals(listOf("find"), deps.log)
         assertNotNull(out.check)
     }
 
-    @Test fun aRereadUsesTheFacingAndClockJustGivenAndUpdatesTheStoredReading() = runTest {
+    @Test fun aRereadUsesTheFacingJustGivenAndWritesNothing() = runTest {
         val r = request(1000).copy(cameraFacingDeg = 0, clipStartMs = 7_000L)
         val sha = Hashes.sha256Hex(r.bytes)
         val cached = StoredClipReading(
             sha256 = sha, storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = false,
-            cameraFacingDeg = null, readingJson = readingJson, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L,
+            cameraFacingDeg = null, readingJson = readingJson, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
         )
         val deps = FakeDeps(cached = cached)
         val out = ClipReader(deps).read(r) as ClipOutcome.Read
         assertEquals(270, out.bearingDeg) // facing north, exit left
-        assertEquals(listOf("find", "store"), deps.log)
-        assertEquals(0, deps.stored!!.cameraFacingDeg)
-        assertEquals(7_000L, deps.stored!!.clipStartMs)
-        assertEquals(true, deps.stored!!.clockConfirmed)
+        // The stored reading is read-only once complete; the event carries the new facing.
+        assertEquals(listOf("find"), deps.log)
     }
 
     @Test fun aCachedReadingThatFailsItsChecksIsCouldNotRead() = runTest {
@@ -151,7 +152,7 @@ class ClipReaderTest {
         val bad = readingJson.replace("\"lastSeen\":\"00:12\"", "\"lastSeen\":\"09:99\"")
         val cached = StoredClipReading(
             sha256 = sha, storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
-            cameraFacingDeg = 90, readingJson = bad, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L,
+            cameraFacingDeg = 90, readingJson = bad, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
         )
         val deps = FakeDeps(cached = cached)
         assertEquals(ClipOutcome.CouldNotRead, ClipReader(deps).read(r))
@@ -165,27 +166,58 @@ class ClipReaderTest {
         assertTrue(deps.log.isEmpty())
     }
 
-    @Test fun aMissUploadsThenReadsInTheCloudThenStores() = runTest {
+    @Test fun aMissRecordsConsentThenUploadsThenReadsThenCompletes() = runTest {
         val deps = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000)) as ClipOutcome.Read
-        assertEquals(listOf("find", "upload", "model:video/mp4", "store"), deps.log)
+        assertEquals(listOf("find", "consent", "upload", "model:video/mp4", "complete"), deps.log)
+        val record = deps.consents.single()
+        assertNull(record.readingJson)
+        assertNull(record.route)
+        assertEquals("u1", record.createdByUid)
+        assertEquals("clips/inc-1/${Hashes.sha256Hex(request(1000).bytes)}.mp4", record.storagePath)
+        assertEquals(request(1000).consent, record.consent)
+        assertEquals(Hashes.sha256Hex(request(1000).bytes), deps.completed.single().first)
         assertFalse(out.cached)
         assertTrue(out.check!!.ok)
         assertEquals(0, out.bearingDeg) // facing 90, exit left: 90 - 90
         assertEquals("cloud", out.route!!.path)
         assertEquals("sdk_only_in_cloud", out.route.reason)
         assertTrue(out.route.sdkReported)
-        val stored = deps.stored!!
-        assertEquals(Hashes.sha256Hex(request(1000).bytes), stored.sha256)
-        assertEquals(1_000L + 30L * 24 * 3600 * 1000, stored.expiresAtMs)
-        assertEquals(90, stored.cameraFacingDeg)
+        assertEquals(Hashes.sha256Hex(request(1000).bytes), record.sha256)
+        assertEquals(1_000L + 30L * 24 * 3600 * 1000, record.expiresAtMs)
+        assertEquals(90, record.cameraFacingDeg)
     }
 
-    @Test fun anUnreadableReplyShowsCouldNotReadAndStoresNothing() = runTest {
+    @Test fun anUnreadableReplyShowsCouldNotReadAndKeepsOnlyTheConsentRecord() = runTest {
         val deps = FakeDeps(reply = ModelReply("{not json", Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000))
         assertEquals(ClipOutcome.CouldNotRead, out)
-        assertNull(deps.stored)
+        assertEquals(1, deps.consents.size)
+        assertTrue(deps.completed.isEmpty())
+    }
+
+    @Test fun aModelErrorLeavesTheConsentRecordForTheUploadedClip() = runTest {
+        val deps = object : ClipDeps by FakeDeps() {
+            val docs = mutableListOf<StoredClipReading>()
+            override suspend fun createConsentRecord(doc: StoredClipReading) { docs += doc }
+            override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply = throw IllegalStateException("503")
+        }
+        assertEquals(ClipOutcome.Failed, ClipReader(deps).read(request(1000)))
+        assertEquals(1, deps.docs.size)
+        assertEquals(request(1000).consent, deps.docs.single().consent)
+    }
+
+    @Test fun aConsentOnlyRecordIsNotACachedReading() = runTest {
+        val r = request(1000)
+        val consentOnly = StoredClipReading(
+            sha256 = Hashes.sha256Hex(r.bytes), storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
+            cameraFacingDeg = 90, readingJson = null, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
+        )
+        val deps = FakeDeps(cached = consentOnly, reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        val out = ClipReader(deps).read(r) as ClipOutcome.Read
+        assertFalse(out.cached)
+        // The consent record already exists (an earlier attempt), so it is not written again.
+        assertEquals(listOf("find", "upload", "model:video/mp4", "complete"), deps.log)
     }
 
     @Test fun aReadingThatFailsItsChecksIsShownAsCouldNotRead() = runTest {

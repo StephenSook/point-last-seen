@@ -20,19 +20,28 @@ data class StoredClipReading(
     val clipStartMs: Long,
     val clockConfirmed: Boolean,
     val cameraFacingDeg: Int?,
-    val readingJson: String,
+    /** Null for the consent record written before the upload, until a reading exists. */
+    val readingJson: String?,
     val route: RouteRecord?,
     val consent: ClipConsent,
     val expiresAtMs: Long,
     val createdAtMs: Long,
+    val createdByUid: String,
 )
 
-/** What ClipReader needs from Storage, Firestore and AI Logic. */
+/**
+ * What ClipReader needs from Storage, Firestore and AI Logic. clipReadings/{sha256}
+ * is created as a consent record before the upload (Storage refuses a clip without
+ * it), then completed once with the reading and route, then is read-only.
+ */
 interface ClipDeps {
     suspend fun findReading(sha256: String): StoredClipReading?
+    /** Where the clip with this hash is stored: clips/{incidentId}/{sha256}.mp4. */
+    fun storagePath(sha256: String): String
     suspend fun upload(sha256: String, bytes: ByteArray): String
     suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply
-    suspend fun storeReading(doc: StoredClipReading)
+    suspend fun createConsentRecord(doc: StoredClipReading)
+    suspend fun completeReading(sha256: String, readingJson: String, route: RouteRecord)
     fun nowMs(): Long
 }
 
@@ -47,6 +56,7 @@ data class ClipRequest(
     /** Read live (Remote Config): checked before the read, before upload and before inference. */
     val killCloud: () -> Boolean,
     val modelName: String,
+    val uploaderUid: String,
 )
 
 sealed class ClipOutcome {
@@ -88,18 +98,32 @@ class ClipReader(
 
         val bearingOf = { s: CameraSighting -> Bearing.fromExit(r.cameraFacingDeg, s.exitEdge) }
         try {
-            deps.findReading(sha)?.let { hit ->
+            val found = deps.findReading(sha)
+            found?.takeIf { it.readingJson != null }?.let { hit ->
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead
                 val check = SightingCheck.check(s, hit.durationS)
                 if (!check.ok) return ClipOutcome.CouldNotRead
-                // No second model call, but the facing, clock and consents the family just
-                // gave replace the stored ones, so a corrected facing takes effect.
-                deps.storeReading(hit.copy(clipStartMs = r.clipStartMs, clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, consent = r.consent))
+                // No second model call and no write (a completed reading is read-only); the
+                // facing just given sets the bearing, and the event carries it to command.
                 return ClipOutcome.Read(sha, check.cleaned, check, Bearing.fromExit(r.cameraFacingDeg, s.exitEdge), hit.route, cached = true)
             }
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
-            val path = deps.upload(sha, r.bytes)
+            // The consent record goes first, so every clip that reaches Storage has one,
+            // even when the read later fails.
+            val path = deps.storagePath(sha)
+            val started = deps.nowMs()
+            if (found == null) {
+                deps.createConsentRecord(
+                    StoredClipReading(
+                        sha256 = sha, storagePath = path, durationS = r.durationS, clipStartMs = r.clipStartMs,
+                        clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, readingJson = null,
+                        route = null, consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started,
+                        createdByUid = r.uploaderUid,
+                    ),
+                )
+            }
+            deps.upload(sha, r.bytes)
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
             val reply = deps.callModel(r.bytes, r.mimeType)
@@ -112,14 +136,7 @@ class ClipReader(
                 stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
                 sdkReported = true, blocked = null, decidedAtMs = now,
             )
-            deps.storeReading(
-                StoredClipReading(
-                    sha256 = sha, storagePath = path, durationS = r.durationS, clipStartMs = r.clipStartMs,
-                    clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg,
-                    readingJson = CameraSightingJson.toJson(check.cleaned), route = route, consent = r.consent,
-                    expiresAtMs = now + READING_TTL_MS, createdAtMs = now,
-                ),
-            )
+            deps.completeReading(sha, CameraSightingJson.toJson(check.cleaned), route)
             return ClipOutcome.Read(sha, check.cleaned, check, bearingOf(check.cleaned), route, cached = false)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e

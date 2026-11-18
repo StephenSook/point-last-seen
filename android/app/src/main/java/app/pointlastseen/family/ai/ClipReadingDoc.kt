@@ -10,23 +10,32 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * clipReadings/{sha256} (spec section 7). The reading is stored as an object;
- * expiresAt and createdAt go through a timestamp converter so the Firestore TTL
- * policy sees real timestamps.
+ * clipReadings/{sha256} (spec section 7, lane A ruling on review I9): a consent record
+ * created before the upload (reading and route null, createdAt the server's time,
+ * expiresAt a timestamp for the TTL policy), then one completion with the reading
+ * (an object) and the route.
  */
 object ClipReadingDoc {
-    fun toMap(d: StoredClipReading, timestamp: (Long) -> Any): Map<String, Any?> = linkedMapOf(
+    /** The consent record, written before the upload with exactly the ruled keys. */
+    fun consentRecord(d: StoredClipReading, timestamp: (Long) -> Any, serverTimestamp: Any): Map<String, Any?> = linkedMapOf(
         "sha256" to d.sha256,
         "storagePath" to d.storagePath,
         "durationS" to d.durationS,
         "clipStartMs" to d.clipStartMs,
         "clockConfirmed" to d.clockConfirmed,
         "cameraFacingDeg" to d.cameraFacingDeg,
-        "reading" to requireNotNull(CameraSightingJson.parse(d.readingJson)) { "stored reading is not a CameraSighting" }.toMap(),
-        "route" to d.route?.toMap(),
+        "reading" to null,
+        "route" to null,
         "consent" to d.consent.toMap(),
         "expiresAt" to timestamp(d.expiresAtMs),
-        "createdAt" to timestamp(d.createdAtMs),
+        "createdAt" to serverTimestamp,
+        "createdByUid" to d.createdByUid,
+    )
+
+    /** The one completion update: only the reading (an object) and the route. */
+    fun completion(readingJson: String, route: RouteRecord): Map<String, Any?> = linkedMapOf(
+        "reading" to requireNotNull(CameraSightingJson.parse(readingJson)) { "reading is not a CameraSighting" }.toMap(),
+        "route" to route.toMap(),
     )
 
     fun fromMap(m: Map<String, Any?>, toMs: (Any?) -> Long): StoredClipReading? = runCatching {
@@ -37,11 +46,12 @@ object ClipReadingDoc {
             clipStartMs = (m["clipStartMs"] as Number).toLong(),
             clockConfirmed = m["clockConfirmed"] as Boolean,
             cameraFacingDeg = (m["cameraFacingDeg"] as Number?)?.toInt(),
-            readingJson = toJson(m["reading"]).toString(),
+            readingJson = m["reading"]?.let { toJson(it).toString() },
             route = (m["route"] as Map<*, *>?)?.let { route(it) },
             consent = consent(m["sha256"] as String, m["consent"] as Map<*, *>),
             expiresAtMs = toMs(m["expiresAt"]),
             createdAtMs = toMs(m["createdAt"]),
+            createdByUid = m["createdByUid"] as String,
         )
     }.getOrNull()
 

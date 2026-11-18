@@ -275,6 +275,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             bytes = bytes, mimeType = runCatching { app.contentResolver.getType(uri) }.getOrNull() ?: "video/mp4",
             durationS = durationS, clipStartMs = startMs, clockConfirmed = form.clockConfirmed, cameraFacingDeg = form.facingDeg,
             consent = consent, killCloud = { rc.current().killCloud }, modelName = rc.current().clipModel,
+            uploaderUid = uid,
         )
         return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
             is ClipOutcome.Read -> {
