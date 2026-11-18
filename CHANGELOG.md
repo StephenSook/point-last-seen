@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The live probe takes a `site` input on a manual run: the wrong-URL control. Pointed at a wrong site, both App
+  Check steps must fail, which proves they can fail. Scheduled runs pass the empty input and keep the real site.
+  Source: review (each monitor needs a control that proves it can fail).
+  Verified: the test (a set `PLS_SITE` replaces the site; empty or unset keeps the real one) failed first, with
+  the constant restored to a fixed site it fails again, now 13 probe tests pass; locally the no-token step exits
+  1 against `https://wrong-site.invalid` and 0 against the real site; `bash scripts/ci-local.sh` exit 0.
 - Firestore rules close the duplicate camera Confirm. An incident update that changes any prior input (the
   input event ids, the start point and its source, the prior's layers, terrain, model, seed or engine
   settings) must raise `priorVersion` by exactly 1 in the same write. A camera sighting created by command must

@@ -25,7 +25,8 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-SITE = "https://buildhybridai-2026-yg3m.web.app"
+# PLS_SITE is the wrong-URL control: a manual run pointed at another site must fail. Empty means the real site.
+SITE = os.environ.get("PLS_SITE") or "https://buildhybridai-2026-yg3m.web.app"
 MODEL = "gemini-3.5-flash-lite"
 REFUSAL = "Firebase App Check token is invalid."
 WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
