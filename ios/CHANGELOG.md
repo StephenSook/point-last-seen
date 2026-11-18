@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the field day and night colours with a contrast check
+- What: `Contrast.ratio` (WCAG) and `FieldTheme.day` / `FieldTheme.night` from design section
+  22.1. Day: black, white text, one amber `#FFB020` for the Report bar and "your segment", a
+  six-step grey ladder for probability. Night: red on black (`#FF5448` primary, `#ED4138`
+  secondary, `#C93029` only at 24 pt or more, `#831B16` lines), a six-step red lightness ramp,
+  and the top class hatched. Probability is shown by lightness and a printed number, never hue.
+- Source: promotion P-16 (night mode, locked in the design), Task 25; design section 22.1.
+- Ruling: the plan named the namespace `Tokens`; Core already has `Tokens` (the report parser's
+  token list), so the theme is `FieldTheme`. Interface otherwise as planned.
+- Verified: six `ContrastTests` (day and night text pairs, both ramps, the 24 pt rule, every
+  text role at least 4.5 to 1) compile-red without the types, then green; full suite;
+  `scripts/ci-local.sh` exit 0.
+
 ### refactor(ios): send the tools' and prompt's words from the Core allow-listed text
 - What: `SegmentAtTool`, `TeamAssignmentTool` and `SubjectProfileTool` take their names,
   descriptions and outputs from `ToolText`; `ReportPrompt` wraps `PromptText`. The words the app
