@@ -121,6 +121,15 @@ export interface PhotoCues {
   evidence: string;
 }
 
+/** A camera sighting event's reading (ruling I10): the model's read plus the clip reference. */
+export interface CameraSightingReading {
+  sighting: CameraSighting;
+  clipSha256: string;
+  clipStartMs: number;
+  clockConfirmed: boolean;
+  cameraFacingDeg: 0 | 45 | 90 | 135 | 180 | 225 | 270 | 315 | null;
+}
+
 export interface EventDoc {
   eventId: string;
   schemaVersion: 1;
@@ -140,7 +149,7 @@ export interface EventDoc {
   rawText: string | null;
   inputMethod: InputMethod;
   isTrainingInject: boolean;
-  reading: ReportReading | CameraSighting | null;
+  reading: ReportReading | CameraSightingReading | null;
   effect: Effect;
   route: RouteRecord | null;
   targetEventId: string | null;

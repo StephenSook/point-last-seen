@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
+  TS type of the same name): the model's CameraSighting, `clipSha256`, `clipStartMs`, `clockConfirmed`
+  and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules
+  check that exact shape and that `clipReadings/{clipSha256}` exists. Command places and confirms the
+  sighting from it; no extra event field is added.
+  Source: orchestrator ruling I10 (lane D found the camera sighting had no link to its clip reading).
+  Verified: 2 new tests (valid readings accepted; null reading, unknown clip, bad hash, 10-degree facing,
+  text clock flag, extra key, missing parts and a text sighting refused) failed first (1 of 2), now 81
+  emulator tests pass; schema parity checks 14 TS types (0 failures); typecheck and ci-local exit 0.
 - The App Check test now sends a valid Auth emulator ID token and varies only the App Check header (none,
   and a bad token): both get 401 with the wrapper's "Unauthenticated" message, never the handler's sign-in
   message, and no claims are set. A control sends the same request through a callable built without

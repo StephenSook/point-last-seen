@@ -225,6 +225,20 @@ service cloud.firestore {
       return hashing.sha256(frame(incidentId) + frame(deviceId) + frame(string(seq))).toHexString().lower();
     }
 
+    // A camera sighting carries its clip reference (ruling I10): the model's sighting, the clip's SHA-256,
+    // its start time, whether the family confirmed the camera clock, and an 8-way facing or null. The clip
+    // reading doc (consent record) must exist.
+    function cameraReadingOk(incidentId, r) {
+      return r is map
+        && exactKeys(r, ['sighting', 'clipSha256', 'clipStartMs', 'clockConfirmed', 'cameraFacingDeg'])
+        && r.sighting is map
+        && r.clipSha256 is string && r.clipSha256.matches('^[0-9a-f]{64}$')
+        && r.clipStartMs is number
+        && r.clockConfirmed is bool
+        && (r.cameraFacingDeg == null || r.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
+        && exists(/databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(r.clipSha256));
+    }
+
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
       return isMember(incidentId)
@@ -260,6 +274,7 @@ service cloud.firestore {
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
         && typeAllowed(d.type)
         && (d.type != 'retraction' || retractionOk(incidentId, d))
+        && (d.type != 'camera_sighting' || cameraReadingOk(incidentId, d.reading))
         && (d.type != 'confirmation' || (d.targetEventId is string && d.decision in ['confirmed', 'rejected']));
     }
   }
