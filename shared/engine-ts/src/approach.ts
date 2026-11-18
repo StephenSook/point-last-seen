@@ -47,6 +47,7 @@ function applies(id: string, p: FamilyProfile): boolean {
   switch (id) {
     case "may_not_respond": return f.mayNotRespond !== false;
     case "approach_calm": return true;
+    case "stop_calling_name": return f.mayNotRespond !== false;
     case "likely_to_hide": return f.likelyToHide;
     case "afraid_of_uniforms": return f.afraidOfUniforms;
     case "validate_feelings": return f.hallucinationsOrDelusions || (p.shareDementiaType && p.dementiaType === "lewy_body");
