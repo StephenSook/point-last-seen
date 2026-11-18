@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Task 10 CLI: `npm run build-grid -w tools/grid-builder -- <site.geojson> <gridId> --osm <overpass.json> --out
+  <grid.json>` builds the grid (cells, then near-feature fractions, then stream links) and writes it with a
+  trailing newline; `--query <site.geojson>` prints the Overpass QL query for the site's bounding box (ways and
+  relations tagged highway, waterway, natural or building, `out geom`). `osmToFeatures` turns closed water and
+  buildings into polygons, a multipolygon's closed outer members into polygons, and keeps waterway lines in way
+  order (the flow direction). Missing arguments print usage and exit 2.
+  Source: plan Task 10 (the CLI half; the drill site, the run and pmtiles wait for Stephen's site, step 5).
+  Verified: 4 new tests failed first (no module), now 14 grid-builder tests pass (same inputs give the same
+  bytes; the centre cell sees the pond and the stream but not the trail 125 m away); typecheck exits 0; the
+  CLI run by hand printed the query (exit 0) and usage (exit 2); `bash scripts/ci-local.sh` exit 0.
 - Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
   `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
   test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
