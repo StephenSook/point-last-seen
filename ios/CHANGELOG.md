@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): read the pack's segments into the grid and the prior
+- What: `PackSegments.parse` turns `pack-segments` documents into the grid (segmentId code-point
+  order, `geometryJson` parsed as a GeoJSON Polygon string, `centroid` {lat, lon}) and the
+  engine prior (grid segments in that order, then ROW last from its own document). A pack with no
+  ROW document, a broken segment (named in the error) or mixed prior versions is refused.
+- Source: Task 12b (PackLoader), lane A's pack rulings (ROW never computed as one minus the
+  rest, geometryJson string, centroid shape).
+- Verified: four `PackSegmentsTests` red without the type, then green; full suite 186 tests.
+
 ### feat(ios-core): add the approved plan and its per-team assignment
 - What: `PlanDoc` and `Assignment` with the field names of `shared/schemas/plan.schema.json`
   (all keys encoded, nulls written out); `assignment(for:)` gives a team its segments. The phone
