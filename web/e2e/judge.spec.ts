@@ -14,7 +14,7 @@ test("with no built-in model D2 shows the no-model message and sends nothing", a
   expect(consoleErrors).toEqual([]);
 });
 
-test("before a run is published the page says so once and offers a practice search first", async ({ page }) => {
+test("before a run is published the page says so once and offers a practice search first", { tag: "@no-backend" }, async ({ page }) => {
   await page.goto("/judge");
   await expect(page.getByRole("region", { name: "Replay the training drill" }).getByText("No published run yet.")).toBeVisible();
   await expect(page.getByText("No published run yet.")).toHaveCount(1);
@@ -48,7 +48,7 @@ test("the judge page names the cloud model Remote Config selects right now", asy
   await expect(details).toContainText("Measured on Chrome");
 });
 
-test("the join page says what the product does and sends judges to the judge's door", async ({ page }) => {
+test("the join page says what the product does and sends judges to the judge's door", { tag: "@no-backend" }, async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("purpose")).toHaveText("Plans where to search for a missing person, and updates the map as reports come in.");
   const link = page.getByRole("link", { name: "Judges: start here" });
@@ -57,7 +57,7 @@ test("the join page says what the product does and sends judges to the judge's d
   await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
 });
 
-test("/llms.txt says what the site is and where a judge starts", async ({ request }) => {
+test("/llms.txt says what the site is and where a judge starts", { tag: "@no-backend" }, async ({ request }) => {
   const res = await request.get("/llms.txt");
   expect(res.status()).toBe(200);
   expect(res.headers()["content-type"]).toMatch(/^text\/plain/);

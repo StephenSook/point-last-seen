@@ -9,14 +9,14 @@ for (const width of [1440, 390]) {
   test.describe(`at ${width} px`, () => {
     test.use({ viewport: { width, height: width === 390 ? 844 : 900 } });
 
-    test("the join page has no WCAG A or AA violation", async ({ page }) => {
+    test("the join page has no WCAG A or AA violation", { tag: "@no-backend" }, async ({ page }) => {
       await page.goto("/");
       await page.getByLabel("Join code").waitFor();
       const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
       expect(describe(r.violations)).toEqual([]);
     });
 
-    test("the judge page has no WCAG A or AA violation", async ({ page }) => {
+    test("the judge page has no WCAG A or AA violation", { tag: "@no-backend" }, async ({ page }) => {
       await page.goto("/judge");
       await page.getByRole("heading", { name: "Judge's door" }).waitFor();
       const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();

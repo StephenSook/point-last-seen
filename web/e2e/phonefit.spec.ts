@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 test.describe("phone fit", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("fields use 16 px text (no zoom on focus) and buttons are at least 44 px tall", async ({ page }) => {
+  test("fields use 16 px text (no zoom on focus) and buttons are at least 44 px tall", { tag: "@no-backend" }, async ({ page }) => {
     await page.goto("/");
     await page.getByLabel("Join code").waitFor();
     for (const label of ["Incident id", "Join code"]) {
@@ -15,7 +15,7 @@ test.describe("phone fit", () => {
   });
 });
 
-test("the product name is on the join page and the judge page", async ({ page }) => {
+test("the product name is on the join page and the judge page", { tag: "@no-backend" }, async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Point Last Seen", { exact: true })).toBeVisible();
   await page.goto("/judge");

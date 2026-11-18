@@ -1020,3 +1020,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a test that a 500 from AI Logic (how the proxy returns the before-generate guard refusing a model off the allow-list) gives the plan's fixed wording and "The cloud step did not answer. The plan below uses fixed wording.", never the raw error. The other cloud reads already turn any thrown error into a plain sentence: the photo ("Couldn't read this photo."), the sighting note ("The note could not be read. Fill the fields by hand.") and the clip ("The clip was not read. Try again.").
 - Source: lane A's note on the guard's error shape.
 - Verified: passes as written; with the fallback sentence replaced by the raw error (mutant) it fails. scripts/ci-local.sh exit 0.
+
+### ci(web): run the browser checks that need no backend on every web pull request
+- What: the `web` workflow now installs Playwright's Chromium and runs `e2e/ci.config.ts` against its placeholder-config build: the tests tagged `@no-backend` (judge page offers the practice search and says once that no run is published; join page purpose and judges link; /llms.txt; phone fit on the join page; product name on both pages; axe on the join and judge pages at 1,440 and 390 px). The specs that need a joined drill (layout, contrast, focus, offline) wait for CI test keys, which need Stephen's yes.
+- Source: review item 5, option 2 (run what needs no Firebase now).
+- Verified: locally, a build with the workflow's exact placeholder values, served by `vite preview`, with Playwright's bundled Chromium: 9 passed. scripts/ci-local.sh exit 0 (it does not run Playwright; the browser step was run by hand as above).
