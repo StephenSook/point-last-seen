@@ -50,7 +50,9 @@ test("the legend names the source and says display only", async ({ page }) => {
   await expect(legend).toContainText("Elevation: U.S. Geological Survey. Display only. The prior has no elevation term.");
 });
 
-test("without this site's elevation file the item is disabled", async ({ page }) => {
+test("without this site's elevation file the item is not in the menu", async ({ page }) => {
   await ready(page, "?elev=none");
-  await expect(await terrainItem(page)).toBeDisabled();
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Replay" })).toBeVisible();
+  await expect(page.getByRole("menuitemcheckbox", { name: /^Terrain/ })).toHaveCount(0);
 });

@@ -115,13 +115,16 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
             setOpen(false);
           }}>{checkTitle}</button>
           {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} onError={() => setExportFailed(true)} />}
-          <button type="button" role="menuitemcheckbox" aria-checked={terrain.on} disabled={!terrain.available} onClick={() => {
-            terrain.toggle();
-            setOpen(false);
-          }}>
-            Terrain
-            {!terrain.available && <small>Not available for this map.</small>}
-          </button>
+          {/* Offered only where this site's elevation file shipped (it passed its stream gate). */}
+          {terrain.file && (
+            <button type="button" role="menuitemcheckbox" aria-checked={terrain.on} disabled={!terrain.available} onClick={() => {
+              terrain.toggle();
+              setOpen(false);
+            }}>
+              Terrain
+              {!terrain.available && <small>Available once the map has loaded.</small>}
+            </button>
+          )}
         </div>
       </div>
       {exportFailed && <p role="alert" className="extras-dock-alert">GeoJSON could not be exported.</p>}
