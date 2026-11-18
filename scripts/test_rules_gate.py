@@ -178,3 +178,57 @@ def test_availability_ban_covers_optional_chaining_and_brackets(tmp_path):
 def test_docs_may_name_the_availability_call(tmp_path):
     write(tmp_path, "CHANGELOG.md", "The gate keeps `LanguageModel?.availability` in web/src/ai/gate.ts.\n")
     assert run_gate(tmp_path).returncode == 0
+
+
+def test_licensed_font_names_are_banned_outside_docs(tmp_path):
+    # Task 39: only the OFL fonts in web/public/fonts ship; a stray reference to a commercial face fails.
+    write(tmp_path, "web/src/styles/type.css", "body { font-family: 'Berkeley Mono', monospace; }\n")
+    write(tmp_path, "web/src/clock.tsx", "const f = 'digital-7';\n")
+    write(tmp_path, "docs/design.md", "We do not use Berkeley Mono or Digital-7.\n")
+    out = run_gate(tmp_path)
+    assert out.returncode == 1
+    assert "web/src/styles/type.css:1" in out.stdout and "web/src/clock.tsx:1" in out.stdout
+    assert "docs/design.md" not in out.stdout
+
+
+def test_animejs_is_imported_only_by_the_motion_engine(tmp_path):
+    write(tmp_path, "web/src/motion/engine.ts", 'import { animate } from "animejs";\n')
+    write(tmp_path, "web/src/command/Card.tsx", "import { animate } from 'animejs';\n")
+    write(tmp_path, "web/src/other.ts", 'const m = await import("animejs/timeline");\n')
+    write(tmp_path, "web/package.json", '{"dependencies": {"animejs": "4.5.0"}}\n')
+    out = run_gate(tmp_path)
+    assert out.returncode == 1
+    assert "web/src/command/Card.tsx:1" in out.stdout and "web/src/other.ts:1" in out.stdout
+    assert "web/src/motion/engine.ts:1" not in out.stdout and "web/package.json" not in out.stdout
+
+
+def test_no_remote_font_host_in_the_web_page_or_css(tmp_path):
+    write(tmp_path, "web/index.html", '<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet">\n')
+    write(tmp_path, "web/src/styles/fonts.css", "@import url('https://use.typekit.net/abc.css');\n")
+    write(tmp_path, "web/src/styles/local.css", "@font-face { src: url('/fonts/dinish/DINish-Regular.woff2'); }\n")
+    out = run_gate(tmp_path)
+    assert out.returncode == 1
+    assert "web/index.html:1" in out.stdout and "web/src/styles/fonts.css:1" in out.stdout
+    assert "local.css" not in out.stdout
+
+
+MODELS = '{"models": [{"id": "gemini-3.5-flash-lite"}], "banned": [{"id": "gemini-3.1-flash-tts-preview"}]}'
+
+
+def test_model_ids_in_source_must_be_on_the_allow_list(tmp_path):
+    write(tmp_path, "shared/constants/models.json", MODELS)
+    write(tmp_path, "web/src/config/rc.ts", 'cloud_model_web: "gemini-3.5-flash-lite",\n')
+    write(tmp_path, "ios/PLS/Config/Values.swift", 'let m = "gemini-3.6-flash-lite"\n')
+    write(tmp_path, "web/src/config/rc.test.ts", 'parseRc({ cloud_model_web: "gemini-3.6-flash-lite" })\n')
+    write(tmp_path, "docs/models.md", "We tried gemini-3.6-flash-lite once.\n")
+    out = run_gate(tmp_path)
+    assert out.returncode == 1
+    assert "ios/PLS/Config/Values.swift:1" in out.stdout
+    assert "rc.ts:1" not in out.stdout and "rc.test.ts" not in out.stdout and "models.md" not in out.stdout
+
+
+def test_a_model_shut_down_before_judging_ends_fails_even_in_tests(tmp_path):
+    write(tmp_path, "shared/constants/models.json", MODELS)
+    write(tmp_path, "android/app/src/test/java/TtsTest.kt", 'val m = "gemini-3.1-flash-tts-preview"\n')
+    out = run_gate(tmp_path)
+    assert out.returncode == 1 and "TtsTest.kt:1" in out.stdout

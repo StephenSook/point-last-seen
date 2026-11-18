@@ -8,6 +8,11 @@ must give.
 - [ ] Publish only the Play Integrity release APK. Run `android/scan-apk.sh` on the exact signed APK (it
   runs inside `release.sh`): it must report 0 hits for debug tokens, token resources,
   `FIREBASE_APPCHECK_DEBUG_TOKEN` and the debug provider. A debug APK reports 5 and is never published.
+- [ ] Raise the Remote Config key `minimum_version_android` only after the repo is public (not before Sat
+  2026-11-28) and the release APK is a GitHub Release asset. The family app's update screen opens
+  https://github.com/StephenSook/point-last-seen/releases/latest, which is a 404 while the repo is private.
+  Check first: `gh repo view StephenSook/point-last-seen --json visibility` says PUBLIC, and
+  `gh release view --repo StephenSook/point-last-seen` lists an .apk asset.
 
 ## Firebase project
 
@@ -18,3 +23,49 @@ must give.
 - [ ] Every callable answers with its own JSON, not Cloud Run's HTML 401: firebase-tools grants a callable's
   public invoker (`roles/run.invoker` for `allUsers`) only when it creates the function, so a function whose
   first create failed needs `gcloud run services get-iam-policy <service>` checked after the retry.
+- [ ] The Storage lifecycle rule is in place: `gcloud storage buckets describe gs://buildhybridai-2026-yg3m.firebasestorage.app
+  --format=json` shows one Delete rule, age 30, prefixes clips/, photos/, packs/; the daily probe
+  (`scripts/media_probe.py`) checks the same thing without credentials.
+- [ ] The clipReadings TTL policy is ACTIVE: `gcloud firestore fields ttls list --project buildhybridai-2026-yg3m`
+  lists `clipReadings/fields/expiresAt` as ACTIVE (it is declared in firestore.indexes.json and deployed with
+  the indexes).
+
+## Judging window (2026-12-10 to 2026-12-16)
+
+Every time-based value on a judged path, what it does on Dec 10 and Dec 16, and what keeps it right. Nothing
+here may need an edit to the live site after the 2026-11-30 deadline: a value that could change behaviour
+inside the window has a test (`scripts/test_judging_window.py`) or a line below that fails before submit.
+
+| Value | Dec 10 and Dec 16 | What refreshes or guards it |
+|---|---|---|
+| Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
+| clipReadings TTL (expiresAt in the future, at most 31 days) | Drill readings from the Nov 22 drill expire Dec 22 or later | Rules bound (31 days) and the declared TTL, both pinned by the test; a sandbox copy must get a fresh expiresAt (line below) |
+| Judge sandbox: expires 24 h after start, one per visitor per hour, daily cap from Remote Config | Each judge's sandbox lives 24 h; its media goes within 15 min of the end | `deleteIncidentMedia` every 15 min (no end date); the daily cap key (line below) |
+| App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
+| App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
+| Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
+| `deleteIncidentMedia` schedule (Cloud Scheduler, every 15 min) | Runs throughout | No end date; `ops/storage.checkedAt` older than 2 h fails the daily probe |
+| Daily probe workflow (`probe.yml`, 13:23 UTC) | Runs; GitHub cron can start hours late | Both scripts retire after 2026-12-17, pinned by the test |
+| GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public from 2026-11-28, last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |
+| Actions budget ($15, resets monthly on the 1st) | December has its own $15; the repo is public from 2026-11-28, so its minutes are free | Line below |
+| Gemini spend cap ($25 budget) | Judge sandboxes call the cloud; burn rate NOT MEASURED yet | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below measures it |
+| Model versions pinned in prompts and Remote Config | A model shut down inside the window breaks the cloud route | The rules gate pins every id to `shared/constants/models.json` (read 2026-11-18); line below re-reads it |
+| Artifact Registry cleanup (1 day) | Deletes old function images only; running functions keep serving | Nothing; a rollback rebuilds from source |
+
+- [ ] Every judge-sandbox copy of a clip reading gets `expiresAt` set from the sandbox's own end (Task 23,
+  `startJudgeSession`), never the drill's original value, so the TTL cannot remove a sandbox's readings early.
+- [ ] The daily sandbox cap key exists: `firebase remoteconfig:get --project buildhybridai-2026-yg3m` lists it
+  with a value, or the function's in-code default is written here. On 2026-11-18 the server template had no
+  parameters at all.
+- [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
+  and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
+  already used. If not, lower the daily cap before submit.
+- [ ] Re-read https://firebase.google.com/docs/ai-logic/models on 2026-11-28 or later: every id under `models`
+  in `shared/constants/models.json` still shows no shutdown date before 2026-12-17, any newly retiring id moves
+  to `banned`, and `readOn` is updated. The rules gate then fails on any source that still names a banned or
+  unlisted id. Remote Config values are checked the same way before the template is published.
+- [ ] `gh api repos/StephenSook/point-last-seen --jq .pushed_at` is after 2026-11-17 (the 60-day cutoff for
+  scheduled workflows lands after 2026-12-16), and `gh api repos/StephenSook/point-last-seen/actions/workflows
+  --jq '.workflows[] | "\(.state) \(.path)"'` shows probe.yml `active`, with its newest run under 26 hours old.
+- [ ] The Actions budget for December is set (Settings > Billing > Budgets) or the repo is public, so the
+  daily probe is not blocked by billing during the window.
