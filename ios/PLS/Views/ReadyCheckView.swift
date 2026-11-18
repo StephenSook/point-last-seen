@@ -1,3 +1,4 @@
+import PLSCore
 import SwiftUI
 
 /// The Ready check: what must be true before the team leaves signal, each line from the real
@@ -9,6 +10,11 @@ struct ReadyCheckView: View {
         List {
             Section {
                 Text("Training drill. Nobody is missing.").font(.headline)
+            }
+            if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                Section("How to approach them") {
+                    ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                }
             }
             Section("Before you leave signal") {
                 Label(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", systemImage: "person.badge.key")

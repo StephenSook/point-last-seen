@@ -35,6 +35,8 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/evidence-terms.json
         buildPhase: resources
+      - path: ../shared/constants/approach-notes.json
+        buildPhase: resources
     info:
       path: PLS/Info.plist
       properties:

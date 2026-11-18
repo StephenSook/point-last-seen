@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): show the approach card on the Ready check
+- What: `approach-notes.json` is bundled into the app; `ApproachCardView` shows the first lines,
+  the rest under More, and the footer; the Ready check shows it under "How to approach them" when
+  the pack carries `profile/shared` (`Mission.sharedProfile`, filled by the pack loader).
+- Source: Task 35 (ApproachCardView), spec section 13.3.
+- Verified: a bundled-file test (`theAppBundleCarriesTheApproachNotes`) compile-red, then green;
+  29 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): build the approach card from the profile's note ids
 - What: `ApproachNotes` reads `shared/constants/approach-notes.json`; `ApproachCard.build` takes
   the note ids command chose (`approachNoteIds`), orders them by the file, fills in the family's
