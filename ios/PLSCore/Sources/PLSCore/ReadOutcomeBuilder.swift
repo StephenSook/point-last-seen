@@ -100,9 +100,25 @@ public enum ReadOutcomeBuilder {
             schemaVersion: 1, incidentId: context.incidentId, teamId: context.teamId, deviceId: context.deviceId, seq: seq,
             authorUid: context.authorUid, role: .searcher, type: type, reporter: .searcher, clientTimeMs: context.clientTimeMs,
             serverTime: nil, observedAtMs: type == .sighting ? observedAt(rawText, context) : nil, position: position, positionSource: source,
-            rawText: PhoneNumbers.scrub(rawText), inputMethod: context.inputMethod, isTrainingInject: context.isTrainingInject,
+            rawText: capped(PhoneNumbers.scrub(rawText)), inputMethod: context.inputMethod, isTrainingInject: context.isTrainingInject,
             reading: storedReading.flatMap { try? JSONValue(encoding: $0) }.map { PhoneNumbers.scrub(json: $0) }, effect: effect, route: outcome.route,
             targetEventId: nil, decision: nil, planVersion: nil, priorVersion: context.priorVersion)
+    }
+
+    /// The create rule allows `rawText` of at most 2,000; 2,000 UTF-8 bytes is at or under 2,000
+    /// in any unit the rule may count, so the server never refuses a report for its length.
+    public static let maxRawTextBytes = 2_000
+
+    /// Cuts at a character boundary so the stored text stays valid.
+    public static func capped(_ text: String) -> String {
+        guard text.utf8.count > maxRawTextBytes else { return text }
+        var out = "", bytes = 0
+        for ch in text {
+            let n = String(ch).utf8.count
+            if bytes + n > maxRawTextBytes { break }
+            out.append(ch); bytes += n
+        }
+        return out
     }
 
     public enum RetractionError: Error, Equatable { case notTheAuthor }

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): cap the stored report text at the rules' 2,000 limit
+- What: after the phone-number scrub (which can make text longer), the stored `rawText` is cut
+  at a character boundary to at most 2,000 UTF-8 bytes, which is at or under 2,000 in any unit
+  the create rule's `size()` may count. Before, a long report was refused by the server forever
+  and Retry could never help.
+- Source: fresh-eyes review I3; plan Review Focus 2 (the 2,000-character case).
+- Verified: the new test (2,500 letters, 700 four-byte emoji, a scrub that grows the text)
+  failed on all three, then passed; full suite 193 tests.
+
 ### fix(ios): no token count for evidence text or outside a drill
 - What: `ReportReader` runs the evidence screen and the drill or judge check before it counts
   tokens with Apple's model, and skips the count when either stops the read. Before, the report

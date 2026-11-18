@@ -152,4 +152,17 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
         #expect(ReadOutcomeBuilder.event(from: saw, rawText: "saw her 20 minutes ago in AC", position: fix, context: picked, seq: 43).observedAtMs == 1_699_999_000_000)
         #expect(ReadOutcomeBuilder.event(from: outcome(), rawText: raw, position: fix, context: base, seq: 44).observedAtMs == nil)
     }
+
+    @Test func storedTextNeverExceedsTheRulesLimit() {
+        let long = String(repeating: "a", count: 2_500)
+        let e = ReadOutcomeBuilder.event(from: outcome(kind: .unclear), rawText: long, position: fix, context: outcomeCtx(), seq: 50)
+        #expect((e.rawText ?? "").utf8.count <= 2_000)
+        let emoji = String(repeating: "\u{1F332}", count: 700)                    // 4 bytes each
+        let f = ReadOutcomeBuilder.event(from: outcome(kind: .unclear), rawText: emoji, position: fix, context: outcomeCtx(), seq: 51)
+        #expect((f.rawText ?? "").utf8.count <= 2_000)
+        #expect(f.rawText?.unicodeScalars.allSatisfy { $0 == "\u{1F332}" } == true)   // cut at a character boundary
+        let phones = String(repeating: "call 4045550123 ", count: 120)             // the scrub makes it longer
+        let g = ReadOutcomeBuilder.event(from: outcome(kind: .unclear), rawText: phones, position: fix, context: outcomeCtx(), seq: 52)
+        #expect((g.rawText ?? "").utf8.count <= 2_000)
+    }
 }
