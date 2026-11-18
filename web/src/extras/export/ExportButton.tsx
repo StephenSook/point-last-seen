@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { IncidentView, PlanDoc, ViewState } from "../laneC";
+import { loadGeoJsonExport } from "../lazyPanels";
 import { buildPrintModel } from "../print/printModel";
-import { exportFileName, segmentsToGeoJson } from "./geojsonExport";
 
 type Props = {
   view: IncidentView;
@@ -14,10 +14,12 @@ type Props = {
 export function ExportButton({ view, plans, vs, reportCount, onExported }: Props) {
   const [error, setError] = useState(false);
 
-  function save() {
+  async function save() {
     if (vs === null) return;
     setError(false);
     try {
+      // Loaded on first use (and prefetched when the page is idle, so it also works with the link down).
+      const { exportFileName, segmentsToGeoJson } = await loadGeoJsonExport();
       const nowMs = Date.now();
       const model = buildPrintModel({ view, plans, code: vs.code, eventCount: reportCount, nowMs });
       const json = segmentsToGeoJson({
@@ -44,7 +46,7 @@ export function ExportButton({ view, plans, vs, reportCount, onExported }: Props
 
   return (
     <>
-      <button type="button" role="menuitem" disabled={vs === null} onClick={save} title="GeoJSON (RFC 7946)">
+      <button type="button" role="menuitem" disabled={vs === null} onClick={() => void save()} title="GeoJSON (RFC 7946)">
         Export GeoJSON{vs === null && <small>Build the prior first.</small>}
       </button>
       {error && <p role="alert">GeoJSON could not be exported.</p>}

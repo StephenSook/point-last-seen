@@ -1,15 +1,10 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from "react";
-import { flushSync } from "react-dom";
+import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
-import { printableApproachLines, type IncidentView, type PlanDoc } from "./laneC";
-import { Ics204 } from "./print/Ics204View";
-import { defaultTyped, ics204Sheets } from "./print/ics204";
-import { buildPrintModel, DRILL_LABEL, isStale, type PrintModel } from "./print/printModel";
-import { ExtrasDialog, PrintRoot } from "./print/PrintRoot";
-import { radioCards } from "./radio/radioCard";
-import { RadioCards } from "./radio/RadioCards";
-import { RadioCodeCheck } from "./radio/RadioCodeCheck";
-import { ReplayPanel } from "./replay/ReplayPanel";
+import { printableApproachLines, type IncidentView } from "./laneC";
+import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
+import type { PrintSessionData } from "./print/PrintSession";
+import { buildPrintModel, DRILL_LABEL } from "./print/printModel";
+import { ExtrasDialog } from "./print/PrintRoot";
 import { fromLive } from "./replay/replayData";
 import { TerrainLegend } from "./terrain/TerrainLegend";
 import { fetchElevation, useTerrain } from "./terrain/useTerrain";
@@ -20,81 +15,8 @@ const replayTitle = "Replay";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
 const checkTitle = "Check a radio code";
-const editFields = [
-  ["dateFrom", "Date From", "mm/dd/yyyy"], ["dateTo", "Date To", "mm/dd/yyyy"],
-  ["timeFrom", "Time From", "hh:mm"], ["timeTo", "Time To", "hh:mm"],
-  ["branch", "Branch"], ["division", "Division"], ["group", "Group"], ["stagingArea", "Staging Area"],
-] as const;
 
-type PrintSessionData = { kind: "assignment" | "cards"; model: PrintModel; approachLines: string[] };
 type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "replay" };
-
-function PrintSession({ session, plans, matchCode, reportCount, onClose, returnFocus }: {
-  session: PrintSessionData;
-  plans: readonly PlanDoc[];
-  matchCode: string | null;
-  reportCount: number;
-  onClose: () => void;
-  returnFocus: RefObject<HTMLButtonElement | null>;
-}) {
-  const { model, approachLines, kind } = session;
-  const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [typed, setTyped] = useState(() => defaultTyped(model, timeZone));
-  const [printedAtMs, setPrintedAtMs] = useState(model.printedAtMs);
-  const drillLine = model.mode === "drill" ? DRILL_LABEL : null;
-  useEffect(() => {
-    const stamp = () => flushSync(() => setPrintedAtMs(Date.now()));
-    window.addEventListener("beforeprint", stamp);
-    return () => window.removeEventListener("beforeprint", stamp);
-  }, []);
-
-  let staleMessage: string | null = null;
-  if (isStale(model, plans)) {
-    const latest = Math.max(...plans.map(({ version }) => version).filter(Number.isInteger));
-    staleMessage = `A newer plan (v${latest}) was approved. Print again.`;
-  }
-  if (kind === "cards") {
-    // Q2 is open until the command report flow is available.
-    const cards = radioCards(model, { sayLines: false });
-    return (
-      <PrintRoot title={cardsTitle} onClose={onClose} returnFocus={returnFocus} staleMessage={staleMessage} drillLine={drillLine}
-        emptyMessage={cards.length === 0 ? "No teams to print." : undefined}>
-        <RadioCards cards={cards} matchCode={matchCode} />
-      </PrintRoot>
-    );
-  }
-
-  const sheets = ics204Sheets({ ...model, matchCode, reportCount, printedAtMs }, typed, approachLines, timeZone);
-  const controls = sheets.length === 0 ? undefined : (
-    <>
-      <div className="extras-edit-fields">
-        {editFields.map(([key, label, placeholder]) => (
-          <label key={key}>
-            {label}
-            <input value={typed[key]} placeholder={placeholder} onChange={(event) => {
-              const value = event.target.value;
-              setTyped((current) => ({ ...current, [key]: value }));
-            }} />
-          </label>
-        ))}
-      </div>
-      <label className="extras-note-option">
-        <input type="checkbox" checked={typed.includeApproachNotes} onChange={(event) => {
-          const includeApproachNotes = event.target.checked;
-          setTyped((current) => ({ ...current, includeApproachNotes }));
-        }} />
-        Include the approach notes
-      </label>
-    </>
-  );
-
-  return (
-    <PrintRoot title={assignmentTitle} onClose={onClose} returnFocus={returnFocus} controls={controls} staleMessage={staleMessage} drillLine={drillLine}
-      emptyMessage={sheets.length === 0 ? "No approved plan to print." : undefined}>
-      {sheets.map((sheet) => <Ics204 key={sheet.page} sheet={sheet} />)}
-    </PrintRoot>
-  );
-}
 
 export function ExtrasDock({ incidentId, state, vs, map, loadElevation = fetchElevation }: DockProps): JSX.Element | null {
   if (state.denied || state.view === null) return null;
@@ -115,6 +37,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
   // The replay follows the live state while it is open: a report that lands extends the window.
   const replayData = useMemo(() => fromLive(view, state.events, state.plans), [view, state.events, state.plans]);
   const terrain = useTerrain(view, map, loadElevation);
+  useEffect(() => prefetchDockPanels(), []);
   const snapshot = () => buildPrintModel({ view, plans: state.plans, code: matchCode, eventCount: reportCount, nowMs: Date.now() });
 
   function menuItems() {
@@ -200,18 +123,24 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
           {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}
-          <RadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
+          <Suspense fallback={<p>Loading.</p>}>
+            <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
+          </Suspense>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
       {surface?.kind === "replay" && replayData && (
         <ExtrasDialog title={replayTitle} onClose={closeDialog} returnFocus={more} className="extras-replay-dialog">
-          <ReplayPanel data={replayData} />
+          <Suspense fallback={<p>Loading.</p>}>
+            <LazyReplayPanel data={replayData} />
+          </Suspense>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
       {surface && surface.kind !== "check" && surface.kind !== "replay" && (
-        <PrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
+        <Suspense fallback={null}>
+          <LazyPrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
+        </Suspense>
       )}
     </>
   );

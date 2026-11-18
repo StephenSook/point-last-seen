@@ -30,7 +30,8 @@ test("arrow keys turn the cube and the table stays the same", async ({ page }) =
 test("the longest bar in the picture is the longest wait in the table", async ({ page }) => {
   await page.goto(harness);
   const section = page.getByRole("region", { name: "Space and time" });
-  await expect(section).toBeVisible();
+  // The cube loads on first use: wait for its bars before reading them.
+  await expect(section.locator("line[data-bar]").first()).toBeAttached();
   const ids = await section.evaluate((el) => {
     const bars = [...el.querySelectorAll<SVGLineElement>("line[data-bar]")].map((b) => ({
       id: b.dataset["bar"]!,

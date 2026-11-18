@@ -1,11 +1,9 @@
-import { useMemo, useState, type JSX } from "react";
-import { SpaceTimeCube } from "./cube/SpaceTimeCube";
+import { Suspense, useEffect, useMemo, useState, type JSX } from "react";
 import { cubeGate, cubeScene } from "./cube/scene";
 import type { PublishedRun } from "./laneC";
-import { ReplayPanel } from "./replay/ReplayPanel";
+import { LazyReplayPanel, LazyScamPanel, LazySpaceTimeCube, prefetchJudgePanels } from "./lazyPanels";
 import { fromPublishedRun } from "./replay/replayData";
 import { replayWindow } from "./replay/stateAt";
-import { ScamPanel } from "./scam/ScamPanel";
 import { loadScam } from "./scam/scamModel";
 import "./extras.css";
 
@@ -17,6 +15,7 @@ import "./extras.css";
  */
 export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | null; scamLoad?: () => ReturnType<typeof loadScam> }): JSX.Element | null {
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+  useEffect(() => prefetchJudgePanels(), []);
   const replay = useMemo(() => (run ? fromPublishedRun(run) : null), [run]);
   const scene = useMemo(() => {
     if (!replay?.ok) return null;
@@ -29,16 +28,26 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
       {replay && (
         <section aria-labelledby="extras-replay-h" className="extras-judge-replay">
           <h2 id="extras-replay-h" className="label">Watch the run over time</h2>
-          {replay.ok ? <ReplayPanel data={replay.data} /> : <p data-testid="replay-refused">This run cannot be replayed. {replay.reason}</p>}
+          {replay.ok ? (
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazyReplayPanel data={replay.data} />
+            </Suspense>
+          ) : (
+            <p data-testid="replay-refused">This run cannot be replayed. {replay.reason}</p>
+          )}
         </section>
       )}
       {scene && (
         <section aria-labelledby="extras-cube-h" className="extras-judge-replay">
           <h2 id="extras-cube-h" className="label">Space and time</h2>
-          <SpaceTimeCube scene={scene} timeZone={timeZone} />
+          <Suspense fallback={<p>Loading.</p>}>
+            <LazySpaceTimeCube scene={scene} timeZone={timeZone} />
+          </Suspense>
         </section>
       )}
-      <ScamPanel load={scamLoad} />
+      <Suspense fallback={null}>
+        <LazyScamPanel load={scamLoad} />
+      </Suspense>
     </>
   );
 }
