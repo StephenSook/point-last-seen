@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): feed cloud request failures into networkOnline
+- What: `ReadOutcome.cloudTransport` says whether a cloud stage was used and whether its request
+  failed (network error or timeout) or succeeded; `AppModel` passes it to the connectivity
+  monitor (`requestFailed` / `requestSucceeded`). So joined Wi-Fi with no internet now counts as
+  offline for the next minute, as the earlier changelog entry for the monitor already said; before
+  this commit no code called those methods.
+- Source: fresh-eyes review I6; plan self-audit addendum (test the failed-request case).
+- Verified: two orchestrator tests (a network failure is reported; a success and an on-device
+  read are reported) compile-red without the field, then green; full suite 196 tests; app builds.
+
 ### fix(ios): retry anonymous sign-in and show it on the Ready check
 - What: `SignIn` tries anonymous sign-in at start, again on every return to signal and before a
   send, and never while one attempt is running. The Ready check shows "Signed in" or "Not signed

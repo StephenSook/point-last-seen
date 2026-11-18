@@ -1,15 +1,21 @@
 import Foundation
 
+/// What happened on the cloud route during one read, so the phone's `networkOnline` can learn
+/// from a failed request (spec: a satisfied network path is not enough).
+public enum CloudTransport: Sendable, Equatable { case notUsed, succeeded, failed }
+
 /// The result of reading one report: never thrown, always one of these.
 public struct ReadOutcome: Sendable, Equatable {
     public var reading: ReportReading
     public var route: RouteRecord
     public var validation: ValidationResult
+    public var cloudTransport: CloudTransport
 
-    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult) {
+    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed) {
         self.reading = reading
         self.route = route
         self.validation = validation
+        self.cloudTransport = cloudTransport
     }
 }
 

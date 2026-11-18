@@ -105,6 +105,11 @@ final class AppModel {
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
             liveGate: { [gate] in gate.current })
         let outcome = await reader.read(text, situation: situation)
+        switch outcome.cloudTransport {
+        case .failed: connectivity.requestFailed()
+        case .succeeded: connectivity.requestSucceeded()
+        case .notUsed: break
+        }
 
         do {
             let context = OutcomeContext(

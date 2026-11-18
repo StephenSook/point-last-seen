@@ -209,3 +209,19 @@ final class SlowRunner: ReadModelRunner, @unchecked Sendable {
     }
 }
 
+@Suite struct ReadOrchestratorTransportTests {
+    @Test func aCloudNetworkFailureIsReportedSoConnectivityCanLearnFromIt() async {
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.failure(.network)]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(o.cloudTransport == .failed)
+        #expect(o.route.stage == .deterministicParser)
+    }
+
+    @Test func aCloudSuccessAndAnOnDeviceReadReportWhatHappened() async {
+        let ok = FakeRunner(); ok.guidedResults[.cloud] = [.success(okReading())]
+        #expect(await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: ok, clock: clock).cloudTransport == .succeeded)
+        let local = FakeRunner(); local.guidedResults[.onDevice] = [.success(okReading())]
+        #expect(await ReadOrchestrator.read(text: report, context: rctx(), runner: local, clock: clock).cloudTransport == .notUsed)
+    }
+}
+

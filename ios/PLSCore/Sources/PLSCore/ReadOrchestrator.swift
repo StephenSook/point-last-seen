@@ -99,6 +99,7 @@ public enum ReadOrchestrator {
         let plan = ReadPlan.make(text: text, decision: RouterPolicy.decide(input), screen: context.screen, incidentMode: context.incidentMode)
         var decision = plan.decision
         var blocked: BlockKind?
+        var transport = CloudTransport.notUsed
 
         func finish(_ reading: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
             let model: String
@@ -110,7 +111,7 @@ public enum ReadOrchestrator {
             }
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
-            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text))
+            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -145,6 +146,9 @@ public enum ReadOrchestrator {
                 let guidedPath = path
                 let result = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
                     ?? .failure(path == .cloud ? .network : .other)
+                if guidedPath == .cloud {
+                    if case .failure(.network) = result { transport = .failed } else if transport != .failed { transport = .succeeded }
+                }
                 switch result {
                 case let .success(r):
                     if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
