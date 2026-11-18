@@ -134,6 +134,13 @@ android {
     }
 }
 
+// The unit tests read shared/ (constants, schemas, templates, test vectors). Declared as an input so a
+// change there re-runs the tests instead of keeping an old result.
+val sharedDirUnitTestsRead = File(rootProject.projectDir.parentFile, "shared")
+tasks.withType<Test>().configureEach {
+    inputs.dir(sharedDirUnitTestsRead).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("sharedDir")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
