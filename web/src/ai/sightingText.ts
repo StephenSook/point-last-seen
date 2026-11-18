@@ -44,14 +44,6 @@ export function sightingTextParams(): HybridParams {
   return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: { createOptions: SIGHTING_TEXT_OPTS, promptOptions: { responseConstraint: SIGHTING_CUES_JSON } } };
 }
 
-/** The consented cloud read of one note: strictly in the cloud, same closed schema. */
-export function sightingCloudParams(model: string): HybridParams {
-  return {
-    mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: { model, systemInstruction: SYSTEM, generationConfig: { responseMimeType: "application/json", responseJsonSchema: SIGHTING_CUES_JSON } },
-  };
-}
-
 type Reply = { text: string; inferenceSource: string | undefined };
 
 export type SightingTextDeps = {

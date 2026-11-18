@@ -3,7 +3,7 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoCloudGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
@@ -369,7 +369,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const readNoteInCloud = async (text: string) => {
     const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
-    const r = await readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingCloudGenerator(ai(), rc.cloudModelWeb)(t), killCloud: rc.killCloud });
+    const r = await readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingTemplateGenerator(ai(), rc.sightingTemplateId)(t), killCloud: rc.killCloud });
     if ("reading" in r) traced(photoRoute("cloud", Date.now() - t0));
     return r;
   };

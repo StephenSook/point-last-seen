@@ -2,10 +2,10 @@
 // instance per app, on the Gemini Developer API, with App Check tokens.
 
 import type { FirebaseApp } from "firebase/app";
-import { getAI, getGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel } from "firebase/ai";
+import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
 import { photoCloudParams, photoParams, type PhotoDeps } from "./photoCues";
-import { sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
 
@@ -44,9 +44,22 @@ export function sightingTextGenerator(ai: AI): SightingTextDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, sightingTextParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
-/** The consented cloud read of one note (ONLY_IN_CLOUD). */
-export function sightingCloudGenerator(ai: AI, model: string): SightingTextDeps["generate"] {
-  return generatorFor(getGenerativeModel(ai, sightingCloudParams(model), { timeout: REPLY_TIMEOUT_MS }));
+type TemplateModel = { generateContent: (r: TemplateRequest) => Promise<{ response: { text: () => string; inferenceSource?: string } }> };
+
+/** A server prompt template call: only the template id and the note leave the laptop. */
+export function templateGeneratorFor(model: TemplateModel, templateId: string): SightingTextDeps["generate"] {
+  return async (note) => {
+    const r = await model.generateContent({ templateId, templateVariables: { note } });
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/**
+ * The consented cloud read of one note through the server prompt template (Remote Config
+ * sighting_template_id): the template holds the model, the instruction and the output schema.
+ */
+export function sightingTemplateGenerator(ai: AI, templateId: string): SightingTextDeps["generate"] {
+  return templateGeneratorFor(getTemplateGenerativeModel(ai, { timeout: REPLY_TIMEOUT_MS }) as unknown as TemplateModel, templateId);
 }
 
 type ImageModel = Pick<GenerativeModel, "generateContent">;
