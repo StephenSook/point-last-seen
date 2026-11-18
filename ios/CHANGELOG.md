@@ -5,6 +5,23 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): match lane A's regenerated vectors (eventId framing, measured range first)
+One commit for two changes: the shared `search.json` carries both, so no tree with only one of
+them passes the Swift suite in `scripts/ci-local.sh`.
+
+- eventId text framing. What: `EventID.make` hashes the UTF-8 text
+  frame(incidentId) + frame(deviceId) + frame(decimal seq), frame(s) = decimal byte length, ":",
+  s, and keeps the first 32 hex characters; ("ab", "c", 1) hashes "2:ab1:c1:1". The Firestore
+  rules can recompute this form. `eventSetHash` and `convergenceCode` keep the binary framing.
+  Source: lane A ae8446e (coordinator decision). Verified: all 7 eventId vector cases and the
+  new `epoch_ms_seq` case failed on the old framing, then passed; unit-test reference values
+  recomputed independently in Python.
+- Detection range measured first. What: the team's measured `visualDetectionRangeM` (with its
+  `rdBasis`) is used when present; a range stated in the report is used only when nothing was
+  measured, with basis "stated". Source: lane A 73632e9. Verified: vector
+  `measured_range_beats_stated` and the new unit test failed on the old rule, then passed.
+- Both: 160 of 160 vector cases, full suite 176 tests.
+
 ### feat(ios): get one location fix with a timeout
 - What: `LocationProvider` asks Core Location for one fix (`requestLocation`) and returns nil on
   error, without permission, or after the timeout (30 s by default until spike S-GPS measures

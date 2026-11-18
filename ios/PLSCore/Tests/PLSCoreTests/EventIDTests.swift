@@ -2,16 +2,16 @@ import Testing
 @testable import PLSCore
 
 @Suite struct EventIDTests {
-    @Test func eventIdIsLengthPrefixedSha256Truncated() {
-        // Reference: Python hashlib over 4-byte big-endian length + UTF-8 per field.
-        #expect(EventID.make(incidentId: "I1", deviceId: "D1", seq: 1) == "72516706d9ed9ce4cfd89f527aeec765")
+    @Test func eventIdIsTextFramedSha256Truncated() {
+        // Reference: Python hashlib over "len:value" per field, e.g. "2:I12:D11:1".
+        #expect(EventID.make(incidentId: "I1", deviceId: "D1", seq: 1) == "68ebeec51f913729dfdd19b3b6b335c6")
     }
 
     @Test func fieldsAreNeverJoinedWithASeparator() {
         let a = EventID.make(incidentId: "ab", deviceId: "c", seq: 1)
         let b = EventID.make(incidentId: "a", deviceId: "bc", seq: 1)
-        #expect(a == "1633200e31aaefaf098fbbd2c3fe56a9")
-        #expect(b == "1911efefeca07147c267a9e23738a131")
+        #expect(a == "cbbacd475c9794d2fa553fc5f713fab5")
+        #expect(b == "0af29a8dbb8ad574f3ba4eb12cdfff80")
         #expect(a != b)
         #expect(a.count == 32)
     }

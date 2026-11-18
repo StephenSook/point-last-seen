@@ -26,8 +26,12 @@ func hex(_ bytes: some Sequence<UInt8>) -> String {
 
 /// Deterministic event ids (spec section 8): a re-send targets the same document.
 public enum EventID {
-    /// First 16 bytes, as 32 lowercase hex characters, of SHA-256 over incidentId, deviceId and decimal seq.
+    /// The first 32 lowercase hex characters of SHA-256 over the UTF-8 text
+    /// frame(incidentId) + frame(deviceId) + frame(decimal seq), where frame(s) is the decimal
+    /// UTF-8 byte length of s, ":", then s. ("ab", "c", 1) hashes "2:ab1:c1:1". This text form
+    /// lets the Firestore rules recompute the id; fields are never joined without their length.
     public static func make(incidentId: String, deviceId: String, seq: Int) -> String {
-        hex(LengthPrefixed.sha256([incidentId, deviceId, String(seq)]).prefix(16))
+        let text = [incidentId, deviceId, String(seq)].map { "\($0.utf8.count):\($0)" }.joined()
+        return String(hex(SHA256.hash(data: Data(text.utf8))).prefix(32))
     }
 }

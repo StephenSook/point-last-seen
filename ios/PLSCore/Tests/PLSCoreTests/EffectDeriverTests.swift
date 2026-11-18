@@ -49,8 +49,15 @@ import Testing
         #expect(EffectDeriver.cleared(reading: reading(segmentIds: [], coverage: 1), context: ctx(assigned: []), params: params) == .none(why: .needsCommand))
     }
 
-    @Test func aRangeStatedInTheReportWinsAndIsMarkedStated() {
+    @Test func theMeasuredRangeBeatsAStatedOne() {
         let e = EffectDeriver.cleared(reading: reading(minutes: 10, searchers: 1, detectionRangeM: 20), context: ctx(rangeM: 10), params: params)
+        guard case let .cleared(_, _, inputs) = e else { Issue.record("not cleared"); return }
+        #expect(near(inputs.sweepWidthM, 1.645 * 10))
+        #expect(inputs.rdBasis == .openTarget)
+    }
+
+    @Test func aStatedRangeIsUsedWhenNothingWasMeasured() {
+        let e = EffectDeriver.cleared(reading: reading(minutes: 10, searchers: 1, detectionRangeM: 20), context: ctx(rangeM: nil), params: params)
         guard case let .cleared(_, _, inputs) = e else { Issue.record("not cleared"); return }
         #expect(near(inputs.sweepWidthM, 1.645 * 20))
         #expect(inputs.rdBasis == .stated)

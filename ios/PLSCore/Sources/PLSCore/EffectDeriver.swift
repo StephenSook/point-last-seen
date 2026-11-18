@@ -99,13 +99,13 @@ public enum EffectDeriver {
                             inputs: ClearedInputs(coverage: c, sweepWidthM: nil, trackLengthM: nil,
                                                   areaM2: segment.areaM2, rdBasis: context.rdBasis))
         case .none:
-            // A range the report states is used first ("stated"); else the range the team
-            // measured at the Ready check, with that step's basis.
+            // The range the team measured at the Ready check comes first, with that step's
+            // basis; a range the report states is used only when nothing was measured ("stated").
             let range: Double?, basis: RdBasis
-            if let stated = reading.detectionRangeM {
-                range = stated; basis = .stated
+            if let measured = context.visualDetectionRangeM {
+                range = measured; basis = context.rdBasis
             } else {
-                range = context.visualDetectionRangeM; basis = context.rdBasis
+                range = reading.detectionRangeM; basis = .stated
             }
             guard let minutes = reading.minutes, let searchers = reading.searchers, let range else { return .none(why: .needsCommand) }
             let w = SearchMath.sweepWidth(detectionRangeM: range, params: params)
