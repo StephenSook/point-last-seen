@@ -5,6 +5,23 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/test-vectors/pack-segments-sample.json`: three segment docs (AC, ordinary; AA, with upstream or
+  downstream links; and ROW) and the incident fields a pack carries (gridId, ipp, terrain, priorVersion), read
+  from the drill incident on 2026-11-18 in Firestore's typed REST form, so integer and double values keep the
+  types they are stored with. Labelled ODbL with the grid's own OpenStreetMap attribution. Synthetic drill data.
+  Source: lane B (decoding test for the iPhone's pack segments).
+  Verified: read back by API from incidents/drill-dev-1 (68 segments; 19 with flow links; ROW present);
+  `bash scripts/ci-local.sh` exit 0.
+- `scripts/check_rc_keys.py` (a CI gate in the gates job and ci-local): exit 0 only when every Remote Config
+  template key is read by some client, every key a client reads is in the template (declared defaults on web,
+  iOS and Android, and direct reads such as getString("key")), and no engine number (a name in
+  engine-params.json or walker-params.json, compared in snake_case) is in Remote Config, so search-model
+  constants cannot be tuned remotely. Finding no key in code fails instead of passing empty. The production
+  checklist names it.
+  Source: plan Task 21a.
+  Verified: the 6 tests (agreeing keys pass; an unread template key, a key read in code but missing from the
+  template, an engine number in the template, and a repo with no defaults found each fail; this repo passes)
+  failed first, now pass; this repo reads 10 keys, all in the template; `bash scripts/ci-local.sh` exit 0.
 - LIMITS no longer says a record left by a reinstalled app needs command to clear it: since fc6e005 the new
   anonymous user takes the record over with their own consent.
   Source: review (doc drift after fc6e005).

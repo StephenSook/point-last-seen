@@ -1,0 +1,197 @@
+{
+  "description": "Three segment docs and the incident fields a pack carries, read from incidents/drill-dev-1 on 2026-11-18 in Firestore's typed REST form (integerValue and doubleValue kept as stored): one ordinary segment, one with upstream or downstream links, and ROW. Synthetic drill data on an OpenStreetMap-derived grid.",
+  "license": "Open Database License (ODbL) 1.0; Map data from OpenStreetMap contributors (ODbL)",
+  "incident": {
+    "id": "drill-dev-1",
+    "fields": {
+      "gridId": {
+        "stringValue": "piedmont-park-dev"
+      },
+      "ipp": {
+        "mapValue": {
+          "fields": {
+            "lat": {
+              "doubleValue": 33.786579
+            },
+            "lon": {
+              "doubleValue": -84.373309
+            }
+          }
+        }
+      },
+      "terrain": {
+        "stringValue": "temperate_flat"
+      },
+      "priorVersion": {
+        "integerValue": "5"
+      }
+    }
+  },
+  "segments": [
+    {
+      "id": "AC",
+      "fields": {
+        "downstream": {
+          "arrayValue": {}
+        },
+        "ringPoa": {
+          "doubleValue": 1.3803183323224751e-05
+        },
+        "priorVersion": {
+          "integerValue": "5"
+        },
+        "priorPoa": {
+          "doubleValue": 1.3803183323224751e-05
+        },
+        "neighbors": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "AF"
+              },
+              {
+                "stringValue": "AB"
+              }
+            ]
+          }
+        },
+        "featureClasses": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "road"
+              },
+              {
+                "stringValue": "structure"
+              },
+              {
+                "stringValue": "trail"
+              }
+            ]
+          }
+        },
+        "centroid": {
+          "mapValue": {
+            "fields": {
+              "lat": {
+                "doubleValue": 33.79563272315386
+              },
+              "lon": {
+                "doubleValue": -84.36799171797719
+              }
+            }
+          }
+        },
+        "geometryJson": {
+          "stringValue": "{\"type\":\"Polygon\",\"coordinates\":[[[-84.36807753595437,33.79535241318377],[-84.3677601,33.7955241],[-84.3680517,33.7958344],[-84.36807753595437,33.795819979431656],[-84.36807753595437,33.79535241318377]]]}"
+        },
+        "areaM2": {
+          "doubleValue": 825.3186176584821
+        },
+        "segmentId": {
+          "stringValue": "AC"
+        },
+        "nearFrac": {
+          "integerValue": "1"
+        },
+        "upstream": {
+          "arrayValue": {}
+        }
+      }
+    },
+    {
+      "id": "AA",
+      "fields": {
+        "segmentId": {
+          "stringValue": "AA"
+        },
+        "priorVersion": {
+          "integerValue": "5"
+        },
+        "neighbors": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "AD"
+              },
+              {
+                "stringValue": "AB"
+              }
+            ]
+          }
+        },
+        "priorPoa": {
+          "doubleValue": 0.00020469356377620027
+        },
+        "ringPoa": {
+          "doubleValue": 0.00020469356377620027
+        },
+        "centroid": {
+          "mapValue": {
+            "fields": {
+              "lat": {
+                "doubleValue": 33.79548102225467
+              },
+              "lon": {
+                "doubleValue": -84.36999129104771
+              }
+            }
+          }
+        },
+        "featureClasses": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "road"
+              },
+              {
+                "stringValue": "stream"
+              },
+              {
+                "stringValue": "structure"
+              },
+              {
+                "stringValue": "trail"
+              }
+            ]
+          }
+        },
+        "areaM2": {
+          "doubleValue": 8665.353784974448
+        },
+        "nearFrac": {
+          "integerValue": "1"
+        },
+        "geometryJson": {
+          "stringValue": "{\"type\":\"Polygon\",\"coordinates\":[[[-84.3707304,33.795169],[-84.37070204231838,33.795106549545345],[-84.36943015646008,33.795106549545345],[-84.36943015646008,33.79579231218268],[-84.3696637,33.7962307],[-84.3707304,33.795169]]]}"
+        },
+        "upstream": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "AB"
+              }
+            ]
+          }
+        },
+        "downstream": {
+          "arrayValue": {}
+        }
+      }
+    },
+    {
+      "id": "ROW",
+      "fields": {
+        "priorVersion": {
+          "integerValue": "5"
+        },
+        "priorPoa": {
+          "doubleValue": 0.7418433222109191
+        },
+        "segmentId": {
+          "stringValue": "ROW"
+        }
+      }
+    }
+  ]
+}
