@@ -20,19 +20,17 @@ val localProps = Properties().apply {
 // local.properties (key pls.appcheck.debugToken). Release builds never do.
 val debugToken: String = localProps.getProperty("pls.appcheck.debugToken", "")
 
-// Release signing: a keystore outside the repo; its password lives in the
-// macOS Keychain under the service named by pls.release.keychainService.
+// Release signing: a keystore outside the repo (path in local.properties). Its
+// password lives in the macOS Keychain; android/release.sh reads it into
+// PLS_RELEASE_PASSWORD for one build that runs without the configuration cache,
+// so the password is never written to a cache entry.
 val releaseStore: String? = localProps.getProperty("pls.release.storeFile")
 val releaseAlias: String = localProps.getProperty("pls.release.keyAlias", "pls-family")
-val releaseKeychainService: String =
-    localProps.getProperty("pls.release.keychainService", "pls-android-release")
-
-fun keychainPassword(service: String): String {
-    val p = ProcessBuilder("security", "find-generic-password", "-w", "-s", service)
-        .redirectErrorStream(false).start()
-    val out = p.inputStream.bufferedReader().readText().trim()
-    check(p.waitFor() == 0 && out.isNotEmpty()) { "No Keychain password for service $service" }
-    return out
+val releasePassword: String? = System.getenv("PLS_RELEASE_PASSWORD")?.takeIf { it.isNotEmpty() }
+if (releasePassword != null) {
+    check(!gradle.startParameter.isConfigurationCacheRequested) {
+        "Release signing must run with --no-configuration-cache (use android/release.sh)."
+    }
 }
 
 // The shared possible-evidence terms ship inside the app. The build fails when the
@@ -76,13 +74,12 @@ android {
     }
 
     signingConfigs {
-        if (releaseStore != null) {
+        if (releaseStore != null && releasePassword != null) {
             create("release") {
                 storeFile = file(releaseStore)
                 keyAlias = releaseAlias
-                val pw = keychainPassword(releaseKeychainService)
-                storePassword = pw
-                keyPassword = pw
+                storePassword = releasePassword
+                keyPassword = releasePassword
             }
         }
     }
@@ -93,7 +90,7 @@ android {
         }
         release {
             isMinifyEnabled = false
-            if (releaseStore != null) signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 

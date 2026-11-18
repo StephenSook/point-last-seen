@@ -4,6 +4,15 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Release signing without caching the password.** `android/release.sh` reads the keystore
+  password from the macOS Keychain into `PLS_RELEASE_PASSWORD` for one build that runs with
+  `--no-configuration-cache`, then verifies the signature; the build refuses to sign when the
+  configuration cache is on, and debug builds never see the password. The keystore lives outside
+  the repo. Source: Android addendum (release keystore on this Mac, password in the Keychain).
+  Verified: the first attempt failed because the configuration cache forbids a Keychain call at
+  configuration time; now `release.sh` builds `app-release.apk` signed with certificate SHA-256
+  7f9df516...167f83 (apksigner verify); `PLS_RELEASE_PASSWORD=x ./gradlew help` exits 1 with the
+  guard message; a byte scan of `.gradle/` and the build dirs finds 0 copies of the password.
 - **Live AI Logic probe.** `AiLogicLiveTest` makes one hybrid family-note call through Firebase
   AI Logic with App Check and logs `PLS-PROBE` lines. Measured on the pls_phone emulator
   (Android 37, Google Play image, 2026-11-18): `checkStatus()` UNAVAILABLE; `PREFER_ON_DEVICE`
