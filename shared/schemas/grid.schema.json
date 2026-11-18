@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/grid.schema.json",
+  "title": "Grid",
+  "description": "The drill site grid: 125 m cells clipped to the site, two-letter ids (spec section 10.5). Data under shared/grid/ is ODbL (OpenStreetMap).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gridId",
+    "cellM",
+    "bbox",
+    "segments",
+    "attribution"
+  ],
+  "properties": {
+    "gridId": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1
+    },
+    "cellM": {
+      "const": 125
+    },
+    "bbox": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "[minLon, minLat, maxLon, maxLat]"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GridSegment"
+      },
+      "minItems": 1
+    },
+    "attribution": {
+      "type": "string",
+      "maxLength": 200
+    }
+  },
+  "$defs": {
+    "GridSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segmentId",
+        "areaM2",
+        "centroid",
+        "geometry",
+        "neighbors",
+        "downstream",
+        "upstream",
+        "nearFrac",
+        "featureClasses"
+      ],
+      "properties": {
+        "segmentId": {
+          "type": "string",
+          "maxLength": 16,
+          "minLength": 1
+        },
+        "areaM2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "centroid": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "const": "Polygon"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 4
+              }
+            }
+          }
+        },
+        "neighbors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1
+          }
+        },
+        "downstream": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1
+          }
+        },
+        "upstream": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1
+          }
+        },
+        "nearFrac": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "featureClasses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "road",
+              "trail",
+              "stream",
+              "water",
+              "structure"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#Grid"
+    },
+    "#/$defs/GridSegment": {
+      "ts": "shared/engine-ts/src/types.ts#GridSegment"
+    }
+  }
+}

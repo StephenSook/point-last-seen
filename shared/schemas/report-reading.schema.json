@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/report-reading.schema.json",
+  "title": "ReportReading",
+  "description": "What a model, the deterministic parser or the pick-list read from one field report (spec section 8). coverage holds the number as stated; code normalizes it (0 to 3 kept, above 3 and up to 300 divided by 100) before validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "segmentIds",
+    "method",
+    "coverage",
+    "minutes",
+    "searchers",
+    "searchType",
+    "detectionRangeM",
+    "item",
+    "feature",
+    "direction",
+    "topColor",
+    "bottomColor",
+    "footwear",
+    "carried",
+    "matchesProfile",
+    "evidenceQuote"
+  ],
+  "properties": {
+    "kind": {
+      "enum": [
+        "cleared",
+        "sighting",
+        "clue",
+        "found",
+        "unclear"
+      ]
+    },
+    "segmentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 16,
+        "minLength": 1
+      },
+      "maxItems": 3
+    },
+    "method": {
+      "enum": [
+        "visual",
+        "sound",
+        "both",
+        "unknown"
+      ]
+    },
+    "coverage": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "minutes": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "searchers": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "searchType": {
+      "enum": [
+        "sweep",
+        "hasty",
+        "unknown"
+      ]
+    },
+    "detectionRangeM": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 100
+    },
+    "item": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "feature": {
+      "enum": [
+        "creek_or_drainage",
+        "water",
+        "road",
+        "trail",
+        "structure",
+        "brush",
+        "woods",
+        "field",
+        "other",
+        "none"
+      ]
+    },
+    "direction": {
+      "enum": [
+        "n",
+        "ne",
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "upstream",
+        "downstream",
+        "unknown"
+      ]
+    },
+    "topColor": {
+      "enum": [
+        "black",
+        "white",
+        "gray",
+        "brown",
+        "tan",
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "unknown"
+      ]
+    },
+    "bottomColor": {
+      "enum": [
+        "black",
+        "white",
+        "gray",
+        "brown",
+        "tan",
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "unknown"
+      ]
+    },
+    "footwear": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "carried": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "matchesProfile": {
+      "enum": [
+        "consistent",
+        "inconsistent",
+        "unknown"
+      ]
+    },
+    "evidenceQuote": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "Must be a substring of the event's rawText"
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#ReportReading",
+      "ios": "ios/PLSCore/Sources/PLSCore/ReportReading.swift#ReportReading",
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#ReportReading"
+    }
+  }
+}

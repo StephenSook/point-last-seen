@@ -1,0 +1,394 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/event.schema.json",
+  "title": "EventDoc",
+  "description": "One append-only event (spec section 8). The id is the first 16 bytes of SHA-256 over length-prefixed incidentId, deviceId and decimal seq. Create only; the creating device computes effect and every other device applies it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "schemaVersion",
+    "incidentId",
+    "teamId",
+    "deviceId",
+    "seq",
+    "authorUid",
+    "role",
+    "type",
+    "reporter",
+    "clientTimeMs",
+    "serverTime",
+    "observedAtMs",
+    "position",
+    "positionSource",
+    "rawText",
+    "inputMethod",
+    "isTrainingInject",
+    "reading",
+    "effect",
+    "route",
+    "targetEventId",
+    "decision",
+    "planVersion",
+    "priorVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "incidentId": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1
+    },
+    "teamId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 32,
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deviceId": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "authorUid": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1
+    },
+    "role": {
+      "enum": [
+        "searcher",
+        "command",
+        "family"
+      ]
+    },
+    "type": {
+      "enum": [
+        "cleared",
+        "clue",
+        "sighting",
+        "camera_sighting",
+        "destination",
+        "confirmation",
+        "retraction",
+        "found",
+        "plan_ack"
+      ]
+    },
+    "reporter": {
+      "enum": [
+        "searcher",
+        "public_caller",
+        "family",
+        "camera",
+        "system"
+      ]
+    },
+    "clientTimeMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "serverTime": {
+      "description": "Firestore server timestamp; null in test vectors"
+    },
+    "observedAtMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "position": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lat",
+            "lon",
+            "accuracyM"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "accuracyM": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "positionSource": {
+      "enum": [
+        "gps",
+        "assigned_segment",
+        "manual",
+        "map_click",
+        "camera_pin",
+        "none"
+      ]
+    },
+    "rawText": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 2000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "inputMethod": {
+      "enum": [
+        "keyboard_dictation",
+        "typed",
+        "picklist",
+        "clip",
+        "photo",
+        "system"
+      ]
+    },
+    "isTrainingInject": {
+      "type": "boolean"
+    },
+    "reading": {
+      "anyOf": [
+        {
+          "$ref": "report-reading.schema.json"
+        },
+        {
+          "$ref": "camera-sighting.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "effect": {
+      "$ref": "#/$defs/Effect"
+    },
+    "route": {
+      "anyOf": [
+        {
+          "$ref": "route-record.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targetEventId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decision": {
+      "anyOf": [
+        {
+          "enum": [
+            "confirmed",
+            "rejected"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "planVersion": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "priorVersion": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "Effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "segmentId",
+            "pod",
+            "inputs"
+          ],
+          "properties": {
+            "kind": {
+              "const": "cleared"
+            },
+            "segmentId": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 1
+            },
+            "pod": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "coverage",
+                "sweepWidthM",
+                "trackLengthM",
+                "areaM2",
+                "rdBasis"
+              ],
+              "properties": {
+                "coverage": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "sweepWidthM": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "trackLengthM": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "areaM2": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "rdBasis": {
+                  "enum": [
+                    "hidden_target",
+                    "open_target",
+                    "default",
+                    "stated"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "influences",
+            "authenticity"
+          ],
+          "properties": {
+            "kind": {
+              "const": "clue"
+            },
+            "influences": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "maxLength": 16,
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "enum": [
+                  "strong_for",
+                  "for",
+                  "neutral",
+                  "against",
+                  "strong_against"
+                ]
+              }
+            },
+            "authenticity": {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "why"
+          ],
+          "properties": {
+            "kind": {
+              "const": "none"
+            },
+            "why": {
+              "enum": [
+                "needs_command",
+                "informational",
+                "invalid",
+                "sound_only",
+                "outside_area",
+                "incorporated_in_prior"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#EventDoc",
+      "ios": "ios/PLSCore/Sources/PLSCore/EventDoc.swift#EventDoc",
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#EventDoc"
+    }
+  }
+}

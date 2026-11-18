@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/route-graph.schema.json",
+  "title": "RouteGraph",
+  "description": "Route graph for the walker prior (spec section 10.6): roads, trails, streams and water edges with junctions inserted at crossings, stations every 25 m in local metres. PROVISIONAL until Task 37.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "graphId",
+    "gridId",
+    "stationSpacingM",
+    "origin",
+    "nodes",
+    "edges",
+    "attribution"
+  ],
+  "properties": {
+    "graphId": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1
+    },
+    "gridId": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1
+    },
+    "stationSpacingM": {
+      "const": 25
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nodeId",
+          "x",
+          "y"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "edgeId",
+          "class",
+          "from",
+          "to",
+          "stations"
+        ],
+        "properties": {
+          "edgeId": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "class": {
+            "enum": [
+              "road",
+              "trail",
+              "stream",
+              "water_edge"
+            ]
+          },
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y",
+                "hx",
+                "hy",
+                "nx",
+                "ny",
+                "segmentId"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "hx": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "hy": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "nx": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "ny": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "segmentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 16,
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "minItems": 2
+          }
+        }
+      }
+    },
+    "attribution": {
+      "type": "string",
+      "maxLength": 200
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#RouteGraph"
+    }
+  }
+}

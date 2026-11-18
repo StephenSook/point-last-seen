@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/photo-cues.schema.json",
+  "title": "PhotoCues",
+  "description": "Place cues read on-device from one family photo (spec section 6.3). PROVISIONAL: fields settle in spike S4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "placeType",
+    "placeName",
+    "signText",
+    "landmarks",
+    "outdoors",
+    "evidence"
+  ],
+  "properties": {
+    "placeType": {
+      "enum": [
+        "home",
+        "store",
+        "restaurant",
+        "place_of_worship",
+        "park",
+        "trail",
+        "water",
+        "road",
+        "parking_lot",
+        "transit",
+        "school",
+        "medical",
+        "other",
+        "unknown"
+      ]
+    },
+    "placeName": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "signText": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "landmarks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 40
+      },
+      "maxItems": 3
+    },
+    "outdoors": {
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ]
+    },
+    "evidence": {
+      "type": "string",
+      "maxLength": 200
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#PhotoCues"
+    }
+  }
+}
