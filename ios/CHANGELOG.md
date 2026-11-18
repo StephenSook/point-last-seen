@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios): pin that a report is read only after sign-in succeeded
+- What: `AppModel` takes the report read as a `readReport` seam (the default is the same
+  `ReportReader` on Apple's model and Firebase AI Logic). Two tests pin the order in `send`: a
+  failed sign-in reads nothing, journals nothing and leaves the words in the field; a successful
+  one signs in first and only then reads.
+- Source: review (AI Logic is moving to signed-in users only).
+- Verified: the tests failed to compile without the seam, then passed; a mutant that reads
+  without a signed-in user fails the first test; 70 app tests pass; `bash scripts/ci-local.sh`
+  exit 0.
+
 ### fix(ios): use the cloud voice only after the phone is signed in
 - What: the AI Logic voice for a new assignment is an AI Logic call, so it now also needs the
   phone to be signed in (`SpokenAssignment.path` takes `signedIn`); before sign-in the phone's

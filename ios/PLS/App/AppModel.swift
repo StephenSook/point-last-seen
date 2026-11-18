@@ -24,18 +24,28 @@ final class AppModel {
     private let uid: () -> String?
     private let nowMs: () -> Double
 
+    /// Reads one report. It runs only after sign-in succeeded (see `send`); the default reads on
+    /// Apple's model and, when allowed, Gemini through Firebase AI Logic.
+    typealias ReadReport = @MainActor (String, ReportSituation, RemoteConfigValues, EvidenceScreen) async -> ReadOutcome
+    private let readReport: ReadReport
+
     init(signIn: SignIn = .firebase(),
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
          speaker: AssignmentSpeaker? = nil,
          uid: @escaping () -> String? = { Auth.auth().currentUser?.uid },
          nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
-         measurements: MeasurementWriter? = nil) {
+         measurements: MeasurementWriter? = nil,
+         readReport: ReadReport? = nil) {
         self.signIn = signIn
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
         self.nowMs = nowMs
         self.measurements = measurements
+        self.readReport = readReport ?? { text, situation, config, screen in
+            await ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
+                .read(text, situation: situation)
+        }
     }
 
     /// Writes each report's timings; Firestore unless a test supplies one.
@@ -207,8 +217,7 @@ final class AppModel {
             positionSegmentId: position.flatMap { Geo.segment(containing: $0, in: mission.grid) },
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
             liveGate: { [gate] in gate.current })
-        let reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
-        let outcome = await reader.read(text, situation: situation)
+        let outcome = await readReport(text, situation, config, screen)
         let readDone = nowMs()
         switch outcome.cloudTransport {
         case .failed: connectivity.requestFailed()
