@@ -17,7 +17,7 @@ function square(segmentId: string, west: number, south: number, priorPoa: number
   };
 }
 
-// priorBuiltAtMs is not on lane C's incident type yet (hand-off A4); the replay reads it when present.
+// priorBuiltAtMs is not on the incident type yet; the replay reads it when present.
 export function replayView(over: Partial<IncidentView["incident"] & object> & { priorBuiltAtMs?: number } = {}): IncidentView {
   return {
     incident: { name: "Oak Park", mode: "drill", status: "open", priorVersion: 2, priorInputEventIds: ["e0"], ...over },

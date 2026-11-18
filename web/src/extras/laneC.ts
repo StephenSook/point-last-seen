@@ -3,7 +3,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import approachNotes from "../../../shared/constants/approach-notes.json";
 
 // MapLibre looks for its worker next to its own module; after bundling that file is not there. Point it at
-// the bundled worker, as lane C's MapView does (lane-web 3cf7bd0). Setting the same URL twice is harmless.
+// the bundled worker, as the web app's own MapView does. Setting the same URL twice is harmless.
 setWorkerUrl(workerUrl);
 
 export { MapView } from "../map/MapView";

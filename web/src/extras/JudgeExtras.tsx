@@ -9,7 +9,7 @@ import { loadScam } from "./scam/scamModel";
 import "./extras.css";
 
 /**
- * The judge page's extras. With no published run it draws nothing: lane C's page already says "No published run
+ * The judge page's extras. With no published run it draws nothing: the judge page already says "No published run
  * yet." A run the replay cannot read is refused in plain words; it is never replayed with a guess. The space-time
  * cube is drawn only when the run passes its gate (G-CUBE): a near-empty cube is decoration. The camera read check
  * stands on its own file and draws nothing until that file exists.

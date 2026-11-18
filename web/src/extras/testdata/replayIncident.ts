@@ -38,7 +38,7 @@ const docs: [EventDoc, number][] = [
 export function harnessIncident(opts: { pending?: boolean } = {}): { view: IncidentView; events: StreamedEvent[]; plans: PlanDoc[] } {
   const view: IncidentView = {
     ...drillView,
-    // priorBuiltAtMs is not on lane C's incident type yet; the replay reads it when present.
+    // priorBuiltAtMs is not on the incident type yet; the replay reads it when present.
     incident: { ...drillView.incident!, priorVersion: 2, priorInputEventIds: [], ...{ priorBuiltAtMs: T0 + 6 * MIN } },
     segments,
     rowPrior: 0.1,
