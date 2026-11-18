@@ -101,6 +101,13 @@ describe("joinIncident (spec sections 7 and 14)", () => {
     await expectCode(handleJoin(uid, { incidentId: "I9", joinCode: "QRST2345", role: "searcher", teamId: "T1" }), "permission-denied");
     await expectCode(handleJoin(uid, { joinCode: "QRST2345", role: "family" }), "permission-denied");
   });
+  it("a judge incident needs a future timestamp expiry to be joined", async () => {
+    await admin.db.doc("incidents/J2").set({ name: "Judge", mode: "judge", status: "open" });
+    await admin.db.doc(`joinCodes/${hash("JUDG6789")}`).set({ incidentId: "J2", roles: ["command"] });
+    await expectCode(handleJoin(uid, { joinCode: "JUDG6789", role: "command" }), "permission-denied");
+    await admin.db.doc("incidents/J2").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    await expect(handleJoin(uid, { joinCode: "JUDG6789", role: "command" })).resolves.toEqual({ ok: true, incidentId: "J2" });
+  });
   it("an expired judge incident cannot be joined", async () => {
     await expectCode(handleJoin(uid, { joinCode: "JUDG2345", role: "family" }), "permission-denied");
   });

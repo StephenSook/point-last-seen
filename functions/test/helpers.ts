@@ -7,7 +7,8 @@ import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from "firebase/storage";
 
-export const PROJECT = "demo-pls";
+// The demo project id is per worktree (scripts/emulator_config.py); emulators:exec exports it.
+export const PROJECT = process.env.GCLOUD_PROJECT ?? "demo-pls";
 
 function need(name: string): string {
   const v = process.env[name];

@@ -226,3 +226,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the web sets in-app defaults only for the three keys it reads (`cloud_model_web`, `kill_cloud`, `use_limited_use_tokens`); the other platforms' keys stay in the shared template. A new test scans every non-test source file under web/src (more than 10 files, so an empty scan cannot pass) and fails when a parsed value has no `rc.<field>` reader.
 - Source: orchestrator self-audit sweep ("every template key is parsed and used", applied to the web's own parser).
 - Verified: the defaults test failed first (7 keys, wanted 3) and passes now; the reader guard was proved against a planted value `neverReadControl`, which failed it with "rc.neverReadControl", then the plant was removed (0 matches left).
+
+### chore(merge): bring main into lane-web (the web CI job, per-worktree emulator temp folders, rules fixes)
+- What: merges origin/main, which adds `.github/workflows/web.yml` (typecheck, unit tests and a placeholder-config build on every push that touches web/) and runs the web checks in `scripts/ci-local.sh`, plus emulator isolation per worktree and rules fixes.
+- Source: orchestrator (the web unit tests, typecheck and build belong in CI today).
+- Verified: `scripts/ci-local.sh` exit 0 on the merged tree, now including the web step (20 test files, 157 tests, build ok), rules 71 in the emulators.
