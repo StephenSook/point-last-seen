@@ -5,6 +5,8 @@
 // never leave the family phone, so the command form neither shows nor stores them.
 
 import {
+  type Place,
+  type ProfileFlags,
   profileForCommand,
   profileForSearchers,
   profileWarnings,
@@ -34,6 +36,45 @@ export function emptyProfile(): FamilyProfile {
 
 export function profileDocs(p: FamilyProfile): { shared: SharedProfile; command: CommandProfile } {
   return { shared: profileForSearchers(p), command: profileForCommand(p) };
+}
+
+// The rules let profile documents be written in parts, so every reader goes through
+// these two: a missing or wrong-typed field reads as its empty value, never a crash.
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const arr = <T,>(v: unknown, keep: (x: unknown) => x is T = (x: unknown): x is T => true): T[] => (Array.isArray(v) ? v.filter(keep) : []);
+const obj = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+const AIDS = new Set(["cane", "walker", "wheelchair", "other"]);
+const isPlace = (x: unknown): x is Place => typeof x === "object" && x !== null && typeof (x as Place).label === "string";
+
+export function sharedFromDoc(data: unknown): SharedProfile {
+  const d = obj(data);
+  const flagsIn = obj(d["flags"]);
+  // An unstated flag reads as false: the reader never assumes a behaviour the family did not state.
+  const flags = Object.fromEntries(Object.keys(emptyProfile().flags).map((k) => [k, flagsIn[k] === true])) as unknown as ProfileFlags;
+  return {
+    answersTo: str(d["answersTo"]), nickname: str(d["nickname"]), ageYears: num(d["ageYears"]), gender: str(d["gender"]),
+    appearance: str(d["appearance"]), heightFt: num(d["heightFt"]), heightIn: num(d["heightIn"]), weightLb: num(d["weightLb"]),
+    hair: str(d["hair"]), eyeColor: str(d["eyeColor"]), primaryLanguage: str(d["primaryLanguage"]), clothingLastWorn: str(d["clothingLastWorn"]),
+    mobilityAids: arr(d["mobilityAids"], (x): x is SharedProfile["mobilityAids"][number] => typeof x === "string" && AIDS.has(x)),
+    dementiaType: typeof d["dementiaType"] === "string" ? (d["dementiaType"] as SharedProfile["dementiaType"]) : null,
+    flags,
+    triggersToAvoid: str(d["triggersToAvoid"]), bestApproach: str(d["bestApproach"]), uniqueDescription: str(d["uniqueDescription"]),
+    photoTakenOn: typeof d["photoTakenOn"] === "string" ? d["photoTakenOn"] : null,
+    approachNoteIds: arr(d["approachNoteIds"], (x): x is string => typeof x === "string"),
+  };
+}
+
+export function commandFromDoc(data: unknown): CommandProfile {
+  const d = obj(data);
+  const v = obj(d["vehicle"]);
+  return {
+    previousAddresses: arr(d["previousAddresses"], isPlace),
+    placesFrequented: arr(d["placesFrequented"], isPlace),
+    pastWandering: arr(d["pastWandering"], (x): x is CommandProfile["pastWandering"][number] => typeof x === "object" && x !== null && typeof (x as { foundWhere?: unknown }).foundWhere === "string"),
+    nearbyWater: str(d["nearbyWater"]),
+    vehicle: d["vehicle"] && typeof v["involved"] === "boolean" ? { involved: v["involved"], description: str(v["description"]) } : null,
+  };
 }
 
 /** The form's profile from the two stored documents. Family-only fields stay empty at command. */
@@ -88,7 +129,7 @@ export function subscribeProfile(
 ): Unsubscribe {
   let shared: SharedProfile | undefined;
   let command: CommandProfile | undefined;
-  const a = onSnapshot(doc(db, "incidents", incidentId, "profile", "shared"), (s) => { shared = s.data() as SharedProfile | undefined; cb({ shared, command }); }, onError);
-  const b = onSnapshot(doc(db, "incidents", incidentId, "profile", "command"), (s) => { command = s.data() as CommandProfile | undefined; cb({ shared, command }); }, onError);
+  const a = onSnapshot(doc(db, "incidents", incidentId, "profile", "shared"), (s) => { shared = s.exists() ? sharedFromDoc(s.data()) : undefined; cb({ shared, command }); }, onError);
+  const b = onSnapshot(doc(db, "incidents", incidentId, "profile", "command"), (s) => { command = s.exists() ? commandFromDoc(s.data()) : undefined; cb({ shared, command }); }, onError);
   return () => { a(); b(); };
 }

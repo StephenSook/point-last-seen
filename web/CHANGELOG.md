@@ -554,3 +554,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: one line under the heading of `web/CHANGELOG.md` points at `web/CHANGELOG-EXTRAS.md` (hook H5).
 - Source: extras lane request H5.
 - Verified: the target file exists on this branch after merge point 2. scripts/ci-local.sh exit 0.
+
+### fix(profile): read a partial profile document as empty fields instead of crashing the post
+- What: `sharedFromDoc` and `commandFromDoc` in `data/profile.ts` read `profile/shared` and `profile/command`; every missing or wrong-typed field reads as its empty value (strings "", numbers and dates null, arrays [] with only valid items kept, every flag false unless stated true, vehicle null). `subscribeProfile` uses them, so the approach card, the profile form and the extras lane always get a full object. Before, a nickname-only document made `approachLines` call `flatMap` on undefined and the command view crashed.
+- Source: orchestrator, a verified MEDIUM from the Codex review of merge point 2 (the rules allow partial profile writes).
+- Verified: new `src/data/profileRead.test.tsx` (4 tests) failed first (readers missing), then passed, including a server render of the approach card from a nickname-only document and wrong-typed arrays and flags. All data tests pass (73). scripts/ci-local.sh exit 0.
