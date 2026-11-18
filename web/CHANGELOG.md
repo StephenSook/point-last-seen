@@ -1085,3 +1085,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-18-clipread-stock.json` (stock footage, actors, not a real case): the production clip read on five Pexels clips against the truth committed first (7e25dc3). Person present 5 of 5, direction 4 of 5, top colour 3 of 5, bottom colour 3 of 4 scored, carried items 4 of 5, light 5 of 5; all five readings passed the checks; 2.8 to 7.0 s each. The misses: teal read as blue; on the two-person dusk clip the reading described one person (direction unknown, rust read as yellow, the bag missed). Time, bearing and night colour suppression are not measurable on these clips, so this is not a SCAM.json input.
 - Source: review request (S-CAM on stock clips, truth first).
 - Verified: values from the page's reports; per-field hits judged against the truth file. scripts/ci-local.sh exit 0.
+
+### feat(data): count, delete and describe an incident's clips and photos
+- What: `data/media.ts`: `countMedia` lists the incident's clips and photos in Storage (members may list both); `deleteQuestion` asks with the counts ("Delete 4 clips and 3 photos for this search? This can't be undone.", nothing when there is nothing); `deleteMediaNow` calls the `deleteIncidentMediaNow` callable (lane A; command only, live incident) and returns its total; `deletedLine` states that total; `deleteMediaMessage` shows the server's own refusal sentences, names a lost connection, and is plain otherwise.
+- Source: review ruling on deleteIncidentMediaNow (one control, counts in the confirm, the server's reason on a refusal).
+- Verified: `src/data/media.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
