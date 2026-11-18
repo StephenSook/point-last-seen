@@ -13,8 +13,25 @@ final class AppModel {
     let signIn: SignIn
     private(set) var signedIn = false
 
-    init(signIn: SignIn = .firebase()) {
+    /// This build's version (CFBundleShortVersionString), compared with `minimum_version_ios`.
+    let appVersion: String
+
+    init(signIn: SignIn = .firebase(),
+         appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") {
         self.signIn = signIn
+        self.appVersion = appVersion
+    }
+
+    /// What the Live Activity shows; nil while no pack is loaded.
+    var taskStatus: TaskStatus? {
+        mission.map { TaskStatus.make(assignedSegmentIds: $0.assignedSegmentIds, states: store?.entries.map(\.state) ?? []) }
+    }
+
+    /// Shown when command has raised the minimum version above this build. It asks, it does not
+    /// block: a searcher in the field can still send reports on an old build.
+    var updatePrompt: String? {
+        config.needsUpdate(appVersion: appVersion)
+            ? "Update this app. Command needs version \(config.minimumVersionIOS) or newer. Reports still send." : nil
     }
     /// Remote Config values. Read at the moment of each send, and a change reaches the live
     /// gate at once, so a kill-switch flip takes effect without a restart.
@@ -23,11 +40,14 @@ final class AppModel {
     private(set) var mission: Mission?
     private(set) var store: EventStore?
     private(set) var sending = false
+    /// The last GPS fix this phone got; the screen theme uses it to know when it is dusk here.
+    private(set) var lastFix: Position?
     var problem: String?
     private var identity: DeviceIdentity?
     private var screen: EvidenceScreen?
 
     private var started = false
+    private var remoteConfig: RemoteConfigStore?
     private var wasOnline = false
 
     func start() {
@@ -35,6 +55,10 @@ final class AppModel {
         started = true
         connectivity.onChange = { [weak self] in self?.connectivityChanged() }
         connectivity.start()
+        let remoteConfig = RemoteConfigStore()
+        remoteConfig.onChange = { [weak self] in self?.config = $0 }
+        remoteConfig.start()
+        self.remoteConfig = remoteConfig
         Task { await self.trySignIn() }
         // Each failure gets its own message, so the person and command know what to fix.
         do { identity = try DeviceIdentity() } catch {
@@ -108,6 +132,7 @@ final class AppModel {
         refreshGate()
 
         let position = await location.fix(timeout: 10)
+        if let position { lastFix = position }
         let situation = ReportSituation(
             incidentMode: mission.mode, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds,

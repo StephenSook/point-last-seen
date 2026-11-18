@@ -51,3 +51,67 @@ actor CallCounter {
     func bump() { count += 1 }
 }
 
+/// Answers at once with a valid reading of whatever it was given.
+struct InstantRunner: ReadModelRunner {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        .success(ReportReading.unclear(quote: String(text.prefix(40))))
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+}
+
+@Suite struct ReportReaderTimeoutTests {
+    @Test func aHungTokenCountDoesNotHoldTheReport() async throws {
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in try? await Task.sleep(for: .seconds(60)); return 100 },
+                             tokenCountTimeoutSeconds: 0.2,
+                             makeRunner: { _, _, _ in InstantRunner() })
+        let situation = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AC"], assignedSegmentIds: ["AC"], positionSegmentId: nil,
+                                        profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let start = Date()
+        _ = await r.read("we searched near the creek", situation: situation)
+        #expect(Date().timeIntervalSince(start) < 10)
+    }
+}
+
+/// A model that copies the team's assignment (AC) into every reading, as spike S1 saw.
+struct CopiesAssignmentRunner: ReadModelRunner {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        var r = ReportReading.unclear(quote: String(text.prefix(40)))
+        r.kind = .cleared
+        r.segmentIds = ["AC"]
+        r.coverage = 0.8
+        return .success(r)
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+}
+
+@Suite struct ReportReaderSegmentTests {
+    @Test func theGPSSegmentReachesTheReadNotTheModelsCopy() async throws {
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 }, makeRunner: { _, _, _ in CopiesAssignmentRunner() })
+        let situation = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AA", "AB", "AC"], assignedSegmentIds: ["AC"],
+                                        positionSegmentId: "AB", profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let o = await r.read("we cleared our area, coverage point eight", situation: situation)
+        #expect(o.reading.segmentIds == ["AB"])
+    }
+}
+
+actor RouteLog {
+    private(set) var routes: [RouteRecord] = []
+    func add(_ r: RouteRecord) { routes.append(r) }
+}
+
+@Suite struct ReportReaderTelemetryTests {
+    @Test func everyReadRecordsExactlyOneRouteTrace() async throws {
+        let log = RouteLog()
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             recordRoute: { route in Task { await log.add(route) } })
+        let s = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AC"], assignedSegmentIds: ["AC"], positionSegmentId: nil,
+                                profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let evidence = await r.read("there is blood on a rock by the creek", situation: s)
+        var notDrill = s; notDrill.incidentMode = nil
+        let parsed = await r.read("cleared segment AC, coverage point eight", situation: notDrill)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(await log.routes == [evidence.route, parsed.route])
+    }
+}

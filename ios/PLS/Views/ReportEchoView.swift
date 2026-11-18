@@ -4,6 +4,7 @@ import SwiftUI
 /// One sent report: what was said, what the phone made of it, who read it, and whether it
 /// reached the server.
 struct ReportEchoView: View {
+    @Environment(\.fieldTheme) private var theme
     let entry: OutboxEntry
     let retry: () -> Void
 
@@ -17,7 +18,7 @@ struct ReportEchoView: View {
             } else {
                 Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type)).font(.headline)
                 if let route = entry.doc.route {
-                    Text(EchoText.routeLine(route)).font(.footnote).foregroundStyle(.secondary)
+                    Text(EchoText.routeLine(route)).font(.footnote).foregroundStyle(theme.text(.secondary))
                 }
             }
             HStack {

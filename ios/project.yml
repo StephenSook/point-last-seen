@@ -31,9 +31,12 @@ targets:
     platform: iOS
     sources:
       - path: PLS
+      - path: PLSShared
       - path: ../shared/constants/engine-params.json
         buildPhase: resources
       - path: ../shared/constants/evidence-terms.json
+        buildPhase: resources
+      - path: ../shared/constants/approach-notes.json
         buildPhase: resources
     info:
       path: PLS/Info.plist
@@ -47,6 +50,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        NSSupportsLiveActivities: true
     entitlements:
       path: PLS/PLS.entitlements
       properties:
@@ -57,6 +61,22 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
+    postBuildScripts:
+      # Uploads the dSYMs so Crashlytics can symbolicate field crashes. Release builds only, so
+      # simulator and debug builds send nothing. The input files are what the script reads under
+      # user script sandboxing (Firebase's documented list).
+      - name: Upload dSYMs to Crashlytics
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" = "Release" ]; then
+            "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
+          fi
+        inputFiles:
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist
+          - $(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)
     dependencies:
       - package: Firebase
         product: FirebaseAILogic
@@ -68,8 +88,37 @@ targets:
         product: FirebaseFirestore
       - package: Firebase
         product: FirebaseRemoteConfig
+      - package: Firebase
+        product: FirebasePerformance
+      - package: Firebase
+        product: FirebaseCrashlytics
       - package: MapLibre
         product: MapLibre
+      - package: PLSCore
+        product: PLSCore
+      - target: PLSWidgets
+  PLSWidgets:
+    # The Action-button control (P-08) and the team's Live Activity (P-07).
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PLSWidgets
+      - path: PLSShared
+    info:
+      path: PLSWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Point Last Seen
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+    dependencies:
       - package: PLSCore
         product: PLSCore
   PLSTests:

@@ -143,6 +143,18 @@ import Testing
         #expect(EffectShape.isValid(.object(["kind": .string("none"), "why": .string("sound_only")])))
     }
 
+    @Test func sizesFollowTheCreateRule() {
+        #expect(EffectShape.isValid(with(cleared, ["segmentId"], .string(String(repeating: "A", count: 16)))))
+        #expect(!EffectShape.isValid(with(cleared, ["segmentId"], .string(""))))
+        #expect(!EffectShape.isValid(with(cleared, ["segmentId"], .string(String(repeating: "A", count: 17)))))
+        func clue(_ n: Int) -> JSONValue {
+            .object(["kind": .string("clue"), "authenticity": .string("low"),
+                     "influences": .object(Dictionary(uniqueKeysWithValues: (0..<n).map { ("S\($0)", JSONValue.string("for")) }))])
+        }
+        #expect(EffectShape.isValid(clue(64)))
+        #expect(!EffectShape.isValid(clue(65)))
+    }
+
     @Test func everyBrokenShapeFails() {
         #expect(!EffectShape.isValid(.null))
         #expect(!EffectShape.isValid(with(cleared, ["extra"], .number(1))))
