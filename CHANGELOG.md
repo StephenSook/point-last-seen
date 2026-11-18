@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the TypeScript search engine core (`shared/engine-ts/src`: pod and track length, IOC, posterior, ranking,
+  effect derivation, `toEngineEvents`, event ids and hashes, evidence pre-screen) and the vector suite that runs
+  every non-router case of `shared/test-vectors/search.json` through the one comparer (`test/expectVector.ts`).
+  Source: plan Task 8; spec sections 8, 10.1 to 10.4; coordinator byte layouts for eventSetHash and convergenceCode.
+  Verified: before the code existed the suite failed ("Cannot find module ../src/index"); now 124 passed
+  (122 vectors plus the section-count checks); a mutation (unlisted clue entries as "for" instead of
+  "neutral") failed 6 vectors, then the restored file passed; `tsc` typecheck and the unused-symbol lint exit 0.
 - Add the shared TypeScript types (`shared/engine-ts/src/types.ts`): every schema document type named in the
   x-parity maps (EventDoc, ReportReading, RouteRecord, CameraSighting, PhotoCues, PlanDoc, Assignment,
   PlanWording, SharedProfile, CommandProfile, Grid, GridSegment, RouteGraph) plus the engine types
