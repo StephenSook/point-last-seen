@@ -1,0 +1,113 @@
+import { createHash } from "node:crypto";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { joinIncident } from "../src/index";
+import { handleJoin } from "../src/join";
+import { admin, clearFirestore, closeClients } from "./helpers";
+
+const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
+const CODE = "ABCD2345", COMMAND_CODE = "WXYZ6789";
+let uid = "";
+
+async function freshUser(): Promise<string> {
+  const u = await admin.auth.createUser({});
+  return u.uid;
+}
+
+beforeEach(async () => {
+  await clearFirestore();
+  // Join code hashes live in joinCodes/{sha256(code)}, which no client can read (a 40-bit code hash in a
+  // member-readable doc could be brute-forced offline into the command code).
+  await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+  await admin.db.doc("incidents/I1/teams/T1").set({ teamId: "T1", name: "Team 1", colorSlot: 1 });
+  await admin.db.doc(`joinCodes/${hash(CODE)}`).set({ incidentId: "I1", roles: ["searcher", "family"] });
+  await admin.db.doc(`joinCodes/${hash(COMMAND_CODE)}`).set({ incidentId: "I1", roles: ["command"] });
+  await admin.db.doc("incidents/I9").set({ name: "Old drill", mode: "drill", status: "closed" });
+  await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["searcher", "family"] });
+  await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+  await admin.db.doc(`joinCodes/${hash("JUDG2345")}`).set({ incidentId: "J1", roles: ["searcher", "family"] });
+  uid = await freshUser();
+});
+afterAll(closeClients);
+
+/** Invokes the exported HTTP handler with a minimal request and response, as the Functions runtime would. */
+async function callRaw(r: { method: string; body: unknown }): Promise<{ status: number; body: unknown }> {
+  const headers: Record<string, string> = { "content-type": "application/json", origin: "https://example.test" };
+  const req = {
+    method: r.method, url: "/", headers, body: r.body, rawBody: Buffer.from(JSON.stringify(r.body)),
+    header: (n: string) => headers[n.toLowerCase()], get: (n: string) => headers[n.toLowerCase()],
+  };
+  return await new Promise(resolve => {
+    let status = 200;
+    const out: Record<string, unknown> = {};
+    const res = {
+      statusCode: 200,
+      setHeader: (k: string, v: unknown) => { out[k.toLowerCase()] = v; },
+      getHeader: (k: string) => out[k.toLowerCase()],
+      removeHeader: (k: string) => { delete out[k.toLowerCase()]; },
+      status(code: number) { status = code; this.statusCode = code; return this; },
+      json(body: unknown) { resolve({ status, body }); return this; },
+      send(body: unknown) { resolve({ status, body }); return this; },
+      end(body?: unknown) { resolve({ status: this.statusCode ?? status, body }); return this; },
+      on: () => res, once: () => res,
+    };
+    void (joinIncident as unknown as (q: unknown, s: unknown) => unknown)(req, res);
+  });
+}
+
+/** HttpsError carries its code in .code (the message is the human text). */
+async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
+  const err = await p.then(() => null, (e: unknown) => e);
+  expect(err, "expected a rejection").not.toBeNull();
+  expect((err as { code?: string }).code).toBe(code);
+}
+
+const claimsOf = async (u: string) => (await admin.auth.getUser(u)).customClaims;
+
+describe("joinIncident (spec sections 7 and 14)", () => {
+  it("rejects a wrong code and sets claims on a right one", async () => {
+    await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: "WRONG000", role: "searcher", teamId: "T1" }), "permission-denied");
+    expect(await claimsOf(uid)).toBeUndefined();
+    await expect(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher", teamId: "T1" })).resolves.toEqual({ ok: true, incidentId: "I1" });
+    expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "searcher", team: "T1" });
+  });
+  it("finds the open incident from the code alone and normalizes case, spaces and hyphens", async () => {
+    await expect(handleJoin(uid, { joinCode: "abcd-2345 ", role: "family" })).resolves.toEqual({ ok: true, incidentId: "I1" });
+    expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "family", team: null });
+  });
+  it("command needs the command code; the team code never grants command", async () => {
+    await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "command" }), "permission-denied");
+    await expect(handleJoin(uid, { incidentId: "I1", joinCode: COMMAND_CODE, role: "command" })).resolves.toEqual({ ok: true, incidentId: "I1" });
+    expect(await claimsOf(uid)).toEqual({ inc: "I1", role: "command", team: null });
+  });
+  it("a searcher must name a team that exists", async () => {
+    await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher" }), "invalid-argument");
+    await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher", teamId: "T7" }), "invalid-argument");
+  });
+  it("a closed incident cannot be joined, even with its code", async () => {
+    await expectCode(handleJoin(uid, { incidentId: "I9", joinCode: "QRST2345", role: "searcher", teamId: "T1" }), "permission-denied");
+    await expectCode(handleJoin(uid, { joinCode: "QRST2345", role: "family" }), "permission-denied");
+  });
+  it("an expired judge incident cannot be joined", async () => {
+    await expectCode(handleJoin(uid, { joinCode: "JUDG2345", role: "family" }), "permission-denied");
+  });
+  it("a code given with another incident's id is rejected", async () => {
+    await expectCode(handleJoin(uid, { incidentId: "I9", joinCode: CODE, role: "family" }), "permission-denied");
+  });
+  it("rejects a malformed request and an unknown role", async () => {
+    await expectCode(handleJoin(uid, { joinCode: 5, role: "family" } as never), "invalid-argument");
+    await expectCode(handleJoin(uid, { joinCode: CODE, role: "admin" } as never), "invalid-argument");
+    await expectCode(handleJoin(uid, null as never), "invalid-argument");
+  });
+  it("requires a signed-in caller", async () => {
+    await expectCode(handleJoin(null, { incidentId: "I1", joinCode: CODE, role: "family" }), "unauthenticated");
+  });
+  it("the exported callable refuses a request without an App Check token", async () => {
+    const res = await callRaw({ method: "POST", body: { data: { joinCode: CODE, role: "family" } } });
+    expect(res.status).toBe(401);
+    expect(JSON.stringify(res.body)).toMatch(/UNAUTHENTICATED/);
+  });
+  it("control: the same harness sees a different status for a malformed request", async () => {
+    const res = await callRaw({ method: "POST", body: { notData: 1 } });
+    expect(res.status).toBe(400);
+  });
+});

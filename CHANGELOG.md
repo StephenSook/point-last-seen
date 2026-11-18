@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the `joinIncident` callable (`functions/src/{join,index}.ts`, App Check enforced, us-central1) and its
+  tests (`functions/test/join.test.ts`): request {incidentId?, joinCode, role, teamId?}, response
+  {ok: true, incidentId}; codes normalized (case, spaces, hyphens) and looked up by SHA-256 in the admin-only
+  joinCodes collection; the team code admits searchers and family, command has its own code; a searcher must
+  name an existing team; closed or expired incidents and mismatched incident ids are refused with one
+  message; claims set to {inc, role, team} (team null for command and family). No model call in any function.
+  Source: plan Task 11; spec sections 7 and 14; lane D contract question 1 (code-only join).
+  Verified: 14 join tests pass in the emulator, including one that drives the exported HTTP handler with
+  no App Check token and gets 401 UNAUTHENTICATED, and a control that gets 400 for a malformed body;
+  functions typecheck exits 0; the rules gate finds no model call under functions/.
 - Add the Cloud Storage rules (`storage.rules`) and their emulator test (`functions/test/rules/storage.test.ts`):
   clips under clips/{incidentId}/ written by command or family, video only, at most 14,000,000 bytes (inline to
   AI Logic, base64 under the 20 MB request limit); photos JPEG at most 2 MB, read and written by command or
