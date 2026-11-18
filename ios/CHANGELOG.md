@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): compare app versions for the minimum version check
+- What: `AppVersion.isBelow(_:minimum:)` compares dotted versions part by part as numbers
+  (0.9 is below 0.10; a missing part is 0; spaces trimmed). A value that is not a dotted
+  number never asks for an update, so a typo in Remote Config cannot lock a searcher out.
+- Source: J10 (`minimum_version_ios` with an upgrade prompt), promotion plan.
+- Verified: two `AppVersionTests` compile-red, then green; 232 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios): give the read the segment under the GPS fix
 - What: `ReportReader` sets `ReadContext.positionSegmentId` from the report's situation, so a
   report that names no segment is read as being about the segment the searcher stands in,
