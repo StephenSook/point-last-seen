@@ -1,8 +1,6 @@
 package app.pointlastseen.family
 
 import android.app.Application
-import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
@@ -23,11 +21,13 @@ import app.pointlastseen.family.ai.NoteEnv
 import app.pointlastseen.family.config.FirebaseRcSource
 import app.pointlastseen.family.config.RcStore
 import app.pointlastseen.family.core.ClipConsent
+import app.pointlastseen.family.core.ClipFile
 import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.core.EvidenceTerms
 import app.pointlastseen.family.core.JpegEncoder
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
 import app.pointlastseen.family.core.SharedUris
+import app.pointlastseen.family.core.SightingCheck
 import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -238,27 +238,38 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val uid = Firebase.auth.currentUser?.uid ?: return
         clipUi = ClipUi.Busy
         viewModelScope.launch {
-            val app = getApplication<Application>()
-            val bytes = withContext(Dispatchers.IO) { readUpTo(uri, MAX_CLIP_BYTES + 1) }
-            val durationS = withContext(Dispatchers.IO) { durationSeconds(uri) }
-            val sha = withContext(Dispatchers.Default) { Hashes.sha256Hex(bytes) }
-            val now = System.currentTimeMillis()
-            fun mark(on: Boolean) = if (on) ConsentMark(uid, now) else null
-            val consent = ClipConsent(sha, mark(form.personInClip), mark(form.footageOwner), mark(form.cloudProcessing), mark(form.publicUse))
-            val startMs = ClipCards.startMs(form.startMinuteOfDay, now, zone)
-            val request = ClipRequest(
-                bytes = bytes, mimeType = app.contentResolver.getType(uri) ?: "video/mp4", durationS = durationS,
-                clipStartMs = startMs, clockConfirmed = form.clockConfirmed, cameraFacingDeg = form.facingDeg,
-                consent = consent, killCloud = { rc.current().killCloud }, modelName = rc.current().clipModel,
-            )
-            when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
-                is ClipOutcome.Read -> {
-                    lastClip = out to startMs
-                    val frame = withContext(Dispatchers.IO) { frameAt(uri, out.reading.keyFrame.time) }
-                    clipUi = ClipUi.Read(ClipCards.card(out, startMs, zone).copy(frame = frame?.asImageBitmap()))
-                }
-                else -> clipUi = ClipUi.Done(out)
+            clipUi = try {
+                readClipOrFail(uri, incidentId, uid, form)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ClipUi.Done(ClipOutcome.Failed)
             }
+        }
+    }
+
+    private suspend fun readClipOrFail(uri: Uri, incidentId: String, uid: String, form: ClipForm): ClipUi {
+        val app = getApplication<Application>()
+        val bytes = withContext(Dispatchers.IO) { ClipFile.readUpTo(app.contentResolver, uri, MAX_CLIP_BYTES + 1) }
+            ?: return ClipUi.Done(ClipOutcome.Refused("This clip could not be opened. Choose it again."))
+        val durationS = withContext(Dispatchers.IO) { ClipFile.durationSeconds(app, uri) }
+        val sha = withContext(Dispatchers.Default) { Hashes.sha256Hex(bytes) }
+        val now = System.currentTimeMillis()
+        fun mark(on: Boolean) = if (on) ConsentMark(uid, now) else null
+        val consent = ClipConsent(sha, mark(form.personInClip), mark(form.footageOwner), mark(form.cloudProcessing), mark(form.publicUse))
+        val startMs = ClipCards.startMs(form.startMinuteOfDay, now, zone)
+        val request = ClipRequest(
+            bytes = bytes, mimeType = runCatching { app.contentResolver.getType(uri) }.getOrNull() ?: "video/mp4",
+            durationS = durationS, clipStartMs = startMs, clockConfirmed = form.clockConfirmed, cameraFacingDeg = form.facingDeg,
+            consent = consent, killCloud = { rc.current().killCloud }, modelName = rc.current().clipModel,
+        )
+        return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
+            is ClipOutcome.Read -> {
+                lastClip = out to startMs
+                val keySeconds = SightingCheck.seconds(out.reading.keyFrame.time) ?: 0
+                val frame = withContext(Dispatchers.IO) { ClipFile.frameAt(app, uri, keySeconds) }
+                ClipUi.Read(ClipCards.card(out, startMs, zone).copy(frame = frame?.asImageBitmap()))
+            }
+            else -> ClipUi.Done(out)
         }
     }
 
@@ -302,38 +313,6 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private fun displayName(uri: Uri): String? = runCatching {
         getApplication<Application>().contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null
-        }
-    }.getOrNull()
-
-    private fun readUpTo(uri: Uri, limit: Long): ByteArray {
-        val input = getApplication<Application>().contentResolver.openInputStream(uri) ?: return ByteArray(0)
-        return input.use { s ->
-            val out = java.io.ByteArrayOutputStream()
-            val buf = ByteArray(64 * 1024)
-            var total = 0L
-            while (total < limit) {
-                val n = s.read(buf, 0, minOf(buf.size.toLong(), limit - total).toInt())
-                if (n < 0) break
-                out.write(buf, 0, n)
-                total += n
-            }
-            out.toByteArray()
-        }
-    }
-
-    private fun durationSeconds(uri: Uri): Int = runCatching {
-        MediaMetadataRetriever().use { r ->
-            r.setDataSource(getApplication(), uri)
-            val ms = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            ((ms + 999) / 1000).toInt()
-        }
-    }.getOrDefault(0)
-
-    private fun frameAt(uri: Uri, mmss: String): Bitmap? = runCatching {
-        val s = app.pointlastseen.family.core.SightingCheck.seconds(mmss) ?: return null
-        MediaMetadataRetriever().use { r ->
-            r.setDataSource(getApplication(), uri)
-            r.getFrameAtTime(s * 1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST)
         }
     }.getOrNull()
 
