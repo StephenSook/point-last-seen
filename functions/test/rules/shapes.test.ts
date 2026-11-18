@@ -152,6 +152,9 @@ describe("clip readings expire within 31 days; the incident status stays in its 
     await assertFails(setDoc(doc(db, "incidents/I1"), { status: "Closed" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { name: "Drill", mode: "drill" }));
   });
+  it("command cannot write mediaDeletedAt, which only the media sweep sets (review, low)", async () => {
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mediaDeletedAt: new Date() }, { merge: true }));
+  });
 });
 
 describe("ops/storage is the one public doc: readable without sign-in, writable by nobody", () => {

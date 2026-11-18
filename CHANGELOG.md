@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Command can no longer write `mediaDeletedAt` on an incident; only the media sweep (admin) sets it, so a
+  command member cannot mark a sandbox's media as deleted and hide that it is still stored.
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now passes; emulator suite 110; `bash scripts/ci-local.sh` exit 0.
 - A clip reading's expiresAt must be 30 to 31 days after the write (before, anything from a minute to 31 days
   passed), so the TTL on the consent record can no longer delete it while the clip it covers lives up to 30
   days. The test fixture writes 30.5 days.

@@ -68,7 +68,7 @@ service cloud.firestore {
         && resource.data.get('status', 'open') != 'closed'
         && request.resource.data.status in ['open', 'found', 'closed']
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash']);
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt']);
       allow delete: if false;
 
       match /segments/{segmentId} {
