@@ -79,7 +79,7 @@ import Testing
             let onDevice = FakeVoice(), cloud = FakeVoice()
             let model = AppModel(signIn: SignIn(isSignedIn: { signedIn }, attempt: { false }),
                                  speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }))
-            model.config.ttsModelIOS = "voice-model"
+            model.config.voiceTemplateId = "voice-template"
             model.connectivity.pathChanged(satisfied: true)
             await model.load(try spokenMission())
             // Signed in is the control: it proves this setup does reach the cloud voice.
