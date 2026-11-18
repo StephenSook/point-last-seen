@@ -38,20 +38,4 @@ class AiMappingTest {
         val e = runCatching { kotlinx.coroutines.runBlocking { client.readClip(byteArrayOf(1), "video/mp4") } }.exceptionOrNull()
         assertEquals(CloudPausedException::class, e?.let { it::class })
     }
-
-    @Test fun theClipSchemaNamesEveryCameraSightingField() {
-        assertEquals(
-            setOf(
-                "personVisible", "firstSeen", "lastSeen", "entryEdge", "exitEdge", "topColor", "bottomColor",
-                "topType", "footwear", "headwear", "carriedItems", "keyFrame", "lighting", "legibility", "evidence",
-            ),
-            AiSchemas.clip.properties!!.keys,
-        )
-    }
-
-    @Test fun theClipPromptAsksForNoFacesOrNames() {
-        val p = AiSchemas.CLIP_PROMPT.lowercase()
-        assertEquals(true, p.contains("do not describe the face"))
-        assertEquals(true, p.contains("do not guess who"))
-    }
 }

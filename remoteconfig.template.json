@@ -42,6 +42,13 @@
       "valueType": "STRING",
       "description": "Cloud model for the Android family app's camera clip read. Must be on shared/constants/models.json."
     },
+    "clip_template_id": {
+      "defaultValue": {
+        "value": "pls-clip-read-v1"
+      },
+      "valueType": "STRING",
+      "description": "Server prompt template for the Android family app's consented cloud read of a camera clip (shared/templates)."
+    },
     "tts_model_ios": {
       "defaultValue": {
         "value": "gemini-3.8-flash-lite-tts"
