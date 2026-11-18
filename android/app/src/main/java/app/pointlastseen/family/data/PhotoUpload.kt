@@ -4,7 +4,10 @@ import app.pointlastseen.family.core.MAX_PHOTO_BYTES
 import com.google.firebase.Firebase
 import com.google.firebase.storage.storage
 import com.google.firebase.storage.storageMetadata
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 fun interface PhotoBucket {
     suspend fun put(path: String, bytes: ByteArray, contentType: String)
@@ -20,8 +23,13 @@ sealed class PhotoOutcome {
  * Uploads a standardized family photo (JpegEncoder output) to
  * photos/{incidentId}/{sha256}.jpg. Only a JPEG under the 2 MB cap is sent.
  */
-class PhotoUpload(private val bucket: PhotoBucket) {
-    suspend fun upload(incidentId: String, jpeg: ByteArray): PhotoOutcome {
+class PhotoUpload(
+    private val bucket: PhotoBucket,
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
+) {
+    suspend fun upload(incidentId: String, jpeg: ByteArray): PhotoOutcome = withContext(worker) { uploadOnWorker(incidentId, jpeg) }
+
+    private suspend fun uploadOnWorker(incidentId: String, jpeg: ByteArray): PhotoOutcome {
         if (jpeg.size < 2 || jpeg[0] != 0xFF.toByte() || jpeg[1] != 0xD8.toByte()) return PhotoOutcome.Refused("This is not a photo.")
         if (jpeg.size > MAX_PHOTO_BYTES) return PhotoOutcome.Refused("This photo is too large.")
         val path = "photos/$incidentId/${Hashes.sha256Hex(jpeg)}.jpg"

@@ -1,6 +1,7 @@
 package app.pointlastseen.family.data
 
 import app.pointlastseen.family.core.MAX_PHOTO_BYTES
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -18,6 +19,18 @@ class PhotoUploadTest {
         val out = PhotoUpload(bucket).upload("inc-1", bytes) as PhotoOutcome.Uploaded
         assertEquals("photos/inc-1/${Hashes.sha256Hex(bytes)}.jpg", out.path)
         assertEquals(listOf(out.path to "image/jpeg"), bucket.puts)
+    }
+
+    @Test fun hashingAndUploadRunOnTheGivenWorker() = runTest {
+        val pool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "pls-test-worker") }
+        try {
+            var seen: String? = null
+            val bucket = PhotoBucket { _, _, _ -> seen = Thread.currentThread().name }
+            PhotoUpload(bucket, worker = pool.asCoroutineDispatcher()).upload("inc-1", byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1))
+            assertEquals("pls-test-worker", seen)
+        } finally {
+            pool.shutdown()
+        }
     }
 
     @Test fun somethingThatIsNotAJpegIsRefused() = runTest {

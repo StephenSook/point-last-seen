@@ -3,6 +3,7 @@ package app.pointlastseen.family.ai
 import app.pointlastseen.family.core.ClipConsent
 import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.data.Hashes
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,6 +44,23 @@ class ClipReaderTest {
         clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent ?: consentFor(bytes(size)),
         killCloud = { killCloud }, modelName = "gemini-3.5-flash-lite",
     )
+
+    @Test fun theReadRunsOnTheGivenWorkerNotTheCallersThread() = runTest {
+        val pool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "pls-test-worker") }
+        try {
+            var seen: String? = null
+            val deps = object : ClipDeps by FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900)) {
+                override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply {
+                    seen = Thread.currentThread().name
+                    return ModelReply(readingJson, Source.IN_CLOUD, 900)
+                }
+            }
+            ClipReader(deps, worker = pool.asCoroutineDispatcher()).read(request(1000))
+            assertEquals("pls-test-worker", seen)
+        } finally {
+            pool.shutdown()
+        }
+    }
 
     @Test fun aClipOverTheCapIsRefusedBeforeAnything() = runTest {
         val deps = FakeDeps()

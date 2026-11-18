@@ -8,6 +8,9 @@ import app.pointlastseen.family.core.ClipRules
 import app.pointlastseen.family.core.SightingCheck
 import app.pointlastseen.family.data.Hashes
 import app.pointlastseen.family.data.RouteRecord
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** A stored clip reading, clipReadings/{sha256} (spec section 7). */
 data class StoredClipReading(
@@ -65,9 +68,15 @@ sealed class ClipOutcome {
  * required consents are checked before anything leaves the phone. A clip already
  * read is never sent to the model again.
  */
-class ClipReader(private val deps: ClipDeps) {
+class ClipReader(
+    private val deps: ClipDeps,
+    /** Hashing a clip of up to 14 MB three times is too slow for the main thread. */
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
+) {
 
-    suspend fun read(r: ClipRequest): ClipOutcome {
+    suspend fun read(r: ClipRequest): ClipOutcome = withContext(worker) { readOnWorker(r) }
+
+    private suspend fun readOnWorker(r: ClipRequest): ClipOutcome {
         ClipRules.sizeProblem(r.bytes.size.toLong())?.let { return ClipOutcome.Refused(it) }
         // Without the clip's length no reading can be checked, so nothing is sent.
         if (r.durationS <= 0) return ClipOutcome.Refused("The clip's length could not be read. Try another copy of the clip.")
