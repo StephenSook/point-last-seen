@@ -365,3 +365,12 @@ export interface EffectContext {
 }
 
 export type ValidationResult = { ok: true } | { ok: false; reasons: string[] };
+
+/** A clip reading that found no usable sighting (shared/schemas/clip-no-sighting.schema.json). */
+export type ClipNoSightingReason =
+  | "no_person" | "first_seen_format" | "last_seen_format" | "key_frame_format" | "first_after_last" | "last_after_clip_end"
+  | "first_after_clip_end" | "key_frame_after_clip_end" | "box" | "unreadable_reply" | "model_error";
+export interface ClipNoSighting {
+  status: "no_sighting";
+  reasons: ClipNoSightingReason[];
+}

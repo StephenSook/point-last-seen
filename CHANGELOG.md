@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/schemas/clip-no-sighting.schema.json` and the TypeScript `ClipNoSighting`: a clip reading that found
+  no usable sighting, `{ status: "no_sighting", reasons: [...] }`, with 1 to 11 reasons from a closed list (the
+  shared camera check's codes plus "unreadable_reply" and "model_error"), so a could-not-read result can be
+  stored as the reading and cached. Android's mirror is marked pending in the schema's parity map.
+  Source: review ruling on a stalled clip reading (lane C found it on the live site).
+  Verified: schema parity 12 schemas 0 failures; engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - Four route reasons for clip triage on the web: "on_device_triage_flagged" (the cloud read of a span the
   laptop's model flagged), "on_device_triage_no_person" and "triage_no_motion" (nothing sent; trace only), and
   "user_override_after_triage" (the consented cloud read anyway after such a result). Added to the route-record
