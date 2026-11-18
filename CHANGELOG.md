@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules recompute every event's id: `eventIdOf(incidentId, request.auth.uid, seq)` with the same
+  text framing as the engines (hashing.sha256 over decimal byte length, ":" and value per field) must start
+  the document id, and seq must be a whole number of 0 or more. A member can no longer occupy another
+  device's future event id, and an id derived from another seq, device or incident is refused. Event tests
+  now write every event at its derived id (fixtures compute it independently with node:crypto).
+  Source: Codex adversarial review H1 and the fresh-context review I2 (the earlier deviceId binding alone did
+  not stop squatting; the 2026-11-18 rules entry above overstated it).
+  Verified: the 3 new H1 tests failed first (squatting at a victim's seq-5 id succeeded), now 62 emulator
+  tests pass; ci-local exits 0.
 - Detection range is measured-first: the team's measured visual range sets the sweep width, and a stated
   (model-read) range is used only when the team has no measurement (`rdBasis` "stated"). Spec 10.4: "Sweep
   width always uses the visual detection range." A model-read number can no longer raise POD above a
