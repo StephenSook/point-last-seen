@@ -15,11 +15,12 @@ export const joinIncident = onCall<JoinRequest>(
 );
 
 /**
- * deleteIncidentMedia (scheduled every 15 minutes): deletes an ended judge sandbox's clips, photos and packs,
+ * deleteIncidentMedia (scheduled every 5 minutes, so a sandbox's media goes within 15 minutes of its end even
+ * when a run is late): deletes an ended judge sandbox's clips, photos and packs,
  * then records the bucket's lifecycle state in ops/storage for the credential-free daily probe.
  */
 export const deleteIncidentMedia = onSchedule(
-  { schedule: "every 15 minutes", region: "us-central1", maxInstances: 1, timeoutSeconds: 300 },
+  { schedule: "every 5 minutes", region: "us-central1", maxInstances: 1, timeoutSeconds: 240 },
   async () => {
     const db = getFirestore(), bucket = getStorage().bucket();
     const r = await deleteEndedSandboxMedia(db, bucket, Date.now());

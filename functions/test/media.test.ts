@@ -99,3 +99,11 @@ describe("storage health for the daily probe (ops/storage)", () => {
     expect(d.checkedAt).toBeInstanceOf(Timestamp);
   });
 });
+
+describe("deleteIncidentMedia schedule (Codex MP2 review M2)", () => {
+  it("runs every 5 minutes, so a sandbox's media goes within 15 minutes of its end even with a late run", async () => {
+    const { deleteIncidentMedia } = await import("../src/index");
+    expect((deleteIncidentMedia as unknown as { __endpoint: { scheduleTrigger: { schedule: string } } }).__endpoint.scheduleTrigger.schedule)
+      .toBe("every 5 minutes");
+  });
+});

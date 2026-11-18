@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- deleteIncidentMedia runs every 5 minutes (still one Cloud Scheduler job), so "a sandbox's media is deleted
+  within 15 minutes of its end" (docs/LIMITS.md) holds even when a run starts late; a 15-minute schedule
+  could not keep a 15-minute promise. The timeout drops to 240 s so a run ends before the next starts.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M2 (orchestrator preferred 5 minutes).
+  Verified: the schedule test (reads the function's own endpoint metadata) failed first with "every 15
+  minutes", now passes; emulator suite 108; `bash scripts/ci-local.sh` exit 0.
 - deleteIncidentMedia handles each ended sandbox on its own: a failed delete (a Storage hold, a transient
   error) is logged with the incident id, counted in ops/storage (`sweepFailures`, a count only since the doc
   is public) and left unstamped so the next run retries it, and the other sandboxes are still cleaned. Before,
