@@ -22,4 +22,11 @@ echo "== gates: schema parity and vector generator tests"
 echo "== gates: secret scan (full history)"
 gitleaks git --redact --no-banner --log-opts="--all" .
 
+if [ -d ios/PLSCore ]; then
+  echo "== swift-core: Swift core tests"
+  swift test --package-path ios/PLSCore
+else
+  echo "== swift-core: skipped, ios/PLSCore not on this branch"
+fi
+
 echo "ci-local: all checks passed"

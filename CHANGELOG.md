@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the `swift-core` CI job (`.github/workflows/swift.yml`): `swift test --package-path ios/PLSCore` in
+  `swift:6.4.2-noble` pinned by index digest, on pull requests to main and on main only, path-filtered to
+  ios/PLSCore, shared/test-vectors and shared/constants (not its own path, so it cannot run before
+  ios/PLSCore lands). `ci-local.sh` runs it when ios/PLSCore exists.
+  Source: plan Task 9a; orchestrator CI-minutes ruling (expensive suites on PR to main and main only).
+  Verified: tag resolved with `docker buildx imagetools inspect swift:6.4.2-noble`; checkout SHA reused from
+  ci.yml; lane B reports the same suite green in swift 6.4.2 on Linux; `bash scripts/ci-local.sh` exits 0 here.
 - Point the schema parity map at lane D's Kotlin files: `data/EventDoc.kt` (EventDoc, RouteRecord),
   `core/CameraSighting.kt` (CameraSighting), `data/Profiles.kt` (SharedProfile, CommandProfile); drop the
   Android mapping for ReportReading (no Kotlin type planned).

@@ -1,0 +1,38 @@
+name: Swift core
+
+# Expensive (Swift in Docker): runs on pull requests to main and on main only,
+# when the Swift package or the shared vectors and constants change. The workflow's own
+# path is not a trigger: before ios/PLSCore lands on main the job would fail on a missing package.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/PLSCore/**"
+      - "shared/test-vectors/**"
+      - "shared/constants/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ios/PLSCore/**"
+      - "shared/test-vectors/**"
+      - "shared/constants/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  swift-core:
+    name: swift-core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Official swift image, tag 6.4.2-noble, pinned by its index digest (read 2026-11-17).
+    container: swift:6.4.2-noble@sha256:23d9b28ad97fb1cf1999edc3a0cb265ee915ed42299a9344e7173d5a6d2b05f4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Swift core tests (includes the shared vectors)
+        run: swift test --package-path ios/PLSCore
