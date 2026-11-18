@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard runs with 1 GiB of memory, a full CPU and up to 6 requests at once per instance (10 instances at most,
+  none kept warm). A clip read carries up to 14 MB of video as base64, about 100 MB in flight with the raw body,
+  the parsed string and a rewritten reply; at the default 256 MiB and 80 requests per instance, a burst of clip
+  reads could exhaust the instance and fail every AI call behind it.
+  Source: review (concurrent clip reads could exhaust the trigger's memory).
+  Verified: the endpoint test (1,024 MB, CPU 1, concurrency 6, 10 instances, no minimum instances) failed first,
+  now 11 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0. A live burst
+  follows the redeploy.
 - cloudGuard's tests send events through the exported trigger, as AI Logic does: a template call is answered with
   no request (so the template's own config, schema included, stands), a direct call that asks too much is
   answered with the bounded request, and an off-list model is refused with permission-denied (code 7, HTTP 500

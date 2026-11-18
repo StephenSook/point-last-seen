@@ -47,6 +47,17 @@ describe("cloudGuard", () => {
     const ep = (cloudGuard as unknown as { __endpoint: { blockingTrigger?: { eventType: string } } }).__endpoint;
     expect(ep.blockingTrigger?.eventType).toBe("google.firebase.ailogic.v1.beforeGenerate");
   });
+  it("has memory for a burst of clip reads: each request can carry a 14 MB clip as base64 (review)", async () => {
+    const { cloudGuard } = await import("../src/index");
+    const ep = (cloudGuard as unknown as { __endpoint: { availableMemoryMb?: number; concurrency?: number; cpu?: number; maxInstances?: number; minInstances?: unknown } }).__endpoint;
+    // About 100 MB per in-flight clip request (raw body, parsed string, rewritten reply), plus the runtime.
+    expect(ep.availableMemoryMb).toBe(1024);
+    expect(ep.cpu).toBe(1);
+    expect(ep.concurrency).toBe(6);
+    expect(ep.maxInstances).toBe(10);
+    // No warm instance waiting (that costs money while idle).
+    expect(typeof ep.minInstances === "number" ? ep.minInstances : 0).toBe(0);
+  });
 });
 
 /** Sends one AI Logic event through the exported trigger, as the platform does, and returns its HTTP answer. */
