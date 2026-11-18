@@ -18,7 +18,9 @@ export type IncidentDoc = {
 };
 
 export type Team = { teamId: string; name: string };
-export type SegmentDoc = MapSegment & { areaM2: number; priorPoa: number };
+export type SegmentDoc = MapSegment & { areaM2: number; priorPoa: number; neighbors: string[]; upstream: string[]; downstream: string[] };
+
+const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
 export type IncidentView = {
   incident: IncidentDoc | null;
@@ -61,7 +63,9 @@ export function subscribeIncident(
         if (d.id === "ROW") return [];
         const data = d.data();
         const geometry = parseGeometry(data["geometryJson"]);
-        return geometry ? [{ segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"] } as SegmentDoc] : [];
+        return geometry
+          ? [{ segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"], neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]) } as SegmentDoc]
+          : [];
       });
       emit();
     }, onError),

@@ -191,3 +191,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `SightingsPanel` shows each sighting with the time seen, who reported it, its segment (or "No place yet."), the clothing it describes and the stored note, then "Confirm" and "Reject" (both disabled while a decision is saving; Confirm also while the sighting has no place). Decided cards show "Confirmed" or "Rejected". A sighting outside the grid shows "Sighting outside the search area. Consider moving the start point." Errors sit on the card in a fixed sentence.
 - Source: plan Task 36 step 3, spec 12.2 ("The card shows the sighting next to the profile's clothing and the last-seen card").
 - Verified: typecheck and build clean; the card states come from `sightingCards` (5 tests).
+
+### feat(sightings): wire sightings into the command post
+- What: the post reads each segment's neighbours and streams, numbers its events with `makeSeq`, and writes sightings and confirmations create-only with the read-back writer (never awaited; the listener shows them at once). "Add sighting" opens the form and turns map clicks into the place pin. The note is read through the gate with the on-device builder created only after the gate says yes; the cloud read passes a consent record with the signed-in uid and honours `kill_cloud`. The sightings panel decides by writing a confirmation event. Reports the server rejected are listed with one "Retry", which reads first.
+- Source: plan Task 36 step 3, spec 11.1 (outbox with read-back), spec 12.2.
+- Verified: typecheck and build clean; 153 unit tests pass. The deployed check (add and confirm a sighting, the rank list changes) waits for joinIncident to be deployed.

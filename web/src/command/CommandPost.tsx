@@ -3,9 +3,18 @@
 
 import { DEFAULT_PARAMS, type Assignment, type EventDoc } from "@pls/engine";
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, wordingGenerator } from "../ai/client";
+import { aiClient, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
+import { onDeviceAvailable } from "../ai/gate";
+import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
+import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
+import { makeSeq } from "../data/seq";
+import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
+import { segmentContaining, type LatLon } from "../map/geo";
+import { SightingForm } from "./SightingForm";
+import { SightingsPanel } from "./SightingsPanel";
+import { sightingCards } from "./sightingCards";
 import { approvePlan, existingPlanVersions, localDraft, nextPlanVersion, planChange, planDocFor, subscribeDraft, subscribePlans } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
@@ -156,6 +165,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
   const latestSeen = useRef<number | null | undefined>(undefined);
+  const nextSeq = useRef(makeSeq()).current;
+  const [adding, setAdding] = useState(false);
+  const [pin, setPin] = useState<LatLon | null>(null);
+  const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
 
   useEffect(() => startRemoteConfig(pls.app, setRc), [pls]);
 
@@ -222,6 +235,30 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb);
     return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud });
   };
+  // Events this browser writes: create-only, never awaited; the listener shows them at once.
+  const writer = (): CommandWriter => {
+    const uid = pls.auth.currentUser?.uid;
+    if (!uid || !incident) throw new Error("not ready");
+    return { incidentId, uid, seq: nextSeq(), clientTimeMs: Date.now(), priorVersion: incident.priorVersion, segments };
+  };
+  const write = (doc: EventDoc) => {
+    const deps = firestoreWriteDeps(pls.db, (id, st) => setWrites((w) => ({ ...w, [id]: { state: st, doc } })));
+    appendEventWith(doc, deps);
+  };
+  const retry = (doc: EventDoc) => retryEventWith(doc, firestoreWriteDeps(pls.db, (id, st) => setWrites((w) => ({ ...w, [id]: { state: st, doc } }))));
+  const rejected = Object.values(writes).filter((w) => w.state === "rejected");
+  const saveSighting = async (input: SightingInput) => {
+    write(buildSightingEvent(input, writer()));
+    setPin(null);
+  };
+  const cards = useMemo(() => sightingCards(events as unknown as EventDoc[]), [events]);
+  const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
+  const readNote = (text: string) => readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
+  const readNoteInCloud = (text: string) => {
+    const uid = pls.auth.currentUser?.uid ?? "";
+    return readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingCloudGenerator(ai(), rc.cloudModelWeb)(t), killCloud: rc.killCloud });
+  };
+
   const approve = async (worded: WordedPlan): Promise<number> => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
@@ -260,13 +297,43 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={poa} />
+        <MapView segments={segments} poa={poa} onMapClick={adding ? setPin : undefined} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
             </p>
           )}
+          {rejected.length > 0 && (
+            <div className="error" role="alert">
+              <p>{rejected.length === 1 ? "One report was not delivered." : `${rejected.length} reports were not delivered.`}</p>
+              <button type="button" className="btn ghost" onClick={() => rejected.forEach((w) => retry(w.doc))}>
+                Retry
+              </button>
+            </div>
+          )}
+          {adding ? (
+            <SightingForm
+              place={pin}
+              placeSegmentId={pin ? segmentContaining(pin, segments) : null}
+              onSave={saveSighting}
+              readNote={readNote}
+              readNoteInCloud={readNoteInCloud}
+              onClose={() => {
+                setAdding(false);
+                setPin(null);
+              }}
+            />
+          ) : (
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident}>
+              Add sighting
+            </button>
+          )}
+          <SightingsPanel
+            cards={cards}
+            segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
+            onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
+          />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <MergeLanes lanes={lanes} />
