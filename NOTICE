@@ -1,0 +1,8 @@
+Point Last Seen
+Copyright 2026 Stephen Sookra
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Map data from OpenStreetMap. The derived grid, route graph and tile extract
+under shared/grid/ are made available under the Open Database License (ODbL)
+1.0, not under the Apache License. See shared/grid/README.md.

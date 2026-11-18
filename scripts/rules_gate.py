@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Repository rules gate.
+
+Walks every file git would ship (tracked plus untracked-but-not-ignored) and
+fails with `path:line: reason` on any rule from the plan's Global Constraints.
+Exit 0 when clean, 1 on any violation or when the walk finds zero files.
+
+Usage: python3 -I scripts/rules_gate.py [root]
+"""
+
+import re
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+
+SELF_PATHS = ("scripts/rules_gate.py", "scripts/test_rules_gate.py")
+
+# Model and speech paths outside Firebase AI Logic. Case-sensitive tokens.
+BANNED_EXACT = (
+    "import Speech",
+    "SFSpeechRecognizer",
+    "import Vision",
+    "CoreML",
+    "webkitSpeechRecognition",
+    "TextDetector",
+    "BarcodeDetector",
+    "startChat",
+)
+# Vendor and library names, matched case-insensitively.
+BANNED_ANYCASE = ("tflite", "mediapipe", "onnx", "anthropic", "elevenlabs", "opencv")
+
+AVAILABILITY_ONLY_IN = "web/src/ai/gate.ts"
+COUNT_TOKENS_BANNED_IN = ("web/src/ai/photoCues.ts", "web/src/ai/sightingText.ts")
+WALKERS_FILE = "shared/engine-ts/src/walkers.ts"
+SLOW_MODEL = "gemini-3.8-flash"
+FUNCTION_MODEL_CALLS = ("firebase/ai", "@google/genai", "@google/generative-ai",
+                        "generateContent", "getGenerativeModel")
+
+FORBIDDEN_NAMES = re.compile(
+    r"(^|/)(GoogleService-Info\.plist|google-services\.json|service-account[^/]*\.json)$"
+)
+ENV_FILE = re.compile(r"(^|/)\.env(\..+)?$")
+
+# Model builders live only in their named client files (code files; docs exempt).
+# A builder token that appears nowhere in an existing client file means the
+# builder moved and this list is stale, so that fails too (the floor).
+MODEL_BUILDERS = {
+    "getGenerativeModel(": ("web/src/ai/client.ts",),
+    "geminiLanguageModel(": ("ios/PLS/AI/ReportReader.swift",),
+    "SystemLanguageModel": ("ios/PLS/AI/ReportReader.swift",),
+    "Firebase.ai(": ("android/app/src/main/java/app/pointlastseen/family/ai/AiClient.kt",),
+}
+AVAILABILITY = re.compile(r"(?<!System)LanguageModel\.availability")
+
+MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
+ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
+
+
+def list_files(root: Path) -> list[str]:
+    cmd = ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others",
+           "--exclude-standard", "--", "."]
+    cmd += [f":(exclude){p}" for p in SELF_PATHS]
+    out = subprocess.run(cmd, capture_output=True, check=True)
+    return sorted({p for p in out.stdout.decode().split("\0") if p})
+
+
+def read_text(path: Path) -> str | None:
+    try:
+        data = path.read_bytes()
+    except (FileNotFoundError, IsADirectoryError):
+        return None
+    if b"\0" in data:
+        return None
+    return data.decode("utf-8", errors="replace")
+
+
+def check_name(rel: str) -> list[str]:
+    if FORBIDDEN_NAMES.search(rel):
+        return [f"{rel}:0: file must never be committed"]
+    m = ENV_FILE.search(rel)
+    if m and PurePosixPath(rel).name != ".env.example":
+        return [f"{rel}:0: env file must never be committed (only .env.example)"]
+    return []
+
+
+def check_lines(rel: str, text: str) -> list[str]:
+    problems = []
+    is_doc = rel.endswith(".md")
+    in_functions = rel.startswith("functions/")
+    for n, line in enumerate(text.splitlines(), start=1):
+        def bad(reason):
+            problems.append(f"{rel}:{n}: {reason}")
+
+        for token in BANNED_EXACT:
+            if token in line:
+                bad(f"banned token '{token}'")
+        m = ANYCASE.search(line)
+        if m:
+            bad(f"banned name '{m.group(0)}'")
+        if AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
+            bad("LanguageModel.availability is allowed only in the web AI gate module")
+        if rel in COUNT_TOKENS_BANNED_IN and "countTokens" in line:
+            bad("countTokens is banned in private-data paths")
+        if rel == WALKERS_FILE:
+            m = MATH_CALL.search(line)
+            if m:
+                bad(f"walkers.ts may use only integer PRNG steps and + - * / compare, found '{m.group(0)}'")
+        if SLOW_MODEL in line and not is_doc:
+            bad(f"model id '{SLOW_MODEL}' is banned on any live path")
+        if not is_doc:
+            for token, allowed in MODEL_BUILDERS.items():
+                if token in line and rel not in allowed:
+                    bad(f"model builder '{token}' belongs only in its client file")
+        if in_functions:
+            for token in FUNCTION_MODEL_CALLS:
+                if token in line:
+                    bad(f"no model call in any Cloud Function, found '{token}'")
+    return problems
+
+
+def check_builder_floor(root: Path, files: list[str]) -> list[str]:
+    problems = []
+    present = set(files)
+    for token, allowed in MODEL_BUILDERS.items():
+        existing = [rel for rel in allowed if rel in present]
+        if not existing:
+            continue
+        texts = [read_text(root / rel) or "" for rel in existing]
+        if not any(token in t for t in texts):
+            problems.append(f"{existing[0]}:0: client file has no '{token}'; the builder moved, update the gate")
+    return problems
+
+
+def main(root: str) -> int:
+    root_path = Path(root).resolve()
+    try:
+        files = list_files(root_path)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        print(f"rules_gate: cannot list files under {root_path}: {exc}")
+        return 1
+    if not files:
+        print("rules_gate: walked 0 files; refusing to report clean")
+        return 1
+    problems = []
+    for rel in files:
+        problems += check_name(rel)
+        text = read_text(root_path / rel)
+        if text is not None:
+            problems += check_lines(rel, text)
+    problems += check_builder_floor(root_path, files)
+    for p in problems:
+        print(p)
+    status = "FAIL" if problems else "ok"
+    print(f"rules_gate: {status}, {len(files)} files walked, {len(problems)} problems")
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "."))

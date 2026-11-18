@@ -1,0 +1,19 @@
+{
+  "name": "point-last-seen",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Search-planning aid for search and rescue training drills.",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "workspaces": [
+    "shared/engine-ts",
+    "tools/grid-builder",
+    "functions",
+    "web"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "ci:local": "bash scripts/ci-local.sh"
+  }
+}

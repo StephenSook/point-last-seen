@@ -1,10 +1,69 @@
+# Local agent and assistant files
 CLAUDE.local.md
+.superpowers/
+
+# Secrets and credentials (only .env.example is tracked)
 .env
 .env.*
 !.env.example
 *.local
-node_modules/
-dist/
-.DS_Store
 service-account*.json
 *appcheck*debug*
+GoogleService-Info.plist
+google-services.json
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+.firebaserc
+
+# Media that never enters the repo (clips, family photos)
+*.mp4
+*.mov
+*.m4v
+
+# Node and web builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+playwright-report/
+test-results/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+storage-debug.log
+ui-debug.log
+*-debug.log
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Apple
+DerivedData/
+.build/
+.swiftpm/
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Android
+.gradle/
+local.properties
+.idea/
+*.iml
+android/app/release/
+
+# OS and editors
+.DS_Store
+.AppleDouble
+._*
+.vscode/
+*.swp
