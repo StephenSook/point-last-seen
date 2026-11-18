@@ -102,6 +102,15 @@ describe("a camera Confirm lands once (two seats, same clip, same version)", () 
     b.set(doc(db, `incidents/I1/events/${alone.eventId}`), alone);
     await assertFails(b.commit());
   });
+  it("the inputs must be a list: a map keyed by the sighting's id does not count (review)", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    const cam = camEvent("seat-a", 1);
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.4, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorInputEventIds: { [cam.eventId as string]: true }, priorVersion: 6 });
+    b.set(doc(db, `incidents/I1/events/${cam.eventId}`), cam);
+    await assertFails(b.commit());
+  });
   it("the family app still confirms a clip by itself (it never moves the prior)", async () => {
     const db = dbAs("family-uid", familyClaims);
     const cam = camEvent("family-uid", 1, "family");

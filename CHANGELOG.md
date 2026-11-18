@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules accept a command camera sighting only when the prior's input ids are a list that contains it.
+  `in` also matches the keys of a map, so a map keyed by the sighting's id could have stood in for the list.
+  Source: review of d5d6176.
+  Verified: the test (a Confirm batch whose incident carries the ids as a map keyed by the sighting's id is
+  refused) failed first, now all 102 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md` records the probe's positive read and its control (run 44420234691 on the real site passed
   both App Check steps; run 44420309943 against a wrong site failed both), a table of the secrets the checks use
   (names and places only, revoke by 2026-12-17), and rows 6 and 6a as they now stand: three calls use server

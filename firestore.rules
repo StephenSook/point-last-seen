@@ -401,7 +401,9 @@ service cloud.firestore {
     // reading doc (consent record) must exist.
     function cameraMovesPrior(incidentId, eventId, inc) {
       let after = getAfter(/databases/$(database)/documents/incidents/$(incidentId)).data;
-      return after.get('priorVersion', -1) == inc.get('priorVersion', 0) + 1 && eventId in after.get('priorInputEventIds', []);
+      let inputs = after.get('priorInputEventIds', []);
+      // A list only: `in` also matches the keys of a map.
+      return after.get('priorVersion', -1) == inc.get('priorVersion', 0) + 1 && inputs is list && eventId in inputs;
     }
 
     function cameraReadingOk(incidentId, r) {
