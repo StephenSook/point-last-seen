@@ -20,12 +20,14 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
-  const hash = draft?.eventSetHash ?? null;
+  // A suggestion belongs to the draft it was worded for: the event set, the prior and the
+  // assignments. If any of them changes (for example the plan history arrives), it is withdrawn.
+  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.assignments]) : null;
 
   useEffect(() => {
     setSuggested(null);
     setError(null);
-  }, [hash]);
+  }, [draftKey]);
 
   async function suggest() {
     setBusy("suggest");

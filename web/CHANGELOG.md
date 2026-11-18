@@ -1055,3 +1055,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the rules now refuse a prior batch that does not raise the prior version by exactly one (lane A, 04b9565), which means another seat rebuilt first. The layer switches and the Rings/Walkers switch show "Another seat updated the map. Showing the newer one." for that refusal (`priorRefusalMessage`), and "The prior was not saved. Try again." for anything else.
 - Source: lane A's priorVersion rule; review round 2, finding 2 (closed by that rule plus the local guard in 0158e35).
 - Verified: new layers harness test (a rebuild refused with permission-denied shows the line) failed first ("The prior was not saved. Try again."), then passed; 11 layers and prior-switch harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): withdraw a suggested plan when the draft's assignments change
+- What: the plan panel keys a suggestion to the draft it was worded for (event set, prior version and assignments), not the event set alone. When the plan history arrives after a suggestion and moves a team (same event set, different segments), the suggestion and its Approve are withdrawn, so old wording ("Search segment AA") can never be saved with new segments (BB).
+- Source: second-model review of PR #16, round 2, finding 6 (medium).
+- Verified: new plan harness test (suggest, then the harness's "Assignments change" under the same hash: the suggestion and Approve disappear) failed first, then passed; both plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
