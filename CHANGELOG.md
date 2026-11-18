@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Clip consent window, redesigned so a fresh consent is never refused and always outlives its clip: a clip
+  reading's expiresAt must be 31 to 33 days after the server's time (clients write 32, which tolerates clock
+  skew both ways), and storage.rules accept a clip upload only while its consent record is under 24 hours old.
+  The lifecycle deletes the clip 30 days after upload, so the consent's TTL never runs first. The previous
+  window (at least 30 days) refused the Android client, which wrote exactly now plus 30 days, so every fresh
+  consent and its upload would have failed; the 30.5-day test fixture hid it. The fixture now writes 32 days,
+  as the clients do.
+  Source: review round 2 (high).
+  Verified: the boundary tests (31 days minus and plus a minute, 33 days minus and plus a minute, 30 days, the
+  past) and the 24-hour upload test failed first, now pass; emulator suite 113; the judging-window test still
+  pins at least 30 days; `bash scripts/ci-local.sh` exit 0.
 - The incident doc gains `conditions` for the urgency chip: shared/schemas/incident-conditions.schema.json
   (tempF a number from -80 to 140 or null, wet a boolean or null, setAtMs), the IncidentConditions type and
   `urgencyFromConditions` in @pls/engine (no conditions gives no chip), and a generated rules validator applied

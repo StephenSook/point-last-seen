@@ -140,13 +140,16 @@ describe("profile/shared types every key it allows", () => {
 });
 
 describe("clip readings expire within 31 days; the incident status stays in its enum", () => {
-  it("a clip reading whose expiresAt is not 30 to 31 days away is refused, so the TTL cannot outrun the clip (review M5)", async () => {
+  it("a clip reading's expiresAt must be 31 to 33 days after the server's time; clients write 32 (review round 2)", async () => {
     const db = dbAs(F, familyClaims);
+    const DAY = 86_400_000, MIN = 60_000;
     await assertSucceeds(setDoc(doc(db, `incidents/I1/clipReadings/${SHA}`), clipReadingDoc("I1", SHA, F)));
-    for (const [i, expiresAt] of [new Date(Date.now() - 60_000), new Date(Date.now() + 60_000), new Date(Date.now() + 29 * 86_400_000),
-                                  new Date(Date.now() + 40 * 86_400_000)].entries()) {
+    const cases: [number, boolean][] = [[31 * DAY - MIN, false], [31 * DAY + MIN, true], [33 * DAY - MIN, true], [33 * DAY + MIN, false],
+                                         [30 * DAY, false], [-MIN, false]];
+    for (const [i, [offset, ok]] of cases.entries()) {
       const sha = String(i + 1).repeat(64);
-      await assertFails(setDoc(doc(db, `incidents/I1/clipReadings/${sha}`), clipReadingDoc("I1", sha, F, { expiresAt })));
+      const write = setDoc(doc(db, `incidents/I1/clipReadings/${sha}`), clipReadingDoc("I1", sha, F, { expiresAt: new Date(Date.now() + offset) }));
+      await (ok ? assertSucceeds(write) : assertFails(write));
     }
   });
   it("command cannot set the status outside open, found and closed, or remove it", async () => {

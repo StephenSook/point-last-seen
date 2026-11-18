@@ -46,8 +46,8 @@ export function clipReadingDoc(incidentId: string, sha: string, uid: string, ove
     sha256: sha, storagePath: `clips/${incidentId}/${sha}.mp4`, durationS: 12, clipStartMs: 1795860000000,
     clockConfirmed: true, cameraFacingDeg: 90, reading: null, route: null,
     consent: { personInClip: c, footageOwner: c, cloudProcessing: c, publicUse: null },
-    // Between 30 and 31 days out at the server's time (the rules' window), with margin for clock skew.
-    expiresAt: new Date(Date.now() + 30.5 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
+    // 32 days out, as every client writes it (the rules accept 31 to 33 days at the server's time).
+    expiresAt: new Date(Date.now() + 32 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
   };
 }
 
