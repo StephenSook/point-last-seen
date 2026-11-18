@@ -2,21 +2,32 @@
 // the incident's clips and photos and their reading records at once, for example when a family
 // withdraws consent, instead of waiting for the 30-day lifecycle. The server checks the caller.
 
+import { collection, getCountFromServer, type Firestore } from "firebase/firestore";
 import { httpsCallable, type Functions } from "firebase/functions";
 import { listAll, ref, type FirebaseStorage } from "firebase/storage";
 
-export type MediaCounts = { clips: number; photos: number };
+/** Files in Storage, and the clip and photo reading records (consent included) the server also deletes. */
+export type MediaCounts = { clips: number; photos: number; records: number };
 
-/** What is stored now, for the confirm question (members may list both folders). */
-export async function countMedia(storage: FirebaseStorage, incidentId: string): Promise<MediaCounts> {
-  const [clips, photos] = await Promise.all([listAll(ref(storage, `clips/${incidentId}`)), listAll(ref(storage, `photos/${incidentId}`))]);
-  return { clips: clips.items.length, photos: photos.items.length };
+/** What is stored now, for the confirm question (command may list both folders and both collections). */
+export async function countMedia(storage: FirebaseStorage, db: Firestore, incidentId: string): Promise<MediaCounts> {
+  const [clips, photos, clipRecords, photoRecords] = await Promise.all([
+    listAll(ref(storage, `clips/${incidentId}`)),
+    listAll(ref(storage, `photos/${incidentId}`)),
+    getCountFromServer(collection(db, "incidents", incidentId, "clipReadings")),
+    getCountFromServer(collection(db, "incidents", incidentId, "photoReadings")),
+  ]);
+  return { clips: clips.items.length, photos: photos.items.length, records: clipRecords.data().count + photoRecords.data().count };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function deleteQuestion(c: MediaCounts): string | null {
-  if (c.clips + c.photos === 0) return null;
+  if (c.clips + c.photos === 0) {
+    // A clip whose upload failed leaves its consent record with no file; the server deletes that too.
+    if (c.records === 0) return null;
+    return `Delete ${plural(c.records, "saved record", "saved records")} for this search's clips and photos? This can't be undone.`;
+  }
   return `Delete ${plural(c.clips, "clip", "clips")} and ${plural(c.photos, "photo", "photos")} for this search? This can't be undone.`;
 }
 

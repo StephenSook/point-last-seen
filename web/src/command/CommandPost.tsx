@@ -603,7 +603,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           vs={vs}
           map={extrasMap}
           deleteMedia={{
-            count: () => countMedia(pls.storage, incidentId),
+            count: () => countMedia(pls.storage, pls.db, incidentId),
             run: async () => {
               try {
                 return await deleteMediaNow(pls.functions, incidentId);

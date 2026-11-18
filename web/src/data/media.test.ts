@@ -5,12 +5,16 @@ const fbErr = (code: string, message: string) => Object.assign(new Error(message
 
 describe("deleteQuestion", () => {
   it("names the counts and says it cannot be undone", () => {
-    expect(deleteQuestion({ clips: 4, photos: 3 })).toBe("Delete 4 clips and 3 photos for this search? This can't be undone.");
-    expect(deleteQuestion({ clips: 1, photos: 1 })).toBe("Delete 1 clip and 1 photo for this search? This can't be undone.");
-    expect(deleteQuestion({ clips: 0, photos: 2 })).toBe("Delete 0 clips and 2 photos for this search? This can't be undone.");
+    expect(deleteQuestion({ clips: 4, photos: 3, records: 7 })).toBe("Delete 4 clips and 3 photos for this search? This can't be undone.");
+    expect(deleteQuestion({ clips: 1, photos: 1, records: 0 })).toBe("Delete 1 clip and 1 photo for this search? This can't be undone.");
+    expect(deleteQuestion({ clips: 0, photos: 2, records: 2 })).toBe("Delete 0 clips and 2 photos for this search? This can't be undone.");
+  });
+  it("still asks when only saved records remain (a clip whose upload failed leaves its consent record)", () => {
+    expect(deleteQuestion({ clips: 0, photos: 0, records: 2 })).toBe("Delete 2 saved records for this search's clips and photos? This can't be undone.");
+    expect(deleteQuestion({ clips: 0, photos: 0, records: 1 })).toBe("Delete 1 saved record for this search's clips and photos? This can't be undone.");
   });
   it("asks nothing when there is nothing to delete", () => {
-    expect(deleteQuestion({ clips: 0, photos: 0 })).toBeNull();
+    expect(deleteQuestion({ clips: 0, photos: 0, records: 0 })).toBeNull();
   });
 });
 

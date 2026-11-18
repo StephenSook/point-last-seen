@@ -32,7 +32,7 @@ createRoot(root).render(
         map={null}
         // Fakes: nothing is deleted. The page counts how many times "Delete now" ran.
         deleteMedia={{
-          count: async () => ({ clips: 2, photos: 1 }),
+          count: async () => ({ clips: 2, photos: 1, records: 3 }),
           run: async () => {
             document.body.dataset["deleteRuns"] = String(Number(document.body.dataset["deleteRuns"] ?? "0") + 1);
             return 6;
