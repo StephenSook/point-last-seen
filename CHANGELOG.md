@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- SECURITY.md row 12 is DECIDED-NO with the reason quoted from Firebase's page (generateContentStream and the
+  Live API do not trigger the before and after functions, so a model allow-list there could be skipped) and
+  the accepted risk named (another model through our project, at most 20 calls a minute, within the $25 cap).
+  Row 10 records the quotas read for a judge surge and the reCAPTCHA cost of limited-use tokens; the project
+  has no organization, so a shared free allowance is NOT VERIFIED.
+  Source: review (rows 10 and 12 of the AI Logic security checklist).
+  Verified: the quoted sentences read from firebase.google.com/docs/ai-logic/pre-and-post-request-scripts on
+  2026-11-18; quotas read by the Cloud Quotas API; the project's parent read by gcloud (empty);
+  `bash scripts/ci-local.sh` exit 0.
 - `scripts/hygiene_guard.py` (CI gates job and ci-local): repository text must name no internal build process,
   private rule id, private playbook or notes, or private path. It walks tracked files plus untracked files that
   .gitignore does not exclude, skips itself and its test by pathspec, and fails below a 300-file floor. It
