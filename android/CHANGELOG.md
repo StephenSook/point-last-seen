@@ -4,6 +4,13 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Event writer with read-back.** `EventWriter` sets the server timestamp sentinel and writes to
+  `incidents/{id}/events/{eventId}` without awaiting; a denied write is read back from the server
+  and shows as acknowledged when the first copy landed, rejected (and retryable with the same id)
+  when it did not, and pending when the read itself fails. Source: Global Constraints ("Firestore
+  writes on the phone are never awaited ... A denied write is checked by a server read") and
+  Review Focus 4. Verified: `EventWriterTest` (including `deniedWriteThatExistsOnServerIsAcknowledged`
+  and `rejectedStaysVisibleAndRetryable`) failed to compile first, then passes.
 - **Join an incident.** `Join` signs in anonymously, calls `joinIncident` with
   `{joinCode, role: "family"}`, reads `{ok, incidentId}`, force-refreshes the ID token and refuses
   claims for another incident or role; errors show a plain sentence, never raw backend text.
