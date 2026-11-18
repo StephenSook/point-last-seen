@@ -95,20 +95,27 @@ object Events {
         )
     }
 
-    /** A confirmed clip: the camera sighting (it shapes the prior only) and its confirmation. */
+    /**
+     * A confirmed clip: the camera sighting (it shapes the prior only) and its confirmation.
+     * The reading is a CameraSightingReading: the sighting plus the clip reference, so
+     * command can find clipReadings/{clipSha256} and derive the bearing and start time.
+     */
     fun confirmClip(
         sighting: CameraSighting,
         clipStartMs: Long,
         cameraPosition: Position?,
         route: RouteRecord?,
         ctx: EventContext,
+        clipSha256: String,
+        cameraFacingDeg: Int?,
+        clockConfirmed: Boolean,
     ): ClipEvents {
         val cam = base(ctx, "camera_sighting", "camera").copy(
             observedAtMs = SightingCheck.lastSeenMs(clipStartMs, sighting.lastSeen),
             position = cameraPosition,
             positionSource = if (cameraPosition != null) "camera_pin" else "none",
             inputMethod = "clip",
-            reading = sighting.toMap(),
+            reading = CameraSightingReading(sighting, clipSha256, clipStartMs, clockConfirmed, cameraFacingDeg).toMap(),
             effect = Effect.None("incorporated_in_prior"),
             route = route,
         )

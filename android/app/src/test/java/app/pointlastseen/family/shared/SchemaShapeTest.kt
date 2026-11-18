@@ -53,6 +53,7 @@ class SchemaShapeTest {
         assertEquals(props("event.schema.json"), fields(app.pointlastseen.family.data.EventDoc::class.java))
         assertEquals(props("route-record.schema.json"), fields(RouteRecord::class.java))
         assertEquals(props("camera-sighting.schema.json"), fields(CameraSighting::class.java))
+        assertEquals(setOf("sighting", "clipSha256", "clipStartMs", "clockConfirmed", "cameraFacingDeg"), fields(app.pointlastseen.family.data.CameraSightingReading::class.java))
         assertEquals(props("subject-profile.schema.json", "SharedProfile"), fields(app.pointlastseen.family.data.SharedProfile::class.java))
         assertEquals(props("subject-profile.schema.json", "CommandProfile"), fields(app.pointlastseen.family.data.CommandProfile::class.java))
     }

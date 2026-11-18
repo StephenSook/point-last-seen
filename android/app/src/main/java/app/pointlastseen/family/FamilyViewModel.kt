@@ -104,7 +104,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     var profileShareFailed by mutableStateOf(false)
         private set
     private var clipUri: Uri? = null
-    private var lastClip: Pair<ClipOutcome.Read, Long>? = null
+    private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
+    private var lastClipStartMs: Long = 0L
 
     init {
         rc.start()
@@ -273,7 +274,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         )
         return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
             is ClipOutcome.Read -> {
-                lastClip = out to startMs
+                lastClip = out to form
+                lastClipStartMs = startMs
                 val keySeconds = SightingCheck.seconds(out.reading.keyFrame.time) ?: 0
                 val frame = withContext(Dispatchers.IO) { ClipFile.frameAt(app, uri, keySeconds) }
                 ClipUi.Read(ClipCards.card(out, startMs, zone).copy(frame = frame?.asImageBitmap()))
@@ -283,9 +285,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun confirmClip() {
-        val (read, startMs) = lastClip ?: return
+        val (read, form) = lastClip ?: return
         val events = try {
-            Events.confirmClip(read.reading, startMs, cameraPosition = null, route = read.route, ctx = context())
+            Events.confirmClip(
+                read.reading, lastClipStartMs, cameraPosition = null, route = read.route, ctx = context(),
+                clipSha256 = read.sha256, cameraFacingDeg = form.facingDeg, clockConfirmed = form.clockConfirmed,
+            )
         } catch (e: Exception) {
             clipUi = ClipUi.Done(ClipOutcome.Refused("The clip could not be sent to command. Join the search, then read it again."))
             return

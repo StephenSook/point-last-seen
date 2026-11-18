@@ -104,7 +104,7 @@ class EventsTest {
     )
 
     @Test fun confirmingAClipWritesACameraSightingAndItsConfirmation() {
-        val out = Events.confirmClip(sighting, clipStartMs = 1_000L, cameraPosition = Position(33.7, -84.4, 8.0), route = route, ctx = ctx())
+        val out = Events.confirmClip(sighting, clipStartMs = 1_000L, cameraPosition = Position(33.7, -84.4, 8.0), route = route, ctx = ctx(), clipSha256 = "ab".repeat(32), cameraFacingDeg = 90, clockConfirmed = true)
         val cam = out.cameraSighting
         assertEquals("camera_sighting", cam.type)
         assertEquals("camera", cam.reporter)
@@ -121,8 +121,18 @@ class EventsTest {
         assertNotEquals(cam.eventId, conf.eventId)
     }
 
+    @Test fun theCameraSightingReadingWrapsTheSightingWithTheClipReference() {
+        val r = Events.confirmClip(sighting, 1_000L, null, route, ctx(), clipSha256 = "ab".repeat(32), cameraFacingDeg = 90, clockConfirmed = true).cameraSighting.reading!!
+        assertEquals(setOf("sighting", "clipSha256", "clipStartMs", "clockConfirmed", "cameraFacingDeg"), r.keys)
+        assertEquals(sighting.toMap(), r["sighting"])
+        assertEquals("ab".repeat(32), r["clipSha256"])
+        assertEquals(1_000L, r["clipStartMs"])
+        assertEquals(true, r["clockConfirmed"])
+        assertEquals(90, r["cameraFacingDeg"])
+    }
+
     @Test fun aClipWithNoCameraPositionHasNone() {
-        val out = Events.confirmClip(sighting, 1_000L, null, route, ctx())
+        val out = Events.confirmClip(sighting, 1_000L, null, route, ctx(), clipSha256 = "ab".repeat(32), cameraFacingDeg = null, clockConfirmed = false)
         assertEquals("none", out.cameraSighting.positionSource)
         assertNull(out.cameraSighting.position)
     }

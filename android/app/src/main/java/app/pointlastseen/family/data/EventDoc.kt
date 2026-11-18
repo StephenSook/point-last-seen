@@ -21,6 +21,26 @@ sealed class Effect {
     }
 }
 
+/**
+ * The reading of a camera_sighting event (lane A ruling on review I10): the clip's
+ * CameraSighting plus the reference command needs, clipReadings/{clipSha256}.
+ */
+data class CameraSightingReading(
+    val sighting: app.pointlastseen.family.core.CameraSighting,
+    val clipSha256: String,
+    val clipStartMs: Long,
+    val clockConfirmed: Boolean,
+    val cameraFacingDeg: Int?,
+) {
+    fun toMap(): Map<String, Any?> = linkedMapOf(
+        "sighting" to sighting.toMap(),
+        "clipSha256" to clipSha256,
+        "clipStartMs" to clipStartMs,
+        "clockConfirmed" to clockConfirmed,
+        "cameraFacingDeg" to cameraFacingDeg,
+    )
+}
+
 /** Route record (spec section 9). On Android the source is SDK-reported. */
 data class RouteRecord(
     val platform: String,
