@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
-import { SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { SIGHTING_CUES_JSON, SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
 
 const text = "saw a woman in a blue coat walking north by the creek";
 const goodReply = JSON.stringify({ direction: "n", topColor: "blue", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
@@ -100,5 +100,14 @@ describe("sightingTextParams", () => {
     expect(p.onDeviceParams?.promptOptions?.responseConstraint).toBeDefined();
     expect(SIGHTING_TEXT_OPTS.expectedInputs).toEqual([{ type: "text", languages: ["en"] }]);
     expect(SIGHTING_TEXT_OPTS.expectedOutputs).toEqual([{ type: "text", languages: ["en"] }]);
+  });
+});
+
+describe("sightingCloudParams", () => {
+  it("is strictly in the cloud with the same closed schema", () => {
+    const p = sightingCloudParams("gemini-3.5-flash-lite");
+    expect(p.mode).toBe(InferenceMode.ONLY_IN_CLOUD);
+    expect(p.inCloudParams).toMatchObject({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json", responseJsonSchema: SIGHTING_CUES_JSON } });
+    expect(p.onDeviceParams).toBeUndefined();
   });
 });
