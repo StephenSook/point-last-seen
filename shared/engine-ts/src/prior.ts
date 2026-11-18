@@ -28,6 +28,20 @@ function angleBetween(a: number, b: number): number {
   return Math.min(d, 360 - d);
 }
 
+/**
+ * Linear-feature weights (spec 10.5): 0.75 x nearFrac / NEAR + 0.25 x (1 - nearFrac) / (1 - NEAR), where NEAR
+ * is the grid's mass-weighted near share. Neutral (all 1) when NEAR is at or above nearShare (coordinator
+ * ruling 2026-11-18): the layer's intent is to raise density near features to the ISRID 75%, and above that
+ * share the formula would instead push mass into the tiny far area. Continuous at the threshold, where the
+ * formula already gives 1 for every segment. Also neutral when there is no mass or nothing is near.
+ */
+export function linearWeights(mass: number[], nearFrac: number[], nearShare: number, farShare: number): number[] {
+  const total = mass.reduce((n, v) => n + v, 0);
+  const near = total > 0 ? mass.reduce((n, v, j) => n + v * nearFrac[j]!, 0) / total : 0;
+  if (near <= 0 || near >= nearShare) return mass.map(() => 1);
+  return nearFrac.map(f => (nearShare * f) / near + (farShare * (1 - f)) / (1 - near));
+}
+
 function rescale(values: number[], targetSum: number): number[] {
   const s = values.reduce((n, v) => n + v, 0);
   return s > 0 ? values.map(v => (v * targetSum) / s) : values;
@@ -65,14 +79,9 @@ export function buildPrior(
   const gridMass = mass.reduce((n, v) => n + v, 0);
 
   if (layers.linear) {
-    const near = mass.reduce((n, v, j) => n + v * grid.segments[j]!.nearFrac, 0) / (gridMass || 1);
-    if (near > 0 && near < 1) {
-      const { nearShare, farShare } = params.nearFeature;
-      mass = rescale(mass.map((v, j) => {
-        const f = grid.segments[j]!.nearFrac;
-        return v * ((nearShare * f) / near + (farShare * (1 - f)) / (1 - near));
-      }), gridMass);
-    }
+    const { nearShare, farShare } = params.nearFeature;
+    const w = linearWeights(mass, grid.segments.map(s => s.nearFrac), nearShare, farShare);
+    if (w.some(x => x !== 1)) mass = rescale(mass.map((v, j) => v * w[j]!), gridMass);
   }
 
   if (layers.wedge && travelBearingDeg !== null) {

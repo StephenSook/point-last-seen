@@ -3,8 +3,11 @@ rules_version = '2';
 // Point Last Seen Cloud Storage rules (spec section 7). Membership comes from the same
 // custom claims as Firestore. Clips are capped at 14,000,000 bytes (sent inline to
 // AI Logic; base64 must stay under the 20 MB request limit); photos at 2 MB.
-// Objects under clips/, photos/ and packs/ are deleted after 30 days by
-// storage.lifecycle.json.
+// Objects under clips/, photos/ and packs/ are deleted 30 days after upload by the bucket
+// lifecycle rule in storage.lifecycle.json (applied with gcloud and read back 2026-11-18).
+// These rules guard signed-in reads only: a member who reads an object's metadata gets a
+// download token, and that link works without signing in until the object is deleted
+// (docs/LIMITS.md, Media retention).
 service firebase.storage {
   match /b/{bucket}/o {
 

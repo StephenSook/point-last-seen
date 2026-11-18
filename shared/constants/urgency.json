@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "coldF": 40,
+  "rule": "cold when the typed temperature is at or below coldF; cool_wet when above coldF and the person is typed as wet; none otherwise or with no temperature. Clothing does not enter.",
+  "sourceUrl": "https://www.cdc.gov/winter-weather/prevention/index.html",
+  "quote": "While hypothermia is most likely at very cold temperatures, it can occur even at cool temperatures (above 40°F) if a person becomes chilled from rain, sweat, or submersion in cold water.",
+  "readOn": "2026-11-18"
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrior } from "../src/index";
+import { buildPrior, linearWeights } from "../src/index";
 import { cell, grid, ipp } from "./gridFixtures";
 
 const off = { linear: false, wedge: false };
@@ -24,6 +24,20 @@ describe("ISRID ring prior (spec section 10.5)", () => {
     expect(lin.row).toBeCloseTo(base.row, 12);
     expect(poaOf(lin, "NEAR")).toBeGreaterThan(poaOf(base, "NEAR"));
     expect(poaOf(lin, "NEAR") / sum(lin)).toBeCloseTo(0.75, 9);
+  });
+  it("linear layer is neutral when the near share is already at or above 0.75 (coordinator ruling 2026-11-18)", () => {
+    // A path-dense site (the Piedmont Park dev grid had nearFrac >= 0.927 everywhere): the 75/25 formula would
+    // pile 25% of the mass onto the tiny far area, the opposite of the ISRID intent.
+    const dense = grid([cell("A", -100, 0, 100, 1), cell("B", 100, 0, 100, 0.9), cell("C", 0, 100, 100, 0.8)]);
+    expect(buildPrior(dense, ipp, "temperate_flat", { linear: true, wedge: false }, null))
+      .toEqual(buildPrior(dense, ipp, "temperate_flat", off, null));
+  });
+  it("linearWeights is continuous at 0.75 and unchanged below it", () => {
+    expect(linearWeights([1, 1], [1, 0.5], 0.75, 0.25)).toEqual([1, 1]);
+    const below = linearWeights([1, 1], [1, 0.4999], 0.75, 0.25);
+    for (const w of below) expect(w).toBeCloseTo(1, 3);
+    expect(linearWeights([0.5, 0.5], [1, 0], 0.75, 0.25)).toEqual([1.5, 0.5]);
+    expect(linearWeights([0, 0], [1, 0], 0.75, 0.25)).toEqual([1, 1]);
   });
   it("linear layer changes nothing when no segment, or every segment, is near a feature", () => {
     const none = grid([cell("A", -100, 0, 100, 0), cell("B", 100, 0, 100, 0)]);

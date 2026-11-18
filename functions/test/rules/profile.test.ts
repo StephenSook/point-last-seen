@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
-import { clipReadingDoc } from "../fixtures";
+import { allFlags, clipReadingDoc } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
 const S = "searcher-uid", C = "command-uid", F = "family-uid";
@@ -34,7 +34,7 @@ describe("subject profile split (spec section 13.2)", () => {
     const db = dbAs(F, familyClaims);
     await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), {
       answersTo: "Mom", ageYears: 81, clothingLastWorn: "red coat", mobilityAids: ["cane"],
-      flags: { mayNotRespond: true, likelyToHide: true }, approachNoteIds: ["may_not_respond"],
+      flags: allFlags(["mayNotRespond", "likelyToHide"]), approachNoteIds: ["may_not_respond"],
     }));
     for (const leak of [{ previousAddresses: [] }, { placesFrequented: [] }, { pastWandering: [] }, { vehicle: null },
                         { nearbyWater: "creek" }, { medications: "x" }, { flags: { notAFlag: true } }, { flags: { likelyToHide: "yes" } },
