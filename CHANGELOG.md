@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- NOTICE credits anime.js 4.5.0 (Julian Garnier, MIT), imported only by web/src/motion/engine.ts (the rules
+  gate enforces that); it arrives with lane C's merge (dependency 657d96b, engine cf627b4).
+  Source: plan Task 39.3, lane C hand-over.
+  Verified: `npm view animejs@4.5.0` reports license MIT, author Julian Garnier, repository
+  juliangarnier/anime; `bash scripts/ci-local.sh` exit 0.
 - NOTICE lists the three web fonts under the SIL Open Font License 1.1 (DINish v4.007, Ioskeley Mono v2.2.0,
   DSEG7 Classic v0.46) with their repositories and commits; the files arrive with lane C's merge.
   Source: plan Task 39, lane C hand-over.

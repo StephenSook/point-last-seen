@@ -16,3 +16,6 @@ unmodified originals in web/public/fonts/<name>/ with OFL.txt and SOURCE.txt:
   (commit d674587a32439ec04f8a70076466a24b8be6d4d7)
 - DSEG7 Classic, https://github.com/keshikan/DSEG, release v0.46
   (commit a5019e1351dfa7b3c52aa3eff52ffb9c49538719)
+
+Motion library: anime.js 4.5.0 by Julian Garnier, MIT License,
+https://github.com/juliangarnier/anime (used only by web/src/motion/engine.ts).
