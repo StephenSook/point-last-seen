@@ -93,7 +93,7 @@
     "#": {
       "ts": "shared/engine-ts/src/types.ts#RouteRecord",
       "ios": "ios/PLSCore/Sources/PLSCore/RouterPolicy.swift#RouteRecord",
-      "android": "android/app/src/main/java/app/pointlastseen/family/data/Schemas.kt#RouteRecord"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/EventDoc.kt#RouteRecord"
     }
   }
 }

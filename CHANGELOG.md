@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Point the schema parity map at lane D's Kotlin files: `data/EventDoc.kt` (EventDoc, RouteRecord),
+  `core/CameraSighting.kt` (CameraSighting), `data/Profiles.kt` (SharedProfile, CommandProfile); drop the
+  Android mapping for ReportReading (no Kotlin type planned).
+  Source: lane D contract question 7.
+  Verified: parity dry run against origin/lane-android: CameraSighting, RouteRecord and both profiles pass;
+  EventDoc reports missing schemaVersion and serverTime (lane D to add). Main has no android/ yet, so
+  `bash scripts/ci-local.sh` exits 0.
 - Add route reason `sdk_fallback` to `shared/schemas/route-record.schema.json` (PREFER_ON_DEVICE answered from the cloud).
   Source: lane D contract question 3 (Android RouteRecord reasons); lane D maps its other reasons to
   `on_device_unavailable` and `sdk_only_in_cloud`.
