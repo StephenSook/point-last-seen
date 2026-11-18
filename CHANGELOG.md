@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Run the seeding tool's tests in the `gates` job and in `ci-local.sh`.
+  Source: CI mirrors every test suite in the repo.
+  Verified: `bash scripts/ci-local.sh` exits 0 with the 5 seed tests in the gates pytest run.
 - Add `tools/seed/seed_drill.py` (standard library plus the gcloud token): creates one synthetic training-drill
   incident (mode "drill", labelled "Training drill. Nobody is missing.", engine params copied from the
   constants), its teams, and the two admin-only join code docs (team code for searchers and family, separate
