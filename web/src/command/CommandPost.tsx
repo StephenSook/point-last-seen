@@ -36,6 +36,8 @@ import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
+import { perfSink } from "../telemetry/perf";
+import { recordInference } from "../telemetry/trace";
 import { LayerSwitches } from "./LayerSwitches";
 import { PriorSwitch, WALKER_SENTENCE, type PriorChoice } from "./PriorSwitch";
 import { loadRouteGraph, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
@@ -282,10 +284,24 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []);
   }, [serverDraft, hash, vs, incident, teams, latestPlan]);
 
+  // One hybrid-inference trace per model call (path, reason, platform, stage and latency only).
+  const sink = useMemo(() => {
+    try {
+      return perfSink(pls.app);
+    } catch {
+      return null;
+    }
+  }, [pls]);
+  const traced = (route: RouteRecord) => {
+    if (sink) recordInference(route, sink);
+  };
   const suggest = (): Promise<WordedPlan> => {
     if (!draft) return Promise.reject(new Error("no draft"));
     const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb);
-    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud });
+    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
+      traced(w.route);
+      return w;
+    });
   };
   // Events this browser writes: create-only, never awaited; the listener shows them at once.
   const writer = (): CommandWriter => {
@@ -305,12 +321,21 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const cards = useMemo(() => sightingCards(events as unknown as EventDoc[]), [events]);
   const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
-  const readNote = (text: string) => readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
-  const readNoteInCloud = (text: string) => {
+  const readNote = async (text: string) => {
+    const t0 = Date.now();
+    const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
+    if ("reading" in r) traced(photoRoute("on_device", Date.now() - t0));
+    return r;
+  };
+  const readNoteInCloud = async (text: string) => {
+    const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
-    return readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingCloudGenerator(ai(), rc.cloudModelWeb)(t), killCloud: rc.killCloud });
+    const r = await readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingCloudGenerator(ai(), rc.cloudModelWeb)(t), killCloud: rc.killCloud });
+    if ("reading" in r) traced(photoRoute("cloud", Date.now() - t0));
+    return r;
   };
 
+  // The route of a photo or sighting-note read (strict on-device, or a consented cloud read).
   const photoRoute = (path: "on_device" | "cloud", latencyMs: number): RouteRecord => ({
     platform: "web",
     path,
@@ -325,7 +350,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const readPhotoHere = async (p: TrayPhoto) => {
     const t0 = Date.now();
     const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: 30_000 });
-    return "cues" in r ? { cues: r.cues, route: photoRoute("on_device", Date.now() - t0) } : r;
+    if (!("cues" in r)) return r;
+    const route = photoRoute("on_device", Date.now() - t0);
+    traced(route);
+    return { cues: r.cues, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
     const t0 = Date.now();
@@ -334,7 +362,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       generateCloud: (b) => photoCloudGenerator(ai(), rc.cloudModelWeb)(b),
       killCloud: rc.killCloud,
     });
-    return "cues" in r ? { cues: r.cues, route: photoRoute("cloud", Date.now() - t0) } : r;
+    if (!("cues" in r)) return r;
+    const route = photoRoute("cloud", Date.now() - t0);
+    traced(route);
+    return { cues: r.cues, route };
   };
   const checkDevice = async () => {
     let st = await readDeviceState();
