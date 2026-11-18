@@ -13,4 +13,10 @@ describe("mapCredit", () => {
   it("credits OpenStreetMap when the basemap is drawn", () => {
     expect(mapCredit({ segments: 0, basemap: true })).toBe("Map data from OpenStreetMap");
   });
+
+  it("shows the grid's own attribution when the grid declares one", () => {
+    const gridAttribution = "Map data from OpenStreetMap contributors (ODbL)";
+    expect(mapCredit({ segments: 67, basemap: false, gridAttribution })).toBe(gridAttribution);
+    expect(mapCredit({ segments: 0, basemap: false, gridAttribution })).toBeNull();
+  });
 });

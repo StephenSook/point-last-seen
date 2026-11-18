@@ -21,6 +21,8 @@ type Props = {
   /** When set, a click on the map reports its point (used to place a sighting). */
   onMapClick?: (p: LatLon) => void;
   pin?: LatLon | null;
+  /** The grid's own license line (incident.gridAttribution). */
+  attribution?: string | undefined;
 };
 
 function bounds(segments: readonly MapSegment[]): [[number, number], [number, number]] | null {
@@ -35,7 +37,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -117,7 +119,7 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
   }, [pin]);
 
   // No basemap is drawn yet, so only the OSM-derived segments earn the credit.
-  const credit = mapCredit({ segments: segments.length, basemap: false });
+  const credit = mapCredit({ segments: segments.length, basemap: false, gridAttribution: attribution });
   return (
     <div className={onMapClick ? "map-wrap picking" : "map-wrap"}>
       <div ref={el} className="map" data-testid="map" />

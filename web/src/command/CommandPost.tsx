@@ -383,7 +383,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={poa} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView segments={segments} poa={poa} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
