@@ -53,7 +53,6 @@ public enum ReadOutcomeBuilder {
         ctx.positionSegmentId = position.flatMap { Geo.segment(containing: $0, in: context.grid) }
 
         var reading = outcome.reading
-        reading.evidenceQuote = PhoneNumbers.scrub(reading.evidenceQuote)
         let effect: Effect
         var storedReading: ReportReading? = reading
         if outcome.route.stage == .evidenceProtocol {
@@ -87,7 +86,7 @@ public enum ReadOutcomeBuilder {
             authorUid: context.authorUid, role: .searcher, type: type, reporter: .searcher, clientTimeMs: context.clientTimeMs,
             serverTime: nil, observedAtMs: type == .sighting ? context.clientTimeMs : nil, position: position, positionSource: source,
             rawText: PhoneNumbers.scrub(rawText), inputMethod: context.inputMethod, isTrainingInject: context.isTrainingInject,
-            reading: storedReading.flatMap { try? JSONValue(encoding: $0) }, effect: effect, route: outcome.route,
+            reading: storedReading.flatMap { try? JSONValue(encoding: $0) }.map { PhoneNumbers.scrub(json: $0) }, effect: effect, route: outcome.route,
             targetEventId: nil, decision: nil, planVersion: nil, priorVersion: context.priorVersion)
     }
 
@@ -102,12 +101,58 @@ public enum ReadOutcomeBuilder {
     }
 }
 
-/// A caller's or searcher's phone number is never stored (spec section 12.2).
+/// A caller's or searcher's phone number is never stored (spec section 12.2). Any run of 7
+/// or more digits (any script, with short separators or an optional +country code) and any
+/// run of 7 or more spoken digit words is replaced. Report numbers (coverage, minutes,
+/// searchers) are far shorter, so they stay.
 public enum PhoneNumbers {
-    static let pattern = try! NSRegularExpression(pattern: #"(\+?1[\s.-]?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}\b|\b\d{3}[\s.-]\d{4}\b"#)
+    public static let replacement = "[number removed]"
+    static let digitRun = try! NSRegularExpression(pattern: #"\+?\(?\d(?:[\s.\-()]{0,2}\d){6,}"#)
+    static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
     public static func scrub(_ text: String) -> String {
-        let range = NSRange(text.startIndex..., in: text)
-        return pattern.stringByReplacingMatches(in: text, range: range, withTemplate: "[number removed]")
+        let folded = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
+        let range = NSRange(folded.startIndex..., in: folded)
+        return scrubSpoken(digitRun.stringByReplacingMatches(in: folded, range: range, withTemplate: replacement))
+    }
+
+    /// Scrubs every string in a JSON tree, so new reading fields are covered without edits.
+    public static func scrub(json: JSONValue) -> JSONValue {
+        switch json {
+        case let .string(s): return .string(scrub(s))
+        case let .array(a): return .array(a.map { scrub(json: $0) })
+        case let .object(o): return .object(o.mapValues { scrub(json: $0) })
+        case .null, .bool, .number: return json
+        }
+    }
+
+    static func scrubSpoken(_ text: String) -> String {
+        // Walk words with their ranges; replace any run of 7+ digit words with one marker.
+        var ranges: [(Range<String.Index>, Bool)] = []
+        var i = text.startIndex
+        while i < text.endIndex {
+            if text[i].isLetter {
+                var j = i
+                while j < text.endIndex, text[j].isLetter { j = text.index(after: j) }
+                ranges.append((i..<j, digitWords.contains(text[i..<j].lowercased())))
+                i = j
+            } else {
+                i = text.index(after: i)
+            }
+        }
+        var out = text
+        var k = ranges.count - 1
+        while k >= 0 {
+            guard ranges[k].1 else { k -= 1; continue }
+            var start = k
+            while start > 0, ranges[start - 1].1, onlySeparators(text[ranges[start - 1].0.upperBound..<ranges[start].0.lowerBound]) { start -= 1 }
+            if k - start + 1 >= 7 { out.replaceSubrange(ranges[start].0.lowerBound..<ranges[k].0.upperBound, with: replacement) }
+            k = start - 1
+        }
+        return out
+    }
+
+    static func onlySeparators(_ s: Substring) -> Bool {
+        s.allSatisfy { $0 == " " || $0 == "-" || $0 == "," || $0 == "." }
     }
 }
