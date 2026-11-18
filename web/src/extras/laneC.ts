@@ -16,6 +16,7 @@ export type { StreamedEvent } from "../data/events";
 export { mergeModel } from "../command/mergeModel";
 export type { PublishedRun } from "../judge/judge";
 export {
+  DEFAULT_PARAMS,
   convergenceCode,
   type Assignment,
   type CameraSightingReading,
