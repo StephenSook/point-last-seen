@@ -9,3 +9,5 @@ export { deriveClearedEffect, deriveClueEffect, toEngineEvents } from "./effects
 export { validateReading } from "./validate";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
+export { buildPrior } from "./prior";
+export type { PriorLayers, PriorResult } from "./prior";

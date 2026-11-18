@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the ISRID ring prior (`shared/engine-ts/src/prior.ts`, `buildPrior`): ring layer by annulus area share
+  (128-step rings, temperate flat or mountain column), the linear-feature layer (75% of grid mass near
+  features, grid mass kept) and the direction wedge (2.045 inside 66 degrees, 0.395 outside, grid mass kept);
+  ROW is the rest. Uses @turf circle, intersect, difference, area, bearing, helpers and centroid 7.4.0 (exact).
+  Tests in `shared/engine-ts/test/prior.test.ts` with fixtures in `gridFixtures.ts`.
+  Source: plan Task 10; spec section 10.5.
+  Verified: the 7 prior tests failed first ("buildPrior is not a function"), now pass (engine suite 144);
+  a mutation using the far share for near cells failed the linear test, then the restored file passed;
+  Socket scores for the turf modules 84 to 100, `npm audit --omit=dev` finds 0; typecheck and lint exit 0.
 - Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
   closest an unrelated game; a site-scoped devpost.com search found no project).
   Source: plan addendum (rival self-audit, name search line); searches run by the orchestrator.
