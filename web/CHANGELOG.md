@@ -1060,3 +1060,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plan panel keys a suggestion to the draft it was worded for (event set, prior version and assignments), not the event set alone. When the plan history arrives after a suggestion and moves a team (same event set, different segments), the suggestion and its Approve are withdrawn, so old wording ("Search segment AA") can never be saved with new segments (BB).
 - Source: second-model review of PR #16, round 2, finding 6 (medium).
 - Verified: new plan harness test (suggest, then the harness's "Assignments change" under the same hash: the suggestion and Approve disappear) failed first, then passed; both plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): drop a suggestion reply that arrives after the draft changed
+- What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
+- Source: second-model review of PR #16, round 3, finding 1 (high).
+- Verified: new plan harness test (with the model answering only on a button: suggest, change the assignments, then the model answers: no suggestion and no Approve) failed first, then passed; all three plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

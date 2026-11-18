@@ -16,25 +16,30 @@ type Props = {
 /** The suggested plan. Nothing is written before a person presses Approve. */
 export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus, teams = [] }: Props) {
   const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
-  const [suggested, setSuggested] = useState<WordedPlan | null>(null);
+  // The reply is kept with the draft it was asked for; it shows (and can be approved) only while
+  // that draft is still current, so a reply that lands after the draft changed is never used.
+  const [reply, setReply] = useState<{ worded: WordedPlan; key: string | null } | null>(null);
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
   // A suggestion belongs to the draft it was worded for: the event set, the prior and the
   // assignments. If any of them changes (for example the plan history arrives), it is withdrawn.
   const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.assignments]) : null;
+  const suggested = reply && reply.key === draftKey ? reply.worded : null;
 
   useEffect(() => {
-    setSuggested(null);
+    setReply(null);
     setError(null);
   }, [draftKey]);
 
   async function suggest() {
+    const askedFor = draftKey;
     setBusy("suggest");
     setError(null);
     setApproved(null);
     try {
-      setSuggested(await onSuggest());
+      const worded = await onSuggest();
+      setReply({ worded, key: askedFor });
     } catch {
       setError("Could not build a suggestion. Try again.");
     } finally {
@@ -48,7 +53,7 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
     try {
       const { version, ack } = onApprove(suggested);
       setApproved(version);
-      setSuggested(null);
+      setReply(null);
       ack.catch(() => {
         setApproved((v) => (v === version ? null : v));
         setError(`Plan v${version} was not saved: another plan was approved first. Suggest again.`);

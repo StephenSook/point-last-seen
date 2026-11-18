@@ -17,3 +17,13 @@ test("a suggestion is withdrawn when the draft's assignments change, so old word
   await expect(page.getByTestId("suggested-plan")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
 });
+
+test("a reply that arrives after the assignments changed is dropped, not shown or approvable", async ({ page }) => {
+  await page.goto("/harness/plan.html?slow=1");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  await page.getByRole("button", { name: "Assignments change" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await page.waitForTimeout(200);
+  await expect(page.getByTestId("suggested-plan")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
+});
