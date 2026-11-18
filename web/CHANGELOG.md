@@ -1065,3 +1065,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-18-stock-clips-truth.json`: for five Pexels stock clips (actors; internal measurement only; the clips are not in the repo), the truth written from four frames each before any model run: person present (all five; one with two people), direction of travel, clothing, carried items and light (three day, one dusk, one night). The time field cannot be measured (no on-screen timestamp).
 - Source: request to measure triage and the clip reader on clips with people, truth first.
 - Verified: written from the extracted frames, committed before the triage runs. scripts/ci-local.sh exit 0.
+
+### docs(evidence): record on-device triage on five stock clips with people
+- What: `docs/evidence/web/2026-11-18-triage-stock.json` (stock footage, actors, not a real case): triage in Stephen's Chrome 157 with the built-in model on five Pexels clips whose truth was committed first (7e25dc3). The laptop's model found a person in the checked frame of all five (5 of 5); warm checks 995 to 1,127 ms, one cold check 15.2 s; zero Google or Firebase requests. Every clip gave one span covering the whole clip (handheld or panning shots, so motion narrows nothing). With the earlier false positive on a red square (1 of 1), this shows the check finds people but not yet that it can say no.
+- Source: request to measure P-39 on clips with people.
+- Verified: values copied from the measurement page's report for each run; the downscaled copies were served locally and deleted after. scripts/ci-local.sh exit 0.
