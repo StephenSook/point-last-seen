@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/PRODUCTION-CHECKLIST.md`: a Judging window (2026-12-10 to 2026-12-16) section lists every time-based
+  value on a judged path (Storage lifecycle, clipReadings TTL, judge sandbox limits, App Check token TTLs and
+  enforcement, the published run, the media sweep, the daily probe, GitHub's 60-day cutoff, the Actions and
+  Gemini budgets, model shutdown dates, image cleanup), what it does on Dec 10 and Dec 16 and what guards
+  it, with pre-submit lines for the ones a test cannot pin (sandbox copies get a fresh expiresAt, the daily
+  cap key exists, the Gemini burn rate fits the cap, no model shuts down before Dec 17, the probe workflow is
+  active and recent, December's Actions budget). The Firebase project section gains the lifecycle and TTL
+  read-back lines.
+  Source: orchestrator (HR217 judging-window audit).
+  Verified: App Check token TTLs read back 3600 s on all four app configs; the Remote Config server template
+  has no parameters; `bash scripts/ci-local.sh` exit 0.
 - The clipReadings TTL policy was missing in production although the spec and LIMITS promise it: it is now
   enabled on `clipReadings.expiresAt` and declared in firestore.indexes.json as a field override, so the
   merge point 2 index deploy keeps it. `scripts/test_judging_window.py` (gates and ci-local) pins three
