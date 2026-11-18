@@ -63,7 +63,7 @@ button, input, select { font: inherit; color: inherit; }
 .panel h1 { margin: 0 0 4px; font-size: 20px; }
 .panel form { display: grid; gap: 12px; margin-top: 16px; }
 .panel label { display: grid; gap: 4px; color: var(--fg-2); }
-.panel input { background: var(--bg-0); border: 1px solid var(--line); padding: 8px 10px; }
+.panel input { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 8px 10px; }
 .panel button { background: var(--fg-1); color: var(--bg-0); border: 0; padding: 10px 14px; font-weight: 700; cursor: pointer; }
 .panel button:disabled { background: var(--fg-4); cursor: default; }
 /* alert-red is for hazards only (with an icon and a word), so errors use neutral ink */
@@ -94,7 +94,8 @@ button, input, select { font: inherit; color: inherit; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .sighting-form { display: grid; gap: 10px; background: var(--bg-2); padding: 12px; }
 .sighting-form label { display: grid; gap: 4px; color: var(--fg-2); font-size: 14px; }
-.sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--line); padding: 6px 8px; color: var(--fg-1); }
+/* field edges use fg-4: 4.79:1 on bg-1 and 4.33:1 on bg-2 (WCAG 1.4.11 asks 3:1) */
+.sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
 .sighting-form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sighting-form .callback { border: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .sighting-form .callback legend { color: var(--fg-3); font-size: 13px; }

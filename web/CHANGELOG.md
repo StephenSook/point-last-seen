@@ -387,3 +387,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `getLaptopReady` in `ai/deviceModel.ts` reads the state, and when Chrome can download the model it starts the download from the click with whole percents, then reads the state again; a failed download is reported. The judge page's "Get this laptop ready" now uses it and shows "Downloading the model: N%" (Firebase starts only at that point, not on page load). `d2Copy` takes `{ replay, downloadFailed }`: with no built-in model the line ends at "Nothing private was sent." unless the replay is live (it is not built yet), and a failed download says "This browser could not download its built-in model. Nothing private was sent." instead of looping back to "Press Get this laptop ready".
 - Source: UI review D9 (orchestrator P0 item 3).
 - Verified: 3 new `getLaptopReady` tests and 2 new `d2Copy` tests failed first, then passed (19 of 19 in the two files). The judge e2e now asserts the exact no-model line and no "replay above" text: it failed against the live site, then passed against the local preview, still with zero AI-host requests. scripts/ci-local.sh exit 0.
+
+### fix(web): give text fields a 3:1 edge with fg-4 borders
+- What: join, sighting and profile fields drew their edge in the line colour (1.60:1 on bg-1, 1.45:1 on bg-2). They now use fg-4 (4.79:1 and 4.33:1), meeting WCAG 1.4.11's 3:1 for component boundaries.
+- Source: UI review D6 (orchestrator P0 item 4).
+- Verified: new `e2e/contrast.spec.ts` measures each field's computed border against the surface behind it; it failed first (1.6 on the join form, 1.45 in the sighting form), then passed. scripts/ci-local.sh exit 0.
