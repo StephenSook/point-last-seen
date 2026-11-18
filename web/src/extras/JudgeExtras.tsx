@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useState, type JSX } from "react";
 import { cubeGate, cubeScene } from "./cube/scene";
+import { ExtrasBoundary } from "./ExtrasBoundary";
 import type { PublishedRun } from "./laneC";
 import { LazyReplayPanel, LazyScamPanel, LazySpaceTimeCube, prefetchJudgePanels } from "./lazyPanels";
 import { fromPublishedRun } from "./replay/replayData";
@@ -29,9 +30,11 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
         <section aria-labelledby="extras-replay-h" className="extras-judge-replay">
           <h2 id="extras-replay-h" className="label">Watch the run over time</h2>
           {replay.ok ? (
-            <Suspense fallback={<p>Loading.</p>}>
-              <LazyReplayPanel data={replay.data} />
-            </Suspense>
+            <ExtrasBoundary>
+              <Suspense fallback={<p>Loading.</p>}>
+                <LazyReplayPanel data={replay.data} />
+              </Suspense>
+            </ExtrasBoundary>
           ) : (
             <p data-testid="replay-refused">This run cannot be replayed. {replay.reason}</p>
           )}
@@ -40,14 +43,18 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
       {scene && (
         <section aria-labelledby="extras-cube-h" className="extras-judge-replay">
           <h2 id="extras-cube-h" className="label">Space and time</h2>
-          <Suspense fallback={<p>Loading.</p>}>
-            <LazySpaceTimeCube scene={scene} timeZone={timeZone} />
-          </Suspense>
+          <ExtrasBoundary>
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazySpaceTimeCube scene={scene} timeZone={timeZone} />
+            </Suspense>
+          </ExtrasBoundary>
         </section>
       )}
-      <Suspense fallback={null}>
-        <LazyScamPanel load={scamLoad} />
-      </Suspense>
+      <ExtrasBoundary>
+        <Suspense fallback={null}>
+          <LazyScamPanel load={scamLoad} />
+        </Suspense>
+      </ExtrasBoundary>
     </>
   );
 }

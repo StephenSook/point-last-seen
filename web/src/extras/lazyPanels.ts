@@ -30,7 +30,8 @@ function whenIdle(run: () => void): () => void {
   return () => clearTimeout(id);
 }
 
-// A failed prefetch (link already down) is retried by React.lazy on first use; there is nothing else to do here.
+// A failed prefetch (link already down) needs no handling here: the panel's first use fails too, and ExtrasBoundary
+// shows that in the panel instead of removing the page.
 const quietly = (p: Promise<unknown>) => void p.catch(() => undefined);
 
 /** The command post's panels, fetched once the page is idle. Returns a cancel for an unmount before then. */

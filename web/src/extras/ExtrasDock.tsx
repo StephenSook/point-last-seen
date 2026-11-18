@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
+import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
 import { printableApproachLines, type IncidentView } from "./laneC";
 import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
 import type { PrintSessionData } from "./print/PrintSession";
@@ -123,24 +124,35 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
           {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}
-          <Suspense fallback={<p>Loading.</p>}>
-            <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
-          </Suspense>
+          <ExtrasBoundary>
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
+            </Suspense>
+          </ExtrasBoundary>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
       {surface?.kind === "replay" && replayData && (
         <ExtrasDialog title={replayTitle} onClose={closeDialog} returnFocus={more} className="extras-replay-dialog">
-          <Suspense fallback={<p>Loading.</p>}>
-            <LazyReplayPanel data={replayData} />
-          </Suspense>
+          <ExtrasBoundary>
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazyReplayPanel data={replayData} />
+            </Suspense>
+          </ExtrasBoundary>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
       {surface && surface.kind !== "check" && surface.kind !== "replay" && (
-        <Suspense fallback={null}>
-          <LazyPrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
-        </Suspense>
+        <ExtrasBoundary fallback={
+          <ExtrasDialog title={surface.kind === "cards" ? cardsTitle : assignmentTitle} onClose={closeDialog} returnFocus={more}>
+            <p role="alert" className="extras-panel-error">{PANEL_LOAD_FAILED}</p>
+            <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
+          </ExtrasDialog>
+        }>
+          <Suspense fallback={null}>
+            <LazyPrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
+          </Suspense>
+        </ExtrasBoundary>
       )}
     </>
   );
