@@ -72,7 +72,8 @@ export interface ReportReading {
 }
 
 export type RoutePath = "on_device" | "cloud" | "rules" | "unknown";
-export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | "evidence_protocol" | "sdk";
+/** "picklist": a person picked the report from a list, so no model ran. */
+export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | "evidence_protocol" | "sdk" | "picklist";
 export type RouteReason =
   | "on_device_default" | "no_network" | "on_device_unavailable" | "locale_unsupported" | "over_token_budget"
   | "possible_evidence" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"

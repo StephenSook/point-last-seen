@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A route record's stage may be "picklist": a person picked the report from a list, so no model ran. Added to
+  shared/schemas/route-record.schema.json and the TypeScript ReadStage union (parity checks the TS values; the
+  Swift and Kotlin types follow in their lanes). The rules already bound stage by length, so the generated block
+  is unchanged; a new rules test pins that a picklist route is accepted. No vector: the router never computes
+  this stage.
+  Source: lane B (P-12 / pick-list reports).
+  Verified: schema parity ok (10 schemas, 26 types); generator and vectors checks current; the new rules test
+  passes (it passed at once, since stage was already length-bounded); emulator suite 111;
+  `bash scripts/ci-local.sh` exit 0.
 - The iOS cloud voice model is named only through Remote Config: `remoteconfig.template.json` (wired in
   firebase.json, deployed with the next production deploy) sets `tts_model_ios` to gemini-3.8-flash-lite-tts,
   whose in-app default is empty (on-device speech only). The model joins the allow-list in

@@ -32,6 +32,9 @@ describe("event position, reading and route take only their schema shapes", () =
                                carried: "c".repeat(40), evidenceQuote: "q".repeat(400), feature: "creek_or_drainage" }),
       route: routeRecord({ model: "m".repeat(80), blocked: "guardrail" }) })));
   });
+  it("a route whose stage is picklist (a person picked the report from a list; no model ran) is accepted", async () => {
+    await assertSucceeds(put(db(), validEvent(S, { route: routeRecord({ stage: "picklist", path: "rules", model: "", latencyMs: 0, sdkReported: false }) })));
+  });
   it("a position with an extra key, a missing key, a wrong type, an out-of-range value or NaN is refused", async () => {
     for (const position of [{ lat: 1, lon: 2, accuracyM: 3, pad: "x" }, { lat: 1, lon: 2 }, { lat: 91, lon: 0, accuracyM: null },
                             { lat: 0, lon: 0, accuracyM: -1 }, { lat: "1", lon: 0, accuracyM: null }, { lat: NaN, lon: 0, accuracyM: null },
