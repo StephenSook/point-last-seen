@@ -19,7 +19,7 @@ MAX_INDEXED_ITEMS = 4
 # Enum fields kept as exact lists even in shape mode, because a wrong value changes engine behaviour.
 STRICT_ENUMS = {"kind"}
 # Numbers kept range-checked even in shape mode (array items such as box2d always keep their ranges).
-STRICT_RANGES = {"latencyMs"}
+STRICT_RANGES = {"latencyMs", "accuracyM"}
 
 REFS = {
     "report-reading.schema.json": "schema_ReportReading",
@@ -64,6 +64,12 @@ def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
             # Bounded by type and length only: a list literal per enum costs rules expressions that the
             # heaviest events cannot afford; clients and engines enforce these values themselves.
             check = f"({ref} is string && {ref}.size() <= {max(len(v) for v in values)})"
+        elif len(values) >= 4 and all(type(v) is int for v in values) and len({b - a for a, b in zip(sorted(values), sorted(values)[1:])}) == 1:
+            # An integer enum in even steps: the same set as a list literal, in fewer rules expressions.
+            lo, hi = min(values), max(values)
+            step = sorted(values)[1] - lo
+            mod = f"{ref} % {step} == 0" if lo % step == 0 else f"({ref} - {lo}) % {step} == 0"
+            check = f"({ref} is int && {ref} >= {lo} && {ref} <= {hi} && {mod})"
         else:
             check = f"({ref} in {lst(values)})"
         return f"({ref} == null || {check})" if None in s["enum"] else check
@@ -76,7 +82,8 @@ def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
         return f"({ref} == null || {inner})" if "null" in t else inner
     parts: list[str]
     if t == "string":
-        parts = [f"{ref} is string"]
+        # matches() errors on a non-string, and an error denies, so a patterned string skips "is string".
+        parts = [] if "pattern" in s else [f"{ref} is string"]
         if "minLength" in s:
             parts.append(f"{ref}.size() >= {s['minLength']}")
         if "maxLength" in s:
@@ -89,6 +96,11 @@ def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
             raise ValueError(f"unbounded string at {ref}")
     elif t in ("integer", "number"):
         parts = [f"{ref} is {'int' if t == 'integer' else 'number'}"]
+        lo, hi = s.get("minimum"), s.get("maximum")
+        if shape and lo is not None and hi is not None and lo == -hi and ref.rsplit(".", 1)[-1] not in STRICT_RANGES:
+            # A symmetric range in one comparison: x * x <= hi * hi bounds |x| <= hi and is false for NaN and
+            # infinity, cheaper than two comparisons under the 1,000-expression limit.
+            return f"({ref} is number && {ref} * {ref} <= {q(hi * hi)})"
         if shape and ref.rsplit(".", 1)[-1] not in STRICT_RANGES:
             # A number cannot grow; its range is enforced by clients and engines, and the heaviest events
             # cannot afford every comparison under the 1,000-expression limit.

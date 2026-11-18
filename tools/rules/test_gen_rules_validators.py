@@ -21,13 +21,21 @@ def expr(schema, ref="m.k"):
 def test_scalars_carry_every_bound():
     assert expr({"type": "string", "maxLength": 40}) == "(m.k is string && m.k.size() <= 40)"
     # A pattern with no unbounded repeat already bounds the length (rules match the whole string).
-    assert expr({"type": "string", "pattern": "^[0-9]{2}$"}) == "(m.k is string && m.k.matches('^[0-9]{2}$'))"
+    # matches() errors (so the rule denies) on anything but a string, so a patterned string needs no "is string".
+    assert expr({"type": "string", "pattern": "^[0-9]{2}$"}) == "(m.k.matches('^[0-9]{2}$'))"
     with pytest.raises(ValueError, match="unbounded string"):
         expr({"type": "string", "pattern": "^[a-z]+$"})
     assert expr({"type": "integer", "minimum": 0, "maximum": 11}) == "(m.k is int && m.k >= 0 && m.k <= 11)"
     assert expr({"type": "number"}) == "(m.k is number)"
     assert expr({"type": "boolean"}) == "(m.k is bool)"
     assert expr({"enum": ["a", "b"]}) == "(m.k in ['a', 'b'])"
+
+
+def test_an_integer_enum_in_even_steps_compiles_to_a_range_and_a_step():
+    # Same set of values, fewer rules expressions than a list literal (0, 45, ..., 315 is 8 values).
+    assert expr({"enum": [0, 45, 90, 135, 180, 225, 270, 315]}) == "(m.k is int && m.k >= 0 && m.k <= 315 && m.k % 45 == 0)"
+    assert expr({"enum": [10, 20, 40]}) == "(m.k in [10, 20, 40])"
+    assert expr({"enum": [2, 5, 8, 11]}) == "(m.k is int && m.k >= 2 && m.k <= 11 && (m.k - 2) % 3 == 0)"
 
 
 def test_nullable_forms():
@@ -49,6 +57,8 @@ def test_shape_mode_keeps_every_value_constraint_and_only_drops_key_lists():
     assert gen.value_check({"enum": ["cleared", "clue"]}, "m.kind", {}, shape=True) == "(m.kind in ['cleared', 'clue'])"
     assert gen.value_check({"type": "integer", "minimum": 1}, "m.k", {}, shape=True) == "(m.k is int)"
     assert gen.value_check({"type": "number", "minimum": 0}, "m.latencyMs", {}, shape=True) == "(m.latencyMs is number && m.latencyMs >= 0)"
+    # A symmetric range (latitude) in one comparison that also refuses NaN and infinity.
+    assert gen.value_check({"type": "number", "minimum": -90, "maximum": 90}, "m.lat", {}, shape=True) == "(m.lat is number && m.lat * m.lat <= 8100)"
     box = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 1000}, "minItems": 2, "maxItems": 2}
     assert gen.value_check(box, "m.b", {}, shape=True) == ("(m.b is list && m.b.size() == 2 && (m.b[0] is int && m.b[0] >= 0 && m.b[0] <= 1000)"
                                                          " && (m.b[1] is int && m.b[1] >= 0 && m.b[1] <= 1000))")

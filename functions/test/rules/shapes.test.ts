@@ -32,9 +32,9 @@ describe("event position, reading and route take only their schema shapes", () =
                                carried: "c".repeat(40), evidenceQuote: "q".repeat(400), feature: "creek_or_drainage" }),
       route: routeRecord({ model: "m".repeat(80), blocked: "guardrail" }) })));
   });
-  it("a position with an extra key, a missing key or a wrong type is refused", async () => {
-    // Ranges are not checked here (rules expression budget); a number cannot grow, and engines bound them.
-    for (const position of [{ lat: 1, lon: 2, accuracyM: 3, pad: "x" }, { lat: 1, lon: 2 }, { lat: "1", lon: 0, accuracyM: null },
+  it("a position with an extra key, a missing key, a wrong type, an out-of-range value or NaN is refused", async () => {
+    for (const position of [{ lat: 1, lon: 2, accuracyM: 3, pad: "x" }, { lat: 1, lon: 2 }, { lat: 91, lon: 0, accuracyM: null },
+                            { lat: 0, lon: 0, accuracyM: -1 }, { lat: "1", lon: 0, accuracyM: null }, { lat: NaN, lon: 0, accuracyM: null },
                             { lat: 0, lon: 0, accuracyM: "5" }]) {
       await assertFails(put(db(), validEvent(S, { position })));
     }

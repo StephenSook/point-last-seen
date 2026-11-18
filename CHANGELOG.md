@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Event positions keep their range check and refuse NaN again: in shape mode a symmetric range compiles to one
+  comparison (`lat * lat <= 8100`, `lon * lon <= 32400`), which also refuses NaN and infinity. To pay for it
+  under the 1,000-expression limit: an integer enum in even steps (cameraFacingDeg 0 to 315 by 45) compiles to
+  a range and a step instead of a list literal; a patterned string skips the redundant "is string" (matches()
+  already denies a non-string); and the confirmation clause no longer re-checks targetEventId and decision,
+  which are validated earlier in the same rule.
+  Source: security review of the previous rules commit (Position had become type-only, which accepted NaN and
+  out-of-range values).
+  Verified: generator tests for the even-step enum and the symmetric range failed first, now 9 pass; the
+  position test again refuses lat 91, accuracy -1 and NaN; the heaviest real events still pass; emulator suite
+  108; `bash scripts/ci-local.sh` exit 0.
 - Rules validators, review findings M3 and generator drift: each keyFrame.box2d entry must be an integer from 0
   to 1000 (before, only the count of 4 was checked), a reading's `kind` must be one of the schema's values, and
   a route's latencyMs must be 0 or more. To fit the heaviest real events under Firestore's 1,000-expression
