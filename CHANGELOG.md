@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteClipOnConsentEnd` (Firestore delete trigger on incidents/{incidentId}/clipReadings/{sha256}, retry on)
+  deletes clips/{incidentId}/{sha256}.mp4 when its consent record is deleted, by the TTL, by command or
+  otherwise, so a clip never outlives its consent by more than the trigger's delay; before, only the 1-day
+  margin over the lifecycle covered that, about the size of the lifecycle's own delay. It also clears the clip
+  of a stale record that command deletes. Only a 64-hex-digit id names a clip; anything else touches nothing,
+  and a missing clip is not an error. LIMITS names it as the mechanism.
+  Source: review (follow-up low after round 3).
+  Verified: the 4 tests (the one clip deleted and nothing else, a missing clip, non-hash ids touching nothing,
+  the trigger's path, delete event and retry) failed first, now pass; emulator suite 124; functions typecheck
+  exit 0; `bash scripts/ci-local.sh` exit 0.
 - The emulator port wait asks ps for unlimited width (`ps -wwAo`). On the Linux CI runner under pytest, ps cut
   each line at 80 columns, dropping the "--port N" the wait looks for, so the wait reported the ports free
   while an emulator process still held one. The CI gates job had failed on this test since f8d1547, and the

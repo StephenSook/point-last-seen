@@ -60,6 +60,11 @@ each line says what the limit is and why.
 - A clip uploads only while its consent record expires at least 31 days after the upload, so the consent
   always outlives the clip. An upload interrupted for more than a day needs its creator to renew the consent
   first; the rules allow that until the clip has a reading.
+- When a clip reading (the consent record) is deleted, by its TTL, by command or otherwise, the
+  `deleteClipOnConsentEnd` function deletes its clip, with retry on. Both deletions run in the background, so
+  the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. A record
+  left by a reinstalled app (a new anonymous user cannot renew it) is cleared by command, and its clip goes
+  with it.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next

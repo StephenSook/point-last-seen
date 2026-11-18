@@ -3,7 +3,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth, runMediaSweep } from "../src/media";
+import { deleteClipForReading, deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth, runMediaSweep } from "../src/media";
 import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const bucket = getStorage(adminApp).bucket();
@@ -163,5 +163,32 @@ describe("deleteIncidentMedia schedule (Codex MP2 review M2)", () => {
     const { deleteIncidentMedia } = await import("../src/index");
     expect((deleteIncidentMedia as unknown as { __endpoint: { scheduleTrigger: { schedule: string } } }).__endpoint.scheduleTrigger.schedule)
       .toBe("every 5 minutes");
+  });
+});
+
+describe("a deleted clip reading takes its clip with it (consent is the clip's lifetime)", () => {
+  const sha = "c".repeat(64);
+  it("deletes clips/<incident>/<sha>.mp4 and nothing else", async () => {
+    await put(`clips/J1/${sha}.mp4`);
+    await deleteClipForReading(bucket, "J1", sha);
+    expect(await exists(`clips/J1/${sha}.mp4`)).toBe(false);
+    expect(await exists(`clips/J1/${"a".repeat(64)}.mp4`)).toBe(true);
+    expect(await exists(`photos/J1/${"b".repeat(64)}.jpg`)).toBe(true);
+  });
+  it("a reading whose clip never uploaded, or is already gone, is not an error", async () => {
+    await expect(deleteClipForReading(bucket, "J1", "d".repeat(64))).resolves.toBe(false);
+  });
+  it("an id that is not a clip hash touches nothing", async () => {
+    for (const bad of ["../../packs/J1/T1/v1", "C".repeat(64), "c".repeat(63)]) {
+      await expect(deleteClipForReading(bucket, "J1", bad)).resolves.toBe(false);
+    }
+    expect(await exists("packs/J1/T1/v1.bundle")).toBe(true);
+  });
+  it("runs on every clip reading delete (TTL, command or sweep), with retry on", async () => {
+    const { deleteClipOnConsentEnd } = await import("../src/index");
+    const ep = (deleteClipOnConsentEnd as unknown as { __endpoint: { eventTrigger: { eventFilterPathPatterns: Record<string, string>; retry: boolean; eventType: string } } }).__endpoint.eventTrigger;
+    expect(ep.eventType).toBe("google.cloud.firestore.document.v1.deleted");
+    expect(ep.eventFilterPathPatterns.document).toBe("incidents/{incidentId}/clipReadings/{sha256}");
+    expect(ep.retry).toBe(true);
   });
 });
