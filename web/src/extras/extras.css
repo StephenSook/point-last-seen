@@ -4,12 +4,29 @@
 
 .extras-menu {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   inset-block-start: calc(100% + 4px);
   inset-inline-end: 0;
-  min-inline-size: 100%;
+  inline-size: max-content;
   padding: 6px;
-  background: var(--bg-1);
-  color: var(--fg-1);
-  border: 1px solid var(--line);
+  background: var(--bg-1, #1c1917);
+  color: var(--fg-1, #f8f4f1);
+  border: 1px solid var(--line, #403c3a);
 }
+
+.extras-menu [role="menuitem"] {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+
+.extras-menu [role="menuitem"]:hover { background: var(--bg-3, #302d2b); }
+.extras-menu [role="menuitem"]:disabled { cursor: default; }
+.extras-menu [role="menuitem"]:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.extras-menu small { display: block; color: var(--fg-3, #aeaaa7); }
+.extras-menu [role="alert"] { margin: 0.4rem 0.6rem; }
