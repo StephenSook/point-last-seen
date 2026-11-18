@@ -281,6 +281,18 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     if ((e["rawText"] !== null && e["rawText"] !== undefined) || (reading !== null && reading !== undefined && !cameraReading)) {
       return refuse("The run carries report text. A public run must not.");
     }
+    if (cameraReading && isObj(reading)) {
+      const sighting = reading["sighting"];
+      const keyFrame = isObj(sighting) ? sighting["keyFrame"] : undefined;
+      const readingStray = strayField(reading, RUN_FIELDS.cameraReading, "event.reading")
+        ?? (isObj(sighting) ? strayField(sighting, RUN_FIELDS.cameraSighting, "event.reading.sighting") : null)
+        ?? (isObj(keyFrame) ? strayField(keyFrame, RUN_FIELDS.keyFrame, "event.reading.sighting.keyFrame") : null);
+      if (readingStray) return strayRefusal(readingStray);
+    }
+    // A place to check can be a home or a previous address from the family's profile: its position never ships.
+    if (e["type"] === "destination" && e["position"] !== null && e["position"] !== undefined) {
+      return refuse("The run carries a place from the family's profile. A public run must not.");
+    }
     replayEvents.push(replayEvent(e as unknown as EventDoc, e["serverTimeMs"], offsets));
   }
 

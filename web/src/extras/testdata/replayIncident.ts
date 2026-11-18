@@ -58,10 +58,18 @@ export function runDevice(deviceId: string): string {
   return a;
 }
 
-/** A stored event as the published run writes it (runContract.ts): no uid, no report text, numeric server time. */
+/**
+ * A stored event as the published run writes it (runContract.ts): no uid, no report text, numeric server time, and
+ * a camera reading cut to the times the replay uses.
+ */
 export function runEvent(doc: EventDoc, serverTimeMs: number): RunEvent {
   const { serverTime: _serverTime, rawText: _rawText, reading, ...rest } = doc;
-  return { ...rest, deviceId: runDevice(doc.deviceId), authorUid: "author-1", rawText: null, reading: reading as RunEvent["reading"], serverTimeMs };
+  let runReading: RunEvent["reading"] = null;
+  if (reading && "sighting" in reading) {
+    const { personVisible, firstSeen, lastSeen, keyFrame } = reading.sighting;
+    runReading = { clipStartMs: reading.clipStartMs, clockConfirmed: reading.clockConfirmed, sighting: { personVisible, firstSeen, lastSeen, keyFrame: { time: keyFrame.time } } } as RunEvent["reading"];
+  }
+  return { ...rest, deviceId: runDevice(doc.deviceId), authorUid: "author-1", rawText: null, reading: runReading, serverTimeMs };
 }
 
 /** The same incident as a published run file, typed as the contract. */

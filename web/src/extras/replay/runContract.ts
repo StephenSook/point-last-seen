@@ -3,7 +3,7 @@
 // /evidence/published-run.json: it carries no uid, no join code, no report text, no profile field, no clip
 // path and no consent record. The reader refuses a run that carries report text.
 
-import type { Assignment, CameraSightingReading, EngineParams, EventDoc } from "../laneC";
+import type { Assignment, EngineParams, EventDoc } from "../laneC";
 
 export const PUBLISHED_RUN_VERSION = 1;
 
@@ -31,7 +31,17 @@ export const RUN_FIELDS = {
     "targetEventId", "decision", "planVersion", "priorVersion", "serverTimeMs",
   ],
   plan: ["version", "approvedAtMs", "priorVersion", "basedOnEventSetHash", "assignments"],
+  cameraReading: ["clipStartMs", "clockConfirmed", "sighting"],
+  cameraSighting: ["personVisible", "firstSeen", "lastSeen", "keyFrame"],
+  keyFrame: ["time"],
 } as const;
+
+/** A camera sighting's reading in a public run: only the clock and the times the replay draws. */
+export type RunCameraReading = {
+  clipStartMs: number;
+  clockConfirmed: boolean;
+  sighting: { personVisible: boolean; firstSeen: string; lastSeen: string; keyFrame: { time: string } };
+};
 
 /** published-run.json, version 1. */
 export type PublishedRunV1 = {
@@ -88,13 +98,14 @@ export type RunSegment = {
  * One stored event with its server time as a number (milliseconds). `authorUid` is a stable pseudonym per
  * author for this run (AUTHOR_PSEUDONYM), never the real uid: the engine compares authors only to decide who may
  * retract what.
- * `rawText` is always null. `reading` is kept only for a camera sighting (its times and clock); a report's
- * reading quotes the report's words, so it is null.
+ * `rawText` is always null. `reading` is kept only for a camera sighting, cut to RunCameraReading; a report's
+ * reading quotes the report's words, so it is null. A place to check (`type: "destination"`) has `position: null`:
+ * it can be a home from the family's profile.
  */
 export type RunEvent = Omit<EventDoc, "serverTime" | "rawText" | "reading"> & {
   serverTimeMs: number;
   rawText: null;
-  reading: CameraSightingReading | null;
+  reading: RunCameraReading | null;
 };
 
 /** One approved plan. approvedAtMs: the server's approval time in milliseconds. */

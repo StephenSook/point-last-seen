@@ -271,6 +271,22 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ teams: base.teams })).ok).toBe(true);
   });
 
+  it("refuses a place to check that keeps its position: it may be a home from the family's profile", () => {
+    const place = runEvent(eventDoc({ eventId: "home", type: "destination", role: "command", teamId: null, deviceId: "cmd", position: { lat: 33.79, lon: -84.37, accuracyM: null }, effect: { kind: "none", why: "informational" } }), T0);
+    expect(fromPublishedRun(run({ events: [place] }))).toEqual({ ok: false, reason: "The run carries a place from the family's profile. A public run must not." });
+    expect(fromPublishedRun(run({ events: [{ ...place, position: null }] })).ok).toBe(true);
+  });
+
+  it("refuses a camera reading with any field beyond the times the replay uses", () => {
+    const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
+    expect(fromPublishedRun(run({ events: [cam] })).ok).toBe(true);
+    const r = cam.reading as unknown as { sighting: Record<string, unknown> } & Record<string, unknown>;
+    const withEvidence = { ...cam, reading: { ...r, sighting: { ...r.sighting, evidence: "a person in a blue jacket" } } };
+    expect(fromPublishedRun(run({ events: [withEvidence] }))).toEqual({ ok: false, reason: "The run carries a field a public run must not: event.reading.sighting.evidence." });
+    const withSha = { ...cam, reading: { ...r, clipSha256: "0".repeat(64) } };
+    expect(fromPublishedRun(run({ events: [withSha] }))).toEqual({ ok: false, reason: "The run carries a field a public run must not: event.reading.clipSha256." });
+  });
+
   it("refuses engine settings it cannot compute with", () => {
     expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: {} } }))).toEqual({
       ok: false,
