@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): collect crash reports with Crashlytics
+- What: the app links `FirebaseCrashlytics` (pinned SDK, no new package) and a post-build
+  script uploads the dSYMs for symbolication on Release builds only, with Firebase's
+  documented input files so it runs under user script sandboxing. The app sets no custom keys
+  or logs, so crash reports hold stack traces only, never report text or subject data.
+- Source: promotion P-15 (Crashlytics on iOS); orchestrator tool note (all target and script
+  changes in `ios/project.yml`, never in the generated project).
+- Verified: `crashReportsAreCollected` failed to build without the product ("Unable to resolve
+  module dependency: 'FirebaseCrashlytics'"), then green; 43 app tests pass; a Release
+  simulator build ran the upload phase and succeeded (the script path resolves); Debug builds
+  run the phase and upload nothing; `scripts/ci-local.sh` exit 0. Not verified yet: the dSYMs
+  showing in the Crashlytics console.
+
 ### feat(ios): send one Performance trace per report read
 - What: the app links `FirebasePerformance` (same pinned firebase-ios-sdk 13.2.0, no new
   package). `PerformanceTelemetry.record` starts a `report_read` trace, sets the five route
