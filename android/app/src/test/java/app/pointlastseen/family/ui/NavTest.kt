@@ -70,4 +70,21 @@ class NavTest {
         assertEquals(Screen.PROFILE, Nav.open(notJoined, Screen.CLIP).screen)
         assertEquals(Screen.ABOUT, Nav.open(notJoined, Screen.ABOUT).screen)
     }
+
+    @Test fun theSystemBackGestureReturnsToTheHomeScreenAndOnlyClosesTheAppThere() {
+        val status = Nav.start(joined = true, gone = true)
+        for (t in listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT, Screen.PROFILE)) {
+            assertEquals(Screen.STATUS, Nav.systemBack(Nav.open(status, t))?.screen)
+        }
+        assertEquals(null, Nav.systemBack(status))
+        val home = Nav.start(joined = false, gone = false)
+        assertEquals(null, Nav.systemBack(home))
+        assertEquals(Screen.PROFILE, Nav.systemBack(Nav.toJoin(home).state)?.screen)
+        assertEquals(Screen.PROFILE, Nav.systemBack(Nav.open(home, Screen.ABOUT))?.screen)
+    }
+
+    @Test fun backFromCallFirstStaysOnCallFirstSoTheStepIsNotSkipped() {
+        val callFirst = Nav.shesGone(Nav.start(false, false)).state
+        assertEquals(Screen.CALL_FIRST, Nav.systemBack(callFirst)?.screen)
+    }
 }

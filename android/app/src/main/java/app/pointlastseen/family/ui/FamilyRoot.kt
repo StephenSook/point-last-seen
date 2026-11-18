@@ -1,5 +1,6 @@
 package app.pointlastseen.family.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,6 +21,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
         FamilyScaffold(mode, rc.killCloud) { Sentence("Update this app to keep using it.") }
         return
     }
+    BackHandler(enabled = Nav.systemBack(vm.nav) != null) { vm.systemBack() }
     Crossfade(targetState = vm.nav.screen, animationSpec = Paper.crossfade(), label = "screen") { screen ->
         when (screen) {
             Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back)

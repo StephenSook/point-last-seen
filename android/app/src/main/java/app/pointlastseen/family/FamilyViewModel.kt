@@ -122,6 +122,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         nav = Nav.open(nav, target)
     }
 
+    fun systemBack() {
+        Nav.systemBack(nav)?.let { next ->
+            if (next.screen != nav.screen) back()
+        }
+    }
+
     fun back() {
         nav = Nav.back(nav)
         noteUi = NoteUi.Idle
