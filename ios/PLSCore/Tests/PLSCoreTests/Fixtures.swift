@@ -14,6 +14,7 @@ let params = EngineParams(
 
 func near(_ a: Double?, _ b: Double, rel: Double = 1e-12) -> Bool {
     guard let a else { return false }
+    guard a.isFinite, b.isFinite else { return false }     // infinity would satisfy any tolerance
     if a == b { return true }
     return abs(a - b) <= rel * max(abs(a), abs(b))
 }

@@ -17,6 +17,13 @@ import Testing
         #expect(throws: VectorMismatch.self) { try expectVector(.bool(true), .number(1)) }
     }
 
+    @Test func expectVectorRejectsNonFiniteNumbers() {
+        #expect(throws: VectorMismatch.self) { try expectVector(.number(.infinity), .number(2808)) }
+        #expect(throws: VectorMismatch.self) { try expectVector(.number(-.infinity), .number(-1)) }
+        #expect(throws: VectorMismatch.self) { try expectVector(.number(.nan), .number(0.5)) }
+        #expect(near(.infinity, 2808) == false)
+    }
+
     @Test func clearedEffectEncodesToSpecJSON() throws {
         let e = Effect.cleared(
             segmentId: "AC", pod: 0.5,

@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios-core): the vector comparer rejects infinity and NaN
+- What: the test comparer now fails any non-finite number. Before, an infinite result matched
+  a finite expected value, because the error and the tolerance were both infinite.
+- Source: Codex review M9.
+- Verified: the new test failed on the old comparer (no error thrown for infinity), then passed;
+  all 150 vector cases still pass; full suite 165 tests.
+
 ### fix(ios-core): encode all 25 event keys, nulls written out
 - What: `EventDoc` has an explicit encoder that always writes the 25 keys of
   `shared/schemas/event.schema.json`, with nil as null. The synthesized encoder left out nil
