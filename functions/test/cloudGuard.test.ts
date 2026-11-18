@@ -117,21 +117,31 @@ describe("cloudGuard on a live template call (seen 2026-11-18)", () => {
 
 describe("cloudGuard on a clip-size request (measured 2026-11-18)", () => {
   // Live, the AI Logic proxy accepted a rewritten request of 11.3 MB and failed (HTTP 500) on 15.8 MB; an 18.4 MB
-  // request left as sent went through. A request with more inline media than the limit is checked for its model
-  // and otherwise left as sent, so a long clip read still works.
-  const withMedia = (chars: number, model = "gemini-3.5-flash-lite") => [path(model),
+  // request left as sent went through. Above the limit the guard cannot rewrite, so a request passes only when its
+  // own settings are already ones the guard would keep: listed keys, and a token limit within the cap or none (a
+  // template call carries none; its template sets it). Anything else is refused.
+  const withMedia = (chars: number, config: Record<string, unknown>, model = "gemini-3.5-flash-lite") => [path(model),
     { contents: [{ role: "user", parts: [{ inlineData: { mimeType: "video/mp4", data: "A".repeat(chars) } }, { text: "read" }] }],
-      generationConfig: { maxOutputTokens: 50_000 } }] as const;
-  it("is left as sent above the limit, and rewritten at or below it", () => {
+      generationConfig: config }] as const;
+  const big = MAX_REWRITE_MEDIA_CHARS + 1;
+  it("passes as sent above the limit when its settings already comply, including a template call with no token limit", () => {
     expect(MAX_REWRITE_MEDIA_CHARS).toBe(9_000_000);
-    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS + 1))).toBeUndefined();
-    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS))?.generationConfig?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
+    expect(guardRequest(...withMedia(big, { maxOutputTokens: 100, responseMimeType: "application/json" }))).toBeUndefined();
+    expect(guardRequest(...withMedia(big, { _responseJsonSchema: { type: "object" }, responseMimeType: "application/json", temperature: 0 }))).toBeUndefined();
+  });
+  it("refuses a request above the limit that asks for more than the cap or for unlisted settings (review)", () => {
+    for (const config of [{ maxOutputTokens: 50_000 }, { maxOutputTokens: 0 }, { candidateCount: 2 }, { thinkingConfig: { thinkingBudget: 24_000 } }]) {
+      expect(() => guardRequest(...withMedia(big, config))).toThrow(expect.objectContaining({ code: "invalid-argument" }));
+    }
+  });
+  it("still rewrites at the limit", () => {
+    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS, { maxOutputTokens: 50_000 }))?.generationConfig?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
   });
   it("still refuses an off-list model", () => {
-    expect(() => guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS + 1, "gemini-9-pro"))).toThrow(expect.objectContaining({ code: "permission-denied" }));
+    expect(() => guardRequest(...withMedia(big, {}, "gemini-9-pro"))).toThrow(expect.objectContaining({ code: "permission-denied" }));
   });
   it("says so in the log line, by size only", () => {
-    const [model, request] = withMedia(MAX_REWRITE_MEDIA_CHARS + 1);
+    const [model, request] = withMedia(big, { responseMimeType: "application/json" });
     expect(guardLogLine({ model, request }, guardRequest(model, request))).toMatchObject({ rewritten: false, mediaMB: 9 });
   });
 });

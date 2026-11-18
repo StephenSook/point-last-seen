@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard refuses a request above the inline-media limit unless its own settings already comply: only listed
+  setting names, and a token limit within the cap or none (a template call carries none; its template sets it).
+  A request that asks for more output, extra candidates or a thinking budget is refused with invalid-argument
+  instead of passing unchanged. The web clip read (response type and schema only) and template clip reads comply.
+  Source: automated security review of 62b56c2 (an oversize request skipped the cap whatever it asked for).
+  Verified: the test (above the limit, a 50,000 or 0 token limit, candidateCount and thinkingConfig are each
+  refused) failed first, now 20 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
 - cloudGuard leaves a request with more than 9,000,000 base64 characters of inline media as sent, after the model
   check. Measured live on 2026-11-18 with the guard forcing a rewrite: requests of 1.6, 5.9 and 11.3 MB went
   through, 15.8 MB failed with HTTP 500 from the AI Logic proxy, and an 18.4 MB request left as sent went

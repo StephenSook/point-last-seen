@@ -22,7 +22,7 @@ const KEPT = new Set(["maxOutputTokens", "temperature", "topP", "topK", "stopSeq
 /**
  * Inline media above this many base64 characters is too big to rewrite: the AI Logic proxy accepted a rewritten
  * request of 11.3 MB and failed (HTTP 500) on 15.8 MB, while an 18.4 MB request left as sent went through
- * (measured 2026-11-18). Such a request is checked for its model and otherwise left as sent.
+ * (measured 2026-11-18). Such a request is never rewritten; see guardRequest.
  */
 export const MAX_REWRITE_MEDIA_CHARS = 9_000_000;
 
@@ -44,8 +44,9 @@ function mediaChars(request: Request): number {
 /**
  * cloudGuard's rule for one generateContent request: refuse a model that is not on the list; keep only the
  * generation settings our apps use; bound the output, by the speech cap on the speech model and by the text cap on
- * every other model, whatever modality the request asks for. A template call that names itself, or a request with
- * more inline media than MAX_REWRITE_MEDIA_CHARS, is only checked for its model.
+ * every other model, whatever modality the request asks for. A template call that names itself is only checked
+ * for its model. A request with more inline media than MAX_REWRITE_MEDIA_CHARS cannot be rewritten: it passes as
+ * sent only when its settings already comply (a missing token limit allowed), and is refused otherwise.
  * Returns the whole request when it changes it, or undefined to leave it as sent.
  */
 export function guardRequest(model: string, request: Request, template?: unknown): Request | undefined {
@@ -61,7 +62,16 @@ export function guardRequest(model: string, request: Request, template?: unknown
   if (!(typeof asked === "number" && asked > 0 && asked <= cap)) kept.maxOutputTokens = cap;
   const unchanged = request.generationConfig !== undefined && Object.keys(kept).length === Object.keys(config).length
     && kept.maxOutputTokens === config.maxOutputTokens;
-  if (unchanged || mediaChars(request) > MAX_REWRITE_MEDIA_CHARS) return undefined;
+  if (unchanged) return undefined;
+  if (mediaChars(request) > MAX_REWRITE_MEDIA_CHARS) {
+    // Too big to rewrite: pass only settings the guard would keep, with a token limit within the cap or none (a
+    // template call carries none; its template sets it).
+    const askedRaw = config.maxOutputTokens;
+    const complies = Object.keys(config).every(k => KEPT.has(k))
+      && (askedRaw === undefined || (typeof askedRaw === "number" && askedRaw > 0 && askedRaw <= cap));
+    if (!complies) throw new HttpsError("invalid-argument", "This request is too large to adjust. Send only supported settings.");
+    return undefined;
+  }
   return { ...request, generationConfig: kept };
 }
 
