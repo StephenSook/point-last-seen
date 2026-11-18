@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A test pins that the repo's `storage.lifecycle.json` passes the exact rule the live health check demands
+  (Delete at 30 days on exactly clips/, photos/ and packs/), so the file applied to the bucket and the check the
+  daily probe reads cannot drift apart. It completes Task 18a's lifecycle test.
+  Source: plan Task 18a.
+  Verified: a pin (the file was already right): with the file's age changed to 29 the test failed, restored it
+  passes; its control (age 31 in memory) is refused; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMediaNow` (callable, App Check enforced, command only): removes an incident's clips and
   photos and their reading documents at once, for example when a family withdraws consent, instead of waiting
   for the 30-day lifecycle. The caller's claims must name the incident and the command role; a malformed id is
