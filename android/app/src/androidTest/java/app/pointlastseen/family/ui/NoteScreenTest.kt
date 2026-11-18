@@ -2,6 +2,8 @@ package app.pointlastseen.family.ui
 
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -66,5 +68,10 @@ class NoteScreenTest {
         rule.onNodeWithText("Add to profile").performScrollTo().performClick()
         assertEquals("clothing", added!!.kind)
         assertEquals("red scarf", added!!.label)
+    }
+
+    @Test fun theNoteFieldIsFocusedSoTheKeyboardMicIsOneTapAway() {
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}) } }
+        rule.onNode(hasSetTextAction()).assertIsFocused()
     }
 }
