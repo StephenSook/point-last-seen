@@ -9,7 +9,6 @@ describe("Remote Config", () => {
       cloud_model_android: "gemini-3.5-flash-lite",
       kill_cloud: false,
       use_limited_use_tokens: true,
-      replan_use_tools: false,
       judge_seed_run_id: "",
       judge_sessions_per_day: 300,
       minimum_version_ios: "",
@@ -52,6 +51,10 @@ describe("Remote Config", () => {
 
   it("does not parse token_budget_fraction: only the iOS router uses it", () => {
     expect("tokenBudgetFraction" in parseRc({})).toBe(false);
+  });
+
+  it("does not parse replan_use_tools: plan wording on the web calls no tools", () => {
+    expect("replanUseTools" in parseRc({})).toBe(false);
   });
 
   it("reads a boolean only from true or false", () => {

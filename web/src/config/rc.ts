@@ -10,7 +10,6 @@ export const RC_DEFAULTS = {
   cloud_model_android: "gemini-3.5-flash-lite",
   kill_cloud: false,
   use_limited_use_tokens: true,
-  replan_use_tools: false,
   judge_seed_run_id: "",
   judge_sessions_per_day: 300,
   minimum_version_ios: "",
@@ -21,7 +20,6 @@ export type WebRc = {
   cloudModelWeb: string;
   killCloud: boolean;
   useLimitedUseTokens: boolean;
-  replanUseTools: boolean;
   judgeSeedRunId: string;
   judgeSessionsPerDay: number;
 };
@@ -54,7 +52,6 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
     cloudModelWeb: model(values.cloud_model_web, d.cloud_model_web),
     killCloud: bool(values.kill_cloud, d.kill_cloud),
     useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
-    replanUseTools: bool(values.replan_use_tools, d.replan_use_tools),
     judgeSeedRunId: values.judge_seed_run_id?.trim() ?? d.judge_seed_run_id,
     judgeSessionsPerDay: num(values.judge_sessions_per_day, d.judge_sessions_per_day, (n) => Number.isInteger(n) && n >= 0),
   };

@@ -211,3 +211,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `rc.ts` no longer parses `token_budget_fraction` (wired-or-cut: the web has no router that budgets tokens; the iOS router reads it). The key stays in the Remote Config template for iOS.
 - Source: orchestrator self-audit sweep.
 - Verified: `src/config/rc.test.ts` changed first to expect no `token_budget_fraction` (2 tests failed), then passed after the removal.
+
+### fix(web): stop parsing replan_use_tools; web plan wording calls no tools
+- What: `rc.ts` no longer parses `replan_use_tools` (wired-or-cut: `wordPlan` sends the engine's table in the prompt and declares no tools). If cloud function calling (cut rank X3 extras) is ever built, it brings the key back with a test.
+- Source: orchestrator self-audit sweep.
+- Verified: `src/config/rc.test.ts` changed first to expect no `replan_use_tools` (2 tests failed), then passed after the removal.
