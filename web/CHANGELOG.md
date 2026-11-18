@@ -306,3 +306,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post's access reducer holds the two profile documents; a permission or auth denial clears them with the incident, events and plans, and later profile data is ignored.
 - Source: follow-on to Codex privacy finding 4 (the command profile holds private history).
 - Verified: new test in `src/command/postAccess.test.ts` failed first, then passed; 8 of 8.
+
+### feat(profile): add the approach card from fixed copy
+- What: `ApproachCard` shows who teams are looking for (answers to, age, height in feet and inches, appearance, clothing last worn, mobility aids), a line when the photo is more than two months old, the first seven approach notes and the rest under "More", and the footer "General guidance from dementia care practitioners and search teams. Not medical advice." Code and fixed copy only; no model.
+- Source: plan Task 35c, spec 13.3.
+- Verified: typecheck and build clean; the lines come from `approachLines` (tested in `profile.test.ts`). Its styles land with the profile form commit.
