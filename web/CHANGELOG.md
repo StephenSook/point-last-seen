@@ -955,3 +955,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/public/llms.txt`: what Point Last Seen is (a search-planning tool; hybrid inference with private reads kept on the laptop and cloud reads only after a consent tap; drill data only) and links to /judge and the command post.
 - Source: design review (/llms.txt).
 - Verified: new test (200, text/plain, starts with "# Point Last Seen", links /judge) failed first (404), then passed on the preview. scripts/ci-local.sh exit 0.
+
+### docs(evidence): record the first on-device clip triage runs in Chrome, synthetic clips only
+- What: `docs/evidence/web/2026-11-18-triage-chrome.json`: four runs of the triage measurement page in an installed Chrome 157 with the built-in model (downloaded through the site's own button), on three generated clips with no person. Zero Google or Firebase requests in every run; a warm frame check about 1 s (949 and 1,069 ms), the first after the download 18.0 s; sampling 12 frames in 37 to 45 ms, 40 in 158 ms; a still clip ends at no-motion with no model asked. The model said a person was visible in a red square: a false positive, so the person check is recorded as not validated until the staged clips exist.
+- Source: request to measure P-39 on a real built-in model before any number is used.
+- Verified: values copied from the page's own report in each run. scripts/ci-local.sh exit 0.
