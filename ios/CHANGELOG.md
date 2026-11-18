@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): sum up the team's task for the Live Activity
+- What: `TaskStatus.make(assignedSegmentIds:states:)` gives the sorted assigned segments, the
+  reports still waiting for signal (pending or checking) and the ones refused by the server,
+  and a short line ("2 reports waiting for signal. 2 need a look."). It holds no report text
+  and nothing about the subject, because a lock screen can be seen by anyone nearby.
+- Source: promotion P-07 (Live Activity for the team's task).
+- Verified: two `TaskStatusTests` compile-red, then green; 237 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): add a Log report control for the Action button
 - What: a WidgetKit extension target `PLSWidgets` (in `ios/project.yml`, embedded in the app)
   with the `LogReportControl` control. Its `LogReportIntent` (in `ios/PLSShared`, built into
