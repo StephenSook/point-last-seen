@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Point Last Seen Cloud Storage rules (spec section 7). Membership comes from the same
+// custom claims as Firestore. Clips are capped at 14,000,000 bytes (sent inline to
+// AI Logic; base64 must stay under the 20 MB request limit); photos at 2 MB.
+// Objects under clips/, photos/ and packs/ are deleted after 30 days by
+// storage.lifecycle.json.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isMember(incidentId) {
+      return request.auth != null && request.auth.token.inc == incidentId;
+    }
+    function isCommandOrFamily(incidentId) {
+      return isMember(incidentId) && request.auth.token.role in ['command', 'family'];
+    }
+
+    match /clips/{incidentId}/{file} {
+      allow read: if isMember(incidentId);
+      allow create, update: if isCommandOrFamily(incidentId)
+        && request.resource.size <= 14000000
+        && request.resource.contentType.matches('video/.*');
+      allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
+    }
+
+    match /photos/{incidentId}/{file} {
+      allow read: if isCommandOrFamily(incidentId);
+      allow create, update: if isCommandOrFamily(incidentId)
+        && request.resource.size <= 2 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+      allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
+    }
+
+    // Packs are built by the pack function only.
+    match /packs/{incidentId}/{file} {
+      allow read: if isMember(incidentId);
+      allow write: if false;
+    }
+  }
+}

@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add the Cloud Storage rules (`storage.rules`) and their emulator test (`functions/test/rules/storage.test.ts`):
+  clips under clips/{incidentId}/ written by command or family, video only, at most 14,000,000 bytes (inline to
+  AI Logic, base64 under the 20 MB request limit); photos JPEG at most 2 MB, read and written by command or
+  family; no client writes packs; every path checks the incident claim.
+  Source: plan Task 11; spec sections 7 and 12.1.
+  Verified: under deny-all the allowed uploads failed; now 4 storage tests pass (13,000,000-byte clip allowed,
+  15,000,000-byte clip denied); raising the cap to 16,000,000 failed the cap test, then the restored rule passed.
 - Add the Firestore security rules (`firestore.rules`, spec section 7) and their emulator tests
   (`functions/test/rules/{events,roles,profile}.test.ts`, with `helpers.ts`, `fixtures.ts`, `vitest.config.ts`):
   membership from custom claims {inc, role, team}; events create only with the full 25-key EventDoc shape,
