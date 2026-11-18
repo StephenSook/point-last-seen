@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): a late timeout from one location request cannot answer the next
+- What: `FixGate` gives each request a token, and only a finish with the current token resumes
+  the waiter. `LocationProvider` uses it, cancels the timer when a fix arrives, and ignores a
+  location older than the request. Before, the first report's 10 s timer could resolve the
+  second report's request with no position, so it silently fell back to the assignment.
+- Source: fresh-eyes review I5.
+- Verified: two `FixGateTests` (a stale finish is ignored; a second finish does nothing),
+  compile-red without the gate, then green; 24 app tests pass on the iOS 27.2 simulator. Real
+  fixes are device acceptance (spike S-GPS).
+
 ### fix(ios-core): cap the stored report text at the rules' 2,000 limit
 - What: after the phone-number scrub (which can make text longer), the stored `rawText` is cut
   at a character boundary to at most 2,000 UTF-8 bytes, which is at or under 2,000 in any unit
