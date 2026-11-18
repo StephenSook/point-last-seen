@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `ci-local.sh` builds the web app with CI's placeholder config (the same values as web.yml) into a temp folder,
+  so every lane can run the web step without a web/.env.local, and no worktree's real web/dist (built from its
+  .env.local and deployed from there) is overwritten. Vite lets variables already in the environment beat .env
+  files, which is why the output folder moves too.
+  Source: lane B's ci-local stopped at "Missing build config" after merging main.
+  Verified: `bash scripts/ci-local.sh` exit 0 from a shell with no VITE variables; the build printed
+  `vite build --outDir <temp> --emptyOutDir`; web/dist/index.html kept its timestamp.
 - Task 10 CLI: `npm run build-grid -w tools/grid-builder -- <site.geojson> <gridId> --osm <overpass.json> --out
   <grid.json>` builds the grid (cells, then near-feature fractions, then stream links) and writes it with a
   trailing newline; `--query <site.geojson>` prints the Overpass QL query for the site's bounding box (ways and

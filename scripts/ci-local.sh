@@ -41,10 +41,17 @@ npm run typecheck -w functions
 npm run test:rules -w functions
 
 if [ -e web/package.json ]; then
-  echo "== web: typecheck, unit tests and build (uses the developer's untracked .env.local)"
+  echo "== web: typecheck, unit tests and build (CI's placeholder config, built into a temp folder)"
   npm run typecheck -w web
   npm test -w web
-  npm run build -w web
+  # Same placeholder config as web.yml: the build proves the app compiles and is never deployed. Variables
+  # already in the environment beat .env files in Vite, so the output goes to a temp folder and a worktree's
+  # real web/dist (built from its .env.local and deployed from there) is never overwritten.
+  WEB_OUT="$(mktemp -d)"
+  VITE_FIREBASE_API_KEY=ci-build-check VITE_FIREBASE_AUTH_DOMAIN=ci-build-check.firebaseapp.com \
+  VITE_FIREBASE_PROJECT_ID=ci-build-check VITE_FIREBASE_STORAGE_BUCKET=ci-build-check.firebasestorage.app \
+  VITE_FIREBASE_MESSAGING_SENDER_ID=0 VITE_FIREBASE_APP_ID=1:0:web:0 VITE_RECAPTCHA_ENTERPRISE_SITE_KEY=ci-build-check \
+    npm run build -w web -- --outDir "$WEB_OUT" --emptyOutDir
 else
   echo "== web: skipped, web/ not on this branch"
 fi
