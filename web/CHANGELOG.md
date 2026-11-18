@@ -70,3 +70,9 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the join panel is `min(420px, 100% - 32px)` wide, so at 390 px it no longer touches the screen edges.
 - Source: deployed still at 390 px (Task 15 step 5 "take a still and look at it"); spec layout rule (16 px side gutter at phone width).
 - Verified: local preview still at 390 x 844 shows a 16 px gutter on both sides; build clean.
+
+### chore(merge): bring main into lane-web (engine, schemas, CI jobs)
+- What: merges origin/main (the TypeScript engine, shared schemas and constants, schema parity, the engine and vector CI jobs, the functions workspace) into lane-web. The root `package-lock.json` conflict was resolved by taking main's file and re-running `npm install` on the merged tree, so the lockfile holds the web, engine and functions workspaces.
+- Source: plan lanes rule (lanes stay current with main); a merge instead of a rebase because pushed history is not rewritten without the orchestrator's yes.
+- Verified: `scripts/ci-local.sh` on the merged tree exit 0 (rules gate 94 files, schema parity 10 schemas, engine 137 tests, vectors 124), web typecheck exit 0, web tests 68 of 68.
+- Not yet in CI (2026-11-18): the web unit tests and the Playwright smoke. The joined-post e2e needs Task 11 (rules, joinIncident) and a seeded drill incident; it is added to CI in the change set that lands those, and under CI a missing join code or incident fails it, never skips it.

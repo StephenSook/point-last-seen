@@ -1,0 +1,35 @@
+name: Swift core
+
+# Expensive (Swift in Docker): runs on pull requests to main and on main only.
+# Until ios/PLSCore is on main the only trigger is ios/PLSCore itself, so a shared/ change
+# cannot start a job that has no package to test. After the lane B merge, widen the paths to
+# shared/test-vectors/** and shared/constants/** (the Swift vector tests read them).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/PLSCore/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ios/PLSCore/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  swift-core:
+    name: swift-core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Official swift image, tag 6.4.2-noble, pinned by its index digest (read 2026-11-17).
+    container: swift:6.4.2-noble@sha256:23d9b28ad97fb1cf1999edc3a0cb265ee915ed42299a9344e7173d5a6d2b05f4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Swift core tests (includes the shared vectors)
+        run: swift test --package-path ios/PLSCore

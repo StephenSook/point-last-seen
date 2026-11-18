@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/plan-wording.schema.json",
+  "title": "PlanWording",
+  "description": "Model output that words a deterministic plan draft (spec section 11.4). Code rejects wording whose team ids differ from the draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assignments",
+    "summary"
+  ],
+  "properties": {
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "teamId",
+          "taskText",
+          "reason"
+        ],
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1
+          },
+          "taskText": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      },
+      "maxItems": 12
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 300
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#PlanWording"
+    }
+  }
+}

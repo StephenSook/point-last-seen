@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "params": {
+    "sweepWidthFactor": 1.645,
+    "sweepSpeedMps": 0.39,
+    "hastySpeedMps": 0.53,
+    "secondsPerMinute": 60,
+    "iocBase": {
+      "strong_for": 1.0,
+      "for": 0.8,
+      "neutral": 0.6,
+      "against": 0.4,
+      "strong_against": 0.2
+    },
+    "authenticityWeight": {
+      "high": 1.0,
+      "medium": 0.6,
+      "low": 0.0
+    },
+    "coverageRatioMax": 3,
+    "coveragePercentMax": 300,
+    "detectionRangeMinM": 1,
+    "detectionRangeMaxM": 100,
+    "detectionProfile": {
+      "soundCounts": false
+    },
+    "rings": {
+      "masses": [0.25, 0.25, 0.25, 0.20],
+      "temperate_flat": [0.3, 1.0, 2.4, 12.8],
+      "temperate_mountain": [0.3, 0.8, 1.9, 8.3]
+    },
+    "nearFeature": {
+      "bufferM": 71,
+      "nearShare": 0.75,
+      "farShare": 0.25
+    },
+    "wedge": {
+      "halfAngleDeg": 66,
+      "inside": 2.045,
+      "outside": 0.395
+    }
+  },
+  "sources": {
+    "sweepWidthFactor": "SOURCED: W = 1.645 x Rd, Koester et al. 2014 (PLS-DOMAIN)",
+    "sweepSpeedMps": "SOURCED: sweep speed, Hashimoto et al. 2026 (PLS-DOMAIN)",
+    "hastySpeedMps": "SOURCED: hasty speed, Hashimoto et al. 2026 (PLS-DOMAIN)",
+    "secondsPerMinute": "unit conversion: reports give minutes, track length uses seconds",
+    "iocBase": "OURS: PLS v1 likelihood table (CASIE Table 7 not read)",
+    "authenticityWeight": "OURS: PLS v1 likelihood table",
+    "coverageRatioMax": "OURS: a stated coverage from 0 to 3 is a ratio",
+    "coveragePercentMax": "OURS: a stated coverage above 3 and up to 300 is a percentage",
+    "detectionRangeMinM": "OURS: accepted detection range, metres",
+    "detectionRangeMaxM": "OURS: accepted detection range, metres",
+    "detectionProfile": "SOURCED: ISRID dementia profile, about 1% respond to shouts; sound-only clears are not counted by default",
+    "rings": "SOURCED: ISRID dementia distance rings, km, dbS public page; masses 0.25 per ring to 75%, 0.20 to 95%",
+    "nearFeature": "SOURCED: ISRID track offset, 75% within 71 m",
+    "wedge": "SOURCED: ISRID dispersion, 75% within 66 degrees each side (n = 11); factors 0.75 / (132/360) and 0.25 / (228/360)"
+  }
+}
