@@ -171,3 +171,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `makeSeq` returns whole-number sequence values that start from the clock in milliseconds and only move forward (one past the last value within a millisecond or after the clock steps back). Event ids hash (incident, uid, seq), so a reload or a new browser profile cannot repeat an id.
 - Source: lane A's rules contract ("start the command post's seq from the current epoch ms").
 - Verified: `src/data/seq.test.ts`, 3 tests, failed first (module missing), then passed.
+
+### feat(sightings): show each sighting's decision, missing place and out-of-area state
+- What: `sightingCards` lists each sighting once (newest seen first) with its status: awaiting, confirmed or rejected. Decisions follow the engine's order (a command decision outranks a family one; the latest within a role wins; a searcher's confirmation is ignored). Retracted sightings drop out. A card says when the sighting has no place yet and when it fell outside the search area.
+- Source: plan Task 36 (confirm and reject at command; the out-of-area banner), lane D's family sightings that arrive with no place.
+- Verified: `src/command/sightingCards.test.ts`, 5 tests, failed first (module missing), then passed.
