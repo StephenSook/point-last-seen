@@ -950,3 +950,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the phone-fit test now requires the join page's Incident id and Join code fields to be at least 44 px tall at 390 px wide. The CSS rule for it (`input` other than checkboxes and radios, and `select`, at least 44 px on phones) went in with 5b01fdf by mistake, bundled with the ghost-border change, because both edits sat in base.css when that commit staged the file; this entry records it.
 - Source: design review (join inputs 44 px on phones).
 - Verified: the test failed first on the preview (fields under 44 px), then passed with the rule. scripts/ci-local.sh exit 0.
+
+### feat(web): serve /llms.txt describing the site and where a judge starts
+- What: `web/public/llms.txt`: what Point Last Seen is (a search-planning tool; hybrid inference with private reads kept on the laptop and cloud reads only after a consent tap; drill data only) and links to /judge and the command post.
+- Source: design review (/llms.txt).
+- Verified: new test (200, text/plain, starts with "# Point Last Seen", links /judge) failed first (404), then passed on the preview. scripts/ci-local.sh exit 0.

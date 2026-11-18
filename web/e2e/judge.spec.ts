@@ -43,3 +43,12 @@ test("the join page says what the product does and sends judges to the judge's d
   await link.click();
   await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
 });
+
+test("/llms.txt says what the site is and where a judge starts", async ({ request }) => {
+  const res = await request.get("/llms.txt");
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toMatch(/^text\/plain/);
+  const text = await res.text();
+  expect(text).toMatch(/^# Point Last Seen/);
+  expect(text).toContain("/judge");
+});
