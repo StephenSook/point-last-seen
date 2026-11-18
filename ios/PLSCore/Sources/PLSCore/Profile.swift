@@ -30,6 +30,33 @@ public struct SharedProfile: Codable, Sendable, Equatable {
              approachNoteIds
     }
 
+    /// The rules let command write the document in parts, so every missing (or null) key reads
+    /// as empty: "" for text, [] for lists, [:] for flags, nil for the optional values.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func text(_ k: CodingKeys) throws -> String { try c.decodeIfPresent(String.self, forKey: k) ?? "" }
+        answersTo = try text(.answersTo)
+        nickname = try text(.nickname)
+        ageYears = try c.decodeIfPresent(Int.self, forKey: .ageYears)
+        gender = try text(.gender)
+        appearance = try text(.appearance)
+        heightFt = try c.decodeIfPresent(Int.self, forKey: .heightFt)
+        heightIn = try c.decodeIfPresent(Int.self, forKey: .heightIn)
+        weightLb = try c.decodeIfPresent(Int.self, forKey: .weightLb)
+        hair = try text(.hair)
+        eyeColor = try text(.eyeColor)
+        primaryLanguage = try text(.primaryLanguage)
+        clothingLastWorn = try text(.clothingLastWorn)
+        mobilityAids = try c.decodeIfPresent([String].self, forKey: .mobilityAids) ?? []
+        dementiaType = try c.decodeIfPresent(String.self, forKey: .dementiaType)
+        flags = try c.decodeIfPresent([String: Bool].self, forKey: .flags) ?? [:]
+        triggersToAvoid = try text(.triggersToAvoid)
+        bestApproach = try text(.bestApproach)
+        uniqueDescription = try text(.uniqueDescription)
+        photoTakenOn = try c.decodeIfPresent(String.self, forKey: .photoTakenOn)
+        approachNoteIds = try c.decodeIfPresent([String].self, forKey: .approachNoteIds) ?? []
+    }
+
     /// All 20 keys, nulls written out (the schema allows no other keys).
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)

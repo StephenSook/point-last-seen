@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): read a partial shared profile with the missing fields empty
+- What: `SharedProfile` decodes every missing or null key as empty ("" for text, [] for
+  lists, [:] for flags, nil for optional values) instead of failing. The rules let command write
+  `profile/shared` in parts, so a nickname alone is a legal document; before this it failed with
+  `keyNotFound: answersTo`. The approach card from such a document shows only its footer, and
+  the model sees "No description on file."
+- Source: review of merge point 2 (the web reader crashed on a missing `approachNoteIds`).
+- Verified: `aNicknameOnlyDocumentDecodesWithEverythingElseEmpty` red with
+  `DecodingError.keyNotFound`, then green; 246 tests; `scripts/ci-local.sh` exit 0.
+
 ### test(ios): take the timing out of the trace and Live Activity tests
 - What: the route-trace test records synchronously (a `Mutex`-backed log) instead of waiting
   200 ms for detached tasks; the Live Activity test waits for the real "ended" state, at most
