@@ -764,3 +764,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when `joinIncident` refuses with `resource-exhausted` (10 join attempts per user per rolling hour, the guard against code guessing), the join form now says "Too many join attempts from this browser. Try again in an hour." instead of "Could not join. Check the incident id and the code."
 - Source: found when the e2e suite, joining as one shared test user, ran past the limit; a real person retrying a code would have been told to check a correct code.
 - Verified: new test in `src/data/join.test.ts` failed first, then passed (7 of 7). scripts/ci-local.sh exit 0.
+
+### test(e2e): join once in the setup session and open the post directly in each test
+- What: the setup project now also joins the drill once (when the drill fixture is set) before saving the session, and `joinCommand` opens the post and fills the join form only when the form, not the post, appears. The App Check refusal test starts from an empty browser, since the saved session carries a valid cached App Check token. Each full run now makes one anonymous sign-up and one join (plus one of each for the fresh-browser smoke), well inside Firebase Auth's per-IP sign-up limit and `joinIncident`'s 10 joins per user per hour.
+- Source: the deployed run in which every test joined as the one shared user and `joinIncident` answered `resource-exhausted`.
+- Verified: the full deployed suite passed 34 of 35 against the live site; the one failure was the live-commit check, because the live site still served the previous commit. scripts/ci-local.sh exit 0.

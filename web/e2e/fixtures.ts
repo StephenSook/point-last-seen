@@ -44,10 +44,17 @@ export async function joinCommand(page: Page): Promise<string> {
   const code = process.env["PLS_SMOKE_JOIN_CODE"];
   if (!incident || !code) throw new Error("PLS_SMOKE_INCIDENT and PLS_SMOKE_JOIN_CODE are required");
   await page.goto(`/?incident=${encodeURIComponent(incident)}`);
-  await page.getByLabel("Join code").fill(code);
-  await page.getByRole("button", { name: "Join as command" }).click();
-  // joinIncident can start cold, and parallel workers join at the same moment.
-  await expect(page.getByTestId("convergence-code")).toBeVisible({ timeout: 20_000 });
+  // The run's saved session has usually joined already (auth.setup.ts), so the post opens directly;
+  // joinIncident allows 10 joins per user per hour, so tests join only when the form asks.
+  const post = page.getByTestId("convergence-code");
+  const join = page.getByRole("button", { name: "Join as command" });
+  // joinIncident can start cold, and parallel workers start at the same moment.
+  await expect(post.or(join)).toBeVisible({ timeout: 20_000 });
+  if (!(await post.isVisible())) {
+    await page.getByLabel("Join code").fill(code);
+    await join.click();
+  }
+  await expect(post).toBeVisible({ timeout: 20_000 });
   return incident;
 }
 
