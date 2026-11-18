@@ -4,6 +4,13 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Evidence screen follows the shared matching rule.** Words are now NFKD-normalized with
+  combining marks dropped and split on anything that is not a letter or digit, so accented and
+  fullwidth text folds the same way as on iOS and the web. Unit tests read the repo's
+  `shared/test-vectors/search.json` and `shared/constants/evidence-terms.json` (a missing file
+  fails, never skips). Source: lane A ruling 8 and `evidence-terms.json` `matching`. Verified:
+  `EvidenceVectorsTest` failed first on `accents_fold_into_words`, then all 15 shared evidence
+  vectors pass; 84 unit tests, 0 skipped.
 - **AI Logic client (ai/AiClient.kt, ai/AiSchemas.kt).** Every model call goes through
   `Firebase.ai(backend = GenerativeBackend.googleAI())` with limited-use App Check tokens behind
   Remote Config. The family note uses `OnDeviceConfig(mode = ...)` (hybrid) and records the

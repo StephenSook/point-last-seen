@@ -83,6 +83,8 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = false
+        // Unit tests read the shared vectors and constants from the repo root.
+        unitTests.all { it.systemProperty("pls.repoRoot", rootProject.projectDir.parentFile.absolutePath) }
     }
 }
 
