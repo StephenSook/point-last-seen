@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `scripts/appcheck_control.py`: a live App Check control for Firebase AI Logic on the deployed project. A
+  raw generateContent call with no App Check token must be refused with 401 "Firebase App Check token is
+  invalid."; only then is a debug-token call made, which must answer 200. Evidence goes to
+  docs/evidence/appcheck-control/ with every key and token redacted. `--no-token-only` is the credential-free
+  daily half (config from the site's /__/firebase/init.json, no model call) and retires itself after
+  2026-12-17. Firebase's documented automatic App Check enforcement for AI Logic did not happen on a project
+  created 2026-11-17, so this control proves the manual enforcement is still on.
+  Source: orchestrator (BYT upstream finding; self-audit gap SA:86).
+  Verified: 5 tests failed first (no module), now pass; the live run gave 401 then 200 (evidence
+  2026-11-18T08-55-34+00-00.json, 0 key matches in it and in the logs); the App Check API reads
+  firebaseml ENFORCED since 2026-11-17T18:32Z; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMedia` (scheduled every 15 minutes, us-central1, one instance, no model call) deletes every
   clip, photo and pack of each judge sandbox whose expiresAt has passed and stamps mediaDeletedAt once; it
   re-checks all ended sandboxes each run, so an upload in flight at the end is caught next time. Drills, live
