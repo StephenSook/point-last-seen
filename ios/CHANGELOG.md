@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### refactor(ios): send the tools' and prompt's words from the Core allow-listed text
+- What: `SegmentAtTool`, `TeamAssignmentTool` and `SubjectProfileTool` take their names,
+  descriptions and outputs from `ToolText`; `ReportPrompt` wraps `PromptText`. The words the app
+  sends are now the exact words `cloudPromptHoldsOnlyNamedFields` checks.
+- Source: orchestrator ruling 2026-11-18 (design section 9), Task 21b.
+- Verified: `ToolsTests` rewritten to compare each tool's name, description and output, and both
+  instruction texts, with the Core text: compile-red without `guidedText`/`permissiveText`, then
+  green; 30 app tests pass on the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
 ### test(ios-core): pin everything the cloud route can send to an allow-list
 - What: `PromptText` (instruction text), `ToolText` (the three tools' names, descriptions and
   outputs) and `CloudOutbound.texts` (instructions, report, every tool's name, description and
