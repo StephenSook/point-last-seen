@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): give the read the segment under the GPS fix
+- What: `ReportReader` sets `ReadContext.positionSegmentId` from the report's situation, so a
+  report that names no segment is read as being about the segment the searcher stands in,
+  whatever the model copied.
+- Source: coordinator ruling 2026-11-18 (segment ids from code).
+- Verified: `theGPSSegmentReachesTheReadNotTheModelsCopy` (a model that copies AC; GPS in AB;
+  text names nothing; result AB) red with this line removed, then green; 35 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): take segment ids from the report text or GPS, never from the model
 - What: `SegmentChoice.ids` picks a reading's segments in code: the ids the report names (the
   parser's rule; an unknown named id is kept so the validator rejects it), else the segment

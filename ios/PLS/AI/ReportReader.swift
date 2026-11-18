@@ -40,12 +40,13 @@ struct ReportReader {
         let tools: [any Tool] = [SegmentAtTool(positionSegmentId: situation.positionSegmentId),
                                  TeamAssignmentTool(assignedSegmentIds: situation.assignedSegmentIds),
                                  SubjectProfileTool(profile: situation.profile)]
-        let context = ReadContext(
+        var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
             networkOnline: situation.networkOnline, onDevice: ModelSessionFactory.onDeviceStatus(),
             estimatedTokens: modelAllowed ? await countTokens(text, tools) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
+        context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         return await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
     }

@@ -73,3 +73,25 @@ struct InstantRunner: ReadModelRunner {
     }
 }
 
+/// A model that copies the team's assignment (AC) into every reading, as spike S1 saw.
+struct CopiesAssignmentRunner: ReadModelRunner {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        var r = ReportReading.unclear(quote: String(text.prefix(40)))
+        r.kind = .cleared
+        r.segmentIds = ["AC"]
+        r.coverage = 0.8
+        return .success(r)
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+}
+
+@Suite struct ReportReaderSegmentTests {
+    @Test func theGPSSegmentReachesTheReadNotTheModelsCopy() async throws {
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 }, makeRunner: { _, _, _ in CopiesAssignmentRunner() })
+        let situation = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AA", "AB", "AC"], assignedSegmentIds: ["AC"],
+                                        positionSegmentId: "AB", profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let o = await r.read("we cleared our area, coverage point eight", situation: situation)
+        #expect(o.reading.segmentIds == ["AB"])
+    }
+}
