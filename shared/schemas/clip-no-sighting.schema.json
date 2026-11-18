@@ -39,7 +39,7 @@
   "x-parity": {
     "#": {
       "ts": "shared/engine-ts/src/types.ts#ClipNoSighting",
-      "android": "pending:android/app/src/main/java/app/pointlastseen/family/ai/ClipNoSighting.kt#ClipNoSighting"
+      "android": "android/app/src/main/java/app/pointlastseen/family/ai/ClipNoSighting.kt#ClipNoSighting"
     }
   }
 }

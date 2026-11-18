@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- clip-no-sighting's parity map now names Android's `ClipNoSighting` class (3603f3c) instead of a pending
+  target, so the schema parity check covers it. LIMITS says a model or network error stores nothing: a
+  completed reading never changes, so the record stays open and the next reader retries (both clients do this;
+  `model_error` stays in the schema, unused).
+  Source: lane D (3603f3c, 30ef4eb) and lane C (readClip), with review.
+  Verified: schema parity 12 schemas, 30 platform types, 0 failures; `bash scripts/ci-local.sh` exit 0.
 - The first server prompt template, `shared/templates/pls-sighting-note-v1.json`, for the command post's
   consented cloud read of a sighting note: the model on the allow-list, temperature 0, a typed input (`note`,
   a string of 1 to 2,000 characters), the closed JSON output (direction and both colours as the report-reading
