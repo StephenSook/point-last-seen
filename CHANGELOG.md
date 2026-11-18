@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
+  whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
+  Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.
+  Source: lane D via the orchestrator.
+  Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - The `android` job and ci-local also compile the instrumented tests (`compileDebugAndroidTestKotlin`, no
   emulator needed), so a broken androidTest fails at merge instead of only when lane D runs it by hand.
   Source: lane D via the orchestrator.

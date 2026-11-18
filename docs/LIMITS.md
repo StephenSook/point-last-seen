@@ -39,6 +39,10 @@ each line says what the limit is and why.
   under the token cap even at one token per byte (android `OnDeviceBudgetTest`).
 - Not tested: we have no phone with Gemini Nano, so neither the AICore filters nor the cap ran in our tests,
   and non-English notes are outside that byte bound.
+- NOT VERIFIED without a Gemini Nano phone: the Android on-device structured-output path (generateObject);
+  whether it fills response.text; and whether our wire-named enum constants survive ML Kit's on-device schema
+  translation. The cloud path is tested; the on-device answer is still checked against the closed schema, so
+  a mismatch is refused, not used.
 
 ## Media retention
 
