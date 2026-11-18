@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): turn a pick-list choice into a report reading
+- What: `PickList.outcome` turns what a person picked (kind, segment, and for a clear the
+  minutes and number of searchers) into the same reading shape a read report has, with route
+  stage `picklist`, path rules, model "none", latency 0. Coverage is left to code (minutes,
+  searchers and the measured detection range), as for a typed report. The outcome builder keeps
+  the person's segment for a picked report; the "segments from the text or the GPS fix" rule
+  stays for read reports, where it overrules a model.
+- Source: Task 13 (pick-list), with the picklist stage the schema now allows.
+- Verified: three `PickListTests` (the route and reading; the stored event keeps AB although the
+  fix is in AD; a clue with no segment) compile-red, then green; 260 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): accept the picklist route stage
 - What: `ReadStage.picklist` ("a person picked the report from a list; no model ran"), which the
   schema and rules now allow. Before this, the shared filter dropped a valid pick-list event. Its
