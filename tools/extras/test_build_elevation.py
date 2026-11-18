@@ -107,6 +107,54 @@ def test_output_names_source_license_credit_and_date():
     assert be.with_grid_hash(out, grid_bytes)["gridSha256"] == hashlib.sha256(grid_bytes).hexdigest()
 
 
+def test_a_failure_names_the_cell_and_the_request():
+    def fetch(lat, lon):
+        if lon > -84.37 + 0.001:  # every point of cell AB
+            return b"<html>blocked</html>"
+        return epqs(200)
+
+    with pytest.raises(ValueError, match=r"cell AB, request 6 of 10 \(33\.\d{6}, -84\.\d{6}\): the answer is not JSON"):
+        be.build(GRID, fetch, lambda s: None, "2026-11-18")
+
+
+def test_a_server_error_is_retried_once_after_a_long_pause():
+    slept, calls = [], []
+
+    def fetch(lat, lon):
+        calls.append((lat, lon))
+        if len(calls) == 3:
+            raise be.ServerError("HTTP 500")
+        return epqs(200)
+
+    out = be.build(GRID, fetch, slept.append, "2026-11-18")
+    assert len(out["cells"]) == 2
+    assert len(calls) == 11  # ten points plus one retry
+    assert calls[2] == calls[3]  # the same point again
+    assert be.RETRY_PAUSE_S >= 10 and be.RETRY_PAUSE_S in slept
+
+
+def test_a_second_server_error_stops_and_a_bad_answer_is_never_retried():
+    calls = []
+
+    def always_500(lat, lon):
+        calls.append(1)
+        raise be.ServerError("HTTP 500")
+
+    with pytest.raises(ValueError, match="request 1 of 10"):
+        be.build(GRID, always_500, lambda s: None, "2026-11-18")
+    assert len(calls) == 2
+
+    bad = []
+
+    def html(lat, lon):
+        bad.append(1)
+        return b"<html></html>"
+
+    with pytest.raises(ValueError):
+        be.build(GRID, html, lambda s: None, "2026-11-18")
+    assert len(bad) == 1
+
+
 def test_one_failed_fetch_writes_no_file(tmp_path):
     grid = tmp_path / "g.grid.json"
     grid.write_text(json.dumps(GRID))
