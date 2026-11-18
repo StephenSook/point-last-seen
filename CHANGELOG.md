@@ -12,6 +12,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   parents kept its version.
   Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
   CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- Widen the platform workflows now that every lane is on main (merge point 1): Swift core also runs when
+  shared/test-vectors/**, shared/constants/** or its workflow change; Android when shared/** or its workflow
+  change; web when shared/**, the root package files or its workflow change. Still pull requests to main
+  and main only.
+  Source: plan Global Constraints (widen at the merge points); the comments that held these back are removed.
+  Verified: each file keeps exactly two path lists (push and pull_request), both widened; pushed only after
+  PRs #2, #3 and #1 merged, so no job runs on main without its tree; `bash scripts/ci-local.sh` exit 0.
 - The `ts` job (and `ci-local.sh`) now typecheck and test `tools/grid-builder`: its 10 tests ran in neither
   until now. A multi-line `run:` in Actions uses `bash -e`, so a failing typecheck stops the step.
   Source: own finding while checking what CI covers for Task 10.

@@ -1,19 +1,25 @@
 name: web
 
 # Web command post: typecheck, unit tests and a build with placeholder config (proves it compiles; never
-# deployed). Runs on pull requests to main and on main (Actions minutes are budgeted). Until web/ is on
-# main the only trigger is web/** itself: a shared/** or lockfile trigger would start this job on main
-# with no web/ to build. After the lane C merge, widen to shared/**, package.json, package-lock.json and
-# this file.
+# deployed). Runs on pull requests to main and on main (Actions minutes are budgeted), when web/, the
+# shared engine and constants it imports, the root package files or this workflow change.
 on:
   push:
     branches: [main]
     paths:
       - "web/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/web.yml"
   pull_request:
     branches: [main]
     paths:
       - "web/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/web.yml"
   workflow_dispatch:
 
 permissions:
