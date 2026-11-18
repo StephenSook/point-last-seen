@@ -50,7 +50,8 @@ export type StoredClipReading = {
   createdByUid: string;
 };
 
-type RecordDoc = Omit<StoredClipReading, "expiresAtMs" | "createdAtMs" | "reading" | "route"> & {
+/** The consent record as written: no reading or route yet, a timestamp expiry, the server's createdAt. */
+export type ClipRecordDoc = Omit<StoredClipReading, "expiresAtMs" | "createdAtMs" | "reading" | "route"> & {
   reading: null;
   route: null;
   expiresAt: Timestamp;
@@ -63,7 +64,7 @@ export function clipPath(incidentId: string, sha256: string): string {
 }
 
 /** The consent record, written before the upload with exactly the rules' keys. */
-export function consentRecord(i: ClipRecordInput): RecordDoc {
+export function consentRecord(i: ClipRecordInput): ClipRecordDoc {
   return {
     sha256: i.sha256,
     storagePath: clipPath(i.incidentId, i.sha256),
@@ -84,7 +85,7 @@ export function consentRecord(i: ClipRecordInput): RecordDoc {
  * A retry renews an earlier attempt's record (no reading yet): fresh consent, a new expiry and
  * a new createdAt, every other field exactly as stored (the rules refuse any other change).
  */
-export function renewConsent(stored: StoredClipReading, consent: StoredConsent, nowMs: number): RecordDoc {
+export function renewConsent(stored: StoredClipReading, consent: StoredConsent, nowMs: number): ClipRecordDoc {
   return {
     sha256: stored.sha256,
     storagePath: stored.storagePath,
@@ -151,7 +152,7 @@ export async function findClipReading(db: Firestore, incidentId: string, sha256:
 }
 
 /** Writes (or renews) the consent record and waits for the server, within CONSENT_WRITE_TIMEOUT_MS. */
-export async function writeConsentRecord(db: Firestore, incidentId: string, record: RecordDoc, timeoutMs = CONSENT_WRITE_TIMEOUT_MS): Promise<void> {
+export async function writeConsentRecord(db: Firestore, incidentId: string, record: ClipRecordDoc, timeoutMs = CONSENT_WRITE_TIMEOUT_MS): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error("The consent record was not saved in time.")), timeoutMs);

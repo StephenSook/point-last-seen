@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import shared from "../../../shared/schemas/camera-sighting.schema.json";
-import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, clipCloudParams, clipParts } from "./clipRead";
+import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, clipCloudParams, clipParts, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
+import { sha256Hex } from "../data/photos";
+import type { StoredClipReading } from "../data/clips";
 
 describe("clip read parameters", () => {
   it("reads only in the cloud, with the clip schema", () => {
@@ -33,5 +35,124 @@ describe("clip read parameters", () => {
       { type: "inlineData", inlineData: { mimeType: "video/quicktime", data: "AAAA" } },
       { type: "text", text: CLIP_PROMPT },
     ]);
+  });
+});
+
+// readClip: the order and the refusals the Android family app follows (ClipReader.kt).
+
+const goodReply = {
+  personVisible: true, firstSeen: "00:03", lastSeen: "00:12", entryEdge: "right", exitEdge: "left",
+  topColor: "blue", bottomColor: "black", topType: "rain jacket", footwear: "boots", headwear: "none",
+  carriedItems: ["umbrella"], keyFrame: { time: "00:07", box2d: [100, 200, 900, 400] },
+  lighting: "day", legibility: "clear", evidence: "An adult in a blue jacket walks from right to left.",
+};
+const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+const NOW = 1_763_500_000_000;
+const mark = { byUid: "u1", atMs: NOW - 10 };
+
+async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?: boolean; reply?: unknown; modelThrows?: boolean; killCloud?: boolean } = {}) {
+  const sha = await sha256Hex(bytes);
+  const calls: string[] = [];
+  const written: Record<string, unknown>[] = [];
+  const stored: StoredClipReading | null = over.stored === undefined || over.stored === null ? null : {
+    sha256: sha, storagePath: `clips/drill-dev-1/${sha}.mp4`, durationS: 20, clipStartMs: 5, clockConfirmed: true, cameraFacingDeg: 180,
+    reading: null, route: null, consent: { personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
+    expiresAtMs: 1, createdAtMs: 1, createdByUid: "u1", ...over.stored,
+  };
+  const deps: ClipReadDeps = {
+    findReading: async () => { calls.push("find"); return stored; },
+    writeConsent: async (d) => { calls.push("consent"); written.push(d as unknown as Record<string, unknown>); },
+    clipExists: async () => { calls.push("exists"); return over.exists ?? false; },
+    upload: async () => { calls.push("upload"); },
+    generate: async () => { calls.push("model"); if (over.modelThrows) throw new Error("x"); return { text: JSON.stringify(over.reply ?? goodReply), inferenceSource: "in_cloud" }; },
+    complete: async () => { calls.push("complete"); },
+    nowMs: () => NOW,
+  };
+  const req: ClipReadRequest = {
+    incidentId: "drill-dev-1", bytes, mimeType: "video/mp4", durationS: 20, clipStartMs: NOW - 60_000, clockConfirmed: true, cameraFacingDeg: 90,
+    consent: { clipSha256: sha, personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
+    killCloud: () => over.killCloud ?? false, model: "gemini-3.5-flash-lite", uid: "u1",
+  };
+  return { sha, calls, written, deps, req };
+}
+
+describe("readClip", () => {
+  it("refuses a clip over 14,000,000 bytes before anything else", async () => {
+    const t = await setup();
+    const r = await readClip({ ...t.req, bytes: new Uint8Array(14_000_001) }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: "This clip is larger than 14,000,000 bytes. Trim it and try again." });
+    expect(t.calls).toEqual([]);
+  });
+
+  it("refuses a clip whose length could not be read", async () => {
+    const t = await setup();
+    expect((await readClip({ ...t.req, durationS: 0 }, t.deps)).kind).toBe("refused");
+    expect(t.calls).toEqual([]);
+  });
+
+  it("refuses without the three required consents, or with consents given for other bytes", async () => {
+    const t = await setup();
+    const r = await readClip({ ...t.req, consent: { ...t.req.consent, cloudProcessing: null } }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: expect.stringMatching(/consent/) });
+    expect((await readClip({ ...t.req, consent: { ...t.req.consent, clipSha256: "b".repeat(64) } }, t.deps)).kind).toBe("refused");
+    expect(t.calls).toEqual([]);
+  });
+
+  it("sends nothing while command has paused the cloud", async () => {
+    const t = await setup({ killCloud: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "refused", message: "Clip reading is paused right now." });
+    expect(t.calls).toEqual([]);
+  });
+
+  it("on a miss: consent record, then upload, then the model, then the completion", async () => {
+    const t = await setup();
+    const r = await readClip(t.req, t.deps);
+    expect(t.calls).toEqual(["find", "consent", "upload", "model", "complete"]);
+    expect(r.kind).toBe("read");
+    if (r.kind !== "read") return;
+    expect(r.cached).toBe(false);
+    expect(r.bearingDeg).toBe(0); // facing 90, leaving by the left edge
+    expect(r.route).toMatchObject({ platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "sdk_only_in_cloud", sdkReported: true });
+    expect(t.written[0]).toMatchObject({ sha256: t.sha, durationS: 20, cameraFacingDeg: 90, createdByUid: "u1", consent: { personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null } });
+  });
+
+  it("returns a stored reading with no model call and no write, taking the bearing from the facing just given", async () => {
+    const t = await setup({ stored: { reading: goodReply } });
+    const r = await readClip(t.req, t.deps);
+    expect(t.calls).toEqual(["find"]);
+    expect(r).toMatchObject({ kind: "read", cached: true, bearingDeg: 0 });
+  });
+
+  it("a retry renews the earlier record and skips the upload when the clip is already stored", async () => {
+    const t = await setup({ stored: {}, exists: true });
+    await readClip(t.req, t.deps);
+    expect(t.calls).toEqual(["find", "consent", "exists", "model", "complete"]);
+    // The stored start time, facing and length stay; only the consent, expiry and createdAt are new.
+    expect(t.written[0]).toMatchObject({ clipStartMs: 5, cameraFacingDeg: 180, durationS: 20 });
+  });
+
+  it("a reading that fails its checks writes no completion and says it could not read", async () => {
+    const t = await setup({ reply: { ...goodReply, firstSeen: "00:15", lastSeen: "00:10" } });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+  });
+
+  it("a model failure keeps only the consent record", async () => {
+    const t = await setup({ modelThrows: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed" });
+    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+  });
+});
+
+describe("parseCameraSighting", () => {
+  it("accepts the schema's shape", () => {
+    expect(parseCameraSighting(JSON.stringify(goodReply))).toEqual(goodReply);
+  });
+  it("refuses an edge, lighting or legibility off the closed lists, and malformed JSON", () => {
+    expect(parseCameraSighting(JSON.stringify({ ...goodReply, exitEdge: "sideways" }))).toBeNull();
+    expect(parseCameraSighting(JSON.stringify({ ...goodReply, lighting: "dusk" }))).toBeNull();
+    expect(parseCameraSighting(JSON.stringify({ ...goodReply, legibility: "ok" }))).toBeNull();
+    expect(parseCameraSighting(JSON.stringify({ ...goodReply, keyFrame: { time: "00:07" } }))).toBeNull();
+    expect(parseCameraSighting("{")).toBeNull();
   });
 });
