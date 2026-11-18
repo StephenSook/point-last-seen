@@ -8,7 +8,7 @@ struct EvidenceProtocolView: View {
             Text("Do not touch. Hold the line. Call it in.")
                 .font(.title3.bold())
             Text("Not sent to any model.")
-                .font(.footnote)
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(theme.text(.secondary))
         }
         .accessibilityElement(children: .combine)

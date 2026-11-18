@@ -58,3 +58,28 @@ def test_full_control_needs_the_same_token_refused_on_its_second_use():
     assert not ac.full_control_passed(**{**ok, "first_answered": False})
     assert not ac.full_control_passed(**{**ok, "no_token_refused": False})
     assert not ac.full_control_passed(**{**ok, "replay_status": None})
+
+
+def test_every_call_sends_the_hosting_origin_as_referer(monkeypatch):
+    # The browser API key accepts only the hosting origins as referrers (pins existing behaviour).
+    seen = {}
+
+    class Resp:
+        status = 200
+
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake(req, timeout):
+        seen["referer"] = req.get_header("Referer")
+        return Resp()
+
+    monkeypatch.setattr(ac.urllib.request, "urlopen", fake)
+    ac.post("https://example.invalid/x", {}, {})
+    assert seen["referer"] == "https://buildhybridai-2026-yg3m.web.app/"

@@ -8,21 +8,22 @@ struct TaskView: View {
     @Bindable var model: AppModel
     @State private var text = ""
     @FocusState private var focused: Bool
+    @State private var picking = false
     @Environment(\.fieldTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Training drill. Nobody is missing.").font(.headline)
+            Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
             if let prompt = model.updatePrompt {
-                Label(prompt, systemImage: "arrow.down.app.fill").font(.headline)
+                Label(prompt, systemImage: "arrow.down.app.fill").font(.title3.weight(.semibold))
                     .foregroundStyle(theme.onAccentColor)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 12))
             }
             if let mission = model.mission {
-                Text("Your segments: \(mission.assignedSegmentIds.joined(separator: ", "))")
-                Text("Your assignment changes only when command approves.").font(.footnote)
+                DrillBanner(segments: mission.assignedSegmentIds.sorted().joined(separator: " "), link: model.linkState)
+                Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
                     .foregroundStyle(theme.text(.secondary))
                 Button { focused = true } label: {
                     Text("Report").font(.largeTitle.bold()).frame(maxWidth: .infinity, minHeight: 120)
@@ -42,19 +43,33 @@ struct TaskView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending)
+                Button { picking = true } label: {
+                    Label("Pick instead of typing", systemImage: "hand.tap").frame(maxWidth: .infinity, minHeight: 60)
+                }
+                .buttonStyle(.bordered)
+                .sheet(isPresented: $picking) {
+                    PickListView(segments: mission.assignedSegmentIds.sorted()) { choice in
+                        Task { _ = await model.submitPick(choice) }
+                    }
+                    .environment(\.fieldTheme, theme)
+                }
                 if model.sending {
                     ProgressView("Reading your report")
                 }
                 if let problem = model.problem {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").font(.footnote.bold())
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").font(.title3.bold())
                         .foregroundStyle(theme.text(.primary))
                 }
-                List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
-                    ReportEchoView(entry: entry) { model.retry(entry.eventId) }
-                        .listRowBackground(theme.backgroundColor)
+                // Re-checked each second so the 5-second Undo goes away on time.
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
+                        ReportEchoView(entry: entry, retry: { model.retry(entry.eventId) },
+                                       canUndo: model.canUndo(entry.eventId), undo: { model.undo(entry.eventId) })
+                            .listRowBackground(theme.backgroundColor)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             } else {
                 ContentUnavailableView("No pack loaded", systemImage: "shippingbox",
                                        description: Text("Load your team's pack at the Ready check before you leave signal."))

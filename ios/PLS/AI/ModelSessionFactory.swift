@@ -83,6 +83,17 @@ enum ModelSessionFactory {
     }
 }
 
+extension ModelSessionFactory {
+    /// A cloud error as the retry sees it: a 429 (the SDK reports it as a rate limit, with the
+    /// server's retry delay when one was sent) retries; everything else is a read failure.
+    static func cloudAttempt<T: Sendable>(failing error: any Error, now: Date = .now) -> CloudAttempt<T> {
+        if case let .rateLimited(r) = error as? LanguageModelError {
+            return .rateLimited(retryAfterSeconds: r.resetDate.map { $0.timeIntervalSince(now) })
+        }
+        return .done(.failure(failure(from: error)))
+    }
+}
+
 /// Runs the stages PLSCore asks for. One new session per report, so history never grows.
 struct FoundationModelRunner: ReadModelRunner {
     let ai: FirebaseAI
@@ -90,19 +101,26 @@ struct FoundationModelRunner: ReadModelRunner {
     let tools: [any Tool]
 
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
-        let session: LanguageModelSession
         switch path {
         case .onDevice:
-            session = LanguageModelSession(model: SystemLanguageModel.default, tools: tools, instructions: ReportPrompt.guided)
+            let session = LanguageModelSession(model: SystemLanguageModel.default, tools: tools, instructions: ReportPrompt.guided)
+            do {
+                return .success(try await session.respond(to: text, generating: ReportReadingG.self).content.reading)
+            } catch {
+                return .failure(ModelSessionFactory.failure(from: error))
+            }
         case .cloud:
-            session = LanguageModelSession(model: ai.geminiLanguageModel(name: cloudModel), tools: tools, instructions: ReportPrompt.guided)
+            // A 429 retries once after a short wait (CloudRetry); each try is a new session.
+            return await CloudRetry.run(sleep: { try? await Task.sleep(for: .seconds($0)) }) {
+                let session = LanguageModelSession(model: ai.geminiLanguageModel(name: cloudModel), tools: tools, instructions: ReportPrompt.guided)
+                do {
+                    return .done(.success(try await session.respond(to: text, generating: ReportReadingG.self).content.reading))
+                } catch {
+                    return ModelSessionFactory.cloudAttempt(failing: error)
+                }
+            }
         case .rules:
             return .failure(.other)
-        }
-        do {
-            return .success(try await session.respond(to: text, generating: ReportReadingG.self).content.reading)
-        } catch {
-            return .failure(ModelSessionFactory.failure(from: error))
         }
     }
 

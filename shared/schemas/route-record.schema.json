@@ -62,7 +62,11 @@
         "sdk_fallback",
         "link_down_fallback",
         "template_fallback",
-        "consented_cloud_read"
+        "consented_cloud_read",
+        "on_device_triage_flagged",
+        "on_device_triage_no_person",
+        "triage_no_motion",
+        "user_override_after_triage"
       ]
     },
     "latencyMs": {

@@ -57,3 +57,23 @@ def test_make_codes_returns_three_distinct_codes_even_after_a_collision(monkeypa
     codes = seed.make_codes()
     assert set(codes) == {"searcher", "family", "command"}
     assert len(set(codes.values())) == 3
+
+
+def test_rotation_swaps_the_code_doc_in_one_commit_with_preconditions():
+    # Rotating a role's code creates the new hash doc only if it does not exist and deletes the old one only if
+    # it does, in one atomic commit, so a failure leaves the old code working and nothing half-done.
+    writes = seed.rotation_writes("p", "drill-dev-1", "family", "OLDCODE1", "NEWCODE2")
+    create, delete = writes
+    assert create["update"]["name"].endswith(f"joinCodes/{seed.code_hash('NEWCODE2')}")
+    assert create["currentDocument"] == {"exists": False}
+    assert create["updateTransforms"] == [{"fieldPath": "createdAt", "setToServerValue": "REQUEST_TIME"}]
+    fields = create["update"]["fields"]
+    assert fields["incidentId"] == {"stringValue": "drill-dev-1"}
+    assert fields["roles"] == {"arrayValue": {"values": [{"stringValue": "family"}]}}
+    assert delete == {"delete": f"projects/p/databases/(default)/documents/joinCodes/{seed.code_hash('OLDCODE1')}",
+                      "currentDocument": {"exists": True}}
+
+
+def test_a_new_code_differs_from_every_current_code():
+    new = seed.make_rotated_code({"OLDCODE1", "SEARCHR1"})
+    assert len(new) == 8 and new not in {"OLDCODE1", "SEARCHR1"}

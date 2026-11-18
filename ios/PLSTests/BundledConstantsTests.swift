@@ -23,5 +23,11 @@ import Testing
         #expect(notes.order.first == "may_not_respond")
         #expect(notes.footer.hasSuffix("Not medical advice."))
     }
+
+    @Test func theAppBundleCarriesTheUrgencyRule() throws {
+        let rule = try BundledConstants.urgencyRule()
+        #expect(rule.coldF == 40)
+        #expect(rule.sourceLine.hasPrefix("CDC: "))
+    }
 }
 

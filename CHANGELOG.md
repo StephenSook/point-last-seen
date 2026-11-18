@@ -5,6 +5,122 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- LIMITS no longer says a record left by a reinstalled app needs command to clear it: since fc6e005 the new
+  anonymous user takes the record over with their own consent.
+  Source: review (doc drift after fc6e005).
+  Verified: the takeover test in fc6e005 covers that case; `bash scripts/ci-local.sh` exit 0.
+- Clip readings can no longer stall: the reading must be a valid CameraSighting or a typed no-sighting result
+  (`{status: "no_sighting", reasons}`), with a valid RouteRecord, instead of any map, so a could-not-read
+  result completes and caches the record. While the reading is null, any command or family member of the
+  incident can take the record over: they set createdByUid to their own uid, give fresh consent marks of
+  their own, createdAt at server time and expiresAt 31 to 33 days out; the clip's path never changes (the
+  creator renewing is the same case). Before, only the creator could renew or complete it, so a second seat,
+  a family phone or the same person after a new anonymous sign-in got "The clip was not read" for 32 days.
+  The camera sighting fixture moves to the shared test fixtures. LIMITS describes both.
+  Source: review ruling on lane C's live finding.
+  Verified: the typed-reading test (a junk map, an unknown reason, another status, no reasons, an extra key
+  and a bad route refused; a no-sighting result accepted, once) and the takeover test (another incident's
+  member, a takeover keeping the old owner, and a searcher refused; another family member and then command
+  allowed; command completes; no takeover after a reading) failed first, now pass; the existing completion
+  tests use schema-valid shapes; emulator suite 134; `bash scripts/ci-local.sh` exit 0.
+- `shared/schemas/clip-no-sighting.schema.json` and the TypeScript `ClipNoSighting`: a clip reading that found
+  no usable sighting, `{ status: "no_sighting", reasons: [...] }`, with 1 to 11 reasons from a closed list (the
+  shared camera check's codes plus "unreadable_reply" and "model_error"), so a could-not-read result can be
+  stored as the reading and cached. Android's mirror is marked pending in the schema's parity map.
+  Source: review ruling on a stalled clip reading (lane C found it on the live site).
+  Verified: schema parity 12 schemas 0 failures; engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- Four route reasons for clip triage on the web: "on_device_triage_flagged" (the cloud read of a span the
+  laptop's model flagged), "on_device_triage_no_person" and "triage_no_motion" (nothing sent; trace only), and
+  "user_override_after_triage" (the consented cloud read anyway after such a result). Added to the route-record
+  schema and the TypeScript RouteReason; the generated rules' bound on route.reason grows from 21 to 26
+  characters. iOS decodes an unknown reason as `unknown` and keeps the event.
+  Source: lane C (clip triage on Chrome), approved by review.
+  Verified: the rules test (an event with each reason) failed first, now passes; emulator suite 132 including
+  the heaviest events; schema parity 11 schemas 0 failures; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` also requires, as the security rules do, that the incident exists and has not ended
+  (expiresAt absent or in the future): custom claims outlive an incident, so claims alone no longer let a
+  stale command delete media. An ended judge sandbox is swept by deleteIncidentMedia.
+  Source: automated security review of e80aced (sibling gate parity, stale claims).
+  Verified: the test (an ended sandbox and a missing incident refuse even their command, with nothing deleted;
+  a live sandbox's command deletes 4) failed first, now passes; emulator suite 131; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- A test pins that the repo's `storage.lifecycle.json` passes the exact rule the live health check demands
+  (Delete at 30 days on exactly clips/, photos/ and packs/), so the file applied to the bucket and the check the
+  daily probe reads cannot drift apart. It completes Task 18a's lifecycle test.
+  Source: plan Task 18a.
+  Verified: a pin (the file was already right): with the file's age changed to 29 the test failed, restored it
+  passes; its control (age 31 in memory) is refused; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` (callable, App Check enforced, command only): removes an incident's clips and
+  photos and their reading documents at once, for example when a family withdraws consent, instead of waiting
+  for the 30-day lifecycle. The caller's claims must name the incident and the command role; a malformed id is
+  refused before anything is listed. This is the spec's command-only `deleteIncidentMedia` callable under a new
+  name, because that name is the scheduled sandbox sweep. SECURITY.md row 14 and LIMITS name it.
+  Source: plan Task 18a (spec section 6.5).
+  Verified: the 4 tests (command removes its files and readings and nothing of another incident; searcher,
+  family, another incident's command and a signed-out caller refused with nothing deleted; malformed ids
+  refused; the exported callable refuses a signed-in request with no or a bad App Check token, capped at 5
+  instances in us-central1) failed first, now pass; emulator suite 128; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The raw-callable test harness (a request through the Functions wrapper, and an Auth emulator ID token) moves
+  from the join tests into `functions/test/callable.ts`, so other callables can prove App Check enforcement the
+  same way. The caller now names the function it calls. No behaviour change.
+  Source: plan Task 18a (the command-only media delete callable needs the same proof).
+  Verified: emulator suite 124 (the join tests unchanged in what they assert); functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- SECURITY.md rows read back again on 2026-11-18: the iOS API key is restricted to `app.pointlastseen.field`,
+  the only target that calls Firebase (row 3 now covers all three keys); the per-user limit is 20 generate
+  requests a minute in every region, with the estimate behind the number (row 9); both budgets on the billing
+  account, with their alert thresholds (row 11); and the Android release build's App Check exchange is
+  refused until the app is linked in Play Console (row 1c).
+  Source: review (AI Logic security checklist rows 1c, 3, 9 and 11).
+  Verified: each key's restrictions read back by API after the change; a signed-in cloud read and the cloud
+  voice from the iOS simulator, the drill end-to-end run (debug certificate) and the release probe (release
+  certificate) on Android, and the deployed web set all passed with no API_KEY error; `bash scripts/ci-local.sh`
+  exit 0.
+- The daily probe also reads the Firebase AI Logic models page (`scripts/models_probe.py`, credential-free)
+  and fails if any model named by the Remote Config template or shared/constants/models.json is missing, is
+  in the Shutdown stage, or has a shutdown date on or before 2026-12-17. A model can be withdrawn earlier than
+  its documented date, so this page check pairs with the full signed call run on the Mac. It fails, rather
+  than passing empty, if the page yields fewer than 10 model records (24 on 2026-11-18). It retires after
+  2026-12-17, pinned with the other probes, and a new test pins that the workflow runs every probe script.
+  The workflow's comment now says 20 minutes for the sweep, as the probe checks.
+  Source: review (a model can disappear before its documented date; the no-token check would still pass).
+  Verified: the 6 probe tests and the workflow pin failed first, now pass; the live run read 21 distinct
+  records and both named models (gemini-3.5-flash-lite, gemini-3.8-flash-lite-tts) are listed with no
+  shutdown date; `bash scripts/ci-local.sh` exit 0.
+- LIMITS names two sign-in limits a drill can hit: Firebase Auth's anonymous sign-up limit per network
+  address (HTTP 400 TOO_MANY_ATTEMPTS_TRY_LATER, auth/too-many-requests on the web) and joinIncident's 10
+  join attempts per user per one-hour window from the first attempt, with what to do on drill day.
+  Source: lane C (both hit or checked on 2026-11-18).
+  Verified: the join limit, window and message read in functions/src/join.ts; the web's current sign-in
+  message read on main; `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md`: Firebase's AI Logic security checklist, row by row, with the state read back from the
+  live project on 2026-11-18, and how anyone can check it: a keyless call a stranger can paste (with the site's
+  Referer it answers 401 "Firebase App Check token is invalid."; without it the key answers 403
+  API_KEY_HTTP_REFERRER_BLOCKED), App Check and replay protection enforced on AI Logic, authenticated-users
+  mode on, the browser and Android keys restricted, the 27-API allowlist kept (DECIDED-NO on narrowing, with
+  the reason), template-only mode DECIDED-NO (the SDK fact that forces it), Model Armor DECIDED-NO (Gemini
+  Developer API backend), the per-user limit still at the default 100, App Check on Firestore and Storage not
+  enforced yet with the plan, and every cloud model call with its mode and trigger.
+  Source: review (the sponsor's AI Logic security checklist as a requirement list).
+  Verified: each code claim grepped on main (providers, backends, limited-use wiring, enforceAppCheck, SDK
+  signatures in firebase/ai 3.1.0); both keyless answers sent with the same URL, headers and body from Python
+  on 2026-11-18 (curl is blocked on this machine); `bash scripts/ci-local.sh` exit 0.
+- The daily media probe sends the hosting origin as its Referer on the public ops/storage read, and a test pins
+  that the App Check control already does, ahead of restricting the browser API key to the hosting origins.
+  Source: review (API key application restrictions, AI Logic security checklist).
+  Verified: the probe's Referer test failed first, now 6 probe tests and 9 control tests pass; the probe passed
+  live with the header; `bash scripts/ci-local.sh` exit 0.
+- `tools/seed/seed_drill.py --rotate <project> <incidentId> <role>` replaces one role's join code: the new code
+  (distinct from every current code) is kept in the Keychain before anything changes, then one atomic commit
+  creates its joinCodes doc only if absent and deletes the old doc only if present, so a failure leaves the old
+  code working; no code is printed. Used on 2026-11-18 to rotate the drill-dev-1 family code after it appeared
+  in a local session output.
+  Source: review (a code shown in a local tool output counts as exposed).
+  Verified: the commit-shape and fresh-code tests failed first, now 8 seed tests pass; after the rotation the
+  only family joinCodes doc for drill-dev-1 is the new code's hash, a live join with the new code answered 200
+  and a wrong code 403 PERMISSION_DENIED (throwaway anonymous user, deleted after); `bash scripts/ci-local.sh`
+  exit 0.
 - The App Check control's full mode asks the debug-token exchange for a limited-use token
   (`{"debugToken": ..., "limitedUse": true}`) and adds a replay half: the same token used a second time must
   be refused with 401. App Check replay protection was enforced on AI Logic on 2026-11-18, after which the old

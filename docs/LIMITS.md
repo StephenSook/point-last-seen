@@ -12,6 +12,18 @@ each line says what the limit is and why.
 - An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
   and the rules require 31 to 33 days, so the consent and the upload are refused.
 
+## Sign-in and joining
+
+- Firebase Auth refuses anonymous sign-ups from one network address after many in a short time: its REST
+  answer is HTTP 400 `TOO_MANY_ATTEMPTS_TRY_LATER`, which the web SDK raises as `auth/too-many-requests`, and
+  the web app then says it could not sign in. A real user signs up once. On drill day, open the site on each
+  device before arriving, not all at once on the site's Wi-Fi. (Hit by our own end-to-end suite on
+  2026-11-18; the suite now signs up once per run.)
+- `joinIncident` allows 10 join attempts per user in a one-hour window that starts at the first attempt
+  (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
+  again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
+  carefully.
+
 ## Search model
 
 - The linear-feature layer (ISRID: 75% of found subjects within 71 m of a road, trail, stream or water edge)
@@ -60,11 +72,17 @@ each line says what the limit is and why.
 - A clip uploads only while its consent record expires at least 31 days after the upload, so the consent
   always outlives the clip. An upload interrupted for more than a day needs its creator to renew the consent
   first; the rules allow that until the clip has a reading.
+- A clip read that finds no usable sighting is stored as a typed no-sighting reading, so the clip is not read
+  again. While a clip has no reading, any command or family member of the incident can take its record over
+  with their own consent (for example a second seat, or the same person after a new sign-in); the clip's path
+  never changes.
 - When a clip reading (the consent record) is deleted, by its TTL, by command or otherwise, the
   `deleteClipOnConsentEnd` function deletes its clip, with retry on. Both deletions run in the background, so
-  the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. A record
-  left by a reinstalled app (a new anonymous user cannot renew it) is cleared by command, and its clip goes
-  with it.
+  the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. When
+  command deletes a record, its clip goes with it.
+- An incident's command can delete all its clips, photos and their readings at once with
+  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
+  are not included; they are rebuilt from the incident and expire with the lifecycle rule.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next

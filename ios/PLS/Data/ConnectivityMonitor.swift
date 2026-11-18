@@ -17,12 +17,15 @@ final class ConnectivityMonitor {
     func start() {
         monitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
-            Task { @MainActor in
-                self?.connectivity.pathChanged(satisfied: satisfied)
-                self?.onChange?()
-            }
+            Task { @MainActor in self?.pathChanged(satisfied: satisfied) }
         }
         monitor.start(queue: DispatchQueue(label: "pls.network"))
+    }
+
+    /// The OS reported a new network path.
+    func pathChanged(satisfied: Bool) {
+        connectivity.pathChanged(satisfied: satisfied)
+        onChange?()
     }
 
     var isOnline: Bool { connectivity.isOnline(nowMs: Self.nowMs()) }

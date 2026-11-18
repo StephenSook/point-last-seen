@@ -11,6 +11,14 @@ protocol EventServer: AnyObject {
     func write(_ doc: EventDoc, completion: @escaping @MainActor ((any Error)?) -> Void)
     /// Reads the event back from the server and classifies what it found.
     func readBack(_ doc: EventDoc, completion: @escaping @MainActor (ServerCopy) -> Void)
+    /// Listens to the incident's events, metadata changes included; returns the registration.
+    func listen(incidentId: String, onSnapshot: @escaping @MainActor ([ServerEventCopy]) -> Void) -> AnyObject?
+}
+
+/// One stored event as the listener saw it, and whether that copy is still only on this phone.
+struct ServerEventCopy: Sendable {
+    let data: JSONValue
+    let hasPendingWrites: Bool
 }
 
 /// Firestore: `incidents/{incidentId}/events/{eventId}`, written with `setData` and never awaited.
@@ -30,6 +38,17 @@ final class FirestoreEventServer: EventServer {
         ref(doc).setData(data) { error in
             Task { @MainActor in completion(error) }
         }
+    }
+
+    func listen(incidentId: String, onSnapshot: @escaping @MainActor ([ServerEventCopy]) -> Void) -> AnyObject? {
+        db.collection("incidents").document(incidentId).collection("events")
+            .addSnapshotListener(includeMetadataChanges: true) { snapshot, _ in
+                guard let snapshot else { return }
+                let copies = snapshot.documents.map {
+                    ServerEventCopy(data: FirestoreJSON.value($0.data()), hasPendingWrites: $0.metadata.hasPendingWrites)
+                }
+                Task { @MainActor in onSnapshot(copies) }
+            }
     }
 
     func readBack(_ doc: EventDoc, completion: @escaping @MainActor (ServerCopy) -> Void) {
@@ -59,6 +78,11 @@ final class EventStore {
 
     private(set) var entries: [OutboxEntry]
     private(set) var journalProblem: String?
+    /// Every member's well-formed events from the listener (the posterior reads these).
+    private(set) var teamEvents: [EventDoc] = []
+    /// Stored events the shared filter refused; they are skipped, never applied.
+    private(set) var malformedCount = 0
+    private var registration: AnyObject?
     /// Where a damaged journal was moved aside at open, if one was.
     let damagedJournal: URL?
     private var outbox: Outbox
@@ -115,6 +139,29 @@ final class EventStore {
                 case .unknownOffline, .stillQueued:
                     break
                 }
+            }
+        }
+    }
+
+    /// Starts the events listener. Our own entries are settled when the server copy arrives
+    /// with no pending writes: the same identity is delivered, a different one is a conflict.
+    func listen(incidentId: String) {
+        (registration as? ListenerRegistration)?.remove()
+        registration = server.listen(incidentId: incidentId) { [weak self] copies in self?.received(copies) }
+    }
+
+    private func received(_ copies: [ServerEventCopy]) {
+        let decoded = EventFilter.decode(copies.map(\.data))
+        teamEvents = decoded.docs
+        malformedCount = decoded.malformedIds.count
+        let unresolved = outbox.unresolved()
+        for copy in copies where !copy.hasPendingWrites {
+            guard case let .string(id)? = copy.data["eventId"], let local = unresolved.first(where: { $0.eventId == id }) else { continue }
+            switch ServerCopy.fromServerRead(local: local.identity, exists: true, hasPendingWrites: false,
+                                             server: EventIdentity(json: copy.data)) {
+            case .sameIdentity: apply { try $0.markAcked(id) }
+            case .differentIdentity: apply { try $0.resolveFailure(id, error: "listener", serverCopy: .differentIdentity) }
+            default: break
             }
         }
     }

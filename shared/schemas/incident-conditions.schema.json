@@ -44,7 +44,7 @@
   "x-parity": {
     "#": {
       "ts": "shared/engine-ts/src/types.ts#IncidentConditions",
-      "ios": "pending:ios/PLSCore/Sources/PLSCore/IncidentConditions.swift#IncidentConditions"
+      "ios": "ios/PLSCore/Sources/PLSCore/IncidentConditions.swift#IncidentConditions"
     }
   }
 }

@@ -12,6 +12,11 @@ Uses the Firestore REST API with the gcloud user's OAuth token (IAM, so security
 rules do not apply). Synthetic drill data only: no real person, place or case.
 
 Usage: python3 -I tools/seed/seed_drill.py <project> <incidentId> "<name>" <teamId> [<teamId> ...]
+       python3 -I tools/seed/seed_drill.py --rotate <project> <incidentId> <role>
+
+--rotate replaces one role's code: the new code is kept in the Keychain (account <incidentId>.next) before
+anything changes, then one atomic commit creates the new joinCodes doc (only if absent) and deletes the old one
+(only if present), then the new code becomes the role's Keychain entry. No code is printed.
 """
 
 import hashlib
@@ -59,6 +64,57 @@ def incident_doc(incident_id: str, name: str, params: dict) -> dict:
 
 def join_code_docs(incident_id: str) -> dict[str, dict]:
     return {r: {"incidentId": incident_id, "roles": [r]} for r in ROLES}
+
+
+def make_rotated_code(current: set[str]) -> str:
+    """A fresh code that differs from every code the incident uses now."""
+    while True:
+        code = make_code()
+        if code not in current:
+            return code
+
+
+def rotation_writes(project: str, incident_id: str, role: str, old_code: str, new_code: str) -> list[dict]:
+    """One commit: create the new code's doc if absent, delete the old one if present."""
+    base = f"projects/{project}/databases/(default)/documents/joinCodes"
+    doc = {"incidentId": incident_id, "roles": [role]}
+    return [
+        {"update": {"name": f"{base}/{code_hash(new_code)}", "fields": to_value(doc)["mapValue"]["fields"]},
+         "currentDocument": {"exists": False},
+         "updateTransforms": [{"fieldPath": "createdAt", "setToServerValue": "REQUEST_TIME"}]},
+        {"delete": f"{base}/{code_hash(old_code)}", "currentDocument": {"exists": True}},
+    ]
+
+
+def keychain_read(service: str, account: str) -> str:
+    return subprocess.run(["security", "find-generic-password", "-s", service, "-a", account, "-w"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def rotate(project: str, incident_id: str, role: str) -> int:
+    if role not in ROLES:
+        raise SystemExit(f"role must be one of {', '.join(ROLES)}")
+    current = {r: keychain_read(KEYCHAIN_SERVICES[r], incident_id) for r in ROLES}
+    new_code = make_rotated_code(set(current.values()))
+    service = KEYCHAIN_SERVICES[role]
+    keychain_store(service, f"{incident_id}.next", new_code)
+    url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents:commit"
+    body = {"writes": rotation_writes(project, incident_id, role, current[role], new_code)}
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {_token()}", "Content-Type": "application/json",
+                                          "x-goog-user-project": project})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"rotation commit failed: HTTP {e.code} {e.read().decode()[:200]}; the old code still "
+                         f"works and the new one is unused in the Keychain ({service}, {incident_id}.next)") from None
+    keychain_store(service, incident_id, new_code)
+    subprocess.run(["security", "delete-generic-password", "-s", service, "-a", f"{incident_id}.next"],
+                   capture_output=True, check=True)
+    print(f"rotated the {role} code of {incident_id}; the new code is in the Keychain ({service}, account "
+          f"{incident_id}); not printed")
+    return 0
 
 
 def to_value(v):
@@ -110,6 +166,11 @@ def keychain_store(service: str, account: str, value: str) -> None:
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["--rotate"]:
+        if len(argv) != 4:
+            print(__doc__)
+            return 2
+        return rotate(argv[1], argv[2], argv[3])
     if len(argv) < 4:
         print(__doc__)
         return 2

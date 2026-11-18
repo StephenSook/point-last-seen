@@ -78,3 +78,11 @@ export const sharedProfile = (over: Record<string, unknown> = {}): Record<string
   dementiaType: "alzheimers", flags: allFlags(["mayNotRespond"]), triggersToAvoid: "", bestApproach: "", uniqueDescription: "",
   photoTakenOn: "2026-11-10", approachNoteIds: ["may_not_respond", "approach_calm"], ...over,
 });
+
+/** A schema-valid CameraSighting with every field at its maximum (shared/schemas/camera-sighting.schema.json). */
+export const camSighting = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  personVisible: true, firstSeen: "00:02", lastSeen: "00:09", entryEdge: "away_from_camera", exitEdge: "toward_camera",
+  topColor: "purple", bottomColor: "unknown", topType: "t".repeat(40), footwear: "f".repeat(40), headwear: "h".repeat(40),
+  carriedItems: ["c".repeat(40), "d".repeat(40), "e".repeat(40)], keyFrame: { time: "00:05", box2d: [100, 200, 600, 400] },
+  lighting: "low_light", legibility: "partial", evidence: "x".repeat(400), ...over,
+});

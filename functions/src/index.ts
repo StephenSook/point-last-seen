@@ -5,7 +5,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { deleteClipForReading, runMediaSweep } from "./media.js";
+import { deleteClipForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -41,4 +41,13 @@ export const deleteClipOnConsentEnd = onDocumentDeleted(
     const deleted = await deleteClipForReading(getStorage().bucket(), incidentId, sha256);
     console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId, deleted }));
   },
+);
+
+/**
+ * deleteIncidentMediaNow (callable): command removes its incident's clips, photos and their readings at once.
+ * App Check enforced. (The scheduled deleteIncidentMedia above sweeps ended judge sandboxes.)
+ */
+export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
+  request => handleDeleteMedia(getFirestore(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
 );

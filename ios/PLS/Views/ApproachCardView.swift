@@ -19,7 +19,7 @@ struct ApproachCardView: View {
                     }
                 }
             }
-            Text(card.footer).font(.footnote).foregroundStyle(theme.text(.secondary))
+            Text(card.footer).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))
         }
     }
 }

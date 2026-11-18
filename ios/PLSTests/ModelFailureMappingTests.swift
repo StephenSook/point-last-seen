@@ -18,4 +18,13 @@ import Testing
         #expect(ModelSessionFactory.failure(from: URLError(.notConnectedToInternet)) == .network)
         #expect(ModelSessionFactory.failure(from: NSError(domain: "x", code: 1)) == .other)
     }
+
+    @Test func aCloudRateLimitBecomesARetryWithTheServersDelay() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let withDelay = LanguageModelError.rateLimited(.init(resetDate: now.addingTimeInterval(3), debugDescription: "x"))
+        #expect(ModelSessionFactory.cloudAttempt(failing: withDelay, now: now) as CloudAttempt<Int> == .rateLimited(retryAfterSeconds: 3))
+        let noDelay = LanguageModelError.rateLimited(.init(resetDate: nil, debugDescription: "x"))
+        #expect(ModelSessionFactory.cloudAttempt(failing: noDelay, now: now) as CloudAttempt<Int> == .rateLimited(retryAfterSeconds: nil))
+        #expect(ModelSessionFactory.cloudAttempt(failing: URLError(.notConnectedToInternet), now: now) as CloudAttempt<Int> == .done(.failure(.network)))
+    }
 }

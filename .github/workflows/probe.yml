@@ -1,8 +1,9 @@
 name: Live probe
 
 # Daily, unattended through judging (ends 2026-12-16), credential-free: a raw AI Logic call with no App
-# Check token must be refused for App Check, and ops/storage must show the 30-day media lifecycle rule and
-# a sweep within 2 hours. Both scripts retire themselves after 2026-12-17. A failed run emails the repo
+# Check token must be refused for App Check; ops/storage must show the 30-day media lifecycle rule and a
+# sweep within 20 minutes; and the AI Logic models page must still list every model we name, with no
+# shutdown before judging ends. The scripts retire themselves after 2026-12-17. A failed run emails the repo
 # owner. Actions minutes are budgeted: one short job a day. Check this workflow's state and its newest
 # run's age, not only green runs (a disabled or throttled cron reports nothing).
 on:
@@ -29,3 +30,6 @@ jobs:
       - name: Drill media still expires (lifecycle rule and a recent sweep)
         if: always()
         run: python3 -I scripts/media_probe.py
+      - name: Every model we name is still listed, with no shutdown before judging ends
+        if: always()
+        run: python3 -I scripts/models_probe.py
