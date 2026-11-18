@@ -173,7 +173,7 @@ final class AppModel {
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
         await speaker.update(mission.assignment, cloudModel: config.ttsModelIOS, online: connectivity.isOnline,
-                             killCloud: config.killCloud)
+                             killCloud: config.killCloud, signedIn: signIn.signedIn)
     }
 
     func refreshGate() {

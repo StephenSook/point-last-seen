@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): use the cloud voice only after the phone is signed in
+- What: the AI Logic voice for a new assignment is an AI Logic call, so it now also needs the
+  phone to be signed in (`SpokenAssignment.path` takes `signedIn`); before sign-in the phone's
+  own voice speaks. `AppModel.load` passes the sign-in state. The connectivity monitor's path
+  handler now goes through `pathChanged(satisfied:)`.
+- Source: review (AI Logic is moving to signed-in users only).
+- Verified: a core test (signed out gives the on-device voice), a speaker test, and an app test
+  that loads a pack online with and without sign-in (the signed-in run is the control that
+  reaches the cloud voice) failed to compile, then passed; a mutant that drops the sign-in
+  condition fails the core test; 68 app tests pass; `bash scripts/ci-local.sh` exit 0.
+
 ### docs(ios): record why the iPhone retries a 429 and the web does not
 - What: the 429 retry entry below now states the difference from the web command post and the
   reason for it.

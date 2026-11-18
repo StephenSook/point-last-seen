@@ -27,11 +27,12 @@ public enum SpokenAssignment {
         return text(previous) != text(current)
     }
 
-    /// The cloud voice only when Remote Config names a model, the phone is online and the kill
-    /// switch is off; otherwise the phone's own speech synthesizer.
-    public static func path(cloudModel: String, online: Bool, killCloud: Bool) -> Path {
+    /// The cloud voice only when Remote Config names a model, the phone is online and signed in
+    /// (the voice is an AI Logic call), and the kill switch is off; otherwise the phone's own
+    /// speech synthesizer.
+    public static func path(cloudModel: String, online: Bool, killCloud: Bool, signedIn: Bool) -> Path {
         let named = !cloudModel.trimmingCharacters(in: .whitespaces).isEmpty
-        return named && online && !killCloud ? .cloud : .onDevice
+        return named && online && signedIn && !killCloud ? .cloud : .onDevice
     }
 
     /// "AC" is read as letters: "A C".

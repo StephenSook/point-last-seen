@@ -20,7 +20,7 @@ struct SpeechRecord: Equatable, Sendable {
 
 /// Speaks a new assignment while the app is open (P-06 push brings it to a locked screen later).
 /// The words are command's approved plan only (`SpokenAssignment`). The cloud voice is used only
-/// when `tts_model_ios` names a model and the phone is online; any failure falls back to the
+/// when `tts_model_ios` names a model and the phone is online and signed in; any failure falls back to the
 /// phone's own voice. Every attempt is recorded, so the two voices can be compared on real numbers.
 @MainActor
 final class AssignmentSpeaker {
@@ -37,11 +37,11 @@ final class AssignmentSpeaker {
         self.record = record
     }
 
-    func update(_ assignment: Assignment?, cloudModel: String, online: Bool, killCloud: Bool) async {
+    func update(_ assignment: Assignment?, cloudModel: String, online: Bool, killCloud: Bool, signedIn: Bool) async {
         guard SpokenAssignment.shouldSpeak(previous: lastSpoken, current: assignment), let assignment else { return }
         lastSpoken = assignment
         let text = SpokenAssignment.text(assignment)
-        if SpokenAssignment.path(cloudModel: cloudModel, online: online, killCloud: killCloud) == .cloud {
+        if SpokenAssignment.path(cloudModel: cloudModel, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
             let start = await makeCloud(cloudModel.trimmingCharacters(in: .whitespaces)).speak(text)
             record(SpeechRecord(path: .cloud, outcome: start == nil ? "failed" : "spoken", startMs: start))
             if start != nil { return }

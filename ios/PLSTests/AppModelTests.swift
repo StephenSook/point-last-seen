@@ -65,5 +65,26 @@ import Testing
         await model.load(mission)
         #expect(model.urgency == .coolWet)
     }
-}
 
+    func spokenMission() throws -> Mission {
+        Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
+                assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
+    }
+
+    /// The AI Logic voice runs only once the phone is signed in; before that the phone's own voice speaks.
+    @Test func theCloudVoiceWaitsForSignIn() async throws {
+        for signedIn in [false, true] {
+            let onDevice = FakeVoice(), cloud = FakeVoice()
+            let model = AppModel(signIn: SignIn(isSignedIn: { signedIn }, attempt: { false }),
+                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }))
+            model.config.ttsModelIOS = "voice-model"
+            model.connectivity.pathChanged(satisfied: true)
+            await model.load(try spokenMission())
+            // Signed in is the control: it proves this setup does reach the cloud voice.
+            #expect(cloud.spoken.count == (signedIn ? 1 : 0))
+            #expect(onDevice.spoken.count == (signedIn ? 0 : 1))
+        }
+    }
+}

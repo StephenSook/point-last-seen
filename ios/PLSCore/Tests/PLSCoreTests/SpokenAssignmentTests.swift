@@ -27,11 +27,13 @@ import Testing
     }
 
     @Test func theCloudVoiceIsUsedOnlyWhenNamedOnlineAndNotKilled() {
-        #expect(SpokenAssignment.path(cloudModel: "", online: true, killCloud: false) == .onDevice)
-        #expect(SpokenAssignment.path(cloudModel: "  ", online: true, killCloud: false) == .onDevice)
-        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: false, killCloud: false) == .onDevice)
-        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: true, killCloud: true) == .onDevice)
-        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: true, killCloud: false) == .cloud)
+        #expect(SpokenAssignment.path(cloudModel: "", online: true, killCloud: false, signedIn: true) == .onDevice)
+        #expect(SpokenAssignment.path(cloudModel: "  ", online: true, killCloud: false, signedIn: true) == .onDevice)
+        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: false, killCloud: false, signedIn: true) == .onDevice)
+        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: true, killCloud: true, signedIn: true) == .onDevice)
+        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: true, killCloud: false, signedIn: true) == .cloud)
+        // The cloud voice is an AI Logic call, which needs the sign-in.
+        #expect(SpokenAssignment.path(cloudModel: "some-tts-model", online: true, killCloud: false, signedIn: false) == .onDevice)
     }
 
     @Test func aVeryLongTaskIsCut() {
