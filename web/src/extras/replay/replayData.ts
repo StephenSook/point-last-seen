@@ -182,9 +182,9 @@ function geometryOf(s: Record<string, unknown>): MapSegment["geometry"] | null {
 }
 
 /**
- * The replay of the published drill run. The run's inner shapes are read as the export is specified to write them
- * (each event with a numeric serverTimeMs, each plan with approvedAtMs, each device with clockOffsetMs, segments as
- * stored with the ROW mass). Anything missing refuses the whole run: a replay never guesses a time.
+ * The replay of the published drill run, read as `PublishedRunV1` in runContract.ts describes it. The file is
+ * untrusted input, so every part is checked here. Anything missing refuses the whole run: a replay never guesses
+ * a time.
  */
 export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayData } | Refusal {
   const { incident, segments, teams, devices, events, plans } = run;
@@ -222,6 +222,12 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
       return refuse("The run has a report it cannot read.");
     }
     if (!num(e["serverTimeMs"])) return refuse("The run has no arrival time for a report.");
+    // The run is public (see runContract.ts): report words and a report's reading, which quotes them, never ship.
+    const reading = e["reading"];
+    const cameraReading = e["type"] === "camera_sighting" && isObj(reading) && "sighting" in reading && !("evidenceQuote" in reading);
+    if ((e["rawText"] !== null && e["rawText"] !== undefined) || (reading !== null && reading !== undefined && !cameraReading)) {
+      return refuse("The run carries report text. A public run must not.");
+    }
     replayEvents.push(replayEvent(e as unknown as EventDoc, e["serverTimeMs"], offsets));
   }
 

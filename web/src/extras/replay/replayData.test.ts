@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../laneC";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs } from "./replayData";
+import { PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunEvent } from "./runContract";
 
 const MIN = 60_000;
 const DAY = 24 * 3_600_000;
@@ -132,24 +133,37 @@ describe("fromLive", () => {
   });
 });
 
-function run(over: Partial<Record<keyof PublishedRun, unknown>> = {}): PublishedRun {
+function runEvent(doc: EventDoc, serverTimeMs: number): RunEvent {
+  const { serverTime: _serverTime, rawText: _rawText, reading, ...rest } = doc;
+  return { ...rest, authorUid: "author-1", rawText: null, reading: reading as RunEvent["reading"], serverTimeMs };
+}
+
+// Typed as the contract, so a change to the contract the reader does not follow fails the typecheck.
+function runV1(): PublishedRunV1 {
   const view = replayView();
+  const inc = view.incident!;
   return {
     runId: "run-1",
     label: "Training drill. Nobody is missing.",
     exportedAt: "2026-11-23T12:00:00Z",
-    incident: { ...view.incident },
-    segments: [...view.segments.map((s) => ({ ...s, geometryJson: JSON.stringify(s.geometry), geometry: undefined })), { segmentId: "ROW", priorPoa: 0.1 }],
+    incident: { name: inc.name, mode: inc.mode, priorVersion: inc.priorVersion, priorInputEventIds: inc.priorInputEventIds ?? [] },
+    segments: [
+      ...view.segments.map(({ geometry, ...s }) => ({ ...s, geometryJson: JSON.stringify(geometry) })),
+      { segmentId: "ROW", priorPoa: 0.1 },
+    ],
     teams: view.teams,
     devices: [{ deviceId: "d1", teamId: "alfa", clockOffsetMs: 5_000 }, { deviceId: "d2", teamId: "bravo", clockOffsetMs: -2_000 }],
     events: [
-      { ...eventDoc({ eventId: "e1", clientTimeMs: T0 + MIN }), serverTimeMs: T0 + 10 * MIN },
-      { ...eventDoc({ eventId: "e2", teamId: "bravo", deviceId: "d2", clientTimeMs: T0 + 2 * MIN }), serverTimeMs: T0 + 3 * MIN },
+      runEvent(eventDoc({ eventId: "e1", clientTimeMs: T0 + MIN }), T0 + 10 * MIN),
+      runEvent(eventDoc({ eventId: "e2", teamId: "bravo", deviceId: "d2", clientTimeMs: T0 + 2 * MIN }), T0 + 3 * MIN),
     ],
-    plans: [{ version: 1, approvedAtMs: T0 + 4 * MIN, priorVersion: 2, assignments: replayPlan(1, 0).assignments }],
+    plans: [{ version: 1, approvedAtMs: T0 + 4 * MIN, priorVersion: 2, basedOnEventSetHash: "0".repeat(64), assignments: replayPlan(1, 0).assignments }],
     measurements: {},
-    ...over,
   };
+}
+
+function run(over: Partial<Record<keyof PublishedRun, unknown>> = {}): PublishedRun {
+  return { ...runV1(), ...over };
 }
 
 describe("fromPublishedRun", () => {
@@ -182,5 +196,23 @@ describe("fromPublishedRun", () => {
 
   it("a published run whose plan has no approval time is refused", () => {
     expect(fromPublishedRun(run({ plans: [{ version: 1, assignments: [] }] }))).toEqual({ ok: false, reason: "The run has no approval time for a plan." });
+  });
+
+  it("a public run that carries report text is refused", () => {
+    const withText = { ...runEvent(eventDoc({ eventId: "e1" }), T0), rawText: "private caller words" };
+    expect(fromPublishedRun(run({ events: [withText] }))).toEqual({ ok: false, reason: "The run carries report text. A public run must not." });
+  });
+
+  it("a public run that carries a report reading is refused; a camera reading is kept", () => {
+    const quote = { kind: "clue", evidenceQuote: "private caller words" };
+    const report = { ...runEvent(eventDoc({ eventId: "e1" }), T0), reading: quote };
+    expect(fromPublishedRun(run({ events: [report] }))).toEqual({ ok: false, reason: "The run carries report text. A public run must not." });
+    const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
+    const r = fromPublishedRun(run({ events: [cam] }));
+    expect(r.ok && r.data.events[0]!.camera).toEqual({ startMs: 1_010_000, endMs: 1_134_000, keyFrameMs: 1_060_000 });
+  });
+
+  it("names the contract version it reads", () => {
+    expect(PUBLISHED_RUN_VERSION).toBe(1);
   });
 });
