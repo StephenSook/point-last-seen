@@ -42,7 +42,7 @@ public enum EchoText {
         case .pending: return "On this phone only"
         case .checking: return "Checking delivery"
         case .acked: return "Delivered"
-        case let .rejected(reason): return reason == Outbox.conflictReason ? "Not delivered. Ask command" : "Not delivered. Retry"
+        case let .rejected(reason): return Outbox.isRetryable(reason: reason) ? "Not delivered. Retry" : "Not delivered. Ask command"
         }
     }
 

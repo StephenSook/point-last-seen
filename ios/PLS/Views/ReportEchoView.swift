@@ -23,7 +23,7 @@ struct ReportEchoView: View {
             HStack {
                 Text(EchoText.deliveryLine(entry.state)).font(.footnote.bold())
                 Spacer()
-                if case let .rejected(reason) = entry.state, reason != Outbox.conflictReason {
+                if case let .rejected(reason) = entry.state, Outbox.isRetryable(reason: reason) {
                     Button("Retry", action: retry).buttonStyle(.bordered)
                 }
             }

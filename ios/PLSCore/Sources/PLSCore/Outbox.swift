@@ -142,10 +142,15 @@ public struct Outbox: Sendable {
         entries.first { $0.eventId == eventId }?.state
     }
 
-    /// Rejected writes the person may retry. An id conflict is not retryable: the same id
-    /// would hit the other document again.
+    /// Reasons a retry cannot fix: the same id would hit the other document again, or the
+    /// server refuses this document's content every time. These ask command instead.
+    public static let permanentReasons: Set<String> = [conflictReason, "invalid-argument", "encode-failed"]
+
+    public static func isRetryable(reason: String) -> Bool { !permanentReasons.contains(reason) }
+
+    /// Rejected writes the person may retry.
     public func retryable() -> [EventDoc] {
-        entries.filter { if case let .rejected(reason) = $0.state { reason != Self.conflictReason } else { false } }.map(\.doc)
+        entries.filter { if case let .rejected(reason) = $0.state { Self.isRetryable(reason: reason) } else { false } }.map(\.doc)
     }
 
     /// Writes with no final answer yet (pending or checking), to read back when online.

@@ -172,3 +172,20 @@ private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.hi
     }
 }
 
+@Suite struct OutboxRetryableReasonTests {
+    @Test func onlyReasonsARetryCanFixAreRetryable() throws {
+        #expect(Outbox.isRetryable(reason: "permission-denied"))
+        #expect(Outbox.isRetryable(reason: "unavailable"))
+        #expect(Outbox.isRetryable(reason: "not-on-server"))
+        #expect(Outbox.isRetryable(reason: "invalid-argument") == false)
+        #expect(Outbox.isRetryable(reason: "encode-failed") == false)
+        #expect(Outbox.isRetryable(reason: Outbox.conflictReason) == false)
+        var box = try Outbox(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("outbox-\(UUID().uuidString).json"))
+        try box.add(e1); try box.add(e2)
+        try box.resolveFailure(e1.eventId, error: "invalid-argument", serverCopy: .absent)
+        try box.resolveFailure(e2.eventId, error: "unavailable", serverCopy: .absent)
+        #expect(box.retryable().map(\.eventId) == [e2.eventId])
+        #expect(EchoText.deliveryLine(.rejected(reason: "invalid-argument")) == "Not delivered. Ask command")
+    }
+}
+

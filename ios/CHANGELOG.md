@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): offer Retry only when a retry can help
+- What: `Outbox.isRetryable(reason:)` treats an id conflict, `invalid-argument` (the server
+  refuses this document's content every time) and `encode-failed` as permanent; those entries
+  say "Not delivered. Ask command" and show no Retry. Network, auth, permission and
+  `not-on-server` reasons stay retryable.
+- Source: fresh-eyes review M8.
+- Verified: the new test compile-red, then green; 204 PLSCore tests; app builds;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios): name a sighting on the echo card and say it waits for command
 - What: `EchoText.effectLine(_:type:)` says "Sighting logged in AC. It counts once command
   confirms it." for a sighting (it said "Clue logged"); the echo card passes the event type.
