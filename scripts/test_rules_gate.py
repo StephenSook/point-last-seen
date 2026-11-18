@@ -102,6 +102,18 @@ def test_functions_make_no_model_call(tmp_path):
     assert run_gate(tmp_path).returncode == 0
 
 
+def test_functions_may_host_the_ai_logic_trigger_but_not_call_a_model(tmp_path):
+    # cloudGuard is a beforeGenerateContent trigger: it names the event and calls no model.
+    write(tmp_path, "functions/src/index.ts",
+          'import { beforeGenerateContent } from "firebase-functions/v2/ai";\n'
+          "// every generateContent call is checked\n"
+          "export const guard = beforeGenerateContent(e => undefined);")
+    assert run_gate(tmp_path).returncode == 0
+    for call in ("await model.generateContent(x)", "model.generateContentStream (x)"):
+        write(tmp_path, "functions/src/index.ts", call)
+        assert run_gate(tmp_path).returncode == 1, call
+
+
 def test_start_chat_is_banned(tmp_path):
     write(tmp_path, "web/src/ai/replanWording.ts", "const chat = model.startChat()")
     assert run_gate(tmp_path).returncode == 1

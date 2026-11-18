@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The rules gate's "no model call in any Cloud Function" rule now matches a call (`.generateContent(` or
+  `.generateContentStream(`, `getGenerativeModel`, the model SDK imports) instead of any occurrence of the word,
+  so a function can host the AI Logic `beforeGenerateContent` trigger, which calls no model, and mention the
+  method in a comment.
+  Source: review (cloudGuard needs the trigger's name in functions code).
+  Verified: the new test (the trigger and a comment pass; a generateContent and a generateContentStream call
+  still fail) failed first, now 27 gate tests pass; the gate walks the repo with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - Three more server prompt templates in `shared/templates`, each generated from its shared schema and pinned by
   tests (inputs bounded, output enums and limits equal to the shared schema, the model on the allow-list):
   `pls-photo-cues-v1` (the command post's photo read: one JPEG up to the 2 MiB photo limit, the photo-cues

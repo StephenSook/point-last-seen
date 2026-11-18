@@ -34,8 +34,9 @@ AVAILABILITY_ONLY_IN = "web/src/ai/gate.ts"
 COUNT_TOKENS_BANNED_IN = ("web/src/ai/photoCues.ts", "web/src/ai/sightingText.ts")
 WALKERS_FILE = "shared/engine-ts/src/walkers.ts"
 SLOW_MODEL = "gemini-3.8-flash"
-FUNCTION_MODEL_CALLS = ("firebase/ai", "@google/genai", "@google/generative-ai",
-                        "generateContent", "getGenerativeModel")
+FUNCTION_MODEL_CALLS = ("firebase/ai", "@google/genai", "@google/generative-ai", "getGenerativeModel")
+# A model call, not the AI Logic trigger's name (beforeGenerateContent) or a comment that mentions the method.
+FUNCTION_MODEL_CALL = re.compile(r"\.generateContent(?:Stream)?\s*\(")
 
 FORBIDDEN_NAMES = re.compile(
     r"(^|/)(GoogleService-Info\.plist|google-services\.json|service-account[^/]*\.json)$"
@@ -155,6 +156,8 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
             for token in FUNCTION_MODEL_CALLS:
                 if token in line:
                     bad(f"no model call in any Cloud Function, found '{token}'")
+            if FUNCTION_MODEL_CALL.search(line):
+                bad("no model call in any Cloud Function, found a generateContent call")
     return problems
 
 
