@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add `storage.lifecycle.json` (delete clips/, photos/ and packs/ 30 days after upload) and apply it to the
+  bucket; the storage.rules header said this was in place, but the bucket had no lifecycle rule at all.
+  storage.rules and docs/LIMITS.md now say plainly that any member can create a no-sign-in link to a clip or
+  photo that works until the file is deleted: Firebase Storage gives a member a download token on any read
+  of the file's details, even after an admin removes it (measured on the live bucket), so stripping tokens
+  cannot close this, and deletion is the only end.
+  Source: rules audit 2026-11-18, finding (c), confirmed and then measured.
+  Verified: `gcloud storage buckets update --lifecycle-file` exit 0; read back: one Delete rule, age 30,
+  prefixes clips/, photos/, packs/ (empty before). Live probe 7/7 plus the token experiment (token present
+  after upload; removed by admin; present again after the member's metadata read).
+  `bash scripts/ci-local.sh` exit 0.
 - Two cheap fixes from the same audit: a clip reading's `expiresAt` (it drives the 30-day TTL on the consent
   record and the model's description of the person in the clip) must be in the future and at most 31 days
   away, so a client can no longer keep it forever or delete it at once; and an incident update must leave
