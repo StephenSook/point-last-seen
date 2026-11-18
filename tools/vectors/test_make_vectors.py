@@ -169,3 +169,27 @@ def test_measured_detection_range_beats_a_stated_one():
     assert m["sweepWidthM"] == approx(16.45) and m["rdBasis"] == "hidden_target"
     s = case(v, "deriveEffect", "stated_range_used_without_measurement")["expected"]["inputs"]
     assert s["sweepWidthM"] == approx(8.225) and s["rdBasis"] == "stated"
+
+
+def _mv():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("make_vectors", GEN)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_linear_weights_are_neutral_at_or_above_the_isrid_share():
+    mv = _mv()
+    # Coordinator ruling 2026-11-18: the layer only raises density near features toward 75%.
+    assert mv.linear_weights([0.1, 0.2, 0.3], [1.0, 0.95, 0.9]) == [1.0, 1.0, 1.0]
+    assert mv.linear_weights([1.0, 1.0], [1.0, 0.5]) == [1.0, 1.0]
+    assert mv.linear_weights([0.5, 0.5], [1.0, 0.0]) == [1.5, 0.5]
+    near_below = mv.linear_weights([1.0, 1.0], [1.0, 0.4999])
+    assert all(abs(w - 1) < 1e-3 for w in near_below)
+
+
+def test_urgency_follows_the_cdc_40f_line_and_ignores_clothing():
+    mv = _mv()
+    assert [mv.urgency_level(t, w) for t, w in [(40, False), (41, True), (41, False), (39, True)]] == ["cold", "cool_wet", "none", "cold"]
+    assert mv.urgency_level(None, True) == "none" and mv.urgency_level(50, None) == "none"

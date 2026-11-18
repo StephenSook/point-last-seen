@@ -3,20 +3,30 @@ import PLSCore
 import Testing
 @testable import PLS
 
+/// The app's tools must send exactly the Core text that `cloudPromptHoldsOnlyNamedFields` pins.
 @Suite struct ToolsTests {
-    @Test func segmentHereSaysWhenThereIsNoFix() async throws {
-        #expect(try await SegmentAtTool(positionSegmentId: nil).call(arguments: .init(note: "")) == "No GPS fix. Do not guess a segment.")
-        #expect(try await SegmentAtTool(positionSegmentId: "AC").call(arguments: .init(note: "")) == "The team is in segment AC.")
+    @Test func segmentHereSendsTheCoreText() async throws {
+        let tool = SegmentAtTool(positionSegmentId: "AC")
+        #expect(tool.name == ToolText.segmentHereName && tool.description == ToolText.segmentHereDescription)
+        #expect(try await tool.call(arguments: .init(note: "")) == ToolText.segmentHere("AC"))
+        #expect(try await SegmentAtTool(positionSegmentId: nil).call(arguments: .init(note: "")) == ToolText.segmentHere(nil))
     }
 
-    @Test func teamAssignmentListsTheAssignedIds() async throws {
-        #expect(try await TeamAssignmentTool(assignedSegmentIds: ["AB", "AD"]).call(arguments: .init(note: "")) == "Assigned segments: AB, AD.")
-        #expect(try await TeamAssignmentTool(assignedSegmentIds: []).call(arguments: .init(note: "")) == "No assignment yet.")
+    @Test func teamAssignmentSendsTheCoreText() async throws {
+        let tool = TeamAssignmentTool(assignedSegmentIds: ["AB", "AD"])
+        #expect(tool.name == ToolText.teamAssignmentName && tool.description == ToolText.teamAssignmentDescription)
+        #expect(try await tool.call(arguments: .init(note: "")) == ToolText.teamAssignment(["AB", "AD"]))
     }
 
-    @Test func subjectDescriptionReturnsOnlyTheAppearanceText() async throws {
+    @Test func subjectDescriptionSendsOnlyTheAppearanceText() async throws {
         let shared: JSONValue = .object(["clothingLastWorn": .string("blue robe"), "dementiaType": .string("lewy_body"), "flags": .object(["seizures": .bool(true)])])
-        let out = try await SubjectProfileTool(profile: ModelProfile(shared: shared)).call(arguments: .init(note: ""))
-        #expect(out == "Clothing last worn: blue robe.")
+        let tool = SubjectProfileTool(profile: ModelProfile(shared: shared))
+        #expect(tool.name == ToolText.subjectDescriptionName && tool.description == ToolText.subjectDescriptionDescription)
+        #expect(try await tool.call(arguments: .init(note: "")) == "Clothing last worn: blue robe.")
+    }
+
+    @Test func theInstructionsAreTheCoreText() {
+        #expect(ReportPrompt.guidedText == PromptText.guided)
+        #expect(ReportPrompt.permissiveText == PromptText.permissive)
     }
 }

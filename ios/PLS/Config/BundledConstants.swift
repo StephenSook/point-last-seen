@@ -21,4 +21,9 @@ enum BundledConstants {
     static func engineParams() throws -> EngineParams {
         try JSONDecoder().decode(ParamsFile.self, from: data("engine-params")).params
     }
+
+    /// The approach card's fixed copy, ordering and footer.
+    static func approachNotes() throws -> ApproachNotes {
+        try ApproachNotes(json: data("approach-notes"))
+    }
 }

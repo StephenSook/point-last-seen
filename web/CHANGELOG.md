@@ -347,3 +347,183 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge page's section headings are now "Replay the training drill", "This laptop" and "Numbers". Doors 3 and 4 (TestFlight, APK) are not on the page yet, so the old numbering jumped from 2 to 5.
 - Source: looking at the live still of /judge at 1440 px.
 - Verified: build clean; `e2e/judge.spec.ts` updated to the new section names and passed against the local preview (2 passed).
+
+### fix(web): ship MapLibre's worker with the build so the deployed map can load its data
+- What: MapLibre 6 looks for `maplibre-gl-worker.mjs` next to its own module. After bundling that file was not in the build, the hosting rewrite answered with the app's HTML, and the browser logged "Worker failed to load" twice, so the map could never parse its segments. `MapView` now imports the worker with Vite's `?url` (emitted as `assets/maplibre-gl-worker-*.mjs`) and calls `setWorkerUrl`. The map container gets `data-map-state="idle"` when the map settles, and the joined smoke now waits for it before reading console errors (it used to check too early to see this).
+- Source: found on the live site with joinIncident live, by a one-off probe that listed console errors after the post loaded.
+- Verified: the joined smoke failed first against the local preview (the map never reached idle), then passed after the fix with zero console errors (3 passed); the worker asset is in `web/dist/assets`. scripts/ci-local.sh exit 0. Branch pushes run no CI now (merge-point flow).
+
+### fix(photos): say when photos could not be loaded or added instead of showing an empty tray
+- What: `loadPhotosOrError` returns the photos or the sentence "Photos could not be loaded. Reload to try again."; the tray shows it as an alert instead of "No photos yet." Adding photos now counts files that were not added (unreadable, or over 2 MB after re-encoding) and says "One photo was not added." or the count, instead of skipping them silently.
+- Source: found on the live site: the bucket's missing CORS rule made every photo read fail, and the tray quietly showed an empty list (a silent failure). The CORS rule itself is lane A's root config and was handed over.
+- Verified: two new tests in `src/data/photos.test.ts` failed first (not a function), then passed (8 of 8); typecheck and build clean; scripts/ci-local.sh exit 0.
+
+### fix(join): say App Check refused the browser instead of blaming the join code
+- What: `joinErrorMessage` in `data/join.ts` (moved out of CommandPost) maps `unauthenticated`, the code a callable returns when App Check does not trust the browser, to "Join refused by App Check. Try a normal browser window.", the same wording the plan step uses for an App Check refusal. Wrong code, no connection and other failures keep their sentences.
+- Source: plan Task 23c (appcheck check), spec section 14 ("Refusal message shown, never a silent failure"). The live site showed "Could not join. Check the incident id and the code." to a browser App Check refused.
+- Verified: two new tests in `src/data/join.test.ts` failed first (not a function), then passed (6 of 6); typecheck and build clean. scripts/ci-local.sh exit 0.
+
+### test(join): prove an unregistered App Check token sees the refusal message
+- What: `e2e/appcheck.spec.ts` sets a random debug token registered nowhere, submits the join form with a made-up code, and expects "Join refused by App Check. Try a normal browser window." No real join code is used: App Check refuses before the code is read.
+- Source: plan Task 23c ("an unregistered token shows the refusal message").
+- Verified: against the live site (old build e26fc23) it failed, receiving "Could not join. Check the incident id and the code.", which also shows the deployed joinIncident refusing an untrusted browser; against the local preview with the fix it passed. scripts/ci-local.sh exit 0.
+
+### fix(web): give the map the first row on phones so it is no longer 0 px tall
+- What: under 900 px the grid gave its 50vh first row to the Teams rail, and the map (whose only child is absolutely placed) collapsed to 0 px. The map now takes the first row (`order: -1`, 55vh), the page scrolls instead of the inner rail, and the rails follow at full height.
+- Source: UI review D1 (orchestrator P0 item 1).
+- Verified: new `e2e/layout.spec.ts` at 390x844 failed first (map height 0), then passed (map over 300 px, both rails below it, no sideways scroll); the smoke suite still passes; still taken at 390 px shows the map at the top. scripts/ci-local.sh exit 0.
+
+### fix(web): keep the match code on one line in the phone header
+- What: at 390 px the header squeezed the convergence code until each character wrapped onto its own line. The code block no longer shrinks or wraps.
+- Source: still of the joined post at 390x844 taken while fixing UI review D1.
+- Verified: new layout test "the match code stays on one line in the header" failed first (56 px tall), then passed (under 40 px); the map layout test still passes. scripts/ci-local.sh exit 0.
+
+### fix(map): credit OpenStreetMap only while OSM-derived data is drawn
+- What: `map/credit.ts` `mapCredit` returns "Map data from OpenStreetMap" only when segments from the search grid (built from an OpenStreetMap extract by tools/grid-builder, which stamps every grid with the ODbL attribution) or a basemap are on screen. `MapView` shows the line from it; an empty map shows no credit. No basemap is drawn yet, so today the segments decide.
+- Source: UI review D4 (orchestrator P0 item 2): the credit sat on an empty map with no OpenStreetMap layer.
+- Verified: `src/map/credit.test.ts` (3 tests) failed first (module missing), then passed. The joined smoke now asserts the credit appears exactly when segments are drawn: it failed against the live site (credit over an empty map), then passed against the local preview. scripts/ci-local.sh exit 0.
+
+### fix(judge): start the model download from the judge button, never point at a missing replay
+- What: `getLaptopReady` in `ai/deviceModel.ts` reads the state, and when Chrome can download the model it starts the download from the click with whole percents, then reads the state again; a failed download is reported. The judge page's "Get this laptop ready" now uses it and shows "Downloading the model: N%" (Firebase starts only at that point, not on page load). `d2Copy` takes `{ replay, downloadFailed }`: with no built-in model the line ends at "Nothing private was sent." unless the replay is live (it is not built yet), and a failed download says "This browser could not download its built-in model. Nothing private was sent." instead of looping back to "Press Get this laptop ready".
+- Source: UI review D9 (orchestrator P0 item 3).
+- Verified: 3 new `getLaptopReady` tests and 2 new `d2Copy` tests failed first, then passed (19 of 19 in the two files). The judge e2e now asserts the exact no-model line and no "replay above" text: it failed against the live site, then passed against the local preview, still with zero AI-host requests. scripts/ci-local.sh exit 0.
+
+### fix(web): give text fields a 3:1 edge with fg-4 borders
+- What: join, sighting and profile fields drew their edge in the line colour (1.60:1 on bg-1, 1.45:1 on bg-2). They now use fg-4 (4.79:1 and 4.33:1), meeting WCAG 1.4.11's 3:1 for component boundaries.
+- Source: UI review D6 (orchestrator P0 item 4).
+- Verified: new `e2e/contrast.spec.ts` measures each field's computed border against the surface behind it; it failed first (1.6 on the join form, 1.45 in the sighting form), then passed. scripts/ci-local.sh exit 0.
+
+### fix(photos): show keyboard focus on the Add photos button
+- What: the file input under "Add photos" is invisible (opacity 0), so its focus ring was too. The label now draws the 2 px fg-1 outline while the input has keyboard focus (`:has(input:focus-visible)`), matching every other control.
+- Source: UI review D7 (orchestrator P0 item 4).
+- Verified: new `e2e/focus.spec.ts` tabs from "Get this laptop ready" onto the input and reads the label's outline; it failed first (outline none), then passed. scripts/ci-local.sh exit 0.
+
+### feat(map): add the centre dot second signal and cased segment edges
+- What: each segment centre gets a dot whose radius is 3 + 11 x sqrt(poa / maxPoa) px (spec 22.1 second signal), in fg-2 with a bg-0 ring so it is 3:1 or more against every probability step; the printed percent now hangs just below the dot. Segment edges are a 3 px bg-0 casing under a 1 px fg-4 line instead of one line-colour stroke (1.25:1 on the darkest step). `contrastRatio`, `MAP_INK` and `centreFeatures` live in `map/poaStyle.ts`.
+- Source: UI review D5 (orchestrator P0 item 4), spec 22.1 "Second signal". Ruling: the spec gives the dot's radius but not its colour; fg-2 with a bg-0 ring is the only token pair that clears 3:1 on all eight steps.
+- Verified: 4 new tests in `src/map/poaStyle.test.ts` failed first (not functions), then passed: the contrast helper reproduces the spec table (fg-4 on bg-0 5.23), radii 14, 8.5 and 3 for the sample, every dot 3:1 or more on every step, the edge inks. The map harness spec (next commit) reads the dot colour at each centre. scripts/ci-local.sh exit 0.
+
+### test(map): add a dev-only map harness that checks the dot at each centre by pixel
+- What: `web/harness/map.html` (served only by the Vite dev server; the production build's only entry is index.html) draws `MapView` over a synthetic 6 x 4 grid labelled "Synthetic test grid, not drill data." `e2e/harness.config.ts` runs `e2e/harness/*.spec.ts` against it; the main e2e config now ignores that folder. `e2e/harness/map.spec.ts` reads screen pixels (a 1 x 1 PNG decoded with node:zlib, no image library) and asserts the dot colour sits at each centre with its percent below it. Map visuals (and later the REPORT beat) can now be checked without seeded drill segments.
+- Source: UI review D5 follow-up; drill-dev-1 has no segments yet, so the live site cannot show the map layers.
+- Verified: the spec passed with the new MapView and failed with the previous one (`#E5B066`, the fill, at the centre); `grep` finds "Synthetic test grid" in no file of `web/dist`. scripts/ci-local.sh exit 0.
+
+### feat(sighting): place a sighting from the keyboard with a Place list of segments
+- What: the sighting form has a labelled "Place" select listing every segment (`segmentChoices` in `map/geo.ts`, sorted by id). Choosing one puts the sighting at that segment's centre, the same point a map click there gives, and the status line reads "Place: segment AB." A map click still works and the list follows it ("Outside the search area" when the click is off the grid). New dev-only harness `web/harness/sighting.html` renders the form over the synthetic grid without Firebase; the map harness now renders only on its own page so its grid can be shared.
+- Source: UI review D8 (orchestrator P0 item 4): only a map click could place a sighting; section 22 asks for full keyboard use at the command post.
+- Verified: new `segmentChoices` test failed first, then passed. New harness spec tabs from "Seen at" to Place, chooses AB, saves with Enter and checks the saved position is AB's centre: it passed with the new form and failed with the previous one (no Place control). Typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(map): show the grid's own attribution line and make the joined smoke require segments
+- What: the incident's `gridAttribution` (the license line tools/grid-builder stamps, "Map data from OpenStreetMap contributors (ODbL)") is read with the incident and shown as the map credit whenever its segments draw; the fixed "Map data from OpenStreetMap" stays only as the fallback. The joined smoke now requires the drill's segments and plates to draw before it checks the credit.
+- Source: lane A seeded drill-dev-1 with a 67-segment grid and asked that the stamped attribution show wherever the map draws. The earlier smoke check could pass before segments loaded (an empty map with no credit is consistent), so it passed against the old build; it is no longer vacuous.
+- Verified: new `mapCredit` test failed first, then passed (4 of 4). The new smoke failed against the live old build (received "Map data from OpenStreetMap"), then passed against the local preview with segments drawn. Typecheck clean. scripts/ci-local.sh exit 0.
+
+### chore(deps): add vite-plugin-pwa 2.0.0 for the offline command post
+- What: `vite-plugin-pwa` 2.0.0, exact pin, web devDependency (the spec's pinned version; brings workbox-build and workbox-window 7.4.1). The root lockfile gains 324 entries; none removed, no version changed (checked by diffing the package sets).
+- Source: orchestrator P1 item 5, spec 6.3 "offline PWA" and the pinned stack list.
+- Verified: socket depscore vite-plugin-pwa 2.0.0 supply chain 97, workbox-build 7.4.1 98, workbox-window 7.4.1 99, no vulnerability findings on the three; `npm ci` exit 0. npm audit rises from 10 to 18 findings; the 8 new ones are build-time tooling under workbox-build (rollup plugins, glob, minimatch, picomatch) that never ship to the browser. scripts/ci-local.sh exit 0.
+
+### feat(web): load the command post offline after one visit with a Workbox service worker
+- What: `VitePWA` in `web/vite.config.ts` generates `sw.js` (autoUpdate, clientsClaim, skipWaiting, old caches cleaned) that precaches the app shell: index.html, the JS and CSS, the MapLibre worker, the icon, the register script and a web manifest (8 entries, about 2.7 MB; the size limit is raised to 3 MiB for the 2.1 MB main bundle). Navigations fall back to index.html except Firebase's reserved `/__/` paths, `/pack/` and `/evidence/`. `version.json` is deliberately not cached, so the online check still has to reach the network. Firestore's persistent local cache (already on) supplies the last data.
+- Source: UI review D2, orchestrator P1 item 5, spec 6.3 ("loads with Wi-Fi off") and the section 16 release gate ("an offline reload").
+- Verified: new `e2e/offline.spec.ts` (join, wait for the segments and for the service worker to control the page, go offline, reload; expect the drill line, the map idle, Add sighting and the drill's segments drawn from cache) failed first (no service worker ever controlled the page), then passed against the local preview; a probe of the offline page showed the incident title, the match code and all 67 plates. scripts/ci-local.sh exit 0.
+
+### test(e2e): mark the photo-dependent checks deployed-only so a local run fails loudly
+- What: `deployedOnly()` in `e2e/fixtures.ts` throws a plain message unless BASE_URL is set. The two privacy tests and the joined smoke (whose console check sees photo reads) call it first. The production bucket's CORS trusts only the two hosting origins, so these checks only mean something on the deployed site; a local run now fails at once with that reason instead of timing out or being mistaken for a pass.
+- Source: orchestrator ruling on report 8 (keep the bucket's CORS to the deployed origins; label the photo checks deployed-only).
+- Verified: locally the three tests fail in under 0.2 s with the deployed-only message while the other smoke tests pass; with BASE_URL set to the live site the same three pass. scripts/ci-local.sh exit 0.
+
+### feat(theme): add the measured 22.1 colour tokens and the contrast maths in one place
+- What: `theme/tokens.ts` holds the spec 22.1 command colours (`COMMAND`), the eight-step `POA_RAMP`, `textPairAllowed` (the three "not allowed" pairs refused) and `dotRadiusPx`; `theme/contrast.ts` holds `contrast`, `hueDeg` and `lightness`. `map/poaStyle.ts` now takes the ramp, the dot size and the map inks from them instead of its own copies.
+- Source: plan Task 39.1 (orchestrator: Task 39 starts after P0 and 23c).
+- Verified: `src/theme/tokens.test.ts` (9 tests, the plan's list plus "base.css declares the same values as the tokens") failed first (modules missing), then passed: every allowed text pair is 4.5:1 or better, the spec's anchors reproduce (fg-1 on bg-1 15.99, fg-4 4.79, cyan 11.15, red 5.08), one warm hue with rising lightness, never red or cyan, plate 17:1, cyan needs the casing on step 6, dot radii 3 to 14. All 238 unit tests pass. scripts/ci-local.sh exit 0.
+
+### feat(theme): self-host the DINish, Ioskeley Mono and DSEG7 Classic OFL fonts
+- What: `web/public/fonts/` holds the original release files, unmodified: DINish variable (weight and width axes; release v4.007), Ioskeley Mono SemiBold (v2.2.0), DSEG7 Classic Bold (v0.46). Each folder has the repo's OFL text as `OFL.txt` and `SOURCE.txt` with the repo URL and the release commit SHA. `theme/fonts.css` declares them with `font-display: swap`; DINish is the UI and number face (tabular figures), Ioskeley Mono the 12 px caps labels, DSEG7 the clock (no clock on screen yet). The service worker now precaches the three woff2 files, so the fonts work offline. No font loads from a third-party host.
+- Source: plan Task 39.1, spec 22.1 "Fonts".
+- Verified: `src/theme/fonts.test.ts` (license and source per folder; every @font-face file exists) and the new `e2e/fonts.spec.ts` failed first (no font loaded), then passed: all three families load from this origin, DINish "1111" and "8888" measure the same width with tabular-nums, zero requests to font hosts, zero console errors. The SW precache grew to 10 entries. Stills at 1440 px checked. scripts/ci-local.sh exit 0.
+
+### feat(change): add changeModel, the numbers and sentence for what a report did to the map
+- What: `command/changeModel.ts` compares the POA before and after a report: the changed segments in whole percents, largest move first (rest-of-world mass left out), a banner ("Slipper in water (training inject). AC 12% to 31%.") and a screen-reader line ("Segment AC. POA 31 percent, up 19, after report: slipper in water."). A report that moves nothing gives "Report logged. Map unchanged. Ask the team." The cause label comes from the event type and reading (item and place for a clue, the cleared segments, sighting, camera sighting, found, place to check). Code and fixed copy only.
+- Source: plan Task 26 (its `ChangeResult` also feeds Task 39's REPORT beat).
+- Verified: `src/command/changeModel.test.ts` (the plan's two cases plus ordering, rest-of-world and a drop) failed first (module missing), then passed (4 of 4). scripts/ci-local.sh exit 0.
+
+### feat(change): compute what the newest report did from the events alone
+- What: `lastReportChange` in `command/viewState.ts` picks the newest report (by client time, then sequence; plan acknowledgements skipped) and runs the posterior without that one event and with every event, then `changeModel` on the two. Because it is recomputed from the events, a reload or a second seat shows the same change, with no browser memory of what the tab saw before.
+- Source: plan Task 26 (the change beat needs before and after; "Hold Space shows the map before the event").
+- Verified: 3 new tests in `src/command/viewState.test.ts` failed first (not a function), then passed: before and after equal the engine's posterior without and with the clue, AC moves up first, a later plan acknowledgement is skipped, no report gives null. scripts/ci-local.sh exit 0.
+
+### fix(map): never drop a map redraw that arrives while a source is updating
+- What: MapView redrew only when `isStyleLoaded()` was true and otherwise waited for the `load` event. `isStyleLoaded()` turns false again while a GeoJSON source is updating, and `load` fires once, so a POA or segment update arriving at that moment was parked forever and the map kept the old numbers. Redraws now check a flag set once when the style and sources exist.
+- Source: found while building the change beat: holding Space set the "before" state but the chips and plates did not change.
+- Verified: the change harness spec (next commit) failed before this fix (chips still 3 while Space was held) and passes after; the map and sighting harness specs still pass. scripts/ci-local.sh exit 0.
+
+### feat(change): show what the newest report did: banner, cyan outlines, delta chips, hold Space
+- What: `ChangeBeat` puts "What changed" in the rail with the banner from `changeModel` and the screen-reader line in a polite live region. MapView takes `moved`: the three largest moves get a 2 px change-cyan outline on a bg-0 casing (22.1: cyan means "moved by the last report" and nothing else) and a chip above the dot ("+15 pts", ASCII signs, `deltaLabel`). Holding Space (outside fields and buttons) shows the map before that report, with "Before this report", and releasing it brings the change back. The post computes it with `lastReportChange`.
+- Source: plan Task 26 (delta chips and Hold Space are K; the animated sequence is Task 39.4). Ruling: outline only the three largest moves, the same ones that get chips; a strong report nudges nearly every segment, and an all-cyan map says nothing.
+- Verified: new `deltaLabel` test failed first, then passed. New dev-only harness `web/harness/change.html` and its spec: banner and live-region text, three chips, cyan found across a moved edge and absent on an unmoved one (pixels), Space shows the before numbers and hides the chips, release restores them; all three harness specs pass. Still checked. scripts/ci-local.sh exit 0.
+
+### test(change): prove the drill post shows what its newest report did
+- What: `e2e/change.spec.ts` joins the drill and expects the "What changed" banner in one of its two forms (a moved segment with from and to percents, or "Report logged. Map unchanged. Ask the team.") and the matching screen-reader line in the section's live region.
+- Source: plan Task 26, on deployed data.
+- Verified: failed against the live site before this build was deployed (no change section), passed against the local preview on the live drill data. scripts/ci-local.sh exit 0.
+
+### feat(motion): add the motion tokens and the two-second REPORT beat plan
+- What: `motion/plan.ts`: `MOTION` (spec 22.1 enter 350 ms out(3), exit 250 ms inOut(3), swap, stroke 50 ms outQuart, line draw 600 to 1000 ms inOutExpo, release bounce 0.35 over 400 ms, reduced fade 150 ms, reduced hold 4 s) and `reportBeatPlan(change, distanceM, reduced)`: pin 0 ms, arc 100, lightness 300 (changed segments nearest first, stagger 40 ms capped so the spread stays within 300 ms), pulse 300, chips 900, reorder 1100, arc fade 1750, ending at 2000 ms; reduced motion is one 150 ms fade. `beatTotalMs` counts each step's stagger. No animation library in this file.
+- Source: plan Task 39.4 interfaces and tests.
+- Verified: `src/motion/plan.test.ts` (the plan's four tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(motion): add the ripple delay from the point last seen
+- What: `motion/ripple.ts` `rippleDelayMs(cell, origin, stepMs = 25)`: straight-line distance in cells times 25 ms, so dots grow outward from the point last seen on a prior's first draw.
+- Source: plan Task 39.6.
+- Verified: `src/motion/ripple.test.ts` failed first, then passed (0, 25 and 125 ms). scripts/ci-local.sh exit 0.
+
+### feat(motion): add walker positions from tracks, released in cohorts
+- What: `motion/walkerCanvas.ts`: `cohortReleaseMs` (25 walkers per cohort, 100 ms apart) and `walkerFrame(tracks, t)`, each walker's point at time t walked at even speed along its polyline, with done once it arrives. Plain arithmetic; the canvas will draw these points with no animation object per walker.
+- Source: plan Task 39.5 (walker canvas; tracks come from Task 37).
+- Verified: `src/motion/walkerCanvas.test.ts` (the plan's test plus a bent track) failed first, then passed. scripts/ci-local.sh exit 0.
+
+### feat(map): hand the loaded map to an optional onReady callback
+- What: MapView takes `onReady?: (map) => void`, called with the MapLibre map once its style and sources exist and with null when it is removed. Nothing in this repo branch uses it yet; the extras lane's ExtrasDock will (hook H3).
+- Source: extras lane request H3 via the orchestrator.
+- Verified: new map harness test failed first (no call), then passed; all four harness specs pass. scripts/ci-local.sh exit 0.
+
+### chore(deps): add animejs 4.5.0 for the command post motion
+- What: `animejs` 4.5.0, exact pin, web runtime dependency (spec 22.1: MIT, Julian Garnier, never 5.0 beta; only `web/src/motion/engine.ts` will import it). No dependencies of its own; the lockfile gains one entry.
+- Source: plan Task 39.3 and 39.4.
+- Verified: socket depscore supply chain 100, vulnerability 100, license 100; release date 2026-06-22. The 4.5.0 type files export `createTimeline` (add, label, call), `createScope` with `mediaQueries`, and `spring` taking `bounce` and `duration` (plan step 8 check). `npm ci` exit 0. scripts/ci-local.sh exit 0.
+
+### feat(motion): play the REPORT beat as one animejs timeline inside a reduced-motion scope
+- What: `motion/engine.ts`, the only file importing animejs. `motionScope(run)` is one `createScope` with the "(prefers-reduced-motion: reduce)" query and reruns when it changes. `playReportBeat(plan, targets)` builds one timeline labelled REPORT: each step (each changed segment for the staggered lightness step) animates a plain progress value 0 to 1 and hands it to `targets.progress`; the pin uses `spring({ bounce: 0.35, duration: 400 })`; `done` fires at the end; `cancel` stops it. The map, chips and rank list will apply the progress values (next commits). Dev-only harness `web/harness/beat.html`.
+- Source: plan Task 39.3 and 39.4; API names read from animejs 4.5.0's type files.
+- Verified: `e2e/harness/beat.spec.ts`: with motion, all seven steps (lightness once per changed segment) reach 1 and the beat ends in 1,900 to 2,400 ms; with reduced motion only the 150 ms fade runs. The engine was written before this spec, so two mutants were run against it: dropping the per-segment steps and ignoring reduced motion each fail the spec. scripts/ci-local.sh exit 0.
+
+### feat(map): carry each segment's class before the newest report for the cross-fade
+- What: `segmentFeatures(segments, poa, before?)` adds `clsOld`, the lightness class under the previous POA (with its own maximum), when `before` is given; without it the features are unchanged.
+- Source: plan Task 39.4 (the REPORT beat cross-fades lightness from the old map to the new one).
+- Verified: new test in `src/map/poaStyle.test.ts` failed first, then passed (11 of 11). scripts/ci-local.sh exit 0.
+
+### feat(map): measure metres from a report to each changed segment for the beat order
+- What: `metresBetween` (great circle) and `beatDistances(origin, changedIds, segments)` in `map/geo.ts`: metres from the report's position to each changed segment's centre, or from the largest move's centre when the report has no position. The beat staggers lightness nearest first by these.
+- Source: plan Task 39.4 ("lightness is staggered by distance, nearest first").
+- Verified: two new tests in `src/map/geo.test.ts` failed first, then passed (0 m at the origin; about 925 m for 0.01 degree of longitude at 33.78 N; over 1,100 m for 0.01 degree of latitude). scripts/ci-local.sh exit 0.
+
+### feat(map): play the REPORT beat on the map: lightness cross-fade, outline pulse, chips rise
+- What: MapView takes `beat` ({ key, before, change, distanceM }). When the key changes after the first one seen (never on load, so a reload shows the final map), it plays the plan through `motion/engine`: each changed segment cross-fades from its old lightness to the new one, nearest first (an old-colour fill under the new one, trading opacity through per-segment feature state, so at the end the map is exactly the plain one); the cyan outline pulses once; the chips rise at 900 ms; `data-beat` goes "playing" then "done". With reduced motion the final values show at once and only the chips fade in over 150 ms. The chip's visible element is now inside the marker element, because MapLibre rewrites a marker element's opacity every frame. The pin and the arc steps have no drawing yet.
+- Source: plan Task 39.4.
+- Verified: two new change-harness tests: after "Report again" CD's fill pixel shows the old step and the chips are hidden, then at "done" (within 2.5 s) the new step and the chips at full opacity; with reduced motion the new step shows at once and the beat is done within 0.5 s. Both failed first (no replay), and the chip check failed again until the inner-element fix. Frames at 50, 500, 1,000 and 2,100 ms checked by eye. All eight harness specs pass. scripts/ci-local.sh exit 0.
+
+### feat(change): play the REPORT beat on the post only for reports that arrive live
+- What: the post passes MapView a beat keyed by the newest report's event id, with distances from that event's position (`beatDistances`). `subscribeEvents` now reports whether a snapshot came from the local cache; the post hands over a beat only after the first server answer, and MapView records the first real key without playing it (an absent beat no longer counts as a first key). So opening or reloading the post, or the cache answering before the server, never plays a beat; a report that arrives while the post is open does.
+- Source: plan Task 39.4 on the deployed data.
+- Verified: new `e2e/beat.spec.ts` (writes one command-entered drill sighting per run): no beat on load, the new sighting plays it to "done" within 2.5 s, the banner updates, and after a reload nothing plays. Its first run failed (a beat had played on load because the empty first render counted as a key), then passed after the fix, against the local preview on the live drill data. Typecheck and build clean. scripts/ci-local.sh exit 0.
+
+### feat(basemap): load a site's self-hosted PMTiles file whole, checked by its magic bytes
+- What: `basemap/load.ts` `loadBasemap(url)` fetches the site's PMTiles file in one request (a small site extract, so the service worker can keep it as an ordinary response for offline use; no range requests) and accepts it only when it starts with "PMTiles" and spec version 3. A 404 or the hosting's HTML answer is "absent", other bytes are "invalid", a failed fetch is "unavailable". The file is wrapped in pmtiles' `FileSource` and keyed by its file name for the `pmtiles://` protocol.
+- Source: UI review U4 and orchestrator P1 item 6 (self-hosted PMTiles basemap); lane A's dev extract for drill-dev-1.
+- Verified: `src/basemap/load.test.ts` (4 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(basemap): style the Protomaps basemap in the 22.1 instrument greys
+- What: `basemap/style.ts` `basemapLayers(source)`: under the probability fills, parks and green land in bg-1, water shapes in bg-3, buildings in bg-2; over the fills, streams, roads (wider by kind) and dashed paths as fg-4 lines at 0.6 opacity, so the fills keep their measured colours. Reads only Protomaps v4 layers. No label layers: they would need glyphs from a host.
+- Source: UI review U4 ("paths, roads and the creek in fg-4, water as a bg-3 shape with no hue") and spec 22.1.
+- Verified: `src/basemap/style.test.ts` (4 tests: tokens only, fills under and lines over with no labels, Protomaps v4 layers only, water bg-3 and lines fg-4) failed first (module missing), then passed. scripts/ci-local.sh exit 0.

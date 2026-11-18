@@ -124,3 +124,28 @@ def test_wait_ports_waits_until_the_port_is_released(tmp_path):
     out = wait(root, 20)
     assert out.returncode == 0, out.stdout + out.stderr
     assert time.monotonic() - t0 >= 1.0
+
+
+def test_wait_ports_sees_a_socket_held_on_the_wildcard_address(tmp_path):
+    # Lane B: the Firestore emulator's WebChannel server failed to bind its port right after "ports free";
+    # Java binds the wildcard, so a socket held there must also count as busy.
+    import socket
+    root = worktree(tmp_path, "wildcard-block")
+    port = ports(make(root))["firestore"]
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", port))
+    s.listen()
+    try:
+        out = wait(root, 2)
+    finally:
+        s.close()
+    assert out.returncode == 1
+    assert str(port) in out.stdout + out.stderr
+
+
+def test_who_holds_names_the_block_range(tmp_path):
+    root = worktree(tmp_path, "who-holds")
+    ps = ports_of(root)
+    out = subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--who-holds"], capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0, out.stderr
+    assert f"{min(ps)}-{min(ps) + 9}" in out.stdout

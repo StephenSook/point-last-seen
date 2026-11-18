@@ -2096,6 +2096,118 @@
     ],
     "ignoredEventIds": []
    }
+  },
+  {
+   "name": "walker_prior_then_cleared",
+   "input": {
+    "prior": [
+     {
+      "segmentId": "AA",
+      "priorPoa": 0.2664
+     },
+     {
+      "segmentId": "AB",
+      "priorPoa": 0.1372
+     },
+     {
+      "segmentId": "ROW",
+      "priorPoa": 0.5964
+     }
+    ],
+    "events": [
+     {
+      "eventId": "00000000000000000000000000000001",
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AA",
+       "pod": 0.5,
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "open_target"
+       }
+      }
+     }
+    ],
+    "params": {
+     "sweepWidthFactor": 1.645,
+     "sweepSpeedMps": 0.39,
+     "hastySpeedMps": 0.53,
+     "secondsPerMinute": 60,
+     "iocBase": {
+      "strong_for": 1.0,
+      "for": 0.8,
+      "neutral": 0.6,
+      "against": 0.4,
+      "strong_against": 0.2
+     },
+     "authenticityWeight": {
+      "high": 1.0,
+      "medium": 0.6,
+      "low": 0.0
+     },
+     "coverageRatioMax": 3,
+     "coveragePercentMax": 300,
+     "detectionRangeMinM": 1,
+     "detectionRangeMaxM": 100,
+     "detectionProfile": {
+      "soundCounts": false
+     },
+     "rings": {
+      "masses": [
+       0.25,
+       0.25,
+       0.25,
+       0.2
+      ],
+      "temperate_flat": [
+       0.3,
+       1.0,
+       2.4,
+       12.8
+      ],
+      "temperate_mountain": [
+       0.3,
+       0.8,
+       1.9,
+       8.3
+      ]
+     },
+     "nearFeature": {
+      "bufferM": 71,
+      "nearShare": 0.75,
+      "farShare": 0.25
+     },
+     "wedge": {
+      "halfAngleDeg": 66,
+      "inside": 2.045,
+      "outside": 0.395
+     }
+    }
+   },
+   "expected": {
+    "poa": {
+     "AA": 0.1536686663590217,
+     "AB": 0.15828334102445776,
+     "ROW": 0.6880479926165206
+    },
+    "remainingMass": {
+     "AA": 0.1332,
+     "AB": 0.1372,
+     "ROW": 0.5964
+    },
+    "cumulativePod": {
+     "AA": 0.5,
+     "AB": 0.0,
+     "ROW": 0.0
+    },
+    "appliedEventIds": [
+     "00000000000000000000000000000001"
+    ],
+    "ignoredEventIds": []
+   }
   }
  ],
  "orderIndependence": [

@@ -5,6 +5,282 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
+  whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
+  Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.
+  Source: lane D via the orchestrator.
+  Verified: docs only; `bash scripts/ci-local.sh` exit 0.
+- The `android` job and ci-local also compile the instrumented tests (`compileDebugAndroidTestKotlin`, no
+  emulator needed), so a broken androidTest fails at merge instead of only when lane D runs it by hand.
+  Source: lane D via the orchestrator.
+  Verified: `./gradlew --no-daemon compileDebugAndroidTestKotlin` BUILD SUCCESSFUL on main's android/;
+  `bash scripts/ci-local.sh` exit 0.
+- Checklist: the judging-window model line now points at the gate's allow-list and asks for a re-read of the
+  live models page on or after 2026-11-28, moving any newly retiring id to `banned` and updating `readOn`;
+  Remote Config values get the same check before the template is published.
+  Source: orchestrator ruling (turn the model line into a test; re-read the page on Nov 28).
+  Verified: docs only; `bash scripts/ci-local.sh` exit 0.
+- Model allow-list: `shared/constants/models.json` lists the model ids the project may name (today only
+  gemini-3.5-flash-lite: Stable, released 2026-07-21, no shutdown date) and the banned ones
+  (gemini-3.1-flash-tts-preview, shut down 2026-11-17), read from the live Firebase AI Logic models page on
+  2026-11-18, to be re-read by 2026-11-28. The rules gate fails on any model id in source that is not listed,
+  and on a banned id anywhere outside docs, tests included; test files may name other ids as data.
+  Source: orchestrator (judging-window audit: a model shutting down inside the window would break the cloud
+  route; read of the models page 2026-11-18).
+  Verified: 2 gate tests failed first, now 25 pass; the gate passes on this tree and on the trees of lane-ios,
+  lane-web, lane-android, codex-walkers and lane-extras (each walked with this gate and list);
+  `bash scripts/ci-local.sh` exit 0.
+- P-12 urgency chip: `shared/constants/urgency.json` (coldF 40, the CDC sentence it rests on, its URL and the
+  date it was read), `urgencyLevel(tempF, wet)` in @pls/engine, and shared vectors in
+  `shared/test-vectors/urgency.json` from the Python reference so web (lane C) and iOS (lane B) agree: cold at
+  or below 40 F, cool_wet above it when typed wet, none otherwise. Clothing does not enter. Ruling: no typed
+  temperature gives none (no chip without data) and an unanswered wet question counts as dry. The vectors sit
+  in their own file because the Swift vector test refuses unknown sections in search.json.
+  Source: coordinator ruling (P-12), PLS-DESIGN Coordinator decisions.
+  Verified: the CDC sentence was found word for word on the live page (reviewed 2026-08-25, read 2026-11-18);
+  the urgency tests failed first (no constants file), now 183 engine tests pass with the 7 vectors;
+  search.json unchanged; 16 generator tests pass; `make_vectors.py --check` covers the file; the
+  vectors-parity job diffs it and runs its TS test; `bash scripts/ci-local.sh` exit 0.
+- NOTICE credits anime.js 4.5.0 (Julian Garnier, MIT), imported only by web/src/motion/engine.ts (the rules
+  gate enforces that); it arrives with lane C's merge (dependency 657d96b, engine cf627b4).
+  Source: plan Task 39.3, lane C hand-over.
+  Verified: `npm view animejs@4.5.0` reports license MIT, author Julian Garnier, repository
+  juliangarnier/anime; `bash scripts/ci-local.sh` exit 0.
+- NOTICE lists the three web fonts under the SIL Open Font License 1.1 (DINish v4.007, Ioskeley Mono v2.2.0,
+  DSEG7 Classic v0.46) with their repositories and commits; the files arrive with lane C's merge.
+  Source: plan Task 39, lane C hand-over.
+  Verified: each tag resolves to the stated commit and each repository's license reads OFL-1.1 through the
+  GitHub API (2026-11-18); `bash scripts/ci-local.sh` exit 0.
+- Rules gate, Task 39: the font names "Berkeley Mono" and "Digital-7" fail outside docs (only the OFL fonts in
+  web/public/fonts ship); animejs may be imported only by web/src/motion/engine.ts (dynamic imports and
+  require included; package.json may list it); and web/index.html and web CSS may not load a font from a
+  remote host (Google Fonts, Typekit, Bunny, fonts.com, cdnfonts, Adobe).
+  Source: plan Task 39, lane C hand-over.
+  Verified: 3 gate tests failed first, now 23 pass (one test assertion was tightened to file:line, since the
+  message itself names engine.ts); the gate walks 420 files with 0 problems; lane-web and lane-extras show no
+  match; `bash scripts/ci-local.sh` exit 0.
+- docs/LIMITS.md gains "On-device safety (Android)": the family app's on-device path (firebase-ai-ondevice
+  16.0.0-beta08 over the ML Kit GenAI Prompt API and AICore), Google's own statements about its safety
+  filters and the 4,000-token input window (three quotes, each with its URL), our own checks on every path, the
+  byte bound for our largest request, and what was not tested (no Gemini Nano phone; non-English notes).
+  Source: lane D hand-over (promotion item F5); the "128K" figure from the talk is left out, as lane D
+  found it in no Google doc.
+  Verified: a fetch agent found all four quoted passages word for word on the three live pages (2026-11-18);
+  no dashes in the file; `bash scripts/ci-local.sh` exit 0.
+- The linear-feature layer is neutral (every weight 1) when the grid's mass-weighted near share NEAR is at or
+  above 0.75, the ISRID share; below it the spec 10.5 formula is unchanged. `linearWeights` is now a pure
+  export of @pls/engine (buildPrior uses it), with a Python reference in tools/vectors/make_vectors.py and
+  TypeScript-only vectors in the new `shared/test-vectors/prior.json` (dense grid neutral, exactly 0.75
+  neutral, sparse grid on the formula, all far and zero mass unchanged), kept out of search.json because the
+  Swift and Kotlin twins only consume priors and refuse unknown sections. The rule is continuous at 0.75 and
+  removes the division by zero at NEAR = 1. LIMITS labels it as ours. NEAR stays mass-weighted, as since Task
+  10: mass weighting is what makes the target exact when segments are wholly near or far, and the guard must
+  use the same NEAR as the formula or the layer jumps at the threshold (the design note says "area-weighted";
+  flagged to the orchestrator).
+  Source: coordinator ruling 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
+  Verified: 2 engine tests failed first (no function; a dense grid was not neutral), now 174 pass with the 5
+  prior vectors; search.json byte-identical (no existing expected value changed); 15 generator tests pass;
+  `make_vectors.py --check` covers both files; the vectors-parity job diffs both and runs both TS vector tests;
+  `bash scripts/ci-local.sh` exit 0.
+- Production checklist, Android: raise the Remote Config key `minimum_version_android` only after the repo is
+  public (not before 2026-11-28) and the release APK is a GitHub Release asset, because the family app's
+  update screen opens the repo's latest release, a 404 while the repo is private; the line names the two `gh`
+  checks to run first. The in-app default stays 0 (lane D's RcValuesTest pins it).
+  Source: lane D hand-over (J10), ruled by the orchestrator.
+  Verified: text as handed over; no code change.
+- `docs/PRODUCTION-CHECKLIST.md`: a Judging window (2026-12-10 to 2026-12-16) section lists every time-based
+  value on a judged path (Storage lifecycle, clipReadings TTL, judge sandbox limits, App Check token TTLs and
+  enforcement, the published run, the media sweep, the daily probe, GitHub's 60-day cutoff, the Actions and
+  Gemini budgets, model shutdown dates, image cleanup), what it does on Dec 10 and Dec 16 and what guards
+  it, with pre-submit lines for the ones a test cannot pin (sandbox copies get a fresh expiresAt, the daily
+  cap key exists, the Gemini burn rate fits the cap, no model shuts down before Dec 17, the probe workflow is
+  active and recent, December's Actions budget). The Firebase project section gains the lifecycle and TTL
+  read-back lines.
+  Source: orchestrator (HR217 judging-window audit).
+  Verified: App Check token TTLs read back 3600 s on all four app configs; the Remote Config server template
+  has no parameters; `bash scripts/ci-local.sh` exit 0.
+- The clipReadings TTL policy was missing in production although the spec and LIMITS promise it: it is now
+  enabled on `clipReadings.expiresAt` and declared in firestore.indexes.json as a field override, so the
+  merge point 2 index deploy keeps it. `scripts/test_judging_window.py` (gates and ci-local) pins three
+  values judging depends on: the lifecycle age cannot delete anything before 2026-12-16 (project created
+  2026-11-17), the TTL is declared and the rules allow at least 30 days, and both probes retire only after
+  2026-12-16.
+  Source: orchestrator (BYT's stale-data finding; HR217 judging-window audit).
+  Verified: the TTL test failed first (no override), now 3 tests pass; `gcloud firestore fields ttls update`
+  exit 0, state CREATING (re-checked at merge point 2); `bash scripts/ci-local.sh` exit 0.
+- ci-local: when the emulator suite fails, it now prints who holds this worktree's emulator ports
+  (`scripts/emulator_config.py --who-holds`, lsof over the 10-port block) and still fails with exit 1.
+  Lane B saw one WebChannel bind failure ("Address already in use") on its websocketPort right after the
+  port wait said the block was free; the cause is not known yet, so this records evidence instead of
+  hiding the flake with a retry or a longer timeout. A new test shows the wait already counts a socket held
+  on the 0.0.0.0 wildcard as busy, so the wildcard is ruled out.
+  Source: lane B flake report via the orchestrator (ledgered as a flake).
+  Verified: the who-holds test failed first, now 10 emulator_config tests pass (the wildcard test passed at
+  once, which is its finding); `bash scripts/ci-local.sh` exit 0.
+- `scripts/media_probe.py` reads ops/storage with the site's public key and fails if the 30-day lifecycle rule
+  is gone or the sweep is more than 2 hours stale (which also catches a dead scheduler).
+  `.github/workflows/probe.yml` runs it and the App Check no-token check daily at 13:23 UTC on a pinned
+  runner, credential-free; each step runs even if the other fails, and both scripts retire after 2026-12-17.
+  Source: orchestrator (daily checks for two security defaults that can change silently).
+  Verified: 3 probe tests written with the script pass; the live probe exits 1 today (ops/storage 403, rules
+  not deployed yet), as it must until merge point 2; `bash scripts/ci-local.sh` exit 0.
+- Storage health record: each 15-minute deleteIncidentMedia run also reads the bucket's lifecycle and writes
+  `ops/storage` (lifecycleOk, the rule's age, a server time); a new rules match makes that one doc readable
+  without sign-in and no ops doc writable, so a probe can check it with no credential.
+  Source: orchestrator (a privacy check that fails if the lifecycle rule ever disappears).
+  Verified: 3 emulator tests failed first (the lifecycle check cases, the ops/storage write, the public-read
+  rule), now pass; suite 104; `bash scripts/ci-local.sh` exit 0.
+- `scripts/appcheck_control.py`: a live App Check control for Firebase AI Logic on the deployed project. A
+  raw generateContent call with no App Check token must be refused with 401 "Firebase App Check token is
+  invalid."; only then is a debug-token call made, which must answer 200. Evidence goes to
+  docs/evidence/appcheck-control/ with every key and token redacted. `--no-token-only` is the credential-free
+  daily half (config from the site's /__/firebase/init.json, no model call) and retires itself after
+  2026-12-17. Firebase's documented automatic App Check enforcement for AI Logic did not happen on a project
+  created 2026-11-17, so this control proves the manual enforcement is still on.
+  Source: orchestrator (BYT upstream finding; self-audit gap SA:86).
+  Verified: 5 tests failed first (no module), now pass; the live run gave 401 then 200 (evidence
+  2026-11-18T08-55-34+00-00.json, 0 key matches in it and in the logs); the App Check API reads
+  firebaseml ENFORCED since 2026-11-17T18:32Z; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMedia` (scheduled every 15 minutes, us-central1, one instance, no model call) deletes every
+  clip, photo and pack of each judge sandbox whose expiresAt has passed and stamps mediaDeletedAt once; it
+  re-checks all ended sandboxes each run, so an upload in flight at the end is caught next time. Drills, live
+  sandboxes and look-alike prefixes (J1 vs J10) are left alone. Deleting the file is what ends a member's
+  no-sign-in download link (docs/LIMITS.md). Not deployed yet: it deploys with the rules at merge point 2,
+  and LIMITS stays PLANNED until the deploy is read back.
+  Source: rules audit 2026-11-18, finding (c); orchestrator go (build now, not with Task 23).
+  Verified: 3 emulator tests failed first (no module), now pass (an ended sandbox loses its 3 files and is
+  stamped; J2, D1, D2 and clips/J10 keep theirs; a second run is a no-op; a file added later goes on the next
+  run); emulator suite 101 passes; functions typecheck exits 0; rules gate 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- Add `storage.lifecycle.json` (delete clips/, photos/ and packs/ 30 days after upload) and apply it to the
+  bucket; the storage.rules header said this was in place, but the bucket had no lifecycle rule at all.
+  storage.rules and docs/LIMITS.md now say plainly that any member can create a no-sign-in link to a clip or
+  photo that works until the file is deleted: Firebase Storage gives a member a download token on any read
+  of the file's details, even after an admin removes it (measured on the live bucket), so stripping tokens
+  cannot close this, and deletion is the only end.
+  Source: rules audit 2026-11-18, finding (c), confirmed and then measured.
+  Verified: `gcloud storage buckets update --lifecycle-file` exit 0; read back: one Delete rule, age 30,
+  prefixes clips/, photos/, packs/ (empty before). Live probe 7/7 plus the token experiment (token present
+  after upload; removed by admin; present again after the member's metadata read).
+  `bash scripts/ci-local.sh` exit 0.
+- Two cheap fixes from the same audit: a clip reading's `expiresAt` (it drives the 30-day TTL on the consent
+  record and the model's description of the person in the clip) must be in the future and at most 31 days
+  away, so a client can no longer keep it forever or delete it at once; and an incident update must leave
+  `status` as open, found or closed, so command can no longer remove it (which silently paused events, plans
+  and joins) or set a look-alike such as "Closed".
+  Source: rules audit 2026-11-18 (two minors folded into the fix, with the orchestrator's go).
+  Verified: new shapes cases (a past and a 40-day expiry are refused, 30 days passes; "Closed" and a write
+  without status are refused, "found" passes) fail against the previous rules; emulator suite passes;
+  `bash scripts/ci-local.sh` exit 0.
+- profile/shared types every key it allows (rules audit, moderate), through the generated
+  schema_SharedProfile: string lengths (60 or 40 or 200), integer ranges for age, height and weight, the
+  dementiaType and mobilityAids enums, the date pattern for photoTakenOn, all 18 flags as booleans, and
+  approachNoteIds limited to the ids in shared/constants/approach-notes.json. Before, 15 of the 20 keys took
+  any value, so free text (an address, history) could land in a field every searcher reads and every pack
+  carries. Keys stay optional so a profile can be written in parts; flags is all 18 or nothing (the web,
+  Android and engine writers already send all 18).
+  Source: rules audit 2026-11-18, finding (b).
+  Verified: new shapes cases (the full profile the apps write passes; free text in dementiaType, an address
+  object in mobilityAids, a made-up aid, a bad date, a wrong type, out-of-range numbers, overlong strings,
+  partial flags and unknown note ids are refused) fail against the previous rules; the existing profile test
+  now sends all 18 flags. Emulator suite passes; `bash scripts/ci-local.sh` exit 0.
+- Events take only their schema shapes (rules audit, moderate): `position` must be {lat, lon, accuracyM} in
+  range, `reading` a ReportReading (or, for camera_sighting, a CameraSightingReading whose sighting is a
+  CameraSighting), `route` a RouteRecord, each bounded in size, using the generated validators. Before, each was
+  any map, so a searcher could append about 1 MiB events that nobody can delete and every device syncs. To fit
+  the heaviest real events (a cleared report with its effect inputs, a full reading, a route and a GPS
+  position; a 64-influence clue; a full camera sighting) under Firestore's 1,000-expression limit per
+  request, the role claim is read once, and the event and effect key sets are pinned by size (every key is
+  read, and a missing key is an error that denies) instead of by list literals.
+  Source: rules audit 2026-11-18, finding (a).
+  Verified: new `functions/test/rules/shapes.test.ts` (written with the fix, then run against the previous
+  rules, where its three refusal groups fail; the heaviest cases first hit the limit and were cut down): bad positions, oversized or unknown-keyed readings and routes, a fourth carried item and other bad
+  camera sightings are refused; the heaviest real events pass; dropping any of the 25 event keys, the 4
+  cleared-effect keys or the 5 input keys for a stray key is refused. Emulator suite passes;
+  `bash scripts/ci-local.sh` exit 0.
+- `tools/rules/gen_rules_validators.py` compiles shared/schemas into Firestore rules validator functions
+  (schema_Position, schema_ReportReading, schema_RouteRecord, schema_CameraSighting,
+  schema_CameraSightingReading, schema_SharedProfile) and writes them between GENERATED markers in
+  firestore.rules. It refuses any unbounded string or list. Event-carried shapes use a shape mode that keeps
+  every size bound but spends fewer rules expressions (string enums bounded by length, short string lists by
+  joined length, numbers by type, all-required key sets pinned by size). The gates job and ci-local run it with
+  `--check`, so the rules can never drift from the schemas. The block is not used yet; the next commits use it.
+  Source: rules audit 2026-11-18 (fresh agent with the firebase rules-auditor checklist: events and
+  profile/shared values unbounded or untyped).
+  Verified: 8 generator tests (each failed first) pass; `--check` exits 0 and fails on a stale block;
+  `bash scripts/ci-local.sh` exit 0.
+- `tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N` (admin, gcloud OAuth)
+  writes the grid builder's segment docs under incidents/{id}/segments, deletes segment docs the new grid no
+  longer has, then updates only gridId, ipp, terrain, priorLayers, gridAttribution and priorVersion on the
+  incident (last, so the incident never points at a grid whose segments are missing), in commits of at most
+  500 writes, and reads the segment ids back. It refuses a payload whose prior does not sum to 1, has a
+  duplicate or malformed id, a negative mass, a non-polygon geometry, or ROW anywhere but last. Its tests join
+  the gates job and ci-local.
+  Source: orchestrator (development prior for drill-dev-1; the same tool seeds Stephen's site later).
+  Verified: 9 tests failed first (no module), now pass; `bash scripts/ci-local.sh` exit 0.
+- Grid builder `--prior <grid.json> --ipp <lat,lon> --terrain <...> [--linear] [--bearing <deg>] --out <file>`
+  writes the segment docs the apps read under incidents/{id}/segments: one per segment (geometry as a GeoJSON
+  string, centroid, area, neighbours, stream links, nearFrac, feature classes) with the engine's own
+  `buildPrior` result, ROW last with the mass outside the mapped area, plus the inputs (gridId, ipp, terrain,
+  layers, bearing, attribution). A malformed IPP or an unknown terrain prints usage and exits 2.
+  Source: orchestrator (seed a development prior so the map, replan and POA beats run against deployed data).
+  Verified: 4 new tests failed first (no module), now 18 grid-builder tests pass (one doc per segment and ROW
+  last; the prior sums to 1 within 1e-12; cells wholly inside the 300 m first ring have equal mass per m2 and
+  the far corner cell less than half); typecheck exits 0; `bash scripts/ci-local.sh` exit 0.
+- `ci-local.sh` builds the web app with CI's placeholder config (the same values as web.yml) into a temp folder,
+  so every lane can run the web step without a web/.env.local, and no worktree's real web/dist (built from its
+  .env.local and deployed from there) is overwritten. Vite lets variables already in the environment beat .env
+  files, which is why the output folder moves too.
+  Source: lane B's ci-local stopped at "Missing build config" after merging main.
+  Verified: `bash scripts/ci-local.sh` exit 0 from a shell with no VITE variables; the build printed
+  `vite build --outDir <temp> --emptyOutDir`; web/dist/index.html kept its timestamp.
+- Task 10 CLI: `npm run build-grid -w tools/grid-builder -- <site.geojson> <gridId> --osm <overpass.json> --out
+  <grid.json>` builds the grid (cells, then near-feature fractions, then stream links) and writes it with a
+  trailing newline; `--query <site.geojson>` prints the Overpass QL query for the site's bounding box (ways and
+  relations tagged highway, waterway, natural or building, `out geom`). `osmToFeatures` turns closed water and
+  buildings into polygons, a multipolygon's closed outer members into polygons, and keeps waterway lines in way
+  order (the flow direction). Missing arguments print usage and exit 2.
+  Source: plan Task 10 (the CLI half; the drill site, the run and pmtiles wait for Stephen's site, step 5).
+  Verified: 4 new tests failed first (no module), now 14 grid-builder tests pass (same inputs give the same
+  bytes; the centre cell sees the pond and the stream but not the trail 125 m away); typecheck exits 0; the
+  CLI run by hand printed the query (exit 0) and usage (exit 2); `bash scripts/ci-local.sh` exit 0.
+- Shared vectors: add the posterior case `walker_prior_then_cleared`, whose prior is the committed golden
+  walker table (AA 0.2664, AB 0.1372, ROW 0.5964) and whose one event clears AA at POD 0.5 (expected AA
+  0.15367, AB 0.15828, ROW 0.68805). The Swift engine never runs walkers, so this case is how it proves it
+  consumes walker output exactly as TypeScript does (PLS-DESIGN 10.6, "Determinism").
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: `make_vectors.py --check` reports 161 vectors current; removing the new case gives exact JSON
+  equality with all 160 existing cases; TypeScript vector suite 135 passed and Swift core 205 tests passed
+  (VectorTests and PosteriorTests run every posterior case, this one included); `bash scripts/ci-local.sh`
+  exit 0.
+- Grid builder: build the walker route graph (`tools/grid-builder/src/graph.ts`, Task 37a). Stations every
+  25 m with x and y in local metres, a unit heading, a unit normal and the segment under each; a junction is
+  inserted wherever a road or trail line crosses a stream or meets a water edge (OSM draws them as separate
+  lines that often share no point, PLS-DESIGN 10.6), so a walker on a trail is offered the creek. The
+  builder writes the stored `RouteGraph` shape from shared/schemas and adapts it to the indexed
+  `WalkerRouteGraph` for simulation; the original extract bounds are passed back in on reload to restore
+  boundary exits, because the stored schema has no field for them.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: the 3 new tests failed first (missing module), then pass (25 m stations with unit headings; one
+  shared junction where a road crosses a stream; a walker can turn onto the stream there, 40.8 percent of
+  walkers stopped on a stream station, seed 6) plus a JSON round-trip regression; grid-builder suite 14
+  passed; `bash scripts/ci-local.sh` exit 0 on the series head.
+- Add the seeded Monte Carlo walker prior (Task 37a, PLS-DESIGN 10.6): `mulberry32` (32-bit state, divide
+  by 2^32), `simulateWalkers` (ISRID distance draw, first edge weighted 2.045 inside the 66 degree travel
+  wedge and 0.395 outside, turn weights 4/2/1 with no reversal except at a dead end, water edges x2.0,
+  attractors x1.5 within 66 degrees, low mobility limited to the first 75 percent of the curve, a path
+  cap of 3 times the target, the ISRID track offset, ROW for draws above 0.95, graph exits and points
+  outside every segment), the per-segment standard error sqrt(p(1-p)/N) and 300 sampled tracks. Arithmetic
+  only (add, subtract, multiply, divide, compare; a fixed Newton square root), so the table is
+  bit-identical across JavaScript engines. Constants in `shared/constants/walker-params.json`, each traced
+  to PLS-DESIGN:400 and 10.6 and PLS-PLAN:900. Ours, labelled as ours: the offset tail above the 0.95
+  quantile is capped at 307 m (the ISRID offset table ends there). A golden toy table is committed.
+  Source: PLS-PLAN Task 37a; built in the Codex build lane from the orchestrator's brief, reviewed by the
+  orchestrator against the spec line by line.
+  Verified: the 10 engine tests failed first (missing API), then pass: straight road 25.33 percent stop
+  within 300 m and ROW 4.79 percent (seed 1), fork stream share 0.6641 (seed 2), wedge 0.8360 (seed 3),
+  attractor 0.5956 (seed 4), low mobility max 2,400 m and ROW 0 (seed 5), all 10,000 walkers and inside
+  the plan's tolerances; engine suite 177 passed; `bash scripts/ci-local.sh` exit 0 on the series head.
 - Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
   `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
   test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was

@@ -76,9 +76,11 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
     }
 
     @Test func anInvalidModelReadingFallsToTheParser() async {
-        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading(["ZZ"]))]
+        // The model's segment ids are ignored (they come from the text), so the invalid field is coverage.
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 400, evidenceQuote: "cleared segment AC"))]
         let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
         #expect(o.route.stage == .deterministicParser)
+        #expect(o.reading.coverage == 0.8)
         #expect(o.reading.segmentIds == ["AC"])
         #expect(r.calls == [.guided(.onDevice)])
     }

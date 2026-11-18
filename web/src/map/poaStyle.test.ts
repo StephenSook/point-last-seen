@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { POA_RAMP, formatPct, poaClass8, segmentFeatures } from "./poaStyle";
+import { contrast as contrastRatio } from "../theme/contrast";
+import { centreFeatures, formatPct, MAP_INK, POA_RAMP, poaClass8, segmentFeatures } from "./poaStyle";
 
 describe("poaClass8", () => {
   it("gives eight classes by share of the largest POA", () => {
@@ -48,5 +49,40 @@ describe("segmentFeatures", () => {
   it("a segment with no POA yet draws as class 0 with no label", () => {
     const fc = segmentFeatures(segments, {});
     expect(fc.features[0]!.properties).toEqual({ segmentId: "AA", poa: 0, cls: 0, label: "" });
+  });
+
+  it("carries the class before the newest report, for the lightness cross-fade", () => {
+    const fc = segmentFeatures(segments, { AA: 0.1, AB: 0.3, ROW: 0.6 }, { AA: 0.3, AB: 0.1, ROW: 0.6 });
+    expect(fc.features.map((f) => [f.properties.cls, f.properties.clsOld])).toEqual([[2, 7], [7, 2]]);
+  });
+});
+
+describe("second signal and segment edges", () => {
+  const seg = (id: string, lon: number) => ({
+    segmentId: id,
+    geometry: { type: "Polygon" as const, coordinates: [[[lon, 0], [lon + 1, 0], [lon + 1, 1], [lon, 0]]] },
+    centroid: { lat: 0.5, lon: lon + 0.5 },
+  });
+
+  it("measures contrast like the spec table (fg-4 on bg-0 is 5.23)", () => {
+    expect(contrastRatio("#898583", "#110F0D")).toBeCloseTo(5.23, 2);
+  });
+
+  it("puts a dot at each centre with radius 3 + 11 x sqrt(poa / maxPoa) px", () => {
+    const fc = centreFeatures([seg("AA", 0), seg("AB", 2), seg("AC", 4)], { AA: 0.4, AB: 0.1 });
+    expect(fc.features.map((f) => f.geometry.coordinates)).toEqual([[0.5, 0.5], [2.5, 0.5], [4.5, 0.5]]);
+    expect(fc.features.map((f) => Math.round(f.properties.r * 100) / 100)).toEqual([14, 8.5, 3]);
+  });
+
+  it("draws every dot at 3:1 or more against every probability step", () => {
+    for (const step of POA_RAMP) {
+      const best = Math.max(contrastRatio(MAP_INK.dot, step), contrastRatio(MAP_INK.dotRing, step));
+      expect(best, step).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("draws segment edges as a bg-0 casing under an fg-4 line", () => {
+    expect(MAP_INK.edgeCasing).toBe("#110F0D");
+    expect(MAP_INK.edgeLine).toBe("#898583");
   });
 });

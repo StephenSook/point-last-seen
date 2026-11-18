@@ -8,7 +8,8 @@ test("with no built-in model D2 shows the no-model message and sends nothing", a
   await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
   await page.getByRole("button", { name: "Get this laptop ready" }).click();
   await expect(page.getByTestId("d2-state")).toHaveAttribute("data-state", "no-model");
-  await expect(page.getByText("This browser has no built-in model. Nothing private was sent.")).toBeVisible();
+  await expect(page.getByTestId("d2-state")).toHaveText("This browser has no built-in model. Nothing private was sent.");
+  await expect(page.getByText(/replay above/)).toHaveCount(0);
   expect(hits).toEqual([]);
   expect(consoleErrors).toEqual([]);
 });

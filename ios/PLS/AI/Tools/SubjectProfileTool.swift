@@ -4,8 +4,8 @@ import PLSCore
 /// Read-only: clothing and appearance only. On the cloud route this text leaves the phone,
 /// so health and behaviour fields are never in it (ModelProfile keeps six fields).
 struct SubjectProfileTool: Tool {
-    let name = "subjectDescription"
-    let description = "Describes what the subject was wearing and looks like."
+    let name = ToolText.subjectDescriptionName
+    let description = ToolText.subjectDescriptionDescription
     let profile: ModelProfile
 
     @Generable struct Arguments {

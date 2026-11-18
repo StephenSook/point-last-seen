@@ -1,9 +1,11 @@
-import { AI_HOSTS, expect, joinCommand, syntheticSignJpeg, test, withDebugToken } from "./fixtures";
+import { AI_HOSTS, deployedOnly, expect, joinCommand, syntheticSignJpeg, test, withDebugToken } from "./fixtures";
 
 // Spec section 15: with no built-in model, a family photo and a caller's note
 // reach no AI host. The positive control proves the listener sees requests.
+// Deployed-only: the photo is read back through Storage (see deployedOnly).
 
 test("with LanguageModel hidden, private reads send nothing to Firebase hosts", async ({ page }) => {
+  deployedOnly();
   await withDebugToken(page);
   await page.addInitScript(() => { delete (window as { LanguageModel?: unknown }).LanguageModel; });
   const hits: string[] = [];
@@ -20,6 +22,7 @@ test("with LanguageModel hidden, private reads send nothing to Firebase hosts", 
 });
 
 test("positive control: a consented cloud read sends exactly one AI Logic request", async ({ page }) => {
+  deployedOnly();
   await withDebugToken(page);
   await page.addInitScript(() => { delete (window as { LanguageModel?: unknown }).LanguageModel; });
   const hits: string[] = [];

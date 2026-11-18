@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, posterior, toEngineEvents, type EventDoc } from "@pls/engine";
 import vectors from "../../../shared/test-vectors/search.json";
-import { viewState } from "./viewState";
+import { lastReportChange, viewState } from "./viewState";
 
 const fixture = (vectors as unknown as { docToEngine: { name: string; input: { docs: EventDoc[] } }[] }).docToEngine.find(
   (c) => c.name === "mixed_output_sorted_by_event_id",
@@ -45,5 +45,33 @@ describe("viewState", () => {
 
   it("counts each event once in the code even when it arrives twice", () => {
     expect(viewState(prior, [...docs, ...docs], [], DEFAULT_PARAMS, 1).code).toBe(viewState(prior, docs, [], DEFAULT_PARAMS, 1).code);
+  });
+});
+
+describe("lastReportChange", () => {
+  const base = docs[0]!;
+  const at = (d: EventDoc, eventId: string, t: number, over: Partial<EventDoc>): EventDoc => ({ ...d, eventId, clientTimeMs: t, seq: t, ...over });
+  const clue = at(base, "clue-1", 9_000, {
+    type: "clue",
+    isTrainingInject: true,
+    effect: { kind: "clue", influences: { AC: "strong_for" }, authenticity: "high" },
+  });
+
+  it("is what the newest report did: the posterior without it against the posterior with it", () => {
+    const c = lastReportChange(prior, [clue], [], DEFAULT_PARAMS)!;
+    expect(c.causeEventId).toBe("clue-1");
+    expect(c.before).toEqual(posterior(prior, toEngineEvents([], []), DEFAULT_PARAMS).poa);
+    expect(c.after).toEqual(posterior(prior, toEngineEvents([clue], []), DEFAULT_PARAMS).poa);
+    expect(c.change.changed[0]!.segmentId).toBe("AC");
+    expect(c.change.changed[0]!.deltaPts).toBeGreaterThan(0);
+  });
+
+  it("skips plan acknowledgements, which never move the map", () => {
+    const ack = at(base, "ack-1", 10_000, { type: "plan_ack", effect: { kind: "none", why: "informational" } });
+    expect(lastReportChange(prior, [clue, ack], [], DEFAULT_PARAMS)!.causeEventId).toBe("clue-1");
+  });
+
+  it("is null before any report", () => {
+    expect(lastReportChange(prior, [], [], DEFAULT_PARAMS)).toBeNull();
   });
 });

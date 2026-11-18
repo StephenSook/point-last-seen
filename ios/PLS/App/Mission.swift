@@ -13,6 +13,8 @@ struct Mission: Sendable {
     var assignedSegmentIds: [String]
     var params: EngineParams
     var profile: ModelProfile
+    /// `profile/shared` from the pack, for the approach card; nil when command has not shared one.
+    var sharedProfile: SharedProfile?
     var visualDetectionRangeM: Double?
     var rdBasis: RdBasis
 }

@@ -63,6 +63,8 @@ public struct ReadContext: Sendable {
     public var liveGate: (@Sendable () -> LiveGate)?
     /// The longest one model stage may take before the read moves on to the next stage.
     public var stageTimeoutSeconds: Double = 20
+    /// The segment under the searcher's GPS fix, if any: the segment a report that names none is about.
+    public var positionSegmentId: String?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -118,6 +120,13 @@ public enum ReadOrchestrator {
             return finish(.unclear(), path: .rules, stage: .evidenceProtocol)
         }
 
+        /// Segment ids come from code, never the model: see `SegmentChoice`.
+        func withCodeSegments(_ r: ReportReading) -> ReportReading {
+            var r = r
+            r.segmentIds = SegmentChoice.ids(rawText: text, known: context.knownSegmentIds, positionSegmentId: context.positionSegmentId)
+            return r
+        }
+
         var path = decision.path
         var stage = plan.stages[0]
         var lastFailure: ReadFailure?
@@ -153,7 +162,8 @@ public enum ReadOrchestrator {
                     if case .failure(.network) = result { transport = .failed } else if transport != .failed { transport = .succeeded }
                 }
                 switch result {
-                case let .success(r):
+                case let .success(modelReading):
+                    let r = withCodeSegments(modelReading)
                     if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
@@ -165,9 +175,9 @@ public enum ReadOrchestrator {
                 let result = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) } ?? .failure(.other)
                 switch result {
                 case let .success(line):
-                    if let merged = PermissiveLine.parse(line, known: context.knownSegmentIds)?.merged(into: parse(text, context)),
-                       validate(merged, context, text).isOK {
-                        return finish(merged, path: path, stage: .permissiveText)
+                    if let line = PermissiveLine.parse(line, known: context.knownSegmentIds) {
+                        let merged = withCodeSegments(line.merged(into: parse(text, context)))
+                        if validate(merged, context, text).isOK { return finish(merged, path: path, stage: .permissiveText) }
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .permissiveText)
                 case let .failure(f):
@@ -175,7 +185,7 @@ public enum ReadOrchestrator {
                     next = RouterPolicy.afterFailure(f, path: path, stage: .permissiveText)
                 }
             case .deterministicParser, .evidenceProtocol, .sdk:
-                return finish(parse(text, context), path: .rules, stage: .deterministicParser)
+                return finish(withCodeSegments(parse(text, context)), path: .rules, stage: .deterministicParser)
             }
             switch next {
             case let .stage(s):
@@ -197,20 +207,8 @@ public enum ReadOrchestrator {
         }
     }
 
-    /// Runs one model stage with a time limit. Returns nil on timeout without waiting for a
-    /// call that ignores cancellation (a task group would wait for its children).
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
-        let once = ResumeOnce<T?>()
-        return await withCheckedContinuation { continuation in
-            let work = Task {
-                let value = await op()
-                once.resume(continuation, with: value)
-            }
-            Task {
-                try? await Task.sleep(for: .seconds(seconds))
-                if once.resume(continuation, with: nil) { work.cancel() }
-            }
-        }
+        await Timeout.run(seconds: seconds, op)
     }
 
     static func note(_ failure: ReadFailure, _ blocked: inout BlockKind?) {
@@ -282,6 +280,25 @@ public struct PermissiveLine: Sendable, Equatable {
         if !segmentIds.isEmpty { r.segmentIds = segmentIds }
         if let coverage { r.coverage = coverage }
         return r
+    }
+}
+
+/// A time limit for any call into a model API (a guided or permissive read, a token count).
+public enum Timeout {
+    /// Returns nil on timeout, without waiting for a call that ignores cancellation (a task
+    /// group would wait for its children).
+    public static func run<T: Sendable>(seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
+        let once = ResumeOnce<T?>()
+        return await withCheckedContinuation { continuation in
+            let work = Task {
+                let value = await op()
+                once.resume(continuation, with: value)
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if once.resume(continuation, with: nil) { work.cancel() }
+            }
+        }
     }
 }
 

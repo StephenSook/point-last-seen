@@ -9,6 +9,17 @@ export async function withDebugToken(page: Page): Promise<void> {
   }, token);
 }
 
+/**
+ * Deployed-only checks: photo reads go through Storage, and the production bucket's CORS trusts only the
+ * two hosting origins, so these checks mean something only on the deployed site. A local run fails here
+ * with this message; it never skips, so a local run cannot be read as a pass.
+ */
+export function deployedOnly(): void {
+  if (!process.env["BASE_URL"]) {
+    throw new Error("Deployed-only check: run with BASE_URL=https://buildhybridai-2026-yg3m.web.app (the production bucket's CORS trusts only the hosting origins).");
+  }
+}
+
 /** Collects console errors and uncaught page errors for the whole test. */
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: async ({ page }, use) => {
