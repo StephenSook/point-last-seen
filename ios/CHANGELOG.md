@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): retry a cloud report read once after a 429
+- What: the guided cloud read now runs through `CloudRetry`. The SDK reports an HTTP 429 as a
+  rate limit (`LanguageModelError.rateLimited`, with the server's retry delay as a reset date
+  when one was sent); `ModelSessionFactory.cloudAttempt(failing:now:)` turns that into a retry
+  and every other error into the read failure it was before. Each try is a new session. The
+  on-device path is unchanged.
+- Source: review (a lower per-user AI Logic limit makes a 429 more likely).
+- Verified: a mapping test (delay, no delay, other error) passes and fails on a mutant that
+  ignores the rate limit; all 66 app tests pass on the simulator.
+
 ### feat(ios-core): add a single cloud retry after a rate limit
 - What: `CloudRetry.run` gives a cloud 429 one retry after a wait: the server's delay when it
   sends one, else 2 s, never below 0. A delay over 5 s is not waited, because the wait and a
