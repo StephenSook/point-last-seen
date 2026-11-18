@@ -16,7 +16,7 @@ import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
-import { type LatLon, segmentChoices, segmentContaining } from "../map/geo";
+import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
@@ -174,6 +174,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [photos, setPhotos] = useState<TrayPhoto[]>([]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  const [eventsSynced, setEventsSynced] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
@@ -196,7 +197,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (denied) return;
     const failed = (error: unknown) => dispatch({ type: "failed", error });
     const stopIncident = subscribeIncident(pls.db, incidentId, (v) => dispatch({ type: "view", view: v }), failed);
-    const stopEvents = subscribeEvents(pls.db, incidentId, (e) => dispatch({ type: "events", events: e }), failed);
+    const stopEvents = subscribeEvents(
+      pls.db,
+      incidentId,
+      (e, fromCache) => {
+        dispatch({ type: "events", events: e });
+        if (!fromCache) setEventsSynced(true);
+      },
+      failed,
+    );
     const stopPlans = subscribePlans(pls.db, incidentId, (p) => dispatch({ type: "plans", plans: p }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
@@ -237,6 +246,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   );
   const last = useMemo(() => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params) : null), [engineIn, events]);
   const [holding, setHolding] = useState(false);
+  const beat = useMemo(() => {
+    // Until the server has answered, the events may be a partial cached set: no beat yet.
+    if (!last || !eventsSynced) return null;
+    const cause = (events as unknown as EventDoc[]).find((e) => e.eventId === last.causeEventId);
+    const origin = cause?.position ? { lat: cause.position.lat, lon: cause.position.lon } : null;
+    const distanceM = beatDistances(origin, last.change.changed.map((c) => c.segmentId), segments);
+    return { key: last.causeEventId, before: last.before, change: last.change, distanceM };
+  }, [last, events, segments, eventsSynced]);
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
@@ -389,7 +406,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       )}
       <div className="post-body">
         <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
+        <MapView segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding ? setPin : undefined)} pin={adding ? pin : null} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">

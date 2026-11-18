@@ -69,7 +69,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   // so it cannot gate redraws: a redraw parked on "load" then would never run.
   const ready = useRef(false);
   const reduced = useRef(false);
-  const lastBeatKey = useRef<string | null | undefined>(undefined);
+  const lastBeatKey = useRef<string | undefined>(undefined);
   const beatRun = useRef<{ cancel(): void } | null>(null);
 
   useEffect(() => {
@@ -179,10 +179,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   // the final values at once and fades the chips in over 150 ms.
   useEffect(() => {
     const m = map.current;
-    const key = beat?.key ?? null;
+    // No beat yet does not count as a first key: the first real key is only recorded.
+    if (!beat) return;
     const prev = lastBeatKey.current;
-    lastBeatKey.current = key;
-    if (!m || !beat || prev === undefined || prev === key || !ready.current) return;
+    lastBeatKey.current = beat.key;
+    if (!m || prev === undefined || prev === beat.key || !ready.current) return;
     beatRun.current?.cancel();
     const index = new Map(segments.map((s, i) => [s.segmentId, i]));
     const ids = beat.change.changed.map((c) => c.segmentId).filter((id) => index.has(id));

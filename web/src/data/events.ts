@@ -112,7 +112,7 @@ export type StreamedEvent = Record<string, unknown> & { eventId: string; serverT
 export function subscribeEvents(
   db: Firestore,
   incidentId: string,
-  cb: (events: StreamedEvent[]) => void,
+  cb: (events: StreamedEvent[], fromCache: boolean) => void,
   onError: (e: unknown) => void,
 ): Unsubscribe {
   return onSnapshot(
@@ -125,6 +125,8 @@ export function subscribeEvents(
           const st = data["serverTime"] as { toMillis?: () => number } | null | undefined;
           return { ...data, eventId: d.id, serverTimeMs: st?.toMillis ? st.toMillis() : null, pendingWrite: d.metadata.hasPendingWrites };
         }),
+        // True while the answer comes from the local cache; the post plays no beat until the server has answered.
+        snap.metadata.fromCache,
       );
     },
     onError,
