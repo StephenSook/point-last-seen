@@ -34,3 +34,11 @@ export function joinErrorMessage(e: unknown): string {
   if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
   return "Could not join. Check the incident id and the code.";
 }
+
+/** The join page's sentence for a failed anonymous sign-in; each one comes with a Try again button. */
+export function signInErrorMessage(e: unknown): string {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (code === "auth/too-many-requests") return "Too many sign-ins from this network. Try again later.";
+  if (code === "auth/network-request-failed") return "No connection. Try again when the link is back.";
+  return "Could not sign in. Try again.";
+}

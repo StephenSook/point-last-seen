@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinErrorMessage, joinRequest } from "./join";
+import { joinErrorMessage, joinRequest, signInErrorMessage } from "./join";
 
 describe("joinRequest", () => {
   it("trims, upper-cases and drops spaces and hyphens from the code", () => {
@@ -37,5 +37,18 @@ describe("joinErrorMessage", () => {
     expect(joinErrorMessage(err("functions/permission-denied"))).toBe("That code did not match this incident.");
     expect(joinErrorMessage(err("functions/unavailable"))).toBe("No connection. Try again when the link is back.");
     expect(joinErrorMessage(new Error("other"))).toBe("Could not join. Check the incident id and the code.");
+  });
+});
+
+describe("signInErrorMessage", () => {
+  const authErr = (code: string) => Object.assign(new Error(code), { code });
+  it("names Firebase Auth's sign-up limit for this network", () => {
+    expect(signInErrorMessage(authErr("auth/too-many-requests"))).toBe("Too many sign-ins from this network. Try again later.");
+  });
+  it("names a lost connection", () => {
+    expect(signInErrorMessage(authErr("auth/network-request-failed"))).toBe("No connection. Try again when the link is back.");
+  });
+  it("otherwise says sign-in failed and offers a retry", () => {
+    expect(signInErrorMessage(new Error("x"))).toBe("Could not sign in. Try again.");
   });
 });

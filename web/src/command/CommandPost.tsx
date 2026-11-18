@@ -2,7 +2,7 @@
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
-import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
@@ -28,7 +28,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { joinErrorMessage, joinIncident, joinRequest } from "../data/join";
+import { joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
@@ -54,7 +54,8 @@ const DRILL_LINE = "Training drill. Nobody is missing.";
 type Phase =
   | { kind: "config-error"; message: string }
   | { kind: "connecting" }
-  | { kind: "join"; error: string | null }
+  | { kind: "signin-failed"; message: string }
+  | { kind: "join" }
   | { kind: "post"; incidentId: string };
 
 function incidentFromUrl(): string | null {
@@ -75,6 +76,20 @@ export function CommandPost() {
   const [pls, setPls] = useState<Pls | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "connecting" });
 
+  // A failed sign-in keeps the join form disabled (a join with no user can only fail, and its
+  // error would blame the code) and offers Try again, which runs this again.
+  const signIn = useCallback((p: Pls) => {
+    setPhase({ kind: "connecting" });
+    ensureSignedIn(p.auth)
+      .then(async (user) => {
+        const want = incidentFromUrl();
+        const claims = (await user.getIdTokenResult()).claims;
+        if (want && claims["inc"] === want && claims["role"] === "command") setPhase({ kind: "post", incidentId: want });
+        else setPhase({ kind: "join" });
+      })
+      .catch((e: unknown) => setPhase({ kind: "signin-failed", message: signInErrorMessage(e) }));
+  }, []);
+
   useEffect(() => {
     let p: Pls;
     try {
@@ -84,15 +99,8 @@ export function CommandPost() {
       return;
     }
     setPls(p);
-    ensureSignedIn(p.auth)
-      .then(async (user) => {
-        const want = incidentFromUrl();
-        const claims = (await user.getIdTokenResult()).claims;
-        if (want && claims["inc"] === want && claims["role"] === "command") setPhase({ kind: "post", incidentId: want });
-        else setPhase({ kind: "join", error: null });
-      })
-      .catch(() => setPhase({ kind: "join", error: "Could not sign in. Check the connection and reload." }));
-  }, []);
+    signIn(p);
+  }, [signIn]);
 
   if (phase.kind === "config-error") {
     return (
@@ -104,20 +112,30 @@ export function CommandPost() {
   }
   // While connecting, the join form is already there with its button disabled, so the page
   // does not jump when the connection is ready (it stays the same element, keeping typed text).
-  if (phase.kind === "connecting" || !pls) {
-    return <JoinPanel pls={null} error={null} onJoined={() => {}} />;
+  if (phase.kind === "signin-failed" && pls) {
+    return <JoinPanel pls={null} signIn={{ error: phase.message, retry: () => signIn(pls) }} onJoined={() => {}} />;
+  }
+  if (phase.kind === "connecting" || phase.kind === "signin-failed" || !pls) {
+    return <JoinPanel pls={null} onJoined={() => {}} />;
   }
   if (phase.kind === "join") {
-    return <JoinPanel pls={pls} error={phase.error} onJoined={(incidentId) => setPhase({ kind: "post", incidentId })} />;
+    return <JoinPanel pls={pls} onJoined={(incidentId) => setPhase({ kind: "post", incidentId })} />;
   }
   return <Post pls={pls} incidentId={phase.incidentId} />;
 }
 
-function JoinPanel({ pls, error, onJoined }: { pls: Pls | null; error: string | null; onJoined: (incidentId: string) => void }) {
+type JoinPanelProps = {
+  pls: Pls | null;
+  /** Set when the anonymous sign-in failed: its sentence and a retry. */
+  signIn?: { error: string; retry: () => void };
+  onJoined: (incidentId: string) => void;
+};
+
+function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [incidentId, setIncidentId] = useState(incidentFromUrl() ?? "");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(error);
+  const [err, setErr] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -161,8 +179,18 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls | null; error: string | 
             {err}
           </p>
         )}
+        {signIn && (
+          <div className="row">
+            <p className="error" role="alert">
+              {signIn.error}
+            </p>
+            <button type="button" className="btn ghost" onClick={signIn.retry}>
+              Try again
+            </button>
+          </div>
+        )}
         <button type="submit" disabled={busy || !pls}>
-          {!pls ? "Connecting" : busy ? "Joining" : "Join as command"}
+          {!pls && !signIn ? "Connecting" : busy ? "Joining" : "Join as command"}
         </button>
       </form>
     </main>
