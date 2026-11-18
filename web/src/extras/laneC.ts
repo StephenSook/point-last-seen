@@ -9,6 +9,7 @@ setWorkerUrl(workerUrl);
 export { MapView } from "../map/MapView";
 export { Map as MapLibreMap } from "maplibre-gl";
 export { POA_RAMP, formatPct, type MapSegment } from "../map/poaStyle";
+export { COMMAND } from "../theme/tokens";
 export { viewState, type ViewState } from "../command/viewState";
 export type { PostState } from "../command/postAccess";
 export type { IncidentView, SegmentDoc, Team } from "../data/incident";
