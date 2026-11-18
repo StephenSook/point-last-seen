@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): read the incident's conditions for the urgency chip
+- What: `IncidentConditions` (`tempF`, `wet`, `setAtMs`; all three keys written, nulls out)
+  matches `shared/schemas/incident-conditions.schema.json`. `init(incidentField:)` reads the
+  incident document's field leniently (absent or not an object gives nil).
+  `UrgencyRule.level(conditions:)` gives no chip with no conditions, as the shared engine does.
+  The schema's iOS parity entry is no longer pending, so the parity check now enforces it.
+- Source: P-12; lane A's conditions schema (a79f54a).
+- Verified: three `IncidentConditionsTests` compile-red, then green; 255 tests;
+  `check_schema_parity.py` reports iOS incident-conditions with 3 fields, 0 failures;
+  `scripts/ci-local.sh` exit 0.
+
 ### build(ios): sign device builds with the team App Attest is registered for
 - What: `DEVELOPMENT_TEAM` is set in `ios/project.yml`. The Firebase iOS app now carries the same
   team id (it had none before, so App Attest could not verify on a device), and its App Attest
