@@ -146,6 +146,50 @@ service cloud.firestore {
         && (role() == 'command' || get(targetPath).data.authorUid == request.auth.uid);
     }
 
+    // The stored effect is applied by every device without re-deriving it, so each variant is
+    // checked here (spec section 8): a malformed effect must never reach another device's engine.
+    function exactKeys(m, keys) {
+      return m.keys().hasOnly(keys) && m.keys().hasAll(keys);
+    }
+    function optionalLength(v) {
+      return v == null || (v is number && v >= 0);
+    }
+    function validClearedInputs(i) {
+      return i is map
+        && exactKeys(i, ['coverage', 'sweepWidthM', 'trackLengthM', 'areaM2', 'rdBasis'])
+        && i.coverage is number && i.coverage >= 0
+        && optionalLength(i.sweepWidthM)
+        && optionalLength(i.trackLengthM)
+        && i.areaM2 is number && i.areaM2 > 0
+        && i.rdBasis in ['hidden_target', 'open_target', 'default', 'stated'];
+    }
+    function validEffect(e) {
+      return e is map && (
+        (e.kind == 'cleared'
+          && exactKeys(e, ['kind', 'segmentId', 'pod', 'inputs'])
+          && e.segmentId is string && e.segmentId.size() >= 1 && e.segmentId.size() <= 16
+          && e.pod is number && e.pod >= 0 && e.pod <= 1
+          && validClearedInputs(e.inputs))
+        || (e.kind == 'clue'
+          && exactKeys(e, ['kind', 'influences', 'authenticity'])
+          && e.influences is map && e.influences.size() >= 1 && e.influences.size() <= 64
+          && e.influences.values().hasOnly(['strong_for', 'for', 'neutral', 'against', 'strong_against'])
+          && e.authenticity in ['high', 'medium', 'low'])
+        || (e.kind == 'none'
+          && exactKeys(e, ['kind', 'why'])
+          && e.why in ['needs_command', 'informational', 'invalid', 'sound_only', 'outside_area', 'incorporated_in_prior']));
+    }
+
+    // eventId = first 32 lowercase hex of SHA-256 over, per field (incidentId, deviceId, decimal seq), the
+    // decimal UTF-8 byte length, ":" and the value. Recomputing it binds the id to the writer, so nobody can
+    // occupy another device's future id (create-only would then block the real event).
+    function frame(s) {
+      return string(s.toUtf8().size()) + ':' + s;
+    }
+    function eventIdOf(incidentId, deviceId, seq) {
+      return hashing.sha256(frame(incidentId) + frame(deviceId) + frame(string(seq))).toHexString().lower();
+    }
+
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
       return isMember(incidentId)
@@ -159,11 +203,10 @@ service cloud.firestore {
         && d.authorUid == request.auth.uid
         && d.role == role()
         && d.serverTime == request.time
-        && d.seq is int
+        && d.seq is int && d.seq >= 0
         && d.clientTimeMs is number
-        // eventId is derived from deviceId and seq, both readable by members, so deviceId is bound
-        // to the writer: nobody can pre-create another device's next event ids.
         && d.deviceId == request.auth.uid
+        && eventIdOf(incidentId, request.auth.uid, d.seq).matches(eventId + '[0-9a-f]{32}')
         && (d.teamId == null || (d.teamId is string && d.teamId.size() <= 32))
         && (role() != 'searcher' || d.teamId == request.auth.token.team)
         && d.reporter in ['searcher', 'public_caller', 'family', 'camera', 'system']
@@ -177,7 +220,7 @@ service cloud.firestore {
         && (d.rawText == null || (d.rawText is string && d.rawText.size() <= 2000))
         && (d.reading == null || d.reading is map)
         && (d.route == null || d.route is map)
-        && d.effect is map && d.effect.kind in ['cleared', 'clue', 'none']
+        && validEffect(d.effect)
         && (d.targetEventId == null || (d.targetEventId is string && d.targetEventId.matches('^[0-9a-f]{32}$')))
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
         && typeAllowed(d.type)

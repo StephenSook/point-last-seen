@@ -1,10 +1,25 @@
+import { createHash } from "node:crypto";
 import { serverTimestamp } from "firebase/firestore";
-import { ID } from "./helpers";
 
-/** A complete, valid searcher EventDoc (spec section 8) for incident I1, team T1. deviceId is the auth uid. */
+/**
+ * eventId, computed independently of the engines: SHA-256 over per field (incidentId, deviceId, decimal seq)
+ * the decimal UTF-8 byte length, ":" and the value; first 32 lowercase hex.
+ */
+export function eventIdFor(incidentId: string, deviceId: string, seq: number): string {
+  const frame = (s: string) => `${Buffer.byteLength(s, "utf8")}:${s}`;
+  return createHash("sha256").update(frame(incidentId) + frame(deviceId) + frame(String(seq)), "utf8").digest("hex").slice(0, 32);
+}
+
+/**
+ * A complete, valid searcher EventDoc (spec section 8) for incident I1, team T1. deviceId is the auth uid and
+ * eventId is derived from incidentId, deviceId and seq unless `over` sets eventId itself.
+ */
 export function validEvent(uid: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+  const seq = (over.seq ?? 1) as number;
+  const incidentId = (over.incidentId ?? "I1") as string;
+  const deviceId = (over.deviceId ?? uid) as string;
   return {
-    eventId: ID, schemaVersion: 1, incidentId: "I1", teamId: "T1", deviceId: uid, seq: 1, authorUid: uid,
+    eventId: eventIdFor(incidentId, deviceId, seq), schemaVersion: 1, incidentId, teamId: "T1", deviceId, seq, authorUid: uid,
     role: "searcher", type: "cleared", reporter: "searcher", clientTimeMs: 1795860000000, serverTime: serverTimestamp(),
     observedAtMs: null, position: null, positionSource: "assigned_segment", rawText: "Cleared AC, eighty percent",
     inputMethod: "typed", isTrainingInject: false, reading: null,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_PARAMS, assignTeams, convergenceCode, deriveClearedEffect, eventSetHash, normalizeCoverage, posterior,
+  DEFAULT_PARAMS, assignTeams, malformedEventIds, convergenceCode, deriveClearedEffect, eventSetHash, normalizeCoverage, posterior,
   rankSegments, toEngineEvents, validateReading,
 } from "../src/index";
 import type { EngineEvent, EngineParams, EventDoc, ReportReading, EffectContext, SegmentPrior } from "../src/index";
@@ -111,5 +111,11 @@ describe("engine behaviour", () => {
     const rank = rankSegments(posterior(small, [], params), small);
     const out = assignTeams(rank, ["T1", "T2"], [{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: ["AA"] }]);
     expect(out).toEqual([{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: [] }]);
+  });
+  it("malformedEventIds names stored events whose effect is malformed, once each, sorted", () => {
+    const bad = doc("f".repeat(32), "cleared", { kind: "cleared", segmentId: "AB", pod: 0.5 } as never);
+    const good = doc("1".repeat(32), "found", { kind: "none", why: "informational" });
+    expect(malformedEventIds([bad, good, { ...bad }])).toEqual(["f".repeat(32)]);
+    expect(malformedEventIds([good])).toEqual([]);
   });
 });

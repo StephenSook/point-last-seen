@@ -196,3 +196,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post reads each segment's neighbours and streams, numbers its events with `makeSeq`, and writes sightings and confirmations create-only with the read-back writer (never awaited; the listener shows them at once). "Add sighting" opens the form and turns map clicks into the place pin. The note is read through the gate with the on-device builder created only after the gate says yes; the cloud read passes a consent record with the signed-in uid and honours `kill_cloud`. The sightings panel decides by writing a confirmation event. Reports the server rejected are listed with one "Retry", which reads first.
 - Source: plan Task 36 step 3, spec 11.1 (outbox with read-back), spec 12.2.
 - Verified: typecheck and build clean; 153 unit tests pass. The deployed check (add and confirm a sighting, the rank list changes) waits for joinIncident to be deployed.
+
+### chore(merge): bring main into lane-web (eventId framing, one-role join codes, per-worktree emulator ports)
+- What: merges origin/main: the length-prefixed eventId framing and the rules that recompute each event id, one join code per role, effect validation in rules and engines, and emulator runs on per-worktree ports. The web computes event ids only through the engine's `eventId`, so nothing in web/ changed.
+- Source: orchestrator (merge main when lane A's engine framing lands, then re-run the tests).
+- Verified: `scripts/ci-local.sh` exit 0 on the merged tree (engine 155, vectors 134, rules and joinIncident 63 in the emulators on this worktree's ports); web typecheck exit 0 and 153 unit tests pass, including the sighting tests that compare ids with the engine's `eventId`.

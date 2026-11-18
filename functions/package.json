@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:rules": "firebase emulators:exec --only firestore,auth,storage --project demo-pls \"vitest run\""
+    "test:rules": "firebase emulators:exec --config \"$(python3 -I ../scripts/emulator_config.py ..)\" --only firestore,auth,storage --project demo-pls \"vitest run\""
   },
   "dependencies": {
     "firebase-admin": "14.5.1",

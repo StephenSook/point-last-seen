@@ -37,8 +37,8 @@ const DENIED = "The join code does not match an open incident.";
 /**
  * Checks the join code and sets the caller's custom claims { inc, role, team }. Code hashes live in
  * joinCodes/{sha256(code)} = { incidentId, roles }, a collection no client can read: a hash of a 40-bit code
- * in a member-readable document could be brute-forced offline. The team code admits searchers and family;
- * command has its own code. With no incidentId, the code's own incident is used. Callers refresh their ID
+ * in a member-readable document could be brute-forced offline. Each code admits exactly one role
+ * (searcher, family or command). With no incidentId, the code's own incident is used. Callers refresh their ID
  * token afterwards to receive the claims.
  */
 export async function handleJoin(uid: string | null, data: JoinRequest): Promise<JoinResponse> {
@@ -54,7 +54,9 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   const code = await db.doc(`joinCodes/${hashJoinCode(joinCode)}`).get();
   const id = code.get("incidentId");
   const roles = code.get("roles");
-  if (!code.exists || typeof id !== "string" || !Array.isArray(roles) || !roles.includes(role)) {
+  // One code per role: a code doc must name exactly one role, so a searcher's code can never admit
+  // family (profile/command) or command.
+  if (!code.exists || typeof id !== "string" || !Array.isArray(roles) || roles.length !== 1 || roles[0] !== role) {
     throw new HttpsError("permission-denied", DENIED);
   }
   if (incidentId !== undefined && incidentId !== id) throw new HttpsError("permission-denied", DENIED);

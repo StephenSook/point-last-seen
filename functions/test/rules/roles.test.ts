@@ -44,22 +44,27 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
   const J = { inc: "J1", role: "command", team: null };
   const JS = { inc: "J1", role: "searcher", team: "T1" };
   const ev = (uid: string, over: Record<string, unknown> = {}) => validEvent(uid, { incidentId: "J1", ...over });
+  const at = (inc: string, e: Record<string, unknown>) => `incidents/${inc}/events/${e.eventId as string}`;
   it("an expired judge sandbox locks every member out of reads and writes", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
-    await admin.db.doc(`incidents/J1/events/${"a".repeat(32)}`).set(ev(S, { serverTime: null }));
+    const seeded = ev(S, { seq: 1, serverTime: null });
+    await admin.db.doc(at("J1", seeded)).set(seeded);
     await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
-    await assertFails(getDoc(doc(dbAs(S, JS), `incidents/J1/events/${"a".repeat(32)}`)));
-    await assertFails(setDoc(doc(dbAs(S, JS), `incidents/J1/events/${"b".repeat(32)}`), ev(S, { eventId: "b".repeat(32) })));
+    await assertFails(getDoc(doc(dbAs(S, JS), at("J1", seeded))));
+    const e2 = ev(S, { seq: 2 });
+    await assertFails(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
   it("a judge sandbox before its expiry works as usual", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
     await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
-    await assertSucceeds(setDoc(doc(dbAs(S, JS), `incidents/J1/events/${"b".repeat(32)}`), ev(S, { eventId: "b".repeat(32) })));
+    const e2 = ev(S, { seq: 2 });
+    await assertSucceeds(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
   it("a closed incident stays readable to its members but takes no new events or plans", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
     await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1")));
-    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/events/${"c".repeat(32)}`), validEvent(S, { eventId: "c".repeat(32) })));
+    const e3 = validEvent(S, { seq: 3 });
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/events/${e3.eventId as string}`), e3));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0009"), validPlan(C)));
   });
   it("a member of an incident that does not exist reads nothing", async () => {

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Create one synthetic training-drill incident in Firestore.
 
-Writes incidents/{id} (mode "drill", labelled), its teams, and the two admin-only
-join code docs (joinCodes/{sha256(code)}): a team code for searchers and family and
-a separate command code. The codes are generated here, stored only in the macOS
-Keychain (services pls-drill-team-code and pls-drill-command-code, account = the
-incident id) and never printed. Creation is create-only: an existing incident or
+Writes incidents/{id} (mode "drill", labelled), its teams, and three admin-only
+join code docs (joinCodes/{sha256(code)}), one per role: searcher, family and
+command. A code admits only its own role. The codes are generated here, stored only
+in the macOS Keychain (services pls-drill-searcher-code, pls-drill-family-code and
+pls-drill-command-code, account = the incident id) and never printed. Creation is create-only: an existing incident or
 code doc makes the write fail instead of overwriting it.
 
 Uses the Firestore REST API with the gcloud user's OAuth token (IAM, so security
@@ -26,6 +26,8 @@ from pathlib import Path
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 ROOT = Path(__file__).resolve().parents[2]
 DRILL_LABEL = "Training drill. Nobody is missing."
+ROLES = ("searcher", "family", "command")
+KEYCHAIN_SERVICES = {r: f"pls-drill-{r}-code" for r in ROLES}
 
 
 def make_code() -> str:
@@ -47,9 +49,8 @@ def incident_doc(incident_id: str, name: str, params: dict) -> dict:
     }
 
 
-def join_code_docs(incident_id: str) -> tuple[dict, dict]:
-    return ({"incidentId": incident_id, "roles": ["searcher", "family"]},
-            {"incidentId": incident_id, "roles": ["command"]})
+def join_code_docs(incident_id: str) -> dict[str, dict]:
+    return {r: {"incidentId": incident_id, "roles": [r]} for r in ROLES}
 
 
 def to_value(v):
@@ -107,17 +108,17 @@ def main(argv: list[str]) -> int:
     project, incident_id, name, teams = argv[0], argv[1], argv[2], argv[3:]
     params = json.loads((ROOT / "shared/constants/engine-params.json").read_text())["params"]
     token = _token()
-    team_code, command_code = make_code(), make_code()
-    team_doc, command_doc = join_code_docs(incident_id)
-    keychain_store("pls-drill-team-code", incident_id, team_code)
-    keychain_store("pls-drill-command-code", incident_id, command_code)
+    codes = {r: make_code() for r in ROLES}
+    docs = join_code_docs(incident_id)
+    for r in ROLES:
+        keychain_store(KEYCHAIN_SERVICES[r], incident_id, codes[r])
     create_doc(project, f"incidents/{incident_id}", incident_doc(incident_id, name, params), token)
     for i, team in enumerate(teams, start=1):
         create_doc(project, f"incidents/{incident_id}/teams/{team}", {"teamId": team, "name": f"Team {i}", "colorSlot": i}, token)
-    create_doc(project, f"joinCodes/{code_hash(team_code)}", team_doc, token)
-    create_doc(project, f"joinCodes/{code_hash(command_code)}", command_doc, token)
-    print(f"created drill incident {incident_id} with teams {', '.join(teams)}; codes stored in the Keychain "
-          f"(pls-drill-team-code, pls-drill-command-code, account {incident_id}); not printed")
+    for r in ROLES:
+        create_doc(project, f"joinCodes/{code_hash(codes[r])}", docs[r], token)
+    print(f"created drill incident {incident_id} with teams {', '.join(teams)}; one code per role stored in the "
+          f"Keychain ({', '.join(KEYCHAIN_SERVICES.values())}, account {incident_id}); not printed")
     return 0
 
 

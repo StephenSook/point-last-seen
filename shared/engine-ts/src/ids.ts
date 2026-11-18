@@ -4,7 +4,7 @@ import { compareCodePoints } from "./compare";
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/** Each field: a 4-byte big-endian byte length, then its UTF-8 bytes. Fields are never joined by a separator. */
+/** eventSetHash framing: each field is a 4-byte big-endian byte length, then its UTF-8 bytes. */
 function frame(fields: string[]): Uint8Array {
   const parts = fields.map(f => utf8ToBytes(f));
   const out = new Uint8Array(parts.reduce((n, p) => n + 4 + p.length, 0));
@@ -17,9 +17,18 @@ function frame(fields: string[]): Uint8Array {
   return out;
 }
 
-/** First 16 bytes of SHA-256 over incidentId, deviceId and decimal seq, as 32 lowercase hex characters. */
+/**
+ * eventId framing: per field, the decimal UTF-8 byte length, ":", then the value. The security rules can
+ * build this string, so they check that an id belongs to its own incident, device and seq.
+ * Example: ("ab", "c", 1) hashes "2:ab1:c1:1".
+ */
+function textFrame(fields: string[]): string {
+  return fields.map(f => `${utf8ToBytes(f).length}:${f}`).join("");
+}
+
+/** First 16 bytes of SHA-256 over the text-framed incidentId, deviceId and decimal seq, as 32 lowercase hex. */
 export function eventId(incidentId: string, deviceId: string, seq: number): string {
-  return bytesToHex(sha256(frame([incidentId, deviceId, String(seq)]))).slice(0, 32);
+  return bytesToHex(sha256(utf8ToBytes(textFrame([incidentId, deviceId, String(seq)])))).slice(0, 32);
 }
 
 /** SHA-256 over [decimal priorVersion] + the deduplicated ids in code-point order; 64 lowercase hex. */
