@@ -1,0 +1,160 @@
+{
+  "label": "STOCK FOOTAGE, ACTORS, NOT A REAL CASE. Internal measurement only.",
+  "what": "The production clip read (live model and prompt, parser and checks) on five Pexels stock clips, compared field by field with the truth committed first (2026-11-18-stock-clips-truth.json)",
+  "date": "2026-11-18",
+  "runAtUtc": "22:38Z",
+  "model": "gemini-3.5-flash-lite (Remote Config default cloud_model_web), Firebase AI Logic web SDK, ONLY_IN_CLOUD, App Check debug token and a signed-in user",
+  "method": "web/harness/clipread.html in Playwright's Chrome on this Mac at http://127.0.0.1:5173; clips at 1280 px on the long side, one read each; nothing written (no clip record, upload or event); copies deleted after",
+  "clips": [
+    {
+      "pexelsId": 29055706,
+      "reading": {
+        "ms": 4825,
+        "inferenceSource": "in_cloud",
+        "checksPassed": true,
+        "personVisible": true,
+        "exitEdge": "away_from_camera",
+        "topColor": "black",
+        "topType": "tank top",
+        "bottomColor": "black",
+        "footwear": "sneakers",
+        "headwear": "none",
+        "carriedItems": [],
+        "lighting": "day",
+        "legibility": "clear"
+      },
+      "hits": {
+        "personPresent": true,
+        "direction": true,
+        "topColor": true,
+        "bottomColor": true,
+        "carried": true,
+        "light": true
+      }
+    },
+    {
+      "pexelsId": 14289740,
+      "reading": {
+        "ms": 7023,
+        "inferenceSource": "in_cloud",
+        "checksPassed": true,
+        "personVisible": true,
+        "exitEdge": "away_from_camera",
+        "topColor": "blue",
+        "topType": "jacket",
+        "bottomColor": "gray",
+        "footwear": "boots",
+        "headwear": "none",
+        "carriedItems": [],
+        "lighting": "day",
+        "legibility": "clear"
+      },
+      "hits": {
+        "personPresent": true,
+        "direction": true,
+        "topColor": false,
+        "bottomColor": true,
+        "carried": true,
+        "light": true
+      },
+      "notes": "top: truth green or teal, read blue"
+    },
+    {
+      "pexelsId": 9424222,
+      "reading": {
+        "ms": 2801,
+        "inferenceSource": "in_cloud",
+        "checksPassed": true,
+        "personVisible": true,
+        "exitEdge": "left",
+        "topColor": "pink",
+        "topType": "shirt",
+        "bottomColor": "pink",
+        "footwear": "unknown",
+        "headwear": "unknown",
+        "carriedItems": [],
+        "lighting": "day",
+        "legibility": "partial"
+      },
+      "hits": {
+        "personPresent": true,
+        "direction": true,
+        "topColor": true,
+        "bottomColor": null,
+        "carried": true,
+        "light": true
+      },
+      "notes": "bottom not visible in the truth, so not scored"
+    },
+    {
+      "pexelsId": 35705187,
+      "reading": {
+        "ms": 4024,
+        "inferenceSource": "in_cloud",
+        "checksPassed": true,
+        "personVisible": true,
+        "exitEdge": "unknown",
+        "topColor": "yellow",
+        "topType": "winter coat",
+        "bottomColor": "yellow",
+        "footwear": "unknown",
+        "headwear": "hood",
+        "carriedItems": [],
+        "lighting": "low_light",
+        "legibility": "partial"
+      },
+      "hits": {
+        "personPresent": true,
+        "direction": false,
+        "topColor": false,
+        "bottomColor": false,
+        "carried": false,
+        "light": true
+      },
+      "notes": "two people; the reading describes one: direction unknown (truth: away), top yellow (truth: orange or rust), bottom yellow (truth: dark), no bag (truth: a black bag on the second person); dusk read as low_light (counted a hit)"
+    },
+    {
+      "pexelsId": 4121893,
+      "reading": {
+        "ms": 3314,
+        "inferenceSource": "in_cloud",
+        "checksPassed": true,
+        "personVisible": true,
+        "exitEdge": "away_from_camera",
+        "topColor": "black",
+        "topType": "hoodie",
+        "bottomColor": "black",
+        "footwear": "unknown",
+        "headwear": "cap",
+        "carriedItems": [],
+        "lighting": "low_light",
+        "legibility": "poor"
+      },
+      "hits": {
+        "personPresent": true,
+        "direction": true,
+        "topColor": true,
+        "bottomColor": true,
+        "carried": true,
+        "light": true
+      },
+      "notes": "night with street lights read as low_light (counted a hit; not infrared)"
+    }
+  ],
+  "perField": {
+    "personPresent": "5 of 5",
+    "direction": "4 of 5",
+    "topColor": "3 of 5",
+    "bottomColor": "3 of 4",
+    "carried": "4 of 5",
+    "light": "5 of 5"
+  },
+  "latencyMs": "2,801 to 7,023 (one read per clip)",
+  "notMeasured": [
+    "time (no on-screen timestamp)",
+    "bearing (no known camera facing; exit edge only)",
+    "night colour suppression (no infrared clip)"
+  ],
+  "scam": "Not a SCAM.json input: the S-CAM gate scores last-seen time and compass bearing, which these clips cannot give; they would be null with a miss reason.",
+  "n": "5 clips, one read each; single observations"
+}
