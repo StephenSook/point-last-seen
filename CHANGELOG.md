@@ -3,8 +3,96 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-18
+
+- Add the ISRID ring prior (`shared/engine-ts/src/prior.ts`, `buildPrior`): ring layer by annulus area share
+  (128-step rings, temperate flat or mountain column), the linear-feature layer (75% of grid mass near
+  features, grid mass kept) and the direction wedge (2.045 inside 66 degrees, 0.395 outside, grid mass kept);
+  ROW is the rest. Uses @turf circle, intersect, difference, area, bearing, helpers and centroid 7.4.0 (exact).
+  Tests in `shared/engine-ts/test/prior.test.ts` with fixtures in `gridFixtures.ts`.
+  Source: plan Task 10; spec section 10.5.
+  Verified: the 7 prior tests failed first ("buildPrior is not a function"), now pass (engine suite 144);
+  a mutation using the far share for near cells failed the linear test, then the restored file passed;
+  Socket scores for the turf modules 84 to 100, `npm audit --omit=dev` finds 0; typecheck and lint exit 0.
+- Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
+  closest an unrelated game; a site-scoped devpost.com search found no project).
+  Source: plan addendum (rival self-audit, name search line); searches run by the orchestrator.
+  Verified: text matches the orchestrator's recorded results; `bash scripts/ci-local.sh` exits 0.
+- Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
+  Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
+  FIREBASE_APPCHECK_DEBUG_TOKEN and debug-provider hits on the exact signed APK (the debug APK reports 5).
+  Source: lane D handover via the orchestrator.
+  Verified: text matches the handover; no dashes or curly quotes; `bash scripts/ci-local.sh` exits 0.
+- Run the seeding tool's tests in the `gates` job and in `ci-local.sh`.
+  Source: CI mirrors every test suite in the repo.
+  Verified: `bash scripts/ci-local.sh` exits 0 with the 5 seed tests in the gates pytest run.
+- Add `tools/seed/seed_drill.py` (standard library plus the gcloud token): creates one synthetic training-drill
+  incident (mode "drill", labelled "Training drill. Nobody is missing.", engine params copied from the
+  constants), its teams, and the two admin-only join code docs (team code for searchers and family, separate
+  command code). Codes are 8 Crockford symbols from `secrets`, stored only in the macOS Keychain, never
+  printed; every write is create-only. Tests in `tools/seed/test_seed_drill.py`.
+  Source: orchestrator go for one drill incident (lane D end-to-end test); plan Task 11 join design.
+  Verified: 5 tests pass (code alphabet and length, hash equals join.ts normalization, labelled drill with no
+  join hashes on the incident doc, role scopes, Firestore value encoding); rules gate clean.
+- Storage rules: membership also reads the incident from Firestore (cross-service rules) and refuses an
+  incident past its `expiresAt`, matching the Firestore rules. New test: an expired judge sandbox takes no
+  clip upload; the storage tests now seed incident I1 first. Deploy note: the first deploy of cross-service
+  storage rules grants Cloud Storage read access to Firestore (the CLI asks).
+  Source: same commit security review finding (stale access after expiry).
+  Verified: the new test failed first; now the full emulator suite passes, 53 tests; `bash scripts/ci-local.sh`
+  exits 0. (The previous commit was checked with the emulator subset and ci-local ran after it, also green.)
+- Firestore rules: claims outlive an incident, so membership now also needs the incident doc to exist and
+  not be past its `expiresAt` (judge sandboxes), and a closed incident takes no new events or plans while
+  staying readable to its members. New tests in `functions/test/rules/roles.test.ts`: expired sandbox locks
+  members out of reads and writes, an unexpired sandbox works, a closed incident refuses events and plans,
+  a member of a missing incident reads nothing.
+  Source: automated commit security review of functions/src/join.ts (MEDIUM, stale access after close or
+  expiry); fixed in rules rather than by revoking claims, so it holds even if a revocation step is missed.
+  Verified: the new tests failed first (3 of 4; the unexpired case already passed); now the full emulator
+  suite passes, 53 tests including the storage change in the next commit (Firestore files alone: 37).
+- Add the `rules` CI job (`.github/workflows/rules.yml`): Temurin 21, firebase-tools 15.36.0, cached emulator
+  jars, functions typecheck, then `npm run test:rules -w functions` (Firestore, Auth and Storage emulators,
+  project demo-pls). Runs on pull requests to main and on main when rules, functions, firebase.json or the
+  lockfile change; mirrored in `ci-local.sh`.
+  Source: plan Task 11 step 4; orchestrator CI-minutes ruling.
+  Verified: `bash scripts/ci-local.sh` exits 0 with the emulator suite (48 tests); action SHAs re-read with gh
+  (cache v6.1.0 55cc834; checkout, setup-node, setup-java as already pinned).
+  Correction to the joinIncident entry above: the join suite has 11 tests, not 14 (37 rules + 11 join = 48).
+- Add the `joinIncident` callable (`functions/src/{join,index}.ts`, App Check enforced, us-central1) and its
+  tests (`functions/test/join.test.ts`): request {incidentId?, joinCode, role, teamId?}, response
+  {ok: true, incidentId}; codes normalized (case, spaces, hyphens) and looked up by SHA-256 in the admin-only
+  joinCodes collection; the team code admits searchers and family, command has its own code; a searcher must
+  name an existing team; closed or expired incidents and mismatched incident ids are refused with one
+  message; claims set to {inc, role, team} (team null for command and family). No model call in any function.
+  Source: plan Task 11; spec sections 7 and 14; lane D contract question 1 (code-only join).
+  Verified: 14 join tests pass in the emulator, including one that drives the exported HTTP handler with
+  no App Check token and gets 401 UNAUTHENTICATED, and a control that gets 400 for a malformed body;
+  functions typecheck exits 0; the rules gate finds no model call under functions/.
+- Add the Cloud Storage rules (`storage.rules`) and their emulator test (`functions/test/rules/storage.test.ts`):
+  clips under clips/{incidentId}/ written by command or family, video only, at most 14,000,000 bytes (inline to
+  AI Logic, base64 under the 20 MB request limit); photos JPEG at most 2 MB, read and written by command or
+  family; no client writes packs; every path checks the incident claim.
+  Source: plan Task 11; spec sections 7 and 12.1.
+  Verified: under deny-all the allowed uploads failed; now 4 storage tests pass (13,000,000-byte clip allowed,
+  15,000,000-byte clip denied); raising the cap to 16,000,000 failed the cap test, then the restored rule passed.
+- Add the Firestore security rules (`firestore.rules`, spec section 7) and their emulator tests
+  (`functions/test/rules/{events,roles,profile}.test.ts`, with `helpers.ts`, `fixtures.ts`, `vitest.config.ts`):
+  membership from custom claims {inc, role, team}; events create only with the full 25-key EventDoc shape,
+  identity binding (authorUid, role, incidentId, searcher team, and deviceId == auth uid so nobody can
+  pre-create another device's event ids), serverTime == request.time, closed enums, rawText at most 2000,
+  types by role, own-only retractions for non-command; profile split (profile/command for command and
+  family only); plans create only by the approving command user; packs and planDrafts read only;
+  photoReadings command only; device docs keyed by the device's auth uid under its own team; an admin-only
+  `joinCodes` collection, and the incident doc may not carry join code hashes. Indexes file added empty.
+  Source: plan Task 11; spec sections 7 and 13.2; red-team pass with the security-rules auditor checklist
+  (event-id squatting, sizes, types); join-hash exposure finding (a 40-bit code hash readable by members).
+  Verified: under deny-all rules the suite failed (17 denials); now 33 Firestore rules tests pass in the
+  emulator; mutating events to allow update/delete failed 2 tests, then the restored rules passed.
 ## 2026-11-17
 
+- Ignore `functions/lib/` (TypeScript build output of the functions workspace).
+  Source: Task 11 build; the rules gate had walked the built JS as untracked files.
+  Verified: `git check-ignore functions/lib` matches; `bash scripts/ci-local.sh` exits 0.
 - Add the `@pls/functions` workspace (`functions/package.json`, `tsconfig.json`; lockfile updated):
   firebase-functions 7.4.0 and firebase-admin 14.5.1 at runtime; firebase 13.4.0 (client SDK, for rules tests
   with emulator mock tokens), TypeScript 6.0.3 and Vitest 5.1.0 for tests. Node 22 runtime, ESM.

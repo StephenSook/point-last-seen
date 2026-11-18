@@ -17,7 +17,7 @@ echo "== gates: schema parity"
 python3 -I scripts/check_schema_parity.py .
 
 echo "== gates: schema parity and vector generator tests"
-"$PY" -I -m pytest scripts/test_check_schema_parity.py tools/vectors/test_make_vectors.py -q
+"$PY" -I -m pytest scripts/test_check_schema_parity.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py -q
 
 echo "== gates: secret scan (full history)"
 gitleaks git --redact --no-banner --log-opts="--all" .
@@ -30,6 +30,10 @@ npm test -w shared/engine-ts
 echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check
 npm test -w shared/engine-ts -- test/vectors.test.ts
+
+echo "== rules: functions typecheck, rules and joinIncident tests in the emulators"
+npm run typecheck -w functions
+npm run test:rules -w functions
 
 if [ -d ios/PLSCore ]; then
   echo "== swift-core: Swift core tests"

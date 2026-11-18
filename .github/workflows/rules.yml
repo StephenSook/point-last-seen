@@ -1,0 +1,62 @@
+name: Rules
+
+# Security rules and joinIncident against the Firebase emulators (Java). Expensive, so it runs on
+# pull requests to main and on main only, when rules, functions or their config change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "storage.rules"
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - "functions/**"
+      - "package-lock.json"
+      - ".github/workflows/rules.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "storage.rules"
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - "functions/**"
+      - "package-lock.json"
+      - ".github/workflows/rules.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rules-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    name: rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Cache the emulator jars
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-15.36.0
+      - name: Install (clean, from the lockfile)
+        run: npm ci
+      - name: Install firebase-tools 15.36.0
+        run: npm install -g firebase-tools@15.36.0
+      - name: Functions typecheck
+        run: npm run typecheck -w functions
+      - name: Rules and joinIncident tests in the emulators
+        run: npm run test:rules -w functions
