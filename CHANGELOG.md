@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `simulateWalkers` takes an optional `onProgress(done)`, called after every 1,000 walkers and once at the end,
+  so the web worker can show progress on a long run. It reads no random draw and never changes the table.
+  Source: lane C (Task 37c progress every 1,000 walkers).
+  Verified: the test (2,500 walkers report 1,000, 2,000, 2,500, and the table equals a run without the
+  callback) failed first, now 198 engine tests pass; lint exit 0; `bash scripts/ci-local.sh` exit 0.
 - `build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>` writes the stored route graph
   for walkers from the same Overpass extract as the grid, bounded by the grid's box (the box the extract was
   queried on), so a site's graph is one command after its grid. The Piedmont Park dev graph built this way has

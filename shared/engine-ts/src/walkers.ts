@@ -42,6 +42,8 @@ export interface WalkerOptions {
   sampleTracks?: number;
   attractors: Point[];
   lowMobility: boolean;
+  /** Called with the number of walkers done after every 1,000 and once at the end. It never changes the result. */
+  onProgress?: (done: number) => void;
 }
 
 export interface WalkerTrack {
@@ -188,6 +190,8 @@ function turnWeight(move: Move, incoming: Move, station: Station, opts: WalkerOp
 }
 
 /** A seeded planning prior. All route choices and stops use local metre arithmetic. */
+const PROGRESS_EVERY = 1000;
+
 export function simulateWalkers(graph: WalkerRouteGraph, grid: WalkerGrid, opts: WalkerOptions): WalkerResult {
   const params = opts.params ?? DEFAULT_WALKER_PARAMS;
   const n = opts.n ?? params.defaultN;
@@ -237,6 +241,7 @@ export function simulateWalkers(graph: WalkerRouteGraph, grid: WalkerGrid, opts:
   };
 
   for (let i = 0; i < n; i++) {
+    if (i > 0 && i % PROGRESS_EVERY === 0) opts.onProgress?.(i);
     const q = draw() * (opts.lowMobility ? params.lowMobilityQuantile : 1);
     if (!start || firstMoves.length === 0 || q > maxQuantile) {
       rowCount++;
@@ -282,5 +287,6 @@ export function simulateWalkers(graph: WalkerRouteGraph, grid: WalkerGrid, opts:
 
   const segments = grid.segments.map(({ segmentId }) => ({ segmentId, priorPoa: counts.get(segmentId)! / n }));
   const stdErr = Object.fromEntries(segments.map(({ segmentId, priorPoa: p }) => [segmentId, squareRoot(p * (1 - p) / n)]));
+  opts.onProgress?.(n);
   return { segments, row: rowCount / n, stdErr, sampleTracks, n };
 }
