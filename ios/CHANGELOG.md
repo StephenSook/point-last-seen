@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### refactor(ios): let the compiler check the model runner's Sendable conformance
+- What: `FoundationModelRunner` drops `@unchecked Sendable`; `FirebaseAI` is a `Sendable` final
+  class in 13.2.0 and `Tool` is `Sendable`, so the plain conformance compiles and stays checked.
+- Source: fresh-eyes review M4.
+- Verified: the app builds for the simulator with no new Sendable warnings in our sources;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): refuse out-of-range stored numbers instead of crashing
 - What: numbers read from stored documents convert with `Int(exactly:)`: an out-of-range or
   fractional `seq` makes a server copy's identity unreadable, an extreme `heightFt` or

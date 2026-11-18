@@ -84,7 +84,7 @@ enum ModelSessionFactory {
 }
 
 /// Runs the stages PLSCore asks for. One new session per report, so history never grows.
-struct FoundationModelRunner: ReadModelRunner, @unchecked Sendable {
+struct FoundationModelRunner: ReadModelRunner {
     let ai: FirebaseAI
     let cloudModel: String
     let tools: [any Tool]
