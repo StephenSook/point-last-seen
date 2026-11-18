@@ -8,11 +8,26 @@ import Testing
 final class FakeEventServer: EventServer {
     var writeErrors: [(any Error)?] = []
     var readBacks: [ServerCopy] = []
+    /// Offline: writes start but their callback never runs.
+    var holdWrites = false
     private(set) var writes: [String] = []
+    private(set) var listenedTo: [String] = []
+    private var onSnapshot: (@MainActor ([ServerEventCopy]) -> Void)?
 
     func write(_ doc: EventDoc, completion: @escaping @MainActor ((any Error)?) -> Void) {
         writes.append(doc.eventId)
+        if holdWrites { return }
         completion(writeErrors.isEmpty ? nil : writeErrors.removeFirst())
+    }
+
+    func listen(incidentId: String, onSnapshot: @escaping @MainActor ([ServerEventCopy]) -> Void) -> AnyObject? {
+        listenedTo.append(incidentId)
+        self.onSnapshot = onSnapshot
+        return nil
+    }
+
+    @MainActor func push(_ docs: [(JSONValue, Bool)]) {
+        onSnapshot?(docs.map { ServerEventCopy(data: $0.0, hasPendingWrites: $0.1) })
     }
 
     func readBack(_ doc: EventDoc, completion: @escaping @MainActor (ServerCopy) -> Void) {

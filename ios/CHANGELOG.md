@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): listen to the incident's events with metadata changes
+- What: `EventServer.listen` opens a Firestore snapshot listener on `incidents/{id}/events` with
+  `includeMetadataChanges: true`. `FirestoreJSON` turns stored values into `JSONValue` (booleans
+  kept apart from numbers, a Timestamp as epoch milliseconds). `EventStore` decodes them with the
+  shared `EventFilter` (malformed events are skipped and counted), keeps every member's events in
+  `teamEvents`, and settles this phone's own unresolved entries when the server copy arrives with
+  no pending writes: the same identity is delivered, a different one is a conflict, using the
+  same classification as the read-back.
+- Source: Task 13 (`EventStore`: "listener with `includeMetadataChanges: true`").
+- Verified: `FirestoreJSONTests` and two `EventListenerTests` (our queued copy leaves the entry
+  pending, the server copy marks it delivered; another member's event reaches `teamEvents` and a
+  broken one is counted) compile-red, then green; 62 app tests pass; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): write each report's timings and recompute the posterior
 - What: after a report is journaled, `AppModel` recomputes the posterior from the pack's prior
   and this phone's journal (`EventFilter.toEngineEvents`, leaving out `priorInputEventIds`, then
