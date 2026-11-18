@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): name a sighting on the echo card and say it waits for command
+- What: `EchoText.effectLine(_:type:)` says "Sighting logged in AC. It counts once command
+  confirms it." for a sighting (it said "Clue logged"); the echo card passes the event type.
+- Source: fresh-eyes review M7; spec section 8 (a sighting changes the map only after a
+  confirmation).
+- Verified: the new test compile-red, then green; 203 PLSCore tests; app builds;
+  `scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): test the cloud gate at dispatch and name a mode exit in the route
 - What: when the live gate closes a cloud route at the moment of dispatch because the incident
   left drill or judge mode, the route record now says `not_drill_mode`; other closures keep the

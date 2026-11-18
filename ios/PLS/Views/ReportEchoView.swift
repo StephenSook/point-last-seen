@@ -15,7 +15,7 @@ struct ReportEchoView: View {
             if entry.doc.route?.stage == .evidenceProtocol {
                 EvidenceProtocolView()
             } else {
-                Text(EchoText.effectLine(entry.doc.effect)).font(.headline)
+                Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type)).font(.headline)
                 if let route = entry.doc.route {
                     Text(EchoText.routeLine(route)).font(.footnote).foregroundStyle(.secondary)
                 }

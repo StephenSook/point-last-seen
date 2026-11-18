@@ -38,4 +38,10 @@ import Testing
         var ev = rules; ev.stage = .evidenceProtocol; ev.blocked = nil
         #expect(EchoText.routeLine(ev) == "Not sent to any model.")
     }
+
+    @Test func aSightingIsNamedAsOneAndWaitsForCommand() {
+        let effect = Effect.clue(influences: ["AC": .strongFor], authenticity: .medium)
+        #expect(EchoText.effectLine(effect, type: .sighting) == "Sighting logged in AC. It counts once command confirms it.")
+        #expect(EchoText.effectLine(effect, type: .clue) == "Clue logged in AC.")
+    }
 }

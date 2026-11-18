@@ -3,6 +3,16 @@ import Foundation
 /// The words on the report echo card. Few words, plain, and honest about who read the report:
 /// the iOS route is our own record, so it is never described as reported by the SDK.
 public enum EchoText {
+    /// The effect line for an event of this type: a sighting is named as one, and it changes
+    /// the map only once command confirms it.
+    public static func effectLine(_ effect: Effect, type: EventType) -> String {
+        if type == .sighting, case let .clue(influences, _) = effect {
+            let at = influences.first { $0.value == .strongFor }?.key ?? influences.keys.sorted().first ?? "?"
+            return "Sighting logged in \(at). It counts once command confirms it."
+        }
+        return effectLine(effect)
+    }
+
     public static func effectLine(_ effect: Effect) -> String {
         switch effect {
         case let .cleared(segmentId, pod, inputs):
