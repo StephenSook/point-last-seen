@@ -4,6 +4,12 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Join an incident.** `Join` signs in anonymously, calls `joinIncident` with
+  `{joinCode, role: "family"}`, reads `{ok, incidentId}`, force-refreshes the ID token and refuses
+  claims for another incident or role; errors show a plain sentence, never raw backend text.
+  Source: lane A ruling 1 (plan Task 11 contract), spec section 14. Verified: `JoinTest` failed to
+  compile first, then passes with a fake backend (payload, call order, refusals, no raw errors).
+  The live call waits for lane A's deployed function.
 - **Device session.** `Session` keeps a device id made once, a sequence number written to disk
   (SharedPreferences `commit()`) before an event id uses it, and the joined incident. Source:
   spec section 8 (ids hash incident, device and seq). Verified: `SessionTest` failed to compile
