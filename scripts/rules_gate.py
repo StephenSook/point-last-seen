@@ -59,6 +59,13 @@ CLIENT_DIRS = ("web/", "ios/", "android/")
 # Plain, optional-chained (?.) and bracket ("availability") access all count.
 AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
+# Task 39 type and motion: only the OFL fonts in web/public/fonts ship, the motion library sits behind one
+# module, and no font is fetched from a remote host.
+FONT_NAMES = re.compile(r"berkeley\s*mono|digital-7", re.IGNORECASE)
+ANIMEJS_ONLY_IN = "web/src/motion/engine.ts"
+ANIMEJS_IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)["']animejs(?:/[^"']*)?["']""")
+REMOTE_FONT_HOSTS = re.compile(r"fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net|p\.typekit\.net|"
+                               r"fonts\.bunny\.net|fast\.fonts\.net|fonts\.cdnfonts\.com|fonts\.adobe\.com")
 MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
 ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
 
@@ -122,6 +129,14 @@ def check_lines(rel: str, text: str) -> list[str]:
             for token, allowed in MODEL_BUILDERS.items():
                 if token in line and rel not in allowed:
                     bad(f"model builder '{token}' belongs only in its client file")
+        if not is_doc:
+            m = FONT_NAMES.search(line)
+            if m:
+                bad(f"font '{m.group(0)}' is not one of the shipped OFL fonts")
+            if ANIMEJS_IMPORT.search(line) and rel != ANIMEJS_ONLY_IN:
+                bad(f"animejs is imported only by {ANIMEJS_ONLY_IN}")
+        if (rel == "web/index.html" or (rel.startswith("web/") and rel.endswith((".css", ".scss")))) and REMOTE_FONT_HOSTS.search(line):
+            bad("fonts load only from web/public/fonts, never a remote host")
         if in_functions:
             for token in FUNCTION_MODEL_CALLS:
                 if token in line:

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Rules gate, Task 39: the font names "Berkeley Mono" and "Digital-7" fail outside docs (only the OFL fonts in
+  web/public/fonts ship); animejs may be imported only by web/src/motion/engine.ts (dynamic imports and
+  require included; package.json may list it); and web/index.html and web CSS may not load a font from a
+  remote host (Google Fonts, Typekit, Bunny, fonts.com, cdnfonts, Adobe).
+  Source: plan Task 39, lane C hand-over.
+  Verified: 3 gate tests failed first, now 23 pass (one test assertion was tightened to file:line, since the
+  message itself names engine.ts); the gate walks 420 files with 0 problems; lane-web and lane-extras show no
+  match; `bash scripts/ci-local.sh` exit 0.
 - docs/LIMITS.md gains "On-device safety (Android)": the family app's on-device path (firebase-ai-ondevice
   16.0.0-beta08 over the ML Kit GenAI Prompt API and AICore), Google's own statements about its safety
   filters and the 4,000-token input window (three quotes, each with its URL), our own checks on every path, the
