@@ -357,3 +357,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `loadPhotosOrError` returns the photos or the sentence "Photos could not be loaded. Reload to try again."; the tray shows it as an alert instead of "No photos yet." Adding photos now counts files that were not added (unreadable, or over 2 MB after re-encoding) and says "One photo was not added." or the count, instead of skipping them silently.
 - Source: found on the live site: the bucket's missing CORS rule made every photo read fail, and the tray quietly showed an empty list (a silent failure). The CORS rule itself is lane A's root config and was handed over.
 - Verified: two new tests in `src/data/photos.test.ts` failed first (not a function), then passed (8 of 8); typecheck and build clean; scripts/ci-local.sh exit 0.
+
+### fix(join): say App Check refused the browser instead of blaming the join code
+- What: `joinErrorMessage` in `data/join.ts` (moved out of CommandPost) maps `unauthenticated`, the code a callable returns when App Check does not trust the browser, to "Join refused by App Check. Try a normal browser window.", the same wording the plan step uses for an App Check refusal. Wrong code, no connection and other failures keep their sentences.
+- Source: plan Task 23c (appcheck check), spec section 14 ("Refusal message shown, never a silent failure"). The live site showed "Could not join. Check the incident id and the code." to a browser App Check refused.
+- Verified: two new tests in `src/data/join.test.ts` failed first (not a function), then passed (6 of 6); typecheck and build clean. scripts/ci-local.sh exit 0.

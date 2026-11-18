@@ -28,7 +28,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { joinIncident, joinRequest } from "../data/join";
+import { joinErrorMessage, joinIncident, joinRequest } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
@@ -57,13 +57,6 @@ function asMergeDoc(e: StreamedEvent): MergeDoc {
     clientTimeMs: Number(e["clientTimeMs"] ?? 0),
     serverTimeMs: e.serverTimeMs,
   };
-}
-
-function plainError(e: unknown): string {
-  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  if (code.endsWith("permission-denied")) return "That code did not match this incident.";
-  if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
-  return "Could not join. Check the incident id and the code.";
 }
 
 export function CommandPost() {
@@ -133,7 +126,7 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
       history.replaceState(null, "", `?incident=${encodeURIComponent(req.incidentId)}`);
       onJoined(req.incidentId);
     } catch (x) {
-      setErr(plainError(x));
+      setErr(joinErrorMessage(x));
     } finally {
       setBusy(false);
     }
