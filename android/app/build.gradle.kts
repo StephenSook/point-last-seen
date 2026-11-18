@@ -77,6 +77,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Tests that write to the deployed drill incident run only when asked for.
+        testInstrumentationRunnerArguments["notAnnotation"] = "app.pointlastseen.family.live.DrillE2E"
     }
 
     signingConfigs {
