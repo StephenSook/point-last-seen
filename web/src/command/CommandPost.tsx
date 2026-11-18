@@ -1,7 +1,7 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
-import { DEFAULT_PARAMS, placeToCheck, type Assignment, type EventDoc, type FamilyProfile, type Place, type RouteRecord } from "@pls/engine";
+import { DEFAULT_PARAMS, placeToCheck, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
@@ -36,6 +36,9 @@ import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
+import { LayerSwitches } from "./LayerSwitches";
+import { priorWrites, rebuildPrior } from "../prior/rebuild";
+import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
 
@@ -361,6 +364,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
 
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
+  const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
+    if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, null);
+    const w = priorWrites(rebuilt, incident, layers, terrain);
+    return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
+  };
   const saveProfile = (p: FamilyProfile) => {
     setProfileError(null);
     writeProfile(pls.db, incidentId, p).catch(() => setProfileError("The profile was not saved. Edit it and save again."));
@@ -470,6 +480,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
+          {incident && segments.length > 0 && (
+            <LayerSwitches
+              layers={incident.priorLayers ?? { linear: false, wedge: false }}
+              terrain={incident.terrain ?? "temperate_flat"}
+              priorVersion={incident.priorVersion}
+              hasBearing={false}
+              vehicleInvolved={profile?.command?.vehicle?.involved === true}
+              onApply={applyPrior}
+            />
+          )}
           <PhotoTray
             photos={photos}
             loadError={photoError}
