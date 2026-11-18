@@ -237,30 +237,31 @@ service cloud.firestore {
         && (m.cameraFacingDeg == null || (m.cameraFacingDeg is int && m.cameraFacingDeg >= 0 && m.cameraFacingDeg <= 315 && m.cameraFacingDeg % 45 == 0));
     }
 
-    // profile/shared may be written in parts: every key present is checked, none is required.
+    // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.
     function schema_SharedProfile(m) {
       return m is map
         && m.keys().hasOnly(['answersTo', 'nickname', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn', 'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids', 'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription', 'photoTakenOn', 'approachNoteIds'])
-        && (!('answersTo' in m) || (m.answersTo is string && m.answersTo.size() <= 60))
-        && (!('nickname' in m) || (m.nickname is string && m.nickname.size() <= 60))
-        && (!('ageYears' in m) || (m.ageYears == null || (m.ageYears is int && m.ageYears >= 18 && m.ageYears <= 120)))
-        && (!('gender' in m) || (m.gender is string && m.gender.size() <= 40))
-        && (!('appearance' in m) || (m.appearance is string && m.appearance.size() <= 200))
-        && (!('heightFt' in m) || (m.heightFt == null || (m.heightFt is int && m.heightFt >= 3 && m.heightFt <= 8)))
-        && (!('heightIn' in m) || (m.heightIn == null || (m.heightIn is int && m.heightIn >= 0 && m.heightIn <= 11)))
-        && (!('weightLb' in m) || (m.weightLb == null || (m.weightLb is int && m.weightLb >= 50 && m.weightLb <= 500)))
-        && (!('hair' in m) || (m.hair is string && m.hair.size() <= 60))
-        && (!('eyeColor' in m) || (m.eyeColor is string && m.eyeColor.size() <= 40))
-        && (!('primaryLanguage' in m) || (m.primaryLanguage is string && m.primaryLanguage.size() <= 40))
-        && (!('clothingLastWorn' in m) || (m.clothingLastWorn is string && m.clothingLastWorn.size() <= 200))
-        && (!('mobilityAids' in m) || (m.mobilityAids is list && m.mobilityAids.size() <= 4 && m.mobilityAids.hasOnly(['cane', 'walker', 'wheelchair', 'other'])))
-        && (!('dementiaType' in m) || (m.dementiaType == null || (m.dementiaType in ['alzheimers', 'lewy_body', 'vascular', 'frontotemporal', 'mixed', 'other', 'unknown'])))
-        && (!('flags' in m) || (m.flags is map && m.flags.keys().hasOnly(['mayNotRespond', 'likelyToHide', 'afraidOfUniforms', 'sensitiveToTouch', 'sensitiveToLight', 'likelyToFight', 'seizures', 'hallucinationsOrDelusions', 'lookingForHome', 'gaitUnsteady', 'freezing', 'fallRisk', 'softVoice', 'slowToRespond', 'fluctuates', 'medicationSensitivity', 'carriesMedicalAlertCard', 'medicationTimingMatters']) && m.flags.size() == 18 && (m.flags.mayNotRespond is bool) && (m.flags.likelyToHide is bool) && (m.flags.afraidOfUniforms is bool) && (m.flags.sensitiveToTouch is bool) && (m.flags.sensitiveToLight is bool) && (m.flags.likelyToFight is bool) && (m.flags.seizures is bool) && (m.flags.hallucinationsOrDelusions is bool) && (m.flags.lookingForHome is bool) && (m.flags.gaitUnsteady is bool) && (m.flags.freezing is bool) && (m.flags.fallRisk is bool) && (m.flags.softVoice is bool) && (m.flags.slowToRespond is bool) && (m.flags.fluctuates is bool) && (m.flags.medicationSensitivity is bool) && (m.flags.carriesMedicalAlertCard is bool) && (m.flags.medicationTimingMatters is bool)))
-        && (!('triggersToAvoid' in m) || (m.triggersToAvoid is string && m.triggersToAvoid.size() <= 200))
-        && (!('bestApproach' in m) || (m.bestApproach is string && m.bestApproach.size() <= 200))
-        && (!('uniqueDescription' in m) || (m.uniqueDescription is string && m.uniqueDescription.size() <= 200))
-        && (!('photoTakenOn' in m) || (m.photoTakenOn == null || (m.photoTakenOn.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
-        && (!('approachNoteIds' in m) || (m.approachNoteIds is list && m.approachNoteIds.size() <= 21 && m.approachNoteIds.hasOnly(['may_not_respond', 'approach_calm', 'likely_to_hide', 'afraid_of_uniforms', 'validate_feelings', 'looking_for_home', 'gait_unsteady', 'freezing', 'fall_risk', 'soft_voice', 'fluctuates', 'sensitive_to_touch', 'sensitive_to_light', 'may_strike_out', 'seizures', 'medication_alert', 'medication_timing', 'language', 'triggers', 'best_approach', 'unique'])));
+        && m.size() == 20
+        && (m.answersTo is string && m.answersTo.size() <= 60)
+        && (m.nickname is string && m.nickname.size() <= 60)
+        && (m.ageYears == null || (m.ageYears is int && m.ageYears >= 18 && m.ageYears <= 120))
+        && (m.gender is string && m.gender.size() <= 40)
+        && (m.appearance is string && m.appearance.size() <= 200)
+        && (m.heightFt == null || (m.heightFt is int && m.heightFt >= 3 && m.heightFt <= 8))
+        && (m.heightIn == null || (m.heightIn is int && m.heightIn >= 0 && m.heightIn <= 11))
+        && (m.weightLb == null || (m.weightLb is int && m.weightLb >= 50 && m.weightLb <= 500))
+        && (m.hair is string && m.hair.size() <= 60)
+        && (m.eyeColor is string && m.eyeColor.size() <= 40)
+        && (m.primaryLanguage is string && m.primaryLanguage.size() <= 40)
+        && (m.clothingLastWorn is string && m.clothingLastWorn.size() <= 200)
+        && (m.mobilityAids is list && m.mobilityAids.size() <= 4 && m.mobilityAids.hasOnly(['cane', 'walker', 'wheelchair', 'other']))
+        && (m.dementiaType == null || (m.dementiaType in ['alzheimers', 'lewy_body', 'vascular', 'frontotemporal', 'mixed', 'other', 'unknown']))
+        && (m.flags is map && m.flags.keys().hasOnly(['mayNotRespond', 'likelyToHide', 'afraidOfUniforms', 'sensitiveToTouch', 'sensitiveToLight', 'likelyToFight', 'seizures', 'hallucinationsOrDelusions', 'lookingForHome', 'gaitUnsteady', 'freezing', 'fallRisk', 'softVoice', 'slowToRespond', 'fluctuates', 'medicationSensitivity', 'carriesMedicalAlertCard', 'medicationTimingMatters']) && m.flags.size() == 18 && (m.flags.mayNotRespond is bool) && (m.flags.likelyToHide is bool) && (m.flags.afraidOfUniforms is bool) && (m.flags.sensitiveToTouch is bool) && (m.flags.sensitiveToLight is bool) && (m.flags.likelyToFight is bool) && (m.flags.seizures is bool) && (m.flags.hallucinationsOrDelusions is bool) && (m.flags.lookingForHome is bool) && (m.flags.gaitUnsteady is bool) && (m.flags.freezing is bool) && (m.flags.fallRisk is bool) && (m.flags.softVoice is bool) && (m.flags.slowToRespond is bool) && (m.flags.fluctuates is bool) && (m.flags.medicationSensitivity is bool) && (m.flags.carriesMedicalAlertCard is bool) && (m.flags.medicationTimingMatters is bool))
+        && (m.triggersToAvoid is string && m.triggersToAvoid.size() <= 200)
+        && (m.bestApproach is string && m.bestApproach.size() <= 200)
+        && (m.uniqueDescription is string && m.uniqueDescription.size() <= 200)
+        && (m.photoTakenOn == null || (m.photoTakenOn.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && (m.approachNoteIds is list && m.approachNoteIds.size() <= 21 && m.approachNoteIds.hasOnly(['may_not_respond', 'approach_calm', 'likely_to_hide', 'afraid_of_uniforms', 'validate_feelings', 'looking_for_home', 'gait_unsteady', 'freezing', 'fall_risk', 'soft_voice', 'fluctuates', 'sensitive_to_touch', 'sensitive_to_light', 'may_strike_out', 'seizures', 'medication_alert', 'medication_timing', 'language', 'triggers', 'best_approach', 'unique']));
     }
     // END GENERATED
 

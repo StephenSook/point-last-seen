@@ -119,6 +119,12 @@ describe("profile/shared types every key it allows", () => {
   it("the full shared profile the apps write is accepted", async () => {
     await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), "incidents/I1/profile/shared"), full));
   });
+  it("a partial profile is refused: readers can rely on all 20 keys (review M4)", async () => {
+    const db = dbAs(F, familyClaims);
+    await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), { nickname: "Nana" }));
+    const { approachNoteIds: _a, ...noNotes } = full;
+    await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), noNotes));
+  });
   it("free text or a wrong type in any typed key is refused", async () => {
     const db = dbAs(F, familyClaims);
     for (const over of [{ dementiaType: "lived at 12 Elm St until 2019" }, { mobilityAids: [{ label: "Old home", address: "12 Elm St" }] },

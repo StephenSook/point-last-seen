@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- profile/shared must be written whole: all 20 keys the schema requires (the schema always required them; the
+  rules allowed partial writes). A nickname-only write was accepted and then crashed readers that expect every
+  field (the web approach card on approachNoteIds; the iOS decoder on answersTo). The web and Android writers
+  already send all 20 keys; a shared `sharedProfile()` test fixture replaces the partial ones.
+  Source: review of 2bdb778..dc762be, finding M4 (readers on each platform also default missing fields).
+  Verified: the partial-write test failed first (a nickname-only doc and a doc without approachNoteIds were
+  accepted), now refused; emulator suite 109; `bash scripts/ci-local.sh` exit 0.
 - Event positions keep their range check and refuse NaN again: in shape mode a symmetric range compiles to one
   comparison (`lat * lat <= 8100`, `lon * lon <= 32400`), which also refuses NaN and infinity. To pay for it
   under the 1,000-expression limit: an integer enum in even steps (cameraFacingDeg 0 to 315 by 45) compiles to

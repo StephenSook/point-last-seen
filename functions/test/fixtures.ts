@@ -69,3 +69,11 @@ export const allFlags = (on: string[] = []): Record<string, boolean> => Object.f
   "hallucinationsOrDelusions", "lookingForHome", "gaitUnsteady", "freezing", "fallRisk", "softVoice", "slowToRespond",
   "fluctuates", "medicationSensitivity", "carriesMedicalAlertCard", "medicationTimingMatters",
 ].map(k => [k, on.includes(k)]));
+
+/** A complete, schema-valid profile/shared document (all 20 keys, as the web and Android writers send it). */
+export const sharedProfile = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  answersTo: "Mom", nickname: "", ageYears: 81, gender: "woman", appearance: "short", heightFt: 5, heightIn: 2,
+  weightLb: 120, hair: "white", eyeColor: "brown", primaryLanguage: "", clothingLastWorn: "red coat", mobilityAids: ["cane"],
+  dementiaType: "alzheimers", flags: allFlags(["mayNotRespond"]), triggersToAvoid: "", bestApproach: "", uniqueDescription: "",
+  photoTakenOn: "2026-11-10", approachNoteIds: ["may_not_respond", "approach_calm"], ...over,
+});
