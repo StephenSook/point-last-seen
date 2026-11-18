@@ -5,13 +5,15 @@ import Foundation
 public enum PoaClass {
     public static func classify(poa: Double, maxPoa: Double) -> Int {
         guard poa.isFinite, maxPoa.isFinite, maxPoa > 0, poa > 0 else { return 0 }
-        return min(5, Int((poa / maxPoa * 6).rounded(.down)))
+        let ratio = poa / maxPoa
+        guard ratio < 1 else { return 5 }                      // also keeps an extreme ratio from overflowing Int
+        return min(5, Int((ratio * 6).rounded(.down)))
     }
 
     /// The printed number beside each segment.
     public static func percentLabel(_ poa: Double) -> String {
         guard poa.isFinite, poa > 0 else { return "0%" }
-        let pct = (poa * 100).rounded()
+        let pct = (min(poa, 1) * 100).rounded()
         return pct < 1 ? "<1%" : "\(Int(pct))%"
     }
 }

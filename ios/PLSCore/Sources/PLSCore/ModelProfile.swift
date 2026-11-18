@@ -14,7 +14,7 @@ public struct ModelProfile: Codable, Sendable, Equatable {
     /// Picks the six fields from a `profile/shared` document and ignores everything else.
     public init(shared: JSONValue) {
         func string(_ k: String) -> String? { if case let .string(s)? = shared[k], !s.isEmpty { s } else { nil } }
-        func int(_ k: String) -> Int? { if case let .number(n)? = shared[k], n.isFinite { Int(n) } else { nil } }
+        func int(_ k: String) -> Int? { if case let .number(n)? = shared[k] { Int(exactly: n.rounded()) } else { nil } }
         clothingLastWorn = string("clothingLastWorn")
         appearance = string("appearance")
         heightFt = int("heightFt")

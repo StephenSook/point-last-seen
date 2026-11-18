@@ -20,8 +20,9 @@ extension JSONValue {
 extension EventIdentity {
     /// Reads the writer's identity from a server copy of an event; nil when a field is missing.
     public init?(json: JSONValue) {
-        guard case let .string(deviceId)? = json["deviceId"], case let .number(seq)? = json["seq"],
+        guard case let .string(deviceId)? = json["deviceId"], case let .number(seqValue)? = json["seq"],
+              let seq = Int(exactly: seqValue),                      // out of range or fractional: refuse, never trap
               case let .string(authorUid)? = json["authorUid"], case let .number(client)? = json["clientTimeMs"] else { return nil }
-        self.init(deviceId: deviceId, seq: Int(seq), authorUid: authorUid, clientTimeMs: client)
+        self.init(deviceId: deviceId, seq: seq, authorUid: authorUid, clientTimeMs: client)
     }
 }

@@ -20,4 +20,16 @@ import Testing
         #expect(EventIdentity(json: try JSONValue(encoding: d)) == d.identity)
         #expect(EventIdentity(json: .object(["deviceId": .string("D1")])) == nil)
     }
+
+    @Test func outOfRangeNumbersAreRefusedNotACrash() {
+        let huge: JSONValue = .object(["deviceId": .string("D1"), "seq": .number(1e300), "authorUid": .string("u"), "clientTimeMs": .number(1)])
+        #expect(EventIdentity(json: huge) == nil)
+        let fraction: JSONValue = .object(["deviceId": .string("D1"), "seq": .number(1.5), "authorUid": .string("u"), "clientTimeMs": .number(1)])
+        #expect(EventIdentity(json: fraction) == nil)
+        #expect(ModelProfile(shared: .object(["heightFt": .number(1e300), "heightIn": .number(2)])).heightFt == nil)
+        let row: JSONValue = .object(["segmentId": .string("ROW"), "priorPoa": .number(1), "priorVersion": .number(1e300)])
+        #expect(throws: PackSegments.PackError.badSegment("ROW")) { try PackSegments.parse([row]) }
+        #expect(PoaClass.classify(poa: 1e300, maxPoa: 1e-300) == 5)
+        #expect(PoaClass.percentLabel(1e300) == "100%")
+    }
 }

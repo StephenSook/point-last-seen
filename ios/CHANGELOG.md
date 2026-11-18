@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): refuse out-of-range stored numbers instead of crashing
+- What: numbers read from stored documents convert with `Int(exactly:)`: an out-of-range or
+  fractional `seq` makes a server copy's identity unreadable, an extreme `heightFt` or
+  `heightIn` is dropped, and an out-of-range `priorVersion` refuses the pack segment by name.
+  `PoaClass` handles an extreme ratio or percent without overflow. Before, `Int(...)` trapped
+  and the app crashed on such a document.
+- Source: fresh-eyes review M5, extended to `PackSegments` and `PoaClass` by a grep for the same
+  conversion.
+- Verified: the new test crashed the suite before ("Double value cannot be converted to Int"),
+  then passed; full suite 205 tests; `scripts/ci-local.sh` exit 0.
+
 ### fix(ios): offer Retry only when a retry can help
 - What: `Outbox.isRetryable(reason:)` treats an id conflict, `invalid-argument` (the server
   refuses this document's content every time) and `encode-failed` as permanent; those entries

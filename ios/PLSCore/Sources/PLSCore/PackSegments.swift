@@ -22,10 +22,10 @@ public enum PackSegments {
         var versions = Set<Int>()
         for doc in docs {
             guard case let .string(id)? = doc["segmentId"], case let .number(poa)? = doc["priorPoa"], poa.isFinite, poa >= 0,
-                  case let .number(version)? = doc["priorVersion"] else {
+                  case let .number(versionValue)? = doc["priorVersion"], let version = Int(exactly: versionValue) else {
                 throw PackError.badSegment(stringValue(doc["segmentId"]) ?? "(no id)")
             }
-            versions.insert(Int(version))
+            versions.insert(version)
             if id == SegmentIDs.row { rowPoa = poa; continue }
             guard case let .number(area)? = doc["areaM2"], area > 0,
                   case let .number(lat)? = doc["centroid"]?["lat"], case let .number(lon)? = doc["centroid"]?["lon"],
