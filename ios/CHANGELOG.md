@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### build(ios): sign device builds with the team App Attest is registered for
+- What: `DEVELOPMENT_TEAM` is set in `ios/project.yml`. The Firebase iOS app now carries the same
+  team id (it had none before, so App Attest could not verify on a device), and its App Attest
+  provider is registered.
+- Source: App Check setup for the field app (team id set on the Firebase app, read back).
+- Verified: the project generates and the app builds for the simulator; `scripts/ci-local.sh`
+  exit 0.
+
 ### fix(ios-core): keep an event whose route reason this build does not know
 - What: `RouteReason` decodes any value it does not know as `unknown` (decode only, never
   produced here) instead of failing, so the shared filter keeps the event. The rules bound the
