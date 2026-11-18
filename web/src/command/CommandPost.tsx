@@ -590,7 +590,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <span className="drill">{DRILL_LINE}</span>
         <span className="incident">{view?.incident?.name ?? incidentId}</span>
         <span className="code">
-          <span className="label">Code</span>
+          <span className="label">MATCH</span>
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
         <ExtrasDock incidentId={incidentId} state={state} vs={vs} map={extrasMap} />

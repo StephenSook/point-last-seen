@@ -935,3 +935,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: /judge keeps "Cloud model now: ..." in view and moves where it came from ("Chosen by Remote Config (fetched 14:05:09 EST) ...") and the Chrome measurement note into one closed "Details" line. The fetch time now carries its time zone (`fetchedTime`, 24-hour clock).
 - Source: judge-door review (fewer words on the judge's screen; a time without a zone is ambiguous).
 - Verified: the `fetchedTime` test (EST and UTC) failed first, then passed; the judge e2e test (source line hidden until Details opens, then a time with a zone, and the Chrome note inside) fails against the live site's old page and passes on the local preview. scripts/ci-local.sh exit 0.
+
+### feat(web): label the header's code MATCH so it does not read as the join code
+- What: the post's header label beside the convergence code reads "MATCH" instead of "Code".
+- Source: design review (D11: the header label read like the join code).
+- Verified: the phone layout test now requires "MATCH" in the header and no "Code" label; it failed first, then passed on the local preview. scripts/ci-local.sh exit 0.
