@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): check the cloud gate live at dispatch, keep the context-limit reason
+- What: the orchestrator reads a live gate (connectivity, consent, kill switch, incident mode)
+  again when it reroutes and right before any cloud call; if the gate closed during the
+  on-device call, the report goes to the parser, not the cloud. A context-limit failure now
+  reroutes as `over_token_budget` instead of `on_device_unavailable`. `ReportSituation` gains an
+  optional `liveGate` that `ReportReader` passes through.
+- Source: Codex review H1 (gpt-6.2-sol, 11664c5..cec3596), verified by the orchestrator.
+- Verified: three new tests (kill switch flipped mid-call; signal lost or consent withdrawn
+  mid-call; context limit keeps its reason) failed on the old code with the cloud actually
+  called, then passed; full suite 152 tests; app builds.
+
 ### feat(ios): wire the report reader to the models, tools and Remote Config defaults
 - What: `ReportReader.read(_:situation:)` builds the three tools, reads the on-device status
   and the token estimate, and runs PLSCore's `ReadOrchestrator` with the real runner; it never

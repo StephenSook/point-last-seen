@@ -8,10 +8,12 @@ final class FakeRunner: ReadModelRunner, @unchecked Sendable {
     enum Call: Equatable { case guided(RoutePath), permissive }
     var guidedResults: [RoutePath: [Result<ReportReading, ReadFailure>]] = [:]
     var permissiveResults: [Result<String, ReadFailure>] = []
+    var duringOnDeviceCall: (() -> Void)?
     private(set) var calls: [Call] = []
 
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
         calls.append(.guided(path))
+        if path == .onDevice { duringOnDeviceCall?() }
         guard var list = guidedResults[path], !list.isEmpty else { return .failure(.other) }
         let r = list.removeFirst(); guidedResults[path] = list; return r
     }
@@ -136,3 +138,50 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(PermissiveLine.parse("KIND: clue, SEGMENTS: subject injured by the creek in ZZ, COVERAGE: creek", known: ["AB"]) == PermissiveLine(kind: .clue, segmentIds: [], coverage: nil))
     }
 }
+
+/// The cloud gate as it is right now; the test flips it while the on-device call runs.
+final class LiveGateBox: @unchecked Sendable {
+    var gate: LiveGate
+    init(_ gate: LiveGate) { self.gate = gate }
+}
+
+@Suite struct ReadOrchestratorLiveGateTests {
+    func context(_ box: LiveGateBox) -> ReadContext {
+        var c = rctx()
+        c.liveGate = { box.gate }
+        return c
+    }
+
+    @Test func aKillSwitchFlippedDuringTheOnDeviceCallKeepsTheReportOffTheCloud() async {
+        let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        r.duringOnDeviceCall = { box.gate.killCloud = true }
+        let o = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.path == .rules)
+    }
+
+    @Test func lostSignalOrWithdrawnConsentAlsoKeepItOff() async {
+        for flip in [{ (g: inout LiveGate) in g.networkOnline = false }, { (g: inout LiveGate) in g.cloudConsent = false }] {
+            let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
+            let r = FakeRunner()
+            r.guidedResults[.onDevice] = [.failure(.unavailable)]
+            r.guidedResults[.cloud] = [.success(okReading())]
+            r.duringOnDeviceCall = { flip(&box.gate) }
+            _ = await ReadOrchestrator.read(text: report, context: context(box), runner: r, clock: clock)
+            #expect(r.calls == [.guided(.onDevice)])
+        }
+    }
+
+    @Test func aContextLimitKeepsItsOwnReasonOnTheCloud() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.contextExceeded)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .guided(.cloud)])
+        #expect(o.route.reason == .overTokenBudget)
+    }
+}
+

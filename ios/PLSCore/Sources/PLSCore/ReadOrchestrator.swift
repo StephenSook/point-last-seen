@@ -33,6 +33,21 @@ public struct OnDeviceStatus: Sendable, Equatable {
     }
 }
 
+/// What may change while a model call runs: read again at the moment of any cloud dispatch.
+public struct LiveGate: Sendable, Equatable {
+    public var networkOnline: Bool
+    public var cloudConsent: Bool
+    public var killCloud: Bool
+    public var incidentMode: String?
+
+    public init(networkOnline: Bool, cloudConsent: Bool, killCloud: Bool, incidentMode: String?) {
+        self.networkOnline = networkOnline
+        self.cloudConsent = cloudConsent
+        self.killCloud = killCloud
+        self.incidentMode = incidentMode
+    }
+}
+
 public struct ReadContext: Sendable {
     public var incidentMode: String?
     public var knownSegmentIds: [String]
@@ -44,10 +59,12 @@ public struct ReadContext: Sendable {
     public var killCloud: Bool
     public var cloudModel: String
     public var screen: EvidenceScreen
+    /// Live connectivity, consent, kill switch and incident mode. When nil, the snapshot above is used.
+    public var liveGate: (@Sendable () -> LiveGate)?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
-                cloudModel: String, screen: EvidenceScreen) {
+                cloudModel: String, screen: EvidenceScreen, liveGate: (@Sendable () -> LiveGate)? = nil) {
         self.incidentMode = incidentMode
         self.knownSegmentIds = knownSegmentIds
         self.networkOnline = networkOnline
@@ -58,6 +75,7 @@ public struct ReadContext: Sendable {
         self.killCloud = killCloud
         self.cloudModel = cloudModel
         self.screen = screen
+        self.liveGate = liveGate
     }
 }
 
@@ -99,7 +117,26 @@ public enum ReadOrchestrator {
 
         var path = decision.path
         var stage = plan.stages[0]
+        var lastFailure: ReadFailure?
+
+        /// Reads the live gate into the router input; false when the incident left drill mode.
+        func refreshGate() -> Bool {
+            guard let live = context.liveGate?() else { return true }
+            input.networkOnline = live.networkOnline
+            input.cloudConsent = live.cloudConsent
+            input.killCloud = live.killCloud
+            return live.incidentMode.map(ReadPlan.modelModes.contains) ?? false
+        }
+
         while true {
+            // The cloud gate is checked again at the moment of every cloud dispatch.
+            if stage == .guided && path == .cloud {
+                let modeOK = refreshGate()
+                if !modeOK || !input.networkOnline || !input.cloudConsent || input.killCloud {
+                    path = .rules
+                    stage = .deterministicParser
+                }
+            }
             let next: NextStep
             switch stage {
             case .guided:
@@ -109,6 +146,7 @@ public enum ReadOrchestrator {
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
                     note(f, &blocked)
+                    lastFailure = f
                     next = RouterPolicy.afterFailure(f, path: path, stage: .guided)
                 }
             case .permissiveText:
@@ -130,8 +168,14 @@ public enum ReadOrchestrator {
             case let .stage(s):
                 stage = s
             case .rerouteWithoutOnDevice:
-                input.onDeviceAvailable = false
-                decision = RouterPolicy.decide(input)
+                // Keep the real cause: a context limit is over budget, anything else is unavailable.
+                if lastFailure == .contextExceeded {
+                    input.estimatedTokens = Int.max
+                } else {
+                    input.onDeviceAvailable = false
+                }
+                let modeOK = refreshGate()
+                decision = modeOK ? RouterPolicy.decide(input) : RouteDecision(path: .rules, reason: .notDrillMode)
                 path = decision.path
                 stage = path == .rules ? .deterministicParser : .guided
             case .pickList:

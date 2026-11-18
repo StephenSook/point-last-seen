@@ -12,6 +12,9 @@ struct ReportSituation {
     var profile: ModelProfile
     var networkOnline: Bool
     var cloudConsent: Bool
+    /// Connectivity, consent, kill switch and incident mode as they are now; read again by
+    /// PLSCore at the moment of any cloud dispatch. Nil means the values above are used.
+    var liveGate: (@Sendable () -> LiveGate)? = nil
 }
 
 /// Reads one field report and never throws. The decisions live in PLSCore's ReadOrchestrator;
@@ -30,7 +33,7 @@ struct ReportReader {
             networkOnline: situation.networkOnline, onDevice: ModelSessionFactory.onDeviceStatus(),
             estimatedTokens: await ModelSessionFactory.estimateTokens(report: text, tools: tools),
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
-            killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen)
+            killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         let runner = FoundationModelRunner(ai: ai, cloudModel: config.cloudModelIOS, tools: tools)
         return await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
     }
