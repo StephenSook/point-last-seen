@@ -20,6 +20,7 @@ export function JudgePage() {
   const [pct, setPct] = useState<number | null>(null);
 
   useEffect(() => {
+    document.title = "Judge's door: Point Last Seen";
     void loadPublishedRun().then(setRun);
   }, []);
 

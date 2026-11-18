@@ -684,3 +684,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the live beat spec and the sighting harness spec find the Place list as the combobox whose name starts with "Place", because `getByLabel("Place")` now also matched the "Pull toward confirmed places (ours)" switch, and an exact label match fails (the select's name includes its chosen option).
 - Source: the full deployed run after the walker switch landed (strict-mode violation in `e2e/beat.spec.ts`).
 - Verified: the live beat spec passes against the deployed site and the sighting harness spec passes. scripts/ci-local.sh exit 0.
+
+### fix(web): serve a real robots.txt, describe the page, and title the judge page
+- What: `web/public/robots.txt` (all user agents allowed) is served as a text file instead of the hosting rewrite's HTML; `index.html` has a meta description; `/judge` sets its own title, "Judge's door: Point Last Seen".
+- Source: UI review D21; Lighthouse SEO 82 on `/` and `/judge` (robots.txt invalid, no meta description).
+- Verified: new `e2e/pagefacts.spec.ts` tests "robots.txt is a real text file" and "each page has a description and its own title" failed first (text/html; no description), then passed against the local preview. scripts/ci-local.sh exit 0.
