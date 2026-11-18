@@ -35,6 +35,16 @@ class ProfilesTest {
         assertEquals(listOf("Peggy", "Margaret", "a".repeat(60), "B", "C"), Profiles.otherNames(typed))
     }
 
+    /** The shared packet carries every other name, and its nickname field (kept for older readers) the first. */
+    @Test fun theSharedPacketCarriesEveryOtherName() {
+        val shared = Profiles.forSearchers(full)
+        assertEquals(listOf("Mama Mae", "Margaret"), shared.otherNames)
+        assertEquals(listOf("Mama Mae", "Margaret"), shared.toMap()["otherNames"])
+        val none = Profiles.forSearchers(full.copy(otherNames = listOf(" ", "")))
+        assertEquals(emptyList<String>(), none.toMap()["otherNames"])
+        assertEquals("", none.nickname)
+    }
+
     /** The shared packet still has one nickname field: it carries the first other name. */
     @Test fun theSharedNicknameIsTheFirstOtherName() {
         assertEquals("Mama Mae", Profiles.forSearchers(full).nickname)

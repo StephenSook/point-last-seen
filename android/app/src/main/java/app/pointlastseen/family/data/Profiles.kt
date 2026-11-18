@@ -67,6 +67,8 @@ data class SubjectProfile(
 data class SharedProfile(
     val answersTo: String,
     val nickname: String,
+    /** Every other name they may answer to; null on documents written before the list existed. */
+    val otherNames: List<String>?,
     val ageYears: Int?,
     val gender: String,
     val appearance: String,
@@ -93,7 +95,10 @@ data class SharedProfile(
         "clothingLastWorn" to clothingLastWorn, "mobilityAids" to mobilityAids, "dementiaType" to dementiaType,
         "flags" to flags, "triggersToAvoid" to triggersToAvoid, "bestApproach" to bestApproach,
         "uniqueDescription" to uniqueDescription, "photoTakenOn" to photoTakenOn, "approachNoteIds" to approachNoteIds,
-    )
+    ).apply {
+        // The rules take otherNames only as a list, so a document without one leaves the key out.
+        if (otherNames != null) put("otherNames", otherNames)
+    }
 }
 
 /** profile/command: command and family only, never in a pack. */
@@ -140,8 +145,9 @@ object Profiles {
 
     fun forSearchers(p: SubjectProfile): SharedProfile = SharedProfile(
         answersTo = cap(p.answersTo, 60),
-        // The shared packet has one nickname field: it carries the first other name.
+        // Older readers know only the nickname field: it carries the first other name.
         nickname = otherNames(p.otherNames).firstOrNull() ?: "",
+        otherNames = otherNames(p.otherNames),
         ageYears = inRange(p.ageYears, 18..120),
         gender = cap(p.gender, 40),
         appearance = cap(p.appearance, 200),
