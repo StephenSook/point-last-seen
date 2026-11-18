@@ -3,6 +3,7 @@
 // say so. A change rebuilds the prior for every team, so it asks first.
 
 import { useRef, useState } from "react";
+import { priorRefusalMessage } from "./postAccess";
 
 export const WALKER_SENTENCE = "The walker model is a prior for planning. It does not predict where a person is.";
 
@@ -50,10 +51,10 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
       setWant(null);
       r.ack.then(
         () => id === latest.current && setAcked(r.version),
-        () => {
+        (e: unknown) => {
           if (id !== latest.current) return;
           setSent(null);
-          setError("The prior was not saved. Try again.");
+          setError(priorRefusalMessage(e));
         },
       );
     } catch (e) {

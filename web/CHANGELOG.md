@@ -1050,3 +1050,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the layer switches, the Rings/Walkers switch and the clip panel number each submission and apply its acknowledgement or refusal only if it is still the latest one, so a refused older rebuild can no longer clear a newer rebuild's "Sending" or show its error over it.
 - Source: second-model review of PR #16, round 2, finding 7 (medium).
 - Verified: new layers harness test (two rebuilds v5 and v6; refusing the first leaves "v6. Sending." with no alert; acknowledging the second shows "Prior rebuilt as v6.") failed first, then passed; the layers harness now numbers rebuilds and can refuse the first; 22 layers, prior-switch and clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(prior): say another seat updated the map when a stale prior write is refused
+- What: the rules now refuse a prior batch that does not raise the prior version by exactly one (lane A, 04b9565), which means another seat rebuilt first. The layer switches and the Rings/Walkers switch show "Another seat updated the map. Showing the newer one." for that refusal (`priorRefusalMessage`), and "The prior was not saved. Try again." for anything else.
+- Source: lane A's priorVersion rule; review round 2, finding 2 (closed by that rule plus the local guard in 0158e35).
+- Verified: new layers harness test (a rebuild refused with permission-denied shows the line) failed first ("The prior was not saved. Try again."), then passed; 11 layers and prior-switch harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

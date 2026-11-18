@@ -67,3 +67,11 @@ test("a refusal of an older rebuild does not touch the newer rebuild's status", 
   await page.getByRole("button", { name: "Server acknowledges" }).click();
   await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v6.");
 });
+
+test("a rebuild refused because another seat moved the prior first says so in plain words", async ({ page }) => {
+  await page.goto("/harness/layers.html");
+  await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
+  await page.getByRole("button", { name: "Rebuild prior" }).click();
+  await page.getByRole("button", { name: "Server refuses the first" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Another seat updated the map. Showing the newer one.");
+});

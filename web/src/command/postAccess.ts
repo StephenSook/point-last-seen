@@ -52,3 +52,13 @@ export function postReducer(state: PostState, action: PostAction): PostState {
         : { ...state, offline: true };
   }
 }
+
+/**
+ * The line for a refused prior write. The rules refuse a batch that does not raise the prior
+ * version by exactly one (permission-denied), which means another seat rebuilt first; its
+ * newer prior is already on screen.
+ */
+export function priorRefusalMessage(e: unknown): string {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  return code.endsWith("permission-denied") ? "Another seat updated the map. Showing the newer one." : "The prior was not saved. Try again.";
+}

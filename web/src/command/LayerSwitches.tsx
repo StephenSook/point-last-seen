@@ -4,6 +4,7 @@
 
 import type { PriorLayers, Terrain } from "@pls/engine";
 import { useEffect, useRef, useState } from "react";
+import { priorRefusalMessage } from "./postAccess";
 
 type Props = {
   layers: PriorLayers;
@@ -43,10 +44,10 @@ export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, mo
       setSent(version);
       ack.then(
         () => id === latest.current && setAcked(version),
-        () => {
+        (e: unknown) => {
           if (id !== latest.current) return;
           setSent(null);
-          setError("The prior was not saved. Try again.");
+          setError(priorRefusalMessage(e));
         },
       );
     } catch (e) {
