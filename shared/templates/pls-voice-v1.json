@@ -12,7 +12,8 @@
           "voiceName": "Kore"
         }
       }
-    }
+    },
+    "maxOutputTokens": 4096
   },
   "input": {
     "schema": {

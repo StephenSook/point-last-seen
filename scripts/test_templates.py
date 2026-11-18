@@ -120,3 +120,11 @@ def test_every_output_field_has_a_type_at_every_depth():
         if "output" in t:
             missing = [m for k, v in t["output"]["schema"].items() for m in untyped(v, f"{t['templateId']}.{k}")]
             assert missing == [], missing
+
+
+def test_every_template_bounds_its_own_output():
+    # cloudGuard leaves template calls as sent (a returned config would replace the template's), so each template
+    # carries the bound itself: the same caps cloudGuard applies to direct calls.
+    for t in tp.templates(ROOT):
+        cap = 4096 if t["model"].endswith("-tts") else 2048
+        assert 0 < t["config"].get("maxOutputTokens", 0) <= cap, t["templateId"]

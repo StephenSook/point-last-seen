@@ -3,7 +3,8 @@
   "displayName": "PLS photo cues (command post cloud read)",
   "model": "gemini-3.5-flash-lite",
   "config": {
-    "temperature": 0
+    "temperature": 0,
+    "maxOutputTokens": 2048
   },
   "input": {
     "schema": {

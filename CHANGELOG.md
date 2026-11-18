@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Every server prompt template bounds its own output (`maxOutputTokens` 2,048 for text, 4,096 for speech, the
+  same caps cloudGuard applies to direct calls), because cloudGuard leaves a template call's config as the
+  template sets it.
+  Source: review (template calls must be bounded too).
+  Verified: the test (every template's bound within its cap) failed first, now 10 template tests pass; the dry
+  run plans four updates; `bash scripts/ci-local.sh` exit 0.
 - cloudGuard leaves a template call's request alone after checking its model. Deployed at 21:47 UTC on
   2026-11-18, it set a generationConfig on template calls, which replaced the template's own config: the
   sighting template answered with made-up field names (`directionOfTravel`, `topColour`). It was deleted
