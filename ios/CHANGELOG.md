@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add the per-report timing record
+- What: `ReadMeasurement` holds `submittedAtMs`, `readDoneAtMs` and `redrawnAtMs` (the spec's
+  three fields), the read and redraw durations, and its path
+  `incidents/{incidentId}/teams/{teamId}/devices/{uid}/measurements/{eventId}`.
+- Source: Task 13 (write the three timings after the redraw), spec section 7, lane A's rules
+  contract (device docs under the writer's own uid).
+- Verified: `MeasurementTests` red without the type, then green; full suite 190 tests.
+
 ### feat(ios-core): build the undo event as a retraction of the searcher's own report
 - What: `ReadOutcomeBuilder.retraction(of:authorUid:deviceId:seq:clientTimeMs:)` makes a
   `retraction` event that targets the report (effect none/informational, no text, no reading, no
