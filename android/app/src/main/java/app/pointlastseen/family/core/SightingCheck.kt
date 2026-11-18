@@ -10,6 +10,8 @@ data class CheckResult(
 /** Code checks on a model's clip reading. A failure shows "Couldn't read" and changes nothing. */
 object SightingCheck {
     const val MAX_CARRIED = 3
+    const val MAX_TEXT = 40
+    const val MAX_EVIDENCE = 400
     private val MMSS = Regex("""^(\d{2}):([0-5]\d)$""")
 
     /** Seconds from "MM:SS", or null when malformed. */
@@ -44,7 +46,11 @@ object SightingCheck {
         val cleaned = s.copy(
             topColor = if (suppress) "unknown" else Colors.normalize(s.topColor),
             bottomColor = if (suppress) "unknown" else Colors.normalize(s.bottomColor),
-            carriedItems = s.carriedItems.take(MAX_CARRIED),
+            topType = s.topType.take(MAX_TEXT),
+            footwear = s.footwear.take(MAX_TEXT),
+            headwear = s.headwear.take(MAX_TEXT),
+            carriedItems = s.carriedItems.take(MAX_CARRIED).map { it.take(MAX_TEXT) },
+            evidence = s.evidence.take(MAX_EVIDENCE),
         )
         return CheckResult(ok = reasons.isEmpty(), reasons = reasons, cleaned = cleaned, colorSuppressed = suppress)
     }

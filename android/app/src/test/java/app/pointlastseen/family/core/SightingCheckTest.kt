@@ -73,6 +73,16 @@ class SightingCheckTest {
         assertEquals(listOf("a", "b", "c"), r.cleaned.carriedItems)
     }
 
+    @Test fun freeTextIsCappedAtTheSchemaLengths() {
+        val long = "x".repeat(50)
+        val r = SightingCheck.check(sighting.copy(topType = long, footwear = long, headwear = long, carriedItems = listOf(long), evidence = "e".repeat(500)), 30)
+        assertEquals(40, r.cleaned.topType.length)
+        assertEquals(40, r.cleaned.footwear.length)
+        assertEquals(40, r.cleaned.headwear.length)
+        assertEquals(40, r.cleaned.carriedItems.single().length)
+        assertEquals(400, r.cleaned.evidence.length)
+    }
+
     @Test fun aGoodReadingPasses() {
         val r = SightingCheck.check(sighting, 30)
         assertTrue(r.reasons.toString(), r.ok)
