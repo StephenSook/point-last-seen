@@ -497,3 +497,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `motion/engine.ts`, the only file importing animejs. `motionScope(run)` is one `createScope` with the "(prefers-reduced-motion: reduce)" query and reruns when it changes. `playReportBeat(plan, targets)` builds one timeline labelled REPORT: each step (each changed segment for the staggered lightness step) animates a plain progress value 0 to 1 and hands it to `targets.progress`; the pin uses `spring({ bounce: 0.35, duration: 400 })`; `done` fires at the end; `cancel` stops it. The map, chips and rank list will apply the progress values (next commits). Dev-only harness `web/harness/beat.html`.
 - Source: plan Task 39.3 and 39.4; API names read from animejs 4.5.0's type files.
 - Verified: `e2e/harness/beat.spec.ts`: with motion, all seven steps (lightness once per changed segment) reach 1 and the beat ends in 1,900 to 2,400 ms; with reduced motion only the 150 ms fade runs. The engine was written before this spec, so two mutants were run against it: dropping the per-segment steps and ignoring reduced motion each fail the spec. scripts/ci-local.sh exit 0.
+
+### feat(map): carry each segment's class before the newest report for the cross-fade
+- What: `segmentFeatures(segments, poa, before?)` adds `clsOld`, the lightness class under the previous POA (with its own maximum), when `before` is given; without it the features are unchanged.
+- Source: plan Task 39.4 (the REPORT beat cross-fades lightness from the old map to the new one).
+- Verified: new test in `src/map/poaStyle.test.ts` failed first, then passed (11 of 11). scripts/ci-local.sh exit 0.

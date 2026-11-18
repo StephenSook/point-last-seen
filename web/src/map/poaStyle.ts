@@ -22,17 +22,25 @@ export type MapSegment = {
   centroid: { lat: number; lon: number };
 };
 
-export type SegmentProps = { segmentId: string; poa: number; cls: number; label: string };
+export type SegmentProps = { segmentId: string; poa: number; cls: number; label: string; clsOld?: number };
 
 export type SegmentCollection = {
   type: "FeatureCollection";
   features: { type: "Feature"; id: number; geometry: MapSegment["geometry"]; properties: SegmentProps }[];
 };
 
-/** Segments as GeoJSON for the fill layer. ROW is shown in the rank list, not on the map. */
-export function segmentFeatures(segments: readonly MapSegment[], poa: Readonly<Record<string, number>>): SegmentCollection {
+/**
+ * Segments as GeoJSON for the fill layer. ROW is shown in the rank list, not on the map.
+ * With `before`, each segment also carries its class before the newest report (the beat cross-fades from it).
+ */
+export function segmentFeatures(
+  segments: readonly MapSegment[],
+  poa: Readonly<Record<string, number>>,
+  before?: Readonly<Record<string, number>>,
+): SegmentCollection {
   const inGrid = segments.map((s) => poa[s.segmentId] ?? 0);
   const maxPoa = Math.max(0, ...inGrid);
+  const maxBefore = before ? Math.max(0, ...segments.map((s) => before[s.segmentId] ?? 0)) : 0;
   return {
     type: "FeatureCollection",
     features: segments.map((s, i) => {
@@ -41,7 +49,13 @@ export function segmentFeatures(segments: readonly MapSegment[], poa: Readonly<R
         type: "Feature",
         id: i,
         geometry: s.geometry,
-        properties: { segmentId: s.segmentId, poa: p ?? 0, cls: poaClass8(p ?? 0, maxPoa), label: p === undefined ? "" : formatPct(p) },
+        properties: {
+          segmentId: s.segmentId,
+          poa: p ?? 0,
+          cls: poaClass8(p ?? 0, maxPoa),
+          label: p === undefined ? "" : formatPct(p),
+          ...(before ? { clsOld: poaClass8(before[s.segmentId] ?? 0, maxBefore) } : {}),
+        },
       };
     }),
   };

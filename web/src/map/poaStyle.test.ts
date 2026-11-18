@@ -50,6 +50,11 @@ describe("segmentFeatures", () => {
     const fc = segmentFeatures(segments, {});
     expect(fc.features[0]!.properties).toEqual({ segmentId: "AA", poa: 0, cls: 0, label: "" });
   });
+
+  it("carries the class before the newest report, for the lightness cross-fade", () => {
+    const fc = segmentFeatures(segments, { AA: 0.1, AB: 0.3, ROW: 0.6 }, { AA: 0.3, AB: 0.1, ROW: 0.6 });
+    expect(fc.features.map((f) => [f.properties.cls, f.properties.clsOld])).toEqual([[2, 7], [7, 2]]);
+  });
 });
 
 describe("second signal and segment edges", () => {
