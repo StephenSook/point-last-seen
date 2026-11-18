@@ -36,3 +36,10 @@ def test_staleness_compares_raw_seconds_not_rounded_minutes():
     # 120 min 30 s is past the 120-minute limit; flooring to whole minutes used to let it pass.
     assert mp.evaluate(doc(checked="2026-12-12T12:59:30Z"), NOW) == ["the sweep last ran 120.5 min ago (limit 120)"]
     assert mp.evaluate(doc(checked="2026-12-12T13:00:00Z"), NOW) == []
+
+
+def test_two_failing_sweeps_in_a_row_fail_the_probe_one_does_not():
+    one = doc(); one["fields"]["sweepFailureStreak"] = {"integerValue": "1"}
+    two = doc(); two["fields"]["sweepFailureStreak"] = {"integerValue": "2"}
+    assert mp.evaluate(one, NOW) == []
+    assert mp.evaluate(two, NOW) == ["the media sweep failed on 2 runs in a row"]

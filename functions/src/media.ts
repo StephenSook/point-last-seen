@@ -83,6 +83,9 @@ export function lifecycleOk(meta: BucketMetadata): { ok: boolean; ageDays: numbe
 export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "getMetadata">, sweepFailures = 0): Promise<void> {
   const [meta] = await bucket.getMetadata();
   const lc = lifecycleOk(meta as BucketMetadata);
-  // Public doc: a count only; the failed incident ids go to the function log.
-  await db.doc("ops/storage").set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, sweepFailures, checkedAt: FieldValue.serverTimestamp() });
+  const ref = db.doc("ops/storage");
+  const previous = (await ref.get()).get("sweepFailureStreak");
+  const sweepFailureStreak = sweepFailures > 0 ? (typeof previous === "number" ? previous : 0) + 1 : 0;
+  // Public doc: counts only; the failed incident ids go to the function log. The probe fails on a streak of 2.
+  await ref.set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, sweepFailures, sweepFailureStreak, checkedAt: FieldValue.serverTimestamp() });
 }

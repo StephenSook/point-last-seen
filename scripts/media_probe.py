@@ -22,6 +22,9 @@ def evaluate(d, now: datetime) -> list[str]:
     problems = []
     if f.get("lifecycleOk", {}).get("booleanValue") is not True:
         problems.append("the bucket lifecycle rule is missing or too long")
+    streak = int(f.get("sweepFailureStreak", {}).get("integerValue", "0"))
+    if streak >= 2:
+        problems.append(f"the media sweep failed on {streak} runs in a row")
     ts = f.get("checkedAt", {}).get("timestampValue")
     if not ts:
         problems.append("ops/storage has no checkedAt")

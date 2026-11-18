@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- ops/storage keeps a sweep failure streak (consecutive sweeps with any failed sandbox, reset by a clean sweep),
+  and the daily probe fails when it reaches 2, so a stuck delete (a hold, a permission change) is reported
+  instead of retried silently for days. One failing sweep still passes, so a single transient error does not
+  page anyone.
+  Source: review round 2 (medium).
+  Verified: the streak test (two failing records then a clean one) and the probe test failed first, now pass;
+  emulator suite 113; 5 probe tests; `bash scripts/ci-local.sh` exit 0.
 - The media sweep, redesigned from the second review round: it lists only sandboxes ended in the last 7 days
   plus any not yet stamped (a failed sweep writes mediaDeletedAt: null so the equality query keeps finding it),
   instead of the whole history every 5 minutes; each of a sandbox's three prefixes is listed and deleted on its

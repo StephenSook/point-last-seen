@@ -104,8 +104,12 @@ describe("storage health for the daily probe (ops/storage)", () => {
   it("writes ops/storage with the lifecycle state and a server time", async () => {
     const fake = { getMetadata: async () => [{ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } }] };
     await recordStorageHealth(admin.db, fake as never, 2);
+    await recordStorageHealth(admin.db, fake as never, 1);
     const d = (await admin.db.doc("ops/storage").get()).data()!;
-    expect(d.sweepFailures).toBe(2);
+    expect(d.sweepFailures).toBe(1);
+    expect(d.sweepFailureStreak).toBe(2);
+    await recordStorageHealth(admin.db, fake as never, 0);
+    expect((await admin.db.doc("ops/storage").get()).get("sweepFailureStreak")).toBe(0);
     expect(d.lifecycleOk).toBe(true);
     expect(d.lifecycleAgeDays).toBe(30);
     expect(d.checkedAt).toBeInstanceOf(Timestamp);
