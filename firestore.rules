@@ -57,6 +57,7 @@ service cloud.firestore {
       allow create: if false;
       allow update: if isCommand(incidentId)
         && resource.data.get('status', 'open') != 'closed'
+        && request.resource.data.status in ['open', 'found', 'closed']
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash']);
       allow delete: if false;
@@ -271,7 +272,7 @@ service cloud.firestore {
         && (d.durationS == null || d.durationS is number)
         && d.clipStartMs is number && d.clockConfirmed is bool
         && (d.cameraFacingDeg == null || d.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
-        && d.expiresAt is timestamp
+        && d.expiresAt is timestamp && d.expiresAt > request.time && d.expiresAt <= request.time + duration.value(31, 'd')
         && d.createdAt == request.time;
     }
 

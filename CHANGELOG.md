@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Two cheap fixes from the same audit: a clip reading's `expiresAt` (it drives the 30-day TTL on the consent
+  record and the model's description of the person in the clip) must be in the future and at most 31 days
+  away, so a client can no longer keep it forever or delete it at once; and an incident update must leave
+  `status` as open, found or closed, so command can no longer remove it (which silently paused events, plans
+  and joins) or set a look-alike such as "Closed".
+  Source: rules audit 2026-11-18 (two minors folded into the fix, with the orchestrator's go).
+  Verified: new shapes cases (a past and a 40-day expiry are refused, 30 days passes; "Closed" and a write
+  without status are refused, "found" passes) fail against the previous rules; emulator suite passes;
+  `bash scripts/ci-local.sh` exit 0.
 - profile/shared types every key it allows (rules audit, moderate), through the generated
   schema_SharedProfile: string lengths (60 or 40 or 200), integer ranges for age, height and weight, the
   dementiaType and mobilityAids enums, the date pattern for photoTakenOn, all 18 flags as booleans, and
