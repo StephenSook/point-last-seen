@@ -20,3 +20,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `subscribeIncident` keeps live views of the incident doc, the teams, each team's device docs (for `clockOffsetMs`) and the segments (geometry parsed from `geometryJson`; the reserved `ROW` segment carried as `rowPrior`, never drawn).
 - Source: plan Task 15, spec section 7 data model, `clockOffsetMs` in spec 11.3.
 - Verified: typecheck clean. Firestore glue, exercised by the e2e smoke once an incident can be seeded.
+
+### feat(web): add the command post neutrals and layout from the visual system
+- What: `theme/base.css` sets the spec 22.1 neutrals (bg-0 to bg-3, fg-1 to fg-4, line), change-cyan and alert-red as custom properties, visible focus, tabular numbers, the map-first three-column layout and a one-column layout under 900 px. Errors use neutral ink, because alert-red is reserved for hazards with an icon and a word.
+- Source: plan Task 15 (plain UI), spec sections 22 and 22.1. The fonts and the token tests arrive with Task 39.
+- Verified: hex values copied from the spec 22.1 table; build clean.
