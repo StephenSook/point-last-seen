@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `functions/package.json` lists only its runtime dependencies (firebase-admin, firebase-functions); the test
+  toolchain it used (firebase client 13.4.0, TypeScript 6.0.3, Vitest 5.1.0, @types/node 22.20.5) moves to
+  the root devDependencies, still hoisted for the workspace tests. Cloud Build generates a lockfile from the
+  functions folder alone, and npm's arborist crashed in peer-set resolution on the dev toolchain
+  ("Cannot read properties of null (reading 'edgesOut')"), failing the first joinIncident deploy.
+  Source: Cloud Build log of the failed deploy (build f5d65a45, about 55 s).
+  Verified: the crash reproduced locally from a copy of the old functions/package.json; production-only it
+  resolves (`npm install --package-lock-only` exit 0); the emulator suite still passes 85 and the functions
+  typecheck exits 0; `bash scripts/ci-local.sh` exit 0 (paid-usage fallback: CI is budget-limited).
 - Add the grid builder workspace (`tools/grid-builder`, Task 10): `buildCells` cuts the site into 125 m cells,
   rows north to south, clipped to the site (slivers under 1 m2 dropped before ids), two-letter row-major ids
   and edge neighbours; `applyFeatures` sets each segment's nearFrac (share within 71 m of a road, trail,
