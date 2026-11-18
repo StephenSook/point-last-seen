@@ -541,9 +541,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
       o.bearingDeg,
     );
-    built.forEach(write);
     setPin(null);
-    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior) };
+    // One batch: the sighting, its confirmation and the prior land together or not at all.
+    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built) };
   };
   const saveProfile = (p: FamilyProfile) => {
     setProfileError(null);
