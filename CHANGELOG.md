@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `cloudGuard` (AI Logic `beforeGenerateContent` trigger): every generateContent call through AI Logic,
+  templated or not, may name only a model on the allow-list (a test keeps the function's copy equal to
+  shared/constants/models.json), and a text reply is bounded to 2,048 output tokens (speech output is not
+  text-bounded). No database or outside call, no minimum instances. Streaming calls and the Live API do not
+  trigger it, by Google's design, so the iOS report read is not covered; SECURITY row 12 is updated after the
+  live latency and refusal checks.
+  Source: review (row 12 reversed: a trigger that does a real job, claimed honestly).
+  Verified: the 5 tests (the list equals the shared one; off-list models refused in any path form; the clamp
+  lowers or sets the bound and leaves the rest of the request; speech untouched; registered as the
+  before-generate trigger) failed first (module missing), now pass; functions typecheck exit 0; baseline before
+  deploy: median 839 ms over 10 warm direct calls; `bash scripts/ci-local.sh` exit 0.
 - The rules gate's "no model call in any Cloud Function" rule now matches a call (`.generateContent(` or
   `.generateContentStream(`, `getGenerativeModel`, the model SDK imports) instead of any occurrence of the word,
   so a function can host the AI Logic `beforeGenerateContent` trigger, which calls no model, and mention the
