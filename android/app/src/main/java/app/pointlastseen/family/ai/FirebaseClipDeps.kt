@@ -6,6 +6,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.storage
 import com.google.firebase.storage.storageMetadata
 import kotlinx.coroutines.tasks.await
@@ -24,6 +25,13 @@ class FirebaseClipDeps(private val incidentId: String, private val ai: AiClient)
     }
 
     override fun storagePath(sha256: String): String = "clips/$incidentId/$sha256.mp4"
+
+    override suspend fun clipExists(sha256: String): Boolean = try {
+        Firebase.storage.reference.child(storagePath(sha256)).metadata.await()
+        true
+    } catch (e: StorageException) {
+        if (e.errorCode == StorageException.ERROR_OBJECT_NOT_FOUND) false else throw e
+    }
 
     override suspend fun upload(sha256: String, bytes: ByteArray): String {
         val path = storagePath(sha256)

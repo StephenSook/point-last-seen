@@ -25,12 +25,14 @@ class ClipReaderTest {
     private class FakeDeps(
         val cached: StoredClipReading? = null,
         val reply: ModelReply = ModelReply(null, Source.IN_CLOUD, 0),
+        val alreadyUploaded: Boolean = false,
     ) : ClipDeps {
         val log = mutableListOf<String>()
         val consents = mutableListOf<StoredClipReading>()
         val completed = mutableListOf<Pair<String, String>>()
         override suspend fun findReading(sha256: String): StoredClipReading? { log += "find"; return cached }
         override fun storagePath(sha256: String) = "clips/inc-1/$sha256.mp4"
+        override suspend fun clipExists(sha256: String): Boolean { log += "exists"; return alreadyUploaded }
         override suspend fun upload(sha256: String, bytes: ByteArray): String { log += "upload"; return storagePath(sha256) }
         override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply { log += "model:$mimeType"; return reply }
         override suspend fun createConsentRecord(doc: StoredClipReading) { log += "consent"; consents += doc }
@@ -217,7 +219,19 @@ class ClipReaderTest {
         val out = ClipReader(deps).read(r) as ClipOutcome.Read
         assertFalse(out.cached)
         // The consent record already exists (an earlier attempt), so it is not written again.
-        assertEquals(listOf("find", "upload", "model:video/mp4", "complete"), deps.log)
+        assertEquals(listOf("find", "exists", "upload", "model:video/mp4", "complete"), deps.log)
+    }
+
+    @Test fun aRetryWhoseClipIsAlreadyStoredSkipsTheUpload() = runTest {
+        val r = request(1000)
+        val consentOnly = StoredClipReading(
+            sha256 = Hashes.sha256Hex(r.bytes), storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
+            cameraFacingDeg = 90, readingJson = null, route = null, consent = r.consent, expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "u1",
+        )
+        val deps = FakeDeps(cached = consentOnly, reply = ModelReply(readingJson, Source.IN_CLOUD, 900), alreadyUploaded = true)
+        assertTrue(ClipReader(deps).read(r) is ClipOutcome.Read)
+        // Clips are create-only in Storage, so a second upload of the same hash would be refused.
+        assertEquals(listOf("find", "exists", "model:video/mp4", "complete"), deps.log)
     }
 
     @Test fun aReadingThatFailsItsChecksIsShownAsCouldNotRead() = runTest {

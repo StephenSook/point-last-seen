@@ -38,6 +38,8 @@ interface ClipDeps {
     suspend fun findReading(sha256: String): StoredClipReading?
     /** Where the clip with this hash is stored: clips/{incidentId}/{sha256}.mp4. */
     fun storagePath(sha256: String): String
+    /** Whether the clip is already in Storage (an earlier attempt uploaded it; clips are create-only). */
+    suspend fun clipExists(sha256: String): Boolean
     suspend fun upload(sha256: String, bytes: ByteArray): String
     suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply
     suspend fun createConsentRecord(doc: StoredClipReading)
@@ -123,7 +125,9 @@ class ClipReader(
                     ),
                 )
             }
-            deps.upload(sha, r.bytes)
+            // A retry after an earlier attempt: the record exists, and the clip may too.
+            // Storage objects are create-only, so a second upload of the same hash is refused.
+            if (found == null || !deps.clipExists(sha)) deps.upload(sha, r.bytes)
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
             val reply = deps.callModel(r.bytes, r.mimeType)
