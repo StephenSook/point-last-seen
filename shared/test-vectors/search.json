@@ -9361,6 +9361,232 @@
    ]
   },
   {
+   "name": "family_confirm_after_command_reject_ignored",
+   "input": {
+    "docs": [
+     {
+      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "pub1",
+      "seq": 1,
+      "authorUid": "uid-pub1",
+      "role": "command",
+      "type": "sighting",
+      "reporter": "public_caller",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": 1795860000000,
+      "position": {
+       "lat": 33.7,
+       "lon": -84.3,
+       "accuracyM": 8
+      },
+      "positionSource": "map_click",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "strong_for",
+        "AA": "for"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "cmd1",
+      "seq": 1,
+      "authorUid": "uid-cmd1",
+      "role": "command",
+      "type": "confirmation",
+      "reporter": "system",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none",
+       "why": "informational"
+      },
+      "route": null,
+      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "decision": "rejected",
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "81d054ffcb3d910d34e799c09138c6f4",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "fam1",
+      "seq": 3,
+      "authorUid": "uid-fam1",
+      "role": "family",
+      "type": "confirmation",
+      "reporter": "family",
+      "clientTimeMs": 1795869999000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none",
+       "why": "informational"
+      },
+      "route": null,
+      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "decision": "confirmed",
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "command_confirm_after_family_reject_counts",
+   "input": {
+    "docs": [
+     {
+      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "pub1",
+      "seq": 1,
+      "authorUid": "uid-pub1",
+      "role": "command",
+      "type": "sighting",
+      "reporter": "public_caller",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": 1795860000000,
+      "position": {
+       "lat": 33.7,
+       "lon": -84.3,
+       "accuracyM": 8
+      },
+      "positionSource": "map_click",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "strong_for",
+        "AA": "for"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "3eb52877d01fbe2fb737f23f96303ff3",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "fam1",
+      "seq": 4,
+      "authorUid": "uid-fam1",
+      "role": "family",
+      "type": "confirmation",
+      "reporter": "family",
+      "clientTimeMs": 1795869999000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none",
+       "why": "informational"
+      },
+      "route": null,
+      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "decision": "rejected",
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": null,
+      "deviceId": "cmd1",
+      "seq": 1,
+      "authorUid": "uid-cmd1",
+      "role": "command",
+      "type": "confirmation",
+      "reporter": "system",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none",
+       "why": "informational"
+      },
+      "route": null,
+      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "decision": "confirmed",
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": [
+    {
+     "eventId": "d73f9170c78a30baa82f33708f749156",
+     "effect": {
+      "kind": "clue",
+      "influences": {
+       "AB": "strong_for",
+       "AA": "for"
+      },
+      "authenticity": "high"
+     }
+    }
+   ]
+  },
+  {
    "name": "retracted_confirmation_unconfirms",
    "input": {
     "docs": [

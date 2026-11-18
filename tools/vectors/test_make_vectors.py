@@ -131,3 +131,9 @@ def test_router_never_returns_cloud_after_block_or_refusal():
 def test_generator_is_deterministic_and_checked_in():
     out = subprocess.run([sys.executable, "-I", str(GEN), "--check"], capture_output=True, text=True)
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_command_confirmation_outranks_a_later_family_one():
+    v = load(V)
+    assert case(v, "docToEngine", "family_confirm_after_command_reject_ignored")["expected"] == []
+    assert len(case(v, "docToEngine", "command_confirm_after_family_reject_counts")["expected"]) == 1

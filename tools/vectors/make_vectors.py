@@ -164,7 +164,10 @@ def stored_clear_is_consistent(eff):
 
 def to_engine_events(docs, prior_input_ids):
     """Retractions count from command or the target's own author. Confirmations
-    count from command or family; the latest by (clientTimeMs, eventId) wins."""
+    count from command or family. A command confirmation outranks any family one
+    for the same target (clientTimeMs is set by the writer, so a skewed family
+    clock must not override command); within one role the latest by
+    (clientTimeMs, eventId) wins."""
     by_id = {}
     for d in docs:
         by_id.setdefault(d["eventId"], d)
@@ -178,7 +181,7 @@ def to_engine_events(docs, prior_input_ids):
     for d in by_id.values():
         if (d["type"] == "confirmation" and d["role"] in ("command", "family") and d["targetEventId"] is not None
                 and d["decision"] in ("confirmed", "rejected") and d["eventId"] not in retracted):
-            key = (d["clientTimeMs"], d["eventId"])
+            key = (1 if d["role"] == "command" else 0, d["clientTimeMs"], d["eventId"])
             t = d["targetEventId"]
             if t not in latest or key > latest[t][0]:
                 latest[t] = (key, d["decision"])
@@ -556,6 +559,14 @@ def build():
                                              confirm(sight["eventId"], "rejected", 2)], []),
         ("rejected_then_confirmed_counts", [sight, confirm(sight["eventId"], "rejected", 1),
                                             confirm(sight["eventId"], "confirmed", 2)], []),
+        ("family_confirm_after_command_reject_ignored",
+         [sight, confirm(sight["eventId"], "rejected", 1),
+          doc("fam1", 3, "confirmation", none("informational"), role="family", reporter="family", teamId=None,
+              targetEventId=sight["eventId"], decision="confirmed", clientTimeMs=1795869999000)], []),
+        ("command_confirm_after_family_reject_counts",
+         [sight, doc("fam1", 4, "confirmation", none("informational"), role="family", reporter="family", teamId=None,
+                     targetEventId=sight["eventId"], decision="rejected", clientTimeMs=1795869999000),
+          confirm(sight["eventId"], "confirmed", 1)], []),
         ("retracted_confirmation_unconfirms", [sight, confirm(sight["eventId"], "confirmed", 1),
                                                doc("cmd1", 3, "retraction", none("informational"), role="command",
                                                    targetEventId=event_id(INCIDENT, "cmd1", 1))], []),

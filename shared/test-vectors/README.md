@@ -100,7 +100,7 @@ Events to the engine (`docToEngine`)
 - Skip ids in `priorInputEventIds`, and retracted ids. A retraction counts from role command or from the target's own `authorUid`.
 - `cleared` counts when its effect is a clear whose `inputs.coverage` is finite and at least 0 and whose `pod` is within 1e-9 of `1 - exp(-coverage)`. Computed coverage may exceed 3.
 - `clue` counts when its effect is a clue with authenticity high or medium.
-- `sighting` counts like a clue only when the latest confirmation targeting it, by (`clientTimeMs`, `eventId`), says "confirmed". Confirmations count from role command or family. A retracted confirmation does not count.
+- `sighting` counts like a clue only when the deciding confirmation targeting it says "confirmed". Confirmations count from role command or family. A command confirmation outranks any family one (the writer sets `clientTimeMs`, so a skewed family clock must not override command); within one role the latest by (`clientTimeMs`, `eventId`) decides. A retracted confirmation does not count.
 - `camera_sighting`, `destination`, `confirmation`, `retraction`, `found` and `plan_ack` never count.
 
 Ids
