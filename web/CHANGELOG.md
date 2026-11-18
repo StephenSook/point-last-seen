@@ -35,3 +35,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `MergeLanes` renders one lane per team from `mergeModel`: "No reports yet." while silent, and per card "sent 14:03 / arrived 14:21 (18 min without signal)", "on its way" before arrival, and "(phone clock looks wrong)" when the gap is negative or above 24 hours.
 - Source: plan Task 15, spec 11.2 merge lanes.
 - Verified: the lane data comes from `mergeModel` (10 unit tests); typecheck and build clean.
+
+### feat(web): list segments by POA with the outside-the-map row
+- What: `PoaRank` lists segments by POA, highest first, with tabular percents, plus a row "Outside the mapped area" for the ROW mass. Until the engine lands it lists the stored prior.
+- Source: plan Task 15 (POA rank with a ROW row), spec 10.1 (ROW always carried and shown).
+- Verified: typecheck and build clean.
