@@ -472,3 +472,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `motion/plan.ts`: `MOTION` (spec 22.1 enter 350 ms out(3), exit 250 ms inOut(3), swap, stroke 50 ms outQuart, line draw 600 to 1000 ms inOutExpo, release bounce 0.35 over 400 ms, reduced fade 150 ms, reduced hold 4 s) and `reportBeatPlan(change, distanceM, reduced)`: pin 0 ms, arc 100, lightness 300 (changed segments nearest first, stagger 40 ms capped so the spread stays within 300 ms), pulse 300, chips 900, reorder 1100, arc fade 1750, ending at 2000 ms; reduced motion is one 150 ms fade. `beatTotalMs` counts each step's stagger. No animation library in this file.
 - Source: plan Task 39.4 interfaces and tests.
 - Verified: `src/motion/plan.test.ts` (the plan's four tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(motion): add the ripple delay from the point last seen
+- What: `motion/ripple.ts` `rippleDelayMs(cell, origin, stepMs = 25)`: straight-line distance in cells times 25 ms, so dots grow outward from the point last seen on a prior's first draw.
+- Source: plan Task 39.6.
+- Verified: `src/motion/ripple.test.ts` failed first, then passed (0, 25 and 125 ms). scripts/ci-local.sh exit 0.
