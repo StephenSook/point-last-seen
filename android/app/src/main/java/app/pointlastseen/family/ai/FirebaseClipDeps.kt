@@ -27,8 +27,13 @@ class FirebaseClipDeps(private val incidentId: String, private val ai: AiClient)
 
     override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply = ai.readClip(bytes, mimeType)
 
+    /**
+     * Not awaited (Global Constraints: Firestore writes on the phone are never awaited):
+     * with the link down after the model answers, the card still shows and Firestore
+     * sends the reading when the link returns.
+     */
     override suspend fun storeReading(doc: StoredClipReading) {
-        doc(doc.sha256).set(ClipReadingDoc.toMap(doc) { Timestamp(Date(it)) }).await()
+        doc(doc.sha256).set(ClipReadingDoc.toMap(doc) { Timestamp(Date(it)) })
     }
 
     override fun nowMs(): Long = System.currentTimeMillis()
