@@ -122,8 +122,9 @@ def test_binary_files_are_skipped(tmp_path):
 
 def test_model_builders_only_in_client_files(tmp_path):
     write(tmp_path, "web/src/ai/client.ts", "export const m = getGenerativeModel(ai, opts)")
-    write(tmp_path, "ios/PLS/AI/ReportReader.swift",
+    write(tmp_path, "ios/PLS/AI/ModelSessionFactory.swift",
           "let local = SystemLanguageModel.default\nlet cloud = ai.geminiLanguageModel(name: id)\n")
+    write(tmp_path, "ios/PLS/AI/AIClient.swift", "let ai = FirebaseAI.firebaseAI(app: app, backend: b)\n")
     write(tmp_path, "android/app/src/main/java/app/pointlastseen/family/ai/AiClient.kt",
           "val ai = Firebase.ai(backend = b)\n")
     assert run_gate(tmp_path).returncode == 0
@@ -131,6 +132,7 @@ def test_model_builders_only_in_client_files(tmp_path):
         "web/src/command/Plan.tsx": "getGenerativeModel(ai, o)",
         "ios/PLS/Views/MapStripView.swift": "SystemLanguageModel.default",
         "ios/PLS/Data/EventStore.swift": "ai.geminiLanguageModel(name: x)",
+        "ios/PLS/AI/ReportReader.swift": "FirebaseAI.firebaseAI(app: app)",
         "android/app/src/main/java/app/pointlastseen/family/ui/Home.kt": "Firebase.ai(backend = b)",
     }
     for rel, text in strays.items():
