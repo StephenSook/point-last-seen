@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { joinIncident } from "../src/index";
-import { handleJoin } from "../src/join";
+import { onCall } from "firebase-functions/v2/https";
+import { handleJoin, type JoinRequest } from "../src/join";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
 const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
@@ -34,8 +35,10 @@ beforeEach(async () => {
 afterAll(closeClients);
 
 /** Invokes the exported HTTP handler with a minimal request and response, as the Functions runtime would. */
-async function callRaw(r: { method: string; body: unknown }): Promise<{ status: number; body: unknown }> {
+async function callRaw(r: { method: string; body: unknown; idToken?: string; appCheck?: string; fn?: unknown }): Promise<{ status: number; body: unknown }> {
   const headers: Record<string, string> = { "content-type": "application/json", origin: "https://example.test" };
+  if (r.idToken) headers.authorization = `Bearer ${r.idToken}`;
+  if (r.appCheck) headers["x-firebase-appcheck"] = r.appCheck;
   const req = {
     method: r.method, url: "/", headers, body: r.body, rawBody: Buffer.from(JSON.stringify(r.body)),
     header: (n: string) => headers[n.toLowerCase()], get: (n: string) => headers[n.toLowerCase()],
@@ -54,7 +57,7 @@ async function callRaw(r: { method: string; body: unknown }): Promise<{ status: 
       end(body?: unknown) { resolve({ status: this.statusCode ?? status, body }); return this; },
       on: () => res, once: () => res,
     };
-    void (joinIncident as unknown as (q: unknown, s: unknown) => unknown)(req, res);
+    void ((r.fn ?? joinIncident) as (q: unknown, s: unknown) => unknown)(req, res);
   });
 }
 
@@ -63,6 +66,15 @@ async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
   const err = await p.then(() => null, (e: unknown) => e);
   expect(err, "expected a rejection").not.toBeNull();
   expect((err as { code?: string }).code).toBe(code);
+}
+
+/** An ID token from the Auth emulator for a new anonymous user. */
+async function emulatorIdToken(): Promise<{ idToken: string; uid: string }> {
+  const host = process.env.FIREBASE_AUTH_EMULATOR_HOST!;
+  const r = await fetch(`http://${host}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ returnSecureToken: true }) });
+  const j = (await r.json()) as { idToken: string; localId: string };
+  return { idToken: j.idToken, uid: j.localId };
 }
 
 const claimsOf = async (u: string) => (await admin.auth.getUser(u)).customClaims;
@@ -154,10 +166,22 @@ describe("joinIncident (spec sections 7 and 14)", () => {
   it("requires a signed-in caller", async () => {
     await expectCode(handleJoin(null, { incidentId: "I1", joinCode: CODE, role: "family" }), "unauthenticated");
   });
-  it("the exported callable refuses a request without an App Check token", async () => {
-    const res = await callRaw({ method: "POST", body: { data: { joinCode: CODE, role: "family" } } });
-    expect(res.status).toBe(401);
-    expect(JSON.stringify(res.body)).toMatch(/UNAUTHENTICATED/);
+  it("with a valid Auth token, the exported callable still refuses a request with no or a bad App Check token", async () => {
+    const { idToken, uid: caller } = await emulatorIdToken();
+    for (const appCheck of [undefined, "not-an-app-check-token"]) {
+      const res = await callRaw({ method: "POST", idToken, appCheck, body: { data: { joinCode: FAMILY_CODE, role: "family" } } });
+      expect(res.status).toBe(401);
+      // The wrapper's App Check refusal, not the handler's own sign-in message: the handler never ran.
+      expect(JSON.stringify(res.body)).toContain('"message":"Unauthenticated"');
+    }
+    expect(await claimsOf(caller)).toBeUndefined();
+  });
+  it("control: the same request succeeds through a callable built without App Check enforcement", async () => {
+    const { idToken, uid: caller } = await emulatorIdToken();
+    const unenforced = onCall<JoinRequest>({ enforceAppCheck: false }, request => handleJoin(request.auth?.uid ?? null, request.data));
+    const res = await callRaw({ method: "POST", idToken, fn: unenforced, body: { data: { joinCode: FAMILY_CODE, role: "family" } } });
+    expect(res.status).toBe(200);
+    expect(await claimsOf(caller)).toEqual({ inc: "I1", role: "family", team: null });
   });
   it("control: the same harness sees a different status for a malformed request", async () => {
     const res = await callRaw({ method: "POST", body: { notData: 1 } });

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check test now sends a valid Auth emulator ID token and varies only the App Check header (none,
+  and a bad token): both get 401 with the wrapper's "Unauthenticated" message, never the handler's sign-in
+  message, and no claims are set. A control sends the same request through a callable built without
+  enforcement and gets 200 with the family claims, so the 401 can only come from App Check.
+  Source: Codex adversarial review M8 and the fresh-context review I4 (the old test sent no Auth token
+  either, so it passed with enforcement off).
+  Verified: with `enforceAppCheck: false` in functions/src/index.ts the new test fails (1 of 19 join tests),
+  restored it passes; 79 emulator tests pass; ci-local exits 0.
 - joinIncident hardening: a code must be 8 Crockford symbols after normalization (refused before any
   read); each caller spends one attempt from an atomic budget of 10 per rolling hour before the lookup
   (`joinAttempts/{uid}`, admin only; the 11th call is refused even with the right code); every failed join,
