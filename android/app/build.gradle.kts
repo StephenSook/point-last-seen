@@ -141,6 +141,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
+    implementation(libs.fragment)
     implementation(libs.coroutines.play.services)
     implementation(libs.serialization.json)
     implementation(libs.exifinterface)

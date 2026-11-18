@@ -8,6 +8,8 @@ firebaseAi = "18.2.0"
 firebaseAiOndevice = "16.0.0-beta08"
 composeBom = "2026.09.00"
 activityCompose = "1.13.0"
+# Firebase pulls fragment 1.0 and 1.1; release lint (InvalidFragmentVersionForActivityResult) needs 1.3 or later for the photo and video pickers.
+fragment = "1.9.1"
 coroutines = "1.10.2"
 serializationJson = "1.8.1"
 exifinterface = "1.4.2"
@@ -36,6 +38,7 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+fragment = { module = "androidx.fragment:fragment", version.ref = "fragment" }
 coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
