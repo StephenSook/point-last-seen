@@ -83,4 +83,12 @@ import Testing
         #expect(text.lowercased().contains(r.evidenceQuote.lowercased()))
         #expect(r.item.count <= 40)
     }
+
+    @Test func aNegativeCoverageKeepsItsSignSoItIsRejected() {
+        let r = ReportParser.parse("cleared segment AC, coverage -0.8", context: ctx)
+        #expect(r.coverage == -0.8)
+        #expect(SearchMath.normalizeCoverage(r.coverage) == .invalid)
+        #expect(PermissiveLine.parse("cleared|AC|-0.8", known: ["AC"])?.coverage == -0.8)
+        #expect(Tokens("AC-2 coverage 0.5").lower == ["ac", "2", "coverage", "0.5"])          // a hyphen after letters is not a sign
+    }
 }

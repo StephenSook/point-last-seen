@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): keep the minus sign so a negative coverage is rejected
+- What: the tokenizer keeps a minus sign that starts a number (not one after a letter, as in
+  "AC-2"), and the number reader accepts it, so "coverage -0.8" stays -0.8 and normalization
+  calls it invalid. Before, it became a valid 0.8 and gave about 55% POD. The permissive line
+  ("cleared|AC|-0.8") uses the same tokenizer.
+- Source: Codex review M5; spec section 10.3 ("anything else is invalid").
+- Verified: three assertions failed on the old code, then passed; a guard that "AC-2" still
+  splits as before; full suite 159 tests.
+
 ### fix(ios-core): a different event under an existing Outbox id is a conflict
 - What: `Outbox.add` throws `Outbox.Conflict` when a different event arrives under an id the
   journal holds, and changes nothing; the identical event stays an idempotent retry. Before, the

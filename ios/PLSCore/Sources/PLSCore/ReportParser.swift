@@ -236,8 +236,11 @@ struct Tokens {
         for (i, ch) in chars.enumerated() {
             if ch.isLetter || ch.isNumber {
                 current.append(ch)
-            } else if ch == ".", current.first?.isNumber == true, i + 1 < chars.count, chars[i + 1].isNumber {
+            } else if ch == ".", current.first?.isNumber == true || current.first == "-", i + 1 < chars.count, chars[i + 1].isNumber {
                 current.append(ch)                        // keep 0.8 together
+            } else if ch == "-", current.isEmpty, i + 1 < chars.count, chars[i + 1].isNumber,
+                      i == 0 || !(chars[i - 1].isLetter || chars[i - 1].isNumber) {
+                current.append(ch)                        // a sign, so -0.8 stays negative and is rejected
             } else {
                 flush()
                 if ch == "%" { out.append("%") }
@@ -269,7 +272,9 @@ enum NumberWords {
     /// Parses a number that starts at `i`; returns the value and how many tokens it used.
     static func parse(_ w: [String], at i: Int) -> (Double, Int)? {
         guard i < w.count else { return nil }
-        if let v = Double(w[i]), w[i].first?.isNumber == true { return (v, 1) }
+        if let v = Double(w[i]), w[i].first?.isNumber == true || (w[i].first == "-" && w[i].dropFirst().first?.isNumber == true) {
+            return (v, 1)
+        }
         var j = i
         var whole: Double?
         if let t = tens[w[j]] {
