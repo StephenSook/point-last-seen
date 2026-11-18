@@ -872,7 +872,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(ai): cache a no-sighting clip result and take over a stalled clip record
 - What: per the ruling on stalled clip records and lane A's schema and rules (500e574, fc6e005, merged): a reply with no usable sighting now completes the record with the typed result `{ status: "no_sighting", reasons }` (the check's reason codes, or `unreadable_reply`), so the next seat gets "Couldn't read this clip" from the record with no model call; a model or network failure still leaves the record open. A record with no reading, from anyone, is taken over: the writer becomes its owner with their own consent, expiry and createdAt, every other field unchanged (`takeOverConsent`, replacing `renewConsent`). `readClip` also takes the triage window (passed to the model) and the route's reason (default `sdk_only_in_cloud`).
-- Source: orchestrator ruling (b) + (a) on the cross-seat finding; lane A's ClipNoSighting schema and takeover rule.
+- Source: review ruling (b) + (a) on the cross-seat finding; lane A's ClipNoSighting schema and takeover rule.
 - Verified: new and changed tests (takeover by another user's stalled record keeps stored fields and sets the writer as owner; failed checks and an unreadable reply stored as no-sighting with their reasons; window and reason passed through) failed first, then passed (27 in clipRead and clips tests); a stored no-sighting result returns with only a lookup; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### test(e2e): read the same clip twice live and require no second model call
@@ -883,12 +883,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(camera): triage a clip in the intake before sending, with a consented override
 - What: when the post gives the intake a triage step, "Read clip" first checks the clip on this laptop ("Checking on this laptop"). No motion: "Nothing moves in this clip. Nothing was sent." No person: "No person found on this laptop. Nothing was sent." Both offer "Read in the cloud anyway", which sends the clip with the consents already given and the reason `user_override_after_triage`. A flagged clip goes to the cloud read with only its flagged seconds and the reason `on_device_triage_flagged`. Without the built-in model, or when triage fails, the clip goes to the plain consented read as before. The panel passes the triage step and the read's window and reason through. The harness page's `?triage=` mode gives fixed triage answers.
-- Source: promoted item P-39; orchestrator ruling on the override's own reason.
+- Source: promoted item P-39; review ruling on the override's own reason.
 - Verified: four new harness tests (no person: nothing passed on, then the override with its reason; still clip: nothing passed on; flagged: window 1 to 5 s with its reason; no model: plain read) failed first (no triage step), then passed; the four earlier clip harness tests still pass; typecheck clean. Unmeasured on a real built-in model. scripts/ci-local.sh exit 0.
 
 ### feat(camera): give the triage results that send nothing a route for the trace
 - What: `triageRoute`: a still clip is recorded as a code decision (path rules, model "motion-check", reason `triage_no_motion`, no model asked); no person as this laptop's model (path on_device, "chrome-built-in", `on_device_triage_no_person`). These routes go only to the hybrid-inference trace and are never stored; a flagged or plain read is traced by the cloud read itself.
-- Source: orchestrator ruling (a route record must never imply a model judged a static clip); lane A's route reasons (23fde93).
+- Source: review ruling (a route record must never imply a model judged a static clip); lane A's route reasons (23fde93).
 - Verified: three `triageRoute` tests failed first (export missing), then passed (12 in triage.test.ts); typecheck clean. scripts/ci-local.sh exit 0.
 
 ### feat(web): run clip triage on this laptop before a camera clip is sent
@@ -898,10 +898,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(extras): add the person-in-view band model for a clip timeline
 - What: `web/src/extras/clip/band.ts` (extras Task 10, P-40, owned by lane C now): the cloud reading's first seen to last seen as one interval, clamped to the clip's length, at least 2 px wide, scaled to the last interval and marked open ended when the length is unknown, with the key frame's mark; "Person in view 00:10 to 02:14" or "No person seen.". Intervals from on-device checks keep their own source, but none are stored or passed today (triage keeps no per-window checks).
-- Source: hand-off H4 (orchestrator: no extras session, lane C owns it).
+- Source: hand-off H4 (review: no extras session, lane C owns it).
 - Verified: `src/extras/clip/band.test.ts` (8 tests, the plan's seven plus the text) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(camera): show the person-in-view band on the sighting card, opening the clip at a click
 - What: `ClipBand` (an SVG strip: the cloud reading's span solid, on-device spans hatched if ever passed, the key frame marked) sits under the card's three facts. A click on the band opens the local clip at that second; Enter opens it at the first second the person is in view; "See the frame" still opens the key frame, and the model's box is drawn only there. The panel passes the clip's length.
 - Source: hand-off H4.
 - Verified: new harness test (band text "Person in view 00:01 to 00:05"; a click at the middle of a 6 s clip shows second 3 with no box; Enter shows second 1) failed first (no band), then passed; the eight earlier clip harness tests still pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(web): reword changelog sources for the public repository
+- What: in `web/CHANGELOG.md` and `web/CHANGELOG-EXTRAS.md`, the names of internal process roles are replaced by plain wording with the same meaning ("review ruling", "reviewed before commit", "run in review", "Review fix before commit"). Text only; history is not rewritten.
+- Source: lane A's public-hygiene guard (scripts/hygiene_guard.py), ahead of the repository going public.
+- Verified: the guard reports no hits in web/ (it reported 13 before: 4 in CHANGELOG.md, 9 in CHANGELOG-EXTRAS.md). scripts/ci-local.sh exit 0.
