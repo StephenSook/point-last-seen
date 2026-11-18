@@ -6,11 +6,21 @@ public enum ServerCopy: Sendable, Equatable {
     case absent
     case differentIdentity
     case unknownOffline
+    /// The read saw our own write still waiting in Firestore's local queue: no server answer yet.
+    case stillQueued
 
     /// Compares the writer's identity (deviceId, seq, authorUid, clientTimeMs) with the server copy.
     public static func compare(local: EventIdentity, server: EventIdentity?) -> ServerCopy {
         guard let server else { return .absent }
         return server == local ? .sameIdentity : .differentIdentity
+    }
+
+    /// Reads a server-source get. Firestore answers it through its local view, so a snapshot
+    /// with pending writes is our own queued event, not proof the server took it.
+    public static func fromServerRead(local: EventIdentity, exists: Bool, hasPendingWrites: Bool, server: EventIdentity?) -> ServerCopy {
+        guard exists else { return .absent }
+        if hasPendingWrites { return .stillQueued }
+        return compare(local: local, server: server)
     }
 }
 
@@ -95,6 +105,7 @@ public struct Outbox: Sendable {
 
     /// Decides a failed write after the server read-back. An acknowledged entry never goes back.
     public mutating func resolveFailure(_ eventId: String, error: String, serverCopy: ServerCopy) throws {
+        guard serverCopy != .stillQueued else { return }       // still queued: leave the entry as it is
         try update(eventId) { e in
             guard e.state != .acked else { return }
             e.lastError = error
@@ -103,6 +114,7 @@ public struct Outbox: Sendable {
             case .absent: e.state = .rejected(reason: error)
             case .differentIdentity: e.state = .rejected(reason: Self.conflictReason)
             case .unknownOffline: e.state = .checking
+            case .stillQueued: break
             }
         }
     }

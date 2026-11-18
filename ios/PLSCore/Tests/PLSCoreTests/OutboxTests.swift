@@ -128,3 +128,23 @@ private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.hi
     }
 }
 
+@Suite struct QueuedWriteReadBackTests {
+    @Test func aQueuedWriteSeenThroughTheLocalViewIsNotADelivery() {
+        // Firestore answers a server-source get through its local view, so our own queued write
+        // can come back with our identity while the server has not taken it yet.
+        #expect(ServerCopy.fromServerRead(local: e1.identity, exists: true, hasPendingWrites: true, server: e1.identity) == .stillQueued)
+        #expect(ServerCopy.fromServerRead(local: e1.identity, exists: true, hasPendingWrites: false, server: e1.identity) == .sameIdentity)
+        #expect(ServerCopy.fromServerRead(local: e1.identity, exists: false, hasPendingWrites: false, server: nil) == .absent)
+        var other = e1.identity; other.seq += 1
+        #expect(ServerCopy.fromServerRead(local: e1.identity, exists: true, hasPendingWrites: false, server: other) == .differentIdentity)
+    }
+
+    @Test func aStillQueuedAnswerLeavesTheEntryAsItWas() throws {
+        var box = try Outbox(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("outbox-\(UUID().uuidString).json"))
+        try box.add(e1)
+        try box.resolveFailure(e1.eventId, error: "reconcile", serverCopy: .stillQueued)
+        #expect(box.entries[0].state == .pending)
+        #expect(box.entries[0].lastError == nil)
+    }
+}
+

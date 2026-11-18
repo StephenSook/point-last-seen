@@ -89,10 +89,10 @@ final class EventStore {
             let copy: ServerCopy
             if error != nil {
                 copy = .unknownOffline
-            } else if let data = snapshot?.data() {
-                copy = ServerCopy.compare(local: doc.identity, server: Self.identity(from: data))
             } else {
-                copy = .absent
+                copy = ServerCopy.fromServerRead(local: doc.identity, exists: snapshot?.exists ?? false,
+                                                 hasPendingWrites: snapshot?.metadata.hasPendingWrites ?? false,
+                                                 server: snapshot?.data().flatMap(Self.identity(from:)))
             }
             Task { @MainActor in done(copy) }
         }

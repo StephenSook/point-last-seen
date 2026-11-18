@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): a read-back that sees our own queued write is not a delivery
+- What: new `ServerCopy.stillQueued` and `ServerCopy.fromServerRead(local:exists:hasPendingWrites:server:)`.
+  A server-source get in firebase-ios-sdk 13.2.0 answers through the local view, so a snapshot
+  with `hasPendingWrites` is our own event still waiting in Firestore's queue; it now leaves the
+  Outbox entry as it is instead of marking it "Delivered". `EventStore.readBack` passes the
+  snapshot's `exists` and `hasPendingWrites`.
+- Source: fresh-eyes review C1 (cec3596..e88bb30), checked against
+  `Firestore/core/src/api/document_reference.cc` in the 13.2.0 checkout.
+- Verified: two new tests (classification; a still-queued answer leaves the entry pending) red
+  without the case, then green; 192 tests; app builds. The restart race itself is device
+  acceptance.
+
 ### feat(ios-core): add the per-report timing record
 - What: `ReadMeasurement` holds `submittedAtMs`, `readDoneAtMs` and `redrawnAtMs` (the spec's
   three fields), the read and redraw durations, and its path
