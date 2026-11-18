@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Grid builder `--prior <grid.json> --ipp <lat,lon> --terrain <...> [--linear] [--bearing <deg>] --out <file>`
+  writes the segment docs the apps read under incidents/{id}/segments: one per segment (geometry as a GeoJSON
+  string, centroid, area, neighbours, stream links, nearFrac, feature classes) with the engine's own
+  `buildPrior` result, ROW last with the mass outside the mapped area, plus the inputs (gridId, ipp, terrain,
+  layers, bearing, attribution). A malformed IPP or an unknown terrain prints usage and exits 2.
+  Source: orchestrator (seed a development prior so the map, replan and POA beats run against deployed data).
+  Verified: 4 new tests failed first (no module), now 18 grid-builder tests pass (one doc per segment and ROW
+  last; the prior sums to 1 within 1e-12; cells wholly inside the 300 m first ring have equal mass per m2 and
+  the far corner cell less than half); typecheck exits 0; `bash scripts/ci-local.sh` exit 0.
 - `ci-local.sh` builds the web app with CI's placeholder config (the same values as web.yml) into a temp folder,
   so every lane can run the web step without a web/.env.local, and no worktree's real web/dist (built from its
   .env.local and deployed from there) is overwritten. Vite lets variables already in the environment beat .env

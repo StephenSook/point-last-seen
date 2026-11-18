@@ -5,6 +5,7 @@ import type { Grid } from "@pls/engine";
 import type { Feature, Geometry, LineString, Polygon, Position } from "geojson";
 import { buildCells } from "./cells";
 import { applyFeatures, classifyOsm } from "./features";
+import { priorDocs } from "./seed";
 import { applyStreams } from "./streams";
 
 /** The subset of Overpass `out geom` JSON the builder reads. */
@@ -16,7 +17,10 @@ interface OsmElement {
 export interface OverpassJson { elements: OsmElement[] }
 
 const USAGE = "usage: build-grid <site.geojson> <gridId> --osm <overpass.json> --out <grid.json>\n"
-  + "       build-grid --query <site.geojson>   (prints the Overpass query for the site's bounding box)";
+  + "       build-grid --query <site.geojson>   (prints the Overpass query for the site's bounding box)\n"
+  + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <temperate_flat|temperate_mountain>\n"
+  + "                  [--linear] [--bearing <deg>] --out <segments.json>   (segment docs with the engine's prior)";
+const TERRAINS = ["temperate_flat", "temperate_mountain"] as const;
 
 const coords = (pts: OsmPoint[]): Position[] => pts.map(p => [p.lon, p.lat]);
 const closed = (c: Position[]) => c.length >= 4 && c[0]![0] === c[c.length - 1]![0] && c[0]![1] === c[c.length - 1]![1];
@@ -80,6 +84,8 @@ export function main(argv: string[]): number {
     process.stdout.write(overpassQuery(bbox(siteOf(query)) as [number, number, number, number]));
     return 0;
   }
+  const priorPath = flag("--prior");
+  if (priorPath) return priorMain(argv, priorPath, flag);
   const positional = argv.filter((a, i) => !a.startsWith("--") && (i === 0 || !argv[i - 1]!.startsWith("--")));
   const [sitePath, gridId] = positional;
   const osmPath = flag("--osm"), out = flag("--out");
@@ -90,6 +96,25 @@ export function main(argv: string[]): number {
   const grid = buildGrid(siteOf(sitePath), gridId, JSON.parse(readFileSync(osmPath, "utf8")) as OverpassJson);
   writeFileSync(out, JSON.stringify(grid, null, 2) + "\n");
   process.stdout.write(`build-grid: ${grid.segments.length} segments written to ${out}\n`);
+  return 0;
+}
+
+function priorMain(argv: string[], gridPath: string, flag: (n: string) => string | undefined): number {
+  const ipp = (flag("--ipp") ?? "").split(",").map(Number);
+  const terrain = flag("--terrain") as (typeof TERRAINS)[number] | undefined;
+  const bearingText = flag("--bearing"), out = flag("--out");
+  const bearing = bearingText === undefined ? null : Number(bearingText);
+  if (ipp.length !== 2 || !ipp.every(Number.isFinite) || Math.abs(ipp[0]!) > 90 || Math.abs(ipp[1]!) > 180
+    || !terrain || !TERRAINS.includes(terrain) || !out || (bearing !== null && !Number.isFinite(bearing))) {
+    process.stderr.write(USAGE + "\n");
+    return 2;
+  }
+  const grid = JSON.parse(readFileSync(gridPath, "utf8")) as Grid;
+  const layers = { linear: argv.includes("--linear"), wedge: bearing !== null };
+  const docs = priorDocs(grid, { lat: ipp[0]!, lon: ipp[1]! }, terrain, layers, bearing);
+  writeFileSync(out, JSON.stringify({ gridId: grid.gridId, ipp: { lat: ipp[0], lon: ipp[1] }, terrain, layers, travelBearingDeg: bearing,
+    attribution: grid.attribution, docs }, null, 2) + "\n");
+  process.stdout.write(`build-grid: ${docs.length - 1} segments plus ROW written to ${out}\n`);
   return 0;
 }
 
