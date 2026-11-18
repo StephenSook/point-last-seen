@@ -277,6 +277,10 @@ export interface RouteGraph {
   origin: LatLon;
   nodes: { nodeId: number; x: number; y: number }[];
   edges: { edgeId: number; class: "road" | "trail" | "stream" | "water_edge"; from: number; to: number; stations: RouteStation[] }[];
+  /** The extract bounds [minLon, minLat, maxLon, maxLat] that mark boundary exits, or null for a graph with none. */
+  bounds: [number, number, number, number] | null;
+  /** Metres per degree at the origin, stored so no engine recomputes them with platform trigonometry. */
+  projection: { metresPerDegreeLat: number; metresPerDegreeLon: number };
   attribution: string;
 }
 

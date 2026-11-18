@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A stored RouteGraph now carries its own extract `bounds` (or an explicit null for a graph with no exits) and
+  its `projection` (metres per degree at the origin). `indexRouteGraph(graph)` takes no outside bounds and
+  refuses a graph without either field. Before, a reload without the second argument silently marked every
+  node as not a boundary, so walkers that should exit the area into ROW stayed on the graph; and each load
+  recomputed the projection with Math.cos, which can differ in the last bit across engines. Schema, TS type
+  (the only parity target) and the builder change together.
+  Source: merge point 2 review of codex-walkers (fresh code-reviewer agent, medium design finding and a low
+  determinism finding); my bounds ruling at merge point 2.
+  Verified: 3 graph tests failed first (round trip without the bounds argument, null bounds, refused reload),
+  now 24 grid-builder tests pass; both typechecks exit 0; schema parity ok (10 schemas, 26 types);
+  `bash scripts/ci-local.sh` exit 0.
 - LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
   whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
   Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.
