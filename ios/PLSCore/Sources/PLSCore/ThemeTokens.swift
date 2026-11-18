@@ -40,3 +40,22 @@ public enum FieldTheme {
         priorityRamp: ["#1F0605", "#3D0C0A", "#831B16", "#C93029", "#ED4138", "#FF5448"], hatchTopClass: true,
         primary: "#FF5448", secondary: "#ED4138", tertiarySmall: "#ED4138", tertiaryLarge: "#C93029")
 }
+
+/// What the searcher chose on the Ready check. Auto follows civil dusk at the team's place.
+public enum ThemeMode: String, CaseIterable, Sendable {
+    case auto, day, night
+}
+
+extension FieldTheme {
+    /// Auto picks night between civil dusk and civil dawn at `place`; with no place known yet
+    /// (no fix and no pack), it stays day, and the searcher can choose Night by hand.
+    public static func resolve(mode: ThemeMode, date: Date, at place: Coordinate?) -> ThemeTokens {
+        switch mode {
+        case .day: return day
+        case .night: return night
+        case .auto:
+            guard let place else { return day }
+            return Dusk.isAfterCivilDusk(date: date, lat: place.lat, lon: place.lon) ? night : day
+        }
+    }
+}

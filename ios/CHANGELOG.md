@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): choose the field theme from the setting, the clock and the place
+- What: `ThemeMode` (auto, day, night) and `FieldTheme.resolve(mode:date:at:)`. Day and Night
+  are fixed choices; Auto is night between civil dusk and civil dawn at the given place and day
+  when no place is known yet (the searcher can pick Night by hand).
+- Source: promotion P-16, Task 25 (automatic night switch).
+- Verified: four `ThemeChoiceTests` (auto before and after dusk in Atlanta, a chosen theme
+  wins, no place stays day, stored names) compile-red, then green; 225 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): tell when it is dark enough for night mode
 - What: `Dusk.isAfterCivilDusk(date:lat:lon:)` is true when the sun is more than 6 degrees below
   the horizon (after civil dusk, before civil dawn), from the standard low-precision solar
