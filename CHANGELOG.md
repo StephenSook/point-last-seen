@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The daily probe also reads the Firebase AI Logic models page (`scripts/models_probe.py`, credential-free)
+  and fails if any model named by the Remote Config template or shared/constants/models.json is missing, is
+  in the Shutdown stage, or has a shutdown date on or before 2026-12-17. A model can be withdrawn earlier than
+  its documented date, so this page check pairs with the full signed call run on the Mac. It fails, rather
+  than passing empty, if the page yields fewer than 10 model records (24 on 2026-11-18). It retires after
+  2026-12-17, pinned with the other probes, and a new test pins that the workflow runs every probe script.
+  The workflow's comment now says 20 minutes for the sweep, as the probe checks.
+  Source: review (a model can disappear before its documented date; the no-token check would still pass).
+  Verified: the 6 probe tests and the workflow pin failed first, now pass; the live run read 21 distinct
+  records and both named models (gemini-3.5-flash-lite, gemini-3.8-flash-lite-tts) are listed with no
+  shutdown date; `bash scripts/ci-local.sh` exit 0.
 - LIMITS names two sign-in limits a drill can hit: Firebase Auth's anonymous sign-up limit per network
   address (HTTP 400 TOO_MANY_ATTEMPTS_TRY_LATER, auth/too-many-requests on the web) and joinIncident's 10
   join attempts per user per one-hour window from the first attempt, with what to do on drill day.
