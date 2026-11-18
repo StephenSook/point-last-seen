@@ -32,6 +32,8 @@ struct ReportReader {
     var makeRunner: @Sendable (FirebaseAI, String, [any Tool]) -> any ReadModelRunner = {
         FoundationModelRunner(ai: $0, cloudModel: $1, tools: $2)
     }
+    /// Records the route of every read, on every path (P-15; a seam for tests).
+    var recordRoute: @Sendable (RouteRecord) -> Void = { PerformanceTelemetry.record($0) }
 
     func read(_ text: String, situation: ReportSituation) async -> ReadOutcome {
         // The evidence screen and the drill check come before any call that hands the text to a
@@ -48,7 +50,9 @@ struct ReportReader {
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
-        return await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
+        let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
+        recordRoute(outcome.route)
+        return outcome
     }
 
     /// The token count with its time limit; on timeout, a characters-per-token estimate.

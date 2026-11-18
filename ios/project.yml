@@ -70,6 +70,8 @@ targets:
         product: FirebaseFirestore
       - package: Firebase
         product: FirebaseRemoteConfig
+      - package: Firebase
+        product: FirebasePerformance
       - package: MapLibre
         product: MapLibre
       - package: PLSCore

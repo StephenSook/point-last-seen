@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): send one Performance trace per report read
+- What: the app links `FirebasePerformance` (same pinned firebase-ios-sdk 13.2.0, no new
+  package). `PerformanceTelemetry.record` starts a `report_read` trace, sets the five route
+  attributes and `latency_ms` from `RouteTelemetry`, and stops it. `ReportReader` records the
+  route of every read on every path (evidence protocol, parser, on-device, cloud) through
+  `recordRoute`, a seam for tests.
+- Source: promotion P-15 (Performance traces per route), EXTRA-MILE C4.
+- Verified: `everyReadRecordsExactlyOneRouteTrace` (an evidence read and a parser read record
+  exactly their two routes) compile-red without `recordRoute`, then green; 42 app tests pass on
+  the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0. Not verified yet: traces arriving in the
+  Performance console, which takes a device or simulator run with network and a console read.
+
 ### feat(ios-core): describe each read as a route-only Performance trace
 - What: `RouteTelemetry` maps a read's `RouteRecord` to the `report_read` trace: five
   attributes (path, stage, reason, model, blocked) and a `latency_ms` metric. It carries the

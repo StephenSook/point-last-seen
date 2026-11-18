@@ -95,3 +95,23 @@ struct CopiesAssignmentRunner: ReadModelRunner {
         #expect(o.reading.segmentIds == ["AB"])
     }
 }
+
+actor RouteLog {
+    private(set) var routes: [RouteRecord] = []
+    func add(_ r: RouteRecord) { routes.append(r) }
+}
+
+@Suite struct ReportReaderTelemetryTests {
+    @Test func everyReadRecordsExactlyOneRouteTrace() async throws {
+        let log = RouteLog()
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             recordRoute: { route in Task { await log.add(route) } })
+        let s = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AC"], assignedSegmentIds: ["AC"], positionSegmentId: nil,
+                                profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let evidence = await r.read("there is blood on a rock by the creek", situation: s)
+        var notDrill = s; notDrill.incidentMode = nil
+        let parsed = await r.read("cleared segment AC, coverage point eight", situation: notDrill)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(await log.routes == [evidence.route, parsed.route])
+    }
+}
