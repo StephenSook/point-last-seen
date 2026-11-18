@@ -45,3 +45,14 @@ describe("postReducer", () => {
     expect(postReducer(off, { type: "events", events }).offline).toBe(false);
   });
 });
+
+describe("postReducer with plans", () => {
+  const plan = { version: 1, basedOnEventSetHash: "c".repeat(64), priorVersion: 1, assignments: [], wordingRoute: null, approvedByUid: "u", approvedAt: null, createdClientTimeMs: 1 };
+  it("keeps approved plans and clears them on a denial", () => {
+    const withPlans = postReducer(loaded, { type: "plans", plans: [plan] });
+    expect(withPlans.plans).toEqual([plan]);
+    const denied = postReducer(withPlans, { type: "failed", error: { code: "permission-denied" } });
+    expect(denied.plans).toEqual([]);
+    expect(postReducer(denied, { type: "plans", plans: [plan] })).toBe(denied);
+  });
+});
