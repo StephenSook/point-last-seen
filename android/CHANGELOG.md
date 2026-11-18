@@ -4,6 +4,7 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Event ids follow the rules contract.** Every event's device id is now the writer's Firebase Auth uid, and the sequence number starts at the clock (epoch ms) on a fresh install, so a reinstall cannot repeat an id. Correction to the About entry below: "no on-device model" is measured on the emulator only; the A16 is not measured yet (spike S13). Source: lane A Task 11 rules contract (1). Verified: `SessionTest` failed to compile first, then passes (clock start, persisted seq, uid as device id in the event id).
 - **About this phone.** Shows the SDK's `checkStatus()` answer ("This phone has no on-device model." on the A16 and the emulator), where notes and clips are read, the cloud model id, the App Check provider, the version and the license. Source: Task 19 step 4, spec 6.4. Verified: `AboutPhoneScreenTest` failed to compile first, then passes on the emulator.
 - **Status card.** One sentence ("Searchers are looking." or "Found. Safe."), a quiet grey ring, a count of items waiting to send, and the five things the family can do. Source: spec 6.4 and 22.1. Verified: `StatusScreenTest` failed to compile first, then passes on the emulator.
 - **Join screen.** One field for the code from command; Join is disabled while empty or during the call, and the error sits beside the field. Source: Task 19 step 4, Global Constraints UI rules. Verified: `JoinScreenTest` failed to compile first, then passes on the emulator.

@@ -1,7 +1,6 @@
 package app.pointlastseen.family.data
 
 import android.content.Context
-import java.util.UUID
 
 /** A tiny key-value store; the app uses private SharedPreferences. */
 interface KeyValueStore {
@@ -25,19 +24,28 @@ class PrefsStore(context: Context, name: String) : KeyValueStore {
 }
 
 /**
- * This install's identity for events: a device id made once, a sequence number
- * that never repeats (spec section 8 ids hash both), and the joined incident.
+ * This install's identity for events. The device id of every event is the writer's
+ * Firebase Auth uid (the security rules require it). The sequence number starts at
+ * the clock on a fresh install, so a reinstall that keeps or changes the uid cannot
+ * repeat an event id, and it is on disk before an id uses it.
  */
 class Session(private val store: KeyValueStore) {
     @Synchronized
-    fun deviceId(): String = store.get(DEVICE_ID) ?: UUID.randomUUID().toString().also { store.put(DEVICE_ID, it) }
-
-    @Synchronized
-    fun nextSeq(): Long {
-        val next = (store.get(SEQ)?.toLongOrNull() ?: 0L) + 1
+    fun nextSeq(nowMs: Long): Long {
+        val last = store.get(SEQ)?.toLongOrNull()
+        val next = if (last == null) nowMs else last + 1
         store.put(SEQ, next.toString())
         return next
     }
+
+    fun context(incidentId: String, uid: String, priorVersion: Long, nowMs: Long) = EventContext(
+        incidentId = incidentId,
+        deviceId = uid,
+        authorUid = uid,
+        priorVersion = priorVersion,
+        nowMs = nowMs,
+        nextSeq = { nextSeq(nowMs) },
+    )
 
     fun incidentId(): String? = store.get(INCIDENT)
 
@@ -46,7 +54,6 @@ class Session(private val store: KeyValueStore) {
     fun leave() = store.remove(INCIDENT)
 
     companion object {
-        private const val DEVICE_ID = "deviceId"
         private const val SEQ = "seq"
         private const val INCIDENT = "incidentId"
     }
