@@ -32,7 +32,7 @@ export function JudgePage() {
       <p className="muted">No login and no key. About three minutes.</p>
 
       <section aria-labelledby="d1-h">
-        <h2 id="d1-h" className="label">1. Replay the training drill</h2>
+        <h2 id="d1-h" className="label">Replay the training drill</h2>
         {run?.state === "run" ? (
           <p>The replay of the published drill opens here once the sandbox is live.</p>
         ) : (
@@ -41,7 +41,7 @@ export function JudgePage() {
       </section>
 
       <section aria-labelledby="d2-h">
-        <h2 id="d2-h" className="label">2. This laptop</h2>
+        <h2 id="d2-h" className="label">This laptop</h2>
         <button type="button" className="btn" onClick={check} disabled={checking}>
           Get this laptop ready
         </button>
@@ -56,7 +56,7 @@ export function JudgePage() {
       </section>
 
       <section aria-labelledby="d5-h">
-        <h2 id="d5-h" className="label">5. Numbers</h2>
+        <h2 id="d5-h" className="label">Numbers</h2>
         {run === null && <p className="muted">Loading.</p>}
         {run?.state === "none" && <p>No published run yet.</p>}
         {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}

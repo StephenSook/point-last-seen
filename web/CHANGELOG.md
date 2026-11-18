@@ -342,3 +342,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/judge.spec.ts`: with `LanguageModel` deleted, "Get this laptop ready" shows state (a) with "This browser has no built-in model. Nothing private was sent." and zero requests reach any AI host, with no console errors; before a run is published, both the replay and the Numbers sections say "No published run yet." This test needs no join, so it runs today.
 - Source: plan Task 23c tests ("with no built-in model D2 shows the no-model message and sends nothing").
 - Verified: `npx playwright test judge` against the local preview: 2 passed.
+
+### fix(judge): drop the door numbers that skipped from 2 to 5
+- What: the judge page's section headings are now "Replay the training drill", "This laptop" and "Numbers". Doors 3 and 4 (TestFlight, APK) are not on the page yet, so the old numbering jumped from 2 to 5.
+- Source: looking at the live still of /judge at 1440 px.
+- Verified: build clean; `e2e/judge.spec.ts` updated to the new section names and passed against the local preview (2 passed).

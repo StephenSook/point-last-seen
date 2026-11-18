@@ -15,7 +15,7 @@ test("with no built-in model D2 shows the no-model message and sends nothing", a
 
 test("before a run is published the page says so", async ({ page }) => {
   await page.goto("/judge");
-  await expect(page.getByRole("region", { name: "5. Numbers" }).getByText("No published run yet.")).toBeVisible();
-  await expect(page.getByRole("region", { name: "1. Replay the training drill" }).getByText("No published run yet.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Numbers" }).getByText("No published run yet.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Replay the training drill" }).getByText("No published run yet.")).toBeVisible();
   await expect(page.getByText("Training drill. Nobody is missing.")).toBeVisible();
 });
