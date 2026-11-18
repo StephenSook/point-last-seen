@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Remote Config, live.** `RcStore` publishes the app's values (defaults first), and
+  `FirebaseRcSource` sets the in-app defaults, fetches at start and activates every real-time
+  update, so `kill_cloud` and the model ids change without a restart. Source: Task 19 step 4
+  ("Real-time Remote Config; kill_cloud banner"), spec section 14. Verified: `RcStoreTest` failed
+  to compile first, then passes (defaults before a fetch, a real-time update publishes new values).
 - **Release signing without caching the password.** `android/release.sh` reads the keystore
   password from the macOS Keychain into `PLS_RELEASE_PASSWORD` for one build that runs with
   `--no-configuration-cache`, then verifies the signature; the build refuses to sign when the
