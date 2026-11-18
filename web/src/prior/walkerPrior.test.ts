@@ -1,6 +1,6 @@
 import type { WalkerResult } from "@pls/engine";
 import { describe, expect, it } from "vitest";
-import { loadRouteGraph, walkerPriorWrites } from "./walkerPrior";
+import { loadRouteGraph, walkerPriorWrites, runAgainstVersion, STALE_PRIOR } from "./walkerPrior";
 
 // A stored route graph as the grid builder writes it: one trail edge of two stations between two nodes.
 const st = (x: number) => ({ x, y: 0, hx: 1, hy: 0, nx: 0, ny: 1, segmentId: "AA" });
@@ -51,5 +51,15 @@ describe("walkerPriorWrites", () => {
   it("adds each place used as an attractor to the prior's input events, once", () => {
     const w = walkerPriorWrites(result, { priorVersion: 2, priorInputEventIds: ["e1", "d1"] }, { seed: 7, attractorEventIds: ["d1", "d2"] });
     expect(w.incident.priorInputEventIds).toEqual(["e1", "d1", "d2"]);
+  });
+});
+
+describe("runAgainstVersion", () => {
+  it("returns the run's result when the prior is still the one it started from", async () => {
+    expect(await runAgainstVersion(7, () => 7, async () => "result")).toBe("result");
+  });
+  it("refuses a result that finished after the prior moved on, so it cannot overwrite a newer one", async () => {
+    let version = 7;
+    await expect(runAgainstVersion(7, () => version, async () => { version = 8; return "late"; })).rejects.toThrow(STALE_PRIOR);
   });
 });

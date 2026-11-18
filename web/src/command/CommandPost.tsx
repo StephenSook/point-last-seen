@@ -49,7 +49,7 @@ import { perfSink } from "../telemetry/perf";
 import { recordInference } from "../telemetry/trace";
 import { LayerSwitches } from "./LayerSwitches";
 import { PriorSwitch, WALKER_SENTENCE, type PriorChoice } from "./PriorSwitch";
-import { loadRouteGraph, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
+import { loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
@@ -291,6 +291,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
+  // The latest incident, for checks after an await that began on an earlier render.
+  const incidentNow = useRef(incident);
+  incidentNow.current = incident;
   const engineIn = useMemo(() => {
     if (!incident || typeof incident.priorVersion !== "number" || segments.length === 0 || view?.rowPrior === null || view?.rowPrior === undefined) return null;
     const prior = [...segments.map((s) => ({ segmentId: s.segmentId, priorPoa: s.priorPoa })), { segmentId: "ROW", priorPoa: view.rowPrior }];
@@ -475,11 +478,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (start === null) throw new Error("No route near the start point.");
     const seed = incident.priorSeed ?? 20261122;
     const used = choice.attract ? places : [];
-    const { result, elapsedMs } = await runWalkersInWorker({
+    // Written only if no other rebuild landed while the walkers ran.
+    const { result, elapsedMs } = await runAgainstVersion(incident.priorVersion, () => incidentNow.current?.priorVersion ?? -1, () => runWalkersInWorker({
       graph: g,
       grid: { segments: segments.map((s) => ({ segmentId: s.segmentId, geometry: (s.geometry.type === "Polygon" ? s.geometry : { type: "Polygon", coordinates: s.geometry.coordinates[0]! }) as never })) },
       opts: { seed, startStationId: start, travelUnit: null, terrain, sampleTracks: 300, attractors: used.map((e) => projectWalkerPoint(g.projection!, e.position!)), lowMobility: choice.lowMobility },
-    });
+    }));
     const w = walkerPriorWrites(result, incident, { seed, attractorEventIds: used.map((e) => e.eventId) });
     setFlow({ key: `walkers-${w.incident.priorVersion}`, tracks: walkerTracksToLngLat(result.sampleTracks, g, 2000) });
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w), run: { n: result.n, elapsedMs } };

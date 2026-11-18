@@ -53,3 +53,16 @@ export function walkerPriorWrites(
     incident: { priorModel: "walkers", priorSeed: run.seed, priorInputEventIds: inputs, priorVersion },
   };
 }
+
+export const STALE_PRIOR = "The prior changed while the walkers ran. Run them again.";
+
+/**
+ * Runs a prior computed off the main thread and returns its result only if the incident's prior
+ * is still the version the run started from. A result that finishes after another rebuild would
+ * otherwise be written as the same next version, from the old inputs, over the newer prior.
+ */
+export async function runAgainstVersion<T>(startVersion: number, currentVersion: () => number, run: () => Promise<T>): Promise<T> {
+  const r = await run();
+  if (currentVersion() !== startVersion) throw new Error(STALE_PRIOR);
+  return r;
+}
