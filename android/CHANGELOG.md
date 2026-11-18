@@ -4,6 +4,14 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **App Check providers per build type.** Debug builds install the debug provider, whose token
+  comes from the untracked `local.properties` through a debug-only string resource; release
+  builds install Play Integrity and carry neither the debug provider nor a token. `FamilyApp`
+  installs the factory only when Firebase is configured. Source: Task 19 step 4, spec section 14.
+  Verified: `AppCheckLiveTest` (live token exchange with the registered emulator debug token)
+  failed to compile first, then 9 of 9 instrumented tests pass on the emulator; `assembleRelease`
+  succeeds; a byte scan of `app-release-unsigned.apk` finds 0 copies of the token and 0 of
+  `DebugAppCheckProvider`, while the debug APK (positive control) has both.
 - **Evidence terms ship inside the app.** A Gradle task copies
   `shared/constants/evidence-terms.json` into the APK's assets for every variant (the build
   fails if the file is missing), and `EvidenceTerms` loads it into the screen, which still fails
