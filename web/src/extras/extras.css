@@ -30,3 +30,18 @@
 .extras-menu [role="menuitem"]:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .extras-menu small { display: block; color: var(--fg-3, #aeaaa7); }
 .extras-menu [role="alert"] { margin: 0.4rem 0.6rem; }
+
+/* Replay time ruler: marks differ by shape; spans and bands are neutral greys, so the map's colours keep their meaning. */
+.extras-ruler { display: grid; gap: 4px; }
+.extras-ruler-clock { display: flex; gap: 12px; align-items: baseline; }
+.extras-ruler-elapsed { font-family: var(--clock, var(--mono, monospace)); font-size: 1.25rem; color: var(--fg-1, #f8f4f1); }
+.extras-ruler-track { position: relative; }
+.extras-ruler-track svg { display: block; width: 100%; height: 56px; overflow: visible; }
+.extras-ruler-scale, .extras-ruler-tick { stroke: var(--fg-4, #898583); stroke-width: 1; }
+.extras-ruler-label { fill: var(--fg-3, #aeaaa7); font-family: var(--mono, monospace); font-size: 11px; }
+.extras-ruler-span { fill: var(--fg-3, #aeaaa7); }
+.extras-ruler-band { fill: var(--fg-2, #d7d3d0); }
+.extras-ruler-marks { fill: var(--fg-1, #f8f4f1); }
+.extras-ruler-head { stroke: var(--fg-1, #f8f4f1); stroke-width: 2; }
+.extras-ruler-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.extras-ruler-track:has(.extras-ruler-input:focus-visible) { outline: 2px solid var(--fg-1, #f8f4f1); outline-offset: 2px; }
