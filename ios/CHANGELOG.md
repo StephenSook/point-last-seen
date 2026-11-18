@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): add a single cloud retry after a rate limit
+- What: `CloudRetry.run` gives a cloud 429 one retry after a wait: the server's delay when it
+  sends one, else 2 s, never below 0. A delay over 5 s is not waited, because the wait and a
+  second call would not fit in the 20 s stage limit. A second 429 returns `other`, the normal
+  failure path to the parser. No other failure retries.
+- Source: review (a lower per-user AI Logic limit makes a 429 more likely).
+- Verified: six tests failed to compile without the type, then passed; `bash scripts/ci-local.sh`
+  exit 0.
+
 ### feat(ios): let a searcher report by picking instead of typing
 - What: a "Pick instead of typing" button on the field screen opens `PickListView`: what
   happened (Cleared, Clue, Saw them, Found), where (the team's segments, or here by GPS), and for
