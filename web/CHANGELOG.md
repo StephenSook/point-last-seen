@@ -689,3 +689,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/public/robots.txt` (all user agents allowed) is served as a text file instead of the hosting rewrite's HTML; `index.html` has a meta description; `/judge` sets its own title, "Judge's door: Point Last Seen".
 - Source: UI review D21; Lighthouse SEO 82 on `/` and `/judge` (robots.txt invalid, no meta description).
 - Verified: new `e2e/pagefacts.spec.ts` tests "robots.txt is a real text file" and "each page has a description and its own title" failed first (text/html; no description), then passed against the local preview. scripts/ci-local.sh exit 0.
+
+### fix(web): stop the join page jumping down when the app first renders
+- What: `#root` is a block formatting context (`display: flow-root`), so the panel's top margin stays inside it instead of collapsing into `body`; before, the whole body moved down 108 px (12vh) when React rendered the first panel.
+- Source: UI review D18 and Lighthouse (layout shift 0.084 desktop, 0.12 mobile on `/`). The cause was measured with the browser's layout-shift entries: one shift of 0.075 whose source was BODY, y 0 to 108.
+- Verified: the `e2e/pagefacts.spec.ts` test "the join page does not shift as it loads" failed first (0.075), then passed (under 0.02); the phone layout, judge and shell checks still pass. scripts/ci-local.sh exit 0.

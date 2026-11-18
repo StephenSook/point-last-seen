@@ -20,6 +20,9 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+/* The panel's top margin stays inside #root instead of collapsing into body, which made the
+   whole page jump down when the app first rendered (layout shift 0.075 on the join page). */
+#root { display: flow-root; }
 body { background: var(--bg-0); color: var(--fg-1); font: 15px/1.4 var(--ui); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--fg-1); outline-offset: 2px; }
