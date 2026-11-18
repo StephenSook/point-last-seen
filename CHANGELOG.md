@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add `tools/seed/seed_drill.py` (standard library plus the gcloud token): creates one synthetic training-drill
+  incident (mode "drill", labelled "Training drill. Nobody is missing.", engine params copied from the
+  constants), its teams, and the two admin-only join code docs (team code for searchers and family, separate
+  command code). Codes are 8 Crockford symbols from `secrets`, stored only in the macOS Keychain, never
+  printed; every write is create-only. Tests in `tools/seed/test_seed_drill.py`.
+  Source: orchestrator go for one drill incident (lane D end-to-end test); plan Task 11 join design.
+  Verified: 5 tests pass (code alphabet and length, hash equals join.ts normalization, labelled drill with no
+  join hashes on the incident doc, role scopes, Firestore value encoding); rules gate clean.
 - Storage rules: membership also reads the incident from Firestore (cross-service rules) and refuses an
   incident past its `expiresAt`, matching the Firestore rules. New test: an expired judge sandbox takes no
   clip upload; the storage tests now seed incident I1 first. Deploy note: the first deploy of cross-service
