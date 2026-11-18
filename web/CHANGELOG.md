@@ -890,3 +890,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `triageRoute`: a still clip is recorded as a code decision (path rules, model "motion-check", reason `triage_no_motion`, no model asked); no person as this laptop's model (path on_device, "chrome-built-in", `on_device_triage_no_person`). These routes go only to the hybrid-inference trace and are never stored; a flagged or plain read is traced by the cloud read itself.
 - Source: orchestrator ruling (a route record must never imply a model judged a static clip); lane A's route reasons (23fde93).
 - Verified: three `triageRoute` tests failed first (export missing), then passed (12 in triage.test.ts); typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(web): run clip triage on this laptop before a camera clip is sent
+- What: the post gives the clip panel its triage step: only when the gate says this laptop's model is available (`FRAME_OPTS`), the clip's frames are decoded here, one frame per moving span is checked on the laptop's model (`frameCheckGenerator`, no cloud fallback), and a result that sends nothing is traced with its route. The cloud read now carries triage's window and reason (`on_device_triage_flagged` or `user_override_after_triage`) into the stored route. On a browser without the built-in model nothing changes: the plain consented read. Unmeasured on a real built-in model.
+- Source: promoted item P-39.
+- Verified: typecheck and build clean; the deployed suite runs right after this commit (on this Mac's Chrome there is no built-in model, so the live clip test takes the plain path). scripts/ci-local.sh exit 0.

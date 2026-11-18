@@ -3,7 +3,7 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
 import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
@@ -12,7 +12,10 @@ import { clipExists, clipPath, completeClipReading, findClipReading, uploadClip,
 import { buildCameraSighting, travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraPriorWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
-import type { ClipIntakeInput } from "../camera/ClipIntake";
+import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
+import { FRAME_OPTS } from "../ai/frameCheck";
+import { jpegAt, sampleFrames } from "../camera/frames";
+import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
@@ -483,7 +486,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   // A camera clip: the three required consents are bound to the clip's SHA-256 before readClip
   // checks them; a fresh reading is traced like any other model call.
-  const readCameraClip = async (input: ClipIntakeInput): Promise<ClipReadOutcome> => {
+  const readCameraClip = async (input: ClipIntakeInput, how: ReadHow = {}): Promise<ClipReadOutcome> => {
     const uid = pls.auth.currentUser?.uid;
     if (!uid) return { kind: "failed" };
     const at = Date.now();
@@ -494,7 +497,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
         clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
-        killCloud: () => rc.killCloud, model: rc.cloudModelWeb, uid,
+        killCloud: () => rc.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
       },
       {
         findReading: (s) => findClipReading(pls.db, incidentId, s),
@@ -508,6 +511,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     );
     if (o.kind === "read" && !o.cached && o.route) traced(o.route);
     return o;
+  };
+  // On-device triage (P-39): only with this laptop's model (the gate), frames decoded here; a
+  // result that sends nothing is traced (never stored). Unmeasured on a real built-in model.
+  const triageCameraClip = async (clip: Blob): Promise<TriageResult> => {
+    const t = await triageClip({
+      available: () => onDeviceAvailable(FRAME_OPTS),
+      sample: () => sampleFrames(clip),
+      frameJpeg: (at) => jpegAt(clip, at),
+      checkFrame: (jpeg) => frameCheckGenerator(ai())(jpeg),
+      now: () => Date.now(),
+    });
+    const route = triageRoute(t, Date.now());
+    if (route) traced(route);
+    return t;
   };
   // Confirm: the camera sighting and its confirmation (create-only, not awaited), then one batch
   // that rebuilds the ring prior from the camera with the wedge on and the sighting as an input.
@@ -637,6 +654,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onPlaceCamera={setPin}
               priorVersion={incident?.priorVersion ?? 0}
               onRead={readCameraClip}
+              onTriage={triageCameraClip}
               onConfirm={confirmCameraClip}
               onClose={() => {
                 setClipping(false);
