@@ -4,7 +4,7 @@
   "date": "2026-11-18",
   "runAtUtc": "22:38Z",
   "model": "gemini-3.5-flash-lite (Remote Config default cloud_model_web), Firebase AI Logic web SDK, ONLY_IN_CLOUD, App Check debug token and a signed-in user",
-  "method": "web/harness/clipread.html in Playwright's Chrome on this Mac at http://127.0.0.1:5173; clips at 1280 px on the long side, one read each; nothing written (no clip record, upload or event); copies deleted after",
+  "method": "web/harness/clipread.html in Playwright's Chrome on this Mac at http://127.0.0.1:5173; clips at 1280 px on the long side, one read each; nothing written (no clip record, upload or event); copies deleted after. The page was removed after this measurement (it recorded no consent and skipped the cloud pause, so it is not kept as a path for any clip); it is in git history at commit 3327d01.",
   "clips": [
     {
       "pexelsId": 29055706,
