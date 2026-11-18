@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type For
 import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
@@ -18,7 +18,7 @@ import { FRAME_OPTS } from "../ai/frameCheck";
 import { jpegAt, sampleFrames } from "../camera/frames";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
-import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { PHOTO_DELETED, PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -238,6 +238,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
   const [photoError, setPhotoError] = useState<string | null>(null);
+  // Bumped after "Delete this search's clips and photos": the tray remounts empty (its reads and pending
+  // results go with it) and reloads from Storage.
+  const [mediaEpoch, setMediaEpoch] = useState(0);
   const reloadPhotos = async () => {
     const r = await loadPhotosOrError(() => loadPhotos(pls.storage, incidentId));
     setPhotos(r.photos);
@@ -406,6 +409,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return { cues: r.cues, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
+    // Command may have deleted this search's media from any seat: nothing leaves this laptop unless the photo
+    // is still stored. A check that cannot run throws, and the tray says the photo was not read.
+    if (!(await photoStillStored(pls.storage, incidentId, p.sha256))) return { refused: "deleted" as const };
     const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
     const r = await readPhotoInCloud(bytesToBase64(p.bytes), uid ? { byUid: uid, atMs: Date.now() } : null, {
@@ -596,7 +602,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           state={state}
           vs={vs}
           map={extrasMap}
-          deleteMedia={{ count: () => countMedia(pls.storage, incidentId), run: () => deleteMediaNow(pls.functions, incidentId) }}
+          deleteMedia={{
+            count: () => countMedia(pls.storage, incidentId),
+            run: async () => {
+              try {
+                return await deleteMediaNow(pls.functions, incidentId);
+              } finally {
+                // Whatever the server answered, drop this seat's copies and read what is stored now.
+                setMediaEpoch((n) => n + 1);
+                setPhotos([]);
+                void reloadPhotos();
+              }
+            },
+          }}
         />
       </header>
       {offline && (
@@ -701,6 +719,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             />
           )}
           <PhotoTray
+            key={mediaEpoch}
             photos={photos}
             loadError={photoError}
             deviceState={device}
@@ -709,7 +728,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             onAddFiles={addPhotoFiles}
             readOnLaptop={readPhotoHere}
             readInCloud={readPhotoCloud}
-            onDecide={(p, cues, route, d) => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now()))}
+            onDecide={async (p, cues, route, d) => {
+              // A reading is not saved for a photo command deleted. When the check cannot run (the link is
+              // down) the save is queued as before, so an offline answer is not lost.
+              const stored = await photoStillStored(pls.storage, incidentId, p.sha256).catch(() => true);
+              if (!stored) throw new Error(PHOTO_DELETED);
+              await savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now()));
+            }}
           />
           <MergeLanes lanes={lanes} />
         </aside>

@@ -29,7 +29,11 @@ const STATE_LINE: Record<DeviceState, string> = {
   text: "This browser's model cannot read images. Photos stayed on this laptop.",
   image: "This laptop can read photos here.",
 };
+/** Said when command deleted the search's photos after this tray loaded them. */
+export const PHOTO_DELETED = "This photo was deleted.";
+
 const COULD_NOT: Record<string, string> = {
+  deleted: PHOTO_DELETED,
   "not-on-device": "Couldn't read on this laptop. The result was discarded.",
   timeout: "Couldn't read in time.",
   invalid: "Couldn't read this photo.",
@@ -70,13 +74,14 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
     const r = reads[p.sha256];
     setDecided((x) => ({ ...x, [p.sha256]: d }));
     setSaveError((x) => ({ ...x, [p.sha256]: null }));
-    onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d).catch(() => {
+    onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d).catch((e: unknown) => {
       setDecided((x) => {
         const next = { ...x };
         if (next[p.sha256] === d) delete next[p.sha256];
         return next;
       });
-      setSaveError((x) => ({ ...x, [p.sha256]: "Not saved. Try again." }));
+      const deleted = e instanceof Error && e.message === PHOTO_DELETED;
+      setSaveError((x) => ({ ...x, [p.sha256]: deleted ? PHOTO_DELETED : "Not saved. Try again." }));
     });
   }
 

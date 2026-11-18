@@ -1,14 +1,17 @@
 // Dev-server-only harness (web/harness/photos.html): the photo tray with two
 // synthetic photos and a save that never settles (?save=never, the link is down)
-// or fails (?save=fail, the server refused). No Firebase, no model.
+// or fails (?save=fail, the server refused). ?deleted=1: the photos were deleted, so a cloud read
+// and a save both refuse with the deleted sentence. No Firebase, no model.
 
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { PHOTO_DELETED, PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import "../theme/fonts.css";
 import "../theme/base.css";
 
-const save = new URLSearchParams(location.search).get("save");
+const q = new URLSearchParams(location.search);
+const save = q.get("save");
+const deleted = q.get("deleted") === "1";
 
 async function syntheticJpeg(label: string): Promise<Uint8Array> {
   const c = new OffscreenCanvas(160, 100);
@@ -38,8 +41,8 @@ function Harness() {
         downloadPct={null}
         onAddFiles={async () => {}}
         readOnLaptop={async () => ({ refused: "no-on-device-model" })}
-        readInCloud={async () => ({ refused: "not-in-cloud" })}
-        onDecide={() => (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
+        readInCloud={async () => ({ refused: deleted ? "deleted" : "not-in-cloud" })}
+        onDecide={() => deleted ? Promise.reject(new Error(PHOTO_DELETED)) : (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
       />
     </main>
   );

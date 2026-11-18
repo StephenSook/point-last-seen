@@ -44,6 +44,26 @@ export async function loadPhotos(storage: FirebaseStorage, incidentId: string): 
   return out;
 }
 
+/**
+ * Whether a stored object is still there. Command can delete a search's media at any time, from any seat, so a
+ * photo held in a tray is checked again right before its bytes go to the cloud or a reading is saved for it.
+ * Any failure other than "not found" is thrown: a check that could not run proves neither.
+ */
+export async function stillStored(metadata: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await metadata();
+    return true;
+  } catch (e) {
+    if ((e as { code?: string }).code === "storage/object-not-found") return false;
+    throw e;
+  }
+}
+
+/** Is this incident's photo still in Storage? */
+export function photoStillStored(storage: FirebaseStorage, incidentId: string, sha256: string): Promise<boolean> {
+  return stillStored(() => getMetadata(ref(storage, photoPath(incidentId, sha256))));
+}
+
 /** Photos are create-only and named by content, so an existing object is the same photo: skip it. */
 export async function uploadPhoto(storage: FirebaseStorage, incidentId: string, jpeg: Uint8Array): Promise<string> {
   const sha = await sha256Hex(jpeg);

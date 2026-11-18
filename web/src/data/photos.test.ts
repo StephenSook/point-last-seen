@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, sha256Hex } from "./photos";
+import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, sha256Hex, stillStored } from "./photos";
 
 const cues = { placeType: "store" as const, placeName: "", signText: "OPEN", landmarks: [], outdoors: "yes" as const, evidence: "a shop" };
 const route = { platform: "web" as const, path: "on_device" as const, stage: "sdk" as const, model: "chrome-built-in", reason: "sdk_only_on_device" as const, latencyMs: 1200, sdkReported: true, blocked: null, decidedAtMs: 1 };
@@ -51,5 +51,17 @@ describe("loadPhotosOrError", () => {
 
   it("says plainly when photos could not be loaded, instead of an empty list", async () => {
     expect(await loadPhotosOrError(async () => { throw new Error("CORS"); })).toEqual({ photos: [], error: "Photos could not be loaded. Reload to try again." });
+  });
+});
+
+describe("stillStored", () => {
+  it("is true while the object's metadata can be read", async () => {
+    expect(await stillStored(async () => ({ name: "x.jpg" }))).toBe(true);
+  });
+  it("is false once the object is gone", async () => {
+    expect(await stillStored(async () => { throw Object.assign(new Error("gone"), { code: "storage/object-not-found" }); })).toBe(false);
+  });
+  it("throws for anything else, so a check that could not run never counts as present or absent", async () => {
+    await expect(stillStored(async () => { throw Object.assign(new Error("offline"), { code: "storage/retry-limit-exceeded" }); })).rejects.toThrow("offline");
   });
 });
