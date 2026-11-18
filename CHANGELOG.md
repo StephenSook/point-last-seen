@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Generated rules check each item of a short string list by index (segment ids, carried items): the list is
+  padded with valid placeholders, so no size guard is needed, and each item gets one regex for type and length.
+  The comma-joined regex is gone, so "ABCDEFGHIJKLMNOP,Q" is refused as one 18-character id and a carried item
+  may hold a comma ("bag, bottle") or a newline. To stay under the 1,000-expression limit, every bounded string
+  in shape mode is now one regex (`matches('(?s)^.{lo,hi}$')`, which errors on a non-string, so the rule
+  denies) instead of a type check plus size comparisons; the largest camera sighting fits again.
+  Source: review round 3 (low).
+  Verified: the generator tests and the comma, newline, comma-joined id and non-string id cases failed first
+  (the per-index form without the string change went over the limit on the largest camera sighting), now 9
+  generator tests and 120 emulator tests pass, including every heaviest-event test; `--check` exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The emulator port wait treats an unreadable process list (ps failing or printing nothing) as unknown: it
   keeps waiting and then fails, naming the cause, instead of reporting the ports free. `--who-holds` says
   "unreadable" in that case rather than "none".

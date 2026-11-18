@@ -53,7 +53,11 @@ def test_arrays_are_bounded_and_items_checked():
 def test_shape_mode_keeps_every_value_constraint_and_only_drops_key_lists():
     # Codex MP2 review (M3 and generator drift): shape mode saves rules expressions only on key-list literals;
     # enums, numeric ranges and per-item checks stay exactly as the schema says.
-    assert gen.value_check({"enum": ["n", "ne", "upstream"]}, "m.k", {}, shape=True) == "(m.k is string && m.k.size() <= 8)"
+    assert gen.value_check({"enum": ["n", "ne", "upstream"]}, "m.k", {}, shape=True) == "(m.k.matches('(?s)^.{0,8}$'))"
+    # A bounded string in shape mode is one regex for type and length: matches() errors on a non-string, and an
+    # error denies; (?s) counts a newline as a character. Cheaper than "is string" plus a size comparison.
+    assert gen.value_check({"type": "string", "maxLength": 40}, "m.k", {}, shape=True) == "(m.k.matches('(?s)^.{0,40}$'))"
+    assert gen.value_check({"type": "string", "minLength": 2, "maxLength": 9}, "m.k", {}, shape=True) == "(m.k.matches('(?s)^.{2,9}$'))"
     assert gen.value_check({"enum": ["cleared", "clue"]}, "m.kind", {}, shape=True) == "(m.kind in ['cleared', 'clue'])"
     assert gen.value_check({"type": "integer", "minimum": 1}, "m.k", {}, shape=True) == "(m.k is int)"
     assert gen.value_check({"type": "number", "minimum": 0}, "m.latencyMs", {}, shape=True) == "(m.latencyMs is number && m.latencyMs >= 0)"
@@ -62,12 +66,15 @@ def test_shape_mode_keeps_every_value_constraint_and_only_drops_key_lists():
     box = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 1000}, "minItems": 2, "maxItems": 2}
     assert gen.value_check(box, "m.b", {}, shape=True) == ("(m.b is list && m.b.size() == 2 && (m.b[0] is int && m.b[0] >= 0 && m.b[0] <= 1000)"
                                                          " && (m.b[1] is int && m.b[1] >= 0 && m.b[1] <= 1000))")
-    # Short string lists: one regex over the comma-joined list bounds every item's length (join fails, so the
-    # rule denies, on a non-string).
+    # Short string lists, shape mode: each item by index, padded with valid placeholders so no size guard is
+    # needed, one regex per item for type and length (matches() errors on a non-string, which denies); (?s) lets
+    # an item hold a newline. No join, so a comma inside an item is just a character (review round 3).
     carried = {"type": "array", "items": {"type": "string", "maxLength": 40}, "maxItems": 3}
-    assert gen.value_check(carried, "m.c", {}, shape=True) == "(m.c is list && m.c.size() <= 3 && m.c.join(',').matches('^[^,]{0,40}(,[^,]{0,40}){0,2}$'))"
+    pad = "m.c.concat(['', '', ''])"
+    assert gen.value_check(carried, "m.c", {}, shape=True) == ("(m.c is list && m.c.size() <= 3"
+        f" && {pad}[0].matches('(?s)^.{{0,40}}$') && {pad}[1].matches('(?s)^.{{0,40}}$') && {pad}[2].matches('(?s)^.{{0,40}}$'))")
     ids = {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 16}, "maxItems": 3}
-    assert gen.value_check(ids, "m.k", {}, shape=True) == "(m.k is list && m.k.size() <= 3 && (m.k.size() == 0 || m.k.join(',').matches('^[^,]{1,16}(,[^,]{1,16}){0,2}$')))"
+    assert gen.value_check(ids, "m.k", {}, shape=True).count("m.k.concat(['x', 'x', 'x'])[2].matches('(?s)^.{1,16}$')") == 1
     # All keys required, shape mode: size() == n plus a check that reads every named key pins the key set
     # (a missing key is an error, and an error denies), with no list literal.
     obj = {"type": "object", "additionalProperties": False, "required": ["a", "b"], "properties": {"a": {"type": "boolean"}, "b": {"type": "boolean"}}}
@@ -98,5 +105,5 @@ def test_the_block_defines_every_validator_from_the_schemas():
     for name in ("schema_Position", "schema_ReportReading", "schema_RouteRecord", "schema_CameraSighting", "schema_SharedProfile"):
         assert f"function {name}(m)" in block
     assert "'lewy_body'" in block and "matches('^[0-9]{2}:[0-5][0-9]$')" in block
-    assert "m.reason.size() <= " in block and "m.latencyMs >= 0" in block and "m.kind in ['cleared'" in block
+    assert "m.reason.matches('(?s)^.{0," in block and "m.latencyMs >= 0" in block and "m.kind in ['cleared'" in block
     assert "approachNoteIds.hasOnly(['may_not_respond', 'approach_calm'" in block

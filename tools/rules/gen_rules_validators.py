@@ -47,6 +47,13 @@ def bounded_pattern(p: str) -> bool:
     return not re.search(r"[*+]|\{\d+,\}", p)
 
 
+def bounded_string(ref: str, lo: int, hi: int) -> str:
+    """Shape mode: one regex for type and length. matches() errors on a non-string, and an error denies; (?s)
+    counts a newline as a character. Cheaper than "is string" plus size comparisons under the 1,000-expression
+    limit."""
+    return f"{ref}.matches({q('(?s)^.{' + f'{lo},{hi}' + '}$')})"
+
+
 def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
     if "$ref" in s:
         if s["$ref"] not in REFS:
@@ -63,7 +70,7 @@ def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
         if shape and values and all(isinstance(v, str) for v in values) and ref.rsplit(".", 1)[-1] not in STRICT_ENUMS:
             # Bounded by type and length only: a list literal per enum costs rules expressions that the
             # heaviest events cannot afford; clients and engines enforce these values themselves.
-            check = f"({ref} is string && {ref}.size() <= {max(len(v) for v in values)})"
+            check = f"({bounded_string(ref, 0, max(len(v) for v in values))})"
         elif len(values) >= 4 and all(type(v) is int for v in values) and len({b - a for a, b in zip(sorted(values), sorted(values)[1:])}) == 1:
             # An integer enum in even steps: the same set as a list literal, in fewer rules expressions.
             lo, hi = min(values), max(values)
@@ -81,6 +88,8 @@ def value_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
         inner = value_check({**s, "type": others[0]}, ref, overrides, shape)
         return f"({ref} == null || {inner})" if "null" in t else inner
     parts: list[str]
+    if t == "string" and shape and "maxLength" in s and "pattern" not in s:
+        return f"({bounded_string(ref, s.get('minLength', 0), s['maxLength'])})"
     if t == "string":
         # matches() errors on a non-string, and an error denies, so a patterned string skips "is string".
         parts = [] if "pattern" in s else [f"{ref} is string"]
@@ -128,19 +137,19 @@ def array_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
     if "enum" in items:
         cap = s.get("maxItems", len(items["enum"]))
         parts += [f"{ref}.size() <= {cap}", f"{ref}.hasOnly({lst(items['enum'])})"]
-    elif shape and items.get("type") == "string" and "maxLength" in items and "maxItems" in s:
-        # One regex over the comma-joined list bounds each item's length; join fails (so the rule denies) if
-        # an item is not a string. An item that itself contains a comma is read as two shorter items.
-        n, lo, hi = s["maxItems"], items.get("minLength", 0), items["maxLength"]
-        item = f"[^,]{{{lo},{hi}}}"
-        more = f"(,{item}){{0,{n - 1}}}" if n > 1 else ""
-        regex = f"{ref}.join(',').matches({q('^' + item + more + '$')})"
-        # With a minimum length, an empty list (joined "") must be told apart from [""]: check the list itself.
-        parts += [f"{ref}.size() <= {n}", f"({ref}.size() == 0 || {regex})" if lo > 0 else regex]
-        return "(" + " && ".join(parts) + ")"
     elif "maxItems" in s and s["maxItems"] <= MAX_INDEXED_ITEMS:
         n = s["maxItems"]
         parts.append(f"{ref}.size() == {n}" if s.get("minItems") == n else f"{ref}.size() <= {n}")
+        plain_string = items.get("type") == "string" and "maxLength" in items and not ({"pattern", "enum"} & set(items))
+        if shape and plain_string and not s.get("minItems"):
+            # Each item by index, with no size guards: the list is padded with n valid placeholders first, so a
+            # missing index reads a placeholder. One regex per item checks type and length (matches() errors on a
+            # non-string, and an error denies); (?s) lets an item hold a newline. Cheapest exact per-item form
+            # under the 1,000-expression limit.
+            lo, hi = items.get("minLength", 0), items["maxLength"]
+            padded = f"{ref}.concat({lst(['x' * lo] * n)})"
+            parts += [bounded_string(f"{padded}[{i}]", lo, hi) for i in range(n)]
+            return "(" + " && ".join(parts) + ")"
         for i in range(n):
             check = value_check(items, f"{ref}[{i}]", overrides, False)
             parts.append(check if s.get("minItems", 0) > i else f"({ref}.size() < {i + 1} || {check})")

@@ -46,6 +46,7 @@ describe("event position, reading and route take only their schema shapes", () =
     for (const over of [{ reading: reportReading({ evidenceQuote: "q".repeat(401) }) }, { reading: reportReading({ pad: "x".repeat(10_000) }) },
                         { reading: reportReading({ segmentIds: ["AA", "AB", "AC", "AD"] }) }, { reading: reportReading({ kind: "x".repeat(50) }) },
                         { reading: reportReading({ segmentIds: ["ABCDEFGHIJKLMNOPQ"] }) }, { reading: reportReading({ segmentIds: [""] }) },
+                        { reading: reportReading({ segmentIds: ["ABCDEFGHIJKLMNOP,Q"] }) }, { reading: reportReading({ segmentIds: [3] }) },
                         { reading: { pad: "x" } }, { route: routeRecord({ model: "m".repeat(81) }) }, { route: routeRecord({ extra: 1 }) },
                         { route: { pad: "x".repeat(10_000) } }]) {
       await assertFails(put(db(), validEvent(S, over)));
@@ -100,6 +101,14 @@ describe("the largest camera sighting stays under the 1,000-expression rules lim
       role: "family", teamId: null, reporter: "camera", inputMethod: "clip", positionSource: "camera_pin", type: "camera_sighting",
       effect: { kind: "none", why: "incorporated_in_prior" }, position: { lat: 33.7, lon: -84.3, accuracyM: 12 }, route: routeRecord({ model: "m".repeat(80) }),
       reading: { sighting: camSighting(), clipSha256: SHA, clipStartMs: 1795860000000, clockConfirmed: true, cameraFacingDeg: 315 },
+    })));
+  });
+  it("a carried item may hold a comma or a newline (review round 3)", async () => {
+    await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set({ sha256: SHA, createdByUid: F, reading: null });
+    await assertSucceeds(put(dbAs(F, familyClaims), validEvent(F, {
+      role: "family", teamId: null, reporter: "camera", inputMethod: "clip", positionSource: "camera_pin", type: "camera_sighting",
+      effect: { kind: "none", why: "incorporated_in_prior" }, position: { lat: 33.7, lon: -84.3, accuracyM: 12 }, route: routeRecord(),
+      reading: { sighting: camSighting({ carriedItems: ["bag, bottle", "coat", "hat\nscarf"] }), clipSha256: SHA, clipStartMs: 1795860000000, clockConfirmed: true, cameraFacingDeg: 315 },
     })));
   });
   it("a camera sighting with a fourth carried item or an oversized field is refused", async () => {
