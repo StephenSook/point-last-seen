@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules move the prior one version at a time. An incident update that changes `priorVersion` must
+  raise it by exactly 1, and a segment (or ROW) write that changes `priorPoa` or `priorVersion` lands only in
+  the batch that moves the incident to the next version, taking that version. Two command seats that rebuild
+  from the same version can no longer both land: the second batch, built from older inputs, is refused instead
+  of overwriting the newer prior.
+  Source: review (walker results could race across two laptops).
+  Verified: `functions/test/rules/prior.test.ts` (a fresh rebuild lands and a second seat's rebuild from the
+  same version is refused; +2 and a decrease are refused, a status change is allowed; a segment cannot take a
+  version the incident lacks; a full-size 68-segment batch with ROW and the incident passes) failed first
+  (3 of 4), now all 95 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0. The live
+  access-call limit is checked after deploy.
 - `shared/grid/piedmont-park-dev.grid.json`: the development site's grid (Piedmont Park, Atlanta; 67 segments
   built from an OpenStreetMap extract on 2026-11-18), the same grid the drill incident and every judge's
   practice search use, committed so the terrain work can build against a real site before the drill site is
