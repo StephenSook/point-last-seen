@@ -3,6 +3,7 @@ Copyright 2026 Stephen Sookra
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-Map data from OpenStreetMap. The derived grid, route graph and tile extract
-under shared/grid/ are made available under the Open Database License (ODbL)
-1.0, not under the Apache License. See shared/grid/README.md.
+Map data from OpenStreetMap. The derived drill-site grid, route graph and tile
+extract, when added to this repository, are made available under the Open
+Database License (ODbL) 1.0, not under the Apache License, with their own
+README beside them.

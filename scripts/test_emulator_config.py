@@ -39,3 +39,18 @@ def test_paths_are_absolute_to_the_worktree():
     assert cfg["firestore"]["rules"] == str(REPO / "firestore.rules")
     assert cfg["storage"]["rules"] == str(REPO / "storage.rules")
     assert cfg["firestore"]["indexes"] == str(REPO / "firestore.indexes.json")
+
+
+def project_id(root):
+    out = subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--project-id"], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    return out.stdout.strip()
+
+
+def test_project_id_is_a_demo_project_per_worktree(tmp_path):
+    other = tmp_path / "point-last-seen-ios"
+    other.mkdir()
+    (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
+    a, b = project_id(REPO), project_id(other)
+    assert a.startswith("demo-pls-") and b.startswith("demo-pls-") and a != b
+    assert a == project_id(REPO) and len(a) <= 30

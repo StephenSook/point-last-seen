@@ -5,6 +5,30 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
+  data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
+  Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).
+  Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
+- Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
+  never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
+  (no reopen, no edit). A judge sandbox must carry a timestamp `expiresAt` in the future for every member
+  read and write (Firestore and Storage rules) and for joinIncident; other incidents may have none.
+  Source: Codex review M3, the fresh-context review I1 and the Codex C1 re-review item 2.
+  Verified: 5 new tests (rules: no mode or expiry change, no reopen, judge without a timestamp locked out;
+  storage: judge upload needs a future expiry; join: judge needs a future expiry) failed first, now 69
+  emulator tests pass; ci-local exits 0.
+- The seeding tool draws all three role codes and checks they are distinct (drawing again if not) before
+  any Keychain entry or Firestore doc is written.
+  Source: Codex re-review of the C1 fix.
+  Verified: the new test (a forced collision on the first draw) failed first, now 6 seed tests pass;
+  ci-local exits 0.
+- Run the rules suite under a per-worktree demo project id (`demo-pls-` + 8 hex of the worktree path, from
+  `scripts/emulator_config.py --project-id`); test helpers read it from GCLOUD_PROJECT. Separate ports alone
+  still let the emulator hub report "running multiple instances of the emulator suite for project demo-pls"
+  when two worktrees ran at once.
+  Source: lane B report from its ci-local runs.
+  Verified: the new test failed first, now 4 emulator-config tests pass; the suite ran as demo-pls-68ccce04
+  and passed 63; ci-local exits 0.
 - joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
   claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
   right role against another OPEN incident (I2), so only the incident comparison can refuse it.
