@@ -22,6 +22,15 @@ echo "== gates: schema parity and vector generator tests"
 echo "== gates: secret scan (full history)"
 gitleaks git --redact --no-banner --log-opts="--all" .
 
+echo "== ts: engine typecheck, lint and tests (uses the existing install; CI runs npm ci)"
+npm run typecheck -w shared/engine-ts
+npm run lint -w shared/engine-ts
+npm test -w shared/engine-ts
+
+echo "== vectors-parity: vectors are current, engine passes them"
+python3 -I tools/vectors/make_vectors.py --check
+npm test -w shared/engine-ts -- test/vectors.test.ts
+
 if [ -d ios/PLSCore ]; then
   echo "== swift-core: Swift core tests"
   swift test --package-path ios/PLSCore

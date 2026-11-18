@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add the `Engine` workflow (`.github/workflows/engine.yml`) with jobs `ts` (npm ci, engine typecheck, lint,
+  tests) and `vectors-parity` (regenerate `search.json`, fail on `git diff`, run the engine vector suite), on
+  every branch push touching shared/, tools/, the root package files or the workflow; mirrored in `ci-local.sh`.
+  Source: plan Task 8 step 4.
+  Verified: `bash scripts/ci-local.sh` exits 0 (137 engine tests, vectors current, 124 vector tests); action
+  SHAs are the ones already pinned in ci.yml (checkout v7.0.1, setup-python v7.1.0) plus setup-node v7.1.0.
 - Add `validateReading` (enums, limits and the segment count read from `report-reading.schema.json`, coverage
   normalized first, evidenceQuote must be in the report text, every reason returned) and `assignTeams` (greedy,
   stable, one segment per team, a team keeps its segment while it is in the top 2 x teamCount), with the plan's
