@@ -131,3 +131,9 @@ button, input, select { font: inherit; color: inherit; }
 .change { display: grid; gap: 4px; }
 .change p { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.layers { display: grid; gap: 10px; }
+.layer { display: grid; gap: 4px; }
+.layer p { margin: 0; }
+.layer select { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
+.layer label { display: grid; gap: 4px; color: var(--fg-2); }
+.layer label.check { display: flex; gap: 6px; align-items: center; }
