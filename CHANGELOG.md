@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
+  closest an unrelated game; a site-scoped devpost.com search found no project).
+  Source: plan addendum (rival self-audit, name search line); searches run by the orchestrator.
+  Verified: text matches the orchestrator's recorded results; `bash scripts/ci-local.sh` exits 0.
 - Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
   Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
   FIREBASE_APPCHECK_DEBUG_TOKEN and debug-provider hits on the exact signed APK (the debug APK reports 5).
