@@ -17,6 +17,8 @@ import {
   type Team,
 } from "../laneC";
 import { DRILL_LABEL } from "../print/printModel";
+import { AUTHOR_PSEUDONYM, RUN_FIELDS } from "./runContract";
+import { replayWindow, stateAt } from "./stateAt";
 
 export type ReplayEvent = {
   eventId: string;
@@ -201,9 +203,20 @@ function geometryOf(s: Record<string, unknown>): MapSegment["geometry"] | null {
  * untrusted input, so every part is checked here. Anything missing refuses the whole run: a replay never guesses
  * a time.
  */
+/** The first field of `o` that `allowed` does not name, as "where.field" (or "field" at the top). */
+function strayField(o: Record<string, unknown>, allowed: readonly string[], where: string | null): string | null {
+  const k = Object.keys(o).find((key) => !allowed.includes(key));
+  return k === undefined ? null : where ? `${where}.${k}` : k;
+}
+const strayRefusal = (field: string) => refuse(`The run carries a field a public run must not: ${field}.`);
+
 export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayData } | Refusal {
   const { incident, segments, teams, devices, events, plans } = run;
+  const topStray = strayField(run as Record<string, unknown>, RUN_FIELDS.run, null);
+  if (topStray) return strayRefusal(topStray);
   if (!isObj(incident) || !str(incident["name"]) || !num(incident["priorVersion"])) return refuse("The run is missing its incident.");
+  const incidentStray = strayField(incident, RUN_FIELDS.incident, "incident");
+  if (incidentStray) return strayRefusal(incidentStray);
   if (!Array.isArray(segments)) return refuse("The run is missing its map segments.");
   if (!Array.isArray(teams)) return refuse("The run is missing its teams.");
   if (!Array.isArray(devices)) return refuse("The run is missing its devices.");
@@ -215,6 +228,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   const prior: SegmentPrior[] = [];
   for (const s of segments) {
     if (!isObj(s) || !str(s["segmentId"]) || !num(s["priorPoa"])) return refuse("The run has a map segment without a prior.");
+    const segStray = strayField(s, s["segmentId"] === "ROW" ? RUN_FIELDS.row : RUN_FIELDS.segment, "segment");
+    if (segStray) return strayRefusal(segStray);
     if (s["segmentId"] === "ROW") {
       rowPrior = s["priorPoa"];
       continue;
@@ -228,14 +243,25 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   if (mapSegments.length === 0 || rowPrior === null) return refuse("The run is missing the prior outside the map.");
   prior.push({ segmentId: "ROW", priorPoa: rowPrior });
 
+  for (const t of teams) {
+    const teamStray = isObj(t) ? strayField(t, RUN_FIELDS.team, "team") : null;
+    if (teamStray) return strayRefusal(teamStray);
+  }
   const offsets: Record<string, number> = {};
-  for (const d of devices) if (isObj(d) && str(d["deviceId"]) && num(d["clockOffsetMs"])) offsets[d["deviceId"]] = d["clockOffsetMs"];
+  for (const d of devices) {
+    const deviceStray = isObj(d) ? strayField(d, RUN_FIELDS.device, "device") : null;
+    if (deviceStray) return strayRefusal(deviceStray);
+    if (isObj(d) && str(d["deviceId"]) && num(d["clockOffsetMs"])) offsets[d["deviceId"]] = d["clockOffsetMs"];
+  }
 
   const replayEvents: ReplayEvent[] = [];
   for (const e of events) {
     if (!isObj(e) || !str(e["eventId"]) || !str(e["deviceId"]) || !num(e["clientTimeMs"]) || !str(e["type"])) {
       return refuse("The run has a report it cannot read.");
     }
+    const eventStray = strayField(e, RUN_FIELDS.event, "event");
+    if (eventStray) return strayRefusal(eventStray);
+    if (!str(e["authorUid"]) || !AUTHOR_PSEUDONYM.test(e["authorUid"])) return refuse("The run carries a user id. A public run must not.");
     if (!num(e["serverTimeMs"])) return refuse("The run has no arrival time for a report.");
     // The run is public (see runContract.ts): report words and a report's reading, which quotes them, never ship.
     const reading = e["reading"];
@@ -249,27 +275,38 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   const replayPlans: ReplayPlan[] = [];
   for (const p of plans) {
     if (!isObj(p) || !num(p["version"]) || !num(p["priorVersion"]) || !Array.isArray(p["assignments"])) return refuse("The run has a plan it cannot read.");
+    const planStray = strayField(p, RUN_FIELDS.plan, "plan");
+    if (planStray) return strayRefusal(planStray);
     if (!num(p["approvedAtMs"])) return refuse("The run has no approval time for a plan.");
     replayPlans.push({ version: p["version"], priorVersion: p["priorVersion"], approvedAtMs: p["approvedAtMs"], assignments: p["assignments"] as Assignment[] });
   }
 
   const ids = incident["priorInputEventIds"];
-  return {
-    ok: true,
-    data: {
-      source: "published_run",
-      incidentName: incident["name"],
-      drillLabel: drillLabelOf(incident["mode"], incident["drillLabel"]),
-      gridAttribution: str(incident["gridAttribution"]) ? incident["gridAttribution"] : null,
-      priorVersion: incident["priorVersion"],
-      priorInputEventIds: Array.isArray(ids) ? ids.filter(str) : [],
-      priorBuiltAtMs: millis(incident["priorBuiltAtMs"]),
-      params: isObj(incident["engineParams"]) ? (incident["engineParams"] as unknown as EngineParams) : DEFAULT_PARAMS,
-      prior,
-      segments: mapSegments,
-      teams: teams.flatMap((t) => (isObj(t) && str(t["teamId"]) ? [{ teamId: t["teamId"], name: str(t["name"]) ? t["name"] : t["teamId"] }] : [])),
-      events: ordered(replayEvents),
-      plans: replayPlans.sort((a, b) => a.version - b.version),
-    },
+  const data: ReplayData = {
+    source: "published_run",
+    incidentName: incident["name"],
+    drillLabel: drillLabelOf(incident["mode"], incident["drillLabel"]),
+    gridAttribution: str(incident["gridAttribution"]) ? incident["gridAttribution"] : null,
+    priorVersion: incident["priorVersion"],
+    priorInputEventIds: Array.isArray(ids) ? ids.filter(str) : [],
+    priorBuiltAtMs: millis(incident["priorBuiltAtMs"]),
+    params: isObj(incident["engineParams"]) ? (incident["engineParams"] as unknown as EngineParams) : DEFAULT_PARAMS,
+    prior,
+    segments: mapSegments,
+    teams: teams.flatMap((t) => (isObj(t) && str(t["teamId"]) ? [{ teamId: t["teamId"], name: str(t["name"]) ? t["name"] : t["teamId"] }] : [])),
+    events: ordered(replayEvents),
+    plans: replayPlans.sort((a, b) => a.version - b.version),
   };
+  // Compute the last frame once here, so a run whose engine settings or reports the engine cannot use is refused
+  // with a reason instead of failing on the judge's screen.
+  try {
+    const w = replayWindow(data);
+    const last = w ? stateAt(data, w.endMs) : null;
+    if (last?.phase === "replayable" && Object.values(last.view.result.poa).some((v) => !Number.isFinite(v))) {
+      return refuse("The run's engine settings cannot be used.");
+    }
+  } catch {
+    return refuse("The run's engine settings cannot be used.");
+  }
+  return { ok: true, data };
 }

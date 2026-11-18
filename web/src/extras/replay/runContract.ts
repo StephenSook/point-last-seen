@@ -7,6 +7,25 @@ import type { Assignment, CameraSightingReading, EngineParams, EventDoc } from "
 
 export const PUBLISHED_RUN_VERSION = 1;
 
+/** A run author's pseudonym: "author-" and a number, stable within one run. Never the real uid. */
+export const AUTHOR_PSEUDONYM = /^author-[0-9]+$/;
+
+// The fields each part may carry. The reader refuses any other field, so nothing private can ride along unnoticed.
+export const RUN_FIELDS = {
+  run: ["runId", "label", "exportedAt", "incident", "segments", "teams", "devices", "events", "plans", "measurements"],
+  incident: ["name", "mode", "drillLabel", "priorVersion", "priorInputEventIds", "engineParams", "priorBuiltAtMs", "gridId", "gridAttribution"],
+  segment: ["segmentId", "priorPoa", "geometryJson", "centroid", "areaM2", "neighbors", "upstream", "downstream", "nearFrac", "featureClasses"],
+  row: ["segmentId", "priorPoa"],
+  team: ["teamId", "name"],
+  device: ["deviceId", "teamId", "clockOffsetMs"],
+  event: [
+    "eventId", "schemaVersion", "incidentId", "teamId", "deviceId", "seq", "authorUid", "role", "type", "reporter", "clientTimeMs",
+    "observedAtMs", "position", "positionSource", "rawText", "inputMethod", "isTrainingInject", "reading", "effect", "route",
+    "targetEventId", "decision", "planVersion", "priorVersion", "serverTimeMs",
+  ],
+  plan: ["version", "approvedAtMs", "priorVersion", "basedOnEventSetHash", "assignments"],
+} as const;
+
 /** published-run.json, version 1. */
 export type PublishedRunV1 = {
   runId: string;
@@ -43,6 +62,8 @@ export type PublishedRunV1 = {
 
 export type RunSegment = {
   segmentId: string;
+  nearFrac?: number;
+  featureClasses?: string[];
   priorPoa: number;
   /** The stored GeoJSON Polygon or MultiPolygon, as a string, as Firestore holds it. */
   geometryJson: string;
@@ -55,7 +76,8 @@ export type RunSegment = {
 
 /**
  * One stored event with its server time as a number (milliseconds). `authorUid` is a stable pseudonym per
- * author for this run, never the real uid: the engine compares authors only to decide who may retract what.
+ * author for this run (AUTHOR_PSEUDONYM), never the real uid: the engine compares authors only to decide who may
+ * retract what.
  * `rawText` is always null. `reading` is kept only for a camera sighting (its times and clock); a report's
  * reading quotes the report's words, so it is null.
  */

@@ -207,7 +207,7 @@ describe("fromPublishedRun", () => {
   });
 
   it("a published run whose event has no server time is refused", () => {
-    const events = [{ ...eventDoc({ eventId: "e1" }), serverTimeMs: null }];
+    const events = [{ ...runEvent(eventDoc({ eventId: "e1" }), T0), serverTimeMs: null }];
     expect(fromPublishedRun(run({ events }))).toEqual({ ok: false, reason: "The run has no arrival time for a report." });
   });
 
@@ -228,6 +228,36 @@ describe("fromPublishedRun", () => {
     const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
     const r = fromPublishedRun(run({ events: [cam] }));
     expect(r.ok && r.data.events[0]!.camera).toEqual({ startMs: 1_010_000, endMs: 1_134_000, keyFrameMs: 1_060_000 });
+  });
+
+  it("refuses a field the contract does not name, on any part of a public run", () => {
+    const base = runV1();
+    const cases: [Partial<Record<keyof PublishedRun, unknown>>, string][] = [
+      [{ incident: { ...base.incident, joinCodeHash: "x" } }, "incident.joinCodeHash"],
+      [{ events: [{ ...base.events[0]!, createdAt: 1 }] }, "event.createdAt"],
+      [{ plans: [{ ...base.plans[0]!, approvedByUid: "uid-real" }] }, "plan.approvedByUid"],
+      [{ devices: [{ ...base.devices[0]!, pushToken: "t" }] }, "device.pushToken"],
+      [{ teams: [{ ...base.teams[0]!, leaderPhone: "555" }] }, "team.leaderPhone"],
+      [{ segments: [{ ...base.segments[0]!, note: "n" }, ...base.segments.slice(1)] }, "segment.note"],
+    ];
+    for (const [over, field] of cases) {
+      expect(fromPublishedRun(run(over))).toEqual({ ok: false, reason: `The run carries a field a public run must not: ${field}.` });
+    }
+    expect(fromPublishedRun({ ...run(), consent: [] } as unknown as PublishedRun)).toEqual({ ok: false, reason: "The run carries a field a public run must not: consent." });
+  });
+
+  it("refuses an author that is not a run pseudonym", () => {
+    const base = runV1();
+    const withUid = { ...base.events[0]!, authorUid: "Xq9fZp2uid" };
+    expect(fromPublishedRun(run({ events: [withUid] }))).toEqual({ ok: false, reason: "The run carries a user id. A public run must not." });
+    expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, authorUid: "author-12" }] })).ok).toBe(true);
+  });
+
+  it("refuses engine settings it cannot compute with", () => {
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: {} } }))).toEqual({
+      ok: false,
+      reason: "The run's engine settings cannot be used.",
+    });
   });
 
   it("names the contract version it reads", () => {
