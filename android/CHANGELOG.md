@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **App flow.** `Nav` holds the family flow: the profile is home until someone is missing; "She's
+  gone" always shows "Call 911 first" next; an unjoined family joins after that; the profile
+  documents are written once the family has both said she is gone and joined; action screens need
+  a joined incident and return to the status card. Source: Task 19 step 4, spec 6.4. Verified:
+  `NavTest` failed to compile first, then passes.
 - **Incident watcher.** `IncidentWatch` listens to `incidents/{id}`; `IncidentInfo` reads the drill
   mode (drill or judge, anything else is no drill), the status (open, found, closed; unknown reads
   as open) and the prior version that new events carry. Source: Task 19 step 4 ("Status shows
