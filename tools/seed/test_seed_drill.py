@@ -49,3 +49,11 @@ def test_firestore_value_encoding():
     assert v == {"mapValue": {"fields": {
         "a": {"integerValue": "1"}, "b": {"doubleValue": 1.5}, "c": {"stringValue": "x"}, "d": {"nullValue": None},
         "e": {"arrayValue": {"values": [{"booleanValue": True}]}}, "f": {"mapValue": {"fields": {"g": {"integerValue": "2"}}}}}}}
+
+
+def test_make_codes_returns_three_distinct_codes_even_after_a_collision(monkeypatch):
+    draws = iter(["AAAA2222", "AAAA2222", "BBBB3333", "CCCC4444", "DDDD5555", "EEEE6666"])
+    monkeypatch.setattr(seed, "make_code", lambda: next(draws))
+    codes = seed.make_codes()
+    assert set(codes) == {"searcher", "family", "command"}
+    assert len(set(codes.values())) == 3

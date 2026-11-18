@@ -129,3 +129,40 @@ def test_swift_array_and_optional_types_are_stored_fields(tmp_repo):
                                 "    public var segmentIds: [String]\n    public let method: [String: Int]?\n}\n")
     out = run(tmp_repo)
     assert out.returncode == 0, out.stdout
+
+
+def write_enum_schema(root, values, parity):
+    schema = {"type": "object", "additionalProperties": False, "required": ["reason"],
+              "properties": {"reason": {"enum": values}}, "x-parity": {"#": parity}}
+    write(root, "shared/schemas/route-record.schema.json", json.dumps(schema))
+
+
+def test_ts_enum_alias_values_must_match_the_schema(tmp_path):
+    write_enum_schema(tmp_path, ["a", "b", "c"], {"ts": f"{TS_FILE}#RouteRecord"})
+    write(tmp_path, TS_FILE, 'export type RouteReason = "a" | "b";\nexport interface RouteRecord {\n  reason: RouteReason;\n}\n')
+    out = run(tmp_path)
+    assert out.returncode == 1 and "'c'" in out.stdout and "reason" in out.stdout
+    write(tmp_path, TS_FILE, 'export type RouteReason =\n  | "a" | "b"\n  | "c";\nexport interface RouteRecord {\n  reason: RouteReason;\n}\n')
+    assert run(tmp_path).returncode == 0
+
+
+def test_ts_inline_union_values_must_match_the_schema(tmp_path):
+    write_enum_schema(tmp_path, ["x", "y"], {"ts": f"{TS_FILE}#RouteRecord"})
+    write(tmp_path, TS_FILE, 'export interface RouteRecord {\n  reason: "x" | "y" | "z";\n}\n')
+    out = run(tmp_path)
+    assert out.returncode == 1 and "'z'" in out.stdout
+
+
+def test_missing_file_fails_once_its_platform_root_exists_unless_pending(tmp_path):
+    write_schema(tmp_path, "report-reading", FIELDS, {"ios": f"{SWIFT_FILE}#ReportReading"})
+    write(tmp_path, "ios/PLSCore/Package.swift", "// package")
+    out = run(tmp_path)
+    assert out.returncode == 1 and "missing" in out.stdout
+    write_schema(tmp_path, "report-reading", FIELDS, {"ios": f"pending:{SWIFT_FILE}#ReportReading"})
+    out = run(tmp_path)
+    assert out.returncode == 0 and "pending" in out.stdout
+
+
+def test_real_repo_ts_route_reasons_match():
+    out = run(REPO)
+    assert "FAIL route-record" not in out.stdout, out.stdout

@@ -7,7 +7,8 @@ import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from "firebase/storage";
 
-export const PROJECT = "demo-pls";
+// The demo project id is per worktree (scripts/emulator_config.py); emulators:exec exports it.
+export const PROJECT = process.env.GCLOUD_PROJECT ?? "demo-pls";
 
 function need(name: string): string {
   const v = process.env[name];
@@ -69,12 +70,6 @@ export async function clearFirestore(): Promise<void> {
 export async function closeClients(): Promise<void> {
   await Promise.all(clientApps.splice(0).map(a => deleteApp(a)));
 }
-
-export const ID = "a".repeat(32);
-export const ID2 = "b".repeat(32);
-export const ID3 = "c".repeat(32);
-export const ID4 = "d".repeat(32);
-export const ID5 = "e".repeat(32);
 
 export const searcherClaims: Claims = { inc: "I1", role: "searcher", team: "T1" };
 export const commandClaims: Claims = { inc: "I1", role: "command", team: null };

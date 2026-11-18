@@ -189,12 +189,13 @@
           "$ref": "report-reading.schema.json"
         },
         {
-          "$ref": "camera-sighting.schema.json"
+          "$ref": "#/$defs/CameraSightingReading"
         },
         {
           "type": "null"
         }
-      ]
+      ],
+      "description": "ReportReading for field reports and sightings; CameraSightingReading for type camera_sighting; null otherwise"
     },
     "effect": {
       "$ref": "#/$defs/Effect"
@@ -382,6 +383,53 @@
           }
         }
       ]
+    },
+    "CameraSightingReading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sighting",
+        "clipSha256",
+        "clipStartMs",
+        "clockConfirmed",
+        "cameraFacingDeg"
+      ],
+      "description": "A camera sighting event's reading (ruling I10): the model's read of the clip plus the clip reference. The clipReadings/{clipSha256} doc must exist.",
+      "properties": {
+        "sighting": {
+          "$ref": "camera-sighting.schema.json"
+        },
+        "clipSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "clipStartMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "clockConfirmed": {
+          "type": "boolean"
+        },
+        "cameraFacingDeg": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                45,
+                90,
+                135,
+                180,
+                225,
+                270,
+                315
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   },
   "x-parity": {
@@ -389,6 +437,10 @@
       "ts": "shared/engine-ts/src/types.ts#EventDoc",
       "ios": "ios/PLSCore/Sources/PLSCore/EventDoc.swift#EventDoc",
       "android": "android/app/src/main/java/app/pointlastseen/family/data/EventDoc.kt#EventDoc"
+    },
+    "#/$defs/CameraSightingReading": {
+      "ts": "shared/engine-ts/src/types.ts#CameraSightingReading",
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/EventDoc.kt#CameraSightingReading"
     }
   }
 }

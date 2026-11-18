@@ -5,6 +5,141 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Schema parity checks more: for TypeScript, a string-enum property's values must equal the literal union of
+  its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
+  silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,
+  ios/PLSCore, android/app) exists, unless the mapping is marked `pending:` (iOS Plan.swift and Profile.swift
+  are marked pending until lane B builds them). The check found and this commit fixes a real drift:
+  `sdk_fallback` was in route-record.schema.json but not in the TS RouteReason type.
+  Source: fresh-context review I5.
+  Verified: 4 new parity tests failed first (enum alias, inline union, missing file with root, real repo),
+  now 15 pass; dry runs against origin/lane-ios, lane-android and lane-web: 0 failures; ci-local exits 0.
+- Clip readings are written before the upload and the model call (ruling I9): `clipReadings/{sha256}` is
+  created by command or family with exactly the spec section 7 fields plus `createdByUid`, the three required
+  consents (person in clip, footage owner, cloud processing; each `{byUid, atMs}` recorded by the writer),
+  `publicUse` null or a consent, `reading` and `route` null, a timestamp `expiresAt` and a server
+  `createdAt`; only its creator may then add `reading` and `route`, once, with the consents untouched.
+  Storage refuses a clip upload unless the uploader's own clip reading with those consents exists.
+  Source: orchestrator ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
+  Verified: 3 new tests (create needs the consents and no reading; one creator-only update; upload needs the
+  uploader's own reading) failed first, now 84 emulator tests pass; ci-local exits 0.
+- A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
+  TS type of the same name): the model's CameraSighting, `clipSha256`, `clipStartMs`, `clockConfirmed`
+  and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules
+  check that exact shape and that `clipReadings/{clipSha256}` exists. Command places and confirms the
+  sighting from it; no extra event field is added.
+  Source: orchestrator ruling I10 (lane D found the camera sighting had no link to its clip reading).
+  Verified: 2 new tests (valid readings accepted; null reading, unknown clip, bad hash, 10-degree facing,
+  text clock flag, extra key, missing parts and a text sighting refused) failed first (1 of 2), now 81
+  emulator tests pass; schema parity checks 14 TS types (0 failures); typecheck and ci-local exit 0.
+- The App Check test now sends a valid Auth emulator ID token and varies only the App Check header (none,
+  and a bad token): both get 401 with the wrapper's "Unauthenticated" message, never the handler's sign-in
+  message, and no claims are set. A control sends the same request through a callable built without
+  enforcement and gets 200 with the family claims, so the 401 can only come from App Check.
+  Source: Codex adversarial review M8 and the fresh-context review I4 (the old test sent no Auth token
+  either, so it passed with enforcement off).
+  Verified: with `enforceAppCheck: false` in functions/src/index.ts the new test fails (1 of 19 join tests),
+  restored it passes; 79 emulator tests pass; ci-local exits 0.
+- joinIncident hardening: a code must be 8 Crockford symbols after normalization (refused before any
+  read); each caller spends one attempt from an atomic budget of 10 per rolling hour before the lookup
+  (`joinAttempts/{uid}`, admin only; the 11th call is refused even with the right code); every failed join,
+  including an unknown team, gets the same permission-denied message; an invite may carry `expiresAt` and
+  `maxUses`, with uses counted in a transaction. Test fixture codes no longer use I, L, O or U.
+  Source: Codex adversarial review M7.
+  Verified: 3 new tests (one refusal for unknown team and wrong code, the attempt budget with a second
+  caller unaffected, invite expiry and single use) failed first, now 78 emulator tests pass; functions
+  typecheck exits 0; ci-local exits 0.
+- `docs/LIMITS.md` gains a media retention section: expiry locks a judge sandbox's media at once through
+  the rules; deleting the stored objects at expiry (`deleteIncidentMedia`, Task 23) and the 30-day drill
+  lifecycle file (Task 18) are marked PLANNED, not built; no app uses Storage download URLs.
+  Source: Codex adversarial review round 3, item 2 (the function itself lands with Task 23 and its tests).
+  Verified: wording checked against the repo (no deleteIncidentMedia or storage.lifecycle.json yet);
+  ci-local exits 0.
+- Rules gate bans Storage token URLs (`getDownloadURL`, `downloadURL`, `downloadUrl`) in web/, ios/ and
+  android/ code: a download URL carries a token that bypasses Storage rules, so a URL saved before a judge
+  sandbox expires would keep serving its clip. Client reads go through getBytes/getBlob, which evaluate the
+  rules. Docs may name the calls.
+  Source: Codex adversarial review round 3 (MEDIUM), items 1 and 3.
+  Verified: the new gate test failed first, now 18 gate tests pass; the gate is clean on main and a grep
+  finds 0 uses on origin/lane-ios, lane-web and lane-android; ci-local exits 0.
+- Clips and photos are create-only at their hash names: `clips/{incidentId}/{sha256}.mp4` and
+  `photos/{incidentId}/{sha256}.jpg` must match a lowercase 64-hex name with the right extension, and no
+  object may already exist there (`resource == null`; the emulator allowed an overwrite under the create
+  rule alone). A cached reading or consent record tied to a hash can no longer point at replaced bytes.
+  Rules cannot hash the bytes, so the reader checks the SHA-256 of what it reads (Task 18). Storage tests
+  clear the bucket before each test.
+  Source: Codex adversarial review M6.
+  Verified: 2 new tests (replacing a clip and a photo refused; four bad clip names and a .png photo
+  refused) failed first, then the overwrite case still passed until `resource == null` was added; now 75
+  emulator tests pass; ci-local exits 0.
+- Packs are per team: the pack record `packs/{teamId}` and the bundle are readable by command and by that
+  team only. Bundles move to `packs/{incidentId}/{teamId}/v{n}.bundle` (the spec's `{teamId}-v{n}.bundle`
+  file name could not be matched by team in Storage rules); the pack function (Task 12) writes this path.
+  Source: Codex adversarial review M5.
+  Verified: 2 new tests (another team's record and bundle refused, own team and command allowed, family
+  refused) failed first, now 73 emulator tests pass; ci-local exits 0.
+- Profile documents take only their own fields: `profile/shared` (readable by every member and carried in
+  packs) accepts only the 20 shared fields of spec section 13.2, with the 18 flag names as booleans, free
+  text at most 200 characters and at most 40 approach note ids; `profile/command` accepts only its 5 fields.
+  A field-mapping slip can no longer put previous addresses, places, past wandering, water, vehicle or
+  medication text where searchers read it.
+  Source: Codex adversarial review M4; fresh-context review minor 4.
+  Verified: 2 new tests (9 leaking writes to shared and 2 to command refused, valid writes accepted) failed
+  first, now 71 emulator tests pass; ci-local exits 0.
+- Add the `web` CI job (`.github/workflows/web.yml`, lane C's snippet): npm ci, web typecheck, Vitest, and a
+  Vite build with placeholder config (no real value in the repo; the build refuses to run without config).
+  Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to
+  shared/**, the lockfile and the workflow at the lane C merge). Mirrored in `ci-local.sh` behind a
+  web/package.json guard.
+  Source: orchestrator (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
+  Verified: action SHAs are the ones already pinned in engine.yml; `bash scripts/ci-local.sh` exits 0 here
+  (web skipped on main). First run expected on the next lane-web push.
+- Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
+  emulator keeps uploaded blobs under $TMPDIR/firebase, which was shared by every worktree, so another
+  lane's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
+  Source: lane C report of two storage test timeouts during a parallel run.
+  Verified: the new test failed first, now 5 emulator-config tests pass; the suite wrote its `firebase`
+  folder into the per-worktree temp dir and passed 69; ci-local exits 0.
+- README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
+  data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
+  Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).
+  Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
+- Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
+  never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
+  (no reopen, no edit). A judge sandbox must carry a timestamp `expiresAt` in the future for every member
+  read and write (Firestore and Storage rules) and for joinIncident; other incidents may have none.
+  Source: Codex review M3, the fresh-context review I1 and the Codex C1 re-review item 2.
+  Verified: 5 new tests (rules: no mode or expiry change, no reopen, judge without a timestamp locked out;
+  storage: judge upload needs a future expiry; join: judge needs a future expiry) failed first, now 69
+  emulator tests pass; ci-local exits 0.
+- The seeding tool draws all three role codes and checks they are distinct (drawing again if not) before
+  any Keychain entry or Firestore doc is written.
+  Source: Codex re-review of the C1 fix.
+  Verified: the new test (a forced collision on the first draw) failed first, now 6 seed tests pass;
+  ci-local exits 0.
+- Run the rules suite under a per-worktree demo project id (`demo-pls-` + 8 hex of the worktree path, from
+  `scripts/emulator_config.py --project-id`); test helpers read it from GCLOUD_PROJECT. Separate ports alone
+  still let the emulator hub report "running multiple instances of the emulator suite for project demo-pls"
+  when two worktrees ran at once.
+  Source: lane B report from its ci-local runs.
+  Verified: the new test failed first, now 4 emulator-config tests pass; the suite ran as demo-pls-68ccce04
+  and passed 63; ci-local exits 0.
+- joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
+  claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
+  right role against another OPEN incident (I2), so only the incident comparison can refuse it.
+  Source: Codex re-review of the C1 fix (only one new test failed on the old code; the cross-incident test
+  stopped at the role check).
+  Verified: with join.ts from 6c4dc21 (the parent of 406f97f) swapped in, 2 of 14 join tests fail (both
+  legacy-doc tests); on HEAD all 63 emulator tests pass; ci-local exits 0.
+- Firestore rules recompute every event's id: `eventIdOf(incidentId, request.auth.uid, seq)` with the same
+  text framing as the engines (hashing.sha256 over decimal byte length, ":" and value per field) must start
+  the document id, and seq must be a whole number of 0 or more. A member can no longer occupy another
+  device's future event id, and an id derived from another seq, device or incident is refused. Event tests
+  now write every event at its derived id (fixtures compute it independently with node:crypto).
+  Source: Codex adversarial review H1 and the fresh-context review I2 (the earlier deviceId binding alone did
+  not stop squatting; the 2026-11-18 rules entry above overstated it).
+  Verified: the 3 new H1 tests failed first (squatting at a victim's seq-5 id succeeded), now 62 emulator
+  tests pass; ci-local exits 0.
 - Detection range is measured-first: the team's measured visual range sets the sweep width, and a stated
   (model-read) range is used only when the team has no measurement (`rdBasis` "stated"). Spec 10.4: "Sweep
   width always uses the visual detection range." A model-read number can no longer raise POD above a

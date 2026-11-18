@@ -16,9 +16,13 @@ service cloud.firestore {
     function incidentData(incidentId) {
       return get(/databases/$(database)/documents/incidents/$(incidentId)).data;
     }
+    // A judge sandbox must carry a timestamp expiry in the future; any other incident may have none.
     function notExpired(incidentId) {
       let i = incidentData(incidentId);
-      return !('expiresAt' in i) || i.expiresAt == null || request.time < i.expiresAt;
+      let exp = i.get('expiresAt', null);
+      return i.get('mode', '') == 'judge'
+        ? (exp is timestamp && request.time < exp)
+        : (exp == null || (exp is timestamp && request.time < exp));
     }
     function isMember(incidentId) {
       return signedIn() && request.auth.token.inc == incidentId && notExpired(incidentId);
@@ -48,9 +52,13 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       allow read: if isMember(incidentId);
-      allow create, update: if isCommand(incidentId)
-        && request.resource.data.mode in ['drill', 'judge']
-        && !request.resource.data.keys().hasAny(['joinCodeHash', 'commandJoinCodeHash']);
+      // Incidents are created by admin tools only. Command may edit an open incident, but mode and
+      // expiresAt are server-owned (a sandbox cannot be extended) and closing is final.
+      allow create: if false;
+      allow update: if isCommand(incidentId)
+        && resource.data.get('status', 'open') != 'closed'
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash']);
       allow delete: if false;
 
       match /segments/{segmentId} {
@@ -84,15 +92,19 @@ service cloud.firestore {
       // profile/command (history, places, vehicle) is command and family only.
       match /profile/shared {
         allow read: if isMember(incidentId);
-        allow write: if isCommandOrFamily(incidentId);
+        allow write: if isCommandOrFamily(incidentId) && validSharedProfile(request.resource.data);
       }
       match /profile/command {
-        allow read, write: if isCommandOrFamily(incidentId);
+        allow read: if isCommandOrFamily(incidentId);
+        allow write: if isCommandOrFamily(incidentId)
+          && request.resource.data.keys().hasOnly(['previousAddresses', 'placesFrequented', 'pastWandering',
+                                                   'nearbyWater', 'vehicle']);
       }
 
       // Written by Cloud Functions only.
+      // A pack record is read by command and by its own team only.
       match /packs/{teamId} {
-        allow read: if isMember(incidentId);
+        allow read: if isCommand(incidentId) || (isMember(incidentId) && request.auth.token.team == teamId);
         allow write: if false;
       }
       match /planDrafts/{eventSetHash} {
@@ -108,9 +120,16 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // A clip reading is created BEFORE the upload and the model call, carrying the consent record and no
+      // reading (ruling I9); only its creator adds the reading, once, leaving the consents untouched.
       match /clipReadings/{sha256} {
         allow read: if isMember(incidentId);
-        allow create, update: if isCommandOrFamily(incidentId);
+        allow create: if isCommandOrFamily(incidentId) && validNewClipReading(incidentId, sha256, request.resource.data);
+        allow update: if isCommandOrFamily(incidentId)
+          && resource.data.createdByUid == request.auth.uid
+          && resource.data.reading == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reading', 'route'])
+          && request.resource.data.reading is map;
         allow delete: if isCommand(incidentId);
       }
       match /photoReadings/{sha256} {
@@ -122,6 +141,50 @@ service cloud.firestore {
         allow create: if validEvent(incidentId, eventId);
         allow update, delete: if false;
       }
+    }
+
+    // profile/shared is readable by every member and carried in packs, so it takes only the "shared with
+    // searchers" fields of spec section 13.2: a field-mapping slip cannot put private history there.
+    function validSharedProfile(p) {
+      return p.keys().hasOnly(['answersTo', 'nickname', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn',
+                               'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids',
+                               'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription',
+                               'photoTakenOn', 'approachNoteIds'])
+        && (!('flags' in p) || (p.flags is map
+              && p.flags.keys().hasOnly(['mayNotRespond', 'likelyToHide', 'afraidOfUniforms', 'sensitiveToTouch',
+                                         'sensitiveToLight', 'likelyToFight', 'seizures', 'hallucinationsOrDelusions',
+                                         'lookingForHome', 'gaitUnsteady', 'freezing', 'fallRisk', 'softVoice',
+                                         'slowToRespond', 'fluctuates', 'medicationSensitivity',
+                                         'carriesMedicalAlertCard', 'medicationTimingMatters'])
+              && p.flags.values().hasOnly([true, false])))
+        && shortText(p, 'appearance', 200) && shortText(p, 'clothingLastWorn', 200)
+        && shortText(p, 'triggersToAvoid', 200) && shortText(p, 'bestApproach', 200)
+        && shortText(p, 'uniqueDescription', 200)
+        && (!('approachNoteIds' in p) || (p.approachNoteIds is list && p.approachNoteIds.size() <= 40));
+    }
+    function shortText(m, key, max) {
+      return !(key in m) || (m[key] is string && m[key].size() <= max);
+    }
+
+    function consentOk(c) {
+      return c is map && exactKeys(c, ['byUid', 'atMs']) && c.byUid == request.auth.uid && c.atMs is number;
+    }
+    function validNewClipReading(incidentId, sha, d) {
+      return sha.matches('^[0-9a-f]{64}$')
+        && exactKeys(d, ['sha256', 'storagePath', 'durationS', 'clipStartMs', 'clockConfirmed', 'cameraFacingDeg',
+                         'reading', 'route', 'consent', 'expiresAt', 'createdAt', 'createdByUid'])
+        && d.sha256 == sha
+        && d.storagePath == 'clips/' + incidentId + '/' + sha + '.mp4'
+        && d.createdByUid == request.auth.uid
+        && d.reading == null && d.route == null
+        && d.consent is map && exactKeys(d.consent, ['personInClip', 'footageOwner', 'cloudProcessing', 'publicUse'])
+        && consentOk(d.consent.personInClip) && consentOk(d.consent.footageOwner) && consentOk(d.consent.cloudProcessing)
+        && (d.consent.publicUse == null || consentOk(d.consent.publicUse))
+        && (d.durationS == null || d.durationS is number)
+        && d.clipStartMs is number && d.clockConfirmed is bool
+        && (d.cameraFacingDeg == null || d.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
+        && d.expiresAt is timestamp
+        && d.createdAt == request.time;
     }
 
     function eventFields() {
@@ -180,6 +243,30 @@ service cloud.firestore {
           && e.why in ['needs_command', 'informational', 'invalid', 'sound_only', 'outside_area', 'incorporated_in_prior']));
     }
 
+    // eventId = first 32 lowercase hex of SHA-256 over, per field (incidentId, deviceId, decimal seq), the
+    // decimal UTF-8 byte length, ":" and the value. Recomputing it binds the id to the writer, so nobody can
+    // occupy another device's future id (create-only would then block the real event).
+    function frame(s) {
+      return string(s.toUtf8().size()) + ':' + s;
+    }
+    function eventIdOf(incidentId, deviceId, seq) {
+      return hashing.sha256(frame(incidentId) + frame(deviceId) + frame(string(seq))).toHexString().lower();
+    }
+
+    // A camera sighting carries its clip reference (ruling I10): the model's sighting, the clip's SHA-256,
+    // its start time, whether the family confirmed the camera clock, and an 8-way facing or null. The clip
+    // reading doc (consent record) must exist.
+    function cameraReadingOk(incidentId, r) {
+      return r is map
+        && exactKeys(r, ['sighting', 'clipSha256', 'clipStartMs', 'clockConfirmed', 'cameraFacingDeg'])
+        && r.sighting is map
+        && r.clipSha256 is string && r.clipSha256.matches('^[0-9a-f]{64}$')
+        && r.clipStartMs is number
+        && r.clockConfirmed is bool
+        && (r.cameraFacingDeg == null || r.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
+        && exists(/databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(r.clipSha256));
+    }
+
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
       return isMember(incidentId)
@@ -193,11 +280,10 @@ service cloud.firestore {
         && d.authorUid == request.auth.uid
         && d.role == role()
         && d.serverTime == request.time
-        && d.seq is int
+        && d.seq is int && d.seq >= 0
         && d.clientTimeMs is number
-        // eventId is derived from deviceId and seq, both readable by members, so deviceId is bound
-        // to the writer: nobody can pre-create another device's next event ids.
         && d.deviceId == request.auth.uid
+        && eventIdOf(incidentId, request.auth.uid, d.seq).matches(eventId + '[0-9a-f]{32}')
         && (d.teamId == null || (d.teamId is string && d.teamId.size() <= 32))
         && (role() != 'searcher' || d.teamId == request.auth.token.team)
         && d.reporter in ['searcher', 'public_caller', 'family', 'camera', 'system']
@@ -216,6 +302,7 @@ service cloud.firestore {
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
         && typeAllowed(d.type)
         && (d.type != 'retraction' || retractionOk(incidentId, d))
+        && (d.type != 'camera_sighting' || cameraReadingOk(incidentId, d.reading))
         && (d.type != 'confirmation' || (d.targetEventId is string && d.decision in ['confirmed', 'rejected']));
     }
   }

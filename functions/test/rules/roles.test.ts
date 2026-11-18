@@ -44,23 +44,51 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
   const J = { inc: "J1", role: "command", team: null };
   const JS = { inc: "J1", role: "searcher", team: "T1" };
   const ev = (uid: string, over: Record<string, unknown> = {}) => validEvent(uid, { incidentId: "J1", ...over });
+  const at = (inc: string, e: Record<string, unknown>) => `incidents/${inc}/events/${e.eventId as string}`;
   it("an expired judge sandbox locks every member out of reads and writes", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
-    await admin.db.doc(`incidents/J1/events/${"a".repeat(32)}`).set(ev(S, { serverTime: null }));
+    const seeded = ev(S, { seq: 1, serverTime: null });
+    await admin.db.doc(at("J1", seeded)).set(seeded);
     await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
-    await assertFails(getDoc(doc(dbAs(S, JS), `incidents/J1/events/${"a".repeat(32)}`)));
-    await assertFails(setDoc(doc(dbAs(S, JS), `incidents/J1/events/${"b".repeat(32)}`), ev(S, { eventId: "b".repeat(32) })));
+    await assertFails(getDoc(doc(dbAs(S, JS), at("J1", seeded))));
+    const e2 = ev(S, { seq: 2 });
+    await assertFails(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
   it("a judge sandbox before its expiry works as usual", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
     await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
-    await assertSucceeds(setDoc(doc(dbAs(S, JS), `incidents/J1/events/${"b".repeat(32)}`), ev(S, { eventId: "b".repeat(32) })));
+    const e2 = ev(S, { seq: 2 });
+    await assertSucceeds(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
   it("a closed incident stays readable to its members but takes no new events or plans", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
     await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1")));
-    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/events/${"c".repeat(32)}`), validEvent(S, { eventId: "c".repeat(32) })));
+    const e3 = validEvent(S, { seq: 3 });
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/events/${e3.eventId as string}`), e3));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0009"), validPlan(C)));
+  });
+  it("command cannot change mode or expiresAt, so a sandbox cannot be extended or a drill relabelled", async () => {
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    const db = dbAs(C, J);
+    await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: null }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: new Date(Date.now() + 365 * 86400_000) }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/J1"), { mode: "drill" }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mode: "judge" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Renamed drill" }, { merge: true }));
+  });
+  it("closing is final: a closed incident cannot be reopened or edited by a client", async () => {
+    await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { status: "open" }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "x" }, { merge: true }));
+  });
+  it("no client creates an incident", async () => {
+    await assertFails(setDoc(doc(dbAs(C, { inc: "I3", role: "command", team: null }), "incidents/I3"), { name: "New", mode: "drill", status: "open" }));
+  });
+  it("a judge sandbox without a timestamp expiry locks members out", async () => {
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open" });
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: "tomorrow" });
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
   });
   it("a member of an incident that does not exist reads nothing", async () => {
     await assertFails(getDoc(doc(dbAs("z", { inc: "GONE", role: "command", team: null }), "incidents/GONE/segments/AC")));
@@ -76,6 +104,16 @@ describe("join codes", () => {
   it("the member-readable incident doc cannot carry join code hashes", async () => {
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { joinCodeHash: "x" }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { commandJoinCodeHash: "x" }, { merge: true }));
+  });
+});
+
+describe("pack records are per team", () => {
+  it("a searcher reads its own team's pack record, not another team's; command reads all", async () => {
+    await admin.db.doc("incidents/I1/packs/T2").set({ packVersion: 1 });
+    await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1/packs/T1")));
+    await assertFails(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1/packs/T2")));
+    await assertSucceeds(getDoc(doc(dbAs(C, commandClaims), "incidents/I1/packs/T2")));
+    await assertFails(getDoc(doc(dbAs(F, familyClaims), "incidents/I1/packs/T1")));
   });
 });
 

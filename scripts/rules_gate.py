@@ -51,6 +51,11 @@ MODEL_BUILDERS = {
     "FirebaseAI.firebaseAI(": ("ios/PLS/AI/AIClient.swift",),
     "Firebase.ai(": ("android/app/src/main/java/app/pointlastseen/family/ai/AiClient.kt",),
 }
+# A Storage download URL carries a token that bypasses Storage rules (a URL saved before a judge sandbox
+# expires would keep serving its clip). Client code reads media with getBytes/getBlob instead.
+TOKEN_URL = re.compile(r"\b(getDownloadURL|downloadURL|downloadUrl)\b")
+CLIENT_DIRS = ("web/", "ios/", "android/")
+
 AVAILABILITY = re.compile(r"(?<!System)LanguageModel\.availability")
 
 MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
@@ -108,6 +113,10 @@ def check_lines(rel: str, text: str) -> list[str]:
                 bad(f"walkers.ts may use only integer PRNG steps and + - * / compare, found '{m.group(0)}'")
         if SLOW_MODEL in line and not is_doc:
             bad(f"model id '{SLOW_MODEL}' is banned on any live path")
+        if not is_doc and rel.startswith(CLIENT_DIRS):
+            m = TOKEN_URL.search(line)
+            if m:
+                bad(f"Storage token URL '{m.group(0)}' bypasses Storage rules; read with getBytes/getBlob")
         if not is_doc:
             for token, allowed in MODEL_BUILDERS.items():
                 if token in line and rel not in allowed:

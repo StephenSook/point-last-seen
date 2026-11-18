@@ -10,9 +10,19 @@ service firebase.storage {
 
     // Claims outlive an incident, so membership also needs the incident (read from Firestore) to
     // exist and not be expired. Cross-service rules: the deploy grants Storage read access to Firestore.
+    // A judge sandbox must carry a timestamp expiry in the future; any other incident may have none.
     function notExpired(incidentId) {
       let i = firestore.get(/databases/(default)/documents/incidents/$(incidentId)).data;
-      return !('expiresAt' in i) || i.expiresAt == null || request.time < i.expiresAt;
+      let exp = i.get('expiresAt', null);
+      return i.get('mode', '') == 'judge'
+        ? (exp is timestamp && request.time < exp)
+        : (exp == null || (exp is timestamp && request.time < exp));
+    }
+    // Ruling I9: the uploader's own clip reading, with the three required consents, exists before the upload.
+    function clipReadingReady(incidentId, file) {
+      let c = firestore.get(/databases/(default)/documents/incidents/$(incidentId)/clipReadings/$(file.split('[.]')[0])).data;
+      return c.createdByUid == request.auth.uid
+        && c.consent.personInClip != null && c.consent.footageOwner != null && c.consent.cloudProcessing != null;
     }
     function isMember(incidentId) {
       return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId);
@@ -21,9 +31,16 @@ service firebase.storage {
       return isMember(incidentId) && request.auth.token.role in ['command', 'family'];
     }
 
+    // Media are create-only at clips/{incidentId}/{sha256}.mp4 and photos/{incidentId}/{sha256}.jpg, so a
+    // reading cached under a hash can never point at replaced bytes. `resource == null` (no existing object)
+    // is required too, because the emulator allowed an overwrite under the create rule alone. Rules cannot
+    // hash the bytes; the reader checks the SHA-256 of what it reads against the name.
     match /clips/{incidentId}/{file} {
       allow read: if isMember(incidentId);
-      allow create, update: if isCommandOrFamily(incidentId)
+      allow create: if isCommandOrFamily(incidentId)
+        && resource == null
+        && file.matches('^[0-9a-f]{64}[.]mp4$')
+        && clipReadingReady(incidentId, file)
         && request.resource.size <= 14000000
         && request.resource.contentType.matches('video/.*');
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
@@ -31,15 +48,19 @@ service firebase.storage {
 
     match /photos/{incidentId}/{file} {
       allow read: if isCommandOrFamily(incidentId);
-      allow create, update: if isCommandOrFamily(incidentId)
+      allow create: if isCommandOrFamily(incidentId)
+        && resource == null
+        && file.matches('^[0-9a-f]{64}[.]jpg$')
         && request.resource.size <= 2 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg';
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
     }
 
-    // Packs are built by the pack function only.
-    match /packs/{incidentId}/{file} {
-      allow read: if isMember(incidentId);
+    // Packs are built by the pack function only, at packs/{incidentId}/{teamId}/v{n}.bundle, and read by
+    // command and by their own team only.
+    match /packs/{incidentId}/{teamId}/{file} {
+      allow read: if isMember(incidentId)
+        && (request.auth.token.role == 'command' || request.auth.token.team == teamId);
       allow write: if false;
     }
   }

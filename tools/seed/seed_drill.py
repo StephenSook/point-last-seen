@@ -34,6 +34,14 @@ def make_code() -> str:
     return "".join(secrets.choice(CROCKFORD) for _ in range(8))
 
 
+def make_codes() -> dict[str, str]:
+    """One code per role, all distinct (drawn again until they are), before anything is stored."""
+    while True:
+        codes = {r: make_code() for r in ROLES}
+        if len(set(codes.values())) == len(ROLES):
+            return codes
+
+
 def code_hash(code: str) -> str:
     normalized = "".join(code.upper().split()).replace("-", "")
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
@@ -108,7 +116,7 @@ def main(argv: list[str]) -> int:
     project, incident_id, name, teams = argv[0], argv[1], argv[2], argv[3:]
     params = json.loads((ROOT / "shared/constants/engine-params.json").read_text())["params"]
     token = _token()
-    codes = {r: make_code() for r in ROLES}
+    codes = make_codes()
     docs = join_code_docs(incident_id)
     for r in ROLES:
         keychain_store(KEYCHAIN_SERVICES[r], incident_id, codes[r])
