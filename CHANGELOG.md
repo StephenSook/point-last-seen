@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The shared profile carries `otherNames`: up to five other names she may answer to, each 1 to 60 characters,
+  optional so profiles saved before it stay valid. Writers mirror the first name into `nickname` ("" for an
+  empty list); readers call her by `namesToCall` (the list, else the nickname). Firestore rules take the new
+  key, regenerated from the schema.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the rules test (none, an empty list and five names accepted; six names, an empty name, 61
+  characters, a number, a string, a map and null refused) and the engine tests (shared as listed with the
+  nickname mirrored; an older profile keeps its nickname and adds no key; readers fall back) failed first, now
+  103 rules tests and 228 engine tests pass; engine typecheck exit 0. `bash scripts/ci-local.sh` fails only on
+  schema parity until the iOS and Android `SharedProfile` types add the field, which lands in this same pull
+  request.
 - The rules validator generator checks lists of up to five items one by one (was four), for the shared
   profile's list of other names. A longer list is still refused at generation time.
   Source: review (field expert: get every name the person may answer to).

@@ -281,10 +281,11 @@ service cloud.firestore {
     // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.
     function schema_SharedProfile(m) {
       return m is map
-        && m.keys().hasOnly(['answersTo', 'nickname', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn', 'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids', 'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription', 'photoTakenOn', 'approachNoteIds'])
-        && m.size() == 20
+        && m.keys().hasOnly(['answersTo', 'nickname', 'otherNames', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn', 'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids', 'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription', 'photoTakenOn', 'approachNoteIds'])
+        && m.keys().hasAll(['answersTo', 'nickname', 'ageYears', 'gender', 'appearance', 'heightFt', 'heightIn', 'weightLb', 'hair', 'eyeColor', 'primaryLanguage', 'clothingLastWorn', 'mobilityAids', 'dementiaType', 'flags', 'triggersToAvoid', 'bestApproach', 'uniqueDescription', 'photoTakenOn', 'approachNoteIds'])
         && (m.answersTo is string && m.answersTo.size() <= 60)
         && (m.nickname is string && m.nickname.size() <= 60)
+        && (!('otherNames' in m) || (m.otherNames is list && m.otherNames.size() <= 5 && (m.otherNames.size() < 1 || (m.otherNames[0] is string && m.otherNames[0].size() >= 1 && m.otherNames[0].size() <= 60)) && (m.otherNames.size() < 2 || (m.otherNames[1] is string && m.otherNames[1].size() >= 1 && m.otherNames[1].size() <= 60)) && (m.otherNames.size() < 3 || (m.otherNames[2] is string && m.otherNames[2].size() >= 1 && m.otherNames[2].size() <= 60)) && (m.otherNames.size() < 4 || (m.otherNames[3] is string && m.otherNames[3].size() >= 1 && m.otherNames[3].size() <= 60)) && (m.otherNames.size() < 5 || (m.otherNames[4] is string && m.otherNames[4].size() >= 1 && m.otherNames[4].size() <= 60))))
         && (m.ageYears == null || (m.ageYears is int && m.ageYears >= 18 && m.ageYears <= 120))
         && (m.gender is string && m.gender.size() <= 40)
         && (m.appearance is string && m.appearance.size() <= 200)

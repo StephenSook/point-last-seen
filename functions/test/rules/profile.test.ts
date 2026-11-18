@@ -41,6 +41,16 @@ describe("subject profile split (spec section 13.2)", () => {
       await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), leak, { merge: true }));
     }
   });
+  it("profile/shared may carry up to five other names she may answer to, each 1 to 60 characters (field expert)", async () => {
+    const db = dbAs(F, familyClaims);
+    const put = (over: Record<string, unknown>) => setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile(over));
+    await assertSucceeds(put({}));
+    await assertSucceeds(put({ otherNames: [] }));
+    await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "Margaret", "Peggy", "Mrs. Lee", "x".repeat(60)] }));
+    for (const otherNames of [["a", "b", "c", "d", "e", "f"], [""], ["x".repeat(61)], ["Peggy", 7], "Peggy", { 0: "Peggy" }, null]) {
+      await assertFails(put({ otherNames }));
+    }
+  });
   it("profile/command takes only the command fields", async () => {
     const db = dbAs(C, commandClaims);
     await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/command"), { nearbyWater: "creek", vehicle: null }));
