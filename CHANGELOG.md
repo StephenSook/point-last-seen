@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/SECURITY.md` row 12 records cloudGuard as on: deployed from ebd96a9 at 22:57 UTC on 2026-11-18, which calls
+  it covers (every generateContent call, templated or not), the large-media exception with the measured sizes,
+  what it does not cover by Google's design (streaming, which our iOS report read uses, and the Live API) and
+  the measured added latency.
+  Source: review (claim the trigger exactly as deployed).
+  Verified: live after the deploy, all 11 checks passed: the four templates kept their schemas (the voice template
+  returned audio); a direct structured call kept its keys; candidateCount 4 gave one candidate; gemini-3.8-flash
+  was refused; median added latency 86 ms over 10 warm calls; six 13.8 MB clip calls at once all answered; an
+  oversize call asking for 50,000 tokens was refused by the guard; a 13.8 MB clip through its template returned
+  all 15 fields. `bash scripts/ci-local.sh` exit 0.
 - cloudGuard refuses a request above the inline-media limit unless its own settings already comply: only listed
   setting names, and a token limit within the cap or none (a template call carries none; its template sets it).
   A request that asks for more output, extra candidates or a thinking budget is refused with invalid-argument
