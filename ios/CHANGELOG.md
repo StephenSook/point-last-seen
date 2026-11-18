@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): build the spoken assignment from the approved plan only
+- What: `SpokenAssignment.text` makes the words for a new assignment from command's approved
+  plan only: the segment ids, read as letters ("Segments A B and A C."), and the approved task
+  text, cut at 400 characters. The plan's reason line, report text and profile fields are
+  never spoken. `shouldSpeak` speaks only when the words would change. `path` picks the cloud
+  voice only when Remote Config names a model (`tts_model_ios`, default empty), the phone is
+  online and the kill switch is off; otherwise the phone's own synthesizer.
+- Source: TTS first cut approved by the orchestrator 2026-11-18 (EXTRA-MILE F1); lane A's key
+  name `tts_model_ios`.
+- Verified: five `SpokenAssignmentTests` compile-red, then green; 245 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): add the urgency rule from the shared constants
 - What: `UrgencyRule` reads `shared/constants/urgency.json` (40 °F, the CDC sentence, its URL
   and read date). `level(tempF:wet:)` gives cold at or below 40 °F, cool and wet above it when
