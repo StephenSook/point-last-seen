@@ -1,6 +1,9 @@
 [versions]
 agp = "9.5.1"
 kotlin = "2.4.21"
+# KSP2 versions are independent of Kotlin; firebase-ai-ksp-processor 17.0.0 needs symbol-processing-api 2.3.6 or later.
+ksp = "2.3.14"
+firebaseAiKsp = "17.0.0"
 googleServices = "4.6.0"
 crashlyticsPlugin = "3.0.8"
 firebaseBom = "35.2.0"
@@ -23,6 +26,7 @@ espresso = "3.7.0"
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-ai = { module = "com.google.firebase:firebase-ai", version.ref = "firebaseAi" }
+firebase-ai-ksp-processor = { module = "com.google.firebase:firebase-ai-ksp-processor", version.ref = "firebaseAiKsp" }
 firebase-ai-ondevice = { module = "com.google.firebase:firebase-ai-ondevice", version.ref = "firebaseAiOndevice" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
@@ -57,3 +61,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
