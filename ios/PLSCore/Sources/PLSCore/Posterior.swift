@@ -48,7 +48,7 @@ public enum Posterior {
         var seen = Set<String>()
 
         for event in events.sorted(by: { $0.eventId < $1.eventId }) {
-            guard seen.insert(event.eventId).inserted else { ignored.append(event.eventId); continue }
+            guard seen.insert(event.eventId).inserted else { continue }      // a repeat is the same event, not a failed one
             switch event.effect {
             case let .cleared(segmentId, pod, _):
                 guard known.contains(segmentId), pod.isFinite, pod >= 0, pod <= 1 else { ignored.append(event.eventId); continue }
@@ -59,7 +59,7 @@ public enum Posterior {
                 if let override = event.iocOverride {
                     for id in ids { weight[id]! *= override[id] ?? 1 }
                 } else {
-                    guard influences.keys.allSatisfy(known.contains) else { ignored.append(event.eventId); continue }
+                    guard influences.keys.contains(where: known.contains) else { ignored.append(event.eventId); continue }
                     for id in ids {
                         weight[id]! *= SearchMath.ioc(influences[id] ?? .neutral, authenticity: authenticity, params: params)
                     }

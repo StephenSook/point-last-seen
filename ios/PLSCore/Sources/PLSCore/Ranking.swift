@@ -5,6 +5,8 @@ public struct RankedSegment: Codable, Sendable, Equatable {
     public var rank: Int
     public var poa: Double
     public var priorPoa: Double
+    /// poa minus priorPoa: how much this segment moved since the prior.
+    public var deltaPoa: Double
 }
 
 /// Ranked priority list for the phone (twin of rankSegments). ROW is left out: it is shown
@@ -20,7 +22,8 @@ public enum Ranking {
                 return pa != pb ? pa > pb : a < b
             }
         return sorted.enumerated().map { i, id in
-            RankedSegment(segmentId: id, rank: i + 1, poa: result.poa[id] ?? 0, priorPoa: priorById[id] ?? 0)
+            let poa = result.poa[id] ?? 0, prior = priorById[id] ?? 0
+            return RankedSegment(segmentId: id, rank: i + 1, poa: poa, priorPoa: prior, deltaPoa: poa - prior)
         }
     }
 }

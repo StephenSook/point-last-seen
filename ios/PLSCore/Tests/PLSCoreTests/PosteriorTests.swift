@@ -38,7 +38,7 @@ private func cleared(_ id: String, _ seg: String, pod: Double) -> EngineEvent {
         let twice = Posterior.compute(prior: prior, events: [e1, e1], params: params)
         #expect(twice.poa == once.poa)
         #expect(twice.appliedEventIds == ["e1"])
-        #expect(twice.ignoredEventIds == ["e1"])
+        #expect(twice.ignoredEventIds.isEmpty)
     }
 
     @Test func rowKeepsItsShareOfMassThroughAClear() {

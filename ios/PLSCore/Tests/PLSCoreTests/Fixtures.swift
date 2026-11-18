@@ -46,7 +46,7 @@ func reading(
 }
 
 func ctx(position: Position? = nil, assigned: [String] = ["AC"], rangeM: Double? = 10, basis: RdBasis = .openTarget) -> EffectContext {
-    EffectContext(segments: grid, assignedSegmentIds: assigned, position: position, visualDetectionRangeM: rangeM, rdBasis: basis)
+    EffectContext(grid: grid, assignedSegmentIds: assigned, position: position, visualDetectionRangeM: rangeM, rdBasis: basis)
 }
 
 /// A point in the middle of a test cell.

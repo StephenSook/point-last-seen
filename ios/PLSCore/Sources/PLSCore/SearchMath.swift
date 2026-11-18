@@ -18,7 +18,7 @@ public enum SearchMath {
     /// An unknown search type uses the slower sweep speed, which gives the lower POD.
     public static func trackLength(minutes: Double, searchers: Double, searchType: SearchType, params: EngineParams) -> Double {
         let speed = searchType == .hasty ? params.hastySpeedMps : params.sweepSpeedMps
-        return speed * (minutes * 60) * searchers
+        return speed * (minutes * params.secondsPerMinute) * searchers
     }
 
     /// Coverage C = W x L / A.

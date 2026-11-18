@@ -30,6 +30,8 @@ public enum RdBasis: String, Codable, Sendable, CaseIterable {
     case hiddenTarget = "hidden_target"
     case openTarget = "open_target"
     case `default` = "default"
+    /// The report itself stated the range.
+    case stated
 }
 
 public struct IocBase: Codable, Sendable, Equatable {
@@ -99,6 +101,7 @@ public struct EngineParams: Codable, Sendable, Equatable {
     public var sweepWidthFactor: Double
     public var sweepSpeedMps: Double
     public var hastySpeedMps: Double
+    public var secondsPerMinute: Double
     public var iocBase: IocBase
     public var authenticityWeight: AuthenticityWeight
     public var detectionProfile: DetectionProfile
@@ -107,6 +110,7 @@ public struct EngineParams: Codable, Sendable, Equatable {
         sweepWidthFactor: Double,
         sweepSpeedMps: Double,
         hastySpeedMps: Double,
+        secondsPerMinute: Double = 60,
         iocBase: IocBase,
         authenticityWeight: AuthenticityWeight,
         detectionProfile: DetectionProfile
@@ -114,6 +118,7 @@ public struct EngineParams: Codable, Sendable, Equatable {
         self.sweepWidthFactor = sweepWidthFactor
         self.sweepSpeedMps = sweepSpeedMps
         self.hastySpeedMps = hastySpeedMps
+        self.secondsPerMinute = secondsPerMinute
         self.iocBase = iocBase
         self.authenticityWeight = authenticityWeight
         self.detectionProfile = detectionProfile

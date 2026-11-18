@@ -44,7 +44,7 @@ public enum ReadFailure: String, Codable, Sendable, CaseIterable {
     case other
 }
 
-public struct RouterInput: Sendable, Equatable {
+public struct RouterInput: Codable, Sendable, Equatable {
     public var taskClass: TaskClass
     public var networkOnline: Bool
     public var onDeviceAvailable: Bool
@@ -90,6 +90,34 @@ public enum NextStep: Equatable, Sendable {
 
     /// True when the next step can reach the cloud.
     public var isCloud: Bool { self == .rerouteWithoutOnDevice }
+}
+
+extension NextStep: Codable {
+    enum CodingKeys: String, CodingKey { case next, stage }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .next) {
+        case "stage": self = .stage(try c.decode(ReadStage.self, forKey: .stage))
+        case "reroute_without_on_device": self = .rerouteWithoutOnDevice
+        case "pick_list": self = .pickList
+        case let other: throw DecodingError.dataCorruptedError(forKey: .next, in: c, debugDescription: "unknown next step \(other)")
+        }
+    }
+
+    /// `{next: "stage", stage}`, `{next: "reroute_without_on_device"}` or `{next: "pick_list"}`.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .stage(stage):
+            try c.encode("stage", forKey: .next)
+            try c.encode(stage, forKey: .stage)
+        case .rerouteWithoutOnDevice:
+            try c.encode("reroute_without_on_device", forKey: .next)
+        case .pickList:
+            try c.encode("pick_list", forKey: .next)
+        }
+    }
 }
 
 /// The route record we write on every read. On iOS it is our own record, never SDK-reported.

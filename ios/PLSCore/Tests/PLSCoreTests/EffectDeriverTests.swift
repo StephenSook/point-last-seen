@@ -49,11 +49,16 @@ import Testing
         #expect(EffectDeriver.cleared(reading: reading(segmentIds: [], coverage: 1), context: ctx(assigned: []), params: params) == .none(why: .needsCommand))
     }
 
-    @Test func statedRangeIsUsedOnlyWhenNothingWasMeasured() {
-        let e = EffectDeriver.cleared(reading: reading(minutes: 10, searchers: 1, detectionRangeM: 20), context: ctx(rangeM: nil), params: params)
+    @Test func aRangeStatedInTheReportWinsAndIsMarkedStated() {
+        let e = EffectDeriver.cleared(reading: reading(minutes: 10, searchers: 1, detectionRangeM: 20), context: ctx(rangeM: 10), params: params)
         guard case let .cleared(_, _, inputs) = e else { Issue.record("not cleared"); return }
         #expect(near(inputs.sweepWidthM, 1.645 * 20))
-        #expect(inputs.rdBasis == .default)
+        #expect(inputs.rdBasis == .stated)
+    }
+
+    @Test func clearedFunctionRefusesOtherKindsAndClueRefusesClears() {
+        #expect(EffectDeriver.cleared(reading: reading(kind: .clue, coverage: 1), context: ctx(), params: params) == .none(why: .invalid))
+        #expect(EffectDeriver.clue(reading: reading(kind: .cleared), context: ctx(position: inside("AA"))) == .none(why: .invalid))
     }
 
     @Test func clueAtAPositionIsStrongForItsCellAndForTheNeighbourItPointsAt() {
