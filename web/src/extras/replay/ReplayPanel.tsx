@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { MapView, type MapLibreMap } from "../laneC";
 import type { ExtrasMapLike } from "../types";
-import type { ReplayData } from "./replayData";
+import { pendingLine, type ReplayData } from "./replayData";
 import { clockLabel, markTimes, nextMarkTime } from "./ruler";
 import { replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
@@ -74,6 +74,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
           <span data-testid="replay-not-stored">Earlier prior. The map for this time is not stored.</span>
         )}
       </div>
+      {pendingLine(data) && <p className="muted">{pendingLine(data)}</p>}
       {order.length >= 2 && (
         <div className="extras-replay-legs">
           <p className="label">Order of confirmed sightings. Not a track.</p>

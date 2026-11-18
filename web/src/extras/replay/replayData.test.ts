@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../laneC";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
-import { fromLive, fromPublishedRun, mmssToMs } from "./replayData";
+import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
 import { runEvent } from "../testdata/replayIncident";
 import { PUBLISHED_RUN_VERSION, type PublishedRunV1 } from "./runContract";
 
@@ -131,6 +131,15 @@ describe("fromLive", () => {
       "Training drill. Practice search; nobody is missing.",
     );
     expect(fromLive(replayView(), [], [])!.priorBuiltAtMs).toBeNull();
+  });
+
+  it("says how many reports are still sending, because the live map counts them and the replay cannot", () => {
+    const sent = streamed(eventDoc({ eventId: "landed" }), T0);
+    const one = fromLive(replayView(), [sent, streamed(eventDoc({ eventId: "p1" }), null, true)], [])!;
+    const two = fromLive(replayView(), [sent, streamed(eventDoc({ eventId: "p1" }), null, true), streamed(eventDoc({ eventId: "p2" }), null, true)], [])!;
+    expect(pendingLine(fromLive(replayView(), [sent], [])!)).toBeNull();
+    expect(pendingLine(one)).toBe("1 report is still sending and is not in the replay.");
+    expect(pendingLine(two)).toBe("2 reports are still sending and are not in the replay.");
   });
 
   it("carries the grid's own licence line for the map credit", () => {

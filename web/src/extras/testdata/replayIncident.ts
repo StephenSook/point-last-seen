@@ -35,7 +35,7 @@ const docs: [EventDoc, number][] = [
 ];
 
 /** One drill incident whose current prior came into use at +6 min, so the first five minutes have no stored map. */
-export function harnessIncident(): { view: IncidentView; events: StreamedEvent[]; plans: PlanDoc[] } {
+export function harnessIncident(opts: { pending?: boolean } = {}): { view: IncidentView; events: StreamedEvent[]; plans: PlanDoc[] } {
   const view: IncidentView = {
     ...drillView,
     // priorBuiltAtMs is not on lane C's incident type yet; the replay reads it when present.
@@ -44,7 +44,10 @@ export function harnessIncident(): { view: IncidentView; events: StreamedEvent[]
     rowPrior: 0.1,
     clockOffsets: { d1: 0, d2: 0 },
   };
-  return { view, events: docs.map(([d, at]) => streamed(d, at)), plans: [replayPlan(1, T0 + 7 * MIN), replayPlan(2, T0 + 15 * MIN)] };
+  const events = docs.map(([d, at]) => streamed(d, at));
+  // A command confirmation written with the link down: in the live map, not yet on the server.
+  if (opts.pending) events.push(streamed(eventDoc({ ...cmd, eventId: "c3", type: "confirmation", clientTimeMs: T0 + 17 * MIN, targetEventId: "s2", decision: "rejected", effect: { kind: "none", why: "informational" } }), null, true));
+  return { view, events, plans: [replayPlan(1, T0 + 7 * MIN), replayPlan(2, T0 + 15 * MIN)] };
 }
 
 /** A stored event as the published run writes it (runContract.ts): no uid, no report text, numeric server time. */

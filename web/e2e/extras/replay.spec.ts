@@ -93,3 +93,13 @@ test("the order line is labelled as an order, not a track, with its leg in words
   await expect(dialog.getByText("Order of confirmed sightings. Not a track.")).toBeVisible();
   await expect(dialog.locator(".extras-replay-legs li")).toHaveText([/^\d+ m in 9 min, \d\.\d\d m\/s$/]);
 });
+
+test("a report still sending is named, and the end frame says why it differs from the live map", async ({ page }) => {
+  await page.goto(`${harness}?pending=1`);
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Replay" }).click();
+  const dialog = page.getByRole("dialog", { name: "Replay" });
+  await expect(dialog.getByText("1 report is still sending and is not in the replay.")).toBeVisible();
+  // The live header counts the pending rejection; the replay cannot, and says so.
+  await expect(dialog.getByTestId("replay-code")).not.toHaveText((await page.getByTestId("live-code").textContent())!);
+});

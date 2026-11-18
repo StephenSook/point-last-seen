@@ -167,6 +167,16 @@ export function fromLive(view: IncidentView | null, events: readonly StreamedEve
   };
 }
 
+/**
+ * The live map counts writes still on their way to the server; the replay shows only what arrived. When some are
+ * pending, the end frame can differ from the live header, so the panel says why.
+ */
+export function pendingLine(data: ReplayData): string | null {
+  const n = data.events.filter((e) => e.arrivedAtMs === null).length;
+  if (n === 0) return null;
+  return n === 1 ? "1 report is still sending and is not in the replay." : `${n} reports are still sending and are not in the replay.`;
+}
+
 type Refusal = { ok: false; reason: string };
 const refuse = (reason: string): Refusal => ({ ok: false, reason });
 
