@@ -87,4 +87,12 @@ class NavTest {
         val callFirst = Nav.shesGone(Nav.start(false, false)).state
         assertEquals(Screen.CALL_FIRST, Nav.systemBack(callFirst)?.screen)
     }
+
+    @Test fun theScriptOpensFromCallFirstAndBothBacksReturnThere() {
+        val call = Nav.shesGone(Nav.start(joined = false, gone = false)).state
+        val script = Nav.open(call, Screen.SCRIPT_911)
+        assertEquals(Screen.SCRIPT_911, script.screen)
+        assertEquals(Screen.CALL_FIRST, Nav.back(script).screen)
+        assertEquals(Screen.CALL_FIRST, Nav.systemBack(script)?.screen)
+    }
 }

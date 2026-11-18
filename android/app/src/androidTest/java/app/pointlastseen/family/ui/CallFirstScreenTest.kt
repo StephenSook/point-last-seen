@@ -42,4 +42,16 @@ class CallFirstScreenTest {
         rule.setContent { PaperTheme { CallFirstScreen(mode = "drill", killCloud = false, onDial = {}, onDone = {}) } }
         rule.onNodeWithText("In a training drill, call the drill call-taker, not 911.").assertDoesNotExist()
     }
+
+    @Test fun withoutTheScriptFlagThereIsNoScriptButton() {
+        rule.setContent { PaperTheme { CallFirstScreen(mode = "drill", killCloud = false, onDial = {}, onDone = {}) } }
+        rule.onNodeWithText("What to say").assertDoesNotExist()
+    }
+
+    @Test fun withTheScriptFlagTheScriptOpens() {
+        var opened = 0
+        rule.setContent { PaperTheme { CallFirstScreen(mode = "drill", killCloud = false, onDial = {}, onDone = {}, onScript = { opened++ }) } }
+        rule.onNodeWithText("What to say").performClick()
+        assertEquals(1, opened)
+    }
 }

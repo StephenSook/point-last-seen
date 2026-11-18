@@ -25,7 +25,10 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
     Crossfade(targetState = vm.nav.screen, animationSpec = Paper.crossfade(), label = "screen") { screen ->
         when (screen) {
             Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back)
-            Screen.CALL_FIRST -> CallFirstScreen(mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst)
+            Screen.CALL_FIRST -> CallFirstScreen(
+                mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst,
+                onScript = if (BuildConfig.SCRIPT_911) ({ vm.open(Screen.SCRIPT_911) }) else null,
+            )
             Screen.JOIN -> JoinScreen(vm.joinBusy, vm.joinError, onJoin = vm::join, onBack = vm::back)
             Screen.STATUS -> StatusScreen(
                 status = incident?.status, mode = mode, killCloud = rc.killCloud,
@@ -36,6 +39,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back)
             Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back)
             Screen.SIGHTING -> SightingScreen(mode, rc.killCloud, busy = false, error = vm.sightingError, nowMs = System::currentTimeMillis, onSend = vm::sendSighting, onBack = vm::back)
+            Screen.SCRIPT_911 -> Script911Screen(vm.profile, mode, rc.killCloud, onBack = vm::back)
             Screen.ABOUT -> AboutPhoneScreen(vm.deviceStatus, mode, rc.killCloud, rc.cloudModelAndroid, AppCheckSetup.PROVIDER, BuildConfig.VERSION_NAME, onBack = vm::back)
         }
     }
