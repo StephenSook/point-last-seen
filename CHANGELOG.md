@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A clip reading's expiresAt must be 30 to 31 days after the write (before, anything from a minute to 31 days
+  passed), so the TTL on the consent record can no longer delete it while the clip it covers lives up to 30
+  days. The test fixture writes 30.5 days.
+  Source: review of 2bdb778..dc762be, finding M5.
+  Verified: the new expiry cases (a minute out and 29 days out are refused) failed first, now pass; the
+  judging-window test still pins at least 30 days; emulator suite 109; `bash scripts/ci-local.sh` exit 0.
 - Swift core CI also runs when the iOS view sources change (ios/PLS/**, ios/PLSWidgets/**, ios/PLSShared/**):
   PLSCore's FieldTextSizeTests scans them for text styles below Title 3 or fixed point sizes, so a view-only
   change must not skip it.

@@ -282,7 +282,9 @@ service cloud.firestore {
         && (d.durationS == null || d.durationS is number)
         && d.clipStartMs is number && d.clockConfirmed is bool
         && (d.cameraFacingDeg == null || d.cameraFacingDeg in [0, 45, 90, 135, 180, 225, 270, 315])
-        && d.expiresAt is timestamp && d.expiresAt > request.time && d.expiresAt <= request.time + duration.value(31, 'd')
+        // 30 to 31 days out: the TTL on this consent record must not run before the 30-day lifecycle deletes
+        // the clip it covers (the reading is written before the upload).
+        && d.expiresAt is timestamp && d.expiresAt >= request.time + duration.value(30, 'd') && d.expiresAt <= request.time + duration.value(31, 'd')
         && d.createdAt == request.time;
     }
 

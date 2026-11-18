@@ -137,10 +137,11 @@ describe("profile/shared types every key it allows", () => {
 });
 
 describe("clip readings expire within 31 days; the incident status stays in its enum", () => {
-  it("a clip reading whose expiresAt is past or more than 31 days away is refused", async () => {
+  it("a clip reading whose expiresAt is not 30 to 31 days away is refused, so the TTL cannot outrun the clip (review M5)", async () => {
     const db = dbAs(F, familyClaims);
     await assertSucceeds(setDoc(doc(db, `incidents/I1/clipReadings/${SHA}`), clipReadingDoc("I1", SHA, F)));
-    for (const [i, expiresAt] of [new Date(Date.now() - 60_000), new Date(Date.now() + 40 * 86_400_000)].entries()) {
+    for (const [i, expiresAt] of [new Date(Date.now() - 60_000), new Date(Date.now() + 60_000), new Date(Date.now() + 29 * 86_400_000),
+                                  new Date(Date.now() + 40 * 86_400_000)].entries()) {
       const sha = String(i + 1).repeat(64);
       await assertFails(setDoc(doc(db, `incidents/I1/clipReadings/${sha}`), clipReadingDoc("I1", sha, F, { expiresAt })));
     }
