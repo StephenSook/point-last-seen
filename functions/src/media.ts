@@ -69,6 +69,21 @@ export async function runMediaSweep(db: Firestore, bucket: Pick<Bucket, "getFile
   }
 }
 
+/**
+ * Deletes the clip a clip reading covers when the reading is deleted, whether by its TTL, by command or by the
+ * sweep. The reading carries the consent, so the clip never outlives it by more than this trigger's delay
+ * (the 30-day lifecycle and the 31-day consent margin are the backstop). Only a 64-hex-digit id names a clip;
+ * anything else touches nothing. Returns whether a file was deleted.
+ */
+export async function deleteClipForReading(bucket: Pick<Bucket, "file">, incidentId: string, sha256: string): Promise<boolean> {
+  if (!/^[0-9a-f]{64}$/.test(sha256) || !/^[A-Za-z0-9_-]{1,128}$/.test(incidentId)) return false;
+  const file = bucket.file(`clips/${incidentId}/${sha256}.mp4`);
+  const [found] = await file.exists();
+  if (!found) return false;
+  await file.delete({ ignoreNotFound: true });
+  return true;
+}
+
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
 const LIFECYCLE_DAYS = 30;
 type LifecycleRule = { action?: { type?: string }; condition?: Record<string, unknown> & { matchesPrefix?: unknown[] } };

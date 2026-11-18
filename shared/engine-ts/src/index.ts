@@ -19,3 +19,5 @@ export { mulberry32 } from "./prng";
 export { COMPASS_UNITS, DEFAULT_WALKER_PARAMS, nearestWalkerStation, projectWalkerPoint, simulateWalkers, walkerSegmentLookup } from "./walkers";
 export type { WalkerGrid, WalkerOptions, WalkerParams, WalkerProjection, WalkerResult, WalkerRouteGraph, WalkerTrack } from "./walkers";
 export { ROUTE_SNAP_M, indexRouteGraph, routeGraphExtent } from "./routeGraph";
+export { MAX_CLIP_BYTES, base64Size, bearingFromExit, checkSighting, consentComplete, lastSeenMs, sizeProblem } from "./camera";
+export type { CameraSightingInput, ClipConsent, ConsentMark } from "./camera";

@@ -44,3 +44,17 @@ def test_a_200_counts_only_with_a_non_empty_answer():
     for body in [{}, {"candidates": []}, {"candidates": [{"content": {"parts": [{"text": ""}]}}]}, {"candidates": [{"content": {}}]},
                  {"candidates": [{"content": {"parts": [{"text": None}]}}]}, {"candidates": [{"content": {"parts": [{"text": 5}]}}]}]:
         assert not ac.answered(body)
+
+
+def test_the_debug_exchange_asks_for_a_limited_use_token():
+    # Replay protection is enforced on AI Logic (2026-11-18), so only a limited-use token is accepted.
+    assert ac.exchange_body("dbg") == {"debugToken": "dbg", "limitedUse": True}
+
+
+def test_full_control_needs_the_same_token_refused_on_its_second_use():
+    ok = {"no_token_status": 401, "no_token_refused": True, "first_status": 200, "first_answered": True, "replay_status": 401}
+    assert ac.full_control_passed(**ok)
+    assert not ac.full_control_passed(**{**ok, "replay_status": 200})
+    assert not ac.full_control_passed(**{**ok, "first_answered": False})
+    assert not ac.full_control_passed(**{**ok, "no_token_refused": False})
+    assert not ac.full_control_passed(**{**ok, "replay_status": None})

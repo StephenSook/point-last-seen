@@ -82,7 +82,9 @@ def emulator_holders(root: Path) -> list[str] | None:
     free."""
     base = port_base(root)
     block = {str(p) for p in range(base, base + BLOCK)}
-    ps = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True)
+    # -ww: unlimited width. Without it ps can cut each line at the terminal or COLUMNS width (Linux CI under
+    # pytest cut at 80) and drop the "--port N" this looks for.
+    ps = subprocess.run(["ps", "-wwAo", "pid=,command="], capture_output=True, text=True)
     out = ps.stdout
     if ps.returncode != 0 or not out.strip():
         return None

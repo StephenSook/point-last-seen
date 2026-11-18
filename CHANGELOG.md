@@ -5,6 +5,33 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The App Check control's full mode asks the debug-token exchange for a limited-use token
+  (`{"debugToken": ..., "limitedUse": true}`) and adds a replay half: the same token used a second time must
+  be refused with 401. App Check replay protection was enforced on AI Logic on 2026-11-18, after which the old
+  session-token exchange made the 200 half fail. The run on 2026-11-18 is committed as evidence: no token 401
+  "Firebase App Check token is invalid.", fresh limited-use token 200 with an answer, the same token again 401
+  with the same message.
+  Source: review (replay protection enforced on AI Logic).
+  Verified: the exchange-body and replay tests failed first, now 8 control tests pass; the live full run passed
+  and its evidence file holds no key or token; `bash scripts/ci-local.sh` exit 0.
+- `deleteClipOnConsentEnd` (Firestore delete trigger on incidents/{incidentId}/clipReadings/{sha256}, retry on)
+  deletes clips/{incidentId}/{sha256}.mp4 when its consent record is deleted, by the TTL, by command or
+  otherwise, so a clip never outlives its consent by more than the trigger's delay; before, only the 1-day
+  margin over the lifecycle covered that, about the size of the lifecycle's own delay. It also clears the clip
+  of a stale record that command deletes. Only a 64-hex-digit id names a clip; anything else touches nothing,
+  and a missing clip is not an error. LIMITS names it as the mechanism.
+  Source: review (follow-up low after round 3).
+  Verified: the 4 tests (the one clip deleted and nothing else, a missing clip, non-hash ids touching nothing,
+  the trigger's path, delete event and retry) failed first, now pass; emulator suite 124; functions typecheck
+  exit 0; `bash scripts/ci-local.sh` exit 0.
+- The emulator port wait asks ps for unlimited width (`ps -wwAo`). On the Linux CI runner under pytest, ps cut
+  each line at 80 columns, dropping the "--port N" the wait looks for, so the wait reported the ports free
+  while an emulator process still held one. The CI gates job had failed on this test since f8d1547, and the
+  same cut would have hidden a real lingering Firestore JVM on Linux.
+  Source: CI failure on main (gates job), reproduced in a Linux container.
+  Verified: the process-holder test, now run with COLUMNS=40, failed in a python:3.12 Linux container (the ps
+  line ended "fake-firestore-") and passes there after the fix (11 tests; the lsof test needs lsof, which the
+  container lacks and the runner has); 12 emulator-config tests pass locally; `bash scripts/ci-local.sh` exit 0.
 - Remote Config can no longer be replaced by a partial template. `remoteconfig.template.json` holds every key
   the three clients read, with the intended values (kill_cloud false, limited-use tokens on, every model key on
   the allow-list, the iOS voice model set), and a test fails if any client's default key is missing from it.

@@ -2,9 +2,10 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
 import { onCall } from "firebase-functions/v2/https";
+import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { runMediaSweep } from "./media.js";
+import { deleteClipForReading, runMediaSweep } from "./media.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -25,5 +26,19 @@ export const deleteIncidentMedia = onSchedule(
     const db = getFirestore(), bucket = getStorage().bucket();
     const r = await runMediaSweep(db, bucket, Date.now());
     console.log(JSON.stringify({ event: "deleteIncidentMedia", incidents: r.incidents, files: r.files, failed: r.failed.length }));
+  },
+);
+
+/**
+ * deleteClipOnConsentEnd: when a clip reading (the consent record) is deleted, by its TTL, by command or
+ * otherwise, its clip goes with it. Retry is on, so a transient Storage error is retried; a missing clip is
+ * not an error. No model call.
+ */
+export const deleteClipOnConsentEnd = onDocumentDeleted(
+  { document: "incidents/{incidentId}/clipReadings/{sha256}", region: "us-central1", retry: true, maxInstances: 5 },
+  async event => {
+    const { incidentId, sha256 } = event.params;
+    const deleted = await deleteClipForReading(getStorage().bucket(), incidentId, sha256);
+    console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId, deleted }));
   },
 );

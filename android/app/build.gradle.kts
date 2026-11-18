@@ -27,9 +27,9 @@ val localProps = Properties().apply {
 // pls.appcheck.debugToken.a16 instead. Release builds never carry one.
 val debugDevice: String? = providers.gradleProperty("pls.device").orNull
 
-// The full 911 script screen (promotion P-14) ships only when Stephen says yes:
-// off unless a build passes -Ppls.script911=true.
-val script911: Boolean = providers.gradleProperty("pls.script911").orNull == "true"
+// The offline 911 script screen ships in every build ("What to say" on "Call 911 first"; it reads
+// only the family's own profile on this phone). -Ppls.script911=false is the off switch.
+val script911: Boolean = providers.gradleProperty("pls.script911").orNull != "false"
 val debugToken: String = localProps.getProperty(
     if (debugDevice == null) "pls.appcheck.debugToken" else "pls.appcheck.debugToken.$debugDevice",
     "",
