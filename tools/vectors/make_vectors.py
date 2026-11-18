@@ -103,11 +103,13 @@ def derive_cleared(reading, ctx, p):
     if cov is not None:
         c, w, length = cov, None, None
     else:
-        rd = reading["detectionRangeM"]
-        if rd is not None:
-            rd_basis = "stated"
-        else:
-            rd = ctx["visualDetectionRangeM"]
+        # Spec 10.4: the team's measured visual range wins; a stated (model-read) range is used only
+        # when there is no measurement, so it can never raise POD above a hidden-target measurement.
+        rd = ctx["visualDetectionRangeM"]
+        if rd is None:
+            rd = reading["detectionRangeM"]
+            if rd is not None:
+                rd_basis = "stated"
         if reading["minutes"] is None or reading["searchers"] is None or rd is None:
             return none("needs_command")
         w = sweep_width(rd, p)
@@ -555,7 +557,10 @@ def build():
     dcase("no_segment_needs_command", "cleared", clear(coverage=1.0), ctx(assignedSegmentIds=[]))
     dcase("hasty_uses_hasty_speed", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, searchType="hasty"))
     dcase("unknown_search_type_uses_sweep", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, searchType="unknown"))
-    dcase("stated_detection_range_basis_stated", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5))
+    dcase("measured_range_beats_stated", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5),
+          ctx(rdBasis="hidden_target"))
+    dcase("stated_range_used_without_measurement", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5),
+          ctx(visualDetectionRangeM=None, rdBasis="default"))
     dcase("hidden_target_basis_kept", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2), ctx(rdBasis="hidden_target"))
     dcase("not_a_clear_is_invalid", "cleared", reading(kind="sighting", segmentIds=["AB"]))
     clue = lambda **kw: reading(kind="clue", **kw)  # noqa: E731

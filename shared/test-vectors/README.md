@@ -85,7 +85,7 @@ Effect derivation (`fn: "cleared"`), checks in this order
 3. Segment: first `segmentIds` entry present in `ctx.segments`, else the first assigned one; none found: none / needs_command.
 4. Coverage normalization: 0 to 3 kept; above 3 and up to 300 divided by 100; else (or not finite) none / invalid.
 5. Stated coverage: `C` is that value; `sweepWidthM` and `trackLengthM` are null; `rdBasis` is `ctx.rdBasis`.
-6. Otherwise `Rd` is `reading.detectionRangeM` (then `rdBasis` "stated"), else `ctx.visualDetectionRangeM` (then `ctx.rdBasis`). Missing minutes, searchers or `Rd`: none / needs_command. `W = 1.645 x Rd`, `C = (W x L) / A`.
+6. Otherwise `Rd` is the team's measured `ctx.visualDetectionRangeM` (then `ctx.rdBasis`), else `reading.detectionRangeM` (then `rdBasis` "stated"). A model-read range never overrides a measurement (spec 10.4). Missing minutes, searchers or `Rd`: none / needs_command. `W = 1.645 x Rd`, `C = (W x L) / A`.
 7. Result `{ kind: "cleared", segmentId, pod, inputs: { coverage, sweepWidthM, trackLengthM, areaM2, rdBasis } }`.
 
 Effect derivation (`fn: "clue"`), for kinds "clue" and "sighting"

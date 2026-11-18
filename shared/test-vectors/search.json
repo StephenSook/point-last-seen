@@ -6220,7 +6220,7 @@
    }
   },
   {
-   "name": "stated_detection_range_basis_stated",
+   "name": "measured_range_beats_stated",
    "input": {
     "fn": "cleared",
     "reading": {
@@ -6357,7 +6357,218 @@
       "AC"
      ],
      "visualDetectionRangeM": 10,
-     "rdBasis": "open_target",
+     "rdBasis": "hidden_target",
+     "position": null,
+     "positionSegmentId": null
+    },
+    "params": {
+     "sweepWidthFactor": 1.645,
+     "sweepSpeedMps": 0.39,
+     "hastySpeedMps": 0.53,
+     "secondsPerMinute": 60,
+     "iocBase": {
+      "strong_for": 1.0,
+      "for": 0.8,
+      "neutral": 0.6,
+      "against": 0.4,
+      "strong_against": 0.2
+     },
+     "authenticityWeight": {
+      "high": 1.0,
+      "medium": 0.6,
+      "low": 0.0
+     },
+     "coverageRatioMax": 3,
+     "coveragePercentMax": 300,
+     "detectionRangeMinM": 1,
+     "detectionRangeMaxM": 100,
+     "detectionProfile": {
+      "soundCounts": false
+     },
+     "rings": {
+      "masses": [
+       0.25,
+       0.25,
+       0.25,
+       0.2
+      ],
+      "temperate_flat": [
+       0.3,
+       1.0,
+       2.4,
+       12.8
+      ],
+      "temperate_mountain": [
+       0.3,
+       0.8,
+       1.9,
+       8.3
+      ]
+     },
+     "nearFeature": {
+      "bufferM": 71,
+      "nearShare": 0.75,
+      "farShare": 0.25
+     },
+     "wedge": {
+      "halfAngleDeg": 66,
+      "inside": 2.045,
+      "outside": 0.395
+     }
+    }
+   },
+   "expected": {
+    "kind": "cleared",
+    "segmentId": "AB",
+    "pod": 0.6267178832317363,
+    "inputs": {
+     "coverage": 0.9854208,
+     "sweepWidthM": 16.45,
+     "trackLengthM": 936.0,
+     "areaM2": 15625,
+     "rdBasis": "hidden_target"
+    }
+   }
+  },
+  {
+   "name": "stated_range_used_without_measurement",
+   "input": {
+    "fn": "cleared",
+    "reading": {
+     "kind": "cleared",
+     "segmentIds": [
+      "AB"
+     ],
+     "method": "visual",
+     "coverage": null,
+     "minutes": 20,
+     "searchers": 2,
+     "searchType": "sweep",
+     "detectionRangeM": 5,
+     "item": "",
+     "feature": "none",
+     "direction": "unknown",
+     "topColor": "unknown",
+     "bottomColor": "unknown",
+     "footwear": "",
+     "carried": "",
+     "matchesProfile": "unknown",
+     "evidenceQuote": ""
+    },
+    "ctx": {
+     "segments": {
+      "AA": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 90
+        },
+        {
+         "segmentId": "AD",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [
+        "AB"
+       ],
+       "downstream": []
+      },
+      "AB": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AA",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AC",
+         "bearingDeg": 90
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [
+        "AC"
+       ],
+       "downstream": [
+        "AA"
+       ]
+      },
+      "AC": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AF",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [],
+       "downstream": [
+        "AB"
+       ]
+      },
+      "AD": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AA",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 90
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      },
+      "AE": {
+       "areaM2": 100000,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AD",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AF",
+         "bearingDeg": 90
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      },
+      "AF": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AC",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 270
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      }
+     },
+     "assignedSegmentIds": [
+      "AC"
+     ],
+     "visualDetectionRangeM": null,
+     "rdBasis": "default",
      "position": null,
      "positionSegmentId": null
     },

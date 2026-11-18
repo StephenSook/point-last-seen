@@ -159,3 +159,13 @@ def test_malformed_stored_effects_are_skipped_not_fatal():
                  "malformed_none_without_reason_skipped"):
         assert case(v, "docToEngine", name)["expected"] == [], name
     assert len(case(v, "docToEngine", "malformed_beside_good_events_keeps_the_good")["expected"]) == 2
+
+
+def test_measured_detection_range_beats_a_stated_one():
+    # Spec 10.4: sweep width always uses the visual detection range the team measured. A model-read
+    # range is used only when there is no measurement, so it can never raise POD above a measurement.
+    v = load(V)
+    m = case(v, "deriveEffect", "measured_range_beats_stated")["expected"]["inputs"]
+    assert m["sweepWidthM"] == approx(16.45) and m["rdBasis"] == "hidden_target"
+    s = case(v, "deriveEffect", "stated_range_used_without_measurement")["expected"]["inputs"]
+    assert s["sweepWidthM"] == approx(8.225) and s["rdBasis"] == "stated"

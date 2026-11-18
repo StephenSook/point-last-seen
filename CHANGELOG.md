@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Detection range is measured-first: the team's measured visual range sets the sweep width, and a stated
+  (model-read) range is used only when the team has no measurement (`rdBasis` "stated"). Spec 10.4: "Sweep
+  width always uses the visual detection range." A model-read number can no longer raise POD above a
+  hidden-target measurement. Reference, vectors (160; new cases measured_range_beats_stated and
+  stated_range_used_without_measurement replace stated_detection_range_basis_stated), README and the TS
+  engine in one commit (vectors alone would turn the Engine job red).
+  Source: fresh-context review, ruling sent to the coordinator, reversed on its decision.
+  Verified: the new anchor failed first, now 14 generator tests pass; the TS vector case failed first, now
+  155 engine tests pass; typecheck and lint exit 0.
 - Change the eventId framing so the security rules can recompute it: SHA-256 over the UTF-8 string made of,
   per field (incidentId, deviceId, decimal seq), the decimal UTF-8 byte length, ":" and the value (example:
   ("ab", "c", 1) hashes "2:ab1:c1:1"); first 32 lowercase hex characters. eventSetHash and convergenceCode
