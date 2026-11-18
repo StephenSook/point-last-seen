@@ -83,3 +83,24 @@ def test_every_call_sends_the_hosting_origin_as_referer(monkeypatch):
     monkeypatch.setattr(ac.urllib.request, "urlopen", fake)
     ac.post("https://example.invalid/x", {}, {})
     assert seen["referer"] == "https://buildhybridai-2026-yg3m.web.app/"
+
+
+def test_ci_mode_without_a_token_skips_cleanly_and_calls_nothing(monkeypatch, capsys):
+    def no_network(*a, **k):
+        raise AssertionError("no network call may happen without a CI token")
+    monkeypatch.setattr(ac.urllib.request, "urlopen", no_network)
+    monkeypatch.delenv("APPCHECK_DEBUG_TOKEN_CI", raising=False)
+    assert ac.main(["--ci"]) == 0
+    assert "no CI token" in capsys.readouterr().out
+
+
+def test_the_debug_token_comes_from_the_environment_in_ci_and_the_keychain_locally(monkeypatch):
+    assert ac.debug_token(["--ci"], {"APPCHECK_DEBUG_TOKEN_CI": "ci-token"}) == "ci-token"
+    assert ac.debug_token(["--ci"], {}) is None
+    monkeypatch.setattr(ac.subprocess, "run", lambda *a, **k: ac.subprocess.CompletedProcess(a, 0, "keychain-token\n", ""))
+    assert ac.debug_token([], {}) == "keychain-token"
+
+
+def test_model_calls_carry_app_check_and_the_firebase_id_token():
+    # AI Logic's authenticated-users mode (on since 2026-11-18) refuses a call without a Firebase Auth ID token.
+    assert ac.model_headers("k", "ac", "idt") == {"x-goog-api-key": "k", "X-Firebase-AppCheck": "ac", "Authorization": "Firebase idt"}

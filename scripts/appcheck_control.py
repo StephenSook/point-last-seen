@@ -9,9 +9,15 @@ Writes status codes and reasons (never a key or token) to docs/evidence/appcheck
 --no-token-only (the daily probe): only the refusal half; no model call, no secret. The config comes from
 the deployed site's /__/firebase/init.json. Exits 1 loudly if the call is not refused for App Check.
 
-Usage: python3 -I scripts/appcheck_control.py [--no-token-only]
+--ci (the daily probe's positive read): the full control with the debug token from the environment variable
+APPCHECK_DEBUG_TOKEN_CI instead of the Keychain; no evidence file. Without that variable it skips with a clear
+message and makes no call. Model calls sign in anonymously first (AI Logic's authenticated-users mode needs a
+Firebase ID token) and the throwaway user deletes itself afterwards. No token or key is ever printed.
+
+Usage: python3 -I scripts/appcheck_control.py [--no-token-only | --ci]
 """
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -29,6 +35,18 @@ PROMPT = {"contents": [{"role": "user", "parts": [{"text": "Reply with the singl
 
 def control_passed(no_token_status, with_token_status) -> bool:
     return no_token_status == 401 and with_token_status == 200
+
+
+def debug_token(argv: list[str], env) -> str | None:
+    """The CI token from the environment with --ci (None when absent), else the local Keychain item."""
+    if "--ci" in argv:
+        return env.get("APPCHECK_DEBUG_TOKEN_CI") or None
+    return subprocess.run(["security", "find-generic-password", "-s", "pls-appcheck-debug-token-web", "-w"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def model_headers(api_key: str, app_check: str, id_token: str) -> dict:
+    return {"x-goog-api-key": api_key, "X-Firebase-AppCheck": app_check, "Authorization": f"Firebase {id_token}"}
 
 
 def exchange_body(debug_token: str) -> dict:
@@ -91,9 +109,12 @@ def summary(body) -> dict:
 
 
 def main(argv: list[str]) -> int:
-    no_token_only = "--no-token-only" in argv
-    if no_token_only and retired(datetime.now(timezone.utc).date()):
+    no_token_only, ci = "--no-token-only" in argv, "--ci" in argv
+    if (no_token_only or ci) and retired(datetime.now(timezone.utc).date()):
         print(f"appcheck_control: retired after {RETIRE_AFTER} (judging over); nothing checked")
+        return 0
+    if ci and debug_token(argv, os.environ) is None:
+        print("appcheck_control: no CI token (APPCHECK_DEBUG_TOKEN_CI is not set); the positive read is skipped")
         return 0
     with urllib.request.urlopen(SITE + "/__/firebase/init.json", timeout=30) as r:
         cfg = config_from_init(json.loads(r.read()))
@@ -113,16 +134,19 @@ def main(argv: list[str]) -> int:
         return 0
     with_status, first_answered, replay_status = None, False, None
     if refused:
-        debug = subprocess.run(["security", "find-generic-password", "-s", "pls-appcheck-debug-token-web", "-w"],
-                               capture_output=True, text=True, check=True).stdout.strip()
+        debug = debug_token(argv, os.environ) or ""
         secrets.append(debug)
+        su, up = post(f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={cfg['apiKey']}", {"returnSecureToken": True}, {})
+        id_token = up.get("idToken", "") if isinstance(up, dict) else ""
+        secrets.append(id_token)
+        record["signIn"] = su
         s1, b1 = post(f"https://content-firebaseappcheck.googleapis.com/v1/projects/{cfg['projectId']}/apps/{WEB_APP_ID}:exchangeDebugToken?key={cfg['apiKey']}",
                       exchange_body(debug), {})
         record["exchangeStatus"] = s1
         token = b1.get("token", "") if isinstance(b1, dict) else ""
         secrets.append(token)
         if token:
-            headers = {"x-goog-api-key": cfg["apiKey"], "X-Firebase-AppCheck": token}
+            headers = model_headers(cfg["apiKey"], token, id_token)
             s2, b2 = post(gen, PROMPT, headers)
             with_status, first_answered = s2, answered(b2)
             record["withToken"] = ({"status": 200, "answered": first_answered, "modelVersion": b2.get("modelVersion")} if s2 == 200
@@ -130,9 +154,16 @@ def main(argv: list[str]) -> int:
             s3, b3 = post(gen, PROMPT, headers)
             replay_status = s3
             record["replay"] = {"status": s3, "error": summary(b3)} if s3 != 200 else {"status": 200, "answered": answered(b3)}
+        if id_token:
+            sd, _ = post(f"https://identitytoolkit.googleapis.com/v1/accounts:delete?key={cfg['apiKey']}", {"idToken": id_token}, {})
+            record["throwawayUserDeleted"] = sd == 200
     else:
         record["withToken"] = "not run: the call without a token was not refused for App Check"
     record["passed"] = full_control_passed(s0, refused, with_status, first_answered, replay_status)
+    if ci:
+        print(redact(json.dumps(record), secrets))
+        print("appcheck_control: ok, positive read passed" if record["passed"] else "appcheck_control: FAIL: positive read did not pass")
+        return 0 if record["passed"] else 1
     out = Path(__file__).resolve().parents[1] / "docs/evidence/appcheck-control"
     out.mkdir(parents=True, exist_ok=True)
     text = redact(json.dumps(record, indent=2), secrets) + "\n"

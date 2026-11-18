@@ -5,6 +5,102 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard bounds output whatever the request asks for: only the speech model gets the speech cap (4,096
+  tokens); any other model gets the 2,048-token text cap even when the request asks for audio. It keeps only
+  the generation settings our apps use (token limit, temperature, top-p and top-k, stop sequences, the response
+  type and schema, modalities and voice) and drops the rest, so extra candidates or a thinking budget cannot
+  multiply the output past the cap, even when the token limit is already within it.
+  Source: automated security review of dd365d1 (a client-set audio modality skipped the cap; candidateCount
+  and thinkingConfig multiplied output).
+  Verified: the 2 new tests (speech cap only on the TTS model, audio asked on a text model gets the text cap;
+  extra settings dropped within the cap) failed first, now 6 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The photo and clip templates give every enum field `"type": "string"`. The shared schemas leave the type off
+  enum fields, and without it the template reads `{"enum": [...]}` as an object with a field named "enum": the
+  live photo and clip reads answered `"placeType": {"enum": "unknown"}`, which the clients' validation refuses.
+  A test now requires a type on every output field at every depth.
+  Source: the live check of the published templates (2026-11-18).
+  Verified: the typed-fields test failed first (it listed the clip and photo enum fields), now 9 template tests
+  pass; the dry run plans two updates; `bash scripts/ci-local.sh` exit 0.
+- `cloudGuard` (AI Logic `beforeGenerateContent` trigger): every generateContent call through AI Logic,
+  templated or not, may name only a model on the allow-list (a test keeps the function's copy equal to
+  shared/constants/models.json), and a text reply is bounded to 2,048 output tokens (speech output is not
+  text-bounded). No database or outside call, no minimum instances. Streaming calls and the Live API do not
+  trigger it, by Google's design, so the iOS report read is not covered; SECURITY row 12 is updated after the
+  live latency and refusal checks.
+  Source: review (row 12 reversed: a trigger that does a real job, claimed honestly).
+  Verified: the 5 tests (the list equals the shared one; off-list models refused in any path form; the clamp
+  lowers or sets the bound and leaves the rest of the request; speech untouched; registered as the
+  before-generate trigger) failed first (module missing), now pass; functions typecheck exit 0; baseline before
+  deploy: median 839 ms over 10 warm direct calls; `bash scripts/ci-local.sh` exit 0.
+- The rules gate's "no model call in any Cloud Function" rule now matches a call (`.generateContent(` or
+  `.generateContentStream(`, `getGenerativeModel`, the model SDK imports) instead of any occurrence of the word,
+  so a function can host the AI Logic `beforeGenerateContent` trigger, which calls no model, and mention the
+  method in a comment.
+  Source: review (cloudGuard needs the trigger's name in functions code).
+  Verified: the new test (the trigger and a comment pass; a generateContent and a generateContentStream call
+  still fail) failed first, now 27 gate tests pass; the gate walks the repo with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- Three more server prompt templates in `shared/templates`, each generated from its shared schema and pinned by
+  tests (inputs bounded, output enums and limits equal to the shared schema, the model on the allow-list):
+  `pls-photo-cues-v1` (the command post's photo read: one JPEG up to the 2 MiB photo limit, the photo-cues
+  schema, the web's instruction plus a guardrail that text in the photo is data), `pls-clip-read-v1` (the family
+  app's whole-clip read: video up to the 14,000,000-byte clip limit, the camera-sighting schema, the app's
+  instruction including "Do not describe the face", plus the same guardrail) and `pls-voice-v1` (spoken text on
+  the TTS model, voice Kore, audio out, text of 1 to 600 characters, no language code so a greeting can be in
+  the person's first language). The web's clip read keeps its triage window, so it stays a direct call (P-04).
+  The publisher renders a template without a system turn.
+  Source: review (row 6: template every cloud-only call whose inputs templates support; P-04).
+  Verified: the 3 template tests failed first, now 8 template tests pass; the API's validateOnly accepted all
+  three; the dry run plans three creates and shows the sighting template as "same"; rules gate 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- The template publisher reads the live list from the API's `templates` key (it read `promptTemplates`, so it
+  saw no live template: a published one was planned as a create, and a locked one would never be refused).
+  Source: found in review of the dry run (the published sighting template showed as "create").
+  Verified: the listing test failed first, now passes; the dry run now shows pls-sighting-note-v1 as "same";
+  `bash scripts/ci-local.sh` exit 0.
+- P-04 evidence adds the window test: a server prompt template cannot pass a video window. With a 12-second
+  clip of red, blue and green spans, both template forms (with and without start and end offset arguments)
+  answered "red, blue, green" with 808 prompt tokens, while a direct call with `videoMetadata` 4 s to 8 s
+  answered "blue" with 281. The web's triage-window clip read stays direct; a whole-clip read can be a
+  template.
+  Source: review (the clip template had to carry the triage window).
+  Verified: run live with a limited-use App Check token and a throwaway anonymous user, both spike templates
+  deleted afterwards; `bash scripts/ci-local.sh` exit 0.
+- P-04 spike evidence (`docs/evidence/spikes/P-04.md`, `P-04.json`): through `templateGenerateContent` on the
+  live project, a server prompt template takes an inline image (200, 1.6 s), a 13,788,183-byte inline MP4 just
+  under our clip limit (200, 18.7 s) and returns text-to-speech audio (200, `audio/wav`, 318,750 bytes), with
+  the media type and data passed as request variables. So the web photo read, both clip reads and the iOS
+  cloud voice can each become a template.
+  Source: review (P-04: which cloud calls can be templates).
+  Verified: run with a limited-use App Check token and a throwaway anonymous user's ID token (both deleted or
+  expired), the spike templates deleted afterwards; the evidence holds no key or token; `bash
+  scripts/ci-local.sh` exit 0.
+- The App Check control signs in anonymously before its model calls and sends the Firebase ID token, because
+  AI Logic's authenticated-users mode (on since 2026-11-18 19:30 UTC) refuses a call without one; the
+  throwaway user deletes itself afterwards. New `--ci` mode: the same positive read with the debug token from
+  `APPCHECK_DEBUG_TOKEN_CI` and no evidence file; without that variable it prints "no CI token" and makes no
+  call. The daily probe has the step, which skips until the secret exists (adding the secret needs the
+  owner's yes). The local run on 2026-11-18 21:15 UTC is committed as evidence.
+  Source: review (a positive daily read; the auth-mode change had broken the full control's 200 half).
+  Verified: the 3 tests (--ci skips with no network call, the token source, the model headers) failed first,
+  now 12 control tests pass; the local full run passed (no token 401, signed-in limited-use 200 with an
+  answer, replay 401, user deleted) with no key or token in the evidence; a --ci run with the token in the
+  environment passed and printed no token; the workflow pin lists the --ci step; `bash scripts/ci-local.sh`
+  exit 0.
+- `startJudgeSession` (callable, App Check enforced): a signed-in visitor gets their own practice incident,
+  `incidents/judge-{uid}`, copied from the development drill on the Piedmont Park grid (its grid, IPP,
+  terrain, prior and engine settings, segments, teams and shared profile; never its events, command profile
+  or consent records), labelled "Training drill. Practice search; nobody is missing.", ending 24 hours after it
+  starts, with the command role set on the caller. A visitor who returns while it is live gets the same one; a
+  new one is allowed once an hour per visitor and at most 50 a day (counted in the admin-only
+  `ops/judgeSessions`). `deleteEndedSandboxesJob` (hourly) deletes each sandbox, with everything under it, a
+  day after it ends. LIMITS, SECURITY row 14 and the checklist describe it; the rulings are ledgered.
+  Source: review (P0: no judge could use the site), plan Task 23a.
+  Verified: the 7 tests (the copy and the claims, re-entry, the hourly limit and a clean rebuild, the daily cap
+  and its reset, a signed-out caller and a missing seed, App Check through the wrapper, the cleanup) failed
+  first (module missing), now pass; a rules test pins that a judge reads only their own sandbox and cannot
+  write events elsewhere; emulator suite 142; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - The seeding tool writes join codes to the Keychain through `security -i` on stdin instead of
   `security add-generic-password -w <code>`, whose arguments any local process can read while it runs; seeding
   and `--rotate` both use it. A value or name with unexpected characters is refused before anything runs.

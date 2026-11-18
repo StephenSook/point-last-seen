@@ -1,10 +1,14 @@
 import { getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
+import { beforeGenerateContent } from "firebase-functions/v2/ai";
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
+import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
 import { deleteClipForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
 
 if (getApps().length === 0) initializeApp();
@@ -51,3 +55,29 @@ export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
   request => handleDeleteMedia(getFirestore(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
 );
+
+/**
+ * startJudgeSession (callable): a signed-in visitor gets their own practice incident with the command role
+ * (see judgeSession.ts). App Check enforced; capped per visitor and per day.
+ */
+export const startJudgeSession = onCall(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5, timeoutSeconds: 120 },
+  request => handleStartJudgeSession(getFirestore(), getAuth(), request.auth?.uid ?? null, Date.now()),
+);
+
+/** deleteEndedSandboxes (hourly): removes each judge sandbox, with everything under it, a day after it ends. */
+export const deleteEndedSandboxesJob = onSchedule(
+  { schedule: "every 60 minutes", region: "us-central1", maxInstances: 1, timeoutSeconds: 240 },
+  async () => {
+    const ids = await deleteEndedSandboxes(getFirestore(), Date.now());
+    console.log(JSON.stringify({ event: "deleteEndedSandboxes", deleted: ids.length }));
+  },
+);
+
+/**
+ * cloudGuard (AI Logic beforeGenerateContent): every generateContent call through AI Logic, templated or not,
+ * may name only a listed model, and a text reply is bounded. generateContentStream and the Live API do not
+ * trigger it, by Google's design (docs/SECURITY.md row 12). No database or outside call; no minimum instances.
+ */
+export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInstances: 10 }, event =>
+  guardRequest(event.data.model, event.data.request as never));

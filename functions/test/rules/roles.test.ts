@@ -144,3 +144,15 @@ describe("devices and measurements", () => {
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/teams/T2/devices/${S}`), { packVersion: 1 }));
   });
 });
+
+describe("a judge's practice incident (startJudgeSession)", () => {
+  it("a judge reads and writes only their own sandbox, never another incident", async () => {
+    const J = "judge-uid", claims = { inc: `judge-${J}`, role: "command", team: null };
+    await admin.db.doc(`incidents/judge-${J}`).set({ name: "Practice search", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) });
+    await admin.db.doc(`incidents/judge-${J}/segments/AC`).set({ segmentId: "AC", priorPoa: 0.1 });
+    await assertSucceeds(getDoc(doc(dbAs(J, claims), `incidents/judge-${J}/segments/AC`)));
+    await assertFails(getDoc(doc(dbAs(J, claims), "incidents/I1")));
+    await assertFails(getDoc(doc(dbAs(J, claims), "incidents/I1/segments/AC")));
+    await assertFails(setDoc(doc(dbAs(J, claims), `incidents/I1/events/${validEvent(J).eventId as string}`), validEvent(J)));
+  });
+});
