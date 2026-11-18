@@ -1,6 +1,6 @@
 import type { IncidentView, PlanDoc } from "../laneC";
 
-const DRILL_LABEL = "Training drill. Nobody is missing.";
+export const DRILL_LABEL = "Training drill. Nobody is missing.";
 
 export type PrintTeam = { teamId: string; name: string; segmentIds: string[]; taskText: string; reason: string };
 
