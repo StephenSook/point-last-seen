@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Segment debriefs: `incidents/{id}/debriefs/{segmentId}` holds how long the clear took (`tookMinutes`, 0 to
+  1,440) and what worked or did not (`worked`, `didNotWork`, up to 500 characters each), written by `byUid` at
+  server time. Command writes any; a searcher writes only for a segment they cleared, pointing `clearedEventId`
+  at their own cleared event (rules cannot search events, so the pointer is how they check it). Command alone
+  edits, keeping the writer, time and pointer; nobody deletes, so only incident cleanup removes one. Members read
+  them. The engine never reads them, so no coverage claim comes from a debrief. Schema
+  `shared/schemas/debrief.schema.json` with the TS type `Debrief`; the iOS type is pending.
+  Source: review (field expert: a debrief after each segment).
+  Verified: the rules tests (command writes any; the clearing searcher writes theirs; another searcher, the wrong
+  segment, no pointer, a missing event and family are refused; bounds, exact keys, writer and server time
+  enforced; only command edits and keeps the writer, time and pointer; nobody deletes; members read; a second
+  member create is refused) failed first, now 109 rules tests pass; schema parity checks `Debrief` in TS (6
+  fields); engine typecheck exit 0.
 - A new approach note, `stop_calling_name`: "If they may not come when called, stop calling their name." It shows
   whenever `may_not_respond` shows (the default), third after the two notes the spec puts first, and comes from
   search teams. The rules' list of note ids is regenerated from the notes file, and the shapes test now derives

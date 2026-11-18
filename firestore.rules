@@ -92,6 +92,33 @@ service cloud.firestore {
         allow delete: if isCommand(incidentId);
       }
 
+      // A segment debrief: how long the clear took and what worked or did not. Command writes any; a member writes
+      // only for a segment they cleared, pointing at their own cleared event. Command alone edits; nobody deletes
+      // (incident cleanup does). The engine never reads it.
+      match /debriefs/{segmentId} {
+        function debriefOk(d) {
+          return d.keys().hasOnly(['tookMinutes', 'worked', 'didNotWork', 'byUid', 'createdAt', 'clearedEventId'])
+            && d.keys().hasAll(['tookMinutes', 'byUid', 'createdAt'])
+            && d.tookMinutes is int && d.tookMinutes >= 0 && d.tookMinutes <= 1440
+            && (!('worked' in d) || (d.worked is string && d.worked.size() <= 500))
+            && (!('didNotWork' in d) || (d.didNotWork is string && d.didNotWork.size() <= 500))
+            && (!('clearedEventId' in d) || d.clearedEventId == null
+                || (d.clearedEventId is string && d.clearedEventId.matches('^[0-9a-f]{32}$')));
+        }
+        function clearedBySelf(d) {
+          let e = get(/databases/$(database)/documents/incidents/$(incidentId)/events/$(d.clearedEventId)).data;
+          return e.deviceId == request.auth.uid && e.effect.kind == 'cleared' && e.effect.segmentId == segmentId;
+        }
+        allow read: if isMember(incidentId);
+        allow create: if isMember(incidentId) && debriefOk(request.resource.data)
+          && request.resource.data.byUid == request.auth.uid && request.resource.data.createdAt == request.time
+          && (isCommand(incidentId) || (request.resource.data.get('clearedEventId', null) is string && clearedBySelf(request.resource.data)));
+        allow update: if isCommand(incidentId) && debriefOk(request.resource.data)
+          && request.resource.data.byUid == resource.data.byUid && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.get('clearedEventId', null) == resource.data.get('clearedEventId', null);
+        allow delete: if false;
+      }
+
       match /teams/{teamId} {
         allow read: if isMember(incidentId);
         allow write: if isCommand(incidentId);
