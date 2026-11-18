@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IMAGE_INPUTS, TEXT_INPUTS, TEXT_OUTPUTS, onDeviceAvailable, onDeviceCreateOptions, runOnDeviceOnly } from "./gate";
+import { IMAGE_INPUTS, TEXT_INPUTS, TEXT_OUTPUTS, availabilityOf, onDeviceAvailable, onDeviceCreateOptions, runOnDeviceOnly } from "./gate";
 
 const TEXT_OPTS = onDeviceCreateOptions("text");
 const IMAGE_OPTS = onDeviceCreateOptions("image");
@@ -99,5 +99,21 @@ describe("runOnDeviceOnly", () => {
     const out = await runOnDeviceOnly(TEXT_OPTS, async () => { called++; return "v"; }, lm(async () => "available"));
     expect(out).toEqual({ ran: true, value: "v" });
     expect(called).toBe(1);
+  });
+});
+
+describe("availabilityOf", () => {
+  it("names Chrome's answer, or missing when there is no LanguageModel or the check fails", async () => {
+    expect(await availabilityOf(TEXT_OPTS, {})).toBe("missing");
+    expect(await availabilityOf(TEXT_OPTS, lm(() => { throw new Error("x"); }))).toBe("missing");
+    expect(await availabilityOf(TEXT_OPTS, lm(async () => "downloadable"))).toBe("downloadable");
+    expect(await availabilityOf(TEXT_OPTS, lm(async () => "available"))).toBe("available");
+    expect(await availabilityOf(TEXT_OPTS, lm(async () => "something new"))).toBe("unavailable");
+  });
+
+  it("asks with the given options object", async () => {
+    const seen: unknown[] = [];
+    await availabilityOf(IMAGE_OPTS, lm(async (o) => { seen.push(o); return "available"; }));
+    expect(seen[0]).toBe(IMAGE_OPTS);
   });
 });
