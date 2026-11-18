@@ -145,3 +145,22 @@ test("unchecking a consent while triage holds the clip withdraws Read in the clo
   await expect(page.getByRole("button", { name: "Read in the cloud anyway" })).toHaveCount(0);
   await expect(page.getByTestId("asked")).toHaveText("");
 });
+
+test("from the moment Read clip is pressed, consent and the file are locked until the read ends", async ({ page }) => {
+  // Slow the file read, so the time between the press and the read is long enough to act in.
+  await page.addInitScript(() => {
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function slow(this: File) {
+      return new Promise((resolve) => setTimeout(() => resolve(original.call(this)), 1500));
+    };
+  });
+  await page.goto("/harness/clip.html");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByLabel("Cloud reading")).toBeDisabled({ timeout: 300 });
+  await expect(page.getByLabel("Clip", { exact: true })).toBeDisabled();
+  await expect(page.getByTestId("asked")).not.toHaveText("", { timeout: 5_000 });
+  expect(JSON.parse(await page.getByTestId("asked").innerText()).consents.cloudProcessing).toBe(true);
+});

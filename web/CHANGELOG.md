@@ -1025,3 +1025,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the `web` workflow now installs Playwright's Chromium and runs `e2e/ci.config.ts` against its placeholder-config build: the tests tagged `@no-backend` (judge page offers the practice search and says once that no run is published; join page purpose and judges link; /llms.txt; phone fit on the join page; product name on both pages; axe on the join and judge pages at 1,440 and 390 px). The specs that need a joined drill (layout, contrast, focus, offline) wait for CI test keys, which need Stephen's yes.
 - Source: review item 5, option 2 (run what needs no Firebase now).
 - Verified: locally, a build with the workflow's exact placeholder values, served by `vite preview`, with Playwright's bundled Chromium: 9 passed. scripts/ci-local.sh exit 0 (it does not run Playwright; the browser step was run by hand as above).
+
+### fix(camera): lock the clip form before reading the file, so consent cannot change mid-read
+- What: pressing "Read clip" now locks the form (consents, file, everything) before the file is read into memory; before, the lock came only after that await, so consent unchecked in between was not seen and the read went ahead with the old consent. A second press during a read does nothing.
+- Source: second-model review of PR #16, round 2, finding 1 (high).
+- Verified: new harness test (with the page's file read slowed to 1.5 s, the "Cloud reading" box and the file input are disabled within 300 ms of the press, and the read gets the consents as given) failed first (still enabled), then passed; all 12 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

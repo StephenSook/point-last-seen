@@ -122,7 +122,9 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!ready || !file || durationS === null) return;
+    if (!ready || !file || durationS === null || busy !== false) return;
+    // Locked before the first await: consent and the file cannot change while this read prepares.
+    setBusy(onTriage ? "checking" : "reading");
     setMessage(null);
     setHeld(null);
     const input: ClipIntakeInput = {
@@ -136,7 +138,6 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       consents,
     };
     if (!onTriage) return read(input, {});
-    setBusy("checking");
     let t: TriageResult;
     try {
       t = await onTriage(file);
