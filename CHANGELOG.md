@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/grid/piedmont-park-dev.grid.json`: the development site's grid (Piedmont Park, Atlanta; 67 segments
+  built from an OpenStreetMap extract on 2026-11-18), the same grid the drill incident and every judge's
+  practice search use, committed so the terrain work can build against a real site before the drill site is
+  chosen. `shared/grid/README.md` gives the credit ("Map data © OpenStreetMap contributors", ODbL 1.0, with
+  the copyright link); the file's own `attribution` field carries it too.
+  Source: review (the extras lane's terrain task needs a site grid on main).
+  Verified: the test (the file parses as the engine's Grid: unique ids, positive areas, centroids inside the
+  box, neighbours that exist, no ROW, and the OpenStreetMap credit) failed first (file missing), now passes;
+  engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - Every server prompt template bounds its own output (`maxOutputTokens` 2,048 for text, 4,096 for speech, the
   same caps cloudGuard applies to direct calls), because cloudGuard leaves a template call's config as the
   template sets it.
