@@ -49,13 +49,15 @@ describe("replayWindow", () => {
     expect(replayWindow(withPlan)!.priorInUseFromMs).toBe(T0 + 7 * MIN);
   });
 
-  it("with nothing stamped with the current version, only the end of the window shows a map", () => {
+  it("with nothing stamped with the current version, no frame shows a map", () => {
+    // The rebuild came after the last recorded activity, at a time nothing records: drawing the new prior at the last
+    // report would backdate it.
     const old = streamed(eventDoc({ eventId: "o1", priorVersion: 1, clientTimeMs: T0 + MIN, deviceId: "d9" }), T0 + 2 * MIN);
     const d = fromLive(replayView(), [old], [])!;
     const w = replayWindow(d)!;
-    expect(w.priorInUseFromMs).toBe(w.endMs);
-    expect(stateAt(d, w.endMs).phase).toBe("replayable");
-    expect(stateAt(d, w.endMs - 1).phase).toBe("before_prior");
+    expect(w.priorInUseFromMs).toBe(Number.POSITIVE_INFINITY);
+    expect(w.endMs).toBe(T0 + 2 * MIN);
+    expect(stateAt(d, w.endMs).phase).toBe("before_prior");
   });
 
   it("the first prior (version 1) was in use from the start", () => {

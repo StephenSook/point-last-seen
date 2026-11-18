@@ -88,6 +88,15 @@ describe("rulerModel", () => {
   });
 });
 
+describe("a prior that came into use after the window", () => {
+  it("puts no prior mark on the ruler and no prior time among the marks", () => {
+    const d = fromLive(replayView(), [streamed(eventDoc({ eventId: "o1", priorVersion: 1, clientTimeMs: T0, deviceId: "d9" }), T0 + MIN)], [])!;
+    const w = replayWindow(d)!;
+    expect(rulerModel(d, w, WIDTH, "UTC").marks.some((k) => k.kind === "prior")).toBe(false);
+    expect(markTimes(d, w)).toEqual([T0 + MIN]);
+  });
+});
+
 describe("nextMark", () => {
   it("steps to the next and previous mark, and returns null past the last mark", () => {
     const m = model();

@@ -4,6 +4,7 @@
 import { viewState, type ViewState } from "../laneC";
 import type { ReplayData, ReplayEvent } from "./replayData";
 
+/** priorInUseFromMs is +Infinity when no time in the window can be shown to have the current prior. */
 export type ReplayWindow = { startMs: number; endMs: number; priorInUseFromMs: number };
 
 export type ReplayFrame =
@@ -15,9 +16,10 @@ export type ReplayFrame =
  * was in use from the start. Otherwise the earliest server time stamped with the current prior's version (a report's
  * arrival or a plan's approval): no phone or seat can stamp a version before it exists, so the prior was in use by
  * then, and earlier frames show reports only. That can hide a replayable span; it never shows a map command did not
- * see. "end" when nothing carries the version: only the end of the window shows a map.
+ * see. "never" when nothing carries the version: the rebuild came at a time nothing records, possibly after the last
+ * report, so no frame shows the current prior (drawing it at the last report would backdate it).
  */
-function priorInUseFrom(data: ReplayData): number | "start" | "end" {
+function priorInUseFrom(data: ReplayData): number | "start" | "never" {
   if (data.priorBuiltAtMs !== null) return data.priorBuiltAtMs;
   if (data.priorVersion <= 1) return "start";
   let earliest: number | null = null;
@@ -27,7 +29,7 @@ function priorInUseFrom(data: ReplayData): number | "start" | "end" {
   for (const p of data.plans) {
     if (p.priorVersion === data.priorVersion) earliest = Math.min(earliest ?? p.approvedAtMs, p.approvedAtMs);
   }
-  return earliest ?? "end";
+  return earliest ?? "never";
 }
 
 /** From the first send to the last arrival or plan approval; null when no event has arrived. */
@@ -44,7 +46,7 @@ export function replayWindow(data: ReplayData): ReplayWindow | null {
   const from = priorInUseFrom(data);
   // A prior that came into use after the last report is still the one the live map draws, so the window reaches it.
   const endMs = Math.max(...ends, typeof from === "number" ? from : -Infinity);
-  return { startMs, endMs, priorInUseFromMs: from === "start" ? startMs : from === "end" ? endMs : from };
+  return { startMs, endMs, priorInUseFromMs: from === "start" ? startMs : from === "never" ? Number.POSITIVE_INFINITY : from };
 }
 
 /**

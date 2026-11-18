@@ -106,7 +106,9 @@ export function rulerModel(data: ReplayData, w: ReplayWindow, widthPx: number, t
   for (const p of data.plans) {
     marks.push({ id: `plan-${p.version}`, x: x(p.approvedAtMs), kind: "plan", label: `Plan ${p.version} approved ${clockLabel(p.approvedAtMs, timeZone)}` });
   }
-  marks.push({ id: "prior", x: x(w.priorInUseFromMs), kind: "prior", label: `Current prior in use from ${clockLabel(w.priorInUseFromMs, timeZone)}` });
+  if (Number.isFinite(w.priorInUseFromMs)) {
+    marks.push({ id: "prior", x: x(w.priorInUseFromMs), kind: "prior", label: `Current prior in use from ${clockLabel(w.priorInUseFromMs, timeZone)}` });
+  }
   marks.sort((a, b) => a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { ticks, marks, spans, bands };
 }
@@ -120,7 +122,8 @@ export function nextMark(m: RulerModel, x: number, dir: 1 | -1): number | null {
 
 /** Every marked time once, in order: arrived reports (never a plan acknowledgement), plan approvals, the prior. */
 export function markTimes(data: ReplayData, w: ReplayWindow): number[] {
-  const times = new Set<number>([w.priorInUseFromMs, ...data.plans.map((p) => p.approvedAtMs)]);
+  const times = new Set<number>(data.plans.map((p) => p.approvedAtMs));
+  if (Number.isFinite(w.priorInUseFromMs)) times.add(w.priorInUseFromMs);
   for (const e of data.events) if (e.arrivedAtMs !== null && markKind(e) !== null) times.add(e.arrivedAtMs);
   return [...times].sort((a, b) => a - b);
 }
