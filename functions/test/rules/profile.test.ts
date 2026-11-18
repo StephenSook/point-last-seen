@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
-import { allFlags, clipReadingDoc, sharedProfile } from "../fixtures";
+import { allFlags, camSighting, clipReadingDoc, routeRecord, sharedProfile } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
 const S = "searcher-uid", C = "command-uid", F = "family-uid";
@@ -76,24 +76,49 @@ describe("clip and photo readings", () => {
     const sha = "c".repeat(64);
     const path = `incidents/I1/clipReadings/${sha}`;
     await setDoc(doc(dbAs(F, familyClaims), path), clipReadingDoc("I1", sha, F));
-    const reading = { personVisible: true, lastSeen: "00:09" };
-    await assertFails(setDoc(doc(dbAs(C, commandClaims), path), { reading }, { merge: true }));
+    const reading = camSighting();
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), path), { reading, route: routeRecord() }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading, consent: { personInClip: null } }, { merge: true }));
-    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading, route: { path: "cloud" } }, { merge: true }));
-    await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: false } }, { merge: true }));
+    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading, route: routeRecord() }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading: camSighting({ personVisible: false }) }, { merge: true }));
   });
   it("its creator renews the consent while no reading exists, inside the expiry window only (review round 3)", async () => {
     const sha = "b".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
     await admin.db.doc(path).set(clipReadingDoc("I1", sha, F, { expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: new Date(Date.now() - 2 * 86400_000) }));
     const renew = (uid: string, claims: object, over: Record<string, unknown> = {}) =>
       setDoc(doc(dbAs(uid, claims), path), clipReadingDoc("I1", sha, uid, over));
-    await assertFails(renew(C, commandClaims));
     await assertFails(renew(F, familyClaims, { expiresAt: new Date(Date.now() + 40 * 86400_000) }));
     await assertFails(renew(F, familyClaims, { storagePath: `clips/I2/${sha}.mp4` }));
     await assertFails(renew(F, familyClaims, { createdAt: new Date() }));
     await assertSucceeds(renew(F, familyClaims));
-    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: true }, route: { path: "cloud" } }, { merge: true }));
+    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading: camSighting(), route: routeRecord() }, { merge: true }));
     await assertFails(renew(F, familyClaims));
+  });
+  it("a reading must be a valid sighting or a typed no-sighting result, with a valid route (review: could-not-read)", async () => {
+    const sha = "9".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
+    await setDoc(doc(dbAs(F, familyClaims), path), clipReadingDoc("I1", sha, F));
+    const complete = (reading: unknown, route: unknown = routeRecord()) =>
+      setDoc(doc(dbAs(F, familyClaims), path), { reading, route }, { merge: true });
+    for (const bad of [{ foo: 1 }, { status: "no_sighting", reasons: ["made_up"] }, { status: "other", reasons: ["no_person"] },
+                       { status: "no_sighting", reasons: [] }, { status: "no_sighting", reasons: ["no_person"], extra: 1 }]) {
+      await assertFails(complete(bad));
+    }
+    await assertFails(complete(camSighting(), { path: "cloud" }));
+    await assertSucceeds(complete({ status: "no_sighting", reasons: ["no_person", "box"] }));
+    await assertFails(complete(camSighting()));
+  });
+  it("any command or family member takes over a stalled record (reading null) with their own consent (review: could-not-read)", async () => {
+    const F2 = "family-2", sha = "8".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
+    await admin.db.doc(path).set(clipReadingDoc("I1", sha, F, { createdAt: new Date(Date.now() - 2 * 86400_000) }));
+    const take = (uid: string, claims: object, over: Record<string, unknown> = {}) =>
+      setDoc(doc(dbAs(uid, claims), path), clipReadingDoc("I1", sha, uid, over));
+    await assertFails(take(F2, { inc: "I2", role: "family", team: null }));
+    await assertFails(take(F2, familyClaims, { createdByUid: F }));
+    await assertFails(take(S, searcherClaims));
+    await assertSucceeds(take(F2, familyClaims));
+    await assertSucceeds(take(C, commandClaims));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), path), { reading: { status: "no_sighting", reasons: ["no_person"] }, route: routeRecord() }, { merge: true }));
+    await assertFails(take(F2, familyClaims));
   });
   it("photo readings are command only, read and write", async () => {
     const sha = "e".repeat(64);

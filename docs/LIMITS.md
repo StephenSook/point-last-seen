@@ -72,6 +72,10 @@ each line says what the limit is and why.
 - A clip uploads only while its consent record expires at least 31 days after the upload, so the consent
   always outlives the clip. An upload interrupted for more than a day needs its creator to renew the consent
   first; the rules allow that until the clip has a reading.
+- A clip read that finds no usable sighting is stored as a typed no-sighting reading, so the clip is not read
+  again. While a clip has no reading, any command or family member of the incident can take its record over
+  with their own consent (for example a second seat, or the same person after a new sign-in); the clip's path
+  never changes.
 - When a clip reading (the consent record) is deleted, by its TTL, by command or otherwise, the
   `deleteClipOnConsentEnd` function deletes its clip, with retry on. Both deletions run in the background, so
   the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. A record

@@ -132,18 +132,22 @@ service cloud.firestore {
       }
 
       // A clip reading is created BEFORE the upload and the model call, carrying the consent record and no
-      // reading (ruling I9); only its creator adds the reading, once, leaving the consents untouched.
+      // reading (ruling I9); only the record's current owner adds the reading, once, leaving the consents untouched.
       match /clipReadings/{sha256} {
         allow read: if isMember(incidentId);
         allow create: if isCommandOrFamily(incidentId) && validNewClipReading(incidentId, sha256, request.resource.data);
-        // Or, while no reading exists, its creator renews the consent (an upload interrupted for more than a
-        // day needs it, because Storage takes a clip only while the consent outlives it by a day).
+        // The reading is a valid sighting or a typed no-sighting result (a could-not-read result completes the
+        // record, so it is cached), with a valid route. While no reading exists, any command or family member
+        // takes the record over with their own consent and expiry (the creator renewing is the same case), so a
+        // stalled record never blocks a second seat or a new sign-in; the clip's path never changes.
         allow update: if isCommandOrFamily(incidentId)
-          && resource.data.createdByUid == request.auth.uid
           && resource.data.reading == null
-          && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reading', 'route'])
-               && request.resource.data.reading is map)
-              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['consent', 'expiresAt', 'createdAt'])
+          && ((resource.data.createdByUid == request.auth.uid
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reading', 'route'])
+               && (schema_CameraSighting(request.resource.data.reading) || schema_ClipNoSighting(request.resource.data.reading))
+               && schema_RouteRecord(request.resource.data.route))
+              || (request.resource.data.createdByUid == request.auth.uid
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['consent', 'expiresAt', 'createdAt', 'createdByUid'])
                   && clipConsentOk(request.resource.data)));
         allow delete: if isCommand(incidentId);
       }
@@ -249,6 +253,14 @@ service cloud.firestore {
         && (m.tempF == null || (m.tempF is number && m.tempF >= -80 && m.tempF <= 140))
         && (m.wet == null || (m.wet is bool))
         && (m.setAtMs is number && m.setAtMs >= 0);
+    }
+
+    function schema_ClipNoSighting(m) {
+      return m is map
+        && m.keys().hasOnly(['status', 'reasons'])
+        && m.size() == 2
+        && (m.status in ['no_sighting'])
+        && (m.reasons is list && m.reasons.size() <= 11 && m.reasons.hasOnly(['no_person', 'first_seen_format', 'last_seen_format', 'key_frame_format', 'first_after_last', 'last_after_clip_end', 'first_after_clip_end', 'key_frame_after_clip_end', 'box', 'unreadable_reply', 'model_error']) && m.reasons.size() >= 1);
     }
 
     // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.

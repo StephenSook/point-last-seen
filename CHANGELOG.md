@@ -5,6 +5,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Clip readings can no longer stall: the reading must be a valid CameraSighting or a typed no-sighting result
+  (`{status: "no_sighting", reasons}`), with a valid RouteRecord, instead of any map, so a could-not-read
+  result completes and caches the record. While the reading is null, any command or family member of the
+  incident can take the record over: they set createdByUid to their own uid, give fresh consent marks of
+  their own, createdAt at server time and expiresAt 31 to 33 days out; the clip's path never changes (the
+  creator renewing is the same case). Before, only the creator could renew or complete it, so a second seat,
+  a family phone or the same person after a new anonymous sign-in got "The clip was not read" for 32 days.
+  The camera sighting fixture moves to the shared test fixtures. LIMITS describes both.
+  Source: review ruling on lane C's live finding.
+  Verified: the typed-reading test (a junk map, an unknown reason, another status, no reasons, an extra key
+  and a bad route refused; a no-sighting result accepted, once) and the takeover test (another incident's
+  member, a takeover keeping the old owner, and a searcher refused; another family member and then command
+  allowed; command completes; no takeover after a reading) failed first, now pass; the existing completion
+  tests use schema-valid shapes; emulator suite 134; `bash scripts/ci-local.sh` exit 0.
 - `shared/schemas/clip-no-sighting.schema.json` and the TypeScript `ClipNoSighting`: a clip reading that found
   no usable sighting, `{ status: "no_sighting", reasons: [...] }`, with 1 to 11 reasons from a closed list (the
   shared camera check's codes plus "unreadable_reply" and "model_error"), so a could-not-read result can be
