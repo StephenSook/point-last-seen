@@ -11,7 +11,9 @@ import "../theme/base.css";
 const DRAFT: PlanDraft = { eventSetHash: "a".repeat(64), priorVersion: 1, rank: [], assignments: [{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: ["AB"] }] };
 
 // "Assignments change" swaps T1 to BB under the same event-set hash, as when the plan history
-// arrives after a suggestion was made.
+// arrives after a suggestion was made. "Probabilities change" keeps the hash, the prior version and
+// the assignments and changes only the ranked POA, as when another seat's rebuild reaches the
+// segments before the incident.
 // ?slow=1: the model answers only when "Model answers" is pressed, so the draft can change first.
 const slow = new URLSearchParams(location.search).get("slow") === "1";
 
@@ -38,6 +40,9 @@ function Harness() {
       />
       <button type="button" onClick={() => answer.current?.()}>
         Model answers
+      </button>
+      <button type="button" onClick={() => setDraft((d) => ({ ...d, rank: [{ segmentId: "AA", rank: 1, poa: 0.31, priorPoa: 0.2, deltaPoa: 0.11 }] }))}>
+        Probabilities change
       </button>
       <button type="button" onClick={() => setDraft({ ...DRAFT, assignments: [{ teamId: "T1", segmentIds: ["BB"] }, { teamId: "T2", segmentIds: ["AB"] }] })}>
         Assignments change

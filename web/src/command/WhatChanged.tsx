@@ -22,9 +22,10 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
-  // A suggestion belongs to the draft it was worded for: the event set, the prior and the
-  // assignments. If any of them changes (for example the plan history arrives), it is withdrawn.
-  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.assignments]) : null;
+  // A suggestion belongs to the draft it was worded for: the event set, the prior, the ranked
+  // probabilities the model reads and the assignments. If any of them changes (for example the plan
+  // history arrives, or another seat's rebuild reaches the segments first), it is withdrawn.
+  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments]) : null;
   const suggested = reply && reply.key === draftKey ? reply.worded : null;
 
   useEffect(() => {
