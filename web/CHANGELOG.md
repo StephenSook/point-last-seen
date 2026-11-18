@@ -1035,3 +1035,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Confirm now commits the camera sighting, its confirmation, every segment, ROW and the incident in one Firestore batch (`writePrior` takes the events; `priorBatchOps` lists the operations, events as creates with the server's time). The server takes all of them or none, so a refused sighting (for example its clip record deleted meanwhile) can no longer leave a confirmation and a prior pointing at it, and the panel's ack now covers the sighting too.
 - Source: second-model review of PR #16, round 2, finding 3 (high).
 - Verified: `src/prior/write.test.ts` (one operation list: segments, ROW, the incident update, then the two event creates with the server timestamp; no events gives the plain prior batch) failed first (export missing), then passed; typecheck clean. Not run live: a live Confirm needs a staged clip with a person; the all-or-nothing outcome rests on Firestore batch semantics. scripts/ci-local.sh exit 0.
+
+### fix(camera): check the cloud pause again right before the clip upload
+- What: on a retry, `readClip` asks Storage whether the clip is already stored, then checks the live cloud pause once more immediately before uploading. Before, the last check came before that lookup, so a pause that arrived during it still let the clip upload.
+- Source: second-model review of PR #16, round 2, finding 5 (medium).
+- Verified: new test (the pause turns on during the stored-clip lookup: refused, no upload) failed first, then passed (22 in clipRead.test.ts); typecheck clean. scripts/ci-local.sh exit 0.

@@ -198,7 +198,12 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     // The pause is read live again here: it may have arrived while the consent record was saving.
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     // A retry may find the clip already stored; clips are create-only, so a second upload is refused.
-    if (!found || !(await deps.clipExists(sha))) await deps.upload(sha, r.bytes, r.mimeType);
+    const stored = found ? await deps.clipExists(sha) : false;
+    if (!stored) {
+      // And once more after that lookup, right before the clip leaves the laptop.
+      if (r.killCloud()) return { kind: "refused", message: PAUSED };
+      await deps.upload(sha, r.bytes, r.mimeType);
+    }
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const t0 = deps.nowMs();

@@ -120,6 +120,14 @@ describe("readClip", () => {
     expect(t.calls).toEqual(["find", "consent"]);
   });
 
+  it("a cloud pause that arrives while a retry checks for the stored clip stops the upload", async () => {
+    const t = await setup({ stored: {}, exists: false });
+    let paused = false;
+    const r = await readClip({ ...t.req, killCloud: () => paused }, { ...t.deps, clipExists: async () => { t.calls.push("exists"); paused = true; return false; } });
+    expect(r).toEqual({ kind: "refused", message: "Clip reading is paused right now." });
+    expect(t.calls).toEqual(["find", "consent", "exists"]);
+  });
+
   it("on a miss: consent record, then upload, then the model, then the completion", async () => {
     const t = await setup();
     const r = await readClip(t.req, t.deps);
