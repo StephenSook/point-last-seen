@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { d2Copy, loadPublishedRun, modelLines } from "./judge";
+import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
   it("(a) no built-in model: nothing private was sent, and the cloud replay is named only when it exists", () => {
@@ -80,5 +80,12 @@ describe("modelLines", () => {
 
   it("says when command has paused cloud steps", () => {
     expect(modelLines({ cloudModelWeb: "gemini-3.5-flash-lite", cloudModelSource: "remote", fetchedAt: "14:05:09", killCloud: true })).toContain("Cloud steps are paused by command.");
+  });
+});
+
+describe("fetchedTime", () => {
+  it("gives the Remote Config fetch time with its time zone", () => {
+    expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "America/New_York")).toBe("14:05:09 EST");
+    expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "UTC")).toBe("19:05:09 UTC");
   });
 });

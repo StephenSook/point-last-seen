@@ -930,3 +930,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: under the wordmark on the join page: "Plans where to search for a missing person, and updates the map as reports come in." and a "Judges: start here" link to /judge.
 - Source: judge-door review (a judge landed on a join form with no code and no way forward).
 - Verified: the new e2e test (purpose line, link target, link opens the judge's door) fails against the live site's old join page and passes on the local preview; the join page's layout-shift, axe and phone-fit checks pass. scripts/ci-local.sh exit 0.
+
+### feat(judge): fold the model's source and the Chrome note under Details, with a time zone
+- What: /judge keeps "Cloud model now: ..." in view and moves where it came from ("Chosen by Remote Config (fetched 14:05:09 EST) ...") and the Chrome measurement note into one closed "Details" line. The fetch time now carries its time zone (`fetchedTime`, 24-hour clock).
+- Source: judge-door review (fewer words on the judge's screen; a time without a zone is ambiguous).
+- Verified: the `fetchedTime` test (EST and UTC) failed first, then passed; the judge e2e test (source line hidden until Details opens, then a time with a zone, and the Chrome note inside) fails against the live site's old page and passes on the local preview. scripts/ci-local.sh exit 0.

@@ -26,8 +26,13 @@ test("the judge page names the cloud model Remote Config selects right now", asy
   const s = page.getByRole("region", { name: "Cloud model" });
   // The project's template is published (version 1, 2026-11-18), so the value must come from Remote Config, not the page's default.
   await expect(s).toContainText(/Cloud model now: gemini-[0-9.]+-flash-lite\./, { timeout: 15_000 });
-  await expect(s).toContainText(/Chosen by Remote Config \(fetched [0-9:]+\)/, { timeout: 15_000 });
   await expect(s).not.toContainText("(default)");
+  // Where it came from, with the fetch time and its time zone, sits under one closed Details line.
+  const details = page.getByRole("group").filter({ has: page.getByText("Details", { exact: true }) });
+  await expect(details.getByText(/Chosen by Remote Config/)).toBeHidden();
+  await details.getByText("Details", { exact: true }).click();
+  await expect(details).toContainText(/Chosen by Remote Config \(fetched [0-9]{2}:[0-9]{2}:[0-9]{2} [A-Z][A-Za-z0-9+-]+\)/, { timeout: 15_000 });
+  await expect(details).toContainText("Measured on Chrome");
 });
 
 test("the join page says what the product does and sends judges to the judge's door", async ({ page }) => {

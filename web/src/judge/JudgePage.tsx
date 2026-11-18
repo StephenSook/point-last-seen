@@ -6,7 +6,7 @@ import { deviceState as readDeviceState, getLaptopReady, type DeviceState } from
 import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
 import { getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
-import { d2Copy, loadPublishedRun, modelLines } from "./judge";
+import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 // The replay (D1) needs startJudgeSession; until it is built the page never points at it.
@@ -50,6 +50,10 @@ export function JudgePage() {
   }
 
   const copy = device ? d2Copy(device, { replay: REPLAY_LIVE && run?.state === "run", downloadFailed }) : null;
+  // Before Remote Config starts (or if it cannot), the pinned default is still named.
+  const [modelLine, sourceLine, ...more] = rc
+    ? modelLines({ cloudModelWeb: rc.cloudModelWeb, cloudModelSource: rc.cloudModelSource ?? "default", fetchedAt: rc.fetchedAtMs ? fetchedTime(rc.fetchedAtMs) : null, killCloud: rc.killCloud })
+    : modelLines({ cloudModelWeb: RC_DEFAULTS.cloud_model_web, cloudModelSource: "default", fetchedAt: null, killCloud: false });
   return (
     <main className="judge">
       <p className="wordmark">Point Last Seen</p>
@@ -70,17 +74,10 @@ export function JudgePage() {
 
       <section aria-labelledby="model-h">
         <h2 id="model-h" className="label">Cloud model</h2>
-        {rc ? (
-          modelLines({
-            cloudModelWeb: rc.cloudModelWeb,
-            cloudModelSource: rc.cloudModelSource ?? "default",
-            fetchedAt: rc.fetchedAtMs ? new Date(rc.fetchedAtMs).toLocaleTimeString("en-GB") : null,
-            killCloud: rc.killCloud,
-          }).map((l) => <p key={l}>{l}</p>)
-        ) : (
-          // Before Remote Config starts (or if it cannot), the pinned default is still named.
-          modelLines({ cloudModelWeb: RC_DEFAULTS.cloud_model_web, cloudModelSource: "default", fetchedAt: null, killCloud: false }).map((l) => <p key={l}>{l}</p>)
-        )}
+        <p>{modelLine}</p>
+        {more.map((l) => (
+          <p key={l}>{l}</p>
+        ))}
       </section>
 
       <section aria-labelledby="d2-h">
@@ -96,8 +93,13 @@ export function JudgePage() {
             ))}
           </div>
         )}
-        <p className="muted small">Measured on Chrome 157 stable, a fresh profile: before the download the model is downloadable; after a 77 s download, text and image input are available.</p>
       </section>
+
+      <details className="judge-details">
+        <summary>Details</summary>
+        <p className="small">{sourceLine}</p>
+        <p className="muted small">Measured on Chrome 157 stable, a fresh profile: before the download the model is downloadable; after a 77 s download, text and image input are available.</p>
+      </details>
 
       <section aria-labelledby="d5-h">
         <h2 id="d5-h" className="label">Numbers</h2>

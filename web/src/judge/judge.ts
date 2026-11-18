@@ -68,3 +68,8 @@ export function modelLines(rc: { cloudModelWeb: string; cloudModelSource: "remot
   if (rc.killCloud) lines.push("Cloud steps are paused by command.");
   return lines;
 }
+
+/** A Remote Config fetch time with its time zone, e.g. "14:05:09 EST" (24-hour clock). */
+export function fetchedTime(ms: number, timeZone?: string): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZoneName: "short", timeZone }).format(ms);
+}
