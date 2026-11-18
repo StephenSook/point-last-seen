@@ -54,6 +54,7 @@ fi
 if [ -x android/gradlew ]; then
   echo "== android: unit tests and debug build"
   (cd android && ./gradlew --no-daemon testDebugUnitTest assembleDebug)
+  python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 150
 else
   echo "== android: skipped, android/ not on this branch"
 fi

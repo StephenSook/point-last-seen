@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
+  standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
+  the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
+  once android/ is on main or on a pull request that carries it.
+  Source: orchestrator request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  cases exit 1).
+  Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
+  main).
 - Task 35a: approach notes and the profile split. `shared/constants/approach-notes.json` holds the spec 13.3
   copy (ours), the display order (may_not_respond and approach_calm first), when each note shows, a source
   role per note and the card footer. `shared/engine-ts/src/approach.ts` exports approachNoteIds,
