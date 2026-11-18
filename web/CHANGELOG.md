@@ -649,3 +649,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `workers/walkerJob.ts` runs one `simulateWalkers` call (the engine's seeded walker prior, plain arithmetic) and posts `progress` at the start and the end, then `result` with the elapsed milliseconds on this machine, or `error` with the engine's message instead of throwing inside the worker. `workers/walkers.worker.ts` is the Web Worker around it (spec 10.6). Progress every 1,000 walkers needs an engine hook (asked of lane A); splitting the run would change the seeded table.
 - Source: plan Task 37c.
 - Verified: `src/workers/walkerJob.test.ts` (2 tests on the engine's toy graph) failed first (module missing), then passed: the posted result equals `simulateWalkers` called directly, the time is measured, and a refused run posts the engine's message. scripts/ci-local.sh exit 0.
+
+### feat(walkers): start the walker Web Worker from the page and resolve with its result
+- What: `workers/runWalkers.ts` `runWalkersInWorker(job, onProgress)` starts `walkers.worker.ts` as a module Worker, forwards progress, resolves with the result and the measured time, rejects with the engine's message, and ends the Worker either way. Dev-only harness `web/harness/walkers.html` runs the engine's toy graph (10,000 walkers, 300 sampled tracks) through the Worker and directly.
+- Source: plan Task 37c.
+- Verified: new `e2e/harness/walkers.spec.ts`: the Worker's table equals the engine's for the same seed, the time is measured, progress reads 0 then 10,000, 300 tracks come back; a mutant Worker running another seed fails it. scripts/ci-local.sh exit 0.
