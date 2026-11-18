@@ -138,3 +138,10 @@ it("standard error is sqrt(p(1-p)/n)", () => {
   const r = simulateWalkers(toy, toyGrid, opts), s = r.segments[0]!;
   expect(r.stdErr[s.segmentId]).toBeCloseTo(Math.sqrt(s.priorPoa * (1 - s.priorPoa) / r.n), 12);
 });
+
+it("reports progress every 1,000 walkers and at the end without changing the table (web worker)", () => {
+  const seen: number[] = [];
+  const withProgress = simulateWalkers(toy, toyGrid, { ...opts, n: 2500, onProgress: done => seen.push(done) });
+  expect(seen).toEqual([1000, 2000, 2500]);
+  expect(withProgress).toEqual(simulateWalkers(toy, toyGrid, { ...opts, n: 2500 }));
+});

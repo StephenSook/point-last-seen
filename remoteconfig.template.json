@@ -1,0 +1,74 @@
+{
+  "parameters": {
+    "kill_cloud": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "valueType": "BOOLEAN",
+      "description": "true pauses every cloud model call on every client; on-device work and the pick list keep going."
+    },
+    "use_limited_use_tokens": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Clients send limited-use App Check tokens to Firebase AI Logic (replay protection)."
+    },
+    "cloud_model_web": {
+      "defaultValue": {
+        "value": "gemini-3.5-flash-lite"
+      },
+      "valueType": "STRING",
+      "description": "Cloud model for the web command post. Must be on shared/constants/models.json."
+    },
+    "cloud_model_ios": {
+      "defaultValue": {
+        "value": "gemini-3.5-flash-lite"
+      },
+      "valueType": "STRING",
+      "description": "Cloud model for the iOS searcher app. Must be on shared/constants/models.json."
+    },
+    "cloud_model_android": {
+      "defaultValue": {
+        "value": "gemini-3.5-flash-lite"
+      },
+      "valueType": "STRING",
+      "description": "Cloud model for the Android family app's note read. Must be on shared/constants/models.json."
+    },
+    "clip_model": {
+      "defaultValue": {
+        "value": "gemini-3.5-flash-lite"
+      },
+      "valueType": "STRING",
+      "description": "Cloud model for the Android family app's camera clip read. Must be on shared/constants/models.json."
+    },
+    "tts_model_ios": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash-lite-tts"
+      },
+      "valueType": "STRING",
+      "description": "Cloud voice model for spoken assignment changes on iOS; empty means on-device speech only. Must be on shared/constants/models.json."
+    },
+    "token_budget_fraction": {
+      "defaultValue": {
+        "value": "0.5"
+      },
+      "valueType": "NUMBER",
+      "description": "Share of the on-device context window the iOS app may fill before it routes a read to the cloud (0 to 1)."
+    },
+    "minimum_version_ios": {
+      "defaultValue": {
+        "value": "0.1.0"
+      },
+      "valueType": "STRING",
+      "description": "iOS builds below this version show the update screen."
+    },
+    "minimum_version_android": {
+      "defaultValue": {
+        "value": "0"
+      },
+      "valueType": "NUMBER",
+      "description": "Android version codes below this show the update screen. Raise only after the repo is public and the release APK is a GitHub Release asset (docs/PRODUCTION-CHECKLIST.md)."
+    }
+  }
+}

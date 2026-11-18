@@ -62,3 +62,20 @@ describe("cli", () => {
     expect(main([])).toBe(2);
   });
 });
+
+describe("cli --graph", () => {
+  it("writes the stored route graph from a grid and the same OSM extract, bounded by the grid's box", () => {
+    const dir = mkdtempSync(join(tmpdir(), "graph-"));
+    const grid = buildGrid(squareSite(375), "test-site", osm);
+    writeFileSync(join(dir, "g.json"), JSON.stringify(grid));
+    writeFileSync(join(dir, "osm.json"), JSON.stringify(osm));
+    const out = join(dir, "test-site.graph.json");
+    expect(main(["--graph", join(dir, "g.json"), "--osm", join(dir, "osm.json"), "--out", out])).toBe(0);
+    const g = JSON.parse(readFileSync(out, "utf8"));
+    expect(g.gridId).toBe("test-site");
+    expect(g.bounds).toEqual(grid.bbox);
+    expect(g.edges.length).toBeGreaterThan(0);
+    expect(g.projection.metresPerDegreeLat).toBeGreaterThan(0);
+    expect(main(["--graph", join(dir, "g.json"), "--out", out])).toBe(2);
+  });
+});

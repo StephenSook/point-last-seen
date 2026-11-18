@@ -72,7 +72,8 @@ export interface ReportReading {
 }
 
 export type RoutePath = "on_device" | "cloud" | "rules" | "unknown";
-export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | "evidence_protocol" | "sdk";
+/** "picklist": a person picked the report from a list, so no model ran. */
+export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | "evidence_protocol" | "sdk" | "picklist";
 export type RouteReason =
   | "on_device_default" | "no_network" | "on_device_unavailable" | "locale_unsupported" | "over_token_budget"
   | "possible_evidence" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"
@@ -277,7 +278,18 @@ export interface RouteGraph {
   origin: LatLon;
   nodes: { nodeId: number; x: number; y: number }[];
   edges: { edgeId: number; class: "road" | "trail" | "stream" | "water_edge"; from: number; to: number; stations: RouteStation[] }[];
+  /** The extract bounds [minLon, minLat, maxLon, maxLat] that mark boundary exits, or null for a graph with none. */
+  bounds: [number, number, number, number] | null;
+  /** Metres per degree at the origin, stored so no engine recomputes them with platform trigonometry. */
+  projection: { metresPerDegreeLat: number; metresPerDegreeLon: number };
   attribution: string;
+}
+
+/** shared/schemas/incident-conditions.schema.json: the incident's typed conditions for the urgency chip. */
+export interface IncidentConditions {
+  tempF: number | null;
+  wet: boolean | null;
+  setAtMs: number;
 }
 
 // ---- engine types (not schema documents)

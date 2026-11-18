@@ -10,6 +10,13 @@
       "status": "Stable",
       "released": "2026-07-21",
       "shutdown": null
+    },
+    {
+      "id": "gemini-3.8-flash-lite-tts",
+      "status": "Stable",
+      "shutdown": null,
+      "billingRequired": false,
+      "use": "spoken assignment changes on iOS, named only by Remote Config tts_model_ios"
     }
   ],
   "banned": [

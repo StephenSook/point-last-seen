@@ -5,6 +5,7 @@ import type { Grid } from "@pls/engine";
 import type { Feature, Geometry, LineString, Polygon, Position } from "geojson";
 import { buildCells } from "./cells";
 import { applyFeatures, classifyOsm } from "./features";
+import { buildRouteGraph } from "./graph";
 import { priorDocs } from "./seed";
 import { applyStreams } from "./streams";
 
@@ -19,7 +20,9 @@ export interface OverpassJson { elements: OsmElement[] }
 const USAGE = "usage: build-grid <site.geojson> <gridId> --osm <overpass.json> --out <grid.json>\n"
   + "       build-grid --query <site.geojson>   (prints the Overpass query for the site's bounding box)\n"
   + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <temperate_flat|temperate_mountain>\n"
-  + "                  [--linear] [--bearing <deg>] --out <segments.json>   (segment docs with the engine's prior)";
+  + "                  [--linear] [--bearing <deg>] --out <segments.json>   (segment docs with the engine's prior)\n"
+  + "       build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>\n"
+  + "                  (the stored route graph for walkers, from the same extract, bounded by the grid's box)";
 const TERRAINS = ["temperate_flat", "temperate_mountain"] as const;
 
 const coords = (pts: OsmPoint[]): Position[] => pts.map(p => [p.lon, p.lat]);
@@ -86,6 +89,8 @@ export function main(argv: string[]): number {
   }
   const priorPath = flag("--prior");
   if (priorPath) return priorMain(argv, priorPath, flag);
+  const graphPath = flag("--graph");
+  if (graphPath) return graphMain(graphPath, flag);
   const positional = argv.filter((a, i) => !a.startsWith("--") && (i === 0 || !argv[i - 1]!.startsWith("--")));
   const [sitePath, gridId] = positional;
   const osmPath = flag("--osm"), out = flag("--out");
@@ -115,6 +120,21 @@ function priorMain(argv: string[], gridPath: string, flag: (n: string) => string
   writeFileSync(out, JSON.stringify({ gridId: grid.gridId, ipp: { lat: ipp[0], lon: ipp[1] }, terrain, layers, travelBearingDeg: bearing,
     attribution: grid.attribution, docs }, null, 2) + "\n");
   process.stdout.write(`build-grid: ${docs.length - 1} segments plus ROW written to ${out}\n`);
+  return 0;
+}
+
+function graphMain(gridPath: string, flag: (n: string) => string | undefined): number {
+  const osmPath = flag("--osm"), out = flag("--out");
+  if (!osmPath || !out) {
+    process.stderr.write(USAGE + "\n");
+    return 2;
+  }
+  const grid = JSON.parse(readFileSync(gridPath, "utf8")) as Grid;
+  const { features } = osmToFeatures(JSON.parse(readFileSync(osmPath, "utf8")) as OverpassJson);
+  // The extract was queried on the site's box (overpassQuery), which is the grid's bbox, so walkers leave there.
+  const graph = buildRouteGraph(features, grid, { bounds: grid.bbox });
+  writeFileSync(out, JSON.stringify(graph) + "\n");
+  process.stdout.write(`build-grid: ${graph.edges.length} edges, ${graph.nodes.length} nodes written to ${out}\n`);
   return 0;
 }
 

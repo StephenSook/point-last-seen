@@ -34,6 +34,15 @@ def refused_for_app_check(status, body) -> bool:
     return status == 401 and err.get("status") == "UNAUTHENTICATED" and err.get("message") == REFUSAL
 
 
+def answered(body) -> bool:
+    """A 200 counts only with a non-empty answer: a model that returns {} or no text has not really answered."""
+    try:
+        parts = body["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    return any(isinstance(p, dict) and isinstance(p.get("text"), str) and p["text"].strip() != "" for p in parts)
+
+
 def redact(text: str, secrets: list[str]) -> str:
     for s in secrets:
         if s:
@@ -101,8 +110,9 @@ def main(argv: list[str]) -> int:
         secrets.append(token)
         if token:
             s2, b2 = post(gen, PROMPT, {"x-goog-api-key": cfg["apiKey"], "X-Firebase-AppCheck": token})
-            with_status = s2
-            record["withToken"] = {"status": 200, "modelVersion": b2.get("modelVersion")} if s2 == 200 else {"status": s2, "error": summary(b2)}
+            with_status = s2 if (s2 != 200 or answered(b2)) else None
+            record["withToken"] = ({"status": 200, "answered": answered(b2), "modelVersion": b2.get("modelVersion")} if s2 == 200
+                                   else {"status": s2, "error": summary(b2)})
     else:
         record["withToken"] = "not run: the call without a token was not refused for App Check"
     record["passed"] = control_passed(s0, with_status) and refused

@@ -127,7 +127,7 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
             m = MATH_CALL.search(line)
             if m:
                 bad(f"walkers.ts may use only integer PRNG steps and + - * / compare, found '{m.group(0)}'")
-        if SLOW_MODEL in line and not is_doc:
+        if not is_doc and SLOW_MODEL in MODEL_ID.findall(line):
             bad(f"model id '{SLOW_MODEL}' is banned on any live path")
         if not is_doc and rel.startswith(CLIENT_DIRS):
             m = TOKEN_URL.search(line)

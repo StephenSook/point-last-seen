@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
-import { allFlags, clipReadingDoc } from "../fixtures";
+import { allFlags, clipReadingDoc, sharedProfile } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
 const S = "searcher-uid", C = "command-uid", F = "family-uid";
@@ -8,7 +8,7 @@ const S = "searcher-uid", C = "command-uid", F = "family-uid";
 beforeEach(async () => {
   await clearFirestore();
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
-  await admin.db.doc("incidents/I1/profile/shared").set({ answersTo: "Mom" });
+  await admin.db.doc("incidents/I1/profile/shared").set(sharedProfile());
   await admin.db.doc("incidents/I1/profile/command").set({ nearbyWater: "creek" });
 });
 afterAll(closeClients);
@@ -26,16 +26,15 @@ describe("subject profile split (spec section 13.2)", () => {
       const db = dbAs(uid, claims);
       await assertSucceeds(getDoc(doc(db, "incidents/I1/profile/shared")));
       await assertSucceeds(getDoc(doc(db, "incidents/I1/profile/command")));
-      await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), { answersTo: "Mom" }));
+      await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile()));
       await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/command"), { nearbyWater: "creek" }));
     }
   });
   it("profile/shared takes only the shared fields, so private history can never land in a searcher-readable doc", async () => {
     const db = dbAs(F, familyClaims);
-    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), {
-      answersTo: "Mom", ageYears: 81, clothingLastWorn: "red coat", mobilityAids: ["cane"],
+    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile({
       flags: allFlags(["mayNotRespond", "likelyToHide"]), approachNoteIds: ["may_not_respond"],
-    }));
+    })));
     for (const leak of [{ previousAddresses: [] }, { placesFrequented: [] }, { pastWandering: [] }, { vehicle: null },
                         { nearbyWater: "creek" }, { medications: "x" }, { flags: { notAFlag: true } }, { flags: { likelyToHide: "yes" } },
                         { appearance: "x".repeat(201) }]) {
@@ -82,6 +81,19 @@ describe("clip and photo readings", () => {
     await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading, consent: { personInClip: null } }, { merge: true }));
     await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading, route: { path: "cloud" } }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: false } }, { merge: true }));
+  });
+  it("its creator renews the consent while no reading exists, inside the expiry window only (review round 3)", async () => {
+    const sha = "b".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
+    await admin.db.doc(path).set(clipReadingDoc("I1", sha, F, { expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: new Date(Date.now() - 2 * 86400_000) }));
+    const renew = (uid: string, claims: object, over: Record<string, unknown> = {}) =>
+      setDoc(doc(dbAs(uid, claims), path), clipReadingDoc("I1", sha, uid, over));
+    await assertFails(renew(C, commandClaims));
+    await assertFails(renew(F, familyClaims, { expiresAt: new Date(Date.now() + 40 * 86400_000) }));
+    await assertFails(renew(F, familyClaims, { storagePath: `clips/I2/${sha}.mp4` }));
+    await assertFails(renew(F, familyClaims, { createdAt: new Date() }));
+    await assertSucceeds(renew(F, familyClaims));
+    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: true }, route: { path: "cloud" } }, { merge: true }));
+    await assertFails(renew(F, familyClaims));
   });
   it("photo readings are command only, read and write", async () => {
     const sha = "e".repeat(64);

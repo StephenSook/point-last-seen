@@ -23,10 +23,23 @@ def test_fresh_doc_with_the_rule_passes():
 
 def test_a_missing_rule_a_stale_sweep_or_a_missing_doc_fails_with_a_reason():
     assert mp.evaluate(doc(ok=False), NOW) == ["the bucket lifecycle rule is missing or too long"]
-    assert mp.evaluate(doc(checked="2026-12-12T12:30:00Z"), NOW) == ["the sweep last ran 150 min ago (limit 120)"]
+    assert mp.evaluate(doc(checked="2026-12-12T14:35:00Z"), NOW) == ["the sweep last ran 25 min ago (limit 20)"]
     assert mp.evaluate(doc(checked=None), NOW) == ["ops/storage has no checkedAt"]
     assert mp.evaluate(None, NOW) == ["ops/storage is missing"]
 
 
 def test_fractional_seconds_in_the_timestamp_parse():
     assert mp.evaluate(doc(checked="2026-12-12T14:59:59.123456Z"), NOW) == []
+
+
+def test_staleness_compares_raw_seconds_not_rounded_minutes():
+    # 20 min 30 s is past the 20-minute limit; flooring to whole minutes used to let it pass.
+    assert mp.evaluate(doc(checked="2026-12-12T14:39:30Z"), NOW) == ["the sweep last ran 20.5 min ago (limit 20)"]
+    assert mp.evaluate(doc(checked="2026-12-12T14:40:00Z"), NOW) == []
+
+
+def test_two_failing_sweeps_in_a_row_fail_the_probe_one_does_not():
+    one = doc(); one["fields"]["sweepFailureStreak"] = {"integerValue": "1"}
+    two = doc(); two["fields"]["sweepFailureStreak"] = {"integerValue": "2"}
+    assert mp.evaluate(one, NOW) == []
+    assert mp.evaluate(two, NOW) == ["the media sweep failed on 2 runs in a row"]

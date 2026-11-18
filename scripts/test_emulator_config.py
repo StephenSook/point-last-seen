@@ -90,10 +90,14 @@ def holder(port):
 
 
 def worktree(tmp_path, name):
-    other = tmp_path / name
-    other.mkdir()
-    (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
-    return other
+    # Pick a name whose port block is free right now, so a live worktree's emulator cannot collide with it.
+    for i in range(50):
+        other = tmp_path / f"{name}-{i}"
+        other.mkdir()
+        (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
+        if wait(other, 0).returncode == 0:
+            return other
+    raise AssertionError("no free emulator port block found for a test worktree")
 
 
 def test_wait_ports_passes_at_once_when_the_block_is_free(tmp_path):
@@ -149,3 +153,36 @@ def test_who_holds_names_the_block_range(tmp_path):
     out = subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--who-holds"], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
     assert f"{min(ps)}-{min(ps) + 9}" in out.stdout
+
+
+def test_wait_ports_also_waits_for_an_emulator_process_that_names_a_block_port(tmp_path):
+    # emulators:exec can return before the Firestore JVM has exited; a bind probe can miss it while it is still
+    # tearing down, so a running emulator process whose arguments name a port in the block also counts as busy.
+    root = worktree(tmp_path, "process-block")
+    port = ports(make(root))["firestore"]
+    proc = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(30)", "fake-firestore-emulator", "--port", str(port)])
+    try:
+        out = wait(root, 2)
+    finally:
+        proc.kill()
+        proc.wait()
+    assert out.returncode == 1
+    assert str(proc.pid) in out.stdout + out.stderr
+
+
+def _module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("emulator_config", SCRIPT)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_a_failed_or_empty_ps_is_unknown_never_free(tmp_path, monkeypatch, capsys):
+    # A wait that cannot list processes must not report the ports free (review round 3).
+    m = _module()
+    monkeypatch.setattr(m, "busy_ports", lambda root: [])
+    for result in (subprocess.CompletedProcess(["ps"], 1, "", ""), subprocess.CompletedProcess(["ps"], 0, "", "")):
+        monkeypatch.setattr(m.subprocess, "run", lambda *a, _r=result, **k: _r)
+        assert m.wait_ports(tmp_path, 0.5) == 1
+        assert "emulator ports free" not in capsys.readouterr().out

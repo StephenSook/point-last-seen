@@ -5,6 +5,259 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Remote Config can no longer be replaced by a partial template. `remoteconfig.template.json` holds every key
+  the three clients read, with the intended values (kill_cloud false, limited-use tokens on, every model key on
+  the allow-list, the iOS voice model set), and a test fails if any client's default key is missing from it.
+  `firebase.json` no longer names the template, so a plain `firebase deploy` cannot publish it; the new
+  `scripts/rc_publish.py` reads the live template and its ETag first, lists what it adds, changes and removes,
+  refuses any changed or dropped live value unless the key is named with `--allow`, validates, then publishes
+  with If-Match. It asks for gzip, because the API sends the ETag only then (found in the first dry run).
+  Source: review round 3 (medium: publishing the one-key template could clear a kill_cloud pause).
+  Verified: the 7 tests (every client key present, intended values, no template in firebase.json, the plan's
+  refusals for a changed, dropped or conditional value, an empty live template, gzip and ETag) failed first,
+  now pass; the dry run against the live project read an empty template and planned 10 additions, nothing
+  published; rules gate 0 problems; `bash scripts/ci-local.sh` exit 0.
+- Generated rules check each item of a short string list by index (segment ids, carried items): the list is
+  padded with valid placeholders, so no size guard is needed, and each item gets one regex for type and length.
+  The comma-joined regex is gone, so "ABCDEFGHIJKLMNOP,Q" is refused as one 18-character id and a carried item
+  may hold a comma ("bag, bottle") or a newline. To stay under the 1,000-expression limit, every bounded string
+  in shape mode is now one regex (`matches('(?s)^.{lo,hi}$')`, which errors on a non-string, so the rule
+  denies) instead of a type check plus size comparisons; the largest camera sighting fits again.
+  Source: review round 3 (low).
+  Verified: the generator tests and the comma, newline, comma-joined id and non-string id cases failed first
+  (the per-index form without the string change went over the limit on the largest camera sighting), now 9
+  generator tests and 120 emulator tests pass, including every heaviest-event test; `--check` exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The emulator port wait treats an unreadable process list (ps failing or printing nothing) as unknown: it
+  keeps waiting and then fails, naming the cause, instead of reporting the ports free. `--who-holds` says
+  "unreadable" in that case rather than "none".
+  Source: review round 3 (low).
+  Verified: the test with ps returning exit 1 and exit 0 with empty output failed first (the wait printed
+  "emulator ports free"), now 12 emulator-config tests pass; `bash scripts/ci-local.sh` exit 0.
+- The media sweep covers every ended judge sandbox whose last sweep was not empty, however old, and a missing
+  stamp counts as unstamped (one equality query on mode; the sandbox count is small), replacing the 7-day
+  window that missed an old sandbox with a stale stamp or no stamp field. Any failure inside one sandbox,
+  including a rejected Firestore write, is caught and reported, and the next sandbox is still swept.
+  `runMediaSweep` writes the ops/storage heartbeat in a finally block on every run (a sweep that throws counts
+  as one failure and is rethrown after the write), and the daily probe now fails when the heartbeat is over 20
+  minutes old (four missed 5-minute runs) instead of 2 hours. LIMITS and the checklist name the 5-minute
+  schedule and the new probe limits.
+  Source: review round 3 (two mediums).
+  Verified: the old-sandbox test (stale stamp and missing stamp swept, a done sandbox left alone), the failed
+  write test (NOT_FOUND on one sandbox, the next still swept), the two heartbeat tests (clean run, thrown
+  sweep) and the 20-minute probe tests failed first, now pass; the held-clip test now also checks the retry
+  deletes the clip; emulator suite 119; 5 probe tests; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- Clip consent is checked where it matters, at upload: Storage takes a clip only while its consent record
+  expires at least 31 days after the upload, whenever the consent was written, so the consent always outlives
+  the clip (deleted 30 days after upload) and an old 30-day record can no longer authorize an upload. The
+  24-hour createdAt rule is gone. The 31 to 33 day window on write stays (clients write 32). The creator can
+  renew the consent (consent, expiresAt and a server createdAt only, in the same window) while the clip has no
+  reading, so an interrupted upload is not stranded. LIMITS and the release checklist say an APK older than
+  c05f679 cannot read clips.
+  Source: review round 3 (two mediums).
+  Verified: the upload-time test (30 days 23 hours refused, 31 days 1 hour accepted on a 3-day-old consent),
+  the retry test (refused, renewed, then accepted) and the renewal test (another user, an expiry outside the
+  window, a moved storagePath, a client createdAt and a renewal after the reading all refused) failed first,
+  now pass; emulator suite 116; judging-window test 3; `bash scripts/ci-local.sh` exit 0.
+- `simulateWalkers` takes an optional `onProgress(done)`, called after every 1,000 walkers and once at the end,
+  so the web worker can show progress on a long run. It reads no random draw and never changes the table.
+  Source: lane C (Task 37c progress every 1,000 walkers).
+  Verified: the test (2,500 walkers report 1,000, 2,000, 2,500, and the table equals a run without the
+  callback) failed first, now 198 engine tests pass; lint exit 0; `bash scripts/ci-local.sh` exit 0.
+- `build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>` writes the stored route graph
+  for walkers from the same Overpass extract as the grid, bounded by the grid's box (the box the extract was
+  queried on), so a site's graph is one command after its grid. The Piedmont Park dev graph built this way has
+  1,549 edges, 1,203 nodes and 130 exits (local evidence, not in the repo).
+  Source: lane C (Task 37c needs the drill's route graph).
+  Verified: the CLI test (graph written with the grid's id and box, edges and projection present, exit 2
+  without --osm) failed first, now 25 grid-builder tests pass; typecheck exit 0; a 2,000-walker run on the dev
+  graph through the engine's indexRouteGraph returned sample tracks; `bash scripts/ci-local.sh` exit 0.
+- `indexRouteGraph` (with `routeGraphExtent` and `ROUTE_SNAP_M`) moves from the grid builder into @pls/engine,
+  so the web worker and the grid builder index the same stored RouteGraph file the same way (exits from its
+  stored bounds, the stored projection) instead of the web keeping a second loader or a second file format. The
+  grid builder imports it back, with its tests unchanged.
+  Source: lane C (Task 37c walkers on the web need the drill's route graph).
+  Verified: the new engine tests (exit on the stored bounds, stored projection, refusal without bounds) failed
+  first, now 197 engine tests pass; 24 grid-builder tests pass; both typechecks and lint exit 0; rules gate 0
+  problems; `bash scripts/ci-local.sh` exit 0.
+- A reading's segment ids (and a camera sighting's carried items) are checked per item again: one regex over the
+  comma-joined list bounds each item's length (1 to 16 for segment ids), at about the cost of the joined-length
+  bound it replaces, so the heaviest events still fit the expression budget. A 17-character or empty segment id
+  is now refused (an empty list is told apart from [""] by its size when items have a minimum length). An
+  item that itself contains a comma is read as two shorter items; real ids are two letters or ROW.
+  Source: review round 2 (low: a 17-character segment id passed).
+  Verified: the generator test failed first, now 9 pass; the 17-character and empty id cases are refused;
+  emulator suite 114 including the heaviest events; `bash scripts/ci-local.sh` exit 0.
+- The App Check control's answer check requires the text to be a non-empty string: a part whose text is null
+  or a number no longer counts as an answer (null used to read as the string "None").
+  Source: review round 2 (low).
+  Verified: the null and number cases failed first, now 6 control tests pass; `bash scripts/ci-local.sh` exit 0.
+- The lifecycle health check compares the prefixes as an exact set, each of clips/, photos/ and packs/ once
+  (no string join), and fails when any other Delete rule in the bucket policy is younger than 30 days, touches
+  one of those prefixes, or covers the whole bucket, since any of those would delete drill media before the
+  promised 30 days. Rules with other actions (storage class changes) do not count.
+  Source: review round 2 (medium).
+  Verified: the undercutting-rule and duplicate-prefix test failed first, now passes; emulator suite 114;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- ops/storage keeps a sweep failure streak (consecutive sweeps with any failed sandbox, reset by a clean sweep),
+  and the daily probe fails when it reaches 2, so a stuck delete (a hold, a permission change) is reported
+  instead of retried silently for days. One failing sweep still passes, so a single transient error does not
+  page anyone.
+  Source: review round 2 (medium).
+  Verified: the streak test (two failing records then a clean one) and the probe test failed first, now pass;
+  emulator suite 113; 5 probe tests; `bash scripts/ci-local.sh` exit 0.
+- The media sweep, redesigned from the second review round: it lists only sandboxes ended in the last 7 days
+  plus any not yet stamped (a failed sweep writes mediaDeletedAt: null so the equality query keeps finding it),
+  instead of the whole history every 5 minutes; each of a sandbox's three prefixes is listed and deleted on its
+  own (allSettled), so a held clip never stops that sandbox's photos and packs or the next sandbox; and a
+  sandbox is skipped only once it is stamped and its previous sweep found nothing (mediaSweepEmpty), replacing
+  the 24-hour cutoff that could miss a late file. mediaSweepEmpty joins mediaDeletedAt as server-only in the
+  rules. Sandbox creation (Task 23) must write mediaDeletedAt: null so an unswept sandbox older than 7 days is
+  still found.
+  Source: review round 2 (two mediums and a low on the sweep).
+  Verified: the late-file, held-clip and history-scope tests failed first, now pass; the command
+  mediaSweepEmpty write is refused; emulator suite 113; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- Clip consent window, redesigned so a fresh consent is never refused and always outlives its clip: a clip
+  reading's expiresAt must be 31 to 33 days after the server's time (clients write 32, which tolerates clock
+  skew both ways), and storage.rules accept a clip upload only while its consent record is under 24 hours old.
+  The lifecycle deletes the clip 30 days after upload, so the consent's TTL never runs first. The previous
+  window (at least 30 days) refused the Android client, which wrote exactly now plus 30 days, so every fresh
+  consent and its upload would have failed; the 30.5-day test fixture hid it. The fixture now writes 32 days,
+  as the clients do.
+  Source: review round 2 (high).
+  Verified: the boundary tests (31 days minus and plus a minute, 33 days minus and plus a minute, 30 days, the
+  past) and the 24-hour upload test failed first, now pass; emulator suite 113; the judging-window test still
+  pins at least 30 days; `bash scripts/ci-local.sh` exit 0.
+- The incident doc gains `conditions` for the urgency chip: shared/schemas/incident-conditions.schema.json
+  (tempF a number from -80 to 140 or null, wet a boolean or null, setAtMs), the IncidentConditions type and
+  `urgencyFromConditions` in @pls/engine (no conditions gives no chip), and a generated rules validator applied
+  whenever a command update carries the field. The iOS twin is marked pending in the parity map for lane B.
+  Source: lane B (P-12 urgency chip inputs).
+  Verified: the engine test (no function) and the rules test (any shape accepted) failed first, now pass; schema
+  parity ok (11 schemas, 27 types); engine 195 tests, typecheck and lint exit 0; emulator suite 112 (refusal
+  cases use updateDoc, since a merging setDoc deep-merges the map); `bash scripts/ci-local.sh` exit 0.
+- A route record's stage may be "picklist": a person picked the report from a list, so no model ran. Added to
+  shared/schemas/route-record.schema.json and the TypeScript ReadStage union (parity checks the TS values; the
+  Swift and Kotlin types follow in their lanes). The rules already bound stage by length, so the generated block
+  is unchanged; a new rules test pins that a picklist route is accepted. No vector: the router never computes
+  this stage.
+  Source: lane B (P-12 / pick-list reports).
+  Verified: schema parity ok (10 schemas, 26 types); generator and vectors checks current; the new rules test
+  passes (it passed at once, since stage was already length-bounded); emulator suite 111;
+  `bash scripts/ci-local.sh` exit 0.
+- The iOS cloud voice model is named only through Remote Config: `remoteconfig.template.json` (wired in
+  firebase.json, deployed with the next production deploy) sets `tts_model_ios` to gemini-3.8-flash-lite-tts,
+  whose in-app default is empty (on-device speech only). The model joins the allow-list in
+  shared/constants/models.json: Stable, no shutdown date, billing not required, as read on the live models page
+  on 2026-11-18. The rules gate checks the template's model ids against the list like any source file.
+  Source: lane B (spoken assignment changes; the model name lives in Remote Config only).
+  Verified: the gate passes on the tree (589 files, 0 problems) with the template naming the listed model;
+  firebase.json parses and its emulator config tests pass; `bash scripts/ci-local.sh` exit 0.
+- The rules gate bans gemini-3.8-flash by whole model id, not by substring: the TTS models whose ids start with
+  the same text (gemini-3.8-flash-lite-tts) are different models and no longer trip it.
+  Source: lane B (the substring check would have failed the TTS model everywhere).
+  Verified: the new test failed first, now 26 gate tests pass; the gate walks 588 files with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
+- The emulator port wait also waits for any running emulator process whose arguments name a port in this
+  worktree's block, and `--who-holds` prints those processes and the kernel's sockets on the block (TIME_WAIT
+  included). The one-off WebChannel bind failure reproduced here: a bind on this worktree's own Firestore port
+  failed seconds after the previous emulator run returned, with no other worktree's block overlapping, which
+  points at `emulators:exec` returning before the Firestore JVM has released its ports. The wait tests now pick a
+  test worktree whose block is free, so a live emulator cannot make them fail.
+  Source: lane B's flake report and its reproduction in this worktree.
+  Verified: the process test failed first, now 11 emulator_config tests pass; `--who-holds` prints all three
+  sections; `bash scripts/ci-local.sh` exit 0.
+- The App Check control counts the debug-token call as passed only when the 200 carries a non-empty answer
+  (candidates with text); a 200 with {} or no text now fails the control.
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now 6 control tests pass; `bash scripts/ci-local.sh` exit 0.
+- media_probe compares the sweep's age in raw seconds: 120 min 30 s now fails the 120-minute limit (it used to
+  floor to 120 and pass).
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now 4 probe tests pass; `bash scripts/ci-local.sh` exit 0.
+- Command can no longer write `mediaDeletedAt` on an incident; only the media sweep (admin) sets it, so a
+  command member cannot mark a sandbox's media as deleted and hide that it is still stored.
+  Source: review of 2bdb778..dc762be (low).
+  Verified: the new test failed first, now passes; emulator suite 110; `bash scripts/ci-local.sh` exit 0.
+- A clip reading's expiresAt must be 30 to 31 days after the write (before, anything from a minute to 31 days
+  passed), so the TTL on the consent record can no longer delete it while the clip it covers lives up to 30
+  days. The test fixture writes 30.5 days.
+  Source: review of 2bdb778..dc762be, finding M5.
+  Verified: the new expiry cases (a minute out and 29 days out are refused) failed first, now pass; the
+  judging-window test still pins at least 30 days; emulator suite 109; `bash scripts/ci-local.sh` exit 0.
+- Swift core CI also runs when the iOS view sources change (ios/PLS/**, ios/PLSWidgets/**, ios/PLSShared/**):
+  PLSCore's FieldTextSizeTests scans them for text styles below Title 3 or fixed point sizes, so a view-only
+  change must not skip it.
+  Source: lane B request (c8ec85a adds the test).
+  Verified: both path lists carry the three folders; `bash scripts/ci-local.sh` exit 0.
+- profile/shared must be written whole: all 20 keys the schema requires (the schema always required them; the
+  rules allowed partial writes). A nickname-only write was accepted and then crashed readers that expect every
+  field (the web approach card on approachNoteIds; the iOS decoder on answersTo). The web and Android writers
+  already send all 20 keys; a shared `sharedProfile()` test fixture replaces the partial ones.
+  Source: review of 2bdb778..dc762be, finding M4 (readers on each platform also default missing fields).
+  Verified: the partial-write test failed first (a nickname-only doc and a doc without approachNoteIds were
+  accepted), now refused; emulator suite 109; `bash scripts/ci-local.sh` exit 0.
+- Event positions keep their range check and refuse NaN again: in shape mode a symmetric range compiles to one
+  comparison (`lat * lat <= 8100`, `lon * lon <= 32400`), which also refuses NaN and infinity. To pay for it
+  under the 1,000-expression limit: an integer enum in even steps (cameraFacingDeg 0 to 315 by 45) compiles to
+  a range and a step instead of a list literal; a patterned string skips the redundant "is string" (matches()
+  already denies a non-string); and the confirmation clause no longer re-checks targetEventId and decision,
+  which are validated earlier in the same rule.
+  Source: security review of the previous rules commit (Position had become type-only, which accepted NaN and
+  out-of-range values).
+  Verified: generator tests for the even-step enum and the symmetric range failed first, now 9 pass; the
+  position test again refuses lat 91, accuracy -1 and NaN; the heaviest real events still pass; emulator suite
+  108; `bash scripts/ci-local.sh` exit 0.
+- Rules validators, review findings M3 and generator drift: each keyFrame.box2d entry must be an integer from 0
+  to 1000 (before, only the count of 4 was checked), a reading's `kind` must be one of the schema's values, and
+  a route's latencyMs must be 0 or more. To fit the heaviest real events under Firestore's 1,000-expression
+  limit per request (a camera sighting with a GPS position and a route record went over), validEvent reads
+  the incident once, reads the event type once and drops a redundant signed-in check, and shape mode keeps
+  the kind enum, latencyMs and array item ranges while other string enums stay length-bounded, other numbers
+  type-only, short string lists bounded by joined length, and Position type-only. Clients and engines
+  validate those values; the rules guarantee every field's type and size.
+  Source: review of 2bdb778..dc762be (M3; low: generator drift).
+  Verified: generator tests rewritten first (8 pass); the heaviest-event tests went over the limit until the
+  cuts, now the emulator suite passes 108; the position test now refuses an extra key, a missing key and a
+  wrong type (ranges no longer checked, recorded as a ruling); `bash scripts/ci-local.sh` exit 0.
+- deleteIncidentMedia runs every 5 minutes (still one Cloud Scheduler job), so "a sandbox's media is deleted
+  within 15 minutes of its end" (docs/LIMITS.md) holds even when a run starts late; a 15-minute schedule
+  could not keep a 15-minute promise. The timeout drops to 240 s so a run ends before the next starts.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M2 (orchestrator preferred 5 minutes).
+  Verified: the schedule test (reads the function's own endpoint metadata) failed first with "every 15
+  minutes", now passes; emulator suite 108; `bash scripts/ci-local.sh` exit 0.
+- deleteIncidentMedia handles each ended sandbox on its own: a failed delete (a Storage hold, a transient
+  error) is logged with the incident id, counted in ops/storage (`sweepFailures`, a count only since the doc
+  is public) and left unstamped so the next run retries it, and the other sandboxes are still cleaned. Before,
+  one throw left every later sandbox's media in place. A sandbox stamped and ended more than 24 hours ago is
+  no longer listed, so the work stays flat as sandboxes pile up; inside the 24 hours an upload in flight at the
+  end is still caught.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M1 (verified by the orchestrator and against
+  the code).
+  Verified: 2 new tests (a held sandbox does not stop the next and stays unstamped; a long-stamped sandbox is
+  not listed) and the updated ones failed first, now pass; emulator suite 107; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The lifecycle check behind ops/storage (and so the daily probe) accepts only the exact rule LIMITS promises:
+  action Delete, condition keys exactly age and matchesPrefix, age exactly 30, prefixes exactly clips/, photos/
+  and packs/ in any order. Before, a bucket-wide or shorter delete, an extra condition such as isLive, or a
+  fourth prefix read as OK while deleting drill media early or not at all.
+  Source: Codex adversarial review of 2bdb778..dc762be, finding M6 (verified by the orchestrator and against
+  the code).
+  Verified: the new exact-rule test failed first (the 7-day bucket-wide rule read OK), now passes; emulator
+  suite 105; `bash scripts/ci-local.sh` exit 0.
+- A stored RouteGraph now carries its own extract `bounds` (or an explicit null for a graph with no exits) and
+  its `projection` (metres per degree at the origin). `indexRouteGraph(graph)` takes no outside bounds and
+  refuses a graph without either field. Before, a reload without the second argument silently marked every
+  node as not a boundary, so walkers that should exit the area into ROW stayed on the graph; and each load
+  recomputed the projection with Math.cos, which can differ in the last bit across engines. Schema, TS type
+  (the only parity target) and the builder change together.
+  Source: merge point 2 review of codex-walkers (fresh code-reviewer agent, medium design finding and a low
+  determinism finding); my bounds ruling at merge point 2.
+  Verified: 3 graph tests failed first (round trip without the bounds argument, null bounds, refused reload),
+  now 24 grid-builder tests pass; both typechecks exit 0; schema parity ok (10 schemas, 26 types);
+  `bash scripts/ci-local.sh` exit 0.
 - LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
   whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
   Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.

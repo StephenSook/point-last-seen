@@ -1,8 +1,9 @@
 import { getStorage as getAdminStorage } from "firebase-admin/storage";
+import { doc, setDoc } from "firebase/firestore";
 import { getMetadata, ref, uploadBytes } from "firebase/storage";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { clipReadingDoc } from "../fixtures";
-import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, familyClaims, searcherClaims, storageAs } from "../helpers";
+import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims, storageAs } from "../helpers";
 
 const SHA = "a".repeat(64);
 const bytes = (n: number) => new Uint8Array(n);
@@ -68,6 +69,24 @@ describe("storage rules (spec section 7)", () => {
     const third = "d".repeat(64);
     await admin.db.doc(`incidents/I1/clipReadings/${third}`).set(clipReadingDoc("I1", third, "family-uid", { createdAt: new Date() }));
     await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${third}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+  it("a clip uploads only while its consent outlives it by a day: expiresAt at least 31 days after the upload (review round 3)", async () => {
+    // The lifecycle deletes a clip 30 days after upload, so a consent that expires 31 or more days after the
+    // upload always outlives the clip, whenever the consent was written (old 30-day records included).
+    const fam = storageAs("family-uid", familyClaims);
+    const short = "e".repeat(64), ok = "f".repeat(64);
+    await admin.db.doc(`incidents/I1/clipReadings/${short}`).set(clipReadingDoc("I1", short, "family-uid", { expiresAt: new Date(Date.now() + 30 * 86400_000 + 23 * 3_600_000), createdAt: new Date() }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${short}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc(`incidents/I1/clipReadings/${ok}`).set(clipReadingDoc("I1", ok, "family-uid", { expiresAt: new Date(Date.now() + 31 * 86400_000 + 3_600_000), createdAt: new Date(Date.now() - 3 * 86400_000) }));
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${ok}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+  it("an interrupted upload is retried after its creator renews the consent (review round 3)", async () => {
+    const sha = "d".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
+    await admin.db.doc(path).set(clipReadingDoc("I1", sha, "family-uid", { expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: new Date(Date.now() - 2 * 86400_000) }));
+    const fam = storageAs("family-uid", familyClaims);
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${sha}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await assertSucceeds(setDoc(doc(dbAs("family-uid", familyClaims), path), clipReadingDoc("I1", sha, "family-uid")));
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${sha}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
   it("no client writes packs", async () => {
     await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1/v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));

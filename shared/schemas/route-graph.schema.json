@@ -12,6 +12,8 @@
     "origin",
     "nodes",
     "edges",
+    "bounds",
+    "projection",
     "attribution"
   ],
   "properties": {
@@ -162,6 +164,41 @@
             },
             "minItems": 2
           }
+        }
+      }
+    },
+    "bounds": {
+      "description": "Extract bounds [minLon, minLat, maxLon, maxLat] that mark boundary exits; null means the graph has no exits",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "projection": {
+      "description": "Metres per degree at the origin, stored so no engine recomputes them",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metresPerDegreeLat",
+        "metresPerDegreeLon"
+      ],
+      "properties": {
+        "metresPerDegreeLat": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "metresPerDegreeLon": {
+          "type": "number",
+          "exclusiveMinimum": 0
         }
       }
     },

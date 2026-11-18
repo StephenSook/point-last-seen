@@ -46,7 +46,8 @@ export function clipReadingDoc(incidentId: string, sha: string, uid: string, ove
     sha256: sha, storagePath: `clips/${incidentId}/${sha}.mp4`, durationS: 12, clipStartMs: 1795860000000,
     clockConfirmed: true, cameraFacingDeg: 90, reading: null, route: null,
     consent: { personInClip: c, footageOwner: c, cloudProcessing: c, publicUse: null },
-    expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
+    // 32 days out, as every client writes it (the rules accept 31 to 33 days at the server's time).
+    expiresAt: new Date(Date.now() + 32 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
   };
 }
 
@@ -69,3 +70,11 @@ export const allFlags = (on: string[] = []): Record<string, boolean> => Object.f
   "hallucinationsOrDelusions", "lookingForHome", "gaitUnsteady", "freezing", "fallRisk", "softVoice", "slowToRespond",
   "fluctuates", "medicationSensitivity", "carriesMedicalAlertCard", "medicationTimingMatters",
 ].map(k => [k, on.includes(k)]));
+
+/** A complete, schema-valid profile/shared document (all 20 keys, as the web and Android writers send it). */
+export const sharedProfile = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  answersTo: "Mom", nickname: "", ageYears: 81, gender: "woman", appearance: "short", heightFt: 5, heightIn: 2,
+  weightLb: 120, hair: "white", eyeColor: "brown", primaryLanguage: "", clothingLastWorn: "red coat", mobilityAids: ["cane"],
+  dementiaType: "alzheimers", flags: allFlags(["mayNotRespond"]), triggersToAvoid: "", bestApproach: "", uniqueDescription: "",
+  photoTakenOn: "2026-11-10", approachNoteIds: ["may_not_respond", "approach_calm"], ...over,
+});

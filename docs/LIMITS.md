@@ -9,6 +9,8 @@ each line says what the limit is and why.
   debug provider and must never be published. `android/scan-apk.sh` runs on the exact signed APK inside
   `release.sh` and must report 0 hits for debug tokens, token resources, `FIREBASE_APPCHECK_DEBUG_TOKEN`
   and the debug provider (the debug APK reports 5).
+- An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
+  and the rules require 31 to 33 days, so the consent and the upload are refused.
 
 ## Search model
 
@@ -55,7 +57,11 @@ each line says what the limit is and why.
 - Drill media (clips, photos, packs) is deleted 30 days after upload by the bucket lifecycle rule in
   `storage.lifecycle.json` (applied and read back 2026-11-18). The project was created 2026-11-17, so no
   upload can be deleted before 2026-12-17, after judging ends.
+- A clip uploads only while its consent record expires at least 31 days after the upload, so the consent
+  always outlives the clip. An upload interrupted for more than a day needs its creator to renew the consent
+  first; the rules allow that until the clip has a reading.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
-  at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`; that function is
-  PLANNED and being built now. Until it ships, a sandbox's media lasts up to 30 days, and so does any link
-  made during the sandbox.
+  at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
+  minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next
+  security rules deploy; until then a sandbox's media lasts up to 30 days, and so does any link made during
+  the sandbox.
