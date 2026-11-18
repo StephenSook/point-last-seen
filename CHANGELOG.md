@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard keeps a server prompt template's output schema. The log line showed that live template calls
+  arrive with no template name (`data.template` null) and carry the schema in generationConfig as
+  `_responseJsonSchema`, with no token limit; the guard dropped that key, so the sighting template invented field
+  names. The key is now kept, and template calls get the text cap like any direct call. A call that does name
+  its template is still left as sent after the model check.
+  Source: the cloudGuard log line on the live W2 call at 22:33 UTC (configKeys `_responseJsonSchema`,
+  `responseMimeType`, `temperature`; path direct; rewritten true).
+  Verified: the two tests built from that live shape (the rule function and the exported trigger keep the schema
+  and add the cap) failed first, now 15 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - cloudGuard writes one log line per call: the path it took (template or direct), the template's name, the
   request's and generation config's setting names, and whether it rewrote the request. Names only, never the
   prompt, inputs, media or values. Redeployed at 22:24 UTC on 2026-11-18 (6d29d80), the guard again made the

@@ -12,9 +12,12 @@ const TTS_MODEL = "gemini-3.8-flash-lite-tts";
 export const MAX_OUTPUT_TOKENS = 2048;
 /** Speech output: a 600-character text is well under a minute of audio. */
 export const TTS_MAX_OUTPUT_TOKENS = 4096;
-/** The generation settings our apps use. Anything else (extra candidates, thinking budgets, new fields) is dropped. */
+/**
+ * The generation settings our apps use. Anything else (extra candidates, thinking budgets, new fields) is dropped.
+ * "_responseJsonSchema" is where a server prompt template's output schema arrives (seen live 2026-11-18).
+ */
 const KEPT = new Set(["maxOutputTokens", "temperature", "topP", "topK", "stopSequences", "responseMimeType", "responseSchema",
-  "responseJsonSchema", "responseModalities", "speechConfig"]);
+  "responseJsonSchema", "_responseJsonSchema", "responseModalities", "speechConfig"]);
 
 type Config = Record<string, unknown> & { maxOutputTokens?: number };
 type Request = Record<string, unknown> & { generationConfig?: Config };
@@ -28,8 +31,8 @@ type Request = Record<string, unknown> & { generationConfig?: Config };
 export function guardRequest(model: string, request: Request, template?: unknown): Request | undefined {
   const id = model.split("/").pop() ?? "";
   if (!ALLOWED_MODELS.includes(id)) throw new HttpsError("permission-denied", "This model is not allowed here.");
-  // A template call carries the template's own config (ours, published from shared/templates); a returned
-  // generationConfig would replace it, schema included, so only the model is checked.
+  // A call that names its template is left as sent after the model check. Live template calls on 2026-11-18 did
+  // not name it (data.template was null), so they take the path below, which keeps the template's schema.
   if (template) return undefined;
   const config: Config = request.generationConfig ?? {};
   const cap = id === TTS_MODEL ? TTS_MAX_OUTPUT_TOKENS : MAX_OUTPUT_TOKENS;

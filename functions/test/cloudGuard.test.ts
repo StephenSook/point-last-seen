@@ -97,6 +97,24 @@ describe("cloudGuard through the exported trigger", () => {
   });
 });
 
+describe("cloudGuard on a live template call (seen 2026-11-18)", () => {
+  // Live, a template call arrived with data.template null and the template's output schema in generationConfig
+  // under "_responseJsonSchema", with no maxOutputTokens. Dropping that key made the sighting template invent
+  // field names; it must be kept, and the output still bounded.
+  const schema = { type: "object", properties: { direction: { type: "string" } }, required: ["direction"] };
+  const live = { "@type": "type.googleapis.com/google.ai.generativelanguage.v1beta.GenerateContentRequest", model: "models/gemini-3.5-flash-lite",
+    contents: [], systemInstruction: { parts: [] }, generationConfig: { _responseJsonSchema: schema, responseMimeType: "application/json", temperature: 0 } };
+  it("keeps the template's schema and adds the text cap", () => {
+    expect(guardRequest(path("gemini-3.5-flash-lite"), live)?.generationConfig).toEqual({ _responseJsonSchema: schema,
+      responseMimeType: "application/json", temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS });
+  });
+  it("keeps it through the exported trigger too", async () => {
+    const { status, body } = await throughTrigger({ model: path("gemini-3.5-flash-lite"), template: null, request: live });
+    expect(status).toBe(200);
+    expect((body.generationConfig as Record<string, unknown>)._responseJsonSchema).toEqual(schema);
+  });
+});
+
 describe("cloudGuard's log line", () => {
   // One line per call says which path the guard took and which setting names it saw, so a live defect can be read
   // from the logs. It never carries the prompt, inputs, media or values.
