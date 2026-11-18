@@ -45,6 +45,9 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
   const pinMarker = useRef<Marker | null>(null);
+  // Set once the style and our sources exist. isStyleLoaded() turns false again while a source updates,
+  // so it cannot gate redraws: a redraw parked on "load" then would never run.
+  const ready = useRef(false);
 
   useEffect(() => {
     if (!el.current) return;
@@ -69,6 +72,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
         source: "centres",
         paint: { "circle-radius": ["get", "r"], "circle-color": MAP_INK.dot, "circle-stroke-color": MAP_INK.dotRing, "circle-stroke-width": 1.5 },
       });
+      ready.current = true;
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
@@ -77,6 +81,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
       for (const mk of markers.current) mk.remove();
       m.remove();
       map.current = null;
+      ready.current = false;
     };
   }, []);
 
@@ -103,7 +108,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution }: 
         fitted.current = true;
       }
     };
-    if (m.isStyleLoaded() && m.getSource("segments")) draw();
+    if (ready.current) draw();
     else m.once("load", draw);
   }, [segments, poa]);
 
