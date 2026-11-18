@@ -17,8 +17,14 @@ val localProps = Properties().apply {
 }
 
 // Debug builds may carry an App Check debug token from the untracked
-// local.properties (key pls.appcheck.debugToken). Release builds never do.
-val debugToken: String = localProps.getProperty("pls.appcheck.debugToken", "")
+// local.properties. Each device has its own token: the default key
+// pls.appcheck.debugToken is the emulator's; -Ppls.device=a16 reads
+// pls.appcheck.debugToken.a16 instead. Release builds never carry one.
+val debugDevice: String? = providers.gradleProperty("pls.device").orNull
+val debugToken: String = localProps.getProperty(
+    if (debugDevice == null) "pls.appcheck.debugToken" else "pls.appcheck.debugToken.$debugDevice",
+    "",
+)
 
 // Release signing: a keystore outside the repo (path in local.properties). Its
 // password lives in the macOS Keychain; android/release.sh reads it into
