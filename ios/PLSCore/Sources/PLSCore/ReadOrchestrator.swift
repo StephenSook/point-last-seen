@@ -197,20 +197,8 @@ public enum ReadOrchestrator {
         }
     }
 
-    /// Runs one model stage with a time limit. Returns nil on timeout without waiting for a
-    /// call that ignores cancellation (a task group would wait for its children).
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
-        let once = ResumeOnce<T?>()
-        return await withCheckedContinuation { continuation in
-            let work = Task {
-                let value = await op()
-                once.resume(continuation, with: value)
-            }
-            Task {
-                try? await Task.sleep(for: .seconds(seconds))
-                if once.resume(continuation, with: nil) { work.cancel() }
-            }
-        }
+        await Timeout.run(seconds: seconds, op)
     }
 
     static func note(_ failure: ReadFailure, _ blocked: inout BlockKind?) {
@@ -282,6 +270,25 @@ public struct PermissiveLine: Sendable, Equatable {
         if !segmentIds.isEmpty { r.segmentIds = segmentIds }
         if let coverage { r.coverage = coverage }
         return r
+    }
+}
+
+/// A time limit for any call into a model API (a guided or permissive read, a token count).
+public enum Timeout {
+    /// Returns nil on timeout, without waiting for a call that ignores cancellation (a task
+    /// group would wait for its children).
+    public static func run<T: Sendable>(seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
+        let once = ResumeOnce<T?>()
+        return await withCheckedContinuation { continuation in
+            let work = Task {
+                let value = await op()
+                once.resume(continuation, with: value)
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if once.resume(continuation, with: nil) { work.cancel() }
+            }
+        }
     }
 }
 

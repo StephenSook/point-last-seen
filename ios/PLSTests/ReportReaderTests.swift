@@ -51,3 +51,25 @@ actor CallCounter {
     func bump() { count += 1 }
 }
 
+/// Answers at once with a valid reading of whatever it was given.
+struct InstantRunner: ReadModelRunner {
+    func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+        .success(ReportReading.unclear(quote: String(text.prefix(40))))
+    }
+    func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+}
+
+@Suite struct ReportReaderTimeoutTests {
+    @Test func aHungTokenCountDoesNotHoldTheReport() async throws {
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in try? await Task.sleep(for: .seconds(60)); return 100 },
+                             tokenCountTimeoutSeconds: 0.2,
+                             makeRunner: { _, _, _ in InstantRunner() })
+        let situation = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AC"], assignedSegmentIds: ["AC"], positionSegmentId: nil,
+                                        profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        let start = Date()
+        _ = await r.read("we searched near the creek", situation: situation)
+        #expect(Date().timeIntervalSince(start) < 10)
+    }
+}
+

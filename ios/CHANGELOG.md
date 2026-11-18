@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): put a time limit on the token count too
+- What: the stage time limit becomes a public helper, `Timeout.run(seconds:_:)`, and
+  `ReportReader` uses it around the token count (5 s by default, then a characters-per-token
+  estimate). The model runner is now injectable for tests. Before, a stalled count would hold
+  the report with no limit.
+- Source: spike S1 on the Mac: a FoundationModels call stalled for 44 minutes (sampled stack
+  parked inside FoundationModels) in a run built before the stage limits.
+- Verified: two `TimeoutTests` (a 30 s call gives nil in about 0.1 s; a quick call gives its
+  value) and an app test with a 60 s token count and a 0.2 s limit (the read finishes in under
+  10 s), compile-red without the API, then green; 207 PLSCore tests; 28 app tests pass on the
+  iOS 27.2 simulator; `scripts/ci-local.sh` exit 0.
+
 ### refactor(ios): let the compiler check the model runner's Sendable conformance
 - What: `FoundationModelRunner` drops `@unchecked Sendable`; `FirebaseAI` is a `Sendable` final
   class in 13.2.0 and `Tool` is `Sendable`, so the plain conformance compiles and stays checked.
