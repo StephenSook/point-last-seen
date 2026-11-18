@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios-core): parse the drill incident's real pack segment documents
+- What: `PackSegmentsSampleTests` reads `shared/test-vectors/pack-segments-sample.json` (three
+  real `pack-segments` documents from the drill incident, in Firestore's typed REST form),
+  converts each value the way the iOS Firestore SDK hands it to the app, and parses them with
+  `PackSegments.parse`: grid AA then AC in code-point order, ROW last in the prior, prior
+  version 5 equal to the incident's, AA's upstream link and AC's neighbours kept, every area
+  positive, and each real centroid inside its own real polygon.
+- Source: the pack segments sample added to the shared test vectors.
+- Verified: both tests pass against the real documents; `bash scripts/ci-local.sh` exit 0.
+
 ### test(ios): pin that a report is read only after sign-in succeeded
 - What: `AppModel` takes the report read as a `readReport` seam (the default is the same
   `ReportReader` on Apple's model and Firebase AI Logic). Two tests pin the order in `send`: a
