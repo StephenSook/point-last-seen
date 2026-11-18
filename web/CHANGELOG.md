@@ -397,3 +397,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the file input under "Add photos" is invisible (opacity 0), so its focus ring was too. The label now draws the 2 px fg-1 outline while the input has keyboard focus (`:has(input:focus-visible)`), matching every other control.
 - Source: UI review D7 (orchestrator P0 item 4).
 - Verified: new `e2e/focus.spec.ts` tabs from "Get this laptop ready" onto the input and reads the label's outline; it failed first (outline none), then passed. scripts/ci-local.sh exit 0.
+
+### feat(map): add the centre dot second signal and cased segment edges
+- What: each segment centre gets a dot whose radius is 3 + 11 x sqrt(poa / maxPoa) px (spec 22.1 second signal), in fg-2 with a bg-0 ring so it is 3:1 or more against every probability step; the printed percent now hangs just below the dot. Segment edges are a 3 px bg-0 casing under a 1 px fg-4 line instead of one line-colour stroke (1.25:1 on the darkest step). `contrastRatio`, `MAP_INK` and `centreFeatures` live in `map/poaStyle.ts`.
+- Source: UI review D5 (orchestrator P0 item 4), spec 22.1 "Second signal". Ruling: the spec gives the dot's radius but not its colour; fg-2 with a bg-0 ring is the only token pair that clears 3:1 on all eight steps.
+- Verified: 4 new tests in `src/map/poaStyle.test.ts` failed first (not functions), then passed: the contrast helper reproduces the spec table (fg-4 on bg-0 5.23), radii 14, 8.5 and 3 for the sample, every dot 3:1 or more on every step, the edge inks. The map harness spec (next commit) reads the dot colour at each centre. scripts/ci-local.sh exit 0.

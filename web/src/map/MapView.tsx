@@ -9,7 +9,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { mapCredit } from "./credit";
 import { useEffect, useRef } from "react";
 import type { LatLon } from "./geo";
-import { POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
+import { centreFeatures, MAP_INK, POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
 
 const FILL_COLOR = ["match", ["get", "cls"], 0, POA_RAMP[0], 1, POA_RAMP[1], 2, POA_RAMP[2], 3, POA_RAMP[3], 4, POA_RAMP[4], 5, POA_RAMP[5], 6, POA_RAMP[6], POA_RAMP[7]];
 
@@ -56,7 +56,17 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
     m.on("load", () => {
       m.addSource("segments", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({ id: "seg-fill", type: "fill", source: "segments", paint: { "fill-color": FILL_COLOR as never, "fill-opacity": 0.9 } });
-      m.addLayer({ id: "seg-line", type: "line", source: "segments", paint: { "line-color": "#403C3A", "line-width": 1 } });
+      // Edges: a bg-0 casing under an fg-4 line, so a boundary reads on dark and light steps alike.
+      m.addLayer({ id: "seg-casing", type: "line", source: "segments", paint: { "line-color": MAP_INK.edgeCasing, "line-width": 3 } });
+      m.addLayer({ id: "seg-line", type: "line", source: "segments", paint: { "line-color": MAP_INK.edgeLine, "line-width": 1 } });
+      // Second signal: a dot at each centre, sized by probability (22.1).
+      m.addSource("centres", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({
+        id: "centre-dot",
+        type: "circle",
+        source: "centres",
+        paint: { "circle-radius": ["get", "r"], "circle-color": MAP_INK.dot, "circle-stroke-color": MAP_INK.dotRing, "circle-stroke-width": 1.5 },
+      });
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
@@ -74,6 +84,7 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
     const draw = () => {
       const fc = segmentFeatures(segments, poa);
       (m.getSource("segments") as GeoJSONSource | undefined)?.setData(fc as never);
+      (m.getSource("centres") as GeoJSONSource | undefined)?.setData(centreFeatures(segments, poa) as never);
       for (const mk of markers.current) mk.remove();
       markers.current = fc.features.flatMap((f, i) => {
         const seg = segments[i];
@@ -81,7 +92,8 @@ export function MapView({ segments, poa, onMapClick, pin = null }: Props) {
         const plate = document.createElement("div");
         plate.className = "plate";
         plate.textContent = f.properties.label;
-        return [new Marker({ element: plate }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+        // The plate hangs just below the largest dot (14 px), so the number never covers the dot.
+        return [new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
       });
       const b = bounds(segments);
       if (b && !fitted.current) {

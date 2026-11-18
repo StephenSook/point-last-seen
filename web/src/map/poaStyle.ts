@@ -44,3 +44,38 @@ export function segmentFeatures(segments: readonly MapSegment[], poa: Readonly<R
     }),
   };
 }
+
+/** WCAG contrast ratio of two #RRGGBB colours. */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((s) => (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [x, y] = [lum(a), lum(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/**
+ * Map ink from the 22.1 tokens. Edges: a 3 px bg-0 casing under a 1 px fg-4 line, so
+ * a boundary reads on dark and light steps alike. Dots: fg-2 with a bg-0 ring, so each
+ * centre dot is 3:1 or more against every probability step.
+ */
+export const MAP_INK = { edgeCasing: "#110F0D", edgeLine: "#898583", dot: "#D7D3D0", dotRing: "#110F0D" } as const;
+
+export type CentreCollection = {
+  type: "FeatureCollection";
+  features: { type: "Feature"; id: number; geometry: { type: "Point"; coordinates: [number, number] }; properties: { segmentId: string; r: number } }[];
+};
+
+/** The second signal: a dot at each segment centre, radius 3 + 11 x sqrt(poa / maxPoa) px (3 to 14 px). */
+export function centreFeatures(segments: readonly MapSegment[], poa: Readonly<Record<string, number>>): CentreCollection {
+  const maxPoa = Math.max(0, ...segments.map((s) => poa[s.segmentId] ?? 0));
+  return {
+    type: "FeatureCollection",
+    features: segments.map((s, i) => {
+      const p = poa[s.segmentId] ?? 0;
+      const r = maxPoa > 0 && p > 0 ? 3 + 11 * Math.sqrt(p / maxPoa) : 3;
+      return { type: "Feature", id: i, geometry: { type: "Point", coordinates: [s.centroid.lon, s.centroid.lat] }, properties: { segmentId: s.segmentId, r } };
+    }),
+  };
+}
