@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `scripts/media_probe.py` reads ops/storage with the site's public key and fails if the 30-day lifecycle rule
+  is gone or the sweep is more than 2 hours stale (which also catches a dead scheduler).
+  `.github/workflows/probe.yml` runs it and the App Check no-token check daily at 13:23 UTC on a pinned
+  runner, credential-free; each step runs even if the other fails, and both scripts retire after 2026-12-17.
+  Source: orchestrator (daily checks for two security defaults that can change silently).
+  Verified: 3 probe tests written with the script pass; the live probe exits 1 today (ops/storage 403, rules
+  not deployed yet), as it must until merge point 2; `bash scripts/ci-local.sh` exit 0.
 - Storage health record: each 15-minute deleteIncidentMedia run also reads the bucket's lifecycle and writes
   `ops/storage` (lifecycleOk, the rule's age, a server time); a new rules match makes that one doc readable
   without sign-in and no ops doc writable, so a probe can check it with no credential.
