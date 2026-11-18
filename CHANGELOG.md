@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Add route reason `sdk_fallback` to `shared/schemas/route-record.schema.json` (PREFER_ON_DEVICE answered from the cloud).
+  Source: lane D contract question 3 (Android RouteRecord reasons); lane D maps its other reasons to
+  `on_device_unavailable` and `sdk_only_in_cloud`.
+  Verified: schema parses; `python3 -I scripts/check_schema_parity.py .` and `bash scripts/ci-local.sh` exit 0.
 - Enable anonymous sign-in as code: `firebase.json` gains `auth.providers.anonymous: true`.
   Source: plan Task 0 step 3; spec section 14 (anonymous sign-in, claims set by joinIncident).
   Verified: `firebase deploy --only auth --project buildhybridai-2026-yg3m` printed

@@ -58,6 +58,7 @@
         "sdk_prefer_on_device",
         "sdk_only_in_cloud",
         "sdk_only_on_device",
+        "sdk_fallback",
         "link_down_fallback",
         "template_fallback",
         "consented_cloud_read"
