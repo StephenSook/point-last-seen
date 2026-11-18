@@ -104,3 +104,19 @@ def test_the_live_listing_is_read_from_the_api_s_templates_key():
     listing = {"templates": [{"name": "projects/p/locations/global/templates/pls-a-v1", "templateString": "x", "locked": True}]}
     assert tp.live_templates(listing) == {"pls-a-v1": listing["templates"][0]}
     assert tp.live_templates({}) == {}
+
+
+def test_every_output_field_has_a_type_at_every_depth():
+    # A field written {"enum": [...]} with no type is read by the template as an object with a field named "enum",
+    # and the model answers {"enum": "unknown"} (seen live 2026-11-18 on the photo and clip templates).
+    def untyped(schema, at):
+        out = [] if "type" in schema else [at]
+        for k, v in schema.get("properties", {}).items():
+            out += untyped(v, f"{at}.{k}")
+        if "items" in schema:
+            out += untyped(schema["items"], f"{at}[]")
+        return out
+    for t in tp.templates(ROOT):
+        if "output" in t:
+            missing = [m for k, v in t["output"]["schema"].items() for m in untyped(v, f"{t['templateId']}.{k}")]
+            assert missing == [], missing

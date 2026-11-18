@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The photo and clip templates give every enum field `"type": "string"`. The shared schemas leave the type off
+  enum fields, and without it the template reads `{"enum": [...]}` as an object with a field named "enum": the
+  live photo and clip reads answered `"placeType": {"enum": "unknown"}`, which the clients' validation refuses.
+  A test now requires a type on every output field at every depth.
+  Source: the live check of the published templates (2026-11-18).
+  Verified: the typed-fields test failed first (it listed the clip and photo enum fields), now 9 template tests
+  pass; the dry run plans two updates; `bash scripts/ci-local.sh` exit 0.
 - `cloudGuard` (AI Logic `beforeGenerateContent` trigger): every generateContent call through AI Logic,
   templated or not, may name only a model on the allow-list (a test keeps the function's copy equal to
   shared/constants/models.json), and a text reply is bounded to 2,048 output tokens (speech output is not

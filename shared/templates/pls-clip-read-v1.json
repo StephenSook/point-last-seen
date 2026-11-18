@@ -34,6 +34,7 @@
         "description": "MM:SS from the clip start"
       },
       "entryEdge": {
+        "type": "string",
         "enum": [
           "left",
           "right",
@@ -45,6 +46,7 @@
         ]
       },
       "exitEdge": {
+        "type": "string",
         "enum": [
           "left",
           "right",
@@ -56,6 +58,7 @@
         ]
       },
       "topColor": {
+        "type": "string",
         "enum": [
           "black",
           "white",
@@ -73,6 +76,7 @@
         ]
       },
       "bottomColor": {
+        "type": "string",
         "enum": [
           "black",
           "white",
@@ -134,6 +138,7 @@
         ]
       },
       "lighting": {
+        "type": "string",
         "enum": [
           "day",
           "night_ir",
@@ -142,6 +147,7 @@
         ]
       },
       "legibility": {
+        "type": "string",
         "enum": [
           "clear",
           "partial",
