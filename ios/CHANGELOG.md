@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### test(ios): take the timing out of the trace and Live Activity tests
+- What: the route-trace test records synchronously (a `Mutex`-backed log) instead of waiting
+  200 ms for detached tasks; the Live Activity test waits for the real "ended" state, at most
+  10 s, instead of a fixed 1 s sleep.
+- Source: one app test run failed with no failure shown and passed on rerun; both fixed waits
+  could lose under load.
+- Verified: the app suite passed twice in a row afterwards (54 tests each);
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): speak a new assignment when a pack loads
 - What: `AssignmentSpeaker` speaks the team's approved assignment (`SpokenAssignment` words:
   segments and command's approved task text only) once per change, while the app is open.
