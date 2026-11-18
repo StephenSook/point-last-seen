@@ -1060,3 +1060,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plan panel keys a suggestion to the draft it was worded for (event set, prior version and assignments), not the event set alone. When the plan history arrives after a suggestion and moves a team (same event set, different segments), the suggestion and its Approve are withdrawn, so old wording ("Search segment AA") can never be saved with new segments (BB).
 - Source: second-model review of PR #16, round 2, finding 6 (medium).
 - Verified: new plan harness test (suggest, then the harness's "Assignments change" under the same hash: the suggestion and Approve disappear) failed first, then passed; both plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(evidence): write the truth for five stock clips before any model reads them
+- What: `docs/evidence/web/2026-11-18-stock-clips-truth.json`: for five Pexels stock clips (actors; internal measurement only; the clips are not in the repo), the truth written from four frames each before any model run: person present (all five; one with two people), direction of travel, clothing, carried items and light (three day, one dusk, one night). The time field cannot be measured (no on-screen timestamp).
+- Source: request to measure triage and the clip reader on clips with people, truth first.
+- Verified: written from the extracted frames, committed before the triage runs. scripts/ci-local.sh exit 0.
