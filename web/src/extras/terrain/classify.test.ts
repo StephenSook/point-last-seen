@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ISRID_ELEVATION, LEVEL_BAND_M, STREAM_LEVEL_M, classifyTerrain, parseElevation, segmentAt, streamDownhillCheck, type ElevationFile } from "./classify";
+import { ISRID_ELEVATION, LEVEL_BAND_M, STREAM_LEVEL_M, classifyTerrain, parseElevation, segmentAt, streamDownhillCheck, streamGate, type ElevationFile } from "./classify";
 
 // FIXTURE: made-up elevations, not a real site.
 function file(cells: Record<string, number>, gridId = "fixture-grid"): ElevationFile {
@@ -63,6 +63,15 @@ describe("streamDownhillCheck", () => {
       { segmentId: "E", downstream: [] },
     ];
     expect(streamDownhillCheck(f, segments)).toEqual({ links: 3, downhill: 1, level: 1, uphill: 1 });
+  });
+});
+
+describe("streamGate", () => {
+  it("passes at 20 percent uphill or less and with no stream link, and fails above", () => {
+    expect(streamGate({ links: 10, downhill: 8, level: 0, uphill: 2 })).toEqual({ pass: true, uphillShare: 0.2 });
+    expect(streamGate({ links: 0, downhill: 0, level: 0, uphill: 0 })).toEqual({ pass: true, uphillShare: 0 });
+    // The Piedmont Park development site's counts on 2026-11-18: the layer does not ship there.
+    expect(streamGate({ links: 21, downhill: 8, level: 2, uphill: 11 }).pass).toBe(false);
   });
 });
 

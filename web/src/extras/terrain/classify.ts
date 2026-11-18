@@ -96,6 +96,14 @@ export function streamDownhillCheck(
   return r;
 }
 
+/** G-TERR-2: at most 20 percent of stream links may run uphill; a site with no stream link passes by default. */
+export const STREAM_GATE_MAX_UPHILL = 0.2;
+
+export function streamGate(r: { links: number; uphill: number }): { pass: boolean; uphillShare: number } {
+  const uphillShare = r.links > 0 ? r.uphill / r.links : 0;
+  return { pass: uphillShare <= STREAM_GATE_MAX_UPHILL, uphillShare };
+}
+
 function inRing(lat: number, lon: number, ring: readonly (readonly number[])[]): boolean {
   let hit = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
