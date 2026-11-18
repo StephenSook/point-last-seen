@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): read "half an hour" as 30 minutes
+- What: "half an hour ago" now gives a sighting 30 minutes before the send (it gave 60), and
+  "for half an hour" gives a search of 30 minutes.
+- Source: fresh-eyes review M2 (a sighting time stored 30 minutes wrong).
+- Verified: the new test failed on both forms, then passed; full suite 199 tests;
+  `scripts/ci-local.sh` exit 0 (lane pushes run no CI).
+
 ### fix(ios): set a damaged journal aside instead of stopping all reporting
 - What: `Outbox.openOrRecover` moves an unreadable journal aside as
   `outbox.damaged-{ms}.json` (kept, never deleted) and starts a new one; `EventStore` opens with

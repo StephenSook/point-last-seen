@@ -106,7 +106,7 @@ public enum ReportParser {
         for i in w.indices {
             if ["minutes", "minute", "mins", "min"].contains(w[i]), let v = NumberWords.parse(w, endingBefore: i) { return v }
             if ["hours", "hour", "hrs", "hr"].contains(w[i]) {
-                if i >= 1, ["an", "a"].contains(w[i - 1]) { return 60 }
+                if i >= 1, ["an", "a"].contains(w[i - 1]) { return i >= 2 && w[i - 2] == "half" ? 30 : 60 }
                 if let v = NumberWords.parse(w, endingBefore: i) { return v * 60 }
             }
         }
@@ -120,7 +120,7 @@ public enum ReportParser {
         let unit = w[ago - 1]
         if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1) }
         if ["hours", "hour", "hrs", "hr"].contains(unit) {
-            if ["an", "a"].contains(w[ago - 2]) { return 60 }
+            if ["an", "a"].contains(w[ago - 2]) { return ago >= 3 && w[ago - 3] == "half" ? 30 : 60 }
             return NumberWords.parse(w, endingBefore: ago - 1).map { $0 * 60 }
         }
         return nil

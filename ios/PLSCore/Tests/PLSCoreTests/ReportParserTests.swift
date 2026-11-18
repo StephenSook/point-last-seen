@@ -104,4 +104,10 @@ import Testing
         let r = ReportParser.parse(text, context: ctx)
         #expect(EffectDeriver.cleared(reading: r, context: EffectContext(grid: grid, assignedSegmentIds: ["AC"], position: nil, visualDetectionRangeM: 10, rdBasis: .openTarget), params: params) == .none(why: .soundOnly))
     }
+
+    @Test func halfAnHourIsThirtyMinutes() {
+        #expect(ReportParser.minutesAgo("saw her half an hour ago in AC") == 30)
+        #expect(ReportParser.minutesAgo("saw her an hour ago in AC") == 60)
+        #expect(ReportParser.parse("swept AD for half an hour, three searchers", context: ctx).minutes == 30)
+    }
 }
