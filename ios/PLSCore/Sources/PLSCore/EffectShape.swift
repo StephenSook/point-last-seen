@@ -12,7 +12,8 @@ public enum EffectShape {
         guard case let .object(o) = effect, case let .string(kind)? = o["kind"] else { return false }
         switch kind {
         case "cleared":
-            guard Set(o.keys) == ["kind", "segmentId", "pod", "inputs"], case .string? = o["segmentId"],
+            guard Set(o.keys) == ["kind", "segmentId", "pod", "inputs"], case let .string(segmentId)? = o["segmentId"],
+                  (1...16).contains(segmentId.unicodeScalars.count),
                   case let .number(pod)? = o["pod"], pod.isFinite, pod >= 0, pod <= 1,
                   case let .object(inputs)? = o["inputs"],
                   Set(inputs.keys) == ["coverage", "sweepWidthM", "trackLengthM", "areaM2", "rdBasis"],
@@ -22,7 +23,8 @@ public enum EffectShape {
                   case let .string(basis)? = inputs["rdBasis"], rdBases.contains(basis) else { return false }
             return true
         case "clue":
-            guard Set(o.keys) == ["kind", "influences", "authenticity"], case let .object(map)? = o["influences"], !map.isEmpty,
+            guard Set(o.keys) == ["kind", "influences", "authenticity"], case let .object(map)? = o["influences"],
+                  (1...64).contains(map.count),
                   map.values.allSatisfy({ if case let .string(v) = $0 { influences.contains(v) } else { false } }),
                   case let .string(a)? = o["authenticity"], authenticities.contains(a) else { return false }
             return true

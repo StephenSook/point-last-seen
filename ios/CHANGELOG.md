@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): hold stored effects to the rules' id length and influence cap
+- What: `EffectShape` now refuses a cleared effect whose segment id is empty or longer than 16
+  characters, and a clue effect with more than 64 influences, as the Firestore create rule does.
+  A stored event that fails is skipped and flagged, never applied.
+- Source: fresh-eyes review M6; orchestrator ruling 2026-11-18 ("a mismatch with the rules is a
+  real defect").
+- Verified: `sizesFollowTheCreateRule` red on the three missing limits, then green; full suite
+  211 tests; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): show the approach card on the Ready check
 - What: `approach-notes.json` is bundled into the app; `ApproachCardView` shows the first lines,
   the rest under More, and the footer; the Ready check shows it under "How to approach them" when
