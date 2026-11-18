@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
+  data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
+  Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).
+  Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
 - Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
   never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
   (no reopen, no edit). A judge sandbox must carry a timestamp `expiresAt` in the future for every member

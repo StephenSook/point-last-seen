@@ -31,4 +31,5 @@ bash scripts/ci-local.sh
 
 ## License
 
-Apache-2.0. See `LICENSE` and `NOTICE`. Map data under `shared/grid/` is ODbL.
+Apache-2.0. See `LICENSE` and `NOTICE`. The drill-site map data (added with the site grid) is ODbL, not
+Apache-2.0; `NOTICE` says how it is licensed.
