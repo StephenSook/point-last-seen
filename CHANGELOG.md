@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- cloudGuard's trigger tests build their template call from the published sighting template's own config in
+  `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
+  cap; a template that loses its limit now fails here as well as in the template tests.
+  Source: review of 5e1d56d..ebd96a9 (the test hardcoded the template's cap).
+  Verified: with `maxOutputTokens` removed from the sighting template, the new test fails; restored, 21
+  cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
 - Firestore rules accept a command camera sighting only when the prior's input ids are a list that contains it.
   `in` also matches the keys of a map, so a map keyed by the sighting's id could have stood in for the list.
   Source: review of d5d6176.
