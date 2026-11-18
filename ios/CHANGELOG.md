@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): add the three read-only report tools
+- What: `SegmentAtTool` ("segmentHere": the segment under the GPS fix, or "No GPS fix. Do not
+  guess a segment."), `TeamAssignmentTool` ("teamAssignment") and `SubjectProfileTool`
+  ("subjectDescription", which returns only `ModelProfile.toolText`). All run in our process;
+  none returns a health or behaviour field.
+- Source: Task 13 (tools), spec section 9; spike S15 (tools must not list every segment id).
+- Verified: `ToolsTests` (three cases, including a profile with dementia type and flags that
+  must not appear) red without the tools, then green on the iOS 27.2 simulator.
+
 ### feat(ios): add the Generable report reading and the neutral prompt
 - What: `ReportReadingG`, the `@Generable` twin of `ReportReading` used on both routes (no
   pattern guides, which Gemini rejects; optional coverage so "not stated" stays visible), with a
