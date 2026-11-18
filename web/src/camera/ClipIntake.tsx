@@ -3,13 +3,20 @@
 // reading, and public use, which is optional), the clip's start time with the camera's clock
 // confirmed, the camera's facing on an 8-way picker and where the camera is. Reading is
 // possible only with the three required consents; readClip checks them again.
+// With this laptop's model, the clip is triaged here first: a clip with no motion or no person
+// is not sent (a consented "Read in the cloud anyway" stays open), and a flagged clip is read
+// only for its flagged seconds.
 
-import { sizeProblem } from "@pls/engine";
+import { sizeProblem, type RouteReason } from "@pls/engine";
 import { useState, type FormEvent } from "react";
-import type { ClipReadOutcome } from "../ai/clipRead";
+import type { ClipReadOutcome, ClipWindow } from "../ai/clipRead";
 import type { LatLon } from "../map/geo";
+import type { TriageResult } from "./triage";
 
 export type ClipConsents = { personInClip: boolean; footageOwner: boolean; cloudProcessing: boolean; publicUse: boolean };
+
+/** How the cloud read runs after triage: the flagged seconds, and why the clip is sent. */
+export type ReadHow = { window?: ClipWindow; reason?: RouteReason };
 
 export type ClipIntakeInput = {
   bytes: Uint8Array;
@@ -62,19 +69,27 @@ type Props = {
   /** Every segment with its centre: the keyboard way to place the camera. */
   choices: readonly { segmentId: string; centre: LatLon }[];
   onPlaceCamera: (p: LatLon) => void;
-  onRead: (input: ClipIntakeInput) => Promise<ClipReadOutcome>;
+  onRead: (input: ClipIntakeInput, how: ReadHow) => Promise<ClipReadOutcome>;
+  /** On-device triage; without it the clip goes straight to the consented cloud read. */
+  onTriage?: (clip: Blob) => Promise<TriageResult>;
   onClose: () => void;
 };
 
-export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onClose }: Props) {
+const HELD = {
+  "no-motion": "Nothing moves in this clip. Nothing was sent.",
+  "no-person": "No person found on this laptop. Nothing was sent.",
+} as const;
+
+export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onClose }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [durationS, setDurationS] = useState<number | null>(null);
   const [start, setStart] = useState("");
   const [clockConfirmed, setClock] = useState(false);
   const [facing, setFacing] = useState<number | null>(null);
   const [consents, setConsents] = useState<ClipConsents>({ personInClip: false, footageOwner: false, cloudProcessing: false, publicUse: false });
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<false | "checking" | "reading">(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
+  const [held, setHeld] = useState<{ input: ClipIntakeInput; kind: keyof typeof HELD } | null>(null);
 
   const tooBig = file ? sizeProblem(file.size) : null;
   const ready = !!file && !tooBig && durationS !== null && start !== "" && consents.personInClip && consents.footageOwner && consents.cloudProcessing;
@@ -83,25 +98,15 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     setFile(f);
     setDurationS(null);
     setMessage(null);
+    setHeld(null);
     if (f && !sizeProblem(f.size)) setDurationS(await readDurationS(f));
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!ready || !file || durationS === null) return;
-    setBusy(true);
-    setMessage(null);
+  async function read(input: ClipIntakeInput, how: ReadHow) {
+    setBusy("reading");
+    setHeld(null);
     try {
-      const outcome = await onRead({
-        bytes: new Uint8Array(await file.arrayBuffer()),
-        mimeType: file.type || "video/mp4",
-        durationS,
-        clipStartMs: new Date(start).getTime(),
-        clockConfirmed,
-        cameraFacingDeg: facing,
-        camera,
-        consents,
-      });
+      const outcome = await onRead(input, how);
       const text = clipOutcomeMessage(outcome);
       if (text) setMessage({ text, alert: outcome.kind !== "could-not-read" });
     } catch {
@@ -111,9 +116,41 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     }
   }
 
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!ready || !file || durationS === null) return;
+    setMessage(null);
+    setHeld(null);
+    const input: ClipIntakeInput = {
+      bytes: new Uint8Array(await file.arrayBuffer()),
+      mimeType: file.type || "video/mp4",
+      durationS,
+      clipStartMs: new Date(start).getTime(),
+      clockConfirmed,
+      cameraFacingDeg: facing,
+      camera,
+      consents,
+    };
+    if (!onTriage) return read(input, {});
+    setBusy("checking");
+    let t: TriageResult;
+    try {
+      t = await onTriage(file);
+    } catch {
+      t = { kind: "unavailable" };
+    }
+    setBusy(false);
+    if (t.kind === "flagged") return read(input, { window: t.window, reason: "on_device_triage_flagged" });
+    if (t.kind === "no-motion" || t.kind === "no-person") {
+      setHeld({ input, kind: t.kind });
+      return;
+    }
+    return read(input, {});
+  }
+
   const consent = (key: keyof ClipConsents, label: string) => (
     <label className="check">
-      <input type="checkbox" checked={consents[key]} onChange={(e) => setConsents((c) => ({ ...c, [key]: e.target.checked }))} disabled={busy} />
+      <input type="checkbox" checked={consents[key]} onChange={(e) => setConsents((c) => ({ ...c, [key]: e.target.checked }))} disabled={busy !== false} />
       {label}
     </label>
   );
@@ -122,7 +159,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     <form className="sighting-form" onSubmit={submit} aria-label="Add camera clip">
       <label>
         Clip
-        <input type="file" accept="video/*" onChange={(e) => void pick(e.target.files?.[0] ?? null)} disabled={busy} />
+        <input type="file" accept="video/*" onChange={(e) => void pick(e.target.files?.[0] ?? null)} disabled={busy !== false} />
       </label>
       {file && !tooBig && <p className="muted small" data-testid="clip-facts">{clipFacts(file.size, durationS)}</p>}
       {tooBig && (
@@ -133,17 +170,17 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       {file && !tooBig && durationS === null && <p className="muted small">Reading the clip's length.</p>}
       <label>
         Clip starts at
-        <input type="datetime-local" step={1} value={start} onChange={(e) => setStart(e.target.value)} disabled={busy} />
+        <input type="datetime-local" step={1} value={start} onChange={(e) => setStart(e.target.value)} disabled={busy !== false} />
       </label>
       <label className="check">
-        <input type="checkbox" checked={clockConfirmed} onChange={(e) => setClock(e.target.checked)} disabled={busy} />
+        <input type="checkbox" checked={clockConfirmed} onChange={(e) => setClock(e.target.checked)} disabled={busy !== false} />
         The camera's clock is right
       </label>
       <fieldset className="facing">
         <legend>Camera faces</legend>
         {FACINGS.map(([deg, name]) => (
           <label key={name} className="check">
-            <input type="radio" name="facing" checked={facing === deg} onChange={() => setFacing(deg)} disabled={busy} />
+            <input type="radio" name="facing" checked={facing === deg} onChange={() => setFacing(deg)} disabled={busy !== false} />
             {name}
           </label>
         ))}
@@ -156,7 +193,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
             const c = choices.find((x) => x.segmentId === e.target.value);
             if (c) onPlaceCamera(c.centre);
           }}
-          disabled={busy}
+          disabled={busy !== false}
         >
           <option value="">{camera && !cameraSegmentId ? "Outside the search area" : "On the map"}</option>
           {choices.map((c) => (
@@ -178,11 +215,19 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
           {message.text}
         </p>
       )}
+      {held && (
+        <div className="note-state">
+          <p role="status">{HELD[held.kind]}</p>
+          <button type="button" className="btn ghost" onClick={() => void read(held.input, { reason: "user_override_after_triage" })} disabled={busy !== false}>
+            Read in the cloud anyway
+          </button>
+        </div>
+      )}
       <div className="row">
-        <button type="submit" className="btn" disabled={!ready || busy}>
-          {busy ? "Reading" : "Read clip"}
+        <button type="submit" className="btn" disabled={!ready || busy !== false}>
+          {busy === "checking" ? "Checking on this laptop" : busy === "reading" ? "Reading" : "Read clip"}
         </button>
-        <button type="button" className="btn ghost" onClick={onClose} disabled={busy}>
+        <button type="button" className="btn ghost" onClick={onClose} disabled={busy !== false}>
           Cancel
         </button>
       </div>

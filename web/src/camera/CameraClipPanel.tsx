@@ -5,7 +5,8 @@
 import { useMemo, useState } from "react";
 import type { ClipReadOutcome } from "../ai/clipRead";
 import type { LatLon } from "../map/geo";
-import { ClipIntake, type ClipIntakeInput } from "./ClipIntake";
+import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
+import type { TriageResult } from "./triage";
 import { SightingCard } from "./SightingCard";
 
 export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
@@ -16,12 +17,13 @@ type Props = {
   choices: readonly { segmentId: string; centre: LatLon }[];
   onPlaceCamera: (p: LatLon) => void;
   priorVersion: number;
-  onRead: (input: ClipIntakeInput) => Promise<ClipReadOutcome>;
+  onRead: (input: ClipIntakeInput, how: ReadHow) => Promise<ClipReadOutcome>;
+  onTriage?: (clip: Blob) => Promise<TriageResult>;
   onConfirm: (read: ClipRead, input: ClipIntakeInput) => { version: number; ack: Promise<void> };
   onClose: () => void;
 };
 
-export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, priorVersion, onRead, onConfirm, onClose }: Props) {
+export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, priorVersion, onRead, onTriage, onConfirm, onClose }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
   const [sent, setSent] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +36,9 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         cameraSegmentId={cameraSegmentId}
         choices={choices}
         onPlaceCamera={onPlaceCamera}
-        onRead={async (input) => {
-          const o = await onRead(input);
+        onTriage={onTriage}
+        onRead={async (input, how) => {
+          const o = await onRead(input, how);
           if (o.kind === "read") setRead({ o, input });
           return o;
         }}

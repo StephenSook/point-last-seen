@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ClipReadOutcome } from "../ai/clipRead";
+import type { TriageResult } from "../camera/triage";
 import { CameraClipPanel } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput } from "../camera/ClipIntake";
 import { segmentChoices, segmentContaining, type LatLon } from "../map/geo";
@@ -22,12 +23,22 @@ const FIXED: ClipReadOutcome = {
     lighting: "day", legibility: "clear", evidence: "Synthetic reading for the harness.",
   },
 };
-const answer = new URLSearchParams(location.search).get("outcome") === "read" ? FIXED : ({ kind: "could-not-read" } as const);
+const params = new URLSearchParams(location.search);
+const answer = params.get("outcome") === "read" ? FIXED : ({ kind: "could-not-read" } as const);
+// ?triage=no-model|no-motion|no-person|flagged: a fixed triage answer (no on-device model here).
+const TRIAGE: Record<string, TriageResult> = {
+  "no-model": { kind: "no-model" },
+  "no-motion": { kind: "no-motion", latencyMs: 5 },
+  "no-person": { kind: "no-person", windows: [], latencyMs: 5 },
+  flagged: { kind: "flagged", window: { startS: 1, endS: 5 }, windows: [], latencyMs: 5 },
+};
+const triage = params.get("triage");
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
   const [asked, setAsked] = useState<ClipIntakeInput | null>(null);
   const [confirmed, setConfirmed] = useState<string>("");
+  const [how, setHow] = useState<string>("");
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
@@ -37,8 +48,10 @@ function Harness() {
         choices={segmentChoices(HARNESS_SEGMENTS)}
         onPlaceCamera={setCamera}
         priorVersion={8}
-        onRead={async (input) => {
+        onTriage={triage ? async () => TRIAGE[triage]! : undefined}
+        onRead={async (input, h) => {
           setAsked(input);
+          setHow(JSON.stringify(h));
           return answer;
         }}
         onConfirm={(o, input) => {
@@ -48,6 +61,7 @@ function Harness() {
         onClose={() => {}}
       />
       <pre data-testid="confirmed">{confirmed}</pre>
+      <pre data-testid="how">{how}</pre>
       <pre data-testid="asked">{asked ? JSON.stringify({ ...asked, bytes: asked.bytes.length }) : ""}</pre>
     </main>
   );

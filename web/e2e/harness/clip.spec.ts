@@ -77,3 +77,40 @@ test("Confirm hands the reading on once and reports the rebuilt prior", async ({
   expect(confirmed.bearingDeg).toBe(0);
   expect(confirmed.camera.lon).toBeCloseTo(0.003, 9);
 });
+
+async function fillAndRead(page: import("@playwright/test").Page, url: string) {
+  await page.goto(url);
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+}
+const how = async (page: import("@playwright/test").Page) => JSON.parse((await page.getByTestId("how").innerText()) || "null") as unknown;
+
+test("triage: no person on this laptop sends nothing, and Read in the cloud anyway records why", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=no-person");
+  await expect(page.getByRole("status")).toHaveText("No person found on this laptop. Nothing was sent.");
+  await expect(page.getByTestId("asked")).toHaveText("");
+  await page.getByRole("button", { name: "Read in the cloud anyway" }).click();
+  await expect(page.getByTestId("asked")).not.toHaveText("");
+  expect(await how(page)).toEqual({ reason: "user_override_after_triage" });
+});
+
+test("triage: a still clip sends nothing", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=no-motion");
+  await expect(page.getByRole("status")).toHaveText("Nothing moves in this clip. Nothing was sent.");
+  await expect(page.getByTestId("asked")).toHaveText("");
+  await expect(page.getByRole("button", { name: "Read in the cloud anyway" })).toBeVisible();
+});
+
+test("triage: a flagged clip is read only for its flagged seconds", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByTestId("asked")).not.toHaveText("");
+  expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+});
+
+test("triage: without this laptop's model the clip goes to the plain consented read", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=no-model");
+  await expect(page.getByTestId("asked")).not.toHaveText("");
+  expect(await how(page)).toEqual({});
+});
