@@ -4,6 +4,7 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Call first screen.** After "She's gone" the first screen says "Call 911 first." with a dialer button, or in a drill "Training drill. Call the drill call-taker, not 911." with no dialer. Source: Task 19 step 4, spec 6.4. Verified: `CallFirstScreenTest` failed to compile first, then passes on the emulator.
 - **Paper theme and the screen frame.** `PaperTheme` uses the paper tokens (#EBE7E2 background,
   #292624 ink, #585452 secondary) and the system font; `Paper.crossfade()` is the only motion
   (350 ms, no spring). `FamilyScaffold` puts "Training drill. Nobody is missing." on every drill
