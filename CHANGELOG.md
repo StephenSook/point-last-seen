@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
+  Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
+  FIREBASE_APPCHECK_DEBUG_TOKEN and debug-provider hits on the exact signed APK (the debug APK reports 5).
+  Source: lane D handover via the orchestrator.
+  Verified: text matches the handover; no dashes or curly quotes; `bash scripts/ci-local.sh` exits 0.
 - Run the seeding tool's tests in the `gates` job and in `ci-local.sh`.
   Source: CI mirrors every test suite in the repo.
   Verified: `bash scripts/ci-local.sh` exits 0 with the 5 seed tests in the gates pytest run.
