@@ -35,7 +35,12 @@ function Harness() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "auto 1fr" }}>
       <p className="drill" style={{ margin: 0, padding: 8 }}>Synthetic test grid, not drill data.</p>
-      <MapView segments={HARNESS_SEGMENTS} poa={HARNESS_POA} onReady={(m) => (document.body.dataset["mapReady"] = m ? "map" : "none")} />
+      <MapView
+        segments={HARNESS_SEGMENTS}
+        poa={HARNESS_POA}
+        onReady={(m) => (document.body.dataset["mapReady"] = m ? "map" : "none")}
+        ripple={new URLSearchParams(location.search).has("ripple") ? { key: "prior-1", origin: HARNESS_SEGMENTS[1]!.centroid } : null}
+      />
     </div>
   );
 }

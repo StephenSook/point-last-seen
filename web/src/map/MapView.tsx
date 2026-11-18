@@ -10,7 +10,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // build emits it as an asset and MapLibre is told where it is.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { deltaLabel, type ChangeResult } from "../command/changeModel";
-import { motionScope, playReportBeat } from "../motion/engine";
+import { motionScope, playReportBeat, playRipple } from "../motion/engine";
+import { rippleDelays } from "../motion/ripple";
 import { reportBeatPlan } from "../motion/plan";
 import { mapCredit } from "./credit";
 import { useEffect, useRef, useState } from "react";
@@ -41,6 +42,8 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** When `key` (the prior version) is first drawn, the dots grow outward from `origin`. */
+  ripple?: { key: string; origin: LatLon } | null;
   /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
   basemapUrl?: string | null;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
@@ -62,7 +65,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -79,6 +82,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   const reduced = useRef(false);
   const lastBeatKey = useRef<string | undefined>(undefined);
   const beatRun = useRef<{ cancel(): void } | null>(null);
+  const lastRippleKey = useRef<string | null>(null);
+  const rippleRun = useRef<{ cancel(): void } | null>(null);
   const [basemap, setBasemap] = useState<"none" | "drawn" | "absent" | "invalid" | "unavailable">("none");
 
   useEffect(() => {
@@ -103,7 +108,13 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         id: "centre-dot",
         type: "circle",
         source: "centres",
-        paint: { "circle-radius": ["get", "r"], "circle-color": MAP_INK.dot, "circle-stroke-color": MAP_INK.dotRing, "circle-stroke-width": 1.5 },
+        // "grow" (feature state, 0 to 1, absent 1) drives the ripple.
+        paint: {
+          "circle-radius": ["*", ["get", "r"], ["coalesce", ["feature-state", "grow"], 1]] as never,
+          "circle-stroke-width": ["*", 1.5, ["coalesce", ["feature-state", "grow"], 1]] as never,
+          "circle-color": MAP_INK.dot,
+          "circle-stroke-color": MAP_INK.dotRing,
+        },
       });
       // Moved by the newest report (22.1): 2 px cyan on a 2 px bg-0 casing each side, so it reads on every step.
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
@@ -119,6 +130,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     });
     return () => {
       beatRun.current?.cancel();
+      rippleRun.current?.cancel();
       scope.revert();
       for (const mk of [...markers.current, ...chips.current]) mk.remove();
       m.remove();
@@ -207,6 +219,27 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       live = false;
     };
   }, [basemapUrl]);
+
+  // The ripple (22.1): on a prior's first draw, dots grow outward from the point last seen.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ripple || segments.length === 0 || ripple.key === lastRippleKey.current) return;
+    const play = () => {
+      lastRippleKey.current = ripple.key;
+      rippleRun.current?.cancel();
+      const wrap = el.current?.parentElement;
+      wrap?.setAttribute("data-ripple", "playing");
+      const delays = rippleDelays(segments.map((s) => s.centroid), ripple.origin);
+      rippleRun.current = playRipple(
+        delays,
+        reduced.current,
+        (i, t) => m.setFeatureState({ source: "centres", id: i }, { grow: t }),
+        () => wrap?.setAttribute("data-ripple", "done"),
+      );
+    };
+    if (ready.current) play();
+    else m.once("load", play);
+  }, [ripple?.key, segments.length > 0]);
 
   // The REPORT beat (22.1): lightness cross-fades nearest first, the cyan outline pulses once, the
   // chips rise. Not on the first change seen (a reload shows the final map); reduced motion shows

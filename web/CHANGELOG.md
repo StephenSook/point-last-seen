@@ -624,3 +624,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `rippleDelays(points, origin)` in `motion/ripple.ts`: each point's offset from the point last seen in 125 m cells (a local flat approximation), times 25 ms.
 - Source: plan Task 39.6.
 - Verified: new test failed first, then passed (0 ms at the origin, 50 ms two cells north, 75 ms three cells east). scripts/ci-local.sh exit 0.
+
+### feat(motion): grow the probability dots outward from the start when a prior first draws
+- What: `playRipple` in `motion/engine.ts` grows each dot over 400 ms out(3) after its delay (one RIPPLE timeline); MapView multiplies the dot radius and ring by a per-dot feature state and plays it when its `ripple` key first draws, marking `data-ripple` playing then done. The post keys it by prior version with the incident's start point, so it plays on load and again after a prior rebuild. Reduced motion draws the dots at once.
+- Source: plan Task 39.6, spec 22.1 "Grid ripple".
+- Verified: two new map harness tests failed first (no ripple), then passed: a far dot is not drawn early in the ripple and is drawn when it is done (pixels); with reduced motion the dots are there at once. All 16 harness specs pass. Typecheck clean. scripts/ci-local.sh exit 0.
