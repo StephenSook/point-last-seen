@@ -81,11 +81,23 @@ def frame(fields):
     return out
 
 
-def test_event_id_layout_is_length_prefixed_sha256():
+def test_event_id_layout_is_text_length_prefixed_sha256():
+    # eventId framing (coordinator decision H1): decimal UTF-8 byte length, ":", value, per field, so the
+    # security rules can recompute it. Worked example: "ab", "c", 1 hashes the string "2:ab1:c1:1".
     c = case(load(V), "ids", "ab_c_1")
-    expect = hashlib.sha256(frame(["ab", "c", "1"])).hexdigest()[:32]
     assert c["input"] == {"fn": "eventId", "incidentId": "ab", "deviceId": "c", "seq": 1}
-    assert c["expected"] == {"eventId": expect}
+    assert c["expected"] == {"eventId": hashlib.sha256(b"2:ab1:c1:1").hexdigest()[:32]}
+    assert case(load(V), "ids", "a_bc_1")["expected"]["eventId"] == hashlib.sha256(b"1:a2:bc1:1").hexdigest()[:32]
+
+
+def test_event_id_utf8_and_epoch_ms_cases():
+    v = load(V)
+    u = case(v, "ids", "utf8_lengths_are_bytes")
+    raw = "5:caf\u00e97:\u00e9quipe1:3".encode("utf-8")
+    assert u["expected"]["eventId"] == hashlib.sha256(raw).hexdigest()[:32]
+    e = case(v, "ids", "epoch_ms_seq")
+    assert e["input"]["seq"] == 1795860000000
+    assert e["expected"]["eventId"] == hashlib.sha256(b"11:drill-dev-19:uid123ABC13:1795860000000").hexdigest()[:32]
 
 
 def test_event_set_hash_layout_and_convergence_code():
@@ -137,3 +149,23 @@ def test_command_confirmation_outranks_a_later_family_one():
     v = load(V)
     assert case(v, "docToEngine", "family_confirm_after_command_reject_ignored")["expected"] == []
     assert len(case(v, "docToEngine", "command_confirm_after_family_reject_counts")["expected"]) == 1
+
+
+def test_malformed_stored_effects_are_skipped_not_fatal():
+    v = load(V)
+    for name in ("malformed_cleared_without_inputs_skipped", "malformed_cleared_pod_as_text_skipped",
+                 "malformed_cleared_unknown_rd_basis_skipped", "malformed_clue_unknown_influence_skipped",
+                 "malformed_clue_empty_influences_skipped", "malformed_effect_null_skipped",
+                 "malformed_none_without_reason_skipped"):
+        assert case(v, "docToEngine", name)["expected"] == [], name
+    assert len(case(v, "docToEngine", "malformed_beside_good_events_keeps_the_good")["expected"]) == 2
+
+
+def test_measured_detection_range_beats_a_stated_one():
+    # Spec 10.4: sweep width always uses the visual detection range the team measured. A model-read
+    # range is used only when there is no measurement, so it can never raise POD above a measurement.
+    v = load(V)
+    m = case(v, "deriveEffect", "measured_range_beats_stated")["expected"]["inputs"]
+    assert m["sweepWidthM"] == approx(16.45) and m["rdBasis"] == "hidden_target"
+    s = case(v, "deriveEffect", "stated_range_used_without_measurement")["expected"]["inputs"]
+    assert s["sweepWidthM"] == approx(8.225) and s["rdBasis"] == "stated"

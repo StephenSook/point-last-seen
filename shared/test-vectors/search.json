@@ -6220,7 +6220,7 @@
    }
   },
   {
-   "name": "stated_detection_range_basis_stated",
+   "name": "measured_range_beats_stated",
    "input": {
     "fn": "cleared",
     "reading": {
@@ -6357,7 +6357,218 @@
       "AC"
      ],
      "visualDetectionRangeM": 10,
-     "rdBasis": "open_target",
+     "rdBasis": "hidden_target",
+     "position": null,
+     "positionSegmentId": null
+    },
+    "params": {
+     "sweepWidthFactor": 1.645,
+     "sweepSpeedMps": 0.39,
+     "hastySpeedMps": 0.53,
+     "secondsPerMinute": 60,
+     "iocBase": {
+      "strong_for": 1.0,
+      "for": 0.8,
+      "neutral": 0.6,
+      "against": 0.4,
+      "strong_against": 0.2
+     },
+     "authenticityWeight": {
+      "high": 1.0,
+      "medium": 0.6,
+      "low": 0.0
+     },
+     "coverageRatioMax": 3,
+     "coveragePercentMax": 300,
+     "detectionRangeMinM": 1,
+     "detectionRangeMaxM": 100,
+     "detectionProfile": {
+      "soundCounts": false
+     },
+     "rings": {
+      "masses": [
+       0.25,
+       0.25,
+       0.25,
+       0.2
+      ],
+      "temperate_flat": [
+       0.3,
+       1.0,
+       2.4,
+       12.8
+      ],
+      "temperate_mountain": [
+       0.3,
+       0.8,
+       1.9,
+       8.3
+      ]
+     },
+     "nearFeature": {
+      "bufferM": 71,
+      "nearShare": 0.75,
+      "farShare": 0.25
+     },
+     "wedge": {
+      "halfAngleDeg": 66,
+      "inside": 2.045,
+      "outside": 0.395
+     }
+    }
+   },
+   "expected": {
+    "kind": "cleared",
+    "segmentId": "AB",
+    "pod": 0.6267178832317363,
+    "inputs": {
+     "coverage": 0.9854208,
+     "sweepWidthM": 16.45,
+     "trackLengthM": 936.0,
+     "areaM2": 15625,
+     "rdBasis": "hidden_target"
+    }
+   }
+  },
+  {
+   "name": "stated_range_used_without_measurement",
+   "input": {
+    "fn": "cleared",
+    "reading": {
+     "kind": "cleared",
+     "segmentIds": [
+      "AB"
+     ],
+     "method": "visual",
+     "coverage": null,
+     "minutes": 20,
+     "searchers": 2,
+     "searchType": "sweep",
+     "detectionRangeM": 5,
+     "item": "",
+     "feature": "none",
+     "direction": "unknown",
+     "topColor": "unknown",
+     "bottomColor": "unknown",
+     "footwear": "",
+     "carried": "",
+     "matchesProfile": "unknown",
+     "evidenceQuote": ""
+    },
+    "ctx": {
+     "segments": {
+      "AA": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 90
+        },
+        {
+         "segmentId": "AD",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [
+        "AB"
+       ],
+       "downstream": []
+      },
+      "AB": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AA",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AC",
+         "bearingDeg": 90
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [
+        "AC"
+       ],
+       "downstream": [
+        "AA"
+       ]
+      },
+      "AC": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AF",
+         "bearingDeg": 180
+        }
+       ],
+       "upstream": [],
+       "downstream": [
+        "AB"
+       ]
+      },
+      "AD": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AA",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 90
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      },
+      "AE": {
+       "areaM2": 100000,
+       "neighbors": [
+        {
+         "segmentId": "AB",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AD",
+         "bearingDeg": 270
+        },
+        {
+         "segmentId": "AF",
+         "bearingDeg": 90
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      },
+      "AF": {
+       "areaM2": 15625,
+       "neighbors": [
+        {
+         "segmentId": "AC",
+         "bearingDeg": 0
+        },
+        {
+         "segmentId": "AE",
+         "bearingDeg": 270
+        }
+       ],
+       "upstream": [],
+       "downstream": []
+      }
+     },
+     "assignedSegmentIds": [
+      "AC"
+     ],
+     "visualDetectionRangeM": null,
+     "rdBasis": "default",
      "position": null,
      "positionSegmentId": null
     },
@@ -8674,7 +8885,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -8716,7 +8927,7 @@
    },
    "expected": [
     {
-     "eventId": "d952b9d38897e983e5d086ed131905e1",
+     "eventId": "135f6bc141856845d33d87d067eb843d",
      "effect": {
       "kind": "cleared",
       "segmentId": "AB",
@@ -8737,7 +8948,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "1474553601d0c3a5896cd5f7f917c03e",
+      "eventId": "484df5b8651d1025299e5299fe9f065c",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -8776,7 +8987,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "fd2c4346db197b0cef80e6b6273afcef",
+      "eventId": "7f72693062abbaba07f13cdb05efa1af",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -8814,7 +9025,7 @@
    },
    "expected": [
     {
-     "eventId": "fd2c4346db197b0cef80e6b6273afcef",
+     "eventId": "7f72693062abbaba07f13cdb05efa1af",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -8831,7 +9042,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "9e3babfd1240404040a481cf327ac780",
+      "eventId": "f8b67438226f2976f0f6a02541d42d72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -8868,7 +9079,7 @@
    },
    "expected": [
     {
-     "eventId": "9e3babfd1240404040a481cf327ac780",
+     "eventId": "f8b67438226f2976f0f6a02541d42d72",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -8884,7 +9095,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "4545a02784d457afcd3af5bf9fc65f8c",
+      "eventId": "02e562d816905fe9da8aeeaef4e9b3c9",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -8926,7 +9137,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -8973,7 +9184,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9011,7 +9222,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9035,7 +9246,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -9045,7 +9256,7 @@
    },
    "expected": [
     {
-     "eventId": "d73f9170c78a30baa82f33708f749156",
+     "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -9062,7 +9273,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9100,7 +9311,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9124,7 +9335,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "rejected",
       "planVersion": null,
       "priorVersion": 1
@@ -9139,7 +9350,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9177,7 +9388,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9201,13 +9412,13 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
      },
      {
-      "eventId": "616038cda5ebea8ebba4071c906e2d53",
+      "eventId": "660814dc74b2a7462afe9b18e4de795e",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9231,7 +9442,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "rejected",
       "planVersion": null,
       "priorVersion": 1
@@ -9246,7 +9457,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9284,7 +9495,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9308,13 +9519,13 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "rejected",
       "planVersion": null,
       "priorVersion": 1
      },
      {
-      "eventId": "616038cda5ebea8ebba4071c906e2d53",
+      "eventId": "660814dc74b2a7462afe9b18e4de795e",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9338,7 +9549,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -9348,7 +9559,7 @@
    },
    "expected": [
     {
-     "eventId": "d73f9170c78a30baa82f33708f749156",
+     "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -9365,7 +9576,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9403,7 +9614,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9427,13 +9638,13 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "rejected",
       "planVersion": null,
       "priorVersion": 1
      },
      {
-      "eventId": "81d054ffcb3d910d34e799c09138c6f4",
+      "eventId": "e91293aff8308d497f0656b5eb144ecb",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9457,7 +9668,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -9472,7 +9683,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9510,7 +9721,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "3eb52877d01fbe2fb737f23f96303ff3",
+      "eventId": "97e26b7062f5abe2018266d5b5a392a9",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9534,13 +9745,13 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "rejected",
       "planVersion": null,
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9564,7 +9775,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -9574,7 +9785,7 @@
    },
    "expected": [
     {
-     "eventId": "d73f9170c78a30baa82f33708f749156",
+     "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -9591,7 +9802,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9629,7 +9840,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9653,13 +9864,13 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
      },
      {
-      "eventId": "aa4c2894291e5b42a7f3b4524a3391d2",
+      "eventId": "914c9b956aa0fb6ec664c4adbf873d7e",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9683,7 +9894,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "targetEventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "decision": null,
       "planVersion": null,
       "priorVersion": 1
@@ -9698,7 +9909,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9736,7 +9947,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "0e2fa2c248369d5604b4cf476c7ff8ae",
+      "eventId": "d07bfaa6b9e282bcc9a7971c7b2294ea",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9760,7 +9971,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d952b9d38897e983e5d086ed131905e1",
+      "targetEventId": "135f6bc141856845d33d87d067eb843d",
       "decision": null,
       "planVersion": null,
       "priorVersion": 1
@@ -9775,7 +9986,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9813,7 +10024,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9855,7 +10066,7 @@
    },
    "expected": [
     {
-     "eventId": "d952b9d38897e983e5d086ed131905e1",
+     "eventId": "135f6bc141856845d33d87d067eb843d",
      "effect": {
       "kind": "cleared",
       "segmentId": "AB",
@@ -9876,7 +10087,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9914,7 +10125,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "0c29ca851276d3a02c56b9054dd7a894",
+      "eventId": "04e9198df86ec75747cfc18867031ec2",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -9938,7 +10149,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -9953,7 +10164,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -9991,7 +10202,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "21159702937426edaf7b29c66af1b0ad",
+      "eventId": "6e79c3a5984304d182c415e8663abedd",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10015,7 +10226,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -10025,7 +10236,7 @@
    },
    "expected": [
     {
-     "eventId": "d73f9170c78a30baa82f33708f749156",
+     "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -10042,7 +10253,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10080,7 +10291,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "92d0348a2491e3440e305e8ca4223b25",
+      "eventId": "b71c23a4e030b929ad5cc7c192b5760c",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10104,7 +10315,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d952b9d38897e983e5d086ed131905e1",
+      "targetEventId": "135f6bc141856845d33d87d067eb843d",
       "decision": null,
       "planVersion": null,
       "priorVersion": 1
@@ -10114,7 +10325,7 @@
    },
    "expected": [
     {
-     "eventId": "d952b9d38897e983e5d086ed131905e1",
+     "eventId": "135f6bc141856845d33d87d067eb843d",
      "effect": {
       "kind": "cleared",
       "segmentId": "AB",
@@ -10135,7 +10346,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10173,7 +10384,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "d46cd032c52803cd184410c582f23db6",
+      "eventId": "37b9cc18f8b87bb51a7849d5c698900f",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10197,7 +10408,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d952b9d38897e983e5d086ed131905e1",
+      "targetEventId": "135f6bc141856845d33d87d067eb843d",
       "decision": null,
       "planVersion": null,
       "priorVersion": 1
@@ -10212,7 +10423,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "bb5d05c4ec567681b93877d9339de1d0",
+      "eventId": "d2b6c47fe4a0db39631a317cf561dd13",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10255,11 +10466,440 @@
    "expected": []
   },
   {
+   "name": "malformed_cleared_without_inputs_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "c0e574fcbaef5295dece2462ce8c5c6e",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 1,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_cleared_pod_as_text_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "e2d6807a5df870cc15dfc56a9164ac57",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 2,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860120000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": "0.5",
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "open_target"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_cleared_unknown_rd_basis_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "7ea87a782274ac77bb08a81dca6028d4",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 3,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860180000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5,
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "guess"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_clue_unknown_influence_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "8f4f77515ed1d0668fd3f55f013792dd",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 4,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860240000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "certain"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_clue_empty_influences_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "c203e5d5b8f749292ce7540743d0758b",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 5,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860300000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {},
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_effect_null_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "3ec08f16c0cd53be664e36da24e6044c",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 6,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860360000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": null,
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_none_without_reason_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "86a1226ce9790d098fff8b2bb3e3c653",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 7,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "found",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860420000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_beside_good_events_keeps_the_good",
+   "input": {
+    "docs": [
+     {
+      "eventId": "0ea9b2d506f5b6ace7c890b7ce5d265a",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 8,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860480000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "135f6bc141856845d33d87d067eb843d",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev1",
+      "seq": 1,
+      "authorUid": "uid-dev1",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5,
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "open_target"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "e3f7ba8cf20c36502721d44f787aea83",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev1",
+      "seq": 15,
+      "authorUid": "uid-dev1",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860900000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "strong_for",
+        "AA": "for"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": [
+    {
+     "eventId": "135f6bc141856845d33d87d067eb843d",
+     "effect": {
+      "kind": "cleared",
+      "segmentId": "AB",
+      "pod": 0.5,
+      "inputs": {
+       "coverage": 0.6931471805599453,
+       "sweepWidthM": null,
+       "trackLengthM": null,
+       "areaM2": 15625,
+       "rdBasis": "open_target"
+      }
+     }
+    },
+    {
+     "eventId": "e3f7ba8cf20c36502721d44f787aea83",
+     "effect": {
+      "kind": "clue",
+      "influences": {
+       "AB": "strong_for",
+       "AA": "for"
+      },
+      "authenticity": "high"
+     }
+    }
+   ]
+  },
+  {
    "name": "large_computed_coverage_counts",
    "input": {
     "docs": [
      {
-      "eventId": "eccc88a725421a147b959553a51d317a",
+      "eventId": "27e08ee14472fabe706d620c7bddc0dc",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10301,7 +10941,7 @@
    },
    "expected": [
     {
-     "eventId": "eccc88a725421a147b959553a51d317a",
+     "eventId": "27e08ee14472fabe706d620c7bddc0dc",
      "effect": {
       "kind": "cleared",
       "segmentId": "AB",
@@ -10322,7 +10962,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "5776dde2d6d2e9853ea52a80d99fbec9",
+      "eventId": "34286e6f49dabd3b5f755a95569e6de1",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10356,7 +10996,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "8701bdf7d95e67f98d10dbe792926381",
+      "eventId": "b58b79c2434ef9769f2845c1eae2d2d1",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10380,14 +11020,14 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "5776dde2d6d2e9853ea52a80d99fbec9",
+      "targetEventId": "34286e6f49dabd3b5f755a95569e6de1",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
      }
     ],
     "priorInputEventIds": [
-     "5776dde2d6d2e9853ea52a80d99fbec9"
+     "34286e6f49dabd3b5f755a95569e6de1"
     ]
    },
    "expected": []
@@ -10397,7 +11037,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "5776dde2d6d2e9853ea52a80d99fbec9",
+      "eventId": "34286e6f49dabd3b5f755a95569e6de1",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10431,7 +11071,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "8701bdf7d95e67f98d10dbe792926381",
+      "eventId": "b58b79c2434ef9769f2845c1eae2d2d1",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10455,7 +11095,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "5776dde2d6d2e9853ea52a80d99fbec9",
+      "targetEventId": "34286e6f49dabd3b5f755a95569e6de1",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -10470,7 +11110,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "ffa4810612340c0e609a7aa9699698b1",
+      "eventId": "b99c60fee93defbbae434900b2211c65",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10504,7 +11144,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "4163341aee468f0962bc5c3588c977a3",
+      "eventId": "755444f3e9319ded7dc6775310c03754",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10528,14 +11168,14 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "ffa4810612340c0e609a7aa9699698b1",
+      "targetEventId": "b99c60fee93defbbae434900b2211c65",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
      }
     ],
     "priorInputEventIds": [
-     "ffa4810612340c0e609a7aa9699698b1"
+     "b99c60fee93defbbae434900b2211c65"
     ]
    },
    "expected": []
@@ -10545,7 +11185,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "d73f9170c78a30baa82f33708f749156",
+      "eventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10583,7 +11223,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fb13b2a6ea7d5a67cdcd5353c2195b02",
+      "eventId": "7b17c6f8a25a5917d3861cc2ce388c72",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10607,14 +11247,14 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "d73f9170c78a30baa82f33708f749156",
+      "targetEventId": "350e3ffd91c3a57eb93151cf15ba145d",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
      }
     ],
     "priorInputEventIds": [
-     "d73f9170c78a30baa82f33708f749156"
+     "350e3ffd91c3a57eb93151cf15ba145d"
     ]
    },
    "expected": []
@@ -10624,7 +11264,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "aae4f7b393e2398b017f9069e1658548",
+      "eventId": "2632e9b90059763de45439a76baca5e0",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10658,7 +11298,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "5ef2e442bc33b088bf32363787797e8f",
+      "eventId": "7ad015c72032de0b470e58528492e15a",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": null,
@@ -10682,7 +11322,7 @@
        "why": "informational"
       },
       "route": null,
-      "targetEventId": "aae4f7b393e2398b017f9069e1658548",
+      "targetEventId": "2632e9b90059763de45439a76baca5e0",
       "decision": "confirmed",
       "planVersion": null,
       "priorVersion": 1
@@ -10697,7 +11337,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "8b55f99a5fbb01cd7261d87a8edeb01b",
+      "eventId": "040bd4d787e477da338802e0ce970b49",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10727,7 +11367,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "e82e39d8c574b7fdd678cc9de9fe815c",
+      "eventId": "ec4208d7cc138d84acd9cbcb4a8dace8",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10766,7 +11406,7 @@
    "input": {
     "docs": [
      {
-      "eventId": "a38847a60be766c0f81fda2fb53e37ae",
+      "eventId": "c17acf43730772a2b8cf25dcad4e2bff",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10804,7 +11444,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "eventId": "135f6bc141856845d33d87d067eb843d",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10842,7 +11482,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "fd2c4346db197b0cef80e6b6273afcef",
+      "eventId": "7f72693062abbaba07f13cdb05efa1af",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10876,7 +11516,7 @@
       "priorVersion": 1
      },
      {
-      "eventId": "470fbbc0c5dbf23c9874ae7ddae9a7c5",
+      "eventId": "2e3c1663dbaa56da1e8e688fb2c744f7",
       "schemaVersion": 1,
       "incidentId": "drill-2026-11-22",
       "teamId": "T1",
@@ -10913,32 +11553,7 @@
    },
    "expected": [
     {
-     "eventId": "470fbbc0c5dbf23c9874ae7ddae9a7c5",
-     "effect": {
-      "kind": "clue",
-      "influences": {
-       "AE": "strong_for"
-      },
-      "authenticity": "medium"
-     }
-    },
-    {
-     "eventId": "a38847a60be766c0f81fda2fb53e37ae",
-     "effect": {
-      "kind": "cleared",
-      "segmentId": "AE",
-      "pod": 0.3,
-      "inputs": {
-       "coverage": 0.35667494393873245,
-       "sweepWidthM": null,
-       "trackLengthM": null,
-       "areaM2": 15625,
-       "rdBasis": "open_target"
-      }
-     }
-    },
-    {
-     "eventId": "d952b9d38897e983e5d086ed131905e1",
+     "eventId": "135f6bc141856845d33d87d067eb843d",
      "effect": {
       "kind": "cleared",
       "segmentId": "AB",
@@ -10953,7 +11568,17 @@
      }
     },
     {
-     "eventId": "fd2c4346db197b0cef80e6b6273afcef",
+     "eventId": "2e3c1663dbaa56da1e8e688fb2c744f7",
+     "effect": {
+      "kind": "clue",
+      "influences": {
+       "AE": "strong_for"
+      },
+      "authenticity": "medium"
+     }
+    },
+    {
+     "eventId": "7f72693062abbaba07f13cdb05efa1af",
      "effect": {
       "kind": "clue",
       "influences": {
@@ -10961,6 +11586,21 @@
        "AA": "for"
       },
       "authenticity": "high"
+     }
+    },
+    {
+     "eventId": "c17acf43730772a2b8cf25dcad4e2bff",
+     "effect": {
+      "kind": "cleared",
+      "segmentId": "AE",
+      "pod": 0.3,
+      "inputs": {
+       "coverage": 0.35667494393873245,
+       "sweepWidthM": null,
+       "trackLengthM": null,
+       "areaM2": 15625,
+       "rdBasis": "open_target"
+      }
      }
     }
    ]
@@ -11217,7 +11857,7 @@
     "seq": 1
    },
    "expected": {
-    "eventId": "1633200e31aaefaf098fbbd2c3fe56a9"
+    "eventId": "cbbacd475c9794d2fa553fc5f713fab5"
    }
   },
   {
@@ -11229,7 +11869,7 @@
     "seq": 1
    },
    "expected": {
-    "eventId": "1911efefeca07147c267a9e23738a131"
+    "eventId": "0af29a8dbb8ad574f3ba4eb12cdfff80"
    }
   },
   {
@@ -11241,7 +11881,7 @@
     "seq": 12
    },
    "expected": {
-    "eventId": "b7c320b95a157ad847d473c454fc748e"
+    "eventId": "e87ba66b4c5b17507e48408e13f9f782"
    }
   },
   {
@@ -11253,7 +11893,7 @@
     "seq": 10
    },
    "expected": {
-    "eventId": "7afc64468de35b34914d4558058dc9ad"
+    "eventId": "970ef0ae13c2ff00978a1ec88e3a7137"
    }
   },
   {
@@ -11265,7 +11905,7 @@
     "seq": 0
    },
    "expected": {
-    "eventId": "4544e3ae681bddfef74a440b7fa96acd"
+    "eventId": "131b559724d8d1177fc50cc6b585e899"
    }
   },
   {
@@ -11277,7 +11917,19 @@
     "seq": 3
    },
    "expected": {
-    "eventId": "4abe1f83765e0bd2a7676fadba510435"
+    "eventId": "c963a1bb1b7a74a4d5dfd4ae1a3fb7fe"
+   }
+  },
+  {
+   "name": "epoch_ms_seq",
+   "input": {
+    "fn": "eventId",
+    "incidentId": "drill-dev-1",
+    "deviceId": "uid123ABC",
+    "seq": 1795860000000
+   },
+   "expected": {
+    "eventId": "1fb28adcb71571327fb7ee95543ab513"
    }
   },
   {
@@ -11298,14 +11950,14 @@
     "fn": "eventSet",
     "priorVersion": 1,
     "eventIds": [
-     "d952b9d38897e983e5d086ed131905e1",
-     "1474553601d0c3a5896cd5f7f917c03e",
-     "fd2c4346db197b0cef80e6b6273afcef"
+     "135f6bc141856845d33d87d067eb843d",
+     "484df5b8651d1025299e5299fe9f065c",
+     "7f72693062abbaba07f13cdb05efa1af"
     ]
    },
    "expected": {
-    "eventSetHash": "59332a07be4fa05f3539981ea157d67785073018e333bf41a5bd27fa64d7d419",
-    "convergenceCode": "B4SJ"
+    "eventSetHash": "d07ad6b5fd48e38c8ec2e412c34dfe083c4c069cc79248646cc661d07a2c6b15",
+    "convergenceCode": "T1XD"
    }
   },
   {
@@ -11314,15 +11966,15 @@
     "fn": "eventSet",
     "priorVersion": 1,
     "eventIds": [
-     "fd2c4346db197b0cef80e6b6273afcef",
-     "d952b9d38897e983e5d086ed131905e1",
-     "1474553601d0c3a5896cd5f7f917c03e",
-     "d952b9d38897e983e5d086ed131905e1"
+     "7f72693062abbaba07f13cdb05efa1af",
+     "135f6bc141856845d33d87d067eb843d",
+     "484df5b8651d1025299e5299fe9f065c",
+     "135f6bc141856845d33d87d067eb843d"
     ]
    },
    "expected": {
-    "eventSetHash": "59332a07be4fa05f3539981ea157d67785073018e333bf41a5bd27fa64d7d419",
-    "convergenceCode": "B4SJ"
+    "eventSetHash": "d07ad6b5fd48e38c8ec2e412c34dfe083c4c069cc79248646cc661d07a2c6b15",
+    "convergenceCode": "T1XD"
    }
   },
   {
@@ -11331,14 +11983,14 @@
     "fn": "eventSet",
     "priorVersion": 2,
     "eventIds": [
-     "d952b9d38897e983e5d086ed131905e1",
-     "1474553601d0c3a5896cd5f7f917c03e",
-     "fd2c4346db197b0cef80e6b6273afcef"
+     "135f6bc141856845d33d87d067eb843d",
+     "484df5b8651d1025299e5299fe9f065c",
+     "7f72693062abbaba07f13cdb05efa1af"
     ]
    },
    "expected": {
-    "eventSetHash": "a188720201d34238389d9ec1e23d5420c5d26f6bcec43e984b581818dd3212ff",
-    "convergenceCode": "M647"
+    "eventSetHash": "a3707de64f792c938e51c02a555573e14623d70d3e175a658ec7fd0f8e115cbb",
+    "convergenceCode": "MDR7"
    }
   },
   {
@@ -11347,12 +11999,12 @@
     "fn": "eventSet",
     "priorVersion": 10,
     "eventIds": [
-     "d952b9d38897e983e5d086ed131905e1"
+     "135f6bc141856845d33d87d067eb843d"
     ]
    },
    "expected": {
-    "eventSetHash": "249c6458bf03017160bdc282f113211fe0c88776f9f55de89111c87a1c932b22",
-    "convergenceCode": "4JE6"
+    "eventSetHash": "cefc6cceaa3bd6e44ac4a9b4cb776da6f0687abdad88319f36903648241088ea",
+    "convergenceCode": "SVY6"
    }
   },
   {

@@ -28,6 +28,7 @@ google-services.json
 node_modules/
 dist/
 build/
+functions/lib/
 coverage/
 *.tsbuildinfo
 .vite/

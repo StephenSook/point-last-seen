@@ -1,0 +1,39 @@
+name: Android
+
+# Expensive (Gradle): runs on pull requests to main and on main only.
+# Until android/ is on main the only trigger is android/ itself, so a shared/ change cannot
+# start a job with nothing to build. After the lane D merge, widen the paths to shared/**
+# (the Android unit tests read shared/schemas and shared/test-vectors).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Android unit tests and debug build
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug

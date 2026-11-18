@@ -1,0 +1,27 @@
+{
+  "name": "@pls/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Cloud Functions for Point Last Seen. No model call runs in any function.",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:rules": "firebase emulators:exec --config \"$(python3 -I ../scripts/emulator_config.py ..)\" --only firestore,auth,storage --project demo-pls \"vitest run\""
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.1",
+    "firebase-functions": "7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "firebase": "13.4.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}
