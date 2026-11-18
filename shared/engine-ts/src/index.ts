@@ -18,3 +18,4 @@ export type { PriorLayers, PriorResult } from "./prior";
 export { mulberry32 } from "./prng";
 export { COMPASS_UNITS, DEFAULT_WALKER_PARAMS, nearestWalkerStation, projectWalkerPoint, simulateWalkers, walkerSegmentLookup } from "./walkers";
 export type { WalkerGrid, WalkerOptions, WalkerParams, WalkerProjection, WalkerResult, WalkerRouteGraph, WalkerTrack } from "./walkers";
+export { ROUTE_SNAP_M, indexRouteGraph, routeGraphExtent } from "./routeGraph";

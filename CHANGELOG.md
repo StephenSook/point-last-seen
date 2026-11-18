@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `indexRouteGraph` (with `routeGraphExtent` and `ROUTE_SNAP_M`) moves from the grid builder into @pls/engine,
+  so the web worker and the grid builder index the same stored RouteGraph file the same way (exits from its
+  stored bounds, the stored projection) instead of the web keeping a second loader or a second file format. The
+  grid builder imports it back, with its tests unchanged.
+  Source: lane C (Task 37c walkers on the web need the drill's route graph).
+  Verified: the new engine tests (exit on the stored bounds, stored projection, refusal without bounds) failed
+  first, now 197 engine tests pass; 24 grid-builder tests pass; both typechecks and lint exit 0; rules gate 0
+  problems; `bash scripts/ci-local.sh` exit 0.
 - A reading's segment ids (and a camera sighting's carried items) are checked per item again: one regex over the
   comma-joined list bounds each item's length (1 to 16 for segment ids), at about the cost of the joined-length
   bound it replaces, so the heaviest events still fit the expression budget. A 17-character or empty segment id

@@ -1,4 +1,4 @@
-import { DEFAULT_WALKER_PARAMS, projectWalkerPoint, walkerSegmentLookup } from "@pls/engine";
+import { DEFAULT_WALKER_PARAMS, ROUTE_SNAP_M, indexRouteGraph, projectWalkerPoint, routeGraphExtent, walkerSegmentLookup } from "@pls/engine";
 import type { Grid, LatLon, RouteGraph, RouteStation, WalkerProjection, WalkerRouteGraph } from "@pls/engine";
 import type { Feature, Geometry, Position } from "geojson";
 import { ATTRIBUTION } from "./cells";
@@ -6,7 +6,7 @@ import { ATTRIBUTION } from "./cells";
 type Point = { x: number; y: number };
 type EdgeClass = RouteGraph["edges"][number]["class"];
 type Bounds = Grid["bbox"];
-type Extent = { min: Point; max: Point };
+type Extent = NonNullable<ReturnType<typeof routeGraphExtent>>;
 
 export interface GraphOptions {
   origin?: LatLon;
@@ -16,7 +16,7 @@ export interface GraphOptions {
 
 const M_PER_DEG = (6371008.8 * Math.PI) / 180;
 const SPACING_M = DEFAULT_WALKER_PARAMS.stationSpacingM as 25;
-const SNAP_M = 1e-6;
+const SNAP_M = ROUTE_SNAP_M;
 
 // JSON has one zero. Build the same coordinates and headings that a reload gives.
 function jsonNumber(value: number): number {
@@ -25,18 +25,6 @@ function jsonNumber(value: number): number {
 
 function projectionAt(origin: LatLon): WalkerProjection {
   return { origin, metresPerDegreeLat: M_PER_DEG, metresPerDegreeLon: M_PER_DEG * Math.cos(origin.lat * Math.PI / 180) };
-}
-
-function toExtent(projection: WalkerProjection, bounds?: Bounds): Extent | undefined {
-  if (!bounds) return undefined;
-  const [minLon, minLat, maxLon, maxLat] = bounds;
-  return { min: projectWalkerPoint(projection, { lon: minLon, lat: minLat }),
-    max: projectWalkerPoint(projection, { lon: maxLon, lat: maxLat }) };
-}
-
-function onBoundary(p: Point, extent?: Extent): boolean {
-  return !!extent && (Math.abs(p.x - extent.min.x) < SNAP_M || Math.abs(p.x - extent.max.x) < SNAP_M
-    || Math.abs(p.y - extent.min.y) < SNAP_M || Math.abs(p.y - extent.max.y) < SNAP_M);
 }
 
 function key(p: Point): string {
@@ -194,7 +182,7 @@ export function buildRouteGraph(features: Feature<Geometry>[], grid?: Grid, opti
   };
   const origin = { lon: jsonNumber(reference.lon), lat: jsonNumber(reference.lat) };
   const projection = projectionAt(origin);
-  const paths = buildPaths(lines, projection, toExtent(projection, options.bounds));
+  const paths = buildPaths(lines, projection, routeGraphExtent(projection, options.bounds));
   insertWaterJunctions(paths);
 
   const edges: RouteGraph["edges"] = [], nodes: RouteGraph["nodes"] = [];
@@ -246,28 +234,6 @@ export function buildRouteGraph(features: Feature<Geometry>[], grid?: Grid, opti
   };
 }
 
-/**
- * Adapt stored edges to station IDs. The graph carries its own extract bounds and projection, so a reload
- * rebuilds the same exits with no outside input; a graph without them is refused, because reading it as
- * "no exits" would silently keep walkers that should leave the area on the graph.
- */
-export function indexRouteGraph(graph: RouteGraph): WalkerRouteGraph {
-  if (graph.bounds === undefined) throw new Error(`route graph ${graph.graphId} has no bounds field: rebuild it with the grid builder`);
-  if (!graph.projection) throw new Error(`route graph ${graph.graphId} has no projection: rebuild it with the grid builder`);
-  const projection = { origin: graph.origin, ...graph.projection };
-  const extent = toExtent(projection, graph.bounds ?? undefined);
-  const nodes = graph.nodes.map(node => ({ id: node.nodeId, edgeIds: [] as number[], boundary: onBoundary(node, extent) }));
-  const nodesById = new Map(nodes.map(node => [node.id, node]));
-  const stations: WalkerRouteGraph["stations"] = [];
-  const edges = graph.edges.map(edge => {
-    nodesById.get(edge.from)!.edgeIds.push(edge.edgeId);
-    if (edge.from !== edge.to) nodesById.get(edge.to)!.edgeIds.push(edge.edgeId);
-    const stationIds = edge.stations.map(station => stations.push({ ...station, edgeId: edge.edgeId }) - 1);
-    return { id: edge.edgeId, cls: edge.class, from: edge.from, to: edge.to, stationIds };
-  });
-  return { stations, edges, nodes, projection };
-}
-
 export function buildGraph(features: Feature<Geometry>[], grid?: Grid, options: GraphOptions = {}): WalkerRouteGraph {
   return indexRouteGraph(buildRouteGraph(features, grid, options));
 }
@@ -280,3 +246,5 @@ export async function writeRouteGraph(site: string, graph: RouteGraph): Promise<
   await mkdir(directory, { recursive: true });
   await writeFile(new URL(`${site}.graph.json`, directory), JSON.stringify(graph) + "\n");
 }
+
+export { indexRouteGraph };
