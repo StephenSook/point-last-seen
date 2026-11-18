@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): drop segment ids the report never names
+- What: before validation, a known segment id that the report text does not name (capital
+  letters, or after "segment") is dropped; with none left the clear uses the team's assignment.
+  An unknown id is kept, so the validator still rejects the reading.
+- Source: spike S15 on the Mac (AFM 3 Core Advanced): the on-device model returned
+  `["AA","AB","AC"]`, copied from the tool's list, for reports naming one segment or none.
+- Verified: three new `ReadOutcomeTests` failed first, then the whole suite passed (134 tests,
+  150 vector cases).
+
 ### docs(ios): start the iOS changelog
 - What: this file, with a summary of the commits pushed before it.
 - Source: commit rules (one change per commit, a changelog entry in each).

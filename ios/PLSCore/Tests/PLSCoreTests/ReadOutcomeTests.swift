@@ -108,4 +108,24 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
         #expect(e.rawText == "blood on a rock")
         #expect(e.route?.stage == .evidenceProtocol)
     }
+
+    @Test func segmentIdsTheReportNeverNamedAreDropped() {
+        // Spike S15 on the Mac: the on-device model copied every id the tool listed.
+        let o = ReadOutcome(reading: reading(segmentIds: ["AA", "AB", "AC"], coverage: 0.8, evidenceQuote: "cleared segment AC"), route: route(), validation: .ok)
+        let e = ReadOutcomeBuilder.event(from: o, rawText: "cleared segment AC", position: fix, context: outcomeCtx(), seq: 20)
+        #expect(e.effect.clearedSegmentId == "AC")
+        #expect(e.reading?["segmentIds"] == .array([.string("AC")]))
+    }
+
+    @Test func whenNoClaimedIdIsNamedTheAssignmentIsUsed() {
+        let o = ReadOutcome(reading: reading(segmentIds: ["AA", "AB"], coverage: 1, evidenceQuote: "we cleared our area"), route: route(), validation: .ok)
+        let e = ReadOutcomeBuilder.event(from: o, rawText: "we cleared our area", position: nil, context: outcomeCtx(assigned: ["AD"]), seq: 21)
+        #expect(e.effect.clearedSegmentId == "AD")
+        #expect(e.positionSource == .assignedSegment)
+    }
+
+    @Test func lowercaseWordsAreNotTakenAsNamedIds() {
+        let o = ReadOutcome(reading: reading(segmentIds: ["AA"], coverage: 1, evidenceQuote: "cleared it at the bend"), route: route(), validation: .ok)
+        #expect(ReadOutcomeBuilder.event(from: o, rawText: "cleared it at the bend", position: nil, context: outcomeCtx(assigned: ["AC"]), seq: 22).effect.clearedSegmentId == "AC")
+    }
 }
