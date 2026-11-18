@@ -4,6 +4,15 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Profile documents follow the shared subject-profile schema.** `SharedProfile` and
+  `CommandProfile` are now data classes with the schema's exact property names: mobility aids as
+  a closed list, the dementia type present but null without the family's switch, every flag as a
+  boolean, the approach note ids (spec 13.3, "may_not_respond" and "approach_calm" first), schema
+  length caps, out-of-range numbers left blank, and places with an optional position.
+  `SchemaShapeTest` reads `shared/schemas/*.schema.json` and checks that the event, report
+  reading, route record, camera sighting and both profile maps carry exactly the schema's keys.
+  Source: lane A ruling 7, spec 13.2 and 13.3. Verified: new tests failed to compile first, then
+  98 unit tests pass.
 - **Event ids checked against the shared vectors.** `IdVectorsTest` runs all six `eventId` cases
   in `shared/test-vectors/search.json` (including the UTF-8 byte-length case) through
   `EventIds.eventId`. Test only; the code already matched. Source: spec section 8 and lane A's

@@ -5,7 +5,21 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-data class Place(val label: String)
+data class LatLon(val lat: Double, val lon: Double) {
+    fun toMap(): Map<String, Any> = mapOf("lat" to lat, "lon" to lon)
+}
+
+data class PlaceEntry(val label: String, val position: LatLon?) {
+    fun toMap(): Map<String, Any?> = mapOf("label" to label, "position" to position?.toMap())
+}
+
+data class WanderingEntry(val foundWhere: String, val position: LatLon?) {
+    fun toMap(): Map<String, Any?> = mapOf("foundWhere" to foundWhere, "position" to position?.toMap())
+}
+
+data class Vehicle(val involved: Boolean, val description: String) {
+    fun toMap(): Map<String, Any> = mapOf("involved" to involved, "description" to description)
+}
 
 /**
  * The full profile, kept on the family phone (spec section 13.2). After "She's gone"
@@ -26,7 +40,7 @@ data class SubjectProfile(
     val eyeColor: String = "",
     val primaryLanguage: String = "",
     val clothingLastWorn: String = "",
-    val mobilityAids: String = "",
+    val mobilityAids: Set<String> = emptySet(),
     val dementiaType: String = "unknown",
     val shareDementiaType: Boolean = false,
     val flags: Set<String> = setOf("mayNotRespond"),
@@ -38,12 +52,62 @@ data class SubjectProfile(
     val medications: String = "",
     val howMedicationAffectsActions: String = "",
     val specialConcern: String = "",
-    val previousAddresses: List<Place> = emptyList(),
-    val placesFrequented: List<Place> = emptyList(),
-    val pastWandering: List<String> = emptyList(),
+    val previousAddresses: List<PlaceEntry> = emptyList(),
+    val placesFrequented: List<PlaceEntry> = emptyList(),
+    val pastWandering: List<WanderingEntry> = emptyList(),
     val nearbyWater: String = "",
-    val vehicle: String = "",
+    val vehicle: Vehicle? = null,
 )
+
+/** profile/shared: readable by every member and carried in the pack. */
+data class SharedProfile(
+    val answersTo: String,
+    val nickname: String,
+    val ageYears: Int?,
+    val gender: String,
+    val appearance: String,
+    val heightFt: Int?,
+    val heightIn: Int?,
+    val weightLb: Int?,
+    val hair: String,
+    val eyeColor: String,
+    val primaryLanguage: String,
+    val clothingLastWorn: String,
+    val mobilityAids: List<String>,
+    val dementiaType: String?,
+    val flags: Map<String, Boolean>,
+    val triggersToAvoid: String,
+    val bestApproach: String,
+    val uniqueDescription: String,
+    val photoTakenOn: String?,
+    val approachNoteIds: List<String>,
+) {
+    fun toMap(): Map<String, Any?> = linkedMapOf(
+        "answersTo" to answersTo, "nickname" to nickname, "ageYears" to ageYears, "gender" to gender,
+        "appearance" to appearance, "heightFt" to heightFt, "heightIn" to heightIn, "weightLb" to weightLb,
+        "hair" to hair, "eyeColor" to eyeColor, "primaryLanguage" to primaryLanguage,
+        "clothingLastWorn" to clothingLastWorn, "mobilityAids" to mobilityAids, "dementiaType" to dementiaType,
+        "flags" to flags, "triggersToAvoid" to triggersToAvoid, "bestApproach" to bestApproach,
+        "uniqueDescription" to uniqueDescription, "photoTakenOn" to photoTakenOn, "approachNoteIds" to approachNoteIds,
+    )
+}
+
+/** profile/command: command and family only, never in a pack. */
+data class CommandProfile(
+    val previousAddresses: List<PlaceEntry>,
+    val placesFrequented: List<PlaceEntry>,
+    val pastWandering: List<WanderingEntry>,
+    val nearbyWater: String,
+    val vehicle: Vehicle?,
+) {
+    fun toMap(): Map<String, Any?> = linkedMapOf(
+        "previousAddresses" to previousAddresses.map { it.toMap() },
+        "placesFrequented" to placesFrequented.map { it.toMap() },
+        "pastWandering" to pastWandering.map { it.toMap() },
+        "nearbyWater" to nearbyWater,
+        "vehicle" to vehicle?.toMap(),
+    )
+}
 
 object Profiles {
     val FLAGS = listOf(
@@ -53,46 +117,77 @@ object Profiles {
         "carriesMedicalAlertCard", "medicationTimingMatters",
     )
     val DEMENTIA_TYPES = listOf("alzheimers", "lewy_body", "vascular", "frontotemporal", "mixed", "other", "unknown")
-    const val FREE_TEXT_MAX = 200
+    val MOBILITY_AIDS = listOf("cane", "walker", "wheelchair", "other")
     const val PHOTO_WARN_DAYS = 60L
     const val UPDATE_PROMPT_DAYS = 183L
 
-    private fun cap(s: String) = s.trim().take(FREE_TEXT_MAX)
+    private fun cap(s: String, n: Int) = s.trim().take(n)
+    private fun inRange(v: Int?, r: IntRange) = v?.takeIf { it in r }
 
-    /** profile/shared: readable by every member and carried in the pack. */
-    fun forSearchers(p: SubjectProfile): Map<String, Any?> {
-        val m = linkedMapOf<String, Any?>(
-            "answersTo" to p.answersTo.trim(),
-            "nickname" to p.nickname.trim(),
-            "ageYears" to p.ageYears,
-            "gender" to p.gender.trim(),
-            "appearance" to cap(p.appearance),
-            "heightFt" to p.heightFt,
-            "heightIn" to p.heightIn,
-            "weightLb" to p.weightLb,
-            "hair" to p.hair.trim(),
-            "eyeColor" to p.eyeColor.trim(),
-            "primaryLanguage" to p.primaryLanguage.trim(),
-            "clothingLastWorn" to cap(p.clothingLastWorn),
-            "mobilityAids" to p.mobilityAids.trim(),
-            "flags" to FLAGS.associateWith { it in p.flags },
-            "triggersToAvoid" to cap(p.triggersToAvoid),
-            "bestApproach" to cap(p.bestApproach),
-            "uniqueDescription" to cap(p.uniqueDescription),
-            "photoTakenOn" to p.photoTakenOn?.toString(),
-        )
-        if (p.shareDementiaType && p.dementiaType in DEMENTIA_TYPES) m["dementiaType"] = p.dementiaType
-        return m
-    }
+    private fun sharedDementiaType(p: SubjectProfile) =
+        p.dementiaType.takeIf { p.shareDementiaType && it in DEMENTIA_TYPES }
 
-    /** profile/command: command and family only, never in a pack. */
-    fun forCommand(p: SubjectProfile): Map<String, Any?> = linkedMapOf(
-        "previousAddresses" to p.previousAddresses.map { mapOf("label" to cap(it.label)) },
-        "placesFrequented" to p.placesFrequented.map { mapOf("label" to cap(it.label)) },
-        "pastWandering" to p.pastWandering.map { mapOf("foundWhere" to cap(it)) },
-        "nearbyWater" to cap(p.nearbyWater),
-        "vehicle" to cap(p.vehicle),
+    fun forSearchers(p: SubjectProfile): SharedProfile = SharedProfile(
+        answersTo = cap(p.answersTo, 60),
+        nickname = cap(p.nickname, 60),
+        ageYears = inRange(p.ageYears, 18..120),
+        gender = cap(p.gender, 40),
+        appearance = cap(p.appearance, 200),
+        heightFt = inRange(p.heightFt, 3..8),
+        heightIn = inRange(p.heightIn, 0..11),
+        weightLb = inRange(p.weightLb, 50..500),
+        hair = cap(p.hair, 60),
+        eyeColor = cap(p.eyeColor, 40),
+        primaryLanguage = cap(p.primaryLanguage, 40),
+        clothingLastWorn = cap(p.clothingLastWorn, 200),
+        mobilityAids = MOBILITY_AIDS.filter { it in p.mobilityAids },
+        dementiaType = sharedDementiaType(p),
+        flags = FLAGS.associateWith { it in p.flags },
+        triggersToAvoid = cap(p.triggersToAvoid, 200),
+        bestApproach = cap(p.bestApproach, 200),
+        uniqueDescription = cap(p.uniqueDescription, 200),
+        photoTakenOn = p.photoTakenOn?.toString(),
+        approachNoteIds = approachNoteIds(p),
     )
+
+    fun forCommand(p: SubjectProfile): CommandProfile = CommandProfile(
+        previousAddresses = p.previousAddresses.mapNotNull { e -> cap(e.label, 80).takeIf { it.isNotEmpty() }?.let { PlaceEntry(it, e.position) } },
+        placesFrequented = p.placesFrequented.mapNotNull { e -> cap(e.label, 80).takeIf { it.isNotEmpty() }?.let { PlaceEntry(it, e.position) } },
+        pastWandering = p.pastWandering.mapNotNull { e -> cap(e.foundWhere, 120).takeIf { it.isNotEmpty() }?.let { WanderingEntry(it, e.position) } },
+        nearbyWater = cap(p.nearbyWater, 200),
+        vehicle = p.vehicle?.let { Vehicle(it.involved, cap(it.description, 120)) },
+    )
+
+    /**
+     * Approach note ids (spec section 13.3), "may_not_respond" and "approach_calm" first,
+     * then the rest in table order. The dementia type counts only when the family shares it.
+     */
+    fun approachNoteIds(p: SubjectProfile): List<String> {
+        val f = p.flags
+        val ids = mutableListOf<String>()
+        if ("mayNotRespond" in f) ids += "may_not_respond"
+        ids += "approach_calm"
+        if ("likelyToHide" in f) ids += "likely_to_hide"
+        if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
+        if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"
+        if ("lookingForHome" in f) ids += "looking_for_home"
+        if ("gaitUnsteady" in f) ids += "gait_unsteady"
+        if ("freezing" in f) ids += "freezing"
+        if ("fallRisk" in f) ids += "fall_risk"
+        if ("softVoice" in f || "slowToRespond" in f) ids += "soft_voice"
+        if ("fluctuates" in f) ids += "fluctuates"
+        if ("sensitiveToTouch" in f) ids += "sensitive_to_touch"
+        if ("sensitiveToLight" in f) ids += "sensitive_to_light"
+        if ("likelyToFight" in f) ids += "may_strike_out"
+        if ("seizures" in f) ids += "seizures"
+        if ("medicationSensitivity" in f || "carriesMedicalAlertCard" in f) ids += "medication_alert"
+        if ("medicationTimingMatters" in f) ids += "medication_timing"
+        if (p.primaryLanguage.isNotBlank()) ids += "language"
+        if (p.triggersToAvoid.isNotBlank()) ids += "triggers"
+        if (p.bestApproach.isNotBlank()) ids += "best_approach"
+        if (p.uniqueDescription.isNotBlank()) ids += "unique"
+        return ids
+    }
 
     /** "photo_old" after 60 days, "profile_stale" after 183, "clock_changed" after a clock change. */
     fun warnings(p: SubjectProfile, nowMs: Long, zone: ZoneId): List<String> {
