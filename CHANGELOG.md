@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Engines skip a malformed stored effect instead of throwing: the reference (`make_vectors.py`) and the TS
+  engine (`isWellFormedEffect`, used by `toEngineEvents`; `malformedEventIds` lists them for a banner at
+  command) check the same shape the rules now enforce. Eight new docToEngine vectors (cleared without
+  inputs, pod as text, unknown rdBasis, unknown influence, empty influences, null effect, none without a
+  reason, and a malformed event beside good ones), README rule added; 158 vectors in total.
+  Source: Codex adversarial review H2 (engine side) and the fresh-context review I3; the Swift and Kotlin
+  twins must mirror this (relayed through the orchestrator).
+  Verified: the TS vector suite failed first on the new cases (6 cases plus the count check; one threw on
+  `eff.inputs.coverage`), now 153 engine tests pass; generator anchors 12 pass; typecheck and lint exit 0.
 - Firestore rules validate each stored effect variant (spec section 8): cleared needs exactly kind, segmentId
   (1 to 16 chars), pod (0 to 1) and inputs with exactly coverage (>= 0), sweepWidthM and trackLengthM (null or
   >= 0), areaM2 (> 0) and a known rdBasis; clue needs 1 to 64 influences with known values and a known

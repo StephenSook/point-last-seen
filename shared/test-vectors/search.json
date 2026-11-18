@@ -10255,6 +10255,435 @@
    "expected": []
   },
   {
+   "name": "malformed_cleared_without_inputs_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "0569a6c496190db8d3eaf4d7d76da959",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 1,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_cleared_pod_as_text_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "ba59849de0d93fec2742f6085e4a4ef3",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 2,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860120000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": "0.5",
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "open_target"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_cleared_unknown_rd_basis_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "309cd3551f488db650f6c501f6426a05",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 3,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860180000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5,
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "guess"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_clue_unknown_influence_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "06e8399de13a91cf5a585b2833bf0e78",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 4,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860240000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "certain"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_clue_empty_influences_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "2aa43cfcf5a101cf30894a09e38f596e",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 5,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860300000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {},
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_effect_null_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "14febd0b0d5ece245e511a89d20a0cc9",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 6,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860360000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": null,
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_none_without_reason_skipped",
+   "input": {
+    "docs": [
+     {
+      "eventId": "81aa0c2560de8e58d41b3a91c32568e7",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 7,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "found",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860420000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "none"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": []
+  },
+  {
+   "name": "malformed_beside_good_events_keeps_the_good",
+   "input": {
+    "docs": [
+     {
+      "eventId": "32d243568aeaeed80786cd4aab5bd74e",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev3",
+      "seq": 8,
+      "authorUid": "uid-dev3",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860480000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "d952b9d38897e983e5d086ed131905e1",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev1",
+      "seq": 1,
+      "authorUid": "uid-dev1",
+      "role": "searcher",
+      "type": "cleared",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860060000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "cleared",
+       "segmentId": "AB",
+       "pod": 0.5,
+       "inputs": {
+        "coverage": 0.6931471805599453,
+        "sweepWidthM": null,
+        "trackLengthM": null,
+        "areaM2": 15625,
+        "rdBasis": "open_target"
+       }
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     },
+     {
+      "eventId": "886e4efa0b1001e0ccd4cb9c1d9fc06d",
+      "schemaVersion": 1,
+      "incidentId": "drill-2026-11-22",
+      "teamId": "T1",
+      "deviceId": "dev1",
+      "seq": 15,
+      "authorUid": "uid-dev1",
+      "role": "searcher",
+      "type": "clue",
+      "reporter": "searcher",
+      "clientTimeMs": 1795860900000,
+      "serverTime": null,
+      "observedAtMs": null,
+      "position": null,
+      "positionSource": "assigned_segment",
+      "rawText": null,
+      "inputMethod": "typed",
+      "isTrainingInject": false,
+      "reading": null,
+      "effect": {
+       "kind": "clue",
+       "influences": {
+        "AB": "strong_for",
+        "AA": "for"
+       },
+       "authenticity": "high"
+      },
+      "route": null,
+      "targetEventId": null,
+      "decision": null,
+      "planVersion": null,
+      "priorVersion": 1
+     }
+    ],
+    "priorInputEventIds": []
+   },
+   "expected": [
+    {
+     "eventId": "886e4efa0b1001e0ccd4cb9c1d9fc06d",
+     "effect": {
+      "kind": "clue",
+      "influences": {
+       "AB": "strong_for",
+       "AA": "for"
+      },
+      "authenticity": "high"
+     }
+    },
+    {
+     "eventId": "d952b9d38897e983e5d086ed131905e1",
+     "effect": {
+      "kind": "cleared",
+      "segmentId": "AB",
+      "pod": 0.5,
+      "inputs": {
+       "coverage": 0.6931471805599453,
+       "sweepWidthM": null,
+       "trackLengthM": null,
+       "areaM2": 15625,
+       "rdBasis": "open_target"
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "large_computed_coverage_counts",
    "input": {
     "docs": [

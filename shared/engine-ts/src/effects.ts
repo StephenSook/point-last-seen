@@ -68,6 +68,42 @@ export function deriveClueEffect(reading: ReportReading, ctx: EffectContext): Ef
   return { kind: "clue", influences, authenticity: AUTHENTICITY[reading.matchesProfile] };
 }
 
+const INFLUENCES = new Set(["strong_for", "for", "neutral", "against", "strong_against"]);
+const RD_BASES = new Set(["hidden_target", "open_target", "default", "stated"]);
+const NONE_REASONS = new Set(["needs_command", "informational", "invalid", "sound_only", "outside_area", "incorporated_in_prior"]);
+
+const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const exactKeys = (o: Record<string, unknown>, keys: string[]) =>
+  Object.keys(o).length === keys.length && keys.every(k => Object.hasOwn(o, k));
+
+/** The shape the security rules enforce on a stored effect. A malformed one is skipped, never fatal. */
+export function isWellFormedEffect(eff: unknown): eff is Effect {
+  if (!isObject(eff)) return false;
+  if (eff.kind === "cleared") {
+    const i = eff.inputs;
+    return exactKeys(eff, ["kind", "segmentId", "pod", "inputs"]) && typeof eff.segmentId === "string"
+      && num(eff.pod) && eff.pod >= 0 && eff.pod <= 1 && isObject(i)
+      && exactKeys(i, ["coverage", "sweepWidthM", "trackLengthM", "areaM2", "rdBasis"])
+      && num(i.coverage) && i.coverage >= 0
+      && [i.sweepWidthM, i.trackLengthM].every(v => v === null || (num(v) && v >= 0))
+      && num(i.areaM2) && i.areaM2 > 0 && RD_BASES.has(i.rdBasis as string);
+  }
+  if (eff.kind === "clue") {
+    const infl = eff.influences;
+    return exactKeys(eff, ["kind", "influences", "authenticity"]) && isObject(infl) && Object.keys(infl).length >= 1
+      && Object.values(infl).every(v => INFLUENCES.has(v as string))
+      && ["high", "medium", "low"].includes(eff.authenticity as string);
+  }
+  if (eff.kind === "none") return exactKeys(eff, ["kind", "why"]) && NONE_REASONS.has(eff.why as string);
+  return false;
+}
+
+/** Ids of stored events whose effect is malformed, sorted and deduplicated, for a banner at command. */
+export function malformedEventIds(docs: EventDoc[]): string[] {
+  return [...new Set(docs.filter(d => !isWellFormedEffect(d.effect)).map(d => d.eventId))].sort(compareCodePoints);
+}
+
 function storedClearIsConsistent(eff: Extract<Effect, { kind: "cleared" }>): boolean {
   const c = eff.inputs.coverage;
   if (typeof c !== "number" || !Number.isFinite(c) || c < 0) return false;
@@ -110,7 +146,8 @@ export function toEngineEvents(docs: EventDoc[], priorInputEventIds: string[]): 
   for (const id of [...byId.keys()].sort(compareCodePoints)) {
     if (priorInputs.has(id) || retracted.has(id)) continue;
     const d = byId.get(id)!;
-    const eff = d.effect;
+    const eff: unknown = d.effect;
+    if (!isWellFormedEffect(eff)) continue;
     const likely = eff.kind === "clue" && (eff.authenticity === "high" || eff.authenticity === "medium");
     if (d.type === "cleared" && eff.kind === "cleared" && storedClearIsConsistent(eff)) out.push({ eventId: id, effect: eff });
     else if (d.type === "clue" && likely) out.push({ eventId: id, effect: eff });

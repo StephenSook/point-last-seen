@@ -137,3 +137,13 @@ def test_command_confirmation_outranks_a_later_family_one():
     v = load(V)
     assert case(v, "docToEngine", "family_confirm_after_command_reject_ignored")["expected"] == []
     assert len(case(v, "docToEngine", "command_confirm_after_family_reject_counts")["expected"]) == 1
+
+
+def test_malformed_stored_effects_are_skipped_not_fatal():
+    v = load(V)
+    for name in ("malformed_cleared_without_inputs_skipped", "malformed_cleared_pod_as_text_skipped",
+                 "malformed_cleared_unknown_rd_basis_skipped", "malformed_clue_unknown_influence_skipped",
+                 "malformed_clue_empty_influences_skipped", "malformed_effect_null_skipped",
+                 "malformed_none_without_reason_skipped"):
+        assert case(v, "docToEngine", name)["expected"] == [], name
+    assert len(case(v, "docToEngine", "malformed_beside_good_events_keeps_the_good")["expected"]) == 2
