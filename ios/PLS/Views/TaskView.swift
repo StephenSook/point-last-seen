@@ -8,6 +8,7 @@ struct TaskView: View {
     @Bindable var model: AppModel
     @State private var text = ""
     @FocusState private var focused: Bool
+    @State private var picking = false
     @Environment(\.fieldTheme) private var theme
 
     var body: some View {
@@ -42,6 +43,16 @@ struct TaskView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending)
+                Button { picking = true } label: {
+                    Label("Pick instead of typing", systemImage: "hand.tap").frame(maxWidth: .infinity, minHeight: 60)
+                }
+                .buttonStyle(.bordered)
+                .sheet(isPresented: $picking) {
+                    PickListView(segments: mission.assignedSegmentIds.sorted()) { choice in
+                        Task { _ = await model.submitPick(choice) }
+                    }
+                    .environment(\.fieldTheme, theme)
+                }
                 if model.sending {
                     ProgressView("Reading your report")
                 }

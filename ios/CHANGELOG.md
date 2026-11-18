@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): let a searcher report by picking instead of typing
+- What: a "Pick instead of typing" button on the field screen opens `PickListView`: what
+  happened (Cleared, Clue, Saw them, Found), where (the team's segments, or here by GPS), and for
+  a clear how long and how many searched, all as large buttons. `AppModel.submitPick` journals it
+  with input method `picklist` and route stage `picklist` (no model runs), through the same
+  journaling step as a read report (`journal`: the event, the posterior and the timings).
+- Source: Task 13 (pick-list in `TaskView`).
+- Verified: `aPickedReportIsJournaledWithThePersonsSegment` compile-red without `submitPick`,
+  then green; 65 app tests pass; the Title 3 scan passes; `scripts/ci-local.sh` exit 0. Not
+  verified yet: a still of the sheet, which needs a loaded pack.
+
 ### feat(ios-core): turn a pick-list choice into a report reading
 - What: `PickList.outcome` turns what a person picked (kind, segment, and for a clear the
   minutes and number of searchers) into the same reading shape a read report has, with route

@@ -216,6 +216,30 @@ final class AppModel {
         case .notUsed: break
         }
 
+        return journal(outcome, rawText: text, inputMethod: inputMethod, position: position, mission: mission, uid: uid,
+                       identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
+    }
+
+    /// A report the searcher picked from the list: no model runs, the person's choices stand.
+    func submitPick(_ choice: PickListChoice) async -> Bool {
+        guard !sending else { return false }
+        guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
+        await trySignIn()
+        guard let uid = self.uid() else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        sending = true
+        defer { sending = false }
+        let submittedAt = nowMs()
+        let position = await location.fix(timeout: 10)
+        if let position { lastFix = position }
+        return journal(PickList.outcome(choice, nowMs: submittedAt), rawText: "", inputMethod: .picklist, position: position,
+                       mission: mission, uid: uid, identity: identity, store: store, submittedAt: submittedAt, readDone: submittedAt)
+    }
+
+    /// Builds the one event, journals it (the Firestore write is never awaited), recomputes the
+    /// posterior and writes the timings. True once the event is in the journal.
+    private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
+                         mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
+                         submittedAt: Double, readDone: Double) -> Bool {
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,
@@ -224,7 +248,7 @@ final class AppModel {
                 effect: EffectContext(grid: mission.grid, assignedSegmentIds: mission.assignedSegmentIds, position: nil,
                                       visualDetectionRangeM: mission.visualDetectionRangeM, rdBasis: mission.rdBasis),
                 params: mission.params)
-            let event = ReadOutcomeBuilder.event(from: outcome, rawText: text, position: position, context: context,
+            let event = ReadOutcomeBuilder.event(from: outcome, rawText: rawText, position: position, context: context,
                                                  seq: try identity.nextSeq())
             try store.append(event)
             problem = nil

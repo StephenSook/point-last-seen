@@ -52,4 +52,23 @@ final class FakeMeasurementWriter: MeasurementWriter {
         await model.load(mission)
         #expect(server.listenedTo == ["I1"])
     }
+
+    @Test func aPickedReportIsJournaledWithThePersonsSegment() async throws {
+        let writer = FakeMeasurementWriter()
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: writer)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pick-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("o.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir))
+        let mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                              assignedSegmentIds: ["AC", "AB"], params: try BundledConstants.engineParams(),
+                              profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+        await model.load(mission)
+        #expect(await model.submitPick(PickListChoice(kind: .clue, segmentId: "AB", minutes: nil, searchers: nil)))
+        let e = try #require(store.entries.last?.doc)
+        #expect(e.inputMethod == .picklist && e.route?.stage == .picklist && e.type == .clue)
+        #expect(e.reading?["segmentIds"] == .array([.string("AB")]))
+        #expect(writer.written.count == 1)
+    }
 }
+
