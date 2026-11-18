@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The lifecycle health check compares the prefixes as an exact set, each of clips/, photos/ and packs/ once
+  (no string join), and fails when any other Delete rule in the bucket policy is younger than 30 days, touches
+  one of those prefixes, or covers the whole bucket, since any of those would delete drill media before the
+  promised 30 days. Rules with other actions (storage class changes) do not count.
+  Source: review round 2 (medium).
+  Verified: the undercutting-rule and duplicate-prefix test failed first, now passes; emulator suite 114;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - ops/storage keeps a sweep failure streak (consecutive sweeps with any failed sandbox, reset by a clean sweep),
   and the daily probe fails when it reaches 2, so a stuck delete (a hold, a permission change) is reported
   instead of retried silently for days. One failing sweep still passes, so a single transient error does not

@@ -57,23 +57,35 @@ export async function deleteEndedSandboxMedia(db: Firestore, bucket: Pick<Bucket
 
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];
 const LIFECYCLE_DAYS = 30;
-interface BucketMetadata { lifecycle?: { rule?: { action?: { type?: string }; condition?: Record<string, unknown> }[] } }
+type LifecycleRule = { action?: { type?: string }; condition?: Record<string, unknown> & { matchesPrefix?: unknown[] } };
+interface BucketMetadata { lifecycle?: { rule?: LifecycleRule[] } }
 
 /**
- * Whether the bucket keeps exactly the rule docs/LIMITS.md promises: action Delete, condition keys exactly
- * {age, matchesPrefix}, age exactly 30, prefixes exactly clips/, photos/ and packs/. A looser rule (a
- * bucket-wide or shorter delete, an extra condition such as isLive) would delete drill media early or not at
- * all, so it does not count.
+ * Whether the bucket keeps exactly the rule docs/LIMITS.md promises, and nothing that undercuts it: one rule
+ * with action Delete, condition keys exactly {age, matchesPrefix}, age exactly 30 and prefixes exactly the set
+ * clips/, photos/, packs/ (each once); and no other Delete rule that is younger than 30 days, touches one of
+ * those prefixes, or covers the whole bucket. A looser policy would delete drill media early or not at all.
  */
+function isExactRule(r: LifecycleRule): boolean {
+  const c = r.condition ?? {};
+  const keys = Object.keys(c).sort();
+  const prefixes = Array.isArray(c.matchesPrefix) ? c.matchesPrefix : null;
+  return r.action?.type === "Delete" && keys.length === 2 && keys[0] === "age" && keys[1] === "matchesPrefix"
+    && c.age === LIFECYCLE_DAYS && prefixes !== null && prefixes.length === LIFECYCLE_PREFIXES.length
+    && LIFECYCLE_PREFIXES.every(p => prefixes.filter(x => x === p).length === 1);
+}
+function undercuts(r: LifecycleRule): boolean {
+  if (r.action?.type !== "Delete") return false;
+  const c = r.condition ?? {};
+  const prefixes = Array.isArray(c.matchesPrefix) ? (c.matchesPrefix as unknown[]) : [];
+  return (typeof c.age === "number" && c.age < LIFECYCLE_DAYS) || prefixes.length === 0
+    || prefixes.some(p => typeof p === "string" && LIFECYCLE_PREFIXES.some(ours => ours.startsWith(p) || p.startsWith(ours)));
+}
 export function lifecycleOk(meta: BucketMetadata): { ok: boolean; ageDays: number | null } {
-  for (const r of meta.lifecycle?.rule ?? []) {
-    const c = r.condition ?? {};
-    const keys = Object.keys(c).sort();
-    const prefixes = Array.isArray(c.matchesPrefix) ? [...(c.matchesPrefix as string[])].sort() : [];
-    if (r.action?.type === "Delete" && keys.join(",") === "age,matchesPrefix" && c.age === LIFECYCLE_DAYS
-      && prefixes.join(",") === [...LIFECYCLE_PREFIXES].sort().join(",")) return { ok: true, ageDays: LIFECYCLE_DAYS };
-  }
-  return { ok: false, ageDays: null };
+  const rules = meta.lifecycle?.rule ?? [];
+  const exact = rules.findIndex(isExactRule);
+  if (exact < 0 || rules.some((r, i) => i !== exact && undercuts(r))) return { ok: false, ageDays: null };
+  return { ok: true, ageDays: LIFECYCLE_DAYS };
 }
 
 /**

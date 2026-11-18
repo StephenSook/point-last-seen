@@ -101,6 +101,15 @@ describe("storage health for the daily probe (ops/storage)", () => {
     expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/", "other/"])] } }).ok).toBe(false);
     expect(lifecycleOk({ lifecycle: { rule: [{ action: { type: "Delete" }, condition: { age: 30, matchesPrefix: ["clips/", "photos/", "packs/"], isLive: false } }] } }).ok).toBe(false);
   });
+  it("no other Delete rule may undercut it, and the prefixes are an exact set (review round 2)", () => {
+    const ours = rule(30, ["clips/", "photos/", "packs/"]);
+    expect(lifecycleOk({ lifecycle: { rule: [ours, rule(7, ["other/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [ours, rule(60, ["clips/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [ours, { action: { type: "Delete" }, condition: { age: 60 } }] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [rule(30, ["clips/", "clips/", "photos/", "packs/"])] } }).ok).toBe(false);
+    expect(lifecycleOk({ lifecycle: { rule: [ours, { action: { type: "SetStorageClass" }, condition: { age: 1 } }] } }).ok).toBe(true);
+    expect(lifecycleOk({ lifecycle: { rule: [ours, rule(90, ["other/"])] } }).ok).toBe(true);
+  });
   it("writes ops/storage with the lifecycle state and a server time", async () => {
     const fake = { getMetadata: async () => [{ lifecycle: { rule: [rule(30, ["clips/", "photos/", "packs/"])] } }] };
     await recordStorageHealth(admin.db, fake as never, 2);
