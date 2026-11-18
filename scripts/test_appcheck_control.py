@@ -85,12 +85,14 @@ def test_every_call_sends_the_hosting_origin_as_referer(monkeypatch):
     assert seen["referer"] == "https://buildhybridai-2026-yg3m.web.app/"
 
 
-def test_ci_mode_without_a_token_skips_cleanly_and_calls_nothing(monkeypatch, capsys):
+def test_ci_mode_without_a_token_fails_loudly_and_calls_nothing(monkeypatch, capsys):
+    # The repository secret exists (2026-11-18), so a missing token now means the secret was lost or renamed: the
+    # positive read must fail rather than skip into a green run.
     def no_network(*a, **k):
         raise AssertionError("no network call may happen without a CI token")
     monkeypatch.setattr(ac.urllib.request, "urlopen", no_network)
     monkeypatch.delenv("APPCHECK_DEBUG_TOKEN_CI", raising=False)
-    assert ac.main(["--ci"]) == 0
+    assert ac.main(["--ci"]) == 1
     assert "no CI token" in capsys.readouterr().out
 
 

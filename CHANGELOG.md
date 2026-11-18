@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The live probe's positive read fails, instead of skipping, when the CI App Check token is missing: the
+  repository secret `APPCHECK_DEBUG_TOKEN_CI` exists since 2026-11-18, so a missing one means it was lost or
+  renamed, and a skip would report green with nothing checked.
+  Source: review (a guard under CI must fail, not skip).
+  Verified: the test (no token: exit 1, no network call) failed first, now 13 probe tests pass;
+  `bash scripts/ci-local.sh` exit 0.
 - The live probe takes a `site` input on a manual run: the wrong-URL control. Pointed at a wrong site, both App
   Check steps must fail, which proves they can fail. Scheduled runs pass the empty input and keep the real site.
   Source: review (each monitor needs a control that proves it can fail).
