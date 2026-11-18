@@ -178,7 +178,7 @@ object Profiles {
 
     /**
      * Approach note ids: "may_not_respond" and "approach_calm" first (plan Task 35a),
-     * then the rest of the spec 13.3 table in order, each filtered by its "shown when"
+     * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
     fun approachNoteIds(p: SubjectProfile): List<String> {
@@ -186,6 +186,8 @@ object Profiles {
         val ids = mutableListOf<String>()
         if ("mayNotRespond" in f) ids += "may_not_respond"
         ids += "approach_calm"
+        // Third in the shared order, shown exactly when "may not respond" is.
+        if ("mayNotRespond" in f) ids += "stop_calling_name"
         if ("likelyToHide" in f) ids += "likely_to_hide"
         if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
         if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"

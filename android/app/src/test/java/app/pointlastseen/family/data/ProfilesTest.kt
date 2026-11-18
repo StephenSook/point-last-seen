@@ -101,14 +101,20 @@ class ProfilesTest {
     }
 
     @Test fun defaultProfileShowsMayNotRespondAndApproachCalmFirst() {
-        assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(SubjectProfile()))
+        assertEquals(listOf("may_not_respond", "approach_calm", "stop_calling_name"), Profiles.approachNoteIds(SubjectProfile()))
     }
 
     @Test fun mayNotRespondAndApproachCalmComeFirstThenTheTableOrder() {
         assertEquals(
-            listOf("may_not_respond", "approach_calm", "likely_to_hide", "validate_feelings", "language", "triggers", "best_approach", "unique"),
+            listOf("may_not_respond", "approach_calm", "stop_calling_name", "likely_to_hide", "validate_feelings", "language", "triggers", "best_approach", "unique"),
             Profiles.approachNoteIds(full),
         )
+    }
+
+    /** "Stop calling their name" shows exactly when "may not respond" does. */
+    @Test fun stopCallingNameShowsOnlyWithMayNotRespond() {
+        assertFalse("stop_calling_name" in Profiles.approachNoteIds(SubjectProfile(flags = emptySet())))
+        assertTrue("stop_calling_name" in Profiles.approachNoteIds(SubjectProfile(flags = setOf("mayNotRespond"))))
     }
 
     @Test fun flagsAndTextAddTheirNotes() {
