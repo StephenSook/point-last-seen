@@ -4,6 +4,12 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Evidence terms ship inside the app.** A Gradle task copies
+  `shared/constants/evidence-terms.json` into the APK's assets for every variant (the build
+  fails if the file is missing), and `EvidenceTerms` loads it into the screen, which still fails
+  closed at run time if the asset cannot be read. Source: spec R8, lane A ruling 8. Verified:
+  `EvidenceAssetTest` failed first on the emulator (terms null, a normal note flagged), then 7 of
+  7 instrumented tests pass; `unzip -l app-debug.apk` lists `assets/evidence-terms.json`.
 - **EventDoc carries schemaVersion and serverTime as fields.** The type's field names now equal
   `event.schema.json` exactly, which is what `scripts/check_schema_parity.py` reads from a Kotlin
   data class; the writer sets the server timestamp sentinel with `copy(serverTime = ...)`.

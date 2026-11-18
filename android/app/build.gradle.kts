@@ -35,6 +35,33 @@ fun keychainPassword(service: String): String {
     return out
 }
 
+// The shared possible-evidence terms ship inside the app. The build fails when the
+// file is missing; at run time the screen also fails closed without it.
+abstract class CopySharedAssets : DefaultTask() {
+    @get:InputFile
+    abstract val evidenceTerms: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.mkdirs()
+        evidenceTerms.get().asFile.copyTo(File(out, "evidence-terms.json"), overwrite = true)
+    }
+}
+
+val copySharedAssets = tasks.register<CopySharedAssets>("copySharedAssets") {
+    evidenceTerms.set(rootProject.layout.projectDirectory.file("../shared/constants/evidence-terms.json"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copySharedAssets, CopySharedAssets::outputDir)
+    }
+}
+
 android {
     namespace = "app.pointlastseen.family"
     compileSdk = 37
