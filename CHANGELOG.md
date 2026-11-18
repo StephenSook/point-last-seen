@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/SECURITY.md` records the probe's positive read and its control (run 44420234691 on the real site passed
+  both App Check steps; run 44420309943 against a wrong site failed both), a table of the secrets the checks use
+  (names and places only, revoke by 2026-12-17), and rows 6 and 6a as they now stand: three calls use server
+  prompt templates (web sighting note, Android clip read, iOS voice), the photo template is published but not yet
+  called, and AI Logic enforces each template's declared inputs.
+  Source: review (record the CI token and both run ids; row 6 still said no templates were used).
+  Verified: live on 2026-11-18 a 2,001-character note, an empty note, a PNG sent to the JPEG-only photo template
+  and a call with no inputs were each refused with HTTP 400 and a 2,000-character note was answered; the two runs
+  read back with `gh run view`; `bash scripts/ci-local.sh` exit 0.
 - The live probe's positive read fails, instead of skipping, when the CI App Check token is missing: the
   repository secret `APPCHECK_DEBUG_TOKEN_CI` exists since 2026-11-18, so a missing one means it was lost or
   renamed, and a skip would report green with nothing checked.
