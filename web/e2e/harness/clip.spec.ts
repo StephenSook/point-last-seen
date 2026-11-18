@@ -164,3 +164,20 @@ test("from the moment Read clip is pressed, consent and the file are locked unti
   await expect(page.getByTestId("asked")).not.toHaveText("", { timeout: 5_000 });
   expect(JSON.parse(await page.getByTestId("asked").innerText()).consents.cloudProcessing).toBe(true);
 });
+
+test("a clip that cannot be read from this computer says so and unlocks the form", async ({ page }) => {
+  await page.addInitScript(() => {
+    File.prototype.arrayBuffer = function fail() {
+      return Promise.reject(new DOMException("The file could not be read.", "NotReadableError"));
+    };
+  });
+  await page.goto("/harness/clip.html");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByRole("alert")).toHaveText("This clip could not be read from this computer. Choose it again.");
+  await expect(page.getByLabel("Clip", { exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  await expect(page.getByTestId("asked")).toHaveText("");
+});

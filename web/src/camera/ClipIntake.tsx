@@ -127,8 +127,17 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     setBusy(onTriage ? "checking" : "reading");
     setMessage(null);
     setHeld(null);
+    let bytes: Uint8Array;
+    try {
+      bytes = new Uint8Array(await file.arrayBuffer());
+    } catch {
+      // The file can become unreadable after it was chosen (moved, deleted, permission lost).
+      setMessage({ text: "This clip could not be read from this computer. Choose it again.", alert: true });
+      setBusy(false);
+      return;
+    }
     const input: ClipIntakeInput = {
-      bytes: new Uint8Array(await file.arrayBuffer()),
+      bytes,
       mimeType: file.type || "video/mp4",
       durationS,
       clipStartMs: new Date(start).getTime(),

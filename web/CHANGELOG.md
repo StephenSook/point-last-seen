@@ -1105,3 +1105,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
 - Source: second-model review of PR #16, round 3, finding 1 (high).
 - Verified: new plan harness test (with the model answering only on a button: suggest, change the assignments, then the model answers: no suggestion and no Approve) failed first, then passed; all three plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): release the clip form when the chosen file can no longer be read
+- What: the clip form locks before its first await (so consent cannot change mid-read), but a file that became unreadable after it was chosen made `arrayBuffer()` reject outside any handler, leaving the form, Cancel and the file picker locked. The read is now caught: the form says "This clip could not be read from this computer. Choose it again." and unlocks, and nothing is sent.
+- Source: second-model review of PR #16, round 3, finding 3 (medium; follow-up after the merge).
+- Verified: new clip harness test (arrayBuffer rejects: the alert shows, the file input and Cancel are enabled, the model was never asked) failed first, then passed; all 13 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
