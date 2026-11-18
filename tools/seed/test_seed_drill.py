@@ -33,10 +33,15 @@ def test_incident_doc_is_a_labelled_drill_without_join_hashes():
     assert d["priorInputEventIds"] == [] and d["priorSeed"] == 20261122
 
 
-def test_join_code_docs_scope_roles():
-    team, command = seed.join_code_docs("drill-dev-1")
-    assert team == {"incidentId": "drill-dev-1", "roles": ["searcher", "family"]}
-    assert command == {"incidentId": "drill-dev-1", "roles": ["command"]}
+def test_one_join_code_per_role():
+    docs = seed.join_code_docs("drill-dev-1")
+    assert docs == {
+        "searcher": {"incidentId": "drill-dev-1", "roles": ["searcher"]},
+        "family": {"incidentId": "drill-dev-1", "roles": ["family"]},
+        "command": {"incidentId": "drill-dev-1", "roles": ["command"]},
+    }
+    assert seed.KEYCHAIN_SERVICES == {"searcher": "pls-drill-searcher-code", "family": "pls-drill-family-code",
+                                      "command": "pls-drill-command-code"}
 
 
 def test_firestore_value_encoding():

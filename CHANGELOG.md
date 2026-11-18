@@ -5,6 +5,56 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
+  claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
+  right role against another OPEN incident (I2), so only the incident comparison can refuse it.
+  Source: Codex re-review of the C1 fix (only one new test failed on the old code; the cross-incident test
+  stopped at the role check).
+  Verified: with join.ts from 6c4dc21 (the parent of 406f97f) swapped in, 2 of 14 join tests fail (both
+  legacy-doc tests); on HEAD all 63 emulator tests pass; ci-local exits 0.
+- Firestore rules recompute every event's id: `eventIdOf(incidentId, request.auth.uid, seq)` with the same
+  text framing as the engines (hashing.sha256 over decimal byte length, ":" and value per field) must start
+  the document id, and seq must be a whole number of 0 or more. A member can no longer occupy another
+  device's future event id, and an id derived from another seq, device or incident is refused. Event tests
+  now write every event at its derived id (fixtures compute it independently with node:crypto).
+  Source: Codex adversarial review H1 and the fresh-context review I2 (the earlier deviceId binding alone did
+  not stop squatting; the 2026-11-18 rules entry above overstated it).
+  Verified: the 3 new H1 tests failed first (squatting at a victim's seq-5 id succeeded), now 62 emulator
+  tests pass; ci-local exits 0.
+- Detection range is measured-first: the team's measured visual range sets the sweep width, and a stated
+  (model-read) range is used only when the team has no measurement (`rdBasis` "stated"). Spec 10.4: "Sweep
+  width always uses the visual detection range." A model-read number can no longer raise POD above a
+  hidden-target measurement. Reference, vectors (160; new cases measured_range_beats_stated and
+  stated_range_used_without_measurement replace stated_detection_range_basis_stated), README and the TS
+  engine in one commit (vectors alone would turn the Engine job red).
+  Source: fresh-context review, ruling sent to the coordinator, reversed on its decision.
+  Verified: the new anchor failed first, now 14 generator tests pass; the TS vector case failed first, now
+  155 engine tests pass; typecheck and lint exit 0.
+- Change the eventId framing so the security rules can recompute it: SHA-256 over the UTF-8 string made of,
+  per field (incidentId, deviceId, decimal seq), the decimal UTF-8 byte length, ":" and the value (example:
+  ("ab", "c", 1) hashes "2:ab1:c1:1"); first 32 lowercase hex characters. eventSetHash and convergenceCode
+  keep their binary framing. Reference generator, regenerated vectors (159; ids now include an epoch-ms seq
+  case; the ("ab","c") vs ("a","bc") pair and the UTF-8 byte-length case stay), README and the TS engine
+  change in ONE commit, because the vectors alone would turn the Engine job red on their own SHA.
+  Source: Codex adversarial review H1 (a member could occupy another device's future event id), option 1
+  approved by the orchestrator after an emulator probe showed rules can compute hashing.sha256 over this
+  string; recorded in the design's coordinator decisions. The Swift and Kotlin twins follow against this SHA.
+  Verified: new anchors (hand-computed hashes of "2:ab1:c1:1", "1:a2:bc1:1", the UTF-8 case and the
+  epoch-ms case) failed first, now 13 generator tests pass; the TS suite failed on 7 id-dependent cases, now
+  154 pass; typecheck and lint exit 0.
+- Run the rules suite on per-worktree emulator ports: `scripts/emulator_config.py` writes a copy of
+  firebase.json with absolute paths and a port block derived from the worktree path (20000 to 34999), and
+  `npm run test:rules -w functions` passes it with `--config`. Several worktrees on one Mac run ci-local at
+  the same time, and the fixed ports collided ("Could not start Authentication Emulator, port taken").
+  Tests in `scripts/test_emulator_config.py`, added to the gates job and ci-local.
+  Source: a ci-local failure caused by another worktree's emulators during the C1 commit.
+  Verified: 3 tests failed first (no script), now pass; the emulator suite ran on ports 23910 to 23918 here
+  and passed 59; ci-local exits 0.
+- The drill seeding tool issues one join code per role (searcher, family, command), each stored in its own
+  Keychain service (`pls-drill-searcher-code`, `pls-drill-family-code`, `pls-drill-command-code`, account =
+  incident id), matching the one-role-per-code rule in joinIncident.
+  Source: fresh-context review C1.
+  Verified: the updated seed test failed first, now 5 pass; ci-local exits 0 (59 emulator tests).
 - joinIncident admits exactly one role per code: a code doc must list a single role and the caller must ask
   for that role, so the searcher code can never grant family (read and write on profile/command, confirming
   sightings, clip uploads) or command. Tests use one code per role and add two cases: each code admits only

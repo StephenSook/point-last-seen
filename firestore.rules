@@ -180,6 +180,16 @@ service cloud.firestore {
           && e.why in ['needs_command', 'informational', 'invalid', 'sound_only', 'outside_area', 'incorporated_in_prior']));
     }
 
+    // eventId = first 32 lowercase hex of SHA-256 over, per field (incidentId, deviceId, decimal seq), the
+    // decimal UTF-8 byte length, ":" and the value. Recomputing it binds the id to the writer, so nobody can
+    // occupy another device's future id (create-only would then block the real event).
+    function frame(s) {
+      return string(s.toUtf8().size()) + ':' + s;
+    }
+    function eventIdOf(incidentId, deviceId, seq) {
+      return hashing.sha256(frame(incidentId) + frame(deviceId) + frame(string(seq))).toHexString().lower();
+    }
+
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
       return isMember(incidentId)
@@ -193,11 +203,10 @@ service cloud.firestore {
         && d.authorUid == request.auth.uid
         && d.role == role()
         && d.serverTime == request.time
-        && d.seq is int
+        && d.seq is int && d.seq >= 0
         && d.clientTimeMs is number
-        // eventId is derived from deviceId and seq, both readable by members, so deviceId is bound
-        // to the writer: nobody can pre-create another device's next event ids.
         && d.deviceId == request.auth.uid
+        && eventIdOf(incidentId, request.auth.uid, d.seq).matches(eventId + '[0-9a-f]{32}')
         && (d.teamId == null || (d.teamId is string && d.teamId.size() <= 32))
         && (role() != 'searcher' || d.teamId == request.auth.token.team)
         && d.reporter in ['searcher', 'public_caller', 'family', 'camera', 'system']

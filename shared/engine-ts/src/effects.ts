@@ -29,14 +29,16 @@ export function deriveClearedEffect(reading: ReportReading, ctx: EffectContext, 
     return { kind: "cleared", segmentId: seg, pod: pod(cov),
       inputs: { coverage: cov, sweepWidthM: null, trackLengthM: null, areaM2, rdBasis: ctx.rdBasis } };
   }
-  const stated = reading.detectionRangeM;
-  const rd = stated ?? ctx.visualDetectionRangeM;
+  // Spec 10.4: the team's measured visual range wins; a stated (model-read) range is used only when there is
+  // no measurement, so it can never raise POD above a hidden-target measurement.
+  const measured = ctx.visualDetectionRangeM;
+  const rd = measured ?? reading.detectionRangeM;
   if (reading.minutes === null || reading.searchers === null || rd === null) return none("needs_command");
   const w = sweepWidth(rd, params);
   const l = trackLength(reading.minutes, reading.searchers, reading.searchType, params);
   const c = coverage(w, l, areaM2);
   return { kind: "cleared", segmentId: seg, pod: pod(c),
-    inputs: { coverage: c, sweepWidthM: w, trackLengthM: l, areaM2, rdBasis: stated !== null ? "stated" : ctx.rdBasis } };
+    inputs: { coverage: c, sweepWidthM: w, trackLengthM: l, areaM2, rdBasis: measured !== null ? ctx.rdBasis : "stated" } };
 }
 
 function angleBetween(a: number, b: number): number {

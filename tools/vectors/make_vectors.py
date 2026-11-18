@@ -103,11 +103,13 @@ def derive_cleared(reading, ctx, p):
     if cov is not None:
         c, w, length = cov, None, None
     else:
-        rd = reading["detectionRangeM"]
-        if rd is not None:
-            rd_basis = "stated"
-        else:
-            rd = ctx["visualDetectionRangeM"]
+        # Spec 10.4: the team's measured visual range wins; a stated (model-read) range is used only
+        # when there is no measurement, so it can never raise POD above a hidden-target measurement.
+        rd = ctx["visualDetectionRangeM"]
+        if rd is None:
+            rd = reading["detectionRangeM"]
+            if rd is not None:
+                rd_basis = "stated"
         if reading["minutes"] is None or reading["searchers"] is None or rd is None:
             return none("needs_command")
         w = sweep_width(rd, p)
@@ -306,8 +308,14 @@ def frame(fields):
     return out
 
 
+def text_frame(fields):
+    """eventId framing: decimal UTF-8 byte length, ":", value, per field. The security rules can build this
+    string, so they can check that an event's id belongs to its own incident, device and seq."""
+    return "".join(f"{len(f.encode('utf-8'))}:{f}" for f in fields)
+
+
 def event_id(incident_id, device_id, seq):
-    return hashlib.sha256(frame([incident_id, device_id, str(seq)])).hexdigest()[:32]
+    return hashlib.sha256(text_frame([incident_id, device_id, str(seq)]).encode("utf-8")).hexdigest()[:32]
 
 
 def event_set_hash(prior_version, event_ids):
@@ -549,7 +557,10 @@ def build():
     dcase("no_segment_needs_command", "cleared", clear(coverage=1.0), ctx(assignedSegmentIds=[]))
     dcase("hasty_uses_hasty_speed", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, searchType="hasty"))
     dcase("unknown_search_type_uses_sweep", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, searchType="unknown"))
-    dcase("stated_detection_range_basis_stated", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5))
+    dcase("measured_range_beats_stated", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5),
+          ctx(rdBasis="hidden_target"))
+    dcase("stated_range_used_without_measurement", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2, detectionRangeM=5),
+          ctx(visualDetectionRangeM=None, rdBasis="default"))
     dcase("hidden_target_basis_kept", "cleared", clear(segmentIds=["AB"], minutes=20, searchers=2), ctx(rdBasis="hidden_target"))
     dcase("not_a_clear_is_invalid", "cleared", reading(kind="sighting", segmentIds=["AB"]))
     clue = lambda **kw: reading(kind="clue", **kw)  # noqa: E731
@@ -682,6 +693,7 @@ def build():
     id_case("seq_10_differs_from_1_0", "i", "d1", 10)
     id_case("seq_0_on_device_d10", "i", "d10", 0)
     id_case("utf8_lengths_are_bytes", "café", "équipe", 3)
+    id_case("epoch_ms_seq", "drill-dev-1", "uid123ABC", 1795860000000)
     e3 = [event_id(INCIDENT, "dev1", n) for n in (1, 2, 3)]
     set_case("event_set_empty_v1", 1, [])
     set_case("event_set_three_v1", 1, e3)

@@ -23,6 +23,7 @@ beforeEach(async () => {
   await admin.db.doc(`joinCodes/${hash(CODE)}`).set({ incidentId: "I1", roles: ["searcher"] });
   await admin.db.doc(`joinCodes/${hash(FAMILY_CODE)}`).set({ incidentId: "I1", roles: ["family"] });
   await admin.db.doc(`joinCodes/${hash(COMMAND_CODE)}`).set({ incidentId: "I1", roles: ["command"] });
+  await admin.db.doc("incidents/I2").set({ name: "Other drill", mode: "drill", status: "open" });
   await admin.db.doc("incidents/I9").set({ name: "Old drill", mode: "drill", status: "closed" });
   await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["family"] });
   await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
@@ -103,8 +104,16 @@ describe("joinIncident (spec sections 7 and 14)", () => {
   it("an expired judge incident cannot be joined", async () => {
     await expectCode(handleJoin(uid, { joinCode: "JUDG2345", role: "family" }), "permission-denied");
   });
-  it("a code given with another incident's id is rejected", async () => {
-    await expectCode(handleJoin(uid, { incidentId: "I9", joinCode: CODE, role: "family" }), "permission-denied");
+  it("a valid code given with another OPEN incident's id is rejected at the incident check", async () => {
+    // I1's command code, the right role, but incident I2 (open): only the incident comparison can refuse it.
+    await expectCode(handleJoin(uid, { incidentId: "I2", joinCode: COMMAND_CODE, role: "command" }), "permission-denied");
+    expect(await claimsOf(uid)).toBeUndefined();
+  });
+  it("a legacy two-role code doc grants neither role (the pre-fix handler granted both)", async () => {
+    await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "family" }), "permission-denied");
+    expect(await claimsOf(uid)).toBeUndefined();
+    await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "searcher", teamId: "T1" }), "permission-denied");
+    expect(await claimsOf(uid)).toBeUndefined();
   });
   it("rejects a malformed request and an unknown role", async () => {
     await expectCode(handleJoin(uid, { joinCode: 5, role: "family" } as never), "invalid-argument");

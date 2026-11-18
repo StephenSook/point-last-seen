@@ -85,7 +85,7 @@ Effect derivation (`fn: "cleared"`), checks in this order
 3. Segment: first `segmentIds` entry present in `ctx.segments`, else the first assigned one; none found: none / needs_command.
 4. Coverage normalization: 0 to 3 kept; above 3 and up to 300 divided by 100; else (or not finite) none / invalid.
 5. Stated coverage: `C` is that value; `sweepWidthM` and `trackLengthM` are null; `rdBasis` is `ctx.rdBasis`.
-6. Otherwise `Rd` is `reading.detectionRangeM` (then `rdBasis` "stated"), else `ctx.visualDetectionRangeM` (then `ctx.rdBasis`). Missing minutes, searchers or `Rd`: none / needs_command. `W = 1.645 x Rd`, `C = (W x L) / A`.
+6. Otherwise `Rd` is the team's measured `ctx.visualDetectionRangeM` (then `ctx.rdBasis`), else `reading.detectionRangeM` (then `rdBasis` "stated"). A model-read range never overrides a measurement (spec 10.4). Missing minutes, searchers or `Rd`: none / needs_command. `W = 1.645 x Rd`, `C = (W x L) / A`.
 7. Result `{ kind: "cleared", segmentId, pod, inputs: { coverage, sweepWidthM, trackLengthM, areaM2, rdBasis } }`.
 
 Effect derivation (`fn: "clue"`), for kinds "clue" and "sighting"
@@ -107,8 +107,11 @@ Events to the engine (`docToEngine`)
 - `camera_sighting`, `destination`, `confirmation`, `retraction`, `found` and `plan_ack` never count.
 
 Ids
-- Field framing: each field is a 4-byte big-endian byte length, then its UTF-8 bytes.
-- `eventId`: SHA-256 over incidentId, deviceId and decimal seq; the first 16 bytes as 32 lowercase hex characters.
+- `eventId`: SHA-256 over the UTF-8 string made of, per field (incidentId, deviceId, decimal seq), the
+  decimal UTF-8 byte length, a colon and the value; the first 16 bytes as 32 lowercase hex characters.
+  Worked example: ("ab", "c", 1) hashes the string `2:ab1:c1:1`; ("a", "bc", 1) hashes `1:a2:bc1:1`.
+  The security rules rebuild this string, so an event can only be created at its own id.
+- `eventSetHash` framing: each field is a 4-byte big-endian byte length, then its UTF-8 bytes.
 - `eventSetHash`: deduplicate the ids, sort by code point, SHA-256 over [decimal priorVersion] + sorted ids; 64 lowercase hex characters. An empty set hashes the priorVersion field alone.
 - `convergenceCode`: the first 20 bits of the hash, 4 groups of 5 bits, most significant first, through `0123456789ABCDEFGHJKMNPQRSTVWXYZ`.
 

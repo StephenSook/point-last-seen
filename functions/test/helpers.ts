@@ -70,12 +70,6 @@ export async function closeClients(): Promise<void> {
   await Promise.all(clientApps.splice(0).map(a => deleteApp(a)));
 }
 
-export const ID = "a".repeat(32);
-export const ID2 = "b".repeat(32);
-export const ID3 = "c".repeat(32);
-export const ID4 = "d".repeat(32);
-export const ID5 = "e".repeat(32);
-
 export const searcherClaims: Claims = { inc: "I1", role: "searcher", team: "T1" };
 export const commandClaims: Claims = { inc: "I1", role: "command", team: null };
 export const familyClaims: Claims = { inc: "I1", role: "family", team: null };
