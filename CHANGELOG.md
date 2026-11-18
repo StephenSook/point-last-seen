@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/test-vectors/search.json` regenerated: each case's embedded engine params gain the urban rings (47
+  blocks; no other change).
+  Source: the urban terrain commit.
+  Verified: `python3 -I tools/vectors/make_vectors.py --check` exit 0; the vector tests pass.
 - An "urban" terrain for the prior: the ISRID dementia urban distances from the IPP, 0.3, 1.1, 3.2 and 12.6 km
   at 25, 50, 75 and 95% (n = 336), from Lost Person Behavior p. 164 (the publisher's public sample
   https://www.dbs-sar.com/LPB/Dementia.pdf, read 2026-11-18), in both the ring prior (km) and the walkers (m).
