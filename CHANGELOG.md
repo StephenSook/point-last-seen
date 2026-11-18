@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
+  claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
+  right role against another OPEN incident (I2), so only the incident comparison can refuse it.
+  Source: Codex re-review of the C1 fix (only one new test failed on the old code; the cross-incident test
+  stopped at the role check).
+  Verified: with join.ts from 6c4dc21 (the parent of 406f97f) swapped in, 2 of 14 join tests fail (both
+  legacy-doc tests); on HEAD all 63 emulator tests pass; ci-local exits 0.
 - Firestore rules recompute every event's id: `eventIdOf(incidentId, request.auth.uid, seq)` with the same
   text framing as the engines (hashing.sha256 over decimal byte length, ":" and value per field) must start
   the document id, and seq must be a whole number of 0 or more. A member can no longer occupy another
