@@ -337,3 +337,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `/judge` renders `JudgePage` (no login, no key, no Firebase start-up needed for it): the drill line; section 1 says "No published run yet." until the drill run is published; section 2 has "Get this laptop ready" and shows the D2 state lines, with the measured Chrome 157 note (downloadable before a 77 s download, text and image input after); section 5 shows "No published run yet.", a load failure, an incomplete file, or the run id. The D1 replay, the sample photos button, the numbers panel and the TestFlight and APK links are added when the sandbox function, the published run and the builds exist. Styles for the page.
 - Source: plan Task 23c, spec section 16, S4 step 3.
 - Verified: typecheck and build clean; `e2e/judge.spec.ts` (next commit) passed against the local preview.
+
+### test(judge): prove D2 sends nothing without a built-in model and the page says no run yet
+- What: `e2e/judge.spec.ts`: with `LanguageModel` deleted, "Get this laptop ready" shows state (a) with "This browser has no built-in model. Nothing private was sent." and zero requests reach any AI host, with no console errors; before a run is published, both the replay and the Numbers sections say "No published run yet." This test needs no join, so it runs today.
+- Source: plan Task 23c tests ("with no built-in model D2 shows the no-model message and sends nothing").
+- Verified: `npx playwright test judge` against the local preview: 2 passed.
