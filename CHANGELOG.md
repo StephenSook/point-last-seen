@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Clip consent is checked where it matters, at upload: Storage takes a clip only while its consent record
+  expires at least 31 days after the upload, whenever the consent was written, so the consent always outlives
+  the clip (deleted 30 days after upload) and an old 30-day record can no longer authorize an upload. The
+  24-hour createdAt rule is gone. The 31 to 33 day window on write stays (clients write 32). The creator can
+  renew the consent (consent, expiresAt and a server createdAt only, in the same window) while the clip has no
+  reading, so an interrupted upload is not stranded. LIMITS and the release checklist say an APK older than
+  c05f679 cannot read clips.
+  Source: review round 3 (two mediums).
+  Verified: the upload-time test (30 days 23 hours refused, 31 days 1 hour accepted on a 3-day-old consent),
+  the retry test (refused, renewed, then accepted) and the renewal test (another user, an expiry outside the
+  window, a moved storagePath, a client createdAt and a renewal after the reading all refused) failed first,
+  now pass; emulator suite 116; judging-window test 3; `bash scripts/ci-local.sh` exit 0.
 - `simulateWalkers` takes an optional `onProgress(done)`, called after every 1,000 walkers and once at the end,
   so the web worker can show progress on a long run. It reads no random draw and never changes the table.
   Source: lane C (Task 37c progress every 1,000 walkers).

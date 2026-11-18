@@ -14,6 +14,10 @@ must give.
   Check first: `gh repo view StephenSook/point-last-seen --json visibility` says PUBLIC, and
   `gh release view --repo StephenSook/point-last-seen` lists an .apk asset.
 
+- [ ] Publish only a release APK that includes c05f679 (clip consent written 32 days out). An older APK
+  writes 30 days, which the rules refuse, so it cannot read clips. Check: `git merge-base --is-ancestor c05f679
+  <release commit>` exits 0.
+
 ## Firebase project
 
 - [ ] Storage CORS matches `storage.cors.json` (the web app reads photo bytes with an XHR from the hosting
@@ -39,7 +43,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | Value | Dec 10 and Dec 16 | What refreshes or guards it |
 |---|---|---|
 | Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
-| clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; a clip upload needs a consent under 24 hours old, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
+| clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; Storage takes a clip only while its consent expires 31 or more days after the upload, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
 | Judge sandbox: expires 24 h after start, one per visitor per hour, daily cap from Remote Config | Each judge's sandbox lives 24 h; its media goes within 15 min of the end | `deleteIncidentMedia` every 15 min (no end date); the daily cap key (line below) |
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |

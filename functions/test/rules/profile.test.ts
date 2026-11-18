@@ -82,6 +82,19 @@ describe("clip and photo readings", () => {
     await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading, route: { path: "cloud" } }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: false } }, { merge: true }));
   });
+  it("its creator renews the consent while no reading exists, inside the expiry window only (review round 3)", async () => {
+    const sha = "b".repeat(64), path = `incidents/I1/clipReadings/${sha}`;
+    await admin.db.doc(path).set(clipReadingDoc("I1", sha, F, { expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: new Date(Date.now() - 2 * 86400_000) }));
+    const renew = (uid: string, claims: object, over: Record<string, unknown> = {}) =>
+      setDoc(doc(dbAs(uid, claims), path), clipReadingDoc("I1", sha, uid, over));
+    await assertFails(renew(C, commandClaims));
+    await assertFails(renew(F, familyClaims, { expiresAt: new Date(Date.now() + 40 * 86400_000) }));
+    await assertFails(renew(F, familyClaims, { storagePath: `clips/I2/${sha}.mp4` }));
+    await assertFails(renew(F, familyClaims, { createdAt: new Date() }));
+    await assertSucceeds(renew(F, familyClaims));
+    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), path), { reading: { personVisible: true }, route: { path: "cloud" } }, { merge: true }));
+    await assertFails(renew(F, familyClaims));
+  });
   it("photo readings are command only, read and write", async () => {
     const sha = "e".repeat(64);
     await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), `incidents/I1/photoReadings/${sha}`), { sha256: sha }));
