@@ -1005,3 +1005,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the layer switches, the Rings/Walkers switch and the camera clip panel now say "Prior rebuilt as vN." only when that write's own acknowledgement arrives. Before, they compared against the incident's prior version, which a queued local write advances at once, so "Sending" disappeared offline while other seats still had the old prior. The panels no longer take a priorVersion prop.
 - Source: second-model review of PR #16, finding 9 (medium).
 - Verified: new layers harness test (after Rebuild prior the status stays "... Sending." until the harness's "Server acknowledges" settles the write, then "Prior rebuilt as v5.") failed first (it showed rebuilt at once), then passed; the 20 layers, prior-switch and clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): start a practice search through startJudgeSession and refresh the sign-in
+- What: `data/practice.ts`: `practiceSearch` calls the `startJudgeSession` callable (lane A; App Check enforced, capped, a sandbox that expires), checks the answer is a command seat on a `judge-` incident, then refreshes the ID token so the new claims apply, and returns the incident. `practiceErrorMessage` shows the server's own sentences for its refusals (one new practice search per hour, full for today, none available), names a lost connection or a browser that could not be checked, and is plain otherwise.
+- Source: judge-door review item (b); lane A's startJudgeSession contract.
+- Verified: `src/data/practice.test.ts` (call then refresh, in that order; a non-practice or non-command answer refused; the error sentences) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
