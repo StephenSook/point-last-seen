@@ -1,0 +1,13 @@
+{
+  "segments": [
+    {
+      "segmentId": "AA",
+      "priorPoa": 0.2664
+    },
+    {
+      "segmentId": "AB",
+      "priorPoa": 0.1372
+    }
+  ],
+  "row": 0.5964
+}
