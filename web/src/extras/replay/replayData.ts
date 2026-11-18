@@ -17,7 +17,7 @@ import {
   type Team,
 } from "../laneC";
 import { DRILL_LABEL } from "../print/printModel";
-import { AUTHOR_PSEUDONYM, RUN_FIELDS } from "./runContract";
+import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, RUN_FIELDS } from "./runContract";
 import { replayWindow, stateAt } from "./stateAt";
 
 export type ReplayEvent = {
@@ -209,11 +209,21 @@ function strayField(o: Record<string, unknown>, allowed: readonly string[], wher
   return k === undefined ? null : where ? `${where}.${k}` : k;
 }
 const strayRefusal = (field: string) => refuse(`The run carries a field a public run must not: ${field}.`);
+const USER_ID = "The run carries a user id. A public run must not.";
+
+/** True when any string anywhere in `v` has the shape of a Firebase Auth user id. */
+function holdsUidShape(v: unknown): boolean {
+  if (typeof v === "string") return FIREBASE_UID_SHAPE.test(v);
+  if (Array.isArray(v)) return v.some(holdsUidShape);
+  if (isObj(v)) return Object.values(v).some(holdsUidShape);
+  return false;
+}
 
 export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayData } | Refusal {
   const { incident, segments, teams, devices, events, plans } = run;
   const topStray = strayField(run as Record<string, unknown>, RUN_FIELDS.run, null);
   if (topStray) return strayRefusal(topStray);
+  if (holdsUidShape(run)) return refuse(USER_ID);
   if (!isObj(incident) || !str(incident["name"]) || !num(incident["priorVersion"])) return refuse("The run is missing its incident.");
   const incidentStray = strayField(incident, RUN_FIELDS.incident, "incident");
   if (incidentStray) return strayRefusal(incidentStray);
@@ -251,6 +261,7 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   for (const d of devices) {
     const deviceStray = isObj(d) ? strayField(d, RUN_FIELDS.device, "device") : null;
     if (deviceStray) return strayRefusal(deviceStray);
+    if (isObj(d) && !(str(d["deviceId"]) && DEVICE_PSEUDONYM.test(d["deviceId"]))) return refuse(USER_ID);
     if (isObj(d) && str(d["deviceId"]) && num(d["clockOffsetMs"])) offsets[d["deviceId"]] = d["clockOffsetMs"];
   }
 
@@ -261,7 +272,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     }
     const eventStray = strayField(e, RUN_FIELDS.event, "event");
     if (eventStray) return strayRefusal(eventStray);
-    if (!str(e["authorUid"]) || !AUTHOR_PSEUDONYM.test(e["authorUid"])) return refuse("The run carries a user id. A public run must not.");
+    if (!str(e["authorUid"]) || !AUTHOR_PSEUDONYM.test(e["authorUid"])) return refuse(USER_ID);
+    if (!DEVICE_PSEUDONYM.test(e["deviceId"])) return refuse(USER_ID);
     if (!num(e["serverTimeMs"])) return refuse("The run has no arrival time for a report.");
     // The run is public (see runContract.ts): report words and a report's reading, which quotes them, never ship.
     const reading = e["reading"];

@@ -50,10 +50,18 @@ export function harnessIncident(opts: { pending?: boolean } = {}): { view: Incid
   return { view, events, plans: [replayPlan(1, T0 + 7 * MIN), replayPlan(2, T0 + 15 * MIN)] };
 }
 
+/** The run's pseudonym for a fixture device id; a real export assigns one per device, never the uid. */
+export function runDevice(deviceId: string): string {
+  const alias: Record<string, string> = { cmd: "device-0", d1: "device-1", d2: "device-2", d9: "device-9" };
+  const a = alias[deviceId];
+  if (!a) throw new Error(`no run pseudonym for fixture device ${deviceId}`);
+  return a;
+}
+
 /** A stored event as the published run writes it (runContract.ts): no uid, no report text, numeric server time. */
 export function runEvent(doc: EventDoc, serverTimeMs: number): RunEvent {
   const { serverTime: _serverTime, rawText: _rawText, reading, ...rest } = doc;
-  return { ...rest, authorUid: "author-1", rawText: null, reading: reading as RunEvent["reading"], serverTimeMs };
+  return { ...rest, deviceId: runDevice(doc.deviceId), authorUid: "author-1", rawText: null, reading: reading as RunEvent["reading"], serverTimeMs };
 }
 
 /** The same incident as a published run file, typed as the contract. */
@@ -67,7 +75,7 @@ export function harnessRun(): PublishedRunV1 {
     incident: { name: inc.name, mode: inc.mode, priorVersion: inc.priorVersion, priorInputEventIds: [], priorBuiltAtMs: T0 + 6 * MIN },
     segments: [...segments.map(({ geometry, ...s }) => ({ ...s, geometryJson: JSON.stringify(geometry) })), { segmentId: "ROW", priorPoa: 0.1 }],
     teams: view.teams,
-    devices: [{ deviceId: "d1", teamId: "alfa", clockOffsetMs: 0 }, { deviceId: "d2", teamId: "bravo", clockOffsetMs: 0 }],
+    devices: [{ deviceId: runDevice("d1"), teamId: "alfa", clockOffsetMs: 0 }, { deviceId: runDevice("d2"), teamId: "bravo", clockOffsetMs: 0 }],
     events: docs.map(([d, at]) => runEvent(d, at)),
     plans: plans.map((p) => ({ version: p.version, approvedAtMs: (p.approvedAt as { toMillis(): number }).toMillis(), priorVersion: p.priorVersion, basedOnEventSetHash: p.basedOnEventSetHash, assignments: p.assignments })),
     measurements: {},

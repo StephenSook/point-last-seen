@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../laneC";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
-import { runEvent } from "../testdata/replayIncident";
+import { runDevice, runEvent } from "../testdata/replayIncident";
 import { PUBLISHED_RUN_VERSION, type PublishedRunV1 } from "./runContract";
 
 const MIN = 60_000;
@@ -169,7 +169,7 @@ function runV1(): PublishedRunV1 {
       { segmentId: "ROW", priorPoa: 0.1 },
     ],
     teams: view.teams,
-    devices: [{ deviceId: "d1", teamId: "alfa", clockOffsetMs: 5_000 }, { deviceId: "d2", teamId: "bravo", clockOffsetMs: -2_000 }],
+    devices: [{ deviceId: runDevice("d1"), teamId: "alfa", clockOffsetMs: 5_000 }, { deviceId: runDevice("d2"), teamId: "bravo", clockOffsetMs: -2_000 }],
     events: [
       runEvent(eventDoc({ eventId: "e1", clientTimeMs: T0 + MIN }), T0 + 10 * MIN),
       runEvent(eventDoc({ eventId: "e2", teamId: "bravo", deviceId: "d2", clientTimeMs: T0 + 2 * MIN }), T0 + 3 * MIN),
@@ -251,6 +251,24 @@ describe("fromPublishedRun", () => {
     const withUid = { ...base.events[0]!, authorUid: "Xq9fZp2uid" };
     expect(fromPublishedRun(run({ events: [withUid] }))).toEqual({ ok: false, reason: "The run carries a user id. A public run must not." });
     expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, authorUid: "author-12" }] })).ok).toBe(true);
+  });
+
+  it("refuses a device id that is not a run pseudonym, in a report or in the device table", () => {
+    // The rules make a device id the author's auth uid, so a raw one is a user id.
+    const base = runV1();
+    const uid = "Xq9fZp2uLmN4oPq8RsT1uVw3XyZa";
+    const userId = { ok: false, reason: "The run carries a user id. A public run must not." };
+    expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, deviceId: uid }] }))).toEqual(userId);
+    expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, deviceId: "d1" }] }))).toEqual(userId);
+    expect(fromPublishedRun(run({ devices: [{ ...base.devices[0]!, deviceId: uid }] }))).toEqual(userId);
+  });
+
+  it("refuses any value shaped like a Firebase user id, wherever it sits", () => {
+    const base = runV1();
+    const userId = { ok: false, reason: "The run carries a user id. A public run must not." };
+    expect(fromPublishedRun(run({ teams: [{ teamId: "alfa", name: "Xq9fZp2uLmN4oPq8RsT1uVw3XyZa" }] }))).toEqual(userId);
+    expect(fromPublishedRun(run({ measurements: { note: ["AbCdEfGhIjKlMnOpQrStUvWxYz12"] } }))).toEqual(userId);
+    expect(fromPublishedRun(run({ teams: base.teams })).ok).toBe(true);
   });
 
   it("refuses engine settings it cannot compute with", () => {

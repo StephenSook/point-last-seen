@@ -9,6 +9,13 @@ export const PUBLISHED_RUN_VERSION = 1;
 
 /** A run author's pseudonym: "author-" and a number, stable within one run. Never the real uid. */
 export const AUTHOR_PSEUDONYM = /^author-[0-9]+$/;
+/**
+ * A run device's pseudonym: "device-" and a number, the same in the events and the device table. The security rules
+ * make a device id its author's auth uid, so a raw device id is a user id.
+ */
+export const DEVICE_PSEUDONYM = /^device-[0-9]+$/;
+/** The shape of a Firebase Auth user id (28 letters and digits). No string anywhere in a public run may have it. */
+export const FIREBASE_UID_SHAPE = /^[A-Za-z0-9]{28}$/;
 
 // The fields each part may carry. The reader refuses any other field, so nothing private can ride along unnoticed.
 export const RUN_FIELDS = {
@@ -52,7 +59,10 @@ export type PublishedRunV1 = {
   /** Every segment doc as stored, plus the reserved ROW doc that holds the prior mass outside the map. */
   segments: (RunSegment | { segmentId: "ROW"; priorPoa: number })[];
   teams: { teamId: string; name: string }[];
-  /** One row per device doc. clockOffsetMs: server time minus the device clock, measured at pack time; null when never measured. */
+  /**
+   * One row per device doc, keyed by its DEVICE_PSEUDONYM. clockOffsetMs: server time minus the device clock, measured
+   * at pack time; null when never measured.
+   */
   devices: { deviceId: string; teamId: string; clockOffsetMs: number | null }[];
   events: RunEvent[];
   plans: RunPlan[];
