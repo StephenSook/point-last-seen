@@ -11,8 +11,21 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    // Claims outlive an incident, so membership also needs the incident to exist and not be expired
+    // (judge sandboxes carry expiresAt). get() of the same doc is cached within one request.
+    function incidentData(incidentId) {
+      return get(/databases/$(database)/documents/incidents/$(incidentId)).data;
+    }
+    function notExpired(incidentId) {
+      let i = incidentData(incidentId);
+      return !('expiresAt' in i) || i.expiresAt == null || request.time < i.expiresAt;
+    }
     function isMember(incidentId) {
-      return signedIn() && request.auth.token.inc == incidentId;
+      return signedIn() && request.auth.token.inc == incidentId && notExpired(incidentId);
+    }
+    // A closed incident stays readable to its members but takes no new events or plans.
+    function isOpen(incidentId) {
+      return incidentData(incidentId).status != 'closed';
     }
     function role() {
       return request.auth.token.role;
@@ -90,7 +103,8 @@ service cloud.firestore {
       // An approved plan is written once by the command user who approved it.
       match /plans/{version} {
         allow read: if isMember(incidentId);
-        allow create: if isCommand(incidentId) && request.resource.data.approvedByUid == request.auth.uid;
+        allow create: if isCommand(incidentId) && isOpen(incidentId)
+          && request.resource.data.approvedByUid == request.auth.uid;
         allow update, delete: if false;
       }
 
@@ -135,6 +149,7 @@ service cloud.firestore {
     function validEvent(incidentId, eventId) {
       let d = request.resource.data;
       return isMember(incidentId)
+        && isOpen(incidentId)
         && eventId.matches('^[0-9a-f]{32}$')
         && d.keys().hasOnly(eventFields())
         && d.keys().hasAll(eventFields())

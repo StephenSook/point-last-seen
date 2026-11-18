@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules: claims outlive an incident, so membership now also needs the incident doc to exist and
+  not be past its `expiresAt` (judge sandboxes), and a closed incident takes no new events or plans while
+  staying readable to its members. New tests in `functions/test/rules/roles.test.ts`: expired sandbox locks
+  members out of reads and writes, an unexpired sandbox works, a closed incident refuses events and plans,
+  a member of a missing incident reads nothing.
+  Source: automated commit security review of functions/src/join.ts (MEDIUM, stale access after close or
+  expiry); fixed in rules rather than by revoking claims, so it holds even if a revocation step is missed.
+  Verified: the new tests failed first (3 of 4; the unexpired case already passed); now the full emulator
+  suite passes, 53 tests including the storage change in the next commit (Firestore files alone: 37).
 - Add the `rules` CI job (`.github/workflows/rules.yml`): Temurin 21, firebase-tools 15.36.0, cached emulator
   jars, functions typecheck, then `npm run test:rules -w functions` (Firestore, Auth and Storage emulators,
   project demo-pls). Runs on pull requests to main and on main when rules, functions, firebase.json or the
