@@ -2,6 +2,7 @@
 // segments and each phone's clock offset (measured when it packed).
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
+import type { EngineParams } from "@pls/engine";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -10,6 +11,8 @@ export type IncidentDoc = {
   drillLabel?: string;
   status: "open" | "found" | "closed";
   priorVersion: number;
+  priorInputEventIds?: string[];
+  engineParams?: EngineParams;
   ipp?: { lat: number; lon: number };
   gridId?: string;
 };

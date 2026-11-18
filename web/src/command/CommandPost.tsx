@@ -1,6 +1,7 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
+import { DEFAULT_PARAMS, type EventDoc } from "@pls/engine";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
@@ -11,6 +12,7 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { viewState } from "./viewState";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -156,9 +158,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
-  // Until the engine lands this is the stored prior; the posterior replaces it.
-  const poa = useMemo(() => Object.fromEntries(segments.map((s) => [s.segmentId, s.priorPoa])), [segments]);
-  const rows = useMemo(() => [...segments].sort((a, b) => b.priorPoa - a.priorPoa).map((s) => ({ segmentId: s.segmentId, poa: s.priorPoa })), [segments]);
+  const incident = view?.incident ?? null;
+  const vs = useMemo(() => {
+    if (!incident || typeof incident.priorVersion !== "number" || segments.length === 0 || view?.rowPrior === null || view?.rowPrior === undefined) return null;
+    const prior = [...segments.map((s) => ({ segmentId: s.segmentId, priorPoa: s.priorPoa })), { segmentId: "ROW", priorPoa: view.rowPrior }];
+    // Engine parameters travel with the incident (spec rule R6); the shared constants match a fresh incident.
+    const params = incident.engineParams ?? DEFAULT_PARAMS;
+    return viewState(prior, events as unknown as EventDoc[], incident.priorInputEventIds ?? [], params, incident.priorVersion);
+  }, [incident, segments, view?.rowPrior, events]);
+  const poa = vs?.result.poa ?? {};
+  const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
   return (
     <div className="post">
@@ -167,7 +176,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <span className="incident">{view?.incident?.name ?? incidentId}</span>
         <span className="code">
           <span className="label">Code</span>
-          <span className="num" data-testid="convergence-code">----</span>
+          <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
       </header>
       {readError && (
@@ -179,7 +188,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <TeamsRail teams={teams} activeTeamId={null} />
         <MapView segments={segments} poa={poa} />
         <aside className="rail right">
-          <PoaRank rows={rows} row={view?.rowPrior ?? null} />
+          <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <MergeLanes lanes={lanes} />
         </aside>
       </div>
