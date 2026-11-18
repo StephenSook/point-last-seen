@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The vectors README's section table lists all three afterFailure result shapes, including
+  `{ next: "reroute_without_on_device" }`, matching the rule text below it and the router vectors.
+  Source: fresh-context review minor 10.
+  Verified: the router vectors contain that shape (`grep -c reroute_without_on_device` on search.json is
+  above 0); ci-local exits 0.
 - The rules gate's `LanguageModel.availability` rule also catches optional chaining (`LanguageModel?.availability`)
   and bracket access (`LanguageModel["availability"]`), so the call stays confined to web/src/ai/gate.ts.
   Source: fresh-context review minor 11.
