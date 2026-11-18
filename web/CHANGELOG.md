@@ -256,3 +256,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a section in `docs/evidence/spikes/S4.md`: with LanguageModel deleted and no gate, the SDK's fallback request for a model built with the unreachable base URL failed with `net::ERR_NAME_NOT_RESOLVED`, and nothing reached firebasevertexai.
 - Source: rival self-audit addendum, Task 20 (record the base-URL result).
 - Verified: CDP Network log of the run (raw file `~/dev/pls-spikes/s4/r14-nolm-invalid-base.json`, kept outside the repo); rules gate ok.
+
+### feat(photos): hash, store and list family photos through the Storage SDK
+- What: `photos.ts`: `sha256Hex`; `photoPath` (only a 64-character hash can name a photo, so no other text can become a path); `photoReadingDoc` (hash, path, cues, route, the family's yes, no or not-sure, and `expiresAt` 30 days on for the TTL policy); `bytesToBase64` in chunks; `loadPhotos` lists `photos/{incident}/` and reads each object with `getBytes` (2 MB cap), so Storage rules apply and no download URL exists; `uploadPhoto` skips an object that already exists, because photos are create-only and named by content; `savePhotoReading` writes `photoReadings/{sha256}` (command only).
+- Source: plan Task 20, spec section 7 (`photoReadings`, the 30-day expiry), orchestrator security rule (never `getDownloadURL`), lane A's create-only photo paths (63a65bb).
+- Verified: `src/data/photos.test.ts`, 6 tests, failed first (module missing), then passed; rules gate ok (no download URL in web code).
