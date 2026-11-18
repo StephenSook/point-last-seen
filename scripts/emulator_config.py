@@ -17,10 +17,13 @@ Usage: python3 -I scripts/emulator_config.py [worktree root]               (prin
        python3 -I scripts/emulator_config.py [worktree root] --tmpdir      (creates and prints a TMPDIR)
 """
 
+import errno
 import hashlib
 import json
+import socket
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 EMULATORS = ("auth", "firestore", "storage", "hub", "logging", "functions", "hosting", "eventarc")
@@ -53,13 +56,47 @@ def build(root: Path) -> dict:
     return cfg
 
 
+def busy_ports(root: Path) -> list[int]:
+    """Ports in this worktree's block that cannot be bound right now, on 127.0.0.1 or ::1."""
+    base, busy = port_base(root), []
+    for port in range(base, base + BLOCK):
+        for family, host in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
+            s = socket.socket(family, socket.SOCK_STREAM)
+            try:
+                s.bind((host, port))
+            except OSError as e:
+                if e.errno == errno.EADDRINUSE:
+                    busy.append(port)
+                    break
+            finally:
+                s.close()
+    return busy
+
+
+def wait_ports(root: Path, seconds: float) -> int:
+    """Waits (bounded) until the block is free, so a lingering socket from the previous run cannot fail the next
+    emulator start. Exit 0 when free; exit 1 naming the busy ports when the time runs out."""
+    deadline = time.monotonic() + seconds
+    while True:
+        busy = busy_ports(root)
+        if not busy:
+            print("emulator ports free")
+            return 0
+        if time.monotonic() >= deadline:
+            print(f"emulator ports still in use after {seconds:g} s: {busy}", file=sys.stderr)
+            return 1
+        time.sleep(1)
+
+
 def project_id(root: Path) -> str:
     return "demo-pls-" + hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:8]
 
 
 def main(argv: list[str]) -> int:
-    args = [a for a in argv if not a.startswith("--")]
+    args = [a for i, a in enumerate(argv) if not a.startswith("--") and (i == 0 or argv[i - 1] != "--wait-ports")]
     root = Path(args[0] if args else ".").resolve()
+    if "--wait-ports" in argv:
+        return wait_ports(root, float(argv[argv.index("--wait-ports") + 1]))
     if "--project-id" in argv:
         print(project_id(root))
         return 0

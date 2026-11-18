@@ -1,0 +1,94 @@
+# XcodeGen spec for the searcher app. Generate with:
+#   xcodegen generate --spec ios/project.yml
+# The generated PLS.xcodeproj is not tracked; this file is the source.
+name: PLS
+options:
+  bundleIdPrefix: app.pointlastseen
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Simulator builds sign ad hoc so the test bundle loads; device signing uses Stephen's
+    # team, set locally in Xcode, never committed.
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 13.2.0
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 7.0.0
+  PLSCore:
+    path: PLSCore
+targets:
+  PLS:
+    type: application
+    platform: iOS
+    sources:
+      - path: PLS
+      - path: ../shared/constants/engine-params.json
+        buildPhase: resources
+      - path: ../shared/constants/evidence-terms.json
+        buildPhase: resources
+    info:
+      path: PLS/Info.plist
+      properties:
+        CFBundleDisplayName: Point Last Seen
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSLocationWhenInUseUsageDescription: Used to place your report on the search map.
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    entitlements:
+      path: PLS/PLS.entitlements
+      properties:
+        com.apple.developer.devicecheck.appattest-environment: production
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field
+        TARGETED_DEVICE_FAMILY: "1"
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+    dependencies:
+      - package: Firebase
+        product: FirebaseAILogic
+      - package: Firebase
+        product: FirebaseAppCheck
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseRemoteConfig
+      - package: MapLibre
+        product: MapLibre
+      - package: PLSCore
+        product: PLSCore
+  PLSTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PLSTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field.tests
+        GENERATE_INFOPLIST_FILE: YES
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+    dependencies:
+      - target: PLS
+schemes:
+  PLS:
+    build:
+      targets:
+        PLS: all
+        PLSTests: [test]
+    test:
+      targets: [PLSTests]
