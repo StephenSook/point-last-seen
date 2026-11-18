@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Task 35a: approach notes and the profile split. `shared/constants/approach-notes.json` holds the spec 13.3
+  copy (ours), the display order (may_not_respond and approach_calm first), when each note shows, a source
+  role per note and the card footer. `shared/engine-ts/src/approach.ts` exports approachNoteIds,
+  profileForSearchers (exactly the 20 profile/shared fields; dementiaType null without the family's
+  consent), profileForCommand (the 5 command fields), profileForModel (appearance and clothing only),
+  profileWarnings (photo past 60 days, profile past 183 days, or a missing date), detectionProfile (sound
+  counts only if the family says they answer; hide or uniform fears ask for a hidden target) and
+  placeToCheck (one destination event with a label and position only, effect none/informational).
+  Source: plan Task 35a; spec sections 10.4, 13.2 and 13.3. Lane C (web form) and lane B (iOS card) build on it.
+  Verified: the 11 new tests failed first (no module), now 166 engine tests pass; typecheck and lint exit 0;
+  the shared keys match the rules' profile/shared allowlist; ci-local exits 0. The plan's device check
+  (step 5) is lane B's.
 - The vectors README's section table lists all three afterFailure result shapes, including
   `{ next: "reroute_without_on_device" }`, matching the rule text below it and the router vectors.
   Source: fresh-context review minor 10.

@@ -291,3 +291,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: merges origin/main: the rules gate now also catches optional-chained and bracketed availability calls, schema parity checks TypeScript enum values, the clip consent record is required before upload, camera sightings carry their clip reference, and joinIncident is capped at 5 instances.
 - Source: keep lane-web current with main before the next task.
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree: rules gate ok on 154 files (the web still asks Chrome only in gate.ts), schema parity ok, engine 155, vectors 134, rules 85 in the emulators, web 190 tests and the build.
+
+### chore(merge): bring main into lane-web (Task 35a: profile splitting and approach notes)
+- What: merges origin/main 2bc711c: the engine's `approachNoteIds`, `profileForSearchers`, `profileForCommand`, `profileForModel`, `profileWarnings`, `detectionProfile`, `placeToCheck`, and `shared/constants/approach-notes.json` (copy, order, footer, first-screen limit 7, source role per note).
+- Source: lane A's Task 35a, which Task 35c builds on.
+- Verified: `scripts/ci-local.sh` exit 0 on the merged tree; web typecheck and unit tests pass.

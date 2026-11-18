@@ -10,4 +10,6 @@ export { validateReading } from "./validate";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
 export { buildPrior } from "./prior";
+export { approachNoteIds, detectionProfile, placeToCheck, profileForCommand, profileForModel, profileForSearchers, profileWarnings } from "./approach";
+export type { FamilyProfile, ModelProfile, PlaceToCheckContext, ProfileWarning } from "./approach";
 export type { PriorLayers, PriorResult } from "./prior";
