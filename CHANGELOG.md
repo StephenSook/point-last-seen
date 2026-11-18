@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The clipReadings TTL policy was missing in production although the spec and LIMITS promise it: it is now
+  enabled on `clipReadings.expiresAt` and declared in firestore.indexes.json as a field override, so the
+  merge point 2 index deploy keeps it. `scripts/test_judging_window.py` (gates and ci-local) pins three
+  values judging depends on: the lifecycle age cannot delete anything before 2026-12-16 (project created
+  2026-11-17), the TTL is declared and the rules allow at least 30 days, and both probes retire only after
+  2026-12-16.
+  Source: orchestrator (BYT's stale-data finding; HR217 judging-window audit).
+  Verified: the TTL test failed first (no override), now 3 tests pass; `gcloud firestore fields ttls update`
+  exit 0, state CREATING (re-checked at merge point 2); `bash scripts/ci-local.sh` exit 0.
 - ci-local: when the emulator suite fails, it now prints who holds this worktree's emulator ports
   (`scripts/emulator_config.py --who-holds`, lsof over the 10-port block) and still fails with exit 1.
   Lane B saw one WebChannel bind failure ("Address already in use") on its websocketPort right after the
