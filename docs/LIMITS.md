@@ -84,6 +84,11 @@ each line says what the limit is and why.
 - An incident's command can delete all its clips, photos and their readings at once with
   `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
   are not included; they are rebuilt from the incident and expire with the lifecycle rule.
+- A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
+  its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
+  carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
+  once one is published. A visitor gets one new practice search an hour, at most 50 are started a day, and each
+  is deleted, with everything in it, a day after it ends.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next

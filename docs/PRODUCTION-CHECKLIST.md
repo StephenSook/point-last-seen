@@ -54,7 +54,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 |---|---|---|
 | Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
 | clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; Storage takes a clip only while its consent expires 31 or more days after the upload, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
-| Judge sandbox: expires 24 h after start, one per visitor per hour, daily cap from Remote Config | Each judge's sandbox lives 24 h; its media goes within 15 min of the end | `deleteIncidentMedia` every 5 min (no end date); the daily cap key (line below) |
+| Judge sandbox (`startJudgeSession`): expires 24 h after start, one new per visitor per hour, at most 50 new a day | Each judge's sandbox lives 24 h; its media goes within 15 min of the end; the sandbox itself is deleted a day after it ends | `deleteIncidentMedia` every 5 min and `deleteEndedSandboxesJob` every hour (no end date); the cap (line below) |
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
 | Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
@@ -68,9 +68,9 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 
 - [ ] Every judge-sandbox copy of a clip reading gets `expiresAt` set from the sandbox's own end (Task 23,
   `startJudgeSession`), never the drill's original value, so the TTL cannot remove a sandbox's readings early.
-- [ ] The daily sandbox cap key exists: `firebase remoteconfig:get --project buildhybridai-2026-yg3m` lists it
-  with a value, or the function's in-code default is written here. On 2026-11-18 the server template had no
-  parameters at all.
+- [ ] The daily sandbox cap is the function's in-code value: `JUDGE_SESSIONS_PER_DAY = 50` new practice searches per
+  UTC day across all visitors (`functions/src/judgeSession.ts`, counted in the admin-only `ops/judgeSessions`).
+  Lower it there, and redeploy, if the Gemini burn rate line below needs it.
 - [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
   and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
   already used. If not, lower the daily cap before submit.

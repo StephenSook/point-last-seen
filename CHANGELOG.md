@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `startJudgeSession` (callable, App Check enforced): a signed-in visitor gets their own practice incident,
+  `incidents/judge-{uid}`, copied from the development drill on the Piedmont Park grid (its grid, IPP,
+  terrain, prior and engine settings, segments, teams and shared profile; never its events, command profile
+  or consent records), labelled "Training drill. Practice search; nobody is missing.", ending 24 hours after it
+  starts, with the command role set on the caller. A visitor who returns while it is live gets the same one; a
+  new one is allowed once an hour per visitor and at most 50 a day (counted in the admin-only
+  `ops/judgeSessions`). `deleteEndedSandboxesJob` (hourly) deletes each sandbox, with everything under it, a
+  day after it ends. LIMITS, SECURITY row 14 and the checklist describe it; the rulings are ledgered.
+  Source: review (P0: no judge could use the site), plan Task 23a.
+  Verified: the 7 tests (the copy and the claims, re-entry, the hourly limit and a clean rebuild, the daily cap
+  and its reset, a signed-out caller and a missing seed, App Check through the wrapper, the cleanup) failed
+  first (module missing), now pass; a rules test pins that a judge reads only their own sandbox and cannot
+  write events elsewhere; emulator suite 142; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - The seeding tool writes join codes to the Keychain through `security -i` on stdin instead of
   `security add-generic-password -w <code>`, whose arguments any local process can read while it runs; seeding
   and `--rotate` both use it. A value or name with unexpected characters is refused before anything runs.
