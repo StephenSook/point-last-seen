@@ -26,3 +26,11 @@ test("without the site's route graph Walkers is unavailable and says why", async
   await expect(s).toContainText("Walkers need this site's route graph.");
   await expect(s).toContainText(SENTENCE);
 });
+
+test("the chosen model looks chosen: the pressed button is filled", async ({ page }) => {
+  await page.goto("/harness/prior-switch.html");
+  const s = page.getByRole("region", { name: "Prior model" });
+  const bg = (name: string) => s.getByRole("button", { name }).evaluate((e) => getComputedStyle(e).backgroundColor);
+  expect(await bg("Rings")).toBe("rgb(248, 244, 241)"); // fg-1
+  expect(await bg("Walkers")).not.toBe("rgb(248, 244, 241)");
+});

@@ -754,3 +754,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a small Ioskeley Mono caps wordmark, "Point Last Seen" (fg-3), above the drill line on the join page and `/judge`.
 - Source: UI review D23 (the product name was on no screen).
 - Verified: the `e2e/phonefit.spec.ts` test "the product name is on the join page and the judge page" failed first (not found), then passed; the join-page layout-shift test and axe on both pages at 1440 and 390 px still pass. scripts/ci-local.sh exit 0.
+
+### fix(walkers): fill the pressed Rings or Walkers button so the chosen model shows
+- What: a pressed ghost button (`aria-pressed="true"`) is filled fg-1 on bg-0 text, so Rings or Walkers reads as chosen at a glance.
+- Source: the still of the first live walker run on the drill (both buttons looked the same).
+- Verified: new harness test failed first (transparent background), then passed (fg-1); all prior-switch harness tests pass. Live run evidence from the same session: 10,000 walkers in 0.09 s on this laptop on the dev site's route graph (1,549 edges), the flow drew and handed over to the grid with the planning-only line under the map, and switching back to Rings restored the earlier numbers exactly. scripts/ci-local.sh exit 0.
