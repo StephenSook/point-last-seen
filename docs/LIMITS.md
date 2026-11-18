@@ -61,6 +61,7 @@ each line says what the limit is and why.
   always outlives the clip. An upload interrupted for more than a day needs its creator to renew the consent
   first; the rules allow that until the clip has a reading.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
-  at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`; that function is
-  PLANNED and being built now. Until it ships, a sandbox's media lasts up to 30 days, and so does any link
-  made during the sandbox.
+  at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
+  minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next
+  security rules deploy; until then a sandbox's media lasts up to 30 days, and so does any link made during
+  the sandbox.

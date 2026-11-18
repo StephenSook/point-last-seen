@@ -3,7 +3,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth } from "../src/media";
+import { deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth, runMediaSweep } from "../src/media";
 import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const bucket = getStorage(adminApp).bucket();
@@ -67,20 +67,53 @@ describe("deleteIncidentMedia keeps going and stays cheap (review rounds 1 and 2
     expect(await exists(`clips/J1/${"a".repeat(64)}.mp4`)).toBe(true);
     expect(await exists(`clips/J3/${"a".repeat(64)}.mp4`)).toBe(false);
     const j1 = (await admin.db.doc("incidents/J1").get()).data()!;
-    expect(j1.mediaDeletedAt).toBeNull();
+    expect(j1.mediaDeletedAt).toBeUndefined();
+    expect(j1.mediaSweepEmpty).toBe(false);
     expect((await admin.db.doc("incidents/J3").get()).get("mediaDeletedAt")).toBeInstanceOf(Timestamp);
+    // The next run, with the hold gone, deletes the clip and stamps the sandbox.
+    expect((await deleteEndedSandboxMedia(admin.db, bucket, NOW + 300_000)).incidents).toEqual(["J1"]);
+    expect(await exists(`clips/J1/${"a".repeat(64)}.mp4`)).toBe(false);
+    expect((await admin.db.doc("incidents/J1").get()).get("mediaDeletedAt")).toBeInstanceOf(Timestamp);
   });
-  it("lists only sandboxes ended in the last 7 days or not yet stamped, not the whole history", async () => {
+  it("sweeps every ended sandbox whose last sweep was not empty, however old, with or without a stamp (review round 3)", async () => {
     const old = Timestamp.fromMillis(NOW - 10 * 86_400_000);
-    await admin.db.doc("incidents/J5").set({ name: "Old, done", mode: "judge", status: "open", expiresAt: old, mediaDeletedAt: old });
-    await admin.db.doc("incidents/J6").set({ name: "Old, failed", mode: "judge", status: "open", expiresAt: old, mediaDeletedAt: null });
-    await put(`clips/J6/${"a".repeat(64)}.mp4`);
-    const listed: string[] = [];
-    const spy = { getFiles: (q: { prefix: string }) => { listed.push(q.prefix); return bucket.getFiles(q); } };
-    await deleteEndedSandboxMedia(admin.db, spy as never, NOW);
-    expect(listed.some(x => x.includes("/J5/"))).toBe(false);
-    expect(listed.some(x => x.includes("/J6/"))).toBe(true);
+    await admin.db.doc("incidents/J5").set({ name: "Old, stale stamp", mode: "judge", status: "open", expiresAt: old, mediaDeletedAt: old });
+    await admin.db.doc("incidents/J6").set({ name: "Old, never stamped", mode: "judge", status: "open", expiresAt: old });
+    await admin.db.doc("incidents/J7").set({ name: "Old, done", mode: "judge", status: "open", expiresAt: old, mediaDeletedAt: old, mediaSweepEmpty: true });
+    for (const inc of ["J5", "J6", "J7"]) await put(`clips/${inc}/${"a".repeat(64)}.mp4`);
+    await deleteEndedSandboxMedia(admin.db, bucket, NOW);
+    expect(await exists(`clips/J5/${"a".repeat(64)}.mp4`)).toBe(false);
     expect(await exists(`clips/J6/${"a".repeat(64)}.mp4`)).toBe(false);
+    expect(await exists(`clips/J7/${"a".repeat(64)}.mp4`)).toBe(true);
+  });
+  it("a sandbox whose Firestore write fails is reported and the next sandbox is still swept (review round 3)", async () => {
+    await admin.db.doc("incidents/J3").set({ name: "Ended too", mode: "judge", status: "open", expiresAt: Timestamp.fromMillis(NOW - 120_000) });
+    await put(`clips/J3/${"a".repeat(64)}.mp4`);
+    // Removing J1's doc during its sweep makes the stamp update fail with NOT_FOUND.
+    const vanishing = { getFiles: async (q: { prefix: string }) => {
+      if (q.prefix === "packs/J1/") await admin.db.doc("incidents/J1").delete();
+      return bucket.getFiles(q);
+    } };
+    const r = await deleteEndedSandboxMedia(admin.db, vanishing as never, NOW);
+    expect(r.failed).toEqual(["J1"]);
+    expect(await exists(`clips/J3/${"a".repeat(64)}.mp4`)).toBe(false);
+  });
+});
+
+describe("runMediaSweep writes the heartbeat on every run (review round 3)", () => {
+  const lc = { getMetadata: async () => [{ lifecycle: { rule: [{ action: { type: "Delete" }, condition: { age: 30, matchesPrefix: ["clips/", "photos/", "packs/"] } }] } }] };
+  it("records the failure count after a clean run", async () => {
+    await runMediaSweep(admin.db, { getFiles: (q: { prefix: string }) => bucket.getFiles(q), ...lc } as never, NOW);
+    const d = (await admin.db.doc("ops/storage").get()).data()!;
+    expect(d.sweepFailures).toBe(0);
+    expect(d.checkedAt).toBeInstanceOf(Timestamp);
+  });
+  it("still writes ops/storage, counting a failure, when the sweep itself throws, and then throws", async () => {
+    const down = { collection: () => { throw new Error("firestore down"); }, doc: (path: string) => admin.db.doc(path) };
+    await expect(runMediaSweep(down as never, lc as never, NOW)).rejects.toThrow("firestore down");
+    const d = (await admin.db.doc("ops/storage").get()).data()!;
+    expect(d.sweepFailures).toBe(1);
+    expect(d.sweepFailureStreak).toBe(1);
   });
 });
 

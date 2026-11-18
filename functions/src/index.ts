@@ -4,7 +4,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { deleteEndedSandboxMedia, recordStorageHealth } from "./media.js";
+import { runMediaSweep } from "./media.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -23,8 +23,7 @@ export const deleteIncidentMedia = onSchedule(
   { schedule: "every 5 minutes", region: "us-central1", maxInstances: 1, timeoutSeconds: 240 },
   async () => {
     const db = getFirestore(), bucket = getStorage().bucket();
-    const r = await deleteEndedSandboxMedia(db, bucket, Date.now());
-    await recordStorageHealth(db, bucket, r.failed.length);
+    const r = await runMediaSweep(db, bucket, Date.now());
     console.log(JSON.stringify({ event: "deleteIncidentMedia", incidents: r.incidents, files: r.files, failed: r.failed.length }));
   },
 );

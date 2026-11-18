@@ -8,51 +8,65 @@ const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
  * Deletes every clip, photo and pack of each judge sandbox whose expiresAt has passed. A member can mint a
  * no-sign-in download link that works as long as the file exists (docs/LIMITS.md), so deleting the file is what
  * ends access. No model call.
- * - Which sandboxes: those ended in the last 7 days, plus any still unstamped (mediaDeletedAt == null, which a
- *   failed sweep writes explicitly), so the work does not grow with history.
+ * - Which sandboxes: every judge sandbox that has ended, unless its last sweep was stamped and found nothing
+ *   (mediaSweepEmpty: true). A missing stamp counts as unstamped. The judge-sandbox count is small (the daily
+ *   cap times the days since launch), so one equality query reads them all.
  * - Each prefix of a sandbox is listed and deleted on its own (allSettled): a held clip never stops its photos
- *   and packs, and one sandbox never stops the next. A sandbox with any failure is reported and left unstamped.
- * - A sandbox is skipped only once it is stamped and its previous sweep found nothing under all three prefixes
- *   (mediaSweepEmpty); until then a late upload is still caught.
+ *   and packs. Any failure in a sandbox, including a rejected Firestore write, is caught, reported and leaves
+ *   the sandbox to the next run; the next sandbox is still swept.
  */
-const RECENT_MS = 7 * 86_400_000;
 export async function deleteEndedSandboxMedia(db: Firestore, bucket: Pick<Bucket, "getFiles">, nowMs: number):
   Promise<{ incidents: string[]; files: number; failed: string[] }> {
-  const incidentsRef = db.collection("incidents");
-  const [recent, pending] = await Promise.all([
-    incidentsRef.where("expiresAt", ">=", Timestamp.fromMillis(nowMs - RECENT_MS)).where("expiresAt", "<=", Timestamp.fromMillis(nowMs)).get(),
-    incidentsRef.where("mode", "==", "judge").where("mediaDeletedAt", "==", null).get(),
-  ]);
-  const seen = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
-  for (const d of [...recent.docs, ...pending.docs]) seen.set(d.id, d);
+  const sandboxes = await db.collection("incidents").where("mode", "==", "judge").get();
   const incidents: string[] = [], failed: string[] = [];
   let files = 0;
-  for (const inc of [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const inc of [...sandboxes.docs].sort((a, b) => a.id.localeCompare(b.id))) {
     const endedAt = inc.get("expiresAt");
-    if (inc.get("mode") !== "judge" || !(endedAt instanceof Timestamp) || endedAt.toMillis() > nowMs) continue;
+    if (!(endedAt instanceof Timestamp) || endedAt.toMillis() > nowMs) continue;
     const stamped = inc.get("mediaDeletedAt") != null;
     if (stamped && inc.get("mediaSweepEmpty") === true) continue;
-    const results = await Promise.allSettled(MEDIA_PREFIXES.map(async prefix => {
-      const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
-      const deletes = await Promise.allSettled(found.map(f => f.delete({ ignoreNotFound: true })));
-      const bad = deletes.find(d => d.status === "rejected");
-      if (bad) throw (bad as PromiseRejectedResult).reason;
-      return found.length;
-    }));
-    const deleted = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value : 0), 0);
-    if (deleted > 0) incidents.push(inc.id);
-    files += deleted;
-    const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    if (errors.length > 0) {
-      failed.push(inc.id);
-      console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, errors: errors.map(e => String(e.reason)) }));
-      // An explicit null keeps the sandbox in the "not yet stamped" query until a sweep succeeds.
-      if (inc.get("mediaDeletedAt") !== null) await inc.ref.update({ mediaDeletedAt: null, mediaSweepEmpty: false });
-      continue;
+    try {
+      const results = await Promise.allSettled(MEDIA_PREFIXES.map(async prefix => {
+        const [found] = await bucket.getFiles({ prefix: `${prefix}/${inc.id}/` });
+        const deletes = await Promise.allSettled(found.map(f => f.delete({ ignoreNotFound: true })));
+        const bad = deletes.find(d => d.status === "rejected");
+        if (bad) throw (bad as PromiseRejectedResult).reason;
+        return found.length;
+      }));
+      const deleted = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value : 0), 0);
+      if (deleted > 0) incidents.push(inc.id);
+      files += deleted;
+      const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (errors.length > 0) {
+        failed.push(inc.id);
+        console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, errors: errors.map(e => String(e.reason)) }));
+        if (inc.get("mediaSweepEmpty") !== false) await inc.ref.update({ mediaSweepEmpty: false });
+        continue;
+      }
+      await inc.ref.update({ ...(stamped ? {} : { mediaDeletedAt: FieldValue.serverTimestamp() }), mediaSweepEmpty: deleted === 0 && stamped });
+    } catch (e) {
+      if (!failed.includes(inc.id)) failed.push(inc.id);
+      console.error(JSON.stringify({ event: "deleteIncidentMedia.failed", incidentId: inc.id, errors: [String(e)] }));
     }
-    await inc.ref.update({ ...(stamped ? {} : { mediaDeletedAt: FieldValue.serverTimestamp() }), mediaSweepEmpty: deleted === 0 && stamped });
   }
   return { incidents, files, failed };
+}
+
+/**
+ * One scheduled run: the sweep, then the ops/storage heartbeat in a finally block, so the probe sees every run
+ * (a sweep that throws counts as one failure) and a stale heartbeat means the function itself stopped. A thrown
+ * sweep is rethrown after the heartbeat, so the run is logged as failed.
+ */
+export async function runMediaSweep(db: Firestore, bucket: Pick<Bucket, "getFiles" | "getMetadata">, nowMs: number):
+  Promise<{ incidents: string[]; files: number; failed: string[] }> {
+  let failures = 1;
+  try {
+    const r = await deleteEndedSandboxMedia(db, bucket, nowMs);
+    failures = r.failed.length;
+    return r;
+  } finally {
+    await recordStorageHealth(db, bucket, failures);
+  }
 }
 
 const LIFECYCLE_PREFIXES = ["clips/", "photos/", "packs/"];

@@ -5,6 +5,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The media sweep covers every ended judge sandbox whose last sweep was not empty, however old, and a missing
+  stamp counts as unstamped (one equality query on mode; the sandbox count is small), replacing the 7-day
+  window that missed an old sandbox with a stale stamp or no stamp field. Any failure inside one sandbox,
+  including a rejected Firestore write, is caught and reported, and the next sandbox is still swept.
+  `runMediaSweep` writes the ops/storage heartbeat in a finally block on every run (a sweep that throws counts
+  as one failure and is rethrown after the write), and the daily probe now fails when the heartbeat is over 20
+  minutes old (four missed 5-minute runs) instead of 2 hours. LIMITS and the checklist name the 5-minute
+  schedule and the new probe limits.
+  Source: review round 3 (two mediums).
+  Verified: the old-sandbox test (stale stamp and missing stamp swept, a done sandbox left alone), the failed
+  write test (NOT_FOUND on one sandbox, the next still swept), the two heartbeat tests (clean run, thrown
+  sweep) and the 20-minute probe tests failed first, now pass; the held-clip test now also checks the retry
+  deletes the clip; emulator suite 119; 5 probe tests; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - Clip consent is checked where it matters, at upload: Storage takes a clip only while its consent record
   expires at least 31 days after the upload, whenever the consent was written, so the consent always outlives
   the clip (deleted 30 days after upload) and an old 30-day record can no longer authorize an upload. The

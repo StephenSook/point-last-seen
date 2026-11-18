@@ -44,11 +44,11 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 |---|---|---|
 | Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
 | clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; Storage takes a clip only while its consent expires 31 or more days after the upload, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
-| Judge sandbox: expires 24 h after start, one per visitor per hour, daily cap from Remote Config | Each judge's sandbox lives 24 h; its media goes within 15 min of the end | `deleteIncidentMedia` every 15 min (no end date); the daily cap key (line below) |
+| Judge sandbox: expires 24 h after start, one per visitor per hour, daily cap from Remote Config | Each judge's sandbox lives 24 h; its media goes within 15 min of the end | `deleteIncidentMedia` every 5 min (no end date); the daily cap key (line below) |
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
 | Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
-| `deleteIncidentMedia` schedule (Cloud Scheduler, every 15 min) | Runs throughout | No end date; `ops/storage.checkedAt` older than 2 h fails the daily probe |
+| `deleteIncidentMedia` schedule (Cloud Scheduler, every 5 min) | Runs throughout | No end date; every run writes `ops/storage`, and a `checkedAt` older than 20 min or two failing runs in a row fail the daily probe |
 | Daily probe workflow (`probe.yml`, 13:23 UTC) | Runs; GitHub cron can start hours late | Both scripts retire after 2026-12-17, pinned by the test |
 | GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public from 2026-11-28, last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |
 | Actions budget ($15, resets monthly on the 1st) | December has its own $15; the repo is public from 2026-11-28, so its minutes are free | Line below |

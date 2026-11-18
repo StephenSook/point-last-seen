@@ -1,6 +1,7 @@
-"""Daily, credential-free check that drill media still expires: reads ops/storage (written every 15 minutes
-by deleteIncidentMedia) through Firestore REST with the site's public API key, and exits 1 if the bucket
-lifecycle rule is missing or the sweep has stopped. Retires itself after 2026-12-17 (judging ends Dec 16).
+"""Daily, credential-free check that drill media still expires: reads ops/storage (written on every run of
+deleteIncidentMedia, every 5 minutes) through Firestore REST with the site's public API key, and exits 1 if
+the bucket lifecycle rule is missing, the sweep has failed twice in a row, or its heartbeat is over 20 minutes
+old. Retires itself after 2026-12-17 (judging ends Dec 16).
 
 Usage: python3 -I scripts/media_probe.py
 """
@@ -11,7 +12,7 @@ import urllib.request
 from datetime import date, datetime, timezone
 
 SITE = "https://buildhybridai-2026-yg3m.web.app"
-STALE_MIN = 120
+STALE_MIN = 20  # four missed 5-minute runs
 RETIRE_AFTER = date(2026, 12, 17)
 
 
