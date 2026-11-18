@@ -16,12 +16,9 @@ interface JoinBackend {
 /** The callable refused the code itself (wrong, expired, or for another role): not a connection problem. */
 class JoinRefused : Exception("join code refused") {
     companion object {
-        fun isRefusal(code: FirebaseFunctionsException.Code): Boolean = code in setOf(
-            FirebaseFunctionsException.Code.PERMISSION_DENIED,
-            FirebaseFunctionsException.Code.INVALID_ARGUMENT,
-            FirebaseFunctionsException.Code.NOT_FOUND,
-            FirebaseFunctionsException.Code.FAILED_PRECONDITION,
-        )
+        /** By the code's name: the SDK's Code enum cannot load in JVM unit tests. */
+        fun isRefusal(codeName: String): Boolean =
+            codeName in setOf("PERMISSION_DENIED", "INVALID_ARGUMENT", "NOT_FOUND", "FAILED_PRECONDITION")
     }
 }
 
@@ -70,7 +67,7 @@ class FirebaseJoinBackend : JoinBackend {
     override suspend fun callJoin(payload: Map<String, Any?>): Any? = try {
         Firebase.functions.getHttpsCallable("joinIncident").call(payload).await().getData()
     } catch (e: FirebaseFunctionsException) {
-        if (JoinRefused.isRefusal(e.code)) throw JoinRefused() else throw e
+        if (JoinRefused.isRefusal(e.code.name)) throw JoinRefused() else throw e
     }
 
     override suspend fun refreshClaims(): Map<String, Any?> {

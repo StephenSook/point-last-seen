@@ -47,9 +47,8 @@ class JoinTest {
     }
 
     @Test fun refusalCodesFromTheCallableAreTheCodeProblems() {
-        val c = com.google.firebase.functions.FirebaseFunctionsException.Code::class.java.enumConstants!!.associateBy { it.name }
-        for (n in listOf("PERMISSION_DENIED", "INVALID_ARGUMENT", "NOT_FOUND", "FAILED_PRECONDITION")) assertTrue(n, JoinRefused.isRefusal(c.getValue(n)))
-        for (n in listOf("UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL", "UNAUTHENTICATED")) assertTrue(n, !JoinRefused.isRefusal(c.getValue(n)))
+        for (n in listOf("PERMISSION_DENIED", "INVALID_ARGUMENT", "NOT_FOUND", "FAILED_PRECONDITION")) assertTrue(n, JoinRefused.isRefusal(n))
+        for (n in listOf("UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL", "UNAUTHENTICATED")) assertTrue(n, !JoinRefused.isRefusal(n))
     }
 
     @Test fun claimsForAnotherIncidentOrRoleAreRefused() = runTest {
