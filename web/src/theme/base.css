@@ -81,6 +81,7 @@ button, input, select { font: inherit; color: inherit; }
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
   /* Phones: 16 px field text keeps iOS Safari from zooming on focus; 44 px tap targets. */
   input, select, textarea { font-size: 16px; }
+  input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
   button, .btn { min-height: 44px; }
 }
 
@@ -96,7 +97,7 @@ button, input, select { font: inherit; color: inherit; }
 .teams .new { color: var(--fg-1); font-weight: 700; margin-left: 6px; }
 .map-wrap.picking { cursor: crosshair; }
 .pin { width: 16px; height: 16px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
-.btn.ghost { background: transparent; color: var(--fg-1); border: 1px solid var(--line); }
+.btn.ghost { background: transparent; color: var(--fg-1); border: 1px solid var(--fg-4); }
 .btn.ghost:disabled { color: var(--fg-4); background: transparent; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .sighting-form { display: grid; gap: 10px; background: var(--bg-2); padding: 12px; }

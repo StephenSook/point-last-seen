@@ -940,3 +940,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post's header label beside the convergence code reads "MATCH" instead of "Code".
 - Source: design review (D11: the header label read like the join code).
 - Verified: the phone layout test now requires "MATCH" in the header and no "Code" label; it failed first, then passed on the local preview. scripts/ci-local.sh exit 0.
+
+### fix(theme): draw ghost buttons with an fg-4 border so their edge is visible
+- What: `.btn.ghost` borders use fg-4 (#898583) instead of the line color (#403c3a), so a ghost control's edge stands out on the dark ground.
+- Source: design review (ghost button border fg-4).
+- Verified: new harness test (the Walkers button's border is rgb(137, 133, 131)) failed first (rgb(64, 60, 58)), then passed; the prior-switch and clip harness tests and axe and contrast on the preview still pass. scripts/ci-local.sh exit 0.

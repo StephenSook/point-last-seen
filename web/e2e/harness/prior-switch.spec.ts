@@ -34,3 +34,9 @@ test("the chosen model looks chosen: the pressed button is filled", async ({ pag
   expect(await bg("Rings")).toBe("rgb(248, 244, 241)"); // fg-1
   expect(await bg("Walkers")).not.toBe("rgb(248, 244, 241)");
 });
+
+test("a ghost button's border is fg-4, so the control's edge is visible on dark ground", async ({ page }) => {
+  await page.goto("/harness/prior-switch.html");
+  const border = await page.getByRole("region", { name: "Prior model" }).getByRole("button", { name: "Walkers" }).evaluate((e) => getComputedStyle(e).borderTopColor);
+  expect(border).toBe("rgb(137, 133, 131)"); // fg-4 #898583
+});
