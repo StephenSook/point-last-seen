@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): the Outbox writes to disk before it changes memory
+- What: `add` and every state change build the new entry list, write it atomically, and only
+  then publish it in memory. Before, a failed journal write left the entry in memory, so the
+  next `add` of the same event returned success without writing and the event was lost on
+  restart.
+- Source: Codex review M3.
+- Verified: two new tests (a plain file blocks the journal folder during `add`, then during
+  `markAcked`) failed on the old code, then passed; full suite 157 tests.
+
 ### fix(ios-core): an unknown named segment is rejected, never cleared as the assignment
 - What: the parser keeps an unknown two-letter id that follows "segment" (unless it is a common
   word such as "by" or "in"), and the outcome builder adds such an id back when a model left it

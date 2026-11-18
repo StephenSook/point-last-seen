@@ -79,3 +79,37 @@ private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.hi
         #expect(ServerCopy.compare(local: e1.identity, server: other) == .differentIdentity)
     }
 }
+
+@Suite struct OutboxDiskFirstTests {
+    /// A plain file where the journal's folder should be makes every write fail.
+    func blockedURL() throws -> (url: URL, blocker: URL) {
+        let blocker = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-block-\(UUID().uuidString)")
+        try Data("x".utf8).write(to: blocker)
+        return (blocker.appendingPathComponent("outbox.json"), blocker)
+    }
+
+    @Test func aFailedAddLeavesNothingInMemorySoTheRetryWrites() throws {
+        let (url, blocker) = try blockedURL()
+        var box = try Outbox(fileURL: url)
+        #expect(throws: (any Error).self) { try box.add(e1) }
+        #expect(box.entries.isEmpty)
+        try FileManager.default.removeItem(at: blocker)
+        try box.add(e1)
+        #expect(try Outbox(fileURL: url).entries.map(\.eventId) == [e1.eventId])
+    }
+
+    @Test func aFailedStateChangeKeepsTheOldStateInMemory() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-dir-\(UUID().uuidString)")
+        let url = dir.appendingPathComponent("outbox.json")
+        var box = try Outbox(fileURL: url)
+        try box.add(e1)
+        try FileManager.default.removeItem(at: dir)
+        try Data("x".utf8).write(to: dir)                          // now a file blocks the folder
+        #expect(throws: (any Error).self) { try box.markAcked(e1.eventId) }
+        #expect(box.entries[0].state == .pending)
+        try FileManager.default.removeItem(at: dir)
+        try box.markAcked(e1.eventId)
+        #expect(try Outbox(fileURL: url).entries[0].state == .acked)
+    }
+}
+

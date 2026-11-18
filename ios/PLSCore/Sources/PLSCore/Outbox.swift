@@ -76,8 +76,7 @@ public struct Outbox: Sendable {
 
     public mutating func add(_ doc: EventDoc) throws {
         guard !entries.contains(where: { $0.eventId == doc.eventId }) else { return }
-        entries.append(OutboxEntry(doc: doc, state: .pending, lastError: nil))
-        try save()
+        try commit(entries + [OutboxEntry(doc: doc, state: .pending, lastError: nil)])
     }
 
     public mutating func markAcked(_ eventId: String) throws {
@@ -120,12 +119,16 @@ public struct Outbox: Sendable {
 
     mutating func update(_ eventId: String, _ change: (inout OutboxEntry) -> Void) throws {
         guard let i = entries.firstIndex(where: { $0.eventId == eventId }) else { return }
-        change(&entries[i])
-        try save()
+        var proposed = entries
+        change(&proposed[i])
+        try commit(proposed)
     }
 
-    func save() throws {
+    /// Disk first: the new entries become visible in memory only after the atomic write
+    /// succeeds, so a failed write never looks like success to the next call.
+    mutating func commit(_ proposed: [OutboxEntry]) throws {
         try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(entries).write(to: fileURL, options: .atomic)
+        try JSONEncoder().encode(proposed).write(to: fileURL, options: .atomic)
+        entries = proposed
     }
 }
