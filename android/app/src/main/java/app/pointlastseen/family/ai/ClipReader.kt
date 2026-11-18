@@ -106,6 +106,8 @@ class ClipReader(
             deps.ensureSignedIn()
             val found = deps.findReading(sha)
             found?.takeIf { it.readingJson != null }?.let { hit ->
+                // A completed no-sighting is cached too: no second model call.
+                if (ClipNoSighting.parse(hit.readingJson) != null) return ClipOutcome.CouldNotRead
                 val s = CameraSightingJson.parse(hit.readingJson) ?: return ClipOutcome.CouldNotRead
                 val check = SightingCheck.check(s, hit.durationS)
                 if (!check.ok) return ClipOutcome.CouldNotRead
@@ -137,16 +139,31 @@ class ClipReader(
             if (found == null || !deps.clipExists(sha)) deps.upload(sha, r.bytes)
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
-            val reply = deps.callModel(r.bytes, r.mimeType)
-            val parsed = CameraSightingJson.parse(reply.text) ?: return ClipOutcome.CouldNotRead
-            val check = SightingCheck.check(parsed, r.durationS)
-            if (!check.ok) return ClipOutcome.CouldNotRead
+            val asked = deps.nowMs()
+            val reply = try {
+                deps.callModel(r.bytes, r.mimeType)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                // A model error completes the record too, so it is cached and never blocks another reader.
+                val route = RouteRecord(
+                    platform = "android", path = "cloud", stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud",
+                    latencyMs = (deps.nowMs() - asked).coerceAtLeast(0), sdkReported = false, blocked = null, decidedAtMs = deps.nowMs(),
+                )
+                deps.completeReading(sha, ClipNoSighting(listOf("model_error")).toJson(), route)
+                return ClipOutcome.Failed
+            }
             val now = deps.nowMs()
             val route = RouteRecord(
                 platform = "android", path = if (reply.source == Source.ON_DEVICE) "on_device" else "cloud",
                 stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
                 sdkReported = true, blocked = null, decidedAtMs = now,
             )
+            // A reply that cannot be read, or one that fails the shared checks, completes the record as a
+            // typed no-sighting with its reasons, so the result is cached for everyone.
+            val parsed = CameraSightingJson.parse(reply.text)
+                ?: return ClipOutcome.CouldNotRead.also { deps.completeReading(sha, ClipNoSighting(listOf("unreadable_reply")).toJson(), route) }
+            val check = SightingCheck.check(parsed, r.durationS)
+            if (!check.ok) return ClipOutcome.CouldNotRead.also { deps.completeReading(sha, ClipNoSighting.of(check.reasons).toJson(), route) }
             deps.completeReading(sha, CameraSightingJson.toJson(check.cleaned), route)
             return ClipOutcome.Read(sha, check.cleaned, check, bearingOf(check.cleaned), route, cached = false)
         } catch (e: Exception) {

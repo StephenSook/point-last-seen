@@ -195,23 +195,38 @@ class ClipReaderTest {
         assertEquals(90, record.cameraFacingDeg)
     }
 
-    @Test fun anUnreadableReplyShowsCouldNotReadAndKeepsOnlyTheConsentRecord() = runTest {
+    /** The completed reading as a no-sighting, or null when it is not one. */
+    private fun noSighting(json: String): List<String>? = ClipNoSighting.parse(json)?.reasons
+
+    /** A could-not-read result completes the record, so it is cached for everyone and never blocks another reader. */
+    @Test fun anUnreadableReplyCompletesTheRecordAsNoSighting() = runTest {
         val deps = FakeDeps(reply = ModelReply("{not json", Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000))
         assertEquals(ClipOutcome.CouldNotRead, out)
         assertEquals(1, deps.consents.size)
-        assertTrue(deps.completed.isEmpty())
+        assertEquals(listOf("unreadable_reply"), noSighting(deps.completed.single().second))
     }
 
-    @Test fun aModelErrorLeavesTheConsentRecordForTheUploadedClip() = runTest {
-        val deps = object : ClipDeps by FakeDeps() {
-            val docs = mutableListOf<StoredClipReading>()
-            override suspend fun createConsentRecord(doc: StoredClipReading) { docs += doc }
+    @Test fun aModelErrorCompletesTheRecordAsNoSighting() = runTest {
+        val inner = FakeDeps()
+        val deps = object : ClipDeps by inner {
             override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply = throw IllegalStateException("503")
         }
         assertEquals(ClipOutcome.Failed, ClipReader(deps).read(request(1000)))
-        assertEquals(1, deps.docs.size)
-        assertEquals(request(1000).consent, deps.docs.single().consent)
+        assertEquals(request(1000).consent, inner.consents.single().consent)
+        assertEquals(listOf("model_error"), noSighting(inner.completed.single().second))
+    }
+
+    @Test fun aCachedNoSightingIsCouldNotReadWithNoModelCall() = runTest {
+        val r = request(1000)
+        val done = StoredClipReading(
+            sha256 = Hashes.sha256Hex(r.bytes), storagePath = "p", durationS = 30, clipStartMs = 500L, clockConfirmed = true,
+            cameraFacingDeg = 90, readingJson = ClipNoSighting(listOf("no_person")).toJson(), route = null, consent = r.consent,
+            expiresAtMs = 9L, createdAtMs = 1L, createdByUid = "other",
+        )
+        val deps = FakeDeps(cached = done, reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        assertEquals(ClipOutcome.CouldNotRead, ClipReader(deps).read(r))
+        assertEquals(listOf("find"), deps.log)
     }
 
     @Test fun aConsentOnlyRecordIsNotACachedReading() = runTest {
@@ -276,11 +291,12 @@ class ClipReaderTest {
         assertTrue(deps.consents.isEmpty())
     }
 
-    @Test fun aReadingThatFailsItsChecksIsShownAsCouldNotRead() = runTest {
+    @Test fun aReadingThatFailsItsChecksCompletesAsNoSightingWithTheCheckReasons() = runTest {
         val bad = readingJson.replace("\"lastSeen\":\"00:12\"", "\"lastSeen\":\"01:12\"")
         val deps = FakeDeps(reply = ModelReply(bad, Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000))
         assertEquals(ClipOutcome.CouldNotRead, out)
+        assertEquals(listOf("last_after_clip_end"), noSighting(deps.completed.single().second))
     }
 
     @Test fun noFacingGivesNoBearing() = runTest {
