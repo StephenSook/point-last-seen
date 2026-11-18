@@ -8,6 +8,11 @@ must give.
 - [ ] Publish only the Play Integrity release APK. Run `android/scan-apk.sh` on the exact signed APK (it
   runs inside `release.sh`): it must report 0 hits for debug tokens, token resources,
   `FIREBASE_APPCHECK_DEBUG_TOKEN` and the debug provider. A debug APK reports 5 and is never published.
+- [ ] Raise the Remote Config key `minimum_version_android` only after the repo is public (not before Sat
+  2026-11-28) and the release APK is a GitHub Release asset. The family app's update screen opens
+  https://github.com/StephenSook/point-last-seen/releases/latest, which is a 404 while the repo is private.
+  Check first: `gh repo view StephenSook/point-last-seen --json visibility` says PUBLIC, and
+  `gh release view --repo StephenSook/point-last-seen` lists an .apk asset.
 
 ## Firebase project
 

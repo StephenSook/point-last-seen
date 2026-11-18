@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Production checklist, Android: raise the Remote Config key `minimum_version_android` only after the repo is
+  public (not before 2026-11-28) and the release APK is a GitHub Release asset, because the family app's
+  update screen opens the repo's latest release, a 404 while the repo is private; the line names the two `gh`
+  checks to run first. The in-app default stays 0 (lane D's RcValuesTest pins it).
+  Source: lane D hand-over (J10), ruled by the orchestrator.
+  Verified: text as handed over; no code change.
 - `docs/PRODUCTION-CHECKLIST.md`: a Judging window (2026-12-10 to 2026-12-16) section lists every time-based
   value on a judged path (Storage lifecycle, clipReadings TTL, judge sandbox limits, App Check token TTLs and
   enforcement, the published run, the media sweep, the daily probe, GitHub's 60-day cutoff, the Actions and
