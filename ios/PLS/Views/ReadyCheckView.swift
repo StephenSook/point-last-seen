@@ -11,7 +11,7 @@ struct ReadyCheckView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Training drill. Nobody is missing.").font(.headline)
+                Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
                 if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
                     section("How to approach them") {
                         ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))

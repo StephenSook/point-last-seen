@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): keep every field screen at Title 3 or larger
+- What: every smaller text style on the field screens, the Ready check, the report echo, the
+  evidence card, the approach card and the Live Activity is raised to Title 3 (semibold, or bold
+  where it was bold), and the root view and the Live Activity default to Title 3 semibold, so
+  unstyled text is covered too. `FieldTextSizeTests` scans the app's, widget's and shared view
+  sources and fails on any style below Title 3 or any fixed point size.
+- Source: Task 25 step 3 ("nothing below Title 3", Dynamic Type only); design 22.1 (iPhone text
+  semibold or heavier).
+- Verified: the scan failed on 20 lines, then passed; app builds; a night still of the Ready
+  check shows everything fits; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): describe the link state and each report's route as glyphs
 - What: `LinkState.make(online:waiting:)` gives the header glyph's four states, which differ in
   SF Symbol shape and a count badge, never in colour alone (signal; no signal; no signal with

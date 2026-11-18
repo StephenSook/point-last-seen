@@ -12,9 +12,9 @@ struct TaskView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Training drill. Nobody is missing.").font(.headline)
+            Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
             if let prompt = model.updatePrompt {
-                Label(prompt, systemImage: "arrow.down.app.fill").font(.headline)
+                Label(prompt, systemImage: "arrow.down.app.fill").font(.title3.weight(.semibold))
                     .foregroundStyle(theme.onAccentColor)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -22,7 +22,7 @@ struct TaskView: View {
             }
             if let mission = model.mission {
                 Text("Your segments: \(mission.assignedSegmentIds.joined(separator: ", "))")
-                Text("Your assignment changes only when command approves.").font(.footnote)
+                Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
                     .foregroundStyle(theme.text(.secondary))
                 Button { focused = true } label: {
                     Text("Report").font(.largeTitle.bold()).frame(maxWidth: .infinity, minHeight: 120)
@@ -46,7 +46,7 @@ struct TaskView: View {
                     ProgressView("Reading your report")
                 }
                 if let problem = model.problem {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").font(.footnote.bold())
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").font(.title3.bold())
                         .foregroundStyle(theme.text(.primary))
                 }
                 List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
