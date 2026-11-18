@@ -42,6 +42,7 @@ data class RouteRecord(
 /** One append-only event (spec section 8). Created once, never changed. */
 data class EventDoc(
     val eventId: String,
+    val schemaVersion: Int = SCHEMA_VERSION,
     val incidentId: String,
     val teamId: String?,
     val deviceId: String,
@@ -51,6 +52,8 @@ data class EventDoc(
     val type: String,
     val reporter: String,
     val clientTimeMs: Long,
+    /** Null until the writer sets Firestore's server timestamp sentinel. */
+    val serverTime: Any? = null,
     val observedAtMs: Long?,
     val position: Position?,
     val positionSource: String,
@@ -65,10 +68,10 @@ data class EventDoc(
     val planVersion: Long?,
     val priorVersion: Long,
 ) {
-    /** The Firestore document. The writer passes the server timestamp sentinel. */
-    fun toMap(serverTime: Any): Map<String, Any?> = mapOf(
+    /** The Firestore document. */
+    fun toMap(): Map<String, Any?> = mapOf(
         "eventId" to eventId,
-        "schemaVersion" to SCHEMA_VERSION,
+        "schemaVersion" to schemaVersion,
         "incidentId" to incidentId,
         "teamId" to teamId,
         "deviceId" to deviceId,

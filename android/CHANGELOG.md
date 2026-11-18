@@ -4,6 +4,12 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **EventDoc carries schemaVersion and serverTime as fields.** The type's field names now equal
+  `event.schema.json` exactly, which is what `scripts/check_schema_parity.py` reads from a Kotlin
+  data class; the writer sets the server timestamp sentinel with `copy(serverTime = ...)`.
+  `kotlinTypesCarryTheSchemaFieldNames` checks the declared fields of EventDoc, RouteRecord,
+  CameraSighting, SharedProfile and CommandProfile against the shared schemas. Source: lane A
+  ruling 7. Verified: the updated tests failed to compile first, then 100 unit tests pass.
 - **Profile documents follow the shared subject-profile schema.** `SharedProfile` and
   `CommandProfile` are now data classes with the schema's exact property names: mobility aids as
   a closed list, the dementia type present but null without the family's switch, every flag as a

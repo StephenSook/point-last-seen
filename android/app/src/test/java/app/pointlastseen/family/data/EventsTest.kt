@@ -50,7 +50,7 @@ class EventsTest {
 
     @Test fun phoneNumbersNeverReachTheStoredEvent() {
         val e = Events.familySighting(input, ctx())
-        val stored = e.toMap(serverTime = "SERVER").toString()
+        val stored = e.toMap().toString()
         assertFalse(stored.contains("404-555-0142"))
         assertFalse(stored.contains("4045550142"))
         assertTrue(e.rawText!!.contains("[number removed]"))
@@ -74,8 +74,14 @@ class EventsTest {
     }
 
     @Test fun theStoredMapCarriesExactlyTheEventDocKeys() {
-        val keys = Events.familySighting(input, ctx()).toMap(serverTime = "SERVER").keys
+        val keys = Events.familySighting(input, ctx()).toMap().keys
         assertEquals(EVENT_DOC_KEYS, keys)
+    }
+
+    @Test fun theWriterSetsTheServerTimeSentinel() {
+        val e = Events.familySighting(input, ctx()).copy(serverTime = "SENTINEL")
+        assertEquals("SENTINEL", e.toMap()["serverTime"])
+        assertEquals(1, e.toMap()["schemaVersion"])
     }
 
     private val sighting = CameraSighting(

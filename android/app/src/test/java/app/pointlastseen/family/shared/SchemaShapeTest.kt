@@ -28,7 +28,7 @@ class SchemaShapeTest {
 
     @Test fun eventDocMatchesTheEventSchema() {
         val e = Events.familySighting(FamilySightingInput(900_000L, null, "x", "n", "blue", "black", "", "", "note"), ctx)
-        assertEquals(props("event.schema.json"), e.toMap(serverTime = "S").keys)
+        assertEquals(props("event.schema.json"), e.toMap().keys)
     }
 
     @Test fun familySightingReadingMatchesTheReportReadingSchema() {
@@ -44,6 +44,17 @@ class SchemaShapeTest {
     @Test fun cameraSightingMatchesItsSchema() {
         val s = CameraSighting(true, "00:01", "00:02", ExitEdge.LEFT, ExitEdge.RIGHT, "blue", "black", "", "", "", listOf(), KeyFrame("00:01", listOf(1, 2, 3, 4)), Lighting.DAY, Legibility.CLEAR, "")
         assertEquals(props("camera-sighting.schema.json"), s.toMap().keys)
+    }
+
+    private fun fields(c: Class<*>): Set<String> =
+        c.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }.map { it.name }.toSet()
+
+    @Test fun kotlinTypesCarryTheSchemaFieldNames() {
+        assertEquals(props("event.schema.json"), fields(app.pointlastseen.family.data.EventDoc::class.java))
+        assertEquals(props("route-record.schema.json"), fields(RouteRecord::class.java))
+        assertEquals(props("camera-sighting.schema.json"), fields(CameraSighting::class.java))
+        assertEquals(props("subject-profile.schema.json", "SharedProfile"), fields(app.pointlastseen.family.data.SharedProfile::class.java))
+        assertEquals(props("subject-profile.schema.json", "CommandProfile"), fields(app.pointlastseen.family.data.CommandProfile::class.java))
     }
 
     @Test fun sharedAndCommandProfilesMatchTheirSchemas() {
