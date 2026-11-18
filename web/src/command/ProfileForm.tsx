@@ -24,7 +24,8 @@ type PlaceList = "previousAddresses" | "placesFrequented";
 
 type Props = {
   initial: FamilyProfile;
-  onSave: (p: FamilyProfile) => Promise<void>;
+  /** Starts the save. The form closes at once; the parent says so if the server refuses it. */
+  onSave: (p: FamilyProfile) => void;
   /** Start picking a point on the map for one place; the parent calls back with the point. */
   onPickPlace: (list: PlaceList, index: number, done: (p: LatLon) => void) => void;
   onPlaceToCheck: (place: Place) => Promise<void>;
@@ -35,7 +36,6 @@ const num = (v: string): number | null => (v.trim() === "" || !Number.isFinite(N
 
 export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onClose }: Props) {
   const [p, setP] = useState<FamilyProfile>(initial);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<Record<string, boolean>>({});
   const set = <K extends keyof FamilyProfile>(k: K, v: FamilyProfile[K]) => setP((x) => ({ ...x, [k]: v }));
@@ -65,18 +65,12 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
     }
   }
 
-  async function save(e: FormEvent) {
+  // A Firestore write settles only on the server's acknowledgement, which never comes with the
+  // link down; the profile is already saved on this laptop, so the form closes at once.
+  function save(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await onSave(p);
-      onClose();
-    } catch {
-      setError("The profile was not saved. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    onSave(p);
+    onClose();
   }
 
   const places = (list: PlaceList, title: string) => (
@@ -184,10 +178,10 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
         </p>
       )}
       <div className="row">
-        <button type="submit" className="btn" disabled={busy}>
-          {busy ? "Saving" : "Save profile"}
+        <button type="submit" className="btn">
+          Save profile
         </button>
-        <button type="button" className="btn ghost" onClick={onClose} disabled={busy}>
+        <button type="button" className="btn ghost" onClick={onClose}>
           Cancel
         </button>
       </div>

@@ -3,7 +3,7 @@
 // adds a task line and a reason per team.
 
 import { assignTeams, type DraftAssignment, type PlanDoc, type PlanWording, type RankedSegment, type RouteRecord } from "@pls/engine";
-import { collection, doc, getDocs, onSnapshot, serverTimestamp, setDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
 import type { PlanDraft } from "../ai/replanWording";
 
 export function planDocFor(draft: PlanDraft, wording: PlanWording, route: RouteRecord | null, version: number, uid: string, nowMs: number): PlanDoc {
@@ -38,21 +38,61 @@ export function localDraft(eventSetHash: string, priorVersion: number, rank: Ran
   return { eventSetHash, priorVersion, rank, assignments: assignTeams(rank, teamIds, current) };
 }
 
-/** Writes plans/{version}. Called only from the Approve button. */
-export async function approvePlan(db: Firestore, incidentId: string, plan: PlanDoc): Promise<void> {
-  await setDoc(doc(db, "incidents", incidentId, "plans", planDocId(plan.version)), plan);
+/**
+ * The Approve button. The version comes from the plans already on this laptop and the
+ * write starts at once; it is not awaited, because Firestore settles a write only when
+ * the server acknowledges it, and with the link down that never happens. The local
+ * snapshot shows the plan right away (pending), and `ack` rejects if the server refuses
+ * it (another seat approved that version first: plans are create-only).
+ */
+export const PLANS_LOADING = "The plan history is still loading. Approve again in a moment.";
+
+export function approveNow(args: {
+  plans: readonly PlanDoc[];
+  /** The first plans snapshot has arrived; before it, the next version is not known. */
+  plansLoaded: boolean;
+  draft: PlanDraft;
+  wording: PlanWording;
+  route: RouteRecord | null;
+  uid: string;
+  nowMs: number;
+  write: (plan: PlanDoc) => Promise<void>;
+}): { version: number; ack: Promise<void> } {
+  // An empty list before the first snapshot is not "no plans yet": approving then could reuse v1.
+  if (!args.plansLoaded) throw new Error(PLANS_LOADING);
+  const version = nextPlanVersion(args.plans.map((p) => p.version));
+  const ack = args.write(planDocFor(args.draft, args.wording, args.route, version, args.uid, args.nowMs));
+  return { version, ack };
 }
 
-export async function existingPlanVersions(db: Firestore, incidentId: string): Promise<number[]> {
-  const snap = await getDocs(collection(db, "incidents", incidentId, "plans"));
-  return snap.docs.map((d) => Number(d.data()["version"])).filter((v) => Number.isInteger(v));
+/** Writes plans/{version}; the promise settles on the server's acknowledgement. */
+export function writePlan(db: Firestore, incidentId: string, plan: PlanDoc): Promise<void> {
+  return setDoc(doc(db, "incidents", incidentId, "plans", planDocId(plan.version)), plan);
 }
 
-/** Approved plans, oldest first. */
-export function subscribePlans(db: Firestore, incidentId: string, cb: (plans: PlanDoc[]) => void, onError: (e: unknown) => void): Unsubscribe {
+/** Where an approved plan is: not in the local snapshot yet, sending (written here, not yet on the server), or sent. */
+export function planSendState(version: number, plans: readonly PlanDoc[], pendingVersions: readonly number[]): "unknown" | "sending" | "sent" {
+  if (!plans.some((p) => p.version === version)) return "unknown";
+  return pendingVersions.includes(version) ? "sending" : "sent";
+}
+
+/** Approved plans, oldest first, with the versions whose write has not reached the server yet. */
+export function subscribePlans(
+  db: Firestore,
+  incidentId: string,
+  /** fromServer: false for a snapshot served from this laptop's cache. */
+  cb: (plans: PlanDoc[], pendingVersions: number[], fromServer: boolean) => void,
+  onError: (e: unknown) => void,
+): Unsubscribe {
   return onSnapshot(
     collection(db, "incidents", incidentId, "plans"),
-    (snap) => cb(snap.docs.map((d) => d.data() as PlanDoc).sort((a, b) => a.version - b.version)),
+    { includeMetadataChanges: true },
+    (snap) =>
+      cb(
+        snap.docs.map((d) => d.data() as PlanDoc).sort((a, b) => a.version - b.version),
+        snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => Number(d.data()["version"])),
+        !snap.metadata.fromCache,
+      ),
     onError,
   );
 }

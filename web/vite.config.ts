@@ -32,7 +32,9 @@ export default defineConfig(({ command, mode }) => {
           icons: [{ src: "/favicon.svg", sizes: "any", type: "image/svg+xml" }],
         },
         workbox: {
-          globPatterns: ["**/*.{js,mjs,css,html,svg,woff2}"],
+          // pmtiles: the site basemap, fetched whole, so it is cached like any file and drawn offline.
+          // The extras lane's data files are json under extras/; version.json stays network-only.
+          globPatterns: ["**/*.{js,mjs,css,html,svg,woff2,pmtiles}", "extras/**/*.json", "tiles/*.graph.json"],
           // The main bundle (Firebase plus MapLibre) is about 2.1 MB, above Workbox's 2 MiB default.
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           navigateFallback: "/index.html",

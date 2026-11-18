@@ -44,7 +44,8 @@ export type CommandWriter = {
   segments: readonly GridSegmentDoc[];
 };
 
-function base(w: CommandWriter): Pick<EventDoc, "eventId" | "schemaVersion" | "incidentId" | "teamId" | "deviceId" | "seq" | "authorUid" | "role" | "clientTimeMs" | "serverTime" | "isTrainingInject" | "route" | "planVersion" | "priorVersion"> {
+/** The fields every command-written event shares; serverTime is replaced at write. */
+export function commandEventBase(w: CommandWriter): Pick<EventDoc, "eventId" | "schemaVersion" | "incidentId" | "teamId" | "deviceId" | "seq" | "authorUid" | "role" | "clientTimeMs" | "serverTime" | "isTrainingInject" | "route" | "planVersion" | "priorVersion"> {
   return {
     eventId: eventId(w.incidentId, w.uid, w.seq),
     schemaVersion: 1,
@@ -96,7 +97,7 @@ export function buildSightingEvent(input: SightingInput, w: CommandWriter): Even
     positionSegmentId: position ? segmentContaining(position, w.segments) : null,
   });
   return {
-    ...base(w),
+    ...commandEventBase(w),
     type: "sighting",
     reporter: input.reportedBy === "family" ? "family" : "public_caller",
     observedAtMs: input.observedAtMs,
@@ -113,7 +114,7 @@ export function buildSightingEvent(input: SightingInput, w: CommandWriter): Even
 
 export function buildConfirmation(target: EventDoc, decision: "confirmed" | "rejected", w: CommandWriter): EventDoc {
   return {
-    ...base(w),
+    ...commandEventBase(w),
     type: "confirmation",
     reporter: "system",
     observedAtMs: null,

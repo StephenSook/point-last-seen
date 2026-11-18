@@ -2,10 +2,12 @@
 // instance per app, on the Gemini Developer API, with App Check tokens.
 
 import type { FirebaseApp } from "firebase/app";
-import { getAI, getGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel } from "firebase/ai";
+import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
 import { photoCloudParams, photoParams, type PhotoDeps } from "./photoCues";
-import { sightingCloudParams, sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
+import { frameCheckParams } from "./frameCheck";
 
 let instance: AI | undefined;
 
@@ -42,9 +44,22 @@ export function sightingTextGenerator(ai: AI): SightingTextDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, sightingTextParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
-/** The consented cloud read of one note (ONLY_IN_CLOUD). */
-export function sightingCloudGenerator(ai: AI, model: string): SightingTextDeps["generate"] {
-  return generatorFor(getGenerativeModel(ai, sightingCloudParams(model), { timeout: REPLY_TIMEOUT_MS }));
+type TemplateModel = { generateContent: (r: TemplateRequest) => Promise<{ response: { text: () => string; inferenceSource?: string } }> };
+
+/** A server prompt template call: only the template id and the note leave the laptop. */
+export function templateGeneratorFor(model: TemplateModel, templateId: string): SightingTextDeps["generate"] {
+  return async (note) => {
+    const r = await model.generateContent({ templateId, templateVariables: { note } });
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/**
+ * The consented cloud read of one note through the server prompt template (Remote Config
+ * sighting_template_id): the template holds the model, the instruction and the output schema.
+ */
+export function sightingTemplateGenerator(ai: AI, templateId: string): SightingTextDeps["generate"] {
+  return templateGeneratorFor(getTemplateGenerativeModel(ai, { timeout: REPLY_TIMEOUT_MS }) as unknown as TemplateModel, templateId);
 }
 
 type ImageModel = Pick<GenerativeModel, "generateContent">;
@@ -67,6 +82,38 @@ export function photoGenerator(ai: AI): PhotoDeps["generate"] {
 /** The consented cloud read of one photo (ONLY_IN_CLOUD). */
 export function photoCloudGenerator(ai: AI, model: string): PhotoDeps["generate"] {
   return photoGeneratorFor(getGenerativeModel(ai, photoCloudParams(model), { timeout: REPLY_TIMEOUT_MS }));
+}
+
+/** A clip of up to 14,000,000 bytes is sent inline and read as video, so it gets longer than a text or photo read. */
+export const CLIP_TIMEOUT_MS = 120_000;
+
+export type ClipGenerate = (base64: string, mimeType: string, window?: ClipWindow) => Promise<{ text: string; inferenceSource?: string }>;
+
+export function clipGeneratorFor(model: ImageModel): ClipGenerate {
+  return async (base64, mimeType, window) => {
+    const r = await model.generateContent(clipParts(base64, mimeType, window));
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/** The consented cloud read of one camera clip (ONLY_IN_CLOUD). */
+export function clipCloudGenerator(ai: AI, model: string): ClipGenerate {
+  return clipGeneratorFor(getGenerativeModel(ai, clipCloudParams(model), { timeout: CLIP_TIMEOUT_MS }));
+}
+
+export function frameGeneratorFor(model: ImageModel): (jpegBase64: string) => Promise<{ text: string }> {
+  return async (jpegBase64) => {
+    const r = await model.generateContent([
+      { type: "text", text: "Check this frame." },
+      { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: jpegBase64 } },
+    ]);
+    return { text: r.response.text() };
+  };
+}
+
+/** One frame of a clip checked on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
+export function frameCheckGenerator(ai: AI): (jpegBase64: string) => Promise<{ text: string }> {
+  return frameGeneratorFor(getGenerativeModel(ai, frameCheckParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** Starts Chrome's model download from a click, on a model built with the photo options the reads use. */

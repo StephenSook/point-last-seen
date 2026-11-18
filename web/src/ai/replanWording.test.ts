@@ -107,6 +107,12 @@ describe("wordPlan", () => {
     }
   });
 
+  it("a 500 (for example the AI Logic guard refusing a model off the allow-list) shows a plain message and the template", async () => {
+    const out = await wordPlan(draft, deps({ generate: async () => { throw httpError(500, "[GoogleGenerativeAI Error]: 500 INTERNAL blocked by before-generate trigger"); } }));
+    expect(out.wording).toEqual(templateWording(draft));
+    expect(out.notice).toBe("The cloud step did not answer. The plan below uses fixed wording.");
+  });
+
   it("App Check refusal says so in plain words", async () => {
     const out = await wordPlan(draft, deps({ generate: async () => { throw httpError(401, "App Check token is invalid"); } }));
     expect(out.notice).toBe("Cloud step refused by App Check. Try a normal browser window.");

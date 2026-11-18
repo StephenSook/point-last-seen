@@ -8,14 +8,25 @@ import type { StreamedEvent } from "../data/events";
 import type { IncidentView } from "../data/incident";
 
 export type ProfileDocs = { shared: SharedProfile | undefined; command: CommandProfile | undefined };
-export type PostState = { view: IncidentView | null; events: StreamedEvent[]; plans: PlanDoc[]; profile: ProfileDocs | null; denied: boolean; offline: boolean };
+export type PostState = {
+  view: IncidentView | null;
+  events: StreamedEvent[];
+  plans: PlanDoc[];
+  /** The first plans snapshot has arrived (an empty one counts). */
+  plansLoaded?: boolean;
+  /** Plan versions written on this laptop that the server has not acknowledged yet (absent: none). */
+  pendingPlans?: number[];
+  profile: ProfileDocs | null;
+  denied: boolean;
+  offline: boolean;
+};
 
-export const initialPostState: PostState = { view: null, events: [], plans: [], profile: null, denied: false, offline: false };
+export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], profile: null, denied: false, offline: false };
 
 export type PostAction =
   | { type: "view"; view: IncidentView }
   | { type: "events"; events: StreamedEvent[] }
-  | { type: "plans"; plans: PlanDoc[] }
+  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean }
   | { type: "profile"; profile: ProfileDocs }
   | { type: "failed"; error: unknown };
 
@@ -32,12 +43,22 @@ export function postReducer(state: PostState, action: PostAction): PostState {
     case "events":
       return { ...state, events: action.events, offline: false };
     case "plans":
-      return { ...state, plans: action.plans, offline: false };
+      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], offline: false };
     case "profile":
       return { ...state, profile: action.profile, offline: false };
     case "failed":
       return listenerFailure(action.error) === "denied"
-        ? { view: null, events: [], plans: [], profile: null, denied: true, offline: false }
+        ? { view: null, events: [], plans: [], pendingPlans: [], profile: null, denied: true, offline: false }
         : { ...state, offline: true };
   }
+}
+
+/**
+ * The line for a refused prior write. The rules refuse a batch that does not raise the prior
+ * version by exactly one (permission-denied), which means another seat rebuilt first; its
+ * newer prior is already on screen.
+ */
+export function priorRefusalMessage(e: unknown): string {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  return code.endsWith("permission-denied") ? "Another seat updated the map. Showing the newer one." : "The prior was not saved. Try again.";
 }

@@ -1,16 +1,22 @@
 // The command post map: segments filled by POA lightness, a printed percent
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
-import { Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { Protocol } from "pmtiles";
+import { loadBasemap } from "../basemap/load";
+import { basemapLayers } from "../basemap/style";
 import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre looks for its worker next to its own module; after bundling that file is not there, so the
 // build emits it as an asset and MapLibre is told where it is.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { deltaLabel, type ChangeResult } from "../command/changeModel";
-import { motionScope, playReportBeat } from "../motion/engine";
+import { motionScope, playReportBeat, playRipple } from "../motion/engine";
+import { rippleDelays } from "../motion/ripple";
 import { reportBeatPlan } from "../motion/plan";
+import type { Track } from "../motion/walkerCanvas";
+import { WalkerLayer } from "../command/WalkerLayer";
 import { mapCredit } from "./credit";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "./geo";
 import { centreFeatures, MAP_INK, POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
 
@@ -22,6 +28,9 @@ const FILL_COLOR_OLD = rampBy(["coalesce", ["get", "clsOld"], ["get", "cls"]]);
 const FADE = ["coalesce", ["feature-state", "fade"], 1];
 
 setWorkerUrl(workerUrl);
+// One pmtiles protocol for the page; each loaded site file is added to it by name.
+const pmtiles = new Protocol();
+addProtocol("pmtiles", pmtiles.tile);
 
 type Props = {
   segments: readonly MapSegment[];
@@ -35,8 +44,23 @@ type Props = {
   moved?: readonly { segmentId: string; deltaPts: number }[];
   /** Called with the map once its style and sources exist, and with null when it is removed. */
   onReady?: (map: MlMap | null) => void;
+  /** One line under the map (the walker prior's planning-only sentence). */
+  note?: string | undefined;
+  /** The walker flow for a walker prior: the sampled tracks, played when `key` changes. */
+  walkers?: { key: string; tracks: readonly Track[] } | null;
+  /** When `key` (the prior version) is first drawn, the dots grow outward from `origin`. */
+  ripple?: { key: string; origin: LatLon } | null;
+  /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
+  basemapUrl?: string | null;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
-  beat?: { key: string; before: Readonly<Record<string, number>>; change: ChangeResult; distanceM: Readonly<Record<string, number>> } | null;
+  beat?: {
+    key: string;
+    before: Readonly<Record<string, number>>;
+    change: ChangeResult;
+    distanceM: Readonly<Record<string, number>>;
+    /** Where the report was made; without one the pin and the arc are skipped. */
+    origin?: LatLon | null;
+  } | null;
 };
 
 const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
@@ -54,7 +78,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -71,6 +95,12 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   const reduced = useRef(false);
   const lastBeatKey = useRef<string | undefined>(undefined);
   const beatRun = useRef<{ cancel(): void } | null>(null);
+  const lastRippleKey = useRef<string | null>(null);
+  const arc = useRef<SVGPathElement>(null);
+  const reportPin = useRef<Marker | null>(null);
+  const rippleRun = useRef<{ cancel(): void } | null>(null);
+  const [loadedMap, setLoadedMap] = useState<MlMap | null>(null);
+  const [basemap, setBasemap] = useState<"none" | "drawn" | "absent" | "invalid" | "unavailable">("none");
 
   useEffect(() => {
     if (!el.current) return;
@@ -94,12 +124,19 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         id: "centre-dot",
         type: "circle",
         source: "centres",
-        paint: { "circle-radius": ["get", "r"], "circle-color": MAP_INK.dot, "circle-stroke-color": MAP_INK.dotRing, "circle-stroke-width": 1.5 },
+        // "grow" (feature state, 0 to 1, absent 1) drives the ripple.
+        paint: {
+          "circle-radius": ["*", ["get", "r"], ["coalesce", ["feature-state", "grow"], 1]] as never,
+          "circle-stroke-width": ["*", 1.5, ["coalesce", ["feature-state", "grow"], 1]] as never,
+          "circle-color": MAP_INK.dot,
+          "circle-stroke-color": MAP_INK.dotRing,
+        },
       });
       // Moved by the newest report (22.1): 2 px cyan on a 2 px bg-0 casing each side, so it reads on every step.
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
       m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
       ready.current = true;
+      setLoadedMap(m);
       readyRef.current?.(m);
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
@@ -110,6 +147,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     });
     return () => {
       beatRun.current?.cancel();
+      rippleRun.current?.cancel();
+      reportPin.current?.remove();
       scope.revert();
       for (const mk of [...markers.current, ...chips.current]) mk.remove();
       m.remove();
@@ -174,6 +213,52 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     else m.once("load", draw);
   }, [moved, segments]);
 
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !basemapUrl) return;
+    let live = true;
+    const draw = async () => {
+      const b = await loadBasemap(basemapUrl);
+      if (!live || map.current !== m) return;
+      if (b.state !== "ok") {
+        setBasemap(b.state);
+        return;
+      }
+      pmtiles.add(b.tiles);
+      if (!m.getSource("basemap")) m.addSource("basemap", { type: "vector", url: `pmtiles://${b.key}` });
+      const { under, over } = basemapLayers("basemap");
+      for (const l of under) if (!m.getLayer(l.id)) m.addLayer(l, "seg-fill-old");
+      for (const l of over) if (!m.getLayer(l.id)) m.addLayer(l, "seg-casing");
+      setBasemap("drawn");
+    };
+    if (ready.current) void draw();
+    else m.once("load", () => void draw());
+    return () => {
+      live = false;
+    };
+  }, [basemapUrl]);
+
+  // The ripple (22.1): on a prior's first draw, dots grow outward from the point last seen.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ripple || segments.length === 0 || ripple.key === lastRippleKey.current) return;
+    const play = () => {
+      lastRippleKey.current = ripple.key;
+      rippleRun.current?.cancel();
+      const wrap = el.current?.parentElement;
+      wrap?.setAttribute("data-ripple", "playing");
+      const delays = rippleDelays(segments.map((s) => s.centroid), ripple.origin);
+      rippleRun.current = playRipple(
+        delays,
+        reduced.current,
+        (i, t) => m.setFeatureState({ source: "centres", id: i }, { grow: t }),
+        () => wrap?.setAttribute("data-ripple", "done"),
+      );
+    };
+    if (ready.current) play();
+    else m.once("load", play);
+  }, [ripple?.key, segments.length > 0]);
+
   // The REPORT beat (22.1): lightness cross-fades nearest first, the cyan outline pulses once, the
   // chips rise. Not on the first change seen (a reload shows the final map); reduced motion shows
   // the final values at once and fades the chips in over 150 ms.
@@ -193,9 +278,45 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     wrap?.setAttribute("data-beat", "playing");
     if (!reduced.current) for (const id of ids) setFade(id, 0);
     for (const e of chipEls()) e.style.opacity = "0";
+    // The pin at the report (neutral ink; cyan only marks what moved), and the arc to the largest move.
+    reportPin.current?.remove();
+    reportPin.current = null;
+    let pinDot: HTMLElement | null = null;
+    const path = arc.current;
+    if (path) path.style.opacity = "0";
+    const target = ids[0] ? segments.find((s) => s.segmentId === ids[0]) : undefined;
+    if (beat.origin) {
+      const anchor = document.createElement("div");
+      pinDot = document.createElement("div");
+      pinDot.className = "report-pin";
+      pinDot.dataset["testid"] = "report-pin";
+      pinDot.setAttribute("aria-label", "Report position");
+      pinDot.style.transform = reduced.current ? "" : "scale(0)";
+      anchor.append(pinDot);
+      reportPin.current = new Marker({ element: anchor }).setLngLat([beat.origin.lon, beat.origin.lat]).addTo(m);
+      if (path && target && !reduced.current) {
+        const a = m.project([beat.origin.lon, beat.origin.lat]);
+        const b = m.project([target.centroid.lon, target.centroid.lat]);
+        // A gentle curve: the control point sits off the midpoint, a fifth of the length to the side.
+        const [mx, my] = [(a.x + b.x) / 2, (a.y + b.y) / 2];
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        path.setAttribute("d", `M ${a.x} ${a.y} Q ${mx - dy / 5} ${my + dx / 5} ${b.x} ${b.y}`);
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = String(len);
+        path.style.strokeDashoffset = String(len);
+      }
+    }
+    const drawArc = (t: number) => {
+      if (!path?.getAttribute("d")) return;
+      path.style.opacity = "1";
+      path.style.strokeDashoffset = String(path.getTotalLength() * (1 - t));
+    };
     beatRun.current = playReportBeat(reportBeatPlan(beat.change, beat.distanceM, reduced.current), {
       progress: (step, seg, t) => {
         if (step === "lightness" && seg) setFade(seg, t);
+        else if (step === "pin" && pinDot) pinDot.style.transform = `scale(${t})`;
+        else if (step === "arc") drawArc(t);
+        else if (step === "arcFade" && path?.getAttribute("d")) path.style.opacity = String(1 - t);
         else if (step === "pulse" && m.getLayer("moved-line")) m.setPaintProperty("moved-line", "line-width", 2 + 3 * Math.sin(Math.PI * t));
         else if (step === "chips" || step === "fade")
           for (const e of chipEls()) {
@@ -209,6 +330,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         for (const e of chipEls()) {
           e.style.opacity = "1";
           e.style.translate = "";
+        }
+        if (pinDot) pinDot.style.transform = "";
+        if (path) {
+          path.style.opacity = "0";
+          path.removeAttribute("d");
         }
         wrap?.setAttribute("data-beat", "done");
       },
@@ -226,12 +352,21 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     pinMarker.current = new Marker({ element: el }).setLngLat([pin.lon, pin.lat]).addTo(m);
   }, [pin]);
 
-  // No basemap is drawn yet, so only the OSM-derived segments earn the credit.
-  const credit = mapCredit({ segments: segments.length, basemap: false, gridAttribution: attribution });
+  // The credit shows when the OSM-derived grid or basemap is actually drawn.
+  const credit = mapCredit({ segments: segments.length, basemap: basemap === "drawn", gridAttribution: attribution });
   return (
-    <div className={onMapClick ? "map-wrap picking" : "map-wrap"}>
+    <div className={onMapClick ? "map-wrap picking" : "map-wrap"} data-basemap={basemap}>
       <div ref={el} className="map" data-testid="map" />
+      {walkers && loadedMap && <WalkerLayer map={loadedMap} tracks={walkers.tracks} playKey={walkers.key} />}
+      <svg className="beat-overlay" aria-hidden="true">
+        <path ref={arc} data-testid="beat-arc" />
+      </svg>
       {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
+      {note && (
+        <p className="map-note" data-testid="map-note">
+          {note}
+        </p>
+      )}
       {credit && (
         <div className="map-credit" data-testid="map-credit">
           {credit}

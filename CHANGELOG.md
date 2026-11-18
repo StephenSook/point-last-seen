@@ -5,6 +5,87 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The live probe takes a `site` input on a manual run: the wrong-URL control. Pointed at a wrong site, both App
+  Check steps must fail, which proves they can fail. Scheduled runs pass the empty input and keep the real site.
+  Source: review (each monitor needs a control that proves it can fail).
+  Verified: the test (a set `PLS_SITE` replaces the site; empty or unset keeps the real one) failed first, with
+  the constant restored to a fixed site it fails again, now 13 probe tests pass; locally the no-token step exits
+  1 against `https://wrong-site.invalid` and 0 against the real site; `bash scripts/ci-local.sh` exit 0.
+- Firestore rules close the duplicate camera Confirm. An incident update that changes any prior input (the
+  input event ids, the start point and its source, the prior's layers, terrain, model, seed or engine
+  settings) must raise `priorVersion` by exactly 1 in the same write. A camera sighting created by command must
+  sit in the batch that moves the incident to the next version and lists that sighting among the prior's inputs.
+  Two seats confirming the same clip from the same version build identical probabilities with different event
+  ids; the second batch is now refused whole instead of landing a duplicate sighting and replacing the input
+  list. The family app's own clip confirm (which never moves the prior) is unchanged.
+  Source: review (a second seat's identical Confirm batch landed at the same version).
+  Verified: the tests with the real Confirm batch shape (segments, ROW, the incident and both events; each seat
+  first in turn, the second refused whole and no duplicate written; a confirm from the newer version lands;
+  command's camera sighting alone or not listed is refused; the family confirm still lands; each prior input
+  changed without a step or with +2 is refused) failed first, now all 101 rules tests pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` row 12 records cloudGuard as on: deployed from ebd96a9 at 22:57 UTC on 2026-11-18, which calls
+  it covers (every generateContent call, templated or not), the large-media exception with the measured sizes,
+  what it does not cover by Google's design (streaming, which our iOS report read uses, and the Live API) and
+  the measured added latency.
+  Source: review (claim the trigger exactly as deployed).
+  Verified: live after the deploy, all 11 checks passed: the four templates kept their schemas (the voice template
+  returned audio); a direct structured call kept its keys; candidateCount 4 gave one candidate; gemini-3.8-flash
+  was refused; median added latency 86 ms over 10 warm calls; six 13.8 MB clip calls at once all answered; an
+  oversize call asking for 50,000 tokens was refused by the guard; a 13.8 MB clip through its template returned
+  all 15 fields. `bash scripts/ci-local.sh` exit 0.
+- cloudGuard refuses a request above the inline-media limit unless its own settings already comply: only listed
+  setting names, and a token limit within the cap or none (a template call carries none; its template sets it).
+  A request that asks for more output, extra candidates or a thinking budget is refused with invalid-argument
+  instead of passing unchanged. The web clip read (response type and schema only) and template clip reads comply.
+  Source: automated security review of 62b56c2 (an oversize request skipped the cap whatever it asked for).
+  Verified: the test (above the limit, a 50,000 or 0 token limit, candidateCount and thinkingConfig are each
+  refused) failed first, now 20 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
+- cloudGuard leaves a request with more than 9,000,000 base64 characters of inline media as sent, after the model
+  check. Measured live on 2026-11-18 with the guard forcing a rewrite: requests of 1.6, 5.9 and 11.3 MB went
+  through, 15.8 MB failed with HTTP 500 from the AI Logic proxy, and an 18.4 MB request left as sent went
+  through. Without this, every long clip read failed, since template calls always arrive without a token limit
+  and so are rewritten. Such a request keeps the model allow-list but not the output cap; the log line reports
+  its media size in MB.
+  Source: the live burst check after the redeploy (six 13.8 MB clip calls, all HTTP 500) and the size sweep.
+  Verified: the tests (left as sent above the limit and rewritten at it; an off-list model still refused; the
+  log line reports `mediaMB` and no rewrite) failed first, now 18 cloudGuard tests pass; functions typecheck
+  exit 0; `bash scripts/ci-local.sh` exit 0.
+- cloudGuard keeps a server prompt template's output schema. The log line showed that live template calls
+  arrive with no template name (`data.template` null) and carry the schema in generationConfig as
+  `_responseJsonSchema`, with no token limit; the guard dropped that key, so the sighting template invented field
+  names. The key is now kept, and template calls get the text cap like any direct call. A call that does name
+  its template is still left as sent after the model check.
+  Source: the cloudGuard log line on the live W2 call at 22:33 UTC (configKeys `_responseJsonSchema`,
+  `responseMimeType`, `temperature`; path direct; rewritten true).
+  Verified: the two tests built from that live shape (the rule function and the exported trigger keep the schema
+  and add the cap) failed first, now 15 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- cloudGuard writes one log line per call: the path it took (template or direct), the template's name, the
+  request's and generation config's setting names, and whether it rewrote the request. Names only, never the
+  prompt, inputs, media or values. Redeployed at 22:24 UTC on 2026-11-18 (6d29d80), the guard again made the
+  sighting template answer with made-up field names although template calls are now left as sent; it was
+  deleted again at 22:26 UTC. The log line shows which path a live template call takes before the next deploy.
+  Source: the live check after the redeploy.
+  Verified: the log-line tests (path, template, sorted setting names and the rewrite flag; no prompt text, media,
+  MIME type or values in the line) failed first, now 13 cloudGuard tests pass; functions typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- cloudGuard runs with 1 GiB of memory, a full CPU and up to 6 requests at once per instance (10 instances at most,
+  none kept warm). A clip read carries up to 14 MB of video as base64, about 100 MB in flight with the raw body,
+  the parsed string and a rewritten reply; at the default 256 MiB and 80 requests per instance, a burst of clip
+  reads could exhaust the instance and fail every AI call behind it.
+  Source: review (concurrent clip reads could exhaust the trigger's memory).
+  Verified: the endpoint test (1,024 MB, CPU 1, concurrency 6, 10 instances, no minimum instances) failed first,
+  now 11 cloudGuard tests pass; functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0. A live burst
+  follows the redeploy.
+- cloudGuard's tests send events through the exported trigger, as AI Logic does: a template call is answered with
+  no request (so the template's own config, schema included, stands), a direct call that asks too much is
+  answered with the bounded request, and an off-list model is refused with permission-denied (code 7, HTTP 500
+  from the trigger) whether or not it is a template call.
+  Source: review (the earlier tests called the rule function directly and missed the live template defect).
+  Verified: with the template line removed from `guardRequest`, the trigger-level template test fails; restored,
+  10 cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
 - Firestore rules move the prior one version at a time. An incident update that changes `priorVersion` must
   raise it by exactly 1, and a segment (or ROW) write that changes `priorPoa` or `priorVersion` lands only in
   the batch that moves the incident to the next version, taking that version. Two command seats that rebuild

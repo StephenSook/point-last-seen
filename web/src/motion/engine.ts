@@ -4,7 +4,7 @@
 // API names below were read from animejs 4.5.0's own type files:
 // createTimeline (add, label), createScope ({ mediaQueries }, matches), spring ({ bounce, duration }).
 
-import { createScope, createTimeline, spring } from "animejs";
+import { createScope, createTimeline, createTimer, spring } from "animejs";
 import { MOTION, type BeatStep } from "./plan";
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
@@ -38,4 +38,59 @@ export function playReportBeat(plan: readonly BeatStep[], targets: BeatTargets):
     }
   }
   return { cancel: () => void tl.cancel() };
+}
+
+/**
+ * The probability ripple (22.1): each dot grows from nothing to its size over 400 ms
+ * out(3), starting after its own delay. With reduced motion nothing animates: the
+ * caller is told at once that the dots are final.
+ */
+export function playRipple(delaysMs: readonly number[], reduced: boolean, apply: (index: number, t: number) => void, done: () => void): { cancel(): void } {
+  if (reduced || delaysMs.length === 0) {
+    delaysMs.forEach((_, i) => apply(i, 1));
+    done();
+    return { cancel: () => {} };
+  }
+  const tl = createTimeline({ onComplete: () => done() });
+  tl.label("RIPPLE", 0);
+  delaysMs.forEach((at, i) => {
+    const o = { t: 0 };
+    apply(i, 0);
+    tl.add(o, { t: 1, duration: MOTION.enter.ms + 50, ease: MOTION.enter.ease, onUpdate: () => apply(i, o.t) }, at);
+  });
+  return { cancel: () => void tl.cancel() };
+}
+
+/**
+ * FLIP: each moved row starts at its old place (translateY by dy) and slides to its
+ * new place over 350 ms inOut(3), after `delayMs`. Reduced motion: no slide.
+ */
+export function playFlip(items: readonly { el: HTMLElement; dy: number }[], delayMs: number, reduced: boolean): { cancel(): void } {
+  if (reduced || items.length === 0) return { cancel: () => {} };
+  const reset = () => items.forEach(({ el }) => (el.style.transform = ""));
+  for (const { el, dy } of items) el.style.transform = `translateY(${dy}px)`;
+  const tl = createTimeline({ onComplete: reset });
+  for (const { el, dy } of items) {
+    const o = { t: 0 };
+    tl.add(o, { t: 1, duration: MOTION.swap.ms, ease: MOTION.swap.ease, onUpdate: () => (el.style.transform = `translateY(${dy * (1 - o.t)}px)`) }, delayMs);
+  }
+  return {
+    cancel: () => {
+      tl.cancel();
+      reset();
+    },
+  };
+}
+
+/**
+ * The walker flow: one 60 fps timer for every walker (no animation object per walker),
+ * calling `onFrame` with the elapsed milliseconds. Reduced motion: no flow, done at once.
+ */
+export function playWalkers(totalMs: number, reduced: boolean, onFrame: (tMs: number) => void, done: () => void): { cancel(): void } {
+  if (reduced || totalMs <= 0) {
+    done();
+    return { cancel: () => {} };
+  }
+  const timer = createTimer({ duration: totalMs, frameRate: 60, onUpdate: (t) => onFrame(t.currentTime), onComplete: () => done() });
+  return { cancel: () => void timer.cancel() };
 }

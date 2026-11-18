@@ -47,6 +47,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
   const [reads, setReads] = useState<Record<string, Read>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [decided, setDecided] = useState<Record<string, FamilyDecision>>({});
+  const [saveError, setSaveError] = useState<Record<string, string | null>>({});
   const set = (sha: string, r: Read) => setReads((x) => ({ ...x, [sha]: r }));
 
   async function run(p: TrayPhoto, how: "laptop" | "cloud") {
@@ -63,15 +64,20 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
     }
   }
 
-  async function decide(p: TrayPhoto, d: FamilyDecision) {
+  // The answer shows at once and the buttons stay free: a Firestore write settles only when the
+  // server acknowledges it, which never happens with the link down. A refusal brings the buttons back.
+  function decide(p: TrayPhoto, d: FamilyDecision) {
     const r = reads[p.sha256];
-    setBusy(p.sha256);
-    try {
-      await onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d);
-      setDecided((x) => ({ ...x, [p.sha256]: d }));
-    } finally {
-      setBusy(null);
-    }
+    setDecided((x) => ({ ...x, [p.sha256]: d }));
+    setSaveError((x) => ({ ...x, [p.sha256]: null }));
+    onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d).catch(() => {
+      setDecided((x) => {
+        const next = { ...x };
+        if (next[p.sha256] === d) delete next[p.sha256];
+        return next;
+      });
+      setSaveError((x) => ({ ...x, [p.sha256]: "Not saved. Try again." }));
+    });
   }
 
   return (
@@ -135,6 +141,11 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
                   {r.cues.signText && <p className="muted">Sign: "{r.cues.signText}"</p>}
                   {r.cues.landmarks.length > 0 && <p className="muted">Landmarks: {r.cues.landmarks.join(", ")}</p>}
                 </div>
+              )}
+              {saveError[p.sha256] && (
+                <p className="error" role="alert">
+                  {saveError[p.sha256]}
+                </p>
               )}
               {decided[p.sha256] ? (
                 <p className="tag">Family said: {decided[p.sha256] === "not_sure" ? "not sure" : decided[p.sha256]}</p>

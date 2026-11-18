@@ -3,7 +3,7 @@
 // by this trigger, by Google's design (docs/SECURITY.md row 12).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, TTS_MAX_OUTPUT_TOKENS, guardRequest } from "../src/cloudGuard";
+import { ALLOWED_MODELS, MAX_OUTPUT_TOKENS, MAX_REWRITE_MEDIA_CHARS, TTS_MAX_OUTPUT_TOKENS, guardLogLine, guardRequest } from "../src/cloudGuard";
 
 const listed = JSON.parse(readFileSync(new URL("../../shared/constants/models.json", import.meta.url), "utf8")).models.map((m: { id: string }) => m.id);
 const path = (id: string) => `projects/buildhybridai-2026-yg3m/locations/global/publishers/google/models/${id}`;
@@ -46,5 +46,121 @@ describe("cloudGuard", () => {
     const { cloudGuard } = await import("../src/index");
     const ep = (cloudGuard as unknown as { __endpoint: { blockingTrigger?: { eventType: string } } }).__endpoint;
     expect(ep.blockingTrigger?.eventType).toBe("google.firebase.ailogic.v1.beforeGenerate");
+  });
+  it("has memory for a burst of clip reads: each request can carry a 14 MB clip as base64 (review)", async () => {
+    const { cloudGuard } = await import("../src/index");
+    const ep = (cloudGuard as unknown as { __endpoint: { availableMemoryMb?: number; concurrency?: number; cpu?: number; maxInstances?: number; minInstances?: unknown } }).__endpoint;
+    // About 100 MB per in-flight clip request (raw body, parsed string, rewritten reply), plus the runtime.
+    expect(ep.availableMemoryMb).toBe(1024);
+    expect(ep.cpu).toBe(1);
+    expect(ep.concurrency).toBe(6);
+    expect(ep.maxInstances).toBe(10);
+    // No warm instance waiting (that costs money while idle).
+    expect(typeof ep.minInstances === "number" ? ep.minInstances : 0).toBe(0);
+  });
+});
+
+/** Sends one AI Logic event through the exported trigger, as the platform does, and returns its HTTP answer. */
+async function throughTrigger(data: Record<string, unknown>): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { cloudGuard } = await import("../src/index");
+  let status = 0, body: Record<string, unknown> = {};
+  const res = { status(s: number) { status = s; return res; }, send(b: Record<string, unknown>) { body = b; return res; } };
+  const event = { specversion: "1.0", id: "e1", source: "test", type: "google.firebase.ailogic.v1.beforeGenerate",
+    data: { api: "google.ai.generativelanguage.v1beta", ...data } };
+  await (cloudGuard as unknown as (req: unknown, res: unknown) => Promise<void>)({ headers: {}, body: event }, res);
+  return { status, body };
+}
+
+describe("cloudGuard through the exported trigger", () => {
+  const model = path("gemini-3.5-flash-lite");
+  // A template call's request carries the template's own config, including settings direct calls never send.
+  const templateConfig = { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json",
+    responseJsonSchema: { type: "object", properties: { direction: { type: "string" } } }, thinkingConfig: { thinkingBudget: 0 } };
+  it("answers a template call with no request, so the template's own config stands (live 2026-11-18)", async () => {
+    const { status, body } = await throughTrigger({ model, template: { templateName: "projects/p/locations/global/templates/pls-sighting-note-v1" },
+      request: { contents: [{ role: "user", parts: [{ text: "note" }] }], generationConfig: templateConfig } });
+    expect(status).toBe(200);
+    expect(Object.keys(body).filter(k => k !== "@type")).toEqual([]);
+  });
+  it("answers a direct call that asks too much with the bounded request", async () => {
+    const { status, body } = await throughTrigger({ model,
+      request: { contents: [], generationConfig: { maxOutputTokens: 50_000, candidateCount: 4 } } });
+    expect(status).toBe(200);
+    expect(body.generationConfig).toEqual({ maxOutputTokens: MAX_OUTPUT_TOKENS });
+  });
+  it("refuses an off-list model with permission-denied, template call or not", async () => {
+    for (const template of [undefined, { templateName: "x" }]) {
+      const { status, body } = await throughTrigger({ model: path("gemini-9-pro"), template, request: { contents: [] } });
+      expect(status).toBe(500);
+      expect(body).toEqual({ code: 7, message: "This model is not allowed here." });
+    }
+  });
+});
+
+describe("cloudGuard on a live template call (seen 2026-11-18)", () => {
+  // Live, a template call arrived with data.template null and the template's output schema in generationConfig
+  // under "_responseJsonSchema", with no maxOutputTokens. Dropping that key made the sighting template invent
+  // field names; it must be kept, and the output still bounded.
+  const schema = { type: "object", properties: { direction: { type: "string" } }, required: ["direction"] };
+  const live = { "@type": "type.googleapis.com/google.ai.generativelanguage.v1beta.GenerateContentRequest", model: "models/gemini-3.5-flash-lite",
+    contents: [], systemInstruction: { parts: [] }, generationConfig: { _responseJsonSchema: schema, responseMimeType: "application/json", temperature: 0 } };
+  it("keeps the template's schema and adds the text cap", () => {
+    expect(guardRequest(path("gemini-3.5-flash-lite"), live)?.generationConfig).toEqual({ _responseJsonSchema: schema,
+      responseMimeType: "application/json", temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS });
+  });
+  it("keeps it through the exported trigger too", async () => {
+    const { status, body } = await throughTrigger({ model: path("gemini-3.5-flash-lite"), template: null, request: live });
+    expect(status).toBe(200);
+    expect((body.generationConfig as Record<string, unknown>)._responseJsonSchema).toEqual(schema);
+  });
+});
+
+describe("cloudGuard on a clip-size request (measured 2026-11-18)", () => {
+  // Live, the AI Logic proxy accepted a rewritten request of 11.3 MB and failed (HTTP 500) on 15.8 MB; an 18.4 MB
+  // request left as sent went through. Above the limit the guard cannot rewrite, so a request passes only when its
+  // own settings are already ones the guard would keep: listed keys, and a token limit within the cap or none (a
+  // template call carries none; its template sets it). Anything else is refused.
+  const withMedia = (chars: number, config: Record<string, unknown>, model = "gemini-3.5-flash-lite") => [path(model),
+    { contents: [{ role: "user", parts: [{ inlineData: { mimeType: "video/mp4", data: "A".repeat(chars) } }, { text: "read" }] }],
+      generationConfig: config }] as const;
+  const big = MAX_REWRITE_MEDIA_CHARS + 1;
+  it("passes as sent above the limit when its settings already comply, including a template call with no token limit", () => {
+    expect(MAX_REWRITE_MEDIA_CHARS).toBe(9_000_000);
+    expect(guardRequest(...withMedia(big, { maxOutputTokens: 100, responseMimeType: "application/json" }))).toBeUndefined();
+    expect(guardRequest(...withMedia(big, { _responseJsonSchema: { type: "object" }, responseMimeType: "application/json", temperature: 0 }))).toBeUndefined();
+  });
+  it("refuses a request above the limit that asks for more than the cap or for unlisted settings (review)", () => {
+    for (const config of [{ maxOutputTokens: 50_000 }, { maxOutputTokens: 0 }, { candidateCount: 2 }, { thinkingConfig: { thinkingBudget: 24_000 } }]) {
+      expect(() => guardRequest(...withMedia(big, config))).toThrow(expect.objectContaining({ code: "invalid-argument" }));
+    }
+  });
+  it("still rewrites at the limit", () => {
+    expect(guardRequest(...withMedia(MAX_REWRITE_MEDIA_CHARS, { maxOutputTokens: 50_000 }))?.generationConfig?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
+  });
+  it("still refuses an off-list model", () => {
+    expect(() => guardRequest(...withMedia(big, {}, "gemini-9-pro"))).toThrow(expect.objectContaining({ code: "permission-denied" }));
+  });
+  it("says so in the log line, by size only", () => {
+    const [model, request] = withMedia(big, { responseMimeType: "application/json" });
+    expect(guardLogLine({ model, request }, guardRequest(model, request))).toMatchObject({ rewritten: false, mediaMB: 9 });
+  });
+});
+
+describe("cloudGuard's log line", () => {
+  // One line per call says which path the guard took and which setting names it saw, so a live defect can be read
+  // from the logs. It never carries the prompt, inputs, media or values.
+  const request = { contents: [{ role: "user", parts: [{ text: "SECRET NOTE ABOUT ROSA" }, { inlineData: { mimeType: "video/mp4", data: "QUJD" } }] }],
+    systemInstruction: { parts: [{ text: "SYSTEM SECRET" }] }, generationConfig: { maxOutputTokens: 50_000, temperature: 0.7, responseSchema: { type: "object" } } };
+  it("names the path, the template, the setting names and whether the request was rewritten", () => {
+    const out = guardRequest(path("gemini-3.5-flash-lite"), request);
+    expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), request }, out)).toEqual({ event: "cloudGuard", path: "direct",
+      model: "gemini-3.5-flash-lite", template: null, requestKeys: ["contents", "generationConfig", "systemInstruction"],
+      configKeys: ["maxOutputTokens", "responseSchema", "temperature"], mediaMB: 0, rewritten: true });
+    expect(guardLogLine({ model: path("gemini-3.5-flash-lite"), template: { templateName: "projects/p/locations/global/templates/pls-voice-v1" }, request }, undefined))
+      .toMatchObject({ path: "template", template: "projects/p/locations/global/templates/pls-voice-v1", rewritten: false });
+  });
+  it("never carries the prompt, inputs, media or setting values", () => {
+    const line = JSON.stringify(guardLogLine({ model: path("gemini-3.5-flash-lite"), request }, guardRequest(path("gemini-3.5-flash-lite"), request)));
+    for (const secret of ["SECRET NOTE", "SYSTEM SECRET", "QUJD", "video/mp4", "50000", "0.7", "object"]) expect(line).not.toContain(secret);
   });
 });
