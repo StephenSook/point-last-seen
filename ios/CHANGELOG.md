@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): tell when it is dark enough for night mode
+- What: `Dusk.isAfterCivilDusk(date:lat:lon:)` is true when the sun is more than 6 degrees below
+  the horizon (after civil dusk, before civil dawn), from the standard low-precision solar
+  position formulas. The app uses it for the automatic night switch.
+- Source: promotion P-16, Task 25 (`Dusk`).
+- Verified: two `DuskTests` (Atlanta, Nov 22: 15:00 local day, 19:30 night; Nov 23: 05:00
+  night, 09:00 day) compile-red without the type, then green; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): add the field day and night colours with a contrast check
 - What: `Contrast.ratio` (WCAG) and `FieldTheme.day` / `FieldTheme.night` from design section
   22.1. Day: black, white text, one amber `#FFB020` for the Report bar and "your segment", a
