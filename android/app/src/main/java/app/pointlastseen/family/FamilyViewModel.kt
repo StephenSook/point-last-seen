@@ -141,6 +141,14 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun calledFirst() = apply(Nav.calledFirst(nav))
 
+    /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
+    fun leaveSearch() {
+        watch.stop()
+        session.leave()
+        prefs.remove(GONE)
+        nav = Nav.leave(nav)
+    }
+
     fun toJoin() = apply(Nav.toJoin(nav))
 
     fun join(code: String) {

@@ -22,13 +22,13 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
     }
     Crossfade(targetState = vm.nav.screen, animationSpec = Paper.crossfade(), label = "screen") { screen ->
         when (screen) {
-            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin)
+            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back)
             Screen.CALL_FIRST -> CallFirstScreen(mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst)
             Screen.JOIN -> JoinScreen(vm.joinBusy, vm.joinError, onJoin = vm::join, onBack = vm::back)
             Screen.STATUS -> StatusScreen(
                 status = incident?.status, mode = mode, killCloud = rc.killCloud,
                 pending = vm.pendingCount(writes), rejected = vm.rejectedCount(writes),
-                onOpen = vm::open, onRetry = vm::retryRejected, shareFailed = vm.profileShareFailed,
+                onOpen = vm::open, onRetry = vm::retryRejected, onLeave = vm::leaveSearch, shareFailed = vm.profileShareFailed,
             )
             Screen.CLIP -> ClipScreen(mode, rc.killCloud, vm.clipLabel, vm.clipUi, onPick = onPickClip, onRead = vm::readClip, onConfirm = vm::confirmClip, onBack = vm::back)
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back)

@@ -23,6 +23,7 @@ fun StatusScreen(
     rejected: Int,
     onOpen: (Screen) -> Unit,
     onRetry: () -> Unit,
+    onLeave: () -> Unit,
     shareFailed: Boolean = false,
 ) {
     val ring = MaterialTheme.colorScheme.outline
@@ -44,6 +45,8 @@ fun StatusScreen(
             OtherAction("I remembered something") { onOpen(Screen.NOTE) }
             OtherAction("Someone saw them") { onOpen(Screen.SIGHTING) }
         }
+        OtherAction("Edit profile") { onOpen(Screen.PROFILE) }
         OtherAction("About this phone") { onOpen(Screen.ABOUT) }
+        if (!open) OtherAction("Leave this search", onClick = onLeave)
     }
 }

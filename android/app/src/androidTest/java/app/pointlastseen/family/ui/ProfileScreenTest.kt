@@ -28,7 +28,7 @@ class ProfileScreenTest {
         rule.setContent {
             PaperTheme {
                 ProfileScreen(SubjectProfile(), warnings = emptyList(), joined = false, mode = null,
-                    onSave = { saved = it }, onGone = { gone = it }, onJoin = {})
+                    onSave = { saved = it }, onGone = { gone = it }, onJoin = {}, gone = false, onBack = {})
             }
         }
         type("Name they answer to", "Mae")
@@ -55,7 +55,7 @@ class ProfileScreenTest {
 
     @Test fun theDementiaTypeIsSharedOnlyWhenSwitchedOn() {
         var saved: SubjectProfile? = null
-        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), true, "drill", onSave = { saved = it }, onGone = {}, onJoin = {}) } }
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), true, "drill", onSave = { saved = it }, onGone = {}, onJoin = {}, gone = false, onBack = {}) } }
         tap("Lewy body")
         tap("Save")
         assertEquals("lewy_body", saved!!.dementiaType)
@@ -66,16 +66,24 @@ class ProfileScreenTest {
     }
 
     @Test fun theSectionsSayWhoSeesWhat() {
-        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), false, null, {}, {}, {}) } }
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), false, null, {}, {}, {}, gone = false, onBack = {}) } }
         rule.onNodeWithText("Stays on this phone").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Only command sees this").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Join with a code").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun warningsShowAtTheTop() {
-        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), listOf("photo_old", "clock_changed"), true, "drill", {}, {}, {}) } }
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), listOf("photo_old", "clock_changed"), true, "drill", {}, {}, {}, gone = false, onBack = {}) } }
         rule.onNodeWithText("The photo is more than two months old. Add a new one.").assertIsDisplayed()
         rule.onNodeWithText("The clocks changed. Please check this profile.").assertIsDisplayed()
         rule.onNodeWithText("Join with a code").assertDoesNotExist()
+    }
+
+    @Test fun duringASearchTheProfileHasBackNotShesGone() {
+        var back = 0
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), true, "drill", {}, {}, {}, gone = true, onBack = { back++ }) } }
+        rule.onNodeWithText("She's gone").assertDoesNotExist()
+        rule.onNodeWithText("Back").performScrollTo().performClick()
+        assertEquals(1, back)
     }
 }

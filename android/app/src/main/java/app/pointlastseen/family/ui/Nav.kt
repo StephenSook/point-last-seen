@@ -34,4 +34,7 @@ object Nav {
         if (target in ACTIONS && !(s.joined && s.gone)) s else s.copy(screen = target)
 
     fun back(s: NavState): NavState = s.copy(screen = if (s.joined && s.gone) Screen.STATUS else Screen.PROFILE)
+
+    /** Leaving a search: this install is free for the next drill or incident; the profile stays. */
+    fun leave(@Suppress("UNUSED_PARAMETER") s: NavState): NavState = NavState(Screen.PROFILE, gone = false, joined = false)
 }

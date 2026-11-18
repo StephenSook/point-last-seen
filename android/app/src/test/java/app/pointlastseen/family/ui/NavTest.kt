@@ -44,4 +44,30 @@ class NavTest {
         assertTrue(step.publishProfile)
     }
 
+    @Test fun theProfileCanBeEditedFromStatusAndReturnsThere() {
+        val status = Nav.start(joined = true, gone = true)
+        val editing = Nav.open(status, Screen.PROFILE)
+        assertEquals(Screen.PROFILE, editing.screen)
+        assertEquals(Screen.STATUS, Nav.back(editing).screen)
+    }
+
+    @Test fun leavingASearchReturnsToAFreshStart() {
+        val left = Nav.leave(Nav.start(joined = true, gone = true))
+        assertEquals(NavState(Screen.PROFILE, gone = false, joined = false), left)
+    }
+
+    @Test fun actionScreensReturnToStatus() {
+        val status = Nav.start(joined = true, gone = true)
+        for (target in listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT)) {
+            val opened = Nav.open(status, target)
+            assertEquals(target, opened.screen)
+            assertEquals(Screen.STATUS, Nav.back(opened).screen)
+        }
+    }
+
+    @Test fun actionsNeedAJoinedIncident() {
+        val notJoined = Nav.start(joined = false, gone = false)
+        assertEquals(Screen.PROFILE, Nav.open(notJoined, Screen.CLIP).screen)
+        assertEquals(Screen.ABOUT, Nav.open(notJoined, Screen.ABOUT).screen)
+    }
 }

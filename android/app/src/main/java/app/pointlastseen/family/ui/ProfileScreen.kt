@@ -96,6 +96,8 @@ fun ProfileScreen(
     onSave: (SubjectProfile) -> Unit,
     onGone: (SubjectProfile) -> Unit,
     onJoin: () -> Unit,
+    gone: Boolean,
+    onBack: () -> Unit,
 ) {
     var p by remember(profile) { mutableStateOf(profile) }
     var age by remember(profile) { mutableStateOf(profile.ageYears?.toString() ?: "") }
@@ -117,9 +119,14 @@ fun ProfileScreen(
 
     FamilyScaffold(mode, killCloud = false) {
         warnings.forEach { Note(ProfileCopy.warning(it)) }
-        Sentence("Who might go missing?")
-        MainAction("She's gone") { onGone(edited()) }
-        if (!joined) OtherAction("Join with a code", onClick = onJoin)
+        if (gone) {
+            Sentence("Their profile")
+            OtherAction("Back", onClick = onBack)
+        } else {
+            Sentence("Who might go missing?")
+            MainAction("She's gone") { onGone(edited()) }
+            if (!joined) OtherAction("Join with a code", onClick = onJoin)
+        }
 
         Heading("Searchers see this")
         Field("Name they answer to", p.answersTo, max = 60) { p = p.copy(answersTo = it) }
