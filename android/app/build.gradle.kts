@@ -123,6 +123,10 @@ android {
         resValues = true
     }
 
+    // -Ppls.testBuildType=release runs the device tests against the release build (its App Check
+    // provider and signing), for the release App Check probe; everything else tests debug.
+    testBuildType = providers.gradleProperty("pls.testBuildType").orNull ?: "debug"
+
     testOptions {
         unitTests.isReturnDefaultValues = false
         // Unit tests read the shared vectors and constants from the repo root.
