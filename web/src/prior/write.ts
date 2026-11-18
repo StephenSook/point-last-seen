@@ -5,7 +5,8 @@
 // snapshot has the new prior at once).
 
 import type { EventDoc } from "@pls/engine";
-import { doc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { doc, getDocFromServer, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { classifyPriorRefusal } from "./refusal";
 import type { PriorWrites } from "./rebuild";
 import type { WalkerPriorWrites } from "./walkerPrior";
 
@@ -31,5 +32,12 @@ export function writePrior(db: Firestore, incidentId: string, w: PriorWrites | W
     else if (op.kind === "set") batch.set(ref, op.data, { merge: true });
     else batch.set(ref, op.data);
   }
-  return batch.commit();
+  // A refusal is reported as "another seat saved first" only after the server confirms a newer version.
+  const serverVersion = async () => {
+    const v: unknown = (await getDocFromServer(doc(db, `incidents/${incidentId}`))).get("priorVersion");
+    return typeof v === "number" ? v : null;
+  };
+  return batch.commit().catch(async (e: unknown) => {
+    throw await classifyPriorRefusal(e, w.incident.priorVersion, serverVersion);
+  });
 }

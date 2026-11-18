@@ -72,6 +72,14 @@ test("a rebuild refused because another seat moved the prior first says so in pl
   await page.goto("/harness/layers.html");
   await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
   await page.getByRole("button", { name: "Rebuild prior" }).click();
-  await page.getByRole("button", { name: "Server refuses the first" }).click();
+  await page.getByRole("button", { name: "Another seat saved first" }).click();
   await expect(page.getByRole("alert")).toHaveText("Another seat updated the map. Showing the newer one.");
+});
+
+test("a refusal the server did not confirm as a newer prior gets the plain failure line", async ({ page }) => {
+  await page.goto("/harness/layers.html");
+  await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
+  await page.getByRole("button", { name: "Rebuild prior" }).click();
+  await page.getByRole("button", { name: "Server refuses the first" }).click();
+  await expect(page.getByRole("alert")).toHaveText("The prior was not saved. Try again.");
 });
