@@ -41,6 +41,11 @@ describe("loadPublishedRun", () => {
     expect(await loadPublishedRun(async () => new Response("not json", { status: 200 }))).toEqual({ state: "invalid" });
   });
 
+  it("treats the app's own HTML (the hosting rewrite for a missing file) as no run", async () => {
+    const html = async () => new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+    expect(await loadPublishedRun(html)).toEqual({ state: "none" });
+  });
+
   it("reports an unreachable file as unavailable, not as no run", async () => {
     expect(await loadPublishedRun(async () => { throw new TypeError("Failed to fetch"); })).toEqual({ state: "unavailable" });
   });

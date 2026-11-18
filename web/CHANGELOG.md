@@ -327,3 +327,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: plan Task 23c, spec section 16 (D2 states, "No published run yet.").
 - Verified: `src/judge/judge.test.ts`, 8 tests, failed first (module missing), then passed. GitHub jobs are blocked by the Actions budget; scripts/ci-local.sh exit 0 is the gate.
 - Ruling recorded: state (b) and (c) do not yet say "Suggest plan works with Wi-Fi off" as the spec's draft line does; that claim is added when an offline run of the SDK's fallback has been measured.
+
+### fix(judge): treat the hosting's HTML answer for a missing run file as no run
+- What: Firebase Hosting rewrites every unknown path to the app, so a missing `/evidence/published-run.json` comes back as the app's HTML with status 200. `loadPublishedRun` now reads a `text/html` answer as "none", so the page says "No published run yet." instead of calling the file incomplete.
+- Source: found by the new judge e2e against the preview server, which rewrites the same way.
+- Verified: new unit test failed first ("treats the app's own HTML ... as no run"), then passed (9 of 9); the e2e then saw "No published run yet." inside the Numbers section.

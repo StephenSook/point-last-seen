@@ -32,6 +32,8 @@ export async function loadPublishedRun(
   }
   if (res.status === 404) return { state: "none" };
   if (!res.ok) return { state: "unavailable" };
+  // Hosting rewrites every unknown path to the app, so a missing file arrives as HTML with status 200.
+  if ((res.headers.get("content-type") ?? "").includes("text/html")) return { state: "none" };
   let body: unknown;
   try {
     body = await res.json();
