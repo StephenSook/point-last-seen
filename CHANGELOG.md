@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The rules gate's `LanguageModel.availability` rule also catches optional chaining (`LanguageModel?.availability`)
+  and bracket access (`LanguageModel["availability"]`), so the call stays confined to web/src/ai/gate.ts.
+  Source: fresh-context review minor 11.
+  Docs may name the call (this entry tripped the first version).
+  Verified: the new tests failed first, now 20 gate tests pass; the gate is clean on main and on archives of
+  lane-web, lane-ios and lane-android; ci-local exits 0.
 - Cap `joinIncident` at 5 instances (`maxInstances: 5`, us-central1) to bound cost under abuse, alongside the
   per-caller attempt budget. Test reads the function's deploy manifest.
   Source: fresh-context review minor 6.

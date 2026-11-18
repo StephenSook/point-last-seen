@@ -56,7 +56,8 @@ MODEL_BUILDERS = {
 TOKEN_URL = re.compile(r"\b(getDownloadURL|downloadURL|downloadUrl)\b")
 CLIENT_DIRS = ("web/", "ios/", "android/")
 
-AVAILABILITY = re.compile(r"(?<!System)LanguageModel\.availability")
+# Plain, optional-chained (?.) and bracket ("availability") access all count.
+AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
 MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
 ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
@@ -103,7 +104,7 @@ def check_lines(rel: str, text: str) -> list[str]:
         m = ANYCASE.search(line)
         if m:
             bad(f"banned name '{m.group(0)}'")
-        if AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
+        if not is_doc and AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
             bad("LanguageModel.availability is allowed only in the web AI gate module")
         if rel in COUNT_TOKENS_BANNED_IN and "countTokens" in line:
             bad("countTokens is banned in private-data paths")
