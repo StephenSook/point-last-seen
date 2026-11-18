@@ -5,6 +5,39 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
+  `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
+  test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
+  merged as JSON three ways from the merge base 2bc711c: no key changed on both sides; every entry from both
+  parents kept its version.
+  Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
+  CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- Widen the platform workflows now that every lane is on main (merge point 1): Swift core also runs when
+  shared/test-vectors/**, shared/constants/** or its workflow change; Android when shared/** or its workflow
+  change; web when shared/**, the root package files or its workflow change. Still pull requests to main
+  and main only.
+  Source: plan Global Constraints (widen at the merge points); the comments that held these back are removed.
+  Verified: each file keeps exactly two path lists (push and pull_request), both widened; pushed only after
+  PRs #2, #3 and #1 merged, so no job runs on main without its tree; `bash scripts/ci-local.sh` exit 0.
+- The `ts` job (and `ci-local.sh`) now typecheck and test `tools/grid-builder`: its 10 tests ran in neither
+  until now. A multi-line `run:` in Actions uses `bash -e`, so a failing typecheck stops the step.
+  Source: own finding while checking what CI covers for Task 10.
+  Verified: `bash scripts/ci-local.sh` exit 0 with the grid builder's typecheck and 10 tests in its output.
+- Add `storage.cors.json` (GET from the two hosting origins; the headers the web SDK sends) and apply it to the
+  bucket: the web photo tray's `getBytes` XHR was blocked with "No 'Access-Control-Allow-Origin' header is
+  present". `docs/PRODUCTION-CHECKLIST.md` gains a Firebase project section: the CORS apply and read-back
+  commands, and the callable invoker check (firebase-tools grants a callable's public invoker only on create).
+  Source: lane C's live command post finding; the joinIncident deploy.
+  Verified: `gcloud storage buckets update --cors-file` exit 0; the bucket's cors_config read back equals the
+  file (it was empty before). An unauthenticated request cannot prove it (error responses carry `*` for any
+  origin), so lane C's authorized live read is the proof. `bash scripts/ci-local.sh` exit 0.
+- `scripts/emulator_config.py --wait-ports SECONDS` waits, bounded, until every port in this worktree's emulator
+  block can be bound on 127.0.0.1 and ::1, and exits 1 naming the busy ports when the time runs out.
+  `ci-local.sh` runs it (180 s) before the emulator suite, because a socket left from the previous run made the
+  Firestore WebChannel server fail to bind ("Address already in use"). Local only: a CI runner starts clean.
+  Source: lane C's ci-local finding (two failed runs, back to back, on its own block).
+  Verified: 3 new tests (free block passes at once; a held port fails and is named; a port released after
+  1.5 s passes after waiting) failed first, now 8 of 8 pass; `bash scripts/ci-local.sh` exit 0.
 - Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
   to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
   Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog

@@ -47,6 +47,10 @@ jobs:
         run: npm run lint -w shared/engine-ts
       - name: Engine tests
         run: npm test -w shared/engine-ts
+      - name: Grid builder typecheck and tests
+        run: |
+          npm run typecheck -w tools/grid-builder
+          npm test -w tools/grid-builder
 
   vectors-parity:
     name: vectors-parity

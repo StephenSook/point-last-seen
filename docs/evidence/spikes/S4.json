@@ -1,0 +1,665 @@
+{
+ "spike": "S4",
+ "step": 2,
+ "date": "2026-11-17",
+ "browser": "Google Chrome 157.0.8103.80 stable, macOS, Apple M5 Pro",
+ "photos": "20 of Stephen's own photos, long side 1536 px, EXIF and GPS stripped, re-encoded JPEG. Files stay outside the repo.",
+ "labels": "labelled by the orchestrator (a Claude session) from previews, not yet spot-checked by Stephen. The reader under test is Chrome's built-in model, a different model family from the labeller. Sign text tokens are kept out of this file (they name real places); only their counts are listed.",
+ "preRegistration": {
+  "file": "prompt, schema, place-type synonym map and matching rules written before any photo was read",
+  "sha256": "65d22b5c15acbfb98f5eda683bfb2c6bd70ae45b8dc36fbaec2172faa1a84dd5",
+  "checkedBeforeScoring": true,
+  "prompt": {
+   "system": "You read one photo for a search team looking for a missing adult. Report only what is visible. placeType: a short phrase that names the kind of place. visibleText: each piece of readable text, copied exactly as written; leave it empty when no text is readable; never guess. placeNameFromText: the name of the place only when that name is written in visibleText; otherwise an empty string.",
+   "user": "Read this photo."
+  },
+  "schema": {
+   "type": "object",
+   "properties": {
+    "placeType": {
+     "type": "string"
+    },
+    "visibleText": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "placeNameFromText": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "placeType",
+    "visibleText",
+    "placeNameFromText"
+   ],
+   "additionalProperties": false
+  },
+  "placeTypeSynonyms": {
+   "store": [
+    "store",
+    "shop",
+    "retail",
+    "resale",
+    "boutique",
+    "thrift",
+    "consignment",
+    "mall",
+    "storefront"
+   ],
+   "school_campus": [
+    "university",
+    "campus",
+    "college",
+    "school"
+   ],
+   "public_building": [
+    "polling",
+    "voting",
+    "vote",
+    "election",
+    "civic",
+    "government",
+    "community center",
+    "town hall",
+    "public building",
+    "library",
+    "gym",
+    "gymnasium",
+    "auditorium"
+   ],
+   "restaurant": [
+    "restaurant",
+    "steakhouse",
+    "dining",
+    "diner",
+    "bistro",
+    "eatery",
+    "grill",
+    "cafe"
+   ],
+   "gas_station": [
+    "gas station",
+    "gas",
+    "fuel",
+    "petrol",
+    "filling station",
+    "service station"
+   ],
+   "event_venue": [
+    "event",
+    "conference",
+    "convention",
+    "venue",
+    "hackathon",
+    "stage",
+    "expo",
+    "meetup",
+    "ballroom",
+    "banquet",
+    "auditorium"
+   ],
+   "street_intersection": [
+    "intersection",
+    "crosswalk",
+    "crossroad",
+    "crossroads",
+    "street",
+    "road"
+   ],
+   "parking_lot": [
+    "parking",
+    "car park",
+    "parking lot"
+   ],
+   "stadium_arena": [
+    "stadium",
+    "arena",
+    "ballpark",
+    "sports venue",
+    "football field",
+    "basketball court"
+   ],
+   "city_skyline": [
+    "skyline",
+    "cityscape",
+    "city view",
+    "skyscraper",
+    "skyscrapers",
+    "high-rise",
+    "downtown"
+   ],
+   "park_landmark": [
+    "park",
+    "landmark",
+    "monument",
+    "rotunda",
+    "memorial",
+    "gazebo",
+    "pavilion"
+   ],
+   "sidewalk": [
+    "sidewalk",
+    "walkway",
+    "footpath",
+    "pathway",
+    "path",
+    "pavement",
+    "pedestrian"
+   ],
+   "building_interior": [
+    "lobby",
+    "foyer",
+    "atrium",
+    "interior",
+    "hallway",
+    "reception",
+    "lounge",
+    "waiting area"
+   ],
+   "waterfront_lake": [
+    "lake",
+    "dock",
+    "pier",
+    "waterfront",
+    "pond",
+    "river",
+    "jetty",
+    "boardwalk",
+    "marina",
+    "shore"
+   ],
+   "office_workspace": [
+    "office",
+    "coworking",
+    "co-working",
+    "workspace",
+    "meeting room",
+    "conference room",
+    "workplace"
+   ]
+  },
+  "matching": {
+   "placeType": "right when any synonym of the photo's own category appears in the model's placeType as a whole word or phrase, ignoring case",
+   "signText": "for photos with keyTokens: right when every keyToken appears in the model's visibleText joined with spaces, after both are upper-cased, stripped of every character that is not a letter, digit or space, and whitespace is collapsed",
+   "noSign": "for photos with no keyTokens: right when placeNameFromText is empty",
+   "passLines": "place type right on 12 of 20; sign text right on 8 of 20; p50 under 3 s; zero requests to Firebase or Google AI hosts"
+  }
+ },
+ "codePath": "web/src/ai/gate.ts runOnDeviceOnly with onDeviceCreateOptions('image', system); then the firebase 13.4.0 model builder in InferenceMode.ONLY_ON_DEVICE with onDeviceParams.createOptions (the same object) and promptOptions.responseConstraint; generateContent with the text and an inline image/jpeg part; one photo per call; inferenceSource checked on every reply",
+ "arms": [
+  {
+   "arm": "gemma4-flag",
+   "profile": "earlier spike profile with chrome flag gemma4-for-built-in-ai, model downloaded",
+   "n": 20,
+   "placeTypeRight": {
+    "k": 13,
+    "n": 20,
+    "wilson95": [
+     0.433,
+     0.819
+    ],
+    "passLine": 12,
+    "pass": true
+   },
+   "signTextRight": {
+    "k": 15,
+    "n": 20,
+    "wilson95": [
+     0.531,
+     0.888
+    ],
+    "passLine": 8,
+    "pass": true,
+    "onSignPhotos": "9 of 13",
+    "noInventedNameOnNoSignPhotos": "6 of 7"
+   },
+   "latencyMs": {
+    "n": 20,
+    "p50": 1710,
+    "p95": 8555,
+    "max": 16655,
+    "method": "nearest rank",
+    "passLineP50": 3000,
+    "pass": true
+   },
+   "requestsToFirebaseOrGoogleAiHosts": 0,
+   "errors": [],
+   "rows": [
+    {
+     "photo": "p01",
+     "category": "store",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1233,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p02",
+     "category": "school_campus",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "street view",
+     "ms": 1591,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p03",
+     "category": "public_building",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "Indoor room/hall",
+     "ms": 16655,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p04",
+     "category": "restaurant",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1710,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p05",
+     "category": "gas_station",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": false,
+     "modelPlaceType": "parking lot",
+     "ms": 1478,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p06",
+     "category": "event_venue",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1671,
+     "keyTokenCount": 2
+    },
+    {
+     "photo": "p07",
+     "category": "event_venue",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 1549,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p08",
+     "category": "school_campus",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "outdoor event area",
+     "ms": 1623,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p09",
+     "category": "street_intersection",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1678,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p10",
+     "category": "parking_lot",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "Street scene",
+     "ms": 1407,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p11",
+     "category": "stadium_arena",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 1402,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p12",
+     "category": "parking_lot",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 2057,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p13",
+     "category": "city_skyline",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 3940,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p14",
+     "category": "park_landmark",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "building entrance",
+     "ms": 6907,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p15",
+     "category": "sidewalk",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "street parking lot",
+     "ms": 6574,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p16",
+     "category": "building_interior",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "inventedPlaceName": true,
+     "ms": 5365,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p17",
+     "category": "street_intersection",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 6243,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p18",
+     "category": "stadium_arena",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 6952,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p19",
+     "category": "waterfront_lake",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 8555,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p20",
+     "category": "office_workspace",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 5367,
+     "keyTokenCount": 0
+    }
+   ]
+  },
+  {
+   "arm": "stock",
+   "profile": "fresh profile, no flags, v3Nano 2025.8.8.1141 downloaded in step 3",
+   "n": 20,
+   "placeTypeRight": {
+    "k": 11,
+    "n": 20,
+    "wilson95": [
+     0.342,
+     0.742
+    ],
+    "passLine": 12,
+    "pass": false
+   },
+   "signTextRight": {
+    "k": 13,
+    "n": 20,
+    "wilson95": [
+     0.433,
+     0.819
+    ],
+    "passLine": 8,
+    "pass": true,
+    "onSignPhotos": "8 of 13",
+    "noInventedNameOnNoSignPhotos": "5 of 7"
+   },
+   "latencyMs": {
+    "n": 18,
+    "p50": 1994,
+    "p95": 31033,
+    "max": 31033,
+    "method": "nearest rank",
+    "passLineP50": 3000,
+    "pass": true
+   },
+   "requestsToFirebaseOrGoogleAiHosts": 0,
+   "errors": [
+    "p12",
+    "p18"
+   ],
+   "rows": [
+    {
+     "photo": "p01",
+     "category": "store",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 31033,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p02",
+     "category": "school_campus",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "street",
+     "ms": 6289,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p03",
+     "category": "public_building",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 3894,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p04",
+     "category": "restaurant",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 3509,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p05",
+     "category": "gas_station",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 3450,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p06",
+     "category": "event_venue",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "indoor",
+     "ms": 2723,
+     "keyTokenCount": 2
+    },
+    {
+     "photo": "p07",
+     "category": "event_venue",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 1824,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p08",
+     "category": "school_campus",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 2201,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p09",
+     "category": "street_intersection",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1994,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p10",
+     "category": "parking_lot",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "street",
+     "ms": 1450,
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p11",
+     "category": "stadium_arena",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 2347,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p12",
+     "category": "parking_lot",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": false,
+     "error": "The response exceeded output limits and was truncated.",
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p13",
+     "category": "city_skyline",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "urban landscape",
+     "ms": 1403,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p14",
+     "category": "park_landmark",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "building exterior",
+     "ms": 1448,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p15",
+     "category": "sidewalk",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": false,
+     "modelPlaceType": "parking lot",
+     "inventedPlaceName": true,
+     "ms": 1566,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p16",
+     "category": "building_interior",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 1400,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p17",
+     "category": "street_intersection",
+     "hasSignText": true,
+     "placeTypeRight": true,
+     "signTextRight": false,
+     "ms": 1579,
+     "keyTokenCount": 1,
+     "missingKeyTokenCount": 1
+    },
+    {
+     "photo": "p18",
+     "category": "stadium_arena",
+     "hasSignText": true,
+     "placeTypeRight": false,
+     "signTextRight": false,
+     "error": "The response exceeded output limits and was truncated.",
+     "keyTokenCount": 1
+    },
+    {
+     "photo": "p19",
+     "category": "waterfront_lake",
+     "hasSignText": false,
+     "placeTypeRight": false,
+     "signTextRight": true,
+     "modelPlaceType": "outdoor setting",
+     "ms": 1494,
+     "keyTokenCount": 0
+    },
+    {
+     "photo": "p20",
+     "category": "office_workspace",
+     "hasSignText": false,
+     "placeTypeRight": true,
+     "signTextRight": true,
+     "ms": 3523,
+     "keyTokenCount": 0
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "Every reply that ran reported inferenceSource on_device.",
+  "Stock arm: two replies failed with 'The response exceeded output limits and was truncated' (counted as misses). Task 20 should cap visibleText (maxItems) and keep the schema short.",
+  "Counts with n = 20 are a go or no-go gate, not an accuracy claim; Wilson 95% intervals are given beside each count."
+ ]
+}
