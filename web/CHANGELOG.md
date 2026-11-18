@@ -166,3 +166,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `sightingCloudParams` (ONLY_IN_CLOUD, the same closed schema as `responseJsonSchema`, no on-device parameters) and two builders in `client.ts`: `sightingTextGenerator` (ONLY_ON_DEVICE with `SIGHTING_TEXT_OPTS`) and `sightingCloudGenerator`. The model builder stays in `client.ts` only (rules gate).
 - Source: plan Task 36, spec section 15 step 3 ("Read in the cloud" is a separate ONLY_IN_CLOUD call after a consent tap).
 - Verified: new test in `src/ai/sightingText.test.ts` failed first (not a function), then passed; 13 of 13; rules gate ok.
+
+### feat(web): number this browser's events from the clock so an id never repeats
+- What: `makeSeq` returns whole-number sequence values that start from the clock in milliseconds and only move forward (one past the last value within a millisecond or after the clock steps back). Event ids hash (incident, uid, seq), so a reload or a new browser profile cannot repeat an id.
+- Source: lane A's rules contract ("start the command post's seq from the current epoch ms").
+- Verified: `src/data/seq.test.ts`, 3 tests, failed first (module missing), then passed.
