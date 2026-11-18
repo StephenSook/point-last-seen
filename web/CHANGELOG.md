@@ -241,3 +241,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `availabilityOf(options)` in `gate.ts` returns Chrome's answer ("available", "downloadable", "downloading", "unavailable") or "missing" (no LanguageModel, a throw, a rejection, or no answer in 5 s); an unknown answer counts as "unavailable". `onDeviceAvailable` is now `availabilityOf(...) === "available"`, so the timeout and error handling live in one place. `gate.ts` stays the only file that asks Chrome (rules gate).
 - Source: plan Task 20 ("Get this laptop ready" shows one of the three D2 states), spec 16 D2.
 - Verified: two new tests in `src/ai/gate.test.ts` failed first (not a function), then passed; all 17 gate tests and the 173-test web suite pass after the refactor.
+
+### feat(photos): tell which model state the laptop is in and download the model on a click
+- What: `deviceModel.ts`. `deviceState` asks the gate for text and for image input and returns "image" (state c), "text" (state b: notes read here, photos stay unread), "downloadable" (Chrome can fetch a model first) or "no-model" (state a). `downloadDeviceModel` forwards whole percents from 0 to 100 and turns any failure into "This browser cannot download a local model." with no raw error text.
+- Source: plan Task 20 (`downloadDeviceModel(onPct)`, "Get this laptop ready" shows one of the three D2 states), spec 16 D2, S4 step 3 (a stock Chrome 157 profile is "downloadable" before the download and "image" after it).
+- Verified: `src/ai/deviceModel.test.ts`, 6 tests, failed first (module missing), then passed.
