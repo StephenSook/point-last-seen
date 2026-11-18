@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>` writes the stored route graph
+  for walkers from the same Overpass extract as the grid, bounded by the grid's box (the box the extract was
+  queried on), so a site's graph is one command after its grid. The Piedmont Park dev graph built this way has
+  1,549 edges, 1,203 nodes and 130 exits (local evidence, not in the repo).
+  Source: lane C (Task 37c needs the drill's route graph).
+  Verified: the CLI test (graph written with the grid's id and box, edges and projection present, exit 2
+  without --osm) failed first, now 25 grid-builder tests pass; typecheck exit 0; a 2,000-walker run on the dev
+  graph through the engine's indexRouteGraph returned sample tracks; `bash scripts/ci-local.sh` exit 0.
 - `indexRouteGraph` (with `routeGraphExtent` and `ROUTE_SNAP_M`) moves from the grid builder into @pls/engine,
   so the web worker and the grid builder index the same stored RouteGraph file the same way (exits from its
   stored bounds, the stored projection) instead of the web keeping a second loader or a second file format. The
