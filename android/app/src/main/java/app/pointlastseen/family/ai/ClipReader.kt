@@ -115,16 +115,19 @@ class ClipReader(
             // even when the read later fails.
             val path = deps.storagePath(sha)
             val started = deps.nowMs()
-            if (found == null) {
-                deps.createConsentRecord(
-                    StoredClipReading(
+            // A retry finds the record of an earlier attempt and renews it: the same document with
+            // fresh consent, a new expiry and a new createdAt, every other field exactly as stored
+            // (the rules refuse any other change). The upload is accepted only while the expiry is
+            // at least 31 days away, so an attempt interrupted for a day would otherwise strand the clip.
+            deps.createConsentRecord(
+                found?.copy(consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started)
+                    ?: StoredClipReading(
                         sha256 = sha, storagePath = path, durationS = r.durationS, clipStartMs = r.clipStartMs,
                         clockConfirmed = r.clockConfirmed, cameraFacingDeg = r.cameraFacingDeg, readingJson = null,
                         route = null, consent = r.consent, expiresAtMs = started + READING_TTL_MS, createdAtMs = started,
                         createdByUid = r.uploaderUid,
                     ),
-                )
-            }
+            )
             // A retry after an earlier attempt: the record exists, and the clip may too.
             // Storage objects are create-only, so a second upload of the same hash is refused.
             if (found == null || !deps.clipExists(sha)) deps.upload(sha, r.bytes)
@@ -149,7 +152,8 @@ class ClipReader(
     }
 
     companion object {
-        const val READING_TTL_MS = 30L * 24 * 3600 * 1000
+        /** 32 days: the rules accept a clip reading's expiresAt only between server time + 31 and + 33 days. */
+        const val READING_TTL_MS = 32L * 24 * 3600 * 1000
         const val PAUSED = "Clip reading is paused right now. Tell command about the clip."
         const val NEEDS_CONSENT =
             "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing."

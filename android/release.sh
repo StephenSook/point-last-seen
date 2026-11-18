@@ -14,4 +14,6 @@ apk=app/build/outputs/apk/release/app-release.apk
 # The public APK is this Play Integrity release build, never a debug build, which
 # carries its App Check debug token in its resources. Scan the exact signed file.
 ./scan-apk.sh "$apk"
+# The offline 911 script screen ships: check the exact signed file says so.
+./check-release-config.sh "$apk"
 echo "release APK: $apk"

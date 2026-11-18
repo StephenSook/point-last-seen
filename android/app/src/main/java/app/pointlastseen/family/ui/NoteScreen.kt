@@ -8,12 +8,15 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
@@ -53,10 +56,14 @@ fun NoteScreen(
         when (ui) {
             NoteUi.Idle, NoteUi.Busy -> {
                 var text by rememberSaveable { mutableStateOf("") }
+                // The field opens focused, so the keyboard and its microphone key are one tap from
+                // dictation. The keyboard does the voice typing; the app calls no speech API.
+                val focus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { focus.requestFocus() }
                 Sentence("I remembered something.")
                 OutlinedTextField(
                     text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
-                    minLines = 3, modifier = Modifier.fillMaxWidth(),
+                    minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
                 MainAction("Sort it", enabled = ui == NoteUi.Idle && text.isNotBlank()) { onSort(text.trim(), false) }
             }
