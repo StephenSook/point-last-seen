@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The rules gate bans gemini-3.8-flash by whole model id, not by substring: the TTS models whose ids start with
+  the same text (gemini-3.8-flash-lite-tts) are different models and no longer trip it.
+  Source: lane B (the substring check would have failed the TTS model everywhere).
+  Verified: the new test failed first, now 26 gate tests pass; the gate walks 588 files with 0 problems;
+  `bash scripts/ci-local.sh` exit 0.
 - The emulator port wait also waits for any running emulator process whose arguments name a port in this
   worktree's block, and `--who-holds` prints those processes and the kernel's sockets on the block (TIME_WAIT
   included). The one-off WebChannel bind failure reproduced here: a bind on this worktree's own Firestore port
