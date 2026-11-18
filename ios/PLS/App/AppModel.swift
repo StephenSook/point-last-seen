@@ -28,18 +28,26 @@ final class AppModel {
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
          speaker: AssignmentSpeaker? = nil,
          uid: @escaping () -> String? = { Auth.auth().currentUser?.uid },
-         nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 }) {
+         nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
+         measurements: MeasurementWriter? = nil) {
         self.signIn = signIn
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
         self.nowMs = nowMs
+        self.measurements = measurements
     }
 
+    /// Writes each report's timings; Firestore unless a test supplies one.
+    private var measurements: MeasurementWriter?
+    /// The posterior over the team's segments, recomputed after every report (the map draws it).
+    private(set) var posterior: PosteriorResult?
+
     /// Uses a journal and identity made elsewhere (tests).
-    func attach(store: EventStore, identity: DeviceIdentity) {
+    func attach(store: EventStore, identity: DeviceIdentity, screen: EvidenceScreen? = nil) {
         self.store = store
         self.identity = identity
+        if let screen { self.screen = screen }
     }
 
     /// True for 5 seconds after this phone sent a report, until it is undone.
@@ -181,6 +189,7 @@ final class AppModel {
         sending = true
         defer { sending = false }
         refreshGate()
+        let submittedAt = nowMs()
 
         let position = await location.fix(timeout: 10)
         if let position { lastFix = position }
@@ -192,6 +201,7 @@ final class AppModel {
             liveGate: { [gate] in gate.current })
         let reader = ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
         let outcome = await reader.read(text, situation: situation)
+        let readDone = nowMs()
         switch outcome.cloudTransport {
         case .failed: connectivity.requestFailed()
         case .succeeded: connectivity.requestSucceeded()
@@ -201,7 +211,7 @@ final class AppModel {
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,
-                priorVersion: mission.priorVersion, clientTimeMs: Date().timeIntervalSince1970 * 1000,
+                priorVersion: mission.priorVersion, clientTimeMs: submittedAt,
                 inputMethod: inputMethod, isTrainingInject: false, grid: mission.grid,
                 effect: EffectContext(grid: mission.grid, assignedSegmentIds: mission.assignedSegmentIds, position: nil,
                                       visualDetectionRangeM: mission.visualDetectionRangeM, rdBasis: mission.rdBasis),
@@ -210,10 +220,24 @@ final class AppModel {
                                                  seq: try identity.nextSeq())
             try store.append(event)
             problem = nil
+            recomputePosterior(mission)
+            let measurement = ReadMeasurement(submittedAtMs: submittedAt, readDoneAtMs: readDone, redrawnAtMs: nowMs())
+            (measurements ?? FirestoreMeasurementWriter()).write(
+                measurement, path: ReadMeasurement.path(incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid,
+                                                        eventId: event.eventId))
             return true
         } catch {
             problem = "The report was not saved on this phone. Try again."
             return false
         }
+    }
+
+    /// The posterior from the pack's prior and this phone's journal (events already in the prior
+    /// are left out by the shared filter).
+    private func recomputePosterior(_ mission: Mission) {
+        let docs = store?.entries.map(\.doc) ?? []
+        posterior = Posterior.compute(prior: mission.prior,
+                                      events: EventFilter.toEngineEvents(docs, priorInputEventIds: mission.priorInputEventIds),
+                                      params: mission.params)
     }
 }

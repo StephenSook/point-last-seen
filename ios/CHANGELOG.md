@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): write each report's timings and recompute the posterior
+- What: after a report is journaled, `AppModel` recomputes the posterior from the pack's prior
+  and this phone's journal (`EventFilter.toEngineEvents`, leaving out `priorInputEventIds`, then
+  `Posterior.compute`), and writes the three timings (Send, reading done, posterior redrawn) to
+  `devices/{deviceId}/measurements/{eventId}` through `MeasurementWriter`. The Firestore writer
+  never awaits, like the event write. The event's client time is the Send time. These are the
+  measured read and redraw latencies for the judge-facing numbers.
+- Source: Task 13 ("after the append the view recomputes Posterior.compute and writes the three
+  timings").
+- Verified: `aSentReportWritesItsTimingsAndRecomputesThePosterior` (a real `submit` of evidence
+  text writes one measurement at the event's path, times in order, posterior set) compile-red,
+  then green; 58 app tests pass; `scripts/ci-local.sh` exit 0. Not verified yet: the document
+  arriving in Firestore (needs a signed-in run with a pack).
+
 ### feat(ios): let a searcher undo a report for 5 seconds
 - What: each report echo shows an Undo button for 5 seconds after sending (re-checked every
   second). `AppModel.undo` journals a new `retraction` event that targets the report, built by

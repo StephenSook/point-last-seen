@@ -20,4 +20,6 @@ struct Mission: Sendable {
     /// The team's assignment in the latest approved plan: segments and command's approved task
     /// text. Spoken when it changes; nil until a plan is approved.
     var assignment: Assignment? = nil
+    /// Events already folded into the pack's prior; the posterior leaves them out.
+    var priorInputEventIds: [String] = []
 }
