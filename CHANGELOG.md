@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- SECURITY.md rows read back again on 2026-11-18: the iOS API key is restricted to `app.pointlastseen.field`,
+  the only target that calls Firebase (row 3 now covers all three keys); the per-user limit is 20 generate
+  requests a minute in every region, with the estimate behind the number (row 9); both budgets on the billing
+  account, with their alert thresholds (row 11); and the Android release build's App Check exchange is
+  refused until the app is linked in Play Console (row 1c).
+  Source: review (AI Logic security checklist rows 1c, 3, 9 and 11).
+  Verified: each key's restrictions read back by API after the change; a signed-in cloud read and the cloud
+  voice from the iOS simulator, the drill end-to-end run (debug certificate) and the release probe (release
+  certificate) on Android, and the deployed web set all passed with no API_KEY error; `bash scripts/ci-local.sh`
+  exit 0.
 - The daily probe also reads the Firebase AI Logic models page (`scripts/models_probe.py`, credential-free)
   and fails if any model named by the Remote Config template or shared/constants/models.json is missing, is
   in the Shutdown stage, or has a shutdown date on or before 2026-12-17. A model can be withdrawn earlier than
