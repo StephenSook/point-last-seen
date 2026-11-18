@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The rules validator generator checks lists of up to five items one by one (was four), for the shared
+  profile's list of other names. A longer list is still refused at generation time.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the generator test (a five-string list is checked item by item; six is refused) failed first, now
+  10 generator tests pass; `bash scripts/ci-local.sh` exit 0.
 - cloudGuard's trigger tests build their template call from the published sighting template's own config in
   `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
   cap; a template that loses its limit now fails here as well as in the template tests.

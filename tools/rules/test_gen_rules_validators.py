@@ -88,6 +88,14 @@ def test_unbounded_strings_and_lists_are_refused():
         expr({"type": "array", "items": {"type": "string", "maxLength": 4}})
 
 
+def test_a_list_of_up_to_five_strings_is_checked_item_by_item_and_six_is_refused():
+    # otherNames (subject profile) holds up to five names; a longer list is not rendered.
+    five = expr({"type": "array", "maxItems": 5, "items": {"type": "string", "minLength": 1, "maxLength": 60}}, ref="m")
+    assert "m.size() <= 5" in five and "m.size() < 5 ||" in five and "m[4]" in five
+    with pytest.raises(ValueError, match="unbounded list"):
+        expr({"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 60}}, ref="m")
+
+
 def test_objects_need_exact_keys_and_partial_mode_checks_only_present_keys():
     obj = {"type": "object", "additionalProperties": False, "required": ["a"], "properties": {"a": {"type": "boolean"}}}
     # All keys required: hasOnly plus a size check is one list literal instead of two (the 1,000-expression limit).
