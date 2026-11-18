@@ -522,3 +522,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `basemap/load.ts` `loadBasemap(url)` fetches the site's PMTiles file in one request (a small site extract, so the service worker can keep it as an ordinary response for offline use; no range requests) and accepts it only when it starts with "PMTiles" and spec version 3. A 404 or the hosting's HTML answer is "absent", other bytes are "invalid", a failed fetch is "unavailable". The file is wrapped in pmtiles' `FileSource` and keyed by its file name for the `pmtiles://` protocol.
 - Source: UI review U4 and orchestrator P1 item 6 (self-hosted PMTiles basemap); lane A's dev extract for drill-dev-1.
 - Verified: `src/basemap/load.test.ts` (4 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(basemap): style the Protomaps basemap in the 22.1 instrument greys
+- What: `basemap/style.ts` `basemapLayers(source)`: under the probability fills, parks and green land in bg-1, water shapes in bg-3, buildings in bg-2; over the fills, streams, roads (wider by kind) and dashed paths as fg-4 lines at 0.6 opacity, so the fills keep their measured colours. Reads only Protomaps v4 layers. No label layers: they would need glyphs from a host.
+- Source: UI review U4 ("paths, roads and the creek in fg-4, water as a bg-3 shape with no hue") and spec 22.1.
+- Verified: `src/basemap/style.test.ts` (4 tests: tokens only, fills under and lines over with no labels, Protomaps v4 layers only, water bg-3 and lines fg-4) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
