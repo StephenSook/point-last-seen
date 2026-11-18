@@ -4,7 +4,7 @@
  "date": "2026-11-17",
  "browser": "Google Chrome 157.0.8103.80 stable, macOS, Apple M5 Pro",
  "photos": "20 of Stephen's own photos, long side 1536 px, EXIF and GPS stripped, re-encoded JPEG. Files stay outside the repo.",
- "labels": "labelled by the orchestrator (a Claude session) from previews, not yet spot-checked by Stephen. The reader under test is Chrome's built-in model, a different model family from the labeller. Sign text tokens are kept out of this file (they name real places); only their counts are listed.",
+ "labels": "labelled by a separate Claude session from previews, not yet spot-checked by Stephen. The reader under test is Chrome's built-in model, a different model family from the labeller. Sign text tokens are kept out of this file (they name real places); only their counts are listed.",
  "preRegistration": {
   "file": "prompt, schema, place-type synonym map and matching rules written before any photo was read",
   "sha256": "65d22b5c15acbfb98f5eda683bfb2c6bd70ae45b8dc36fbaec2172faa1a84dd5",

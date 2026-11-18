@@ -75,7 +75,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(merge): bring main into lane-web (engine, schemas, CI jobs)
 - What: merges origin/main (the TypeScript engine, shared schemas and constants, schema parity, the engine and vector CI jobs, the functions workspace) into lane-web. The root `package-lock.json` conflict was resolved by taking main's file and re-running `npm install` on the merged tree, so the lockfile holds the web, engine and functions workspaces.
-- Source: plan lanes rule (lanes stay current with main); a merge instead of a rebase because pushed history is not rewritten without the orchestrator's yes.
+- Source: plan lanes rule (lanes stay current with main); a merge instead of a rebase because pushed history is not rewritten.
 - Verified: `scripts/ci-local.sh` on the merged tree exit 0 (rules gate 94 files, schema parity 10 schemas, engine 137 tests, vectors 124), web typecheck exit 0, web tests 68 of 68.
 - Not yet in CI (2026-11-18): the web unit tests and the Playwright smoke. The joined-post e2e needs Task 11 (rules, joinIncident) and a seeded drill incident; it is added to CI in the change set that lands those, and under CI a missing join code or incident fails it, never skips it.
 
@@ -106,12 +106,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(web): never record Playwright traces, which would store the App Check debug secret
 - What: the e2e config sets `trace`, `video` and `screenshot` to off. A retained trace records request and response bodies, and the App Check debug-token exchange carries the debug secret in its request and the issued token in its response, so a failed run could have left the secret on disk or in a CI artifact. The fixtures already report failing responses as status, method and URL only.
-- Source: Codex privacy review of lane-web at c69c485, finding 3 (relayed by the orchestrator).
+- Source: Codex privacy review of lane-web at c69c485, finding 3.
 - Verified: `src/e2eConfig.test.ts` failed first ("expected 'retain-on-failure' to be 'off'") and passes now; it also pins the list reporter, which writes no attachments. No trace file from earlier runs remains on disk (`find` for trace.zip found none).
 
 ### fix(web): clear the incident from the screen and stop listening after an access denial
 - What: the post keeps its data in a reducer (`postAccess.ts`). A `permission-denied` or `unauthenticated` error from any listener clears the incident, teams, segments, map data and events, stops both listeners for good, and shows "This browser no longer has access to the incident" with "Join again". Any other listener failure keeps the last data and shows "No connection. Showing the last data received." The events listener now has an error handler (it had none).
-- Source: Codex privacy review of lane-web at c69c485, finding 4 (relayed by the orchestrator); spec section 7 (only incident members read its data).
+- Source: Codex privacy review of lane-web at c69c485, finding 4; spec section 7 (only incident members read its data).
 - Verified: `src/command/postAccess.test.ts`, 6 tests, failed first (module missing), then passed: a denial clears everything, late data after a denial is ignored, a connection failure keeps the data and says so. Typecheck, build and the local shell smoke passed.
 
 ### feat(web): build and write approved plans from the draft and its wording
@@ -146,7 +146,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(merge): bring main into lane-web (rules, joinIncident, ring prior, seeding tool)
 - What: merges origin/main (security rules and storage rules, `joinIncident`, the ISRID ring prior, the drill seeding tool, the limits and production checklist) into lane-web; the root lockfile conflict was resolved by taking main's file and re-running `npm install` on the merged tree.
-- Source: orchestrator order "merge the newest main (no rebase), then Task 36".
+- Source: build order "merge the newest main (no rebase), then Task 36".
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree (rules gate 129 files, engine 144 tests, vectors 124, rules and joinIncident 53 tests in the emulators); web typecheck, 112 unit tests and the Vite build pass.
 
 ### feat(web): find the segment under a map click and give the engine neighbour bearings
@@ -201,37 +201,37 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(merge): bring main into lane-web (eventId framing, one-role join codes, per-worktree emulator ports)
 - What: merges origin/main: the length-prefixed eventId framing and the rules that recompute each event id, one join code per role, effect validation in rules and engines, and emulator runs on per-worktree ports. The web computes event ids only through the engine's `eventId`, so nothing in web/ changed.
-- Source: orchestrator (merge main when lane A's engine framing lands, then re-run the tests).
+- Source: build order (merge main when lane A's engine framing lands, then re-run the tests).
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree (engine 155, vectors 134, rules and joinIncident 63 in the emulators on this worktree's ports); web typecheck exit 0 and 153 unit tests pass, including the sighting tests that compare ids with the engine's `eventId`.
 
 ### fix(web): stop parsing clip_model until the clip read exists
 - What: `rc.ts` no longer parses `clip_model` (wired-or-cut: no web code read it). The clip read is Task 18; it brings the key back together with a test that the value picks the clip model.
-- Source: orchestrator self-audit sweep (5 of 8 parsed Remote Config values had no reader).
+- Source: self-audit sweep (5 of 8 parsed Remote Config values had no reader).
 - Verified: `src/config/rc.test.ts` changed first to expect no `clip_model` (2 tests failed), then passed after the removal; `grep -c clip web/src/config/rc.ts` is 0.
 
 ### fix(web): stop parsing token_budget_fraction, which only the iOS router uses
 - What: `rc.ts` no longer parses `token_budget_fraction` (wired-or-cut: the web has no router that budgets tokens; the iOS router reads it). The key stays in the Remote Config template for iOS.
-- Source: orchestrator self-audit sweep.
+- Source: self-audit sweep.
 - Verified: `src/config/rc.test.ts` changed first to expect no `token_budget_fraction` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing replan_use_tools; web plan wording calls no tools
 - What: `rc.ts` no longer parses `replan_use_tools` (wired-or-cut: `wordPlan` sends the engine's table in the prompt and declares no tools). If cloud function calling (cut rank X3 extras) is ever built, it brings the key back with a test.
-- Source: orchestrator self-audit sweep.
+- Source: self-audit sweep.
 - Verified: `src/config/rc.test.ts` changed first to expect no `replan_use_tools` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing the judge-door keys, which the server reads
 - What: `rc.ts` no longer parses `judge_seed_run_id` and `judge_sessions_per_day` (wired-or-cut: the `startJudgeSession` function reads them; no web code did). The unused number helper and an emptied range test went with them, so no test asserts nothing.
-- Source: orchestrator self-audit sweep.
+- Source: self-audit sweep.
 - Verified: `src/config/rc.test.ts` changed first to expect neither key (2 tests failed), then passed after the removal; 10 of 10.
 
 ### test(web): require every parsed Remote Config value to have a reader in web code
 - What: the web sets in-app defaults only for the three keys it reads (`cloud_model_web`, `kill_cloud`, `use_limited_use_tokens`); the other platforms' keys stay in the shared template. A new test scans every non-test source file under web/src (more than 10 files, so an empty scan cannot pass) and fails when a parsed value has no `rc.<field>` reader.
-- Source: orchestrator self-audit sweep ("every template key is parsed and used", applied to the web's own parser).
+- Source: self-audit sweep ("every template key is parsed and used", applied to the web's own parser).
 - Verified: the defaults test failed first (7 keys, wanted 3) and passes now; the reader guard was proved against a planted value `neverReadControl`, which failed it with "rc.neverReadControl", then the plant was removed (0 matches left).
 
 ### chore(merge): bring main into lane-web (the web CI job, per-worktree emulator temp folders, rules fixes)
 - What: merges origin/main, which adds `.github/workflows/web.yml` (typecheck, unit tests and a placeholder-config build on every push that touches web/) and runs the web checks in `scripts/ci-local.sh`, plus emulator isolation per worktree and rules fixes.
-- Source: orchestrator (the web unit tests, typecheck and build belong in CI today).
+- Source: build order (the web unit tests, typecheck and build belong in CI today).
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree, now including the web step (20 test files, 157 tests, build ok), rules 71 in the emulators.
 
 ### feat(photos): read a family photo on this laptop only, behind the private-data gate
@@ -257,11 +257,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 ### docs(evidence): record the unreachable base URL check in spike S4
 - What: a section in `docs/evidence/spikes/S4.md`: with LanguageModel deleted and no gate, the SDK's fallback request for a model built with the unreachable base URL failed with `net::ERR_NAME_NOT_RESOLVED`, and nothing reached firebasevertexai.
 - Source: rival self-audit addendum, Task 20 (record the base-URL result).
-- Verified: CDP Network log of the run (raw file `~/dev/pls-spikes/s4/r14-nolm-invalid-base.json`, kept outside the repo); rules gate ok.
+- Verified: CDP Network log of the run (raw file kept outside the repo); rules gate ok.
 
 ### feat(photos): hash, store and list family photos through the Storage SDK
 - What: `photos.ts`: `sha256Hex`; `photoPath` (only a 64-character hash can name a photo, so no other text can become a path); `photoReadingDoc` (hash, path, cues, route, the family's yes, no or not-sure, and `expiresAt` 30 days on for the TTL policy); `bytesToBase64` in chunks; `loadPhotos` lists `photos/{incident}/` and reads each object with `getBytes` (2 MB cap), so Storage rules apply and no download URL exists; `uploadPhoto` skips an object that already exists, because photos are create-only and named by content; `savePhotoReading` writes `photoReadings/{sha256}` (command only).
-- Source: plan Task 20, spec section 7 (`photoReadings`, the 30-day expiry), orchestrator security rule (never `getDownloadURL`), lane A's create-only photo paths (63a65bb).
+- Source: plan Task 20, spec section 7 (`photoReadings`, the 30-day expiry); security rule (never `getDownloadURL`), lane A's create-only photo paths (63a65bb).
 - Verified: `src/data/photos.test.ts`, 6 tests, failed first (module missing), then passed; rules gate ok (no download URL in web code).
 
 ### feat(photos): re-encode added photos as JPEG with the long side at most 1536 px
@@ -372,7 +372,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(web): give the map the first row on phones so it is no longer 0 px tall
 - What: under 900 px the grid gave its 50vh first row to the Teams rail, and the map (whose only child is absolutely placed) collapsed to 0 px. The map now takes the first row (`order: -1`, 55vh), the page scrolls instead of the inner rail, and the rails follow at full height.
-- Source: UI review D1 (orchestrator P0 item 1).
+- Source: UI review D1 (review P0 item 1).
 - Verified: new `e2e/layout.spec.ts` at 390x844 failed first (map height 0), then passed (map over 300 px, both rails below it, no sideways scroll); the smoke suite still passes; still taken at 390 px shows the map at the top. scripts/ci-local.sh exit 0.
 
 ### fix(web): keep the match code on one line in the phone header
@@ -382,27 +382,27 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(map): credit OpenStreetMap only while OSM-derived data is drawn
 - What: `map/credit.ts` `mapCredit` returns "Map data from OpenStreetMap" only when segments from the search grid (built from an OpenStreetMap extract by tools/grid-builder, which stamps every grid with the ODbL attribution) or a basemap are on screen. `MapView` shows the line from it; an empty map shows no credit. No basemap is drawn yet, so today the segments decide.
-- Source: UI review D4 (orchestrator P0 item 2): the credit sat on an empty map with no OpenStreetMap layer.
+- Source: UI review D4 (review P0 item 2): the credit sat on an empty map with no OpenStreetMap layer.
 - Verified: `src/map/credit.test.ts` (3 tests) failed first (module missing), then passed. The joined smoke now asserts the credit appears exactly when segments are drawn: it failed against the live site (credit over an empty map), then passed against the local preview. scripts/ci-local.sh exit 0.
 
 ### fix(judge): start the model download from the judge button, never point at a missing replay
 - What: `getLaptopReady` in `ai/deviceModel.ts` reads the state, and when Chrome can download the model it starts the download from the click with whole percents, then reads the state again; a failed download is reported. The judge page's "Get this laptop ready" now uses it and shows "Downloading the model: N%" (Firebase starts only at that point, not on page load). `d2Copy` takes `{ replay, downloadFailed }`: with no built-in model the line ends at "Nothing private was sent." unless the replay is live (it is not built yet), and a failed download says "This browser could not download its built-in model. Nothing private was sent." instead of looping back to "Press Get this laptop ready".
-- Source: UI review D9 (orchestrator P0 item 3).
+- Source: UI review D9 (review P0 item 3).
 - Verified: 3 new `getLaptopReady` tests and 2 new `d2Copy` tests failed first, then passed (19 of 19 in the two files). The judge e2e now asserts the exact no-model line and no "replay above" text: it failed against the live site, then passed against the local preview, still with zero AI-host requests. scripts/ci-local.sh exit 0.
 
 ### fix(web): give text fields a 3:1 edge with fg-4 borders
 - What: join, sighting and profile fields drew their edge in the line colour (1.60:1 on bg-1, 1.45:1 on bg-2). They now use fg-4 (4.79:1 and 4.33:1), meeting WCAG 1.4.11's 3:1 for component boundaries.
-- Source: UI review D6 (orchestrator P0 item 4).
+- Source: UI review D6 (review P0 item 4).
 - Verified: new `e2e/contrast.spec.ts` measures each field's computed border against the surface behind it; it failed first (1.6 on the join form, 1.45 in the sighting form), then passed. scripts/ci-local.sh exit 0.
 
 ### fix(photos): show keyboard focus on the Add photos button
 - What: the file input under "Add photos" is invisible (opacity 0), so its focus ring was too. The label now draws the 2 px fg-1 outline while the input has keyboard focus (`:has(input:focus-visible)`), matching every other control.
-- Source: UI review D7 (orchestrator P0 item 4).
+- Source: UI review D7 (review P0 item 4).
 - Verified: new `e2e/focus.spec.ts` tabs from "Get this laptop ready" onto the input and reads the label's outline; it failed first (outline none), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(map): add the centre dot second signal and cased segment edges
 - What: each segment centre gets a dot whose radius is 3 + 11 x sqrt(poa / maxPoa) px (spec 22.1 second signal), in fg-2 with a bg-0 ring so it is 3:1 or more against every probability step; the printed percent now hangs just below the dot. Segment edges are a 3 px bg-0 casing under a 1 px fg-4 line instead of one line-colour stroke (1.25:1 on the darkest step). `contrastRatio`, `MAP_INK` and `centreFeatures` live in `map/poaStyle.ts`.
-- Source: UI review D5 (orchestrator P0 item 4), spec 22.1 "Second signal". Ruling: the spec gives the dot's radius but not its colour; fg-2 with a bg-0 ring is the only token pair that clears 3:1 on all eight steps.
+- Source: UI review D5 (review P0 item 4), spec 22.1 "Second signal". Ruling: the spec gives the dot's radius but not its colour; fg-2 with a bg-0 ring is the only token pair that clears 3:1 on all eight steps.
 - Verified: 4 new tests in `src/map/poaStyle.test.ts` failed first (not functions), then passed: the contrast helper reproduces the spec table (fg-4 on bg-0 5.23), radii 14, 8.5 and 3 for the sample, every dot 3:1 or more on every step, the edge inks. The map harness spec (next commit) reads the dot colour at each centre. scripts/ci-local.sh exit 0.
 
 ### test(map): add a dev-only map harness that checks the dot at each centre by pixel
@@ -412,7 +412,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(sighting): place a sighting from the keyboard with a Place list of segments
 - What: the sighting form has a labelled "Place" select listing every segment (`segmentChoices` in `map/geo.ts`, sorted by id). Choosing one puts the sighting at that segment's centre, the same point a map click there gives, and the status line reads "Place: segment AB." A map click still works and the list follows it ("Outside the search area" when the click is off the grid). New dev-only harness `web/harness/sighting.html` renders the form over the synthetic grid without Firebase; the map harness now renders only on its own page so its grid can be shared.
-- Source: UI review D8 (orchestrator P0 item 4): only a map click could place a sighting; section 22 asks for full keyboard use at the command post.
+- Source: UI review D8 (review P0 item 4): only a map click could place a sighting; section 22 asks for full keyboard use at the command post.
 - Verified: new `segmentChoices` test failed first, then passed. New harness spec tabs from "Seen at" to Place, chooses AB, saves with Enter and checks the saved position is AB's centre: it passed with the new form and failed with the previous one (no Place control). Typecheck clean. scripts/ci-local.sh exit 0.
 
 ### fix(map): show the grid's own attribution line and make the joined smoke require segments
@@ -422,22 +422,22 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(deps): add vite-plugin-pwa 2.0.0 for the offline command post
 - What: `vite-plugin-pwa` 2.0.0, exact pin, web devDependency (the spec's pinned version; brings workbox-build and workbox-window 7.4.1). The root lockfile gains 324 entries; none removed, no version changed (checked by diffing the package sets).
-- Source: orchestrator P1 item 5, spec 6.3 "offline PWA" and the pinned stack list.
+- Source: review P1 item 5, spec 6.3 "offline PWA" and the pinned stack list.
 - Verified: socket depscore vite-plugin-pwa 2.0.0 supply chain 97, workbox-build 7.4.1 98, workbox-window 7.4.1 99, no vulnerability findings on the three; `npm ci` exit 0. npm audit rises from 10 to 18 findings; the 8 new ones are build-time tooling under workbox-build (rollup plugins, glob, minimatch, picomatch) that never ship to the browser. scripts/ci-local.sh exit 0.
 
 ### feat(web): load the command post offline after one visit with a Workbox service worker
 - What: `VitePWA` in `web/vite.config.ts` generates `sw.js` (autoUpdate, clientsClaim, skipWaiting, old caches cleaned) that precaches the app shell: index.html, the JS and CSS, the MapLibre worker, the icon, the register script and a web manifest (8 entries, about 2.7 MB; the size limit is raised to 3 MiB for the 2.1 MB main bundle). Navigations fall back to index.html except Firebase's reserved `/__/` paths, `/pack/` and `/evidence/`. `version.json` is deliberately not cached, so the online check still has to reach the network. Firestore's persistent local cache (already on) supplies the last data.
-- Source: UI review D2, orchestrator P1 item 5, spec 6.3 ("loads with Wi-Fi off") and the section 16 release gate ("an offline reload").
+- Source: UI review D2, review P1 item 5, spec 6.3 ("loads with Wi-Fi off") and the section 16 release gate ("an offline reload").
 - Verified: new `e2e/offline.spec.ts` (join, wait for the segments and for the service worker to control the page, go offline, reload; expect the drill line, the map idle, Add sighting and the drill's segments drawn from cache) failed first (no service worker ever controlled the page), then passed against the local preview; a probe of the offline page showed the incident title, the match code and all 67 plates. scripts/ci-local.sh exit 0.
 
 ### test(e2e): mark the photo-dependent checks deployed-only so a local run fails loudly
 - What: `deployedOnly()` in `e2e/fixtures.ts` throws a plain message unless BASE_URL is set. The two privacy tests and the joined smoke (whose console check sees photo reads) call it first. The production bucket's CORS trusts only the two hosting origins, so these checks only mean something on the deployed site; a local run now fails at once with that reason instead of timing out or being mistaken for a pass.
-- Source: orchestrator ruling on report 8 (keep the bucket's CORS to the deployed origins; label the photo checks deployed-only).
+- Source: ruling on the photo checks (keep the bucket's CORS to the deployed origins; label the photo checks deployed-only).
 - Verified: locally the three tests fail in under 0.2 s with the deployed-only message while the other smoke tests pass; with BASE_URL set to the live site the same three pass. scripts/ci-local.sh exit 0.
 
 ### feat(theme): add the measured 22.1 colour tokens and the contrast maths in one place
 - What: `theme/tokens.ts` holds the spec 22.1 command colours (`COMMAND`), the eight-step `POA_RAMP`, `textPairAllowed` (the three "not allowed" pairs refused) and `dotRadiusPx`; `theme/contrast.ts` holds `contrast`, `hueDeg` and `lightness`. `map/poaStyle.ts` now takes the ramp, the dot size and the map inks from them instead of its own copies.
-- Source: plan Task 39.1 (orchestrator: Task 39 starts after P0 and 23c).
+- Source: plan Task 39.1 (Task 39 starts after P0 and 23c).
 - Verified: `src/theme/tokens.test.ts` (9 tests, the plan's list plus "base.css declares the same values as the tokens") failed first (modules missing), then passed: every allowed text pair is 4.5:1 or better, the spec's anchors reproduce (fg-1 on bg-1 15.99, fg-4 4.79, cyan 11.15, red 5.08), one warm hue with rising lightness, never red or cyan, plate 17:1, cyan needs the casing on step 6, dot radii 3 to 14. All 238 unit tests pass. scripts/ci-local.sh exit 0.
 
 ### feat(theme): self-host the DINish, Ioskeley Mono and DSEG7 Classic OFL fonts
@@ -487,7 +487,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(map): hand the loaded map to an optional onReady callback
 - What: MapView takes `onReady?: (map) => void`, called with the MapLibre map once its style and sources exist and with null when it is removed. Nothing in this repo branch uses it yet; the extras lane's ExtrasDock will (hook H3).
-- Source: extras lane request H3 via the orchestrator.
+- Source: extras lane request H3.
 - Verified: new map harness test failed first (no call), then passed; all four harness specs pass. scripts/ci-local.sh exit 0.
 
 ### chore(deps): add animejs 4.5.0 for the command post motion
@@ -522,7 +522,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(basemap): load a site's self-hosted PMTiles file whole, checked by its magic bytes
 - What: `basemap/load.ts` `loadBasemap(url)` fetches the site's PMTiles file in one request (a small site extract, so the service worker can keep it as an ordinary response for offline use; no range requests) and accepts it only when it starts with "PMTiles" and spec version 3. A 404 or the hosting's HTML answer is "absent", other bytes are "invalid", a failed fetch is "unavailable". The file is wrapped in pmtiles' `FileSource` and keyed by its file name for the `pmtiles://` protocol.
-- Source: UI review U4 and orchestrator P1 item 6 (self-hosted PMTiles basemap); lane A's dev extract for drill-dev-1.
+- Source: UI review U4 and review P1 item 6 (self-hosted PMTiles basemap); lane A's dev extract for drill-dev-1.
 - Verified: `src/basemap/load.test.ts` (4 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(basemap): style the Protomaps basemap in the 22.1 instrument greys
@@ -532,12 +532,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(map): draw the site's self-hosted basemap under the probability field
 - What: MapView takes `basemapUrl`; the post passes `/tiles/<gridId>.pmtiles`. One pmtiles protocol is registered for the page; the loaded file is drawn with `basemapLayers`, shapes inserted under the probability fills and lines between the fills and the segment edges. The credit counts the basemap only once it is drawn, and the map carries `data-basemap` (drawn, absent, invalid, unavailable). The service worker precaches `.pmtiles` files, so the basemap draws offline. The dev extract (lane A, Protomaps build 20261118, Piedmont Park, never for the film or judges) lives in `web/public/tiles/`, which `web/.gitignore` keeps out of git; a real site's extract will be copied in at build.
-- Source: UI review U4, orchestrator P1 item 6.
+- Source: UI review U4, review P1 item 6.
 - Verified: new `e2e/basemap.spec.ts` failed against the live site (no basemap), then passed against the local preview: basemap drawn, OpenStreetMap credit, zero tile requests to another host. The offline reload test still passes with the basemap precached (11 entries). Still at 1440 px checked. scripts/ci-local.sh exit 0. Not pushed or deployed yet: merge point 2 is running.
 
 ### feat(extras): mount the extras dock in the post header with the map from onReady
 - What: the post header renders the extras lane's `ExtrasDock` ("More": print sheets, radio cards, check, export) with the post state, the view state and the MapLibre map, which MapView hands over through `onReady` (hooks H1 and H3).
-- Source: extras lane request H1 and H3 via the orchestrator (needed for the Sunday drill's ICS 204 sheet and radio card).
+- Source: extras lane request H1 and H3 (needed for the Sunday drill's ICS 204 sheet and radio card).
 - Verified: new `e2e/extras-dock.spec.ts` failed first (no "More" in the header), then passed against the local preview on the drill (the menu opens with its items); layout, offline and judge e2e still pass. scripts/ci-local.sh exit 0.
 
 ### feat(extras): render the judge extras after the replay section
@@ -557,15 +557,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(profile): read a partial profile document as empty fields instead of crashing the post
 - What: `sharedFromDoc` and `commandFromDoc` in `data/profile.ts` read `profile/shared` and `profile/command`; every missing or wrong-typed field reads as its empty value (strings "", numbers and dates null, arrays [] with only valid items kept, every flag false unless stated true, vehicle null). `subscribeProfile` uses them, so the approach card, the profile form and the extras lane always get a full object. Before, a nickname-only document made `approachLines` call `flatMap` on undefined and the command view crashed.
-- Source: orchestrator, a verified MEDIUM from the Codex review of merge point 2 (the rules allow partial profile writes).
+- Source: a verified MEDIUM from the Codex review of merge point 2 (the rules allow partial profile writes).
 - Verified: new `src/data/profileRead.test.tsx` (4 tests) failed first (readers missing), then passed, including a server render of the approach card from a nickname-only document and wrong-typed arrays and flags. All data tests pass (73). scripts/ci-local.sh exit 0.
 
 ### chore(deps): add @axe-core/playwright 4.14.0 and axe-core 4.14.0 for accessibility checks
 - What: exact dev dependencies for running axe in the e2e suite; axe-core is pinned directly so the plugin uses the same single copy (4.14.0, released 2026-10-15) instead of the two-day-old 4.14.1 its range would pull. Test-only; nothing ships to the browser.
-- Source: orchestrator tool audit item 1 (axe on the deployed post and /judge at 1440 and 390 px).
+- Source: tool audit item 1 (axe on the deployed post and /judge at 1440 and 390 px).
 - Verified: socket depscore supply chain 99, vulnerability 100 for both (license 70: axe-core is MPL-2.0, acceptable for a test tool); `npm ls axe-core` shows one deduped copy; `npm ci` exit 0. scripts/ci-local.sh exit 0.
 
 ### test(a11y): check the join, judge and joined post pages with axe at 1440 and 390 px
 - What: `e2e/a11y.spec.ts` runs axe with the WCAG 2.0, 2.1 and 2.2 A and AA rules on the join page, `/judge` and the joined drill post (map canvas excluded: MapLibre draws it), at 1440 x 900 and 390 x 844, and expects zero violations, printing each rule and node when one appears. A control plants an image with no alt text and expects axe to report it.
 - Source: tool audit item 1 (axe beside Lighthouse; Lighthouse accessibility measured 100 on `/` and `/judge` at desktop and mobile).
 - Verified: all six page checks pass against the local preview on the drill; the control passes (axe reports image-alt). scripts/ci-local.sh exit 0.
+
+### docs(web): drop internal process names and a private path from the web changelog and S4 notes
+- What: source lines now name the plan task, review or finding without the internal build roles, the S4 spike notes say the labels came from a separate Claude session, and one raw-file path outside the repo is no longer printed. No code changed.
+- Source: new repo text rule before the repository goes public (no internal role names, private rule ids or private paths).
+- Verified: `git grep` for the banned names, rule ids and private paths over web/ (outside the extras lane's files) and docs/evidence/spikes returns nothing; S4.json still parses. scripts/ci-local.sh exit 0.
