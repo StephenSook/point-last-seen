@@ -1,5 +1,6 @@
 package app.pointlastseen.family.ui
 
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -12,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.pointlastseen.family.ai.ClipOutcome
 import app.pointlastseen.family.ui.theme.PaperTheme
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,6 +21,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ClipScreenTest {
     @get:Rule val rule = createComposeRule()
+    @Before fun accessibilityChecks() = rule.enableAccessibilityChecks()
 
     private fun tick(label: String) = rule.onNodeWithText(label).performScrollTo().performClick()
 
