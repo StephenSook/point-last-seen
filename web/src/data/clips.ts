@@ -82,10 +82,12 @@ export function consentRecord(i: ClipRecordInput): ClipRecordDoc {
 }
 
 /**
- * A retry renews an earlier attempt's record (no reading yet): fresh consent, a new expiry and
- * a new createdAt, every other field exactly as stored (the rules refuse any other change).
+ * A record with no reading yet (an attempt that stalled, by anyone) is taken over by the writer:
+ * they become its owner with their own consent, a new expiry and a new createdAt; every other
+ * field stays exactly as stored (the rules refuse any other change). The creator retrying is the
+ * same case.
  */
-export function renewConsent(stored: StoredClipReading, consent: StoredConsent, nowMs: number): ClipRecordDoc {
+export function takeOverConsent(stored: StoredClipReading, consent: StoredConsent, nowMs: number, uid: string): ClipRecordDoc {
   return {
     sha256: stored.sha256,
     storagePath: stored.storagePath,
@@ -98,11 +100,11 @@ export function renewConsent(stored: StoredClipReading, consent: StoredConsent, 
     consent,
     expiresAt: Timestamp.fromMillis(nowMs + READING_TTL_MS),
     createdAt: serverTimestamp(),
-    createdByUid: stored.createdByUid,
+    createdByUid: uid,
   };
 }
 
-/** The one completion: only the reading (an object) and the route. */
+/** The one completion: only the reading (a sighting, or a typed no-sighting result) and the route. */
 export function completion(reading: Record<string, unknown>, route: RouteRecord): { reading: Record<string, unknown>; route: RouteRecord } {
   return { reading, route };
 }

@@ -60,6 +60,8 @@ async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?
   const sha = await sha256Hex(bytes);
   const calls: string[] = [];
   const written: Record<string, unknown>[] = [];
+  const completed: { reading: unknown; route: unknown }[] = [];
+  const generated: unknown[] = [];
   const stored: StoredClipReading | null = over.stored === undefined || over.stored === null ? null : {
     sha256: sha, storagePath: `clips/drill-dev-1/${sha}.mp4`, durationS: 20, clipStartMs: 5, clockConfirmed: true, cameraFacingDeg: 180,
     reading: null, route: null, consent: { personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
@@ -70,8 +72,8 @@ async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?
     writeConsent: async (d) => { calls.push("consent"); written.push(d as unknown as Record<string, unknown>); },
     clipExists: async () => { calls.push("exists"); return over.exists ?? false; },
     upload: async () => { calls.push("upload"); },
-    generate: async () => { calls.push("model"); if (over.modelThrows) throw new Error("x"); return { text: JSON.stringify(over.reply ?? goodReply), inferenceSource: "in_cloud" }; },
-    complete: async () => { calls.push("complete"); },
+    generate: async (_b, _m, w) => { calls.push("model"); generated.push(w); if (over.modelThrows) throw new Error("x"); return { text: typeof over.reply === "string" ? over.reply : JSON.stringify(over.reply ?? goodReply), inferenceSource: "in_cloud" }; },
+    complete: async (_s, reading, route) => { calls.push("complete"); completed.push({ reading, route }); },
     nowMs: () => NOW,
   };
   const req: ClipReadRequest = {
@@ -79,7 +81,7 @@ async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?
     consent: { clipSha256: sha, personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
     killCloud: () => over.killCloud ?? false, model: "gemini-3.5-flash-lite", uid: "u1",
   };
-  return { sha, calls, written, deps, req };
+  return { sha, calls, written, completed, generated, deps, req };
 }
 
 describe("readClip", () => {
@@ -129,18 +131,39 @@ describe("readClip", () => {
     expect(r).toMatchObject({ kind: "read", cached: true, bearingDeg: 0 });
   });
 
-  it("a retry renews the earlier record and skips the upload when the clip is already stored", async () => {
-    const t = await setup({ stored: {}, exists: true });
+  it("takes over a stalled record (no reading) left by another user, and skips the upload when the clip is stored", async () => {
+    const t = await setup({ stored: { createdByUid: "someone-else" }, exists: true });
     await readClip(t.req, t.deps);
     expect(t.calls).toEqual(["find", "consent", "exists", "model", "complete"]);
-    // The stored start time, facing and length stay; only the consent, expiry and createdAt are new.
-    expect(t.written[0]).toMatchObject({ clipStartMs: 5, cameraFacingDeg: 180, durationS: 20 });
+    // The writer becomes the owner with fresh consent; the stored start time, facing and length stay.
+    expect(t.written[0]).toMatchObject({ createdByUid: "u1", clipStartMs: 5, cameraFacingDeg: 180, durationS: 20, consent: { personInClip: mark } });
   });
 
-  it("a reading that fails its checks writes no completion and says it could not read", async () => {
+  it("a reading that fails its checks is stored as a typed no-sighting result with its reasons", async () => {
     const t = await setup({ reply: { ...goodReply, firstSeen: "00:15", lastSeen: "00:10" } });
     expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
-    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+    expect(t.calls).toEqual(["find", "consent", "upload", "model", "complete"]);
+    expect(t.completed[0]!.reading).toEqual({ status: "no_sighting", reasons: ["first_after_last"] });
+    expect(t.completed[0]!.route).toMatchObject({ reason: "sdk_only_in_cloud" });
+  });
+
+  it("a reply it cannot read is stored as no sighting, reason unreadable_reply", async () => {
+    const t = await setup({ reply: "not json" });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.completed[0]!.reading).toEqual({ status: "no_sighting", reasons: ["unreadable_reply"] });
+  });
+
+  it("a stored no-sighting result is returned with no model call and no write", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] } } });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find"]);
+  });
+
+  it("passes the flagged window to the model and records the route's reason", async () => {
+    const t = await setup();
+    const r = await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps);
+    expect(t.generated).toEqual([{ startS: 2, endS: 9 }]);
+    expect(r).toMatchObject({ kind: "read", route: { reason: "on_device_triage_flagged" } });
   });
 
   it("a model failure keeps only the consent record", async () => {

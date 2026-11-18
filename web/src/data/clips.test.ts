@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { serverTimestamp, Timestamp } from "firebase/firestore";
-import { clipPath, clipReadingFromDoc, completion, consentRecord, renewConsent, READING_TTL_MS, type ClipRecordInput } from "./clips";
+import { clipPath, clipReadingFromDoc, completion, consentRecord, READING_TTL_MS, takeOverConsent, type ClipRecordInput } from "./clips";
 
 const SHA = "a".repeat(64);
 const NOW = 1_763_500_000_000;
@@ -50,11 +50,11 @@ describe("consentRecord", () => {
   });
 });
 
-describe("renewConsent", () => {
-  it("keeps every stored field and renews only the consent, the expiry and createdAt", () => {
-    const stored = clipReadingFromDoc({ ...consentRecord(input), clipStartMs: 5, cameraFacingDeg: 180, durationS: 9, createdAt: Timestamp.fromMillis(1), expiresAt: Timestamp.fromMillis(2) })!;
+describe("takeOverConsent", () => {
+  it("makes the writer the owner with fresh consent, expiry and createdAt, keeping every other stored field", () => {
+    const stored = clipReadingFromDoc({ ...consentRecord(input), createdByUid: "someone-else", clipStartMs: 5, cameraFacingDeg: 180, durationS: 9, createdAt: Timestamp.fromMillis(1), expiresAt: Timestamp.fromMillis(2) })!;
     const fresh = { personInClip: { byUid: "u1", atMs: NOW }, footageOwner: { byUid: "u1", atMs: NOW }, cloudProcessing: { byUid: "u1", atMs: NOW }, publicUse: null };
-    const d = renewConsent(stored, fresh, NOW);
+    const d = takeOverConsent(stored, fresh, NOW, "u1");
     expect(Object.keys(d).sort()).toEqual([...RULE_KEYS].sort());
     expect([d.clipStartMs, d.cameraFacingDeg, d.durationS, d.createdByUid, d.storagePath]).toEqual([5, 180, 9, "u1", `clips/drill-dev-1/${SHA}.mp4`]);
     expect(d.consent).toEqual(fresh);

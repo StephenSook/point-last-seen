@@ -3,9 +3,9 @@
 // not the model, decides the bearing and the last-seen time.
 
 import { InferenceMode, type HybridParams, type Part } from "firebase/ai";
-import { bearingFromExit, checkSighting, consentComplete, sizeProblem, type CameraSightingInput, type ClipConsent, type RouteRecord } from "@pls/engine";
+import { bearingFromExit, checkSighting, consentComplete, sizeProblem, type CameraSightingInput, type ClipConsent, type ClipNoSighting, type ClipNoSightingReason, type RouteReason, type RouteRecord } from "@pls/engine";
 import clipSchema from "../../../shared/schemas/camera-sighting.schema.json";
-import { consentRecord, renewConsent, type ClipRecordDoc, type StoredClipReading } from "../data/clips";
+import { consentRecord, takeOverConsent, type ClipRecordDoc, type StoredClipReading } from "../data/clips";
 import { bytesToBase64, sha256Hex } from "../data/photos";
 
 const P = clipSchema.properties;
@@ -119,6 +119,10 @@ export type ClipReadRequest = {
   killCloud: () => boolean;
   model: string;
   uid: string;
+  /** On-device triage's flagged seconds: the cloud model reads only these. */
+  window?: ClipWindow;
+  /** Why the clip goes to the cloud (the route's reason); a plain consented read by default. */
+  reason?: RouteReason;
 };
 
 export type ClipReadDeps = {
@@ -126,8 +130,8 @@ export type ClipReadDeps = {
   writeConsent: (record: ClipRecordDoc) => Promise<void>;
   clipExists: (sha256: string) => Promise<boolean>;
   upload: (sha256: string, bytes: Uint8Array, mimeType: string) => Promise<void>;
-  generate: (base64: string, mimeType: string) => Promise<{ text: string; inferenceSource?: string }>;
-  complete: (sha256: string, reading: CameraSightingInput, route: RouteRecord) => Promise<void>;
+  generate: (base64: string, mimeType: string, window?: ClipWindow) => Promise<{ text: string; inferenceSource?: string }>;
+  complete: (sha256: string, reading: CameraSightingInput | ClipNoSighting, route: RouteRecord) => Promise<void>;
   nowMs: () => number;
 };
 
@@ -163,6 +167,8 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
 
   try {
     const found = await deps.findReading(sha);
+    // A stored no-sighting result is final for these bytes: no second model call.
+    if (found?.reading && (found.reading as { status?: unknown }).status === "no_sighting") return { kind: "could-not-read" };
     if (found?.reading) {
       const s = parseCameraSighting(JSON.stringify(found.reading));
       const check = s ? checkSighting(s, found.durationS) : null;
@@ -175,7 +181,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     const started = deps.nowMs();
     await deps.writeConsent(
       found
-        ? renewConsent(found, consent, started)
+        ? takeOverConsent(found, consent, started, r.uid)
         : consentRecord({ incidentId: r.incidentId, sha256: sha, durationS: r.durationS, clipStartMs: r.clipStartMs, clockConfirmed: r.clockConfirmed, cameraFacingDeg: r.cameraFacingDeg, consent, uid: r.uid, nowMs: started }),
     );
     // A retry may find the clip already stored; clips are create-only, so a second upload is refused.
@@ -183,15 +189,25 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const t0 = deps.nowMs();
-    const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType);
+    const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType, r.window);
     const t1 = deps.nowMs();
-    const parsed = parseCameraSighting(reply.text);
-    const check = parsed ? checkSighting(parsed, r.durationS) : null;
-    if (!parsed || !check?.ok) return { kind: "could-not-read" };
     const route: RouteRecord = {
       platform: "web", path: reply.inferenceSource === "on_device" ? "on_device" : "cloud", stage: "sdk", model: r.model,
-      reason: "sdk_only_in_cloud", latencyMs: t1 - t0, sdkReported: reply.inferenceSource !== undefined, blocked: null, decidedAtMs: t1,
+      reason: r.reason ?? "sdk_only_in_cloud", latencyMs: t1 - t0, sdkReported: reply.inferenceSource !== undefined, blocked: null, decidedAtMs: t1,
     };
+    // A reply with no usable sighting completes the record as a typed no-sighting result, so the
+    // next seat gets it cached; a model or network failure (the catch below) leaves it open.
+    const noSighting = (reasons: ClipNoSightingReason[]) => deps.complete(sha, { status: "no_sighting", reasons }, route);
+    const parsed = parseCameraSighting(reply.text);
+    if (!parsed) {
+      await noSighting(["unreadable_reply"]);
+      return { kind: "could-not-read" };
+    }
+    const check = checkSighting(parsed, r.durationS);
+    if (!check.ok) {
+      await noSighting(check.reasons as ClipNoSightingReason[]);
+      return { kind: "could-not-read" };
+    }
     await deps.complete(sha, check.cleaned, route);
     return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false };
   } catch {
