@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- An "urban" terrain for the prior: the ISRID dementia urban distances from the IPP, 0.3, 1.1, 3.2 and 12.6 km
+  at 25, 50, 75 and 95% (n = 336), from Lost Person Behavior p. 164 (the publisher's public sample
+  https://www.dbs-sar.com/LPB/Dementia.pdf, read 2026-11-18), in both the ring prior (km) and the walkers (m).
+  The same table holds our temperate columns exactly, and the rings' source line now cites it. A Georgia SAR
+  lead treats a suburb or a big park around Atlanta as urban.
+  Source: review (field expert).
+  Verified: the PDF's distance table read with `pdftotext -layout` (temperate mountain 0.3/0.8/1.9/8.3 km, n = 95;
+  temperate flat 0.3/1.0/2.4/12.8 km, n = 175; urban 0.3/1.1/3.2/12.6 km, n = 336). The engine tests (urban rings
+  equal the table; the source line cites it; every terrain's walker distances equal its rings; urban mass differs
+  from flat) failed first, now 231 engine tests pass; engine typecheck exit 0.
 - Segment debriefs: `incidents/{id}/debriefs/{segmentId}` holds how long the clear took (`tookMinutes`, 0 to
   1,440) and what worked or did not (`worked`, `didNotWork`, up to 500 characters each), written by `byUid` at
   server time. Command writes any; a searcher writes only for a segment they cleared, pointing `clearedEventId`

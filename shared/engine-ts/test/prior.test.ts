@@ -65,3 +65,21 @@ describe("ISRID ring prior (spec section 10.5)", () => {
     expect(r.row).toBeGreaterThan(0.95);
   });
 });
+
+describe("urban terrain (field expert: a suburb or a big park around Atlanta is urban)", () => {
+  it("uses the ISRID dementia urban distances, Lost Person Behavior p. 164 (n = 336), in both constants files", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const engine = (await import("../../constants/engine-params.json")).default;
+    const walker = (await import("../../constants/walker-params.json")).default;
+    expect(DEFAULT_PARAMS.rings.urban).toEqual([0.3, 1.1, 3.2, 12.6]);
+    expect(engine.sources.rings).toContain("https://www.dbs-sar.com/LPB/Dementia.pdf");
+    expect(engine.sources.rings).toContain("urban n = 336");
+    // Every terrain's walker distances (m) are its rings (km), from the same table.
+    for (const [t, km] of Object.entries(engine.params.rings).filter(([k]) => k !== "masses")) {
+      expect(walker.distanceM[t as keyof typeof walker.distanceM]).toEqual([0, ...(km as number[]).map(v => Math.round(v * 1000))]);
+    }
+  });
+  it("gives different mass than flat where the rings differ", () => {
+    expect(buildPrior(ringGrid, ipp, "urban", off, null)).not.toEqual(buildPrior(ringGrid, ipp, "temperate_flat", off, null));
+  });
+});
