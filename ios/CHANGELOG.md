@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): wire the report reader to the models, tools and Remote Config defaults
+- What: `ReportReader.read(_:situation:)` builds the three tools, reads the on-device status
+  and the token estimate, and runs PLSCore's `ReadOrchestrator` with the real runner; it never
+  throws. `RemoteConfigValues.defaults` holds the spec's iOS keys (`cloud_model_ios`
+  gemini-3.5-flash-lite, `token_budget_fraction` 0.5, `kill_cloud` false,
+  `use_limited_use_tokens` true).
+- Source: Task 13 (ReportReader), spec section 14.
+- Verified: `ReportReaderTests` (evidence text ends at the protocol with model "none"; outside a
+  drill the parser reads "point eight" as 0.8; defaults) red without the types, then green; 12
+  app tests pass on the iOS 27.2 simulator.
+
 ### feat(ios): route reports between Apple's on-device model and Gemini through AI Logic
 - What: `AIClient` builds the one `FirebaseAI.firebaseAI(backend: .googleAI(),
   useLimitedUseAppCheckTokens:)` client. `ModelSessionFactory` is the only file that touches
