@@ -311,3 +311,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ApproachCard` shows who teams are looking for (answers to, age, height in feet and inches, appearance, clothing last worn, mobility aids), a line when the photo is more than two months old, the first seven approach notes and the rest under "More", and the footer "General guidance from dementia care practitioners and search teams. Not medical advice." Code and fixed copy only; no model.
 - Source: plan Task 35c, spec 13.3.
 - Verified: typecheck and build clean; the lines come from `approachLines` (tested in `profile.test.ts`). Its styles land with the profile form commit.
+
+### feat(profile): add the profile form with command-only history and places to check
+- What: `ProfileForm`: answers to, nickname, age, gender, height in feet and inches, weight, appearance in the family's words, hair, eyes, primary language on its own row, clothing last worn, mobility aids, dementia type with the family's consent switch for showing it to teams, the 18 flags in plain words, the three 200-character family text fields, the photo date; then, kept at command, previous addresses and places they used to go (each can be set on the map and added as a place to check), water near home, and whether a vehicle may be involved. Medication details have no field: they stay on the family phone. Save is disabled while it runs; errors are fixed sentences. Styles for the form and the approach card.
+- Source: plan Task 35c step 3, spec 13.2 (fields and where each goes).
+- Verified: typecheck and build clean; 202 unit tests pass in scripts/ci-local.sh. Since e8bcea0 the GitHub jobs are not started (Actions budget); each entry records the local ci-local.sh result instead.
