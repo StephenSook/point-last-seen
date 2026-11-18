@@ -178,9 +178,15 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
 
   try {
     const found = await deps.findReading(sha);
-    // A stored no-sighting result is final for these bytes: no second model call.
-    if (found?.reading && (found.reading as { status?: unknown }).status === "no_sighting") return { kind: "could-not-read" };
-    if (found?.reading) {
+    const storedMiss = !!found?.reading && (found.reading as { status?: unknown }).status === "no_sighting";
+    // Older code also stored a miss from a flagged window. That says nothing about the rest of the clip,
+    // and a completed record is read-only, so such a clip is read again on the stored record's consent
+    // (while it has not expired) and nothing is written.
+    const oldWindowedMiss = storedMiss && found?.route?.reason === "on_device_triage_flagged";
+    if (oldWindowedMiss && !(found!.expiresAtMs > deps.nowMs())) return { kind: "could-not-read" };
+    // Any other stored no-sighting result is final for these bytes: no second model call.
+    if (storedMiss && !oldWindowedMiss) return { kind: "could-not-read" };
+    if (found?.reading && !oldWindowedMiss) {
       const s = parseCameraSighting(JSON.stringify(found.reading));
       const check = s ? checkSighting(s, found.durationS) : null;
       if (!s || !check?.ok) return { kind: "could-not-read" };
@@ -190,15 +196,18 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const started = deps.nowMs();
-    await deps.writeConsent(
-      found
-        ? takeOverConsent(found, consent, started, r.uid)
-        : consentRecord({ incidentId: r.incidentId, sha256: sha, durationS: r.durationS, clipStartMs: r.clipStartMs, clockConfirmed: r.clockConfirmed, cameraFacingDeg: r.cameraFacingDeg, consent, uid: r.uid, nowMs: started }),
-    );
+    if (!oldWindowedMiss) {
+      await deps.writeConsent(
+        found
+          ? takeOverConsent(found, consent, started, r.uid)
+          : consentRecord({ incidentId: r.incidentId, sha256: sha, durationS: r.durationS, clipStartMs: r.clipStartMs, clockConfirmed: r.clockConfirmed, cameraFacingDeg: r.cameraFacingDeg, consent, uid: r.uid, nowMs: started }),
+      );
+    }
     // The pause is read live again here: it may have arrived while the consent record was saving.
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     // A retry may find the clip already stored; clips are create-only, so a second upload is refused.
-    const stored = found ? await deps.clipExists(sha) : false;
+    // An old windowed miss is read again from these bytes inline and stores nothing, the clip included.
+    const stored = oldWindowedMiss || (found ? await deps.clipExists(sha) : false);
     if (!stored) {
       // And once more after that lookup, right before the clip leaves the laptop.
       if (r.killCloud()) return { kind: "refused", message: PAUSED };
@@ -218,7 +227,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     // Only a full-clip read is final for these bytes: a window that showed no one says nothing about
     // the rest of the clip, so it leaves the record open for a full read.
     const noSighting = async (reasons: ClipNoSightingReason[]) => {
-      if (!r.window) await deps.complete(sha, { status: "no_sighting", reasons }, route);
+      if (!r.window && !oldWindowedMiss) await deps.complete(sha, { status: "no_sighting", reasons }, route);
     };
     const parsed = parseCameraSighting(reply.text);
     if (!parsed) {
@@ -230,7 +239,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
       await noSighting(check.reasons as ClipNoSightingReason[]);
       return { kind: "could-not-read" };
     }
-    await deps.complete(sha, check.cleaned, route);
+    if (!oldWindowedMiss) await deps.complete(sha, check.cleaned, route);
     return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false };
   } catch {
     return { kind: "failed" };

@@ -181,6 +181,31 @@ describe("readClip", () => {
     expect(t.calls).toEqual(["find"]);
   });
 
+  it("a windowed miss stored by older code does not block a full read: it reads again and writes nothing", async () => {
+    const windowedMiss = { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 };
+    // The model gets the bytes inline, so nothing in Storage is checked or uploaded either (the upload
+    // rule needs the caller to own the record with 31 days left, which a second seat does not).
+    const t = await setup({ stored: windowedMiss, exists: false });
+    const r = await readClip(t.req, t.deps);
+    expect(t.calls).toEqual(["find", "model"]);
+    expect(t.generated).toEqual([undefined]);
+    expect(r).toMatchObject({ kind: "read", cached: false, route: { reason: "sdk_only_in_cloud" } });
+    expect(t.written).toEqual([]);
+    expect(t.completed).toEqual([]);
+  });
+
+  it("an old windowed miss whose consent has expired is not read again", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW - 1 }, exists: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find"]);
+  });
+
+  it("a full-clip no-sighting stays final", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "sdk_only_in_cloud" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 } });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find"]);
+  });
+
   it("passes the flagged window to the model and records the route's reason", async () => {
     const t = await setup();
     const r = await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps);
