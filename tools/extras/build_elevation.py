@@ -175,7 +175,14 @@ def main(argv: list[str] | None = None, fetch: Fetch = http_fetch, sleep: Callab
     if args.pace_s < 1.0:
         print("build_elevation: the pace is at least 1 s a request", file=sys.stderr)
         return 2
-    grid_bytes = Path(args.grid).read_bytes()
+    try:
+        grid_bytes = Path(args.grid).read_bytes()
+        grid = json.loads(grid_bytes)
+        if not isinstance(grid, dict) or not isinstance(grid.get("segments"), list):
+            raise ValueError("it has no segments")
+    except (OSError, ValueError) as e:
+        print(f"build_elevation: cannot read the grid {args.grid}: {e}", file=sys.stderr)
+        return 2
     out = Path(args.out)
     if args.check:
         if not out.exists():
@@ -189,7 +196,7 @@ def main(argv: list[str] | None = None, fetch: Fetch = http_fetch, sleep: Callab
         return 1 if problems else 0
     stamp = today or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     try:
-        result = with_grid_hash(build(json.loads(grid_bytes), fetch, sleep, stamp, args.pace_s), grid_bytes)
+        result = with_grid_hash(build(grid, fetch, sleep, stamp, args.pace_s), grid_bytes)
     except (OSError, ValueError) as e:
         print(f"build_elevation: stopped, no file written: {e}", file=sys.stderr)
         return 1

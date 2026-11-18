@@ -195,3 +195,17 @@ def test_main_writes_then_checks(tmp_path):
     assert be.main(["--grid", str(grid), "--out", str(out), "--check"]) == 0
     data = json.loads(out.read_text())
     assert data["gridSha256"] == hashlib.sha256(grid.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize("check", [False, True])
+def test_a_missing_or_broken_grid_is_refused_without_a_traceback(tmp_path, capsys, check):
+    out = tmp_path / "terrain" / "g.elevation.json"
+    flag = ["--check"] if check else []
+    assert be.main(["--grid", str(tmp_path / "missing.grid.json"), "--out", str(out), *flag]) == 2
+    broken = tmp_path / "broken.grid.json"
+    broken.write_text("{not json")
+    assert be.main(["--grid", str(broken), "--out", str(out), *flag]) == 2
+    err = capsys.readouterr().err
+    assert err.count("build_elevation: cannot read the grid") == 2
+    assert "Traceback" not in err
+    assert not out.exists()
