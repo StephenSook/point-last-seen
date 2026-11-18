@@ -42,6 +42,17 @@ describe("motionWindows", () => {
     expect(motionWindows(fs, W, H, 10)).toHaveLength(1);
   });
 
+  it("counts a small mover: a few cells changed, though the frame's mean change is tiny", () => {
+    // A 2 x 4 cell figure (8 of 2,304 cells) moving 4 cells per sample.
+    const small = (t: number, x: number | null): MotionFrame => {
+      const f = frame(t, null);
+      if (x !== null) for (let y = 16; y < 20; y++) for (let k = x; k < x + 2; k++) f.px[y * W + k] = 0.3;
+      return f;
+    };
+    const ws = motionWindows(times(20).map((t) => small(t, t >= 2 && t <= 5 ? Math.round((t - 2) * 8) : null)), W, H, 10);
+    expect(ws).toHaveLength(1);
+  });
+
   it("keeps at most four windows, the strongest ones, in time order", () => {
     const fs = times(60).map((t) => {
       const k = Math.floor(t / 5);

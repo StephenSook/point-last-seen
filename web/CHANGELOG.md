@@ -854,3 +854,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `clipParts` and `clipCloudGenerator` take an optional window (seconds from the clip's start); with one, the inline video part carries `videoMetadata` start and end offsets, so the model reads only those seconds. Its times stay counted from the clip's start (the one live call recorded in docs/evidence/web/2026-11-18-video-offsets.json), so the sighting checks against the clip's length are unchanged. Nothing passes a window yet; triage does next.
 - Source: P-39 decision (a), videoMetadata offsets.
 - Verified: the new `clipParts` window test failed first (no videoMetadata), then passed; the generator pass-through test failed with the window dropped (mutant) and passes as written; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): count changed cells so a small figure is not lost in a still frame
+- What: `motionWindows` now counts the cells whose grey value changed by more than 0.06 beyond the frame's mean change, and a pair of samples is motion when 4 or more cells changed (`changedCells`, exported). The earlier measure averaged the change over all 2,304 cells, so a small or distant figure was diluted by the still background. Both thresholds stay provisional until measured on the staged clips.
+- Source: a probe of real decoded frames in Chrome: the generated clip's 40 x 40 box gave a mean change of 0.0043 per sample against the old 0.004 floor, a pass by a hair, while a still clip gave 0.
+- Verified: new test "counts a small mover" (8 of 2,304 cells) failed first under the mean measure, then passed; the six earlier motion tests still pass; typecheck clean. scripts/ci-local.sh exit 0.
