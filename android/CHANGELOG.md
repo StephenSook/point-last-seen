@@ -4,6 +4,15 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Live AI Logic probe.** `AiLogicLiveTest` makes one hybrid family-note call through Firebase
+  AI Logic with App Check and logs `PLS-PROBE` lines. Measured on the pls_phone emulator
+  (Android 37, Google Play image, 2026-11-18): `checkStatus()` UNAVAILABLE; `PREFER_ON_DEVICE`
+  answered with `inferenceSource` IN_CLOUD in 2569 ms on gemini-3.5-flash-lite, and the reply fit
+  the note schema (kind place, label "The old mill"); `ONLY_ON_DEVICE` with no local model threw
+  `FirebaseAIOnDeviceNotAvailableException` instead of calling the cloud. Source: Task 19 step 1
+  (S13 is still owed on the A16) and the Android addendum ("record what it does"). Verified: the
+  first run failed as an invalid test class (methods returned non-Unit); fixed; 11 of 11
+  instrumented tests pass.
 - **Approach notes follow the spec table order.** `approachNoteIds` now lists notes exactly in the
   spec 13.3 table order filtered by each row's rule, so iOS, the web and Android agree until
   `shared/constants/approach-notes.json` lands. Source: lane A ruling on approach order.
