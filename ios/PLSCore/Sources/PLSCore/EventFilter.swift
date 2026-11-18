@@ -16,11 +16,14 @@ public enum EventFilter {
             return r.role == .command || byId[targetId]?.authorUid == r.authorUid
         }.compactMap(\.targetEventId))
 
-        // The latest counting confirmation per target, by (clientTimeMs, eventId), decides.
+        // One confirmation per target decides: command outranks the family (a writer sets its
+        // own clientTimeMs, so time alone must not let a family device override command), then
+        // the latest by (clientTimeMs, eventId) within that role.
+        func rank(_ k: EventDoc) -> (Int, Double, String) { (k.role == .command ? 1 : 0, k.clientTimeMs, k.eventId) }
         var latest: [String: EventDoc] = [:]
         for k in unique where k.type == .confirmation && (k.role == .command || k.role == .family) && !retracted.contains(k.eventId) {
             guard let target = k.targetEventId, k.decision != nil else { continue }
-            if let prev = latest[target], (prev.clientTimeMs, prev.eventId) > (k.clientTimeMs, k.eventId) { continue }
+            if let prev = latest[target], rank(prev) > rank(k) { continue }
             latest[target] = k
         }
 

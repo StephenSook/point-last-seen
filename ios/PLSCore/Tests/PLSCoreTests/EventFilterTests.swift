@@ -103,4 +103,11 @@ import Testing
         #expect(ids([doc("e1", .cleared, effect: clearAC), doc("e1", .found)]) == ["e1"])
         #expect(ids([doc("e1", .found), doc("e1", .cleared, effect: clearAC)]).isEmpty)
     }
+
+    @Test func commandOutranksTheFamilyWhateverTheClocksSay() {
+        let s = doc("s1", .sighting, effect: clue(.high))
+        var fam = doc("kf", .confirmation, target: "s1", decision: .confirmed, role: .family); fam.clientTimeMs = 9_000
+        var cmd = doc("kc", .confirmation, target: "s1", decision: .rejected, role: .command); cmd.clientTimeMs = 1_000
+        #expect(ids([s, fam, cmd]).isEmpty)
+    }
 }
