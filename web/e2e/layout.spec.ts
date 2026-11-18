@@ -15,4 +15,11 @@ test.describe("phone layout", () => {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
+
+  test("the match code stays on one line in the header", async ({ page }) => {
+    await withDebugToken(page);
+    await joinCommand(page);
+    const code = await page.getByTestId("convergence-code").boundingBox();
+    expect(code!.height, "one line of 20 px digits").toBeLessThan(40);
+  });
 });

@@ -30,7 +30,7 @@ button, input, select { font: inherit; color: inherit; }
 .post-head { display: flex; align-items: center; gap: 24px; padding: 10px 16px; background: var(--bg-1); border-bottom: 1px solid var(--line); }
 .drill { font-weight: 700; color: var(--fg-1); }
 .post-head .incident { color: var(--fg-2); }
-.post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; }
+.post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; white-space: nowrap; }
 .post-head .code .num { font-size: 20px; letter-spacing: 0.08em; }
 
 .post-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 0; }
