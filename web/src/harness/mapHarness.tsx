@@ -5,6 +5,7 @@
 import { createRoot } from "react-dom/client";
 import { MapView } from "../map/MapView";
 import type { MapSegment } from "../map/poaStyle";
+import "../theme/fonts.css";
 import "../theme/base.css";
 
 const COLS = 6;

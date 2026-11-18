@@ -12,8 +12,9 @@
   --fg-4: #898583;
   --change-cyan: #40e2f3;
   --alert-red: #f84b4b;
-  --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --ui: "DINish", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Ioskeley Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --clock: "DSEG7 Classic", var(--mono);
   color-scheme: dark;
 }
 
@@ -23,7 +24,7 @@ body { background: var(--bg-0); color: var(--fg-1); font: 15px/1.4 var(--ui); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--fg-1); outline-offset: 2px; }
 
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { font-family: var(--ui); font-variant-numeric: tabular-nums; }
 .label { font: 600 12px/1.2 var(--mono); letter-spacing: 0.01em; text-transform: uppercase; color: var(--fg-3); }
 
 .post { display: grid; grid-template-rows: auto 1fr; height: 100%; }
@@ -42,7 +43,7 @@ button, input, select { font: inherit; color: inherit; }
 .map { position: absolute; inset: 0; }
 .map-credit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--fg-3); background: var(--bg-0); padding: 1px 6px; }
 .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-3); pointer-events: none; }
-.plate { background: var(--bg-0); color: var(--fg-1); padding: 1px 4px; font: 600 12px/1.2 var(--mono); font-variant-numeric: tabular-nums; pointer-events: none; }
+.plate { background: var(--bg-0); color: var(--fg-1); padding: 1px 4px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
 
 .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .teams li { color: var(--fg-4); }

@@ -32,7 +32,7 @@ export default defineConfig(({ command, mode }) => {
           icons: [{ src: "/favicon.svg", sizes: "any", type: "image/svg+xml" }],
         },
         workbox: {
-          globPatterns: ["**/*.{js,mjs,css,html,svg}"],
+          globPatterns: ["**/*.{js,mjs,css,html,svg,woff2}"],
           // The main bundle (Firebase plus MapLibre) is about 2.1 MB, above Workbox's 2 MiB default.
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           navigateFallback: "/index.html",

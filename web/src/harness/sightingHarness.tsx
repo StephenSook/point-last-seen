@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { SightingForm } from "../command/SightingForm";
 import type { SightingInput } from "../data/sightings";
 import { segmentChoices, segmentContaining, type LatLon } from "../map/geo";
+import "../theme/fonts.css";
 import "../theme/base.css";
 import { HARNESS_SEGMENTS } from "./mapHarness";
 
