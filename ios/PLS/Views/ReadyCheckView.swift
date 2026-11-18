@@ -7,6 +7,7 @@ struct ReadyCheckView: View {
     @Bindable var model: AppModel
     @Environment(ThemeStore.self) private var themeStore
     @Environment(\.fieldTheme) private var theme
+    @AppStorage("pls.showSources") private var showSources = false
 
     var body: some View {
         ScrollView {
@@ -20,6 +21,10 @@ struct ReadyCheckView: View {
                 section("Screen") {
                     FieldChoice(options: [("Auto", ThemeMode.auto), ("Day", .day), ("Night", .night)],
                                 selection: Bindable(themeStore).mode, hint: "Screen colours. Auto turns red at dusk.")
+                }
+                section("Show sources") {
+                    Toggle("Say in words where each report was read (for filming)", isOn: $showSources)
+                        .toggleStyle(FieldToggleStyle())
                 }
                 section("Before you leave signal") {
                     row(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", icon: "person.badge.key")

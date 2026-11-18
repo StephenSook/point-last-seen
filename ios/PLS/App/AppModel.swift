@@ -27,6 +27,12 @@ final class AppModel {
         self.speaker = speaker ?? AssignmentSpeaker()
     }
 
+    /// The header's link glyph: signal and reports still on this phone.
+    var linkState: LinkState {
+        let waiting = store?.entries.filter { $0.state == .pending || $0.state == .checking }.count ?? 0
+        return LinkState.make(online: connectivity.isOnline, waiting: waiting)
+    }
+
     /// What the Live Activity shows; nil while no pack is loaded.
     var taskStatus: TaskStatus? {
         mission.map { TaskStatus.make(assignedSegmentIds: $0.assignedSegmentIds, states: store?.entries.map(\.state) ?? []) }

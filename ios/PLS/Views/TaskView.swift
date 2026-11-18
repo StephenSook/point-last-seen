@@ -21,7 +21,7 @@ struct TaskView: View {
                     .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 12))
             }
             if let mission = model.mission {
-                Text("Your segments: \(mission.assignedSegmentIds.joined(separator: ", "))")
+                DrillBanner(segments: mission.assignedSegmentIds.sorted().joined(separator: " "), link: model.linkState)
                 Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
                     .foregroundStyle(theme.text(.secondary))
                 Button { focused = true } label: {

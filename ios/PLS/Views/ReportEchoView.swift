@@ -5,6 +5,7 @@ import SwiftUI
 /// reached the server.
 struct ReportEchoView: View {
     @Environment(\.fieldTheme) private var theme
+    @AppStorage("pls.showSources") private var showSources = false
     let entry: OutboxEntry
     let retry: () -> Void
 
@@ -16,8 +17,12 @@ struct ReportEchoView: View {
             if entry.doc.route?.stage == .evidenceProtocol {
                 EvidenceProtocolView()
             } else {
-                Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type)).font(.title3.weight(.semibold))
-                if let route = entry.doc.route {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let route = entry.doc.route { RouteGlyph(mark: RouteMark.make(route)) }
+                    Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type)).font(.title3.weight(.semibold))
+                }
+                // Proof is a glyph; the sentence is for filming and judges only.
+                if showSources, let route = entry.doc.route {
                     Text(EchoText.routeLine(route)).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))
                 }
             }

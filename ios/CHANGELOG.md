@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): show the drill banner, link glyph and route glyphs
+- What: the field screen's header (`DrillBanner`) shows the team's segments in the accent
+  colour, a DRILL tag and the link glyph (`LinkGlyph`: shape plus a count badge, its words only
+  for VoiceOver). Each report echo carries a `RouteGlyph` (phone, cloud, the phone's rules, or a
+  raised hand when no model saw it). The route sentence now shows only when "Show sources" is
+  on (a per-phone setting on the Ready check, for filming and judges). `AppModel.linkState`
+  counts the reports still on this phone.
+- Source: Task 25 (route glyph, four link states, VoiceOver labels, drill banner); "proof is a
+  glyph, not a sentence".
+- Verified: `theLinkGlyphFollowsSignalAndWaitingReports` compile-red, then green; 55 app tests
+  pass; the Title 3 scan passes with the new components; `scripts/ci-local.sh` exit 0. Not
+  verified yet: a still of the banner and echo glyphs, which need a loaded pack.
+
 ### feat(ios): keep every field screen at Title 3 or larger
 - What: every smaller text style on the field screens, the Ready check, the report echo, the
   evidence card, the approach card and the Live Activity is raised to Title 3 (semibold, or bold

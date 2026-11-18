@@ -47,5 +47,10 @@ import Testing
         await model.load(mission)
         #expect(voice.spoken == ["New assignment. Segment A C. Walk the creek bank."])
     }
+
+    @Test func theLinkGlyphFollowsSignalAndWaitingReports() {
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
+        #expect(model.linkState == LinkState.make(online: false, waiting: 0))             // nothing started, no store
+    }
 }
 
