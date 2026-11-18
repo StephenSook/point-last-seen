@@ -1,0 +1,150 @@
+// Family photos at the command post. Each photo is read on this laptop when
+// the gate allows; otherwise nothing is sent, and a cloud read needs a
+// consent tap for that one photo. A person answers yes, no or not sure.
+
+import type { PhotoCues, RouteRecord } from "@pls/engine";
+import { useEffect, useMemo, useState } from "react";
+import type { DeviceState } from "../ai/deviceModel";
+import { RouteGlyph } from "../command/RouteGlyph";
+import type { FamilyDecision } from "../data/photos";
+
+export type TrayPhoto = { sha256: string; bytes: Uint8Array };
+type Read = { cues: PhotoCues; route: RouteRecord } | { couldNot: string } | { noModel: true } | { consent: true };
+
+type Props = {
+  photos: readonly TrayPhoto[];
+  deviceState: DeviceState | null;
+  onCheckDevice: () => Promise<void>;
+  downloadPct: number | null;
+  onAddFiles: (files: File[]) => Promise<void>;
+  readOnLaptop: (p: TrayPhoto) => Promise<{ cues: PhotoCues; route: RouteRecord } | { refused: string }>;
+  readInCloud: (p: TrayPhoto) => Promise<{ cues: PhotoCues; route: RouteRecord } | { refused: string }>;
+  onDecide: (p: TrayPhoto, cues: PhotoCues | null, route: RouteRecord | null, d: FamilyDecision) => Promise<void>;
+};
+
+const STATE_LINE: Record<DeviceState, string> = {
+  "no-model": "This browser has no built-in model. Photos stay unread here unless you choose a cloud read for one.",
+  downloadable: "This browser can download a built-in model.",
+  text: "This browser's model cannot read images. Photos stayed on this laptop.",
+  image: "This laptop can read photos here.",
+};
+const COULD_NOT: Record<string, string> = {
+  "not-on-device": "Couldn't read on this laptop. The result was discarded.",
+  timeout: "Couldn't read in time.",
+  invalid: "Couldn't read this photo.",
+  "cloud-paused": "Cloud reads are paused by command.",
+  "not-in-cloud": "Couldn't read in the cloud.",
+};
+
+function Thumb({ bytes }: { bytes: Uint8Array }) {
+  const url = useMemo(() => URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/jpeg" })), [bytes]);
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  return <img src={url} alt="Family photo" className="thumb" />;
+}
+
+export function PhotoTray({ photos, deviceState, onCheckDevice, downloadPct, onAddFiles, readOnLaptop, readInCloud, onDecide }: Props) {
+  const [reads, setReads] = useState<Record<string, Read>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [decided, setDecided] = useState<Record<string, FamilyDecision>>({});
+  const set = (sha: string, r: Read) => setReads((x) => ({ ...x, [sha]: r }));
+
+  async function run(p: TrayPhoto, how: "laptop" | "cloud") {
+    setBusy(p.sha256);
+    try {
+      const r = how === "laptop" ? await readOnLaptop(p) : await readInCloud(p);
+      if ("cues" in r) set(p.sha256, r);
+      else if (r.refused === "no-on-device-model") set(p.sha256, { noModel: true });
+      else set(p.sha256, { couldNot: COULD_NOT[r.refused] ?? "Couldn't read this photo." });
+    } catch {
+      set(p.sha256, { couldNot: "Couldn't read this photo." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function decide(p: TrayPhoto, d: FamilyDecision) {
+    const r = reads[p.sha256];
+    setBusy(p.sha256);
+    try {
+      await onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d);
+      setDecided((x) => ({ ...x, [p.sha256]: d }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section aria-labelledby="photos-h" className="tray">
+      <h2 id="photos-h" className="label">Family photos</h2>
+      <div className="row">
+        <button type="button" className="btn ghost" onClick={() => void onCheckDevice()}>
+          Get this laptop ready
+        </button>
+        <label className="btn ghost file">
+          Add photos
+          <input type="file" accept="image/*" multiple onChange={(e) => e.target.files && void onAddFiles([...e.target.files])} />
+        </label>
+      </div>
+      {deviceState && <p role="status" className="muted">{STATE_LINE[deviceState]}</p>}
+      {downloadPct !== null && downloadPct < 100 && <p role="status" className="muted num">Downloading the model: {downloadPct}%</p>}
+      {photos.length === 0 && <p className="muted">No photos yet.</p>}
+      <ul className="photos">
+        {photos.map((p) => {
+          const r = reads[p.sha256];
+          return (
+            <li key={p.sha256} className="photo">
+              <Thumb bytes={p.bytes} />
+              <div className="row">
+                <button type="button" className="btn ghost" onClick={() => run(p, "laptop")} disabled={busy !== null}>
+                  Read on this laptop
+                </button>
+              </div>
+              {r && "noModel" in r && (
+                <div role="status" className="note-state">
+                  <p>This laptop has no local model. Nothing was sent.</p>
+                  <button type="button" className="btn ghost" onClick={() => set(p.sha256, { consent: true })} disabled={busy !== null}>
+                    Read in the cloud
+                  </button>
+                </div>
+              )}
+              {r && "consent" in r && (
+                <div role="status" className="note-state">
+                  <p>This photo goes to Gemini in the cloud.</p>
+                  <button type="button" className="btn ghost" onClick={() => run(p, "cloud")} disabled={busy !== null}>
+                    I consent for this photo
+                  </button>
+                </div>
+              )}
+              {r && "couldNot" in r && <p className="chip" role="status">{r.couldNot}</p>}
+              {r && "cues" in r && (
+                <div className="cues" data-testid="photo-cues">
+                  <div className="suggested-head">
+                    <span className="tag">Suggested</span>
+                    <RouteGlyph route={r.route} />
+                  </div>
+                  <p>
+                    {r.cues.placeType.replace(/_/g, " ")}
+                    {r.cues.placeName && `: ${r.cues.placeName}`}
+                  </p>
+                  {r.cues.signText && <p className="muted">Sign: "{r.cues.signText}"</p>}
+                  {r.cues.landmarks.length > 0 && <p className="muted">Landmarks: {r.cues.landmarks.join(", ")}</p>}
+                </div>
+              )}
+              {decided[p.sha256] ? (
+                <p className="tag">Family said: {decided[p.sha256] === "not_sure" ? "not sure" : decided[p.sha256]}</p>
+              ) : (
+                <div className="row" aria-label="Does the family know this place?">
+                  {(["yes", "no", "not_sure"] as const).map((d) => (
+                    <button key={d} type="button" className="btn ghost" onClick={() => decide(p, d)} disabled={busy !== null}>
+                      {d === "not_sure" ? "Not sure" : d === "yes" ? "Yes" : "No"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

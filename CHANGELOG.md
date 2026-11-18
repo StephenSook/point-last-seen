@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
+  `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
+  test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
+  merged as JSON three ways from the merge base 2bc711c: no key changed on both sides; every entry from both
+  parents kept its version.
+  Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
+  CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
 - Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
   to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
   Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
