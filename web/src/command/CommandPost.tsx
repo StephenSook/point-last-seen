@@ -6,7 +6,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from
 import { aiClient, deviceModelInitializer, photoCloudGenerator, photoGenerator, sightingCloudGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
+import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, uploadPhoto } from "../data/photos";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
@@ -184,7 +184,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
-  const reloadPhotos = () => loadPhotos(pls.storage, incidentId).then(setPhotos, () => setPhotos([]));
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const reloadPhotos = async () => {
+    const r = await loadPhotosOrError(() => loadPhotos(pls.storage, incidentId));
+    setPhotos(r.photos);
+    setPhotoError(r.error);
+  };
   useEffect(() => {
     if (!denied) void reloadPhotos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,15 +326,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     setDevice(st);
   };
   const addPhotoFiles = async (files: File[]) => {
+    let skipped = 0;
     for (const f of files) {
       try {
         const jpeg = await toStandardJpeg(f);
         if (jpeg.length <= 2 * 1024 * 1024) await uploadPhoto(pls.storage, incidentId, jpeg);
+        else skipped++;
       } catch {
-        // an unreadable file is skipped; the list below shows what was stored
+        skipped++;
       }
     }
     await reloadPhotos();
+    if (skipped > 0) setPhotoError(skipped === 1 ? "One photo was not added." : `${skipped} photos were not added.`);
   };
 
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
@@ -432,6 +440,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <PhotoTray
             photos={photos}
+            loadError={photoError}
             deviceState={device}
             onCheckDevice={checkDevice}
             downloadPct={downloadPct}
