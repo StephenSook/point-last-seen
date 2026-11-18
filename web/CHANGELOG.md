@@ -1100,3 +1100,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post's More menu gets "Delete this search's clips and photos", which opens the delete-media control in a dialog (counts from Storage, then the `deleteIncidentMediaNow` callable). It is only in this menu, never on the working screen; the server checks the caller. The dock takes the control through an optional `deleteMedia` prop and imports it through `laneC.ts`, as the extras boundary requires.
 - Source: review ruling on deleteIncidentMediaNow.
 - Verified: two new extras tests on the dock harness with fakes (the item opens a dialog asking "Delete 2 clips and 1 photo ..."; Cancel runs nothing; Delete now runs once and shows "Deleted 6 items: ...") pass, with the 8 earlier extras tests; the extras import guard passes after routing through laneC.ts (it failed on the first, direct import); typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): drop a suggestion reply that arrives after the draft changed
+- What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
+- Source: second-model review of PR #16, round 3, finding 1 (high).
+- Verified: new plan harness test (with the model answering only on a button: suggest, change the assignments, then the model answers: no suggestion and no Approve) failed first, then passed; all three plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
