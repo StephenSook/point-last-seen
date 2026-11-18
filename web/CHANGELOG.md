@@ -724,3 +724,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: under 900 px wide, inputs, selects and text areas use 16 px text (iOS Safari zooms into smaller fields on focus) and buttons are at least 44 px tall.
 - Source: UI review D20 (15 px inputs, 39 to 41 px buttons at 390 px).
 - Verified: new `e2e/phonefit.spec.ts` at 390 x 844 failed first (15px), then passed (16 px fields, Join button at least 44 px). scripts/ci-local.sh exit 0.
+
+### feat(walkers): forward the engine's progress every 1,000 walkers from the Worker
+- What: the walker job passes `onProgress` (engine hook from lane A, called every 1,000 walkers and once at the end, with an identical table) and posts each value; the job's own end-of-run progress message is gone.
+- Source: plan Task 37c ("the worker posts progress every 1,000 walkers").
+- Verified: the walker job test now runs 2,500 walkers and expects progress 0, 1000, 2000, 2500; it failed first (0, 2500), then passed. The Worker harness spec now reads progress 0 to 10,000 in steps of 1,000 and still matches the engine's table. scripts/ci-local.sh exit 0.

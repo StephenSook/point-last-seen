@@ -14,12 +14,11 @@ export function runWalkerJob(job: WalkerJob, post: (m: WalkerMessage) => void, n
   const t0 = now();
   let result: WalkerResult;
   try {
-    result = simulateWalkers(job.graph, job.grid, job.opts);
+    // The engine reports every 1,000 walkers and once at the end; the table is the same with or without it.
+    result = simulateWalkers(job.graph, job.grid, { ...job.opts, onProgress: (done) => post({ type: "progress", done }) });
   } catch (e) {
     post({ type: "error", message: e instanceof Error ? e.message : "The walker run failed." });
     return;
   }
-  const elapsedMs = now() - t0;
-  post({ type: "progress", done: result.n });
-  post({ type: "result", result, elapsedMs });
+  post({ type: "result", result, elapsedMs: now() - t0 });
 }
