@@ -54,8 +54,7 @@ class ClipRulesLiveTest {
     """.trimIndent()
 
     private suspend fun join(): JoinOutcome.Joined {
-        val code = InstrumentationRegistry.getArguments().getString("plsJoinCode")
-        assertNotNull("pass -Pandroid.testInstrumentationRunnerArguments.plsJoinCode", code)
+        val code: String? = DrillCode.read()
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(code!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         return joined as JoinOutcome.Joined

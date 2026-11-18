@@ -54,7 +54,7 @@ import kotlin.random.Random
 
 /**
  * The family loop against the deployed project and the synthetic drill incident:
- * join with the family code (passed as the instrumentation argument plsJoinCode,
+ * join with the family code (read by DrillCode from a file run-drill-e2e.sh writes,
  * never logged), publish the profile, write a sighting and a duplicate of it, read a
  * device-made clip through the consent-first flow, and upload a photo. Logs only
  * PLS-E2E lines with outcomes, never the code, a token or a uid.
@@ -66,8 +66,7 @@ class DrillE2ETest {
     private fun log(s: String) = Log.i("PLS-E2E", s)
 
     @Test fun theFamilyLoopRunsAgainstTheDeployedProject(): Unit = runBlocking {
-        val code = InstrumentationRegistry.getArguments().getString("plsJoinCode")
-        assertNotNull("pass -Pandroid.testInstrumentationRunnerArguments.plsJoinCode", code)
+        val code: String? = DrillCode.read()
 
         // 1. Join: the callable checks the code; the refreshed token carries the family claims.
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(code!!) }
