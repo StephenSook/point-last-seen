@@ -16,7 +16,11 @@ emulator (Android 17, API 37, Play image). The 911 script flag is off, as in the
 | `08-sighting.png` | A family sighting: 15 min ago, by the east gate, going north |
 | `09-status-after.png` | Back on status after "Send to command", with nothing waiting or refused |
 | `10-about.png` | About this phone: no on-device model, Firebase AI Logic, cloud model `gemini-3.5-flash-lite` (Remote Config), App Check provider `debug`, version 0.1.0 |
-| `drill-walk.mp4` | Screen recording (mobile MCP) of stills 04 to 10, 101.6 s, scaled to 540x1200 |
+
+The screen recording (mobile MCP) of stills 04 to 10 is not in git: the repo ignores `*.mp4`.
+It is kept outside the repo, 101.6 s:
+- 540x1200 copy, 763,485 bytes, SHA-256 `a42d5c14e28d59d556c71cb76d8d945dcc332987a876cbb1e9e39e4d628ff6d4`
+- full-size original (1080x2400), SHA-256 `7653ebcfaa2c4080b45440071adeb28a803679add08164b48fbfce976511dedd`
 
 How it was checked:
 - The join code comes from the macOS Keychain straight into `adb input`; it is never printed.
