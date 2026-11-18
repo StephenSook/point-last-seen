@@ -1,8 +1,12 @@
 // The command post, v0: join an incident as command, then a map-first
 // window with teams, the POA list and the merge lanes, all from Firestore.
 
-import { DEFAULT_PARAMS, type EventDoc } from "@pls/engine";
-import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
+import { DEFAULT_PARAMS, type Assignment, type EventDoc } from "@pls/engine";
+import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
+import { aiClient, wordingGenerator } from "../ai/client";
+import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
+import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
+import { approvePlan, existingPlanVersions, localDraft, nextPlanVersion, planChange, planDocFor, subscribeDraft, subscribePlans } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
@@ -14,6 +18,7 @@ import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
 import { viewState } from "./viewState";
+import { WhatChanged } from "./WhatChanged";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -145,8 +150,14 @@ function JoinPanel({ pls, error, onJoined }: { pls: Pls; error: string | null; o
 
 function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [state, dispatch] = useReducer(postReducer, initialPostState);
-  const { view, events, denied, offline } = state;
+  const { view, events, plans, denied, offline } = state;
   const [now, setNow] = useState(() => Date.now());
+  const [rc, setRc] = useState<WebRc>(() => parseRc({}));
+  const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
+  const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
+  const latestSeen = useRef<number | null | undefined>(undefined);
+
+  useEffect(() => startRemoteConfig(pls.app, setRc), [pls]);
 
   // On a denial the reducer clears the data and `denied` stops both listeners for good.
   useEffect(() => {
@@ -154,11 +165,23 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const failed = (error: unknown) => dispatch({ type: "failed", error });
     const stopIncident = subscribeIncident(pls.db, incidentId, (v) => dispatch({ type: "view", view: v }), failed);
     const stopEvents = subscribeEvents(pls.db, incidentId, (e) => dispatch({ type: "events", events: e }), failed);
+    const stopPlans = subscribePlans(pls.db, incidentId, (p) => dispatch({ type: "plans", plans: p }), failed);
     return () => {
       stopIncident();
       stopEvents();
+      stopPlans();
     };
   }, [pls, incidentId, denied]);
+
+  // Teams in a plan approved while this page is open carry "New" for 10 seconds.
+  useEffect(() => {
+    const { latest, newTeamIds: fresh } = planChange(latestSeen.current, plans);
+    latestSeen.current = latest;
+    if (fresh.length === 0) return;
+    setNewTeamIds(new Set(fresh));
+    const t = setTimeout(() => setNewTeamIds(new Set()), 10_000);
+    return () => clearTimeout(t);
+  }, [plans]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
@@ -177,6 +200,35 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   }, [incident, segments, view?.rowPrior, events]);
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
+
+  const hash = vs?.hash ?? null;
+  useEffect(() => {
+    setServerDraft(null);
+    if (denied || !hash) return;
+    return subscribeDraft(pls.db, incidentId, hash, setServerDraft, (error) => dispatch({ type: "failed", error }));
+  }, [pls, incidentId, hash, denied]);
+
+  const latestPlan = plans.length > 0 ? plans[plans.length - 1]! : null;
+  const assignments = useMemo(() => Object.fromEntries((latestPlan?.assignments ?? []).map((a: Assignment) => [a.teamId, a])), [latestPlan]);
+  // The server's draft for this event set, or the same draft computed here when the link is down.
+  const draft: PlanDraft | null = useMemo(() => {
+    if (serverDraft && serverDraft.eventSetHash === hash) return serverDraft;
+    if (!vs || !incident || teams.length === 0) return null;
+    return localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []);
+  }, [serverDraft, hash, vs, incident, teams, latestPlan]);
+
+  const suggest = (): Promise<WordedPlan> => {
+    if (!draft) return Promise.reject(new Error("no draft"));
+    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb);
+    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud });
+  };
+  const approve = async (worded: WordedPlan): Promise<number> => {
+    const uid = pls.auth.currentUser?.uid;
+    if (!draft || !uid) throw new Error("not ready");
+    const version = nextPlanVersion(await existingPlanVersions(pls.db, incidentId));
+    await approvePlan(pls.db, incidentId, planDocFor(draft, worded.wording, worded.route, version, uid, Date.now()));
+    return version;
+  };
 
   if (denied) {
     return (
@@ -207,9 +259,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         </p>
       )}
       <div className="post-body">
-        <TeamsRail teams={teams} activeTeamId={null} />
+        <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
         <MapView segments={segments} poa={poa} />
         <aside className="rail right">
+          {rc.killCloud && (
+            <p className="error" role="status">
+              Cloud paused by command. Plans use fixed wording.
+            </p>
+          )}
+          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} />
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} />
           <MergeLanes lanes={lanes} />
         </aside>
