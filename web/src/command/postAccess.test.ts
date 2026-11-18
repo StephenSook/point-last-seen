@@ -74,3 +74,15 @@ describe("postReducer with the profile", () => {
     expect(postReducer(denied, { type: "profile", profile })).toBe(denied);
   });
 });
+
+describe("plan history", () => {
+  it("is loaded once a snapshot comes from the server (even an empty one), and stays loaded offline", () => {
+    expect(initialPostState.plansLoaded).toBe(false);
+    // A first snapshot from this laptop's cache (a fresh seat offline) does not know the server's versions.
+    const cached = postReducer(initialPostState, { type: "plans", plans: [], fromServer: false });
+    expect(cached.plansLoaded).toBe(false);
+    const served = postReducer(cached, { type: "plans", plans: [], fromServer: true });
+    expect(served.plansLoaded).toBe(true);
+    expect(postReducer(served, { type: "plans", plans: [], fromServer: false }).plansLoaded).toBe(true);
+  });
+});

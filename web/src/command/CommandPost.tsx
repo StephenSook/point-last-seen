@@ -263,7 +263,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
       failed,
     );
-    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending) => dispatch({ type: "plans", plans: p, pending }), failed);
+    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending, fromServer) => dispatch({ type: "plans", plans: p, pending, fromServer }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
       stopIncident();
@@ -564,7 +564,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const approve = (worded: WordedPlan): { version: number; ack: Promise<void> } => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
-    return approveNow({ plans: state.plans, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
+    return approveNow({ plans: state.plans, plansLoaded: state.plansLoaded === true, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
   };
 
   if (denied) {

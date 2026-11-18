@@ -12,6 +12,8 @@ export type PostState = {
   view: IncidentView | null;
   events: StreamedEvent[];
   plans: PlanDoc[];
+  /** The first plans snapshot has arrived (an empty one counts). */
+  plansLoaded?: boolean;
   /** Plan versions written on this laptop that the server has not acknowledged yet (absent: none). */
   pendingPlans?: number[];
   profile: ProfileDocs | null;
@@ -19,12 +21,12 @@ export type PostState = {
   offline: boolean;
 };
 
-export const initialPostState: PostState = { view: null, events: [], plans: [], pendingPlans: [], profile: null, denied: false, offline: false };
+export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], profile: null, denied: false, offline: false };
 
 export type PostAction =
   | { type: "view"; view: IncidentView }
   | { type: "events"; events: StreamedEvent[] }
-  | { type: "plans"; plans: PlanDoc[]; pending?: number[] }
+  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean }
   | { type: "profile"; profile: ProfileDocs }
   | { type: "failed"; error: unknown };
 
@@ -41,7 +43,7 @@ export function postReducer(state: PostState, action: PostAction): PostState {
     case "events":
       return { ...state, events: action.events, offline: false };
     case "plans":
-      return { ...state, plans: action.plans, pendingPlans: action.pending ?? [], offline: false };
+      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], offline: false };
     case "profile":
       return { ...state, profile: action.profile, offline: false };
     case "failed":

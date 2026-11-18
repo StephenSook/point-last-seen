@@ -51,8 +51,8 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
         setApproved((v) => (v === version ? null : v));
         setError(`Plan v${version} was not saved: another plan was approved first. Suggest again.`);
       });
-    } catch {
-      setError("The plan was not saved. Suggest again.");
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "The plan was not saved. Suggest again.");
     }
   }
 

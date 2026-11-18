@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, planSendState } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -91,7 +91,7 @@ describe("approving with the link down", () => {
       writes++;
       return new Promise<void>(() => {});
     };
-    const r = approveNow({ plans: existing, draft, wording, route, uid: "uid-1", nowMs: 9, write: neverAcked });
+    const r = approveNow({ plans: existing, plansLoaded: true, draft, wording, route, uid: "uid-1", nowMs: 9, write: neverAcked });
     expect(r.version).toBe(3);
     expect(writes).toBe(1);
     expect(r.ack).toBeInstanceOf(Promise);
@@ -99,8 +99,14 @@ describe("approving with the link down", () => {
 
   it("hands the write the plan document for that version", () => {
     let written: { version: number } | null = null;
-    approveNow({ plans: [], draft, wording, route, uid: "uid-1", nowMs: 9, write: (plan) => { written = plan; return Promise.resolve(); } });
+    approveNow({ plans: [], plansLoaded: true, draft, wording, route, uid: "uid-1", nowMs: 9, write: (plan) => { written = plan; return Promise.resolve(); } });
     expect(written!.version).toBe(1);
+  });
+
+  it("refuses before the plan history has loaded, so it cannot reuse a version that already exists", () => {
+    let writes = 0;
+    expect(() => approveNow({ plans: [], plansLoaded: false, draft, wording, route, uid: "uid-1", nowMs: 9, write: () => { writes++; return Promise.resolve(); } })).toThrow(PLANS_LOADING);
+    expect(writes).toBe(0);
   });
 
   it("says sending while the write is pending, sent once the server has it, unknown before it appears", () => {

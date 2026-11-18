@@ -45,8 +45,12 @@ export function localDraft(eventSetHash: string, priorVersion: number, rank: Ran
  * snapshot shows the plan right away (pending), and `ack` rejects if the server refuses
  * it (another seat approved that version first: plans are create-only).
  */
+export const PLANS_LOADING = "The plan history is still loading. Approve again in a moment.";
+
 export function approveNow(args: {
   plans: readonly PlanDoc[];
+  /** The first plans snapshot has arrived; before it, the next version is not known. */
+  plansLoaded: boolean;
   draft: PlanDraft;
   wording: PlanWording;
   route: RouteRecord | null;
@@ -54,6 +58,8 @@ export function approveNow(args: {
   nowMs: number;
   write: (plan: PlanDoc) => Promise<void>;
 }): { version: number; ack: Promise<void> } {
+  // An empty list before the first snapshot is not "no plans yet": approving then could reuse v1.
+  if (!args.plansLoaded) throw new Error(PLANS_LOADING);
   const version = nextPlanVersion(args.plans.map((p) => p.version));
   const ack = args.write(planDocFor(args.draft, args.wording, args.route, version, args.uid, args.nowMs));
   return { version, ack };
@@ -74,7 +80,8 @@ export function planSendState(version: number, plans: readonly PlanDoc[], pendin
 export function subscribePlans(
   db: Firestore,
   incidentId: string,
-  cb: (plans: PlanDoc[], pendingVersions: number[]) => void,
+  /** fromServer: false for a snapshot served from this laptop's cache. */
+  cb: (plans: PlanDoc[], pendingVersions: number[], fromServer: boolean) => void,
   onError: (e: unknown) => void,
 ): Unsubscribe {
   return onSnapshot(
@@ -84,6 +91,7 @@ export function subscribePlans(
       cb(
         snap.docs.map((d) => d.data() as PlanDoc).sort((a, b) => a.version - b.version),
         snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => Number(d.data()["version"])),
+        !snap.metadata.fromCache,
       ),
     onError,
   );
