@@ -78,9 +78,8 @@ each line says what the limit is and why.
   never changes.
 - When a clip reading (the consent record) is deleted, by its TTL, by command or otherwise, the
   `deleteClipOnConsentEnd` function deletes its clip, with retry on. Both deletions run in the background, so
-  the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. A record
-  left by a reinstalled app (a new anonymous user cannot renew it) is cleared by command, and its clip goes
-  with it.
+  the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. When
+  command deletes a record, its clip goes with it.
 - An incident's command can delete all its clips, photos and their readings at once with
   `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
   are not included; they are rebuilt from the incident and expire with the lifecycle rule.

@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- LIMITS no longer says a record left by a reinstalled app needs command to clear it: since fc6e005 the new
+  anonymous user takes the record over with their own consent.
+  Source: review (doc drift after fc6e005).
+  Verified: the takeover test in fc6e005 covers that case; `bash scripts/ci-local.sh` exit 0.
 - Clip readings can no longer stall: the reading must be a valid CameraSighting or a typed no-sighting result
   (`{status: "no_sighting", reasons}`), with a valid RouteRecord, instead of any map, so a could-not-read
   result completes and caches the record. While the reading is null, any command or family member of the
