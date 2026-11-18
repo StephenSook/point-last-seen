@@ -25,7 +25,7 @@ describe("ISRID ring prior (spec section 10.5)", () => {
     expect(poaOf(lin, "NEAR")).toBeGreaterThan(poaOf(base, "NEAR"));
     expect(poaOf(lin, "NEAR") / sum(lin)).toBeCloseTo(0.75, 9);
   });
-  it("linear layer is neutral when the near share is already at or above 0.75 (coordinator ruling 2026-11-18)", () => {
+  it("linear layer is neutral when the near share is already at or above 0.75 (review ruling 2026-11-18)", () => {
     // A path-dense site (the Piedmont Park dev grid had nearFrac >= 0.927 everywhere): the 75/25 formula would
     // pile 25% of the mass onto the tiny far area, the opposite of the ISRID intent.
     const dense = grid([cell("A", -100, 0, 100, 1), cell("B", 100, 0, 100, 0.9), cell("C", 0, 100, 100, 0.8)]);

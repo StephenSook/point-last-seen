@@ -30,7 +30,7 @@ function angleBetween(a: number, b: number): number {
 
 /**
  * Linear-feature weights (spec 10.5): 0.75 x nearFrac / NEAR + 0.25 x (1 - nearFrac) / (1 - NEAR), where NEAR
- * is the grid's mass-weighted near share. Neutral (all 1) when NEAR is at or above nearShare (coordinator
+ * is the grid's mass-weighted near share. Neutral (all 1) when NEAR is at or above nearShare (review
  * ruling 2026-11-18): the layer's intent is to raise density near features to the ISRID 75%, and above that
  * share the formula would instead push mass into the tiny far area. Continuous at the threshold, where the
  * formula already gives 1 for every segment. Also neutral when there is no mass or nothing is near.

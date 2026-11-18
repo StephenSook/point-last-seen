@@ -783,7 +783,7 @@ def render():
 
 
 def linear_weights(mass, near_frac, near_share=0.75, far_share=0.25):
-    """Spec 10.5 linear-feature weights; neutral at or above near_share (coordinator ruling 2026-11-18)."""
+    """Spec 10.5 linear-feature weights; neutral at or above near_share (review ruling 2026-11-18)."""
     total = sum(mass)
     near = sum(m * f for m, f in zip(mass, near_frac)) / total if total > 0 else 0.0
     if near <= 0 or near >= near_share:

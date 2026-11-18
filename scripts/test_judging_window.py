@@ -1,4 +1,4 @@
-"""Judging runs 2026-12-10 to 2026-12-16 (HR217): time-based values that could change behaviour inside the
+"""Judging runs 2026-12-10 to 2026-12-16: time-based values that could change behaviour inside the
 window are pinned here so a change fails before submit, never after the deadline."""
 
 import json
