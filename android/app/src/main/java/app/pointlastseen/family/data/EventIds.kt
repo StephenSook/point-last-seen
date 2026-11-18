@@ -1,6 +1,5 @@
 package app.pointlastseen.family.data
 
-import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 object Hashes {
@@ -9,18 +8,16 @@ object Hashes {
 }
 
 /**
- * Event ids (spec section 8): the first 16 bytes, as 32 hex characters, of SHA-256
- * over incidentId, deviceId and decimal seq, each a 4-byte big-endian length
- * followed by its UTF-8 bytes. Fields are never joined with a separator.
+ * Event ids, in the shared framing the Firestore rules verify: for each field
+ * (incidentId, deviceId, decimal seq) the decimal UTF-8 byte length, ":", then
+ * the value; SHA-256 over the joined UTF-8 string; the first 32 lowercase hex
+ * characters. ("ab", "c", 1) hashes "2:ab1:c1:1". The length prefixes keep
+ * ("ab", "c") and ("a", "bc") apart.
  */
 object EventIds {
     fun eventId(incidentId: String, deviceId: String, seq: Long): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        for (field in listOf(incidentId, deviceId, seq.toString())) {
-            val b = field.toByteArray(Charsets.UTF_8)
-            md.update(ByteBuffer.allocate(4).putInt(b.size).array())
-            md.update(b)
-        }
-        return md.digest().copyOf(16).joinToString("") { "%02x".format(it) }
+        val framed = listOf(incidentId, deviceId, seq.toString())
+            .joinToString("") { "${it.toByteArray(Charsets.UTF_8).size}:$it" }
+        return Hashes.sha256Hex(framed.toByteArray(Charsets.UTF_8)).substring(0, 32)
     }
 }

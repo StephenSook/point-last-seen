@@ -13,7 +13,7 @@ class IdVectorsTest {
         val cases = SharedFiles.json("shared/test-vectors/search.json")["ids"]!!.jsonArray
             .map { it.jsonObject }
             .filter { it["input"]!!.jsonObject["fn"]!!.jsonPrimitive.content == "eventId" }
-        assertEquals("eventId vectors walked", 6, cases.size)
+        assertEquals("eventId vectors walked", 7, cases.size)
         for (c in cases) {
             val i = c["input"]!!.jsonObject
             val got = EventIds.eventId(i["incidentId"]!!.jsonPrimitive.content, i["deviceId"]!!.jsonPrimitive.content, i["seq"]!!.jsonPrimitive.long)

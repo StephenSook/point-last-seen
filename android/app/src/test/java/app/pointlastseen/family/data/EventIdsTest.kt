@@ -5,18 +5,18 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class EventIdsTest {
-    // Expected values computed independently with Python hashlib over the
-    // spec section 8 encoding (4-byte big-endian length, then UTF-8 bytes).
+    // Expected values computed independently with Python hashlib over the shared
+    // framing: per field, decimal UTF-8 byte length, ":", the value; SHA-256; first 32 hex.
     @Test fun idMatchesTheIndependentReference() {
-        assertEquals("db0b8487967fa41245605df4437eb2e2", EventIds.eventId("inc-1", "dev-1", 1))
-        assertEquals("428f332b0b84e2fbd9fedf7a13954f46", EventIds.eventId("incident-ä", "device-9", 1234567890123))
+        assertEquals("eb7b8caf6385af1de7b1e524397ac087", EventIds.eventId("inc-1", "dev-1", 1))
+        assertEquals("6d4a3b6e306b625d1eac38d1b5e554b0", EventIds.eventId("incident-ä", "device-9", 1234567890123))
     }
 
     @Test fun fieldsAreLengthPrefixedNotJoined() {
         val a = EventIds.eventId("ab", "c", 1)
         val b = EventIds.eventId("a", "bc", 1)
-        assertEquals("1633200e31aaefaf098fbbd2c3fe56a9", a)
-        assertEquals("1911efefeca07147c267a9e23738a131", b)
+        assertEquals("cbbacd475c9794d2fa553fc5f713fab5", a) // hashes "2:ab1:c1:1"
+        assertEquals("0af29a8dbb8ad574f3ba4eb12cdfff80", b) // hashes "1:a2:bc1:1"
         assertNotEquals(a, b)
         assertEquals(32, a.length)
     }
