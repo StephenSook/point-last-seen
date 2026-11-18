@@ -52,11 +52,25 @@ describe("parseScam", () => {
 
   it("gatePassed is true only when at least 5 of 6 clips pass and no night clip misses on night_color", () => {
     const f = scamFixture();
-    const night = { ...f.clips[0]!, nightColorsUnknown: false, pass: false, missReasons: ["night_color" as const] };
-    const r = parseScam({ ...f, clips: [night, ...f.clips.slice(1)], passed: 4 });
-    expect(r.ok && r.result.gatePassed).toBe(false);
-    const four = parseScam({ ...f, clips: f.clips.map((c, i) => (i === 2 ? { ...c, timeErrorS: 500, pass: false, missReasons: ["time" as const] } : c)), passed: 4 });
-    expect(four.ok && four.result.gatePassed).toBe(false);
+    expect(parseScam(f)).toMatchObject({ ok: true, result: { passed: 5, gatePassed: true } });
+    // 5 of 6 pass, so the count rule holds: the only miss is a night clip's color answer, which alone must fail the gate.
+    const onlyNight = (night1: Partial<ScamClip>) =>
+      f.clips
+        .map((c) => (c.id === "night-2" ? { ...c, bearingErrorDeg: 10, pass: true, missReasons: [] } : c))
+        .map((c) => (c.id === "night-1" ? { ...c, pass: false, ...night1 } : c));
+    for (const night1 of [
+      { nightColorsUnknown: false, missReasons: ["night_color" as const] },
+      { nightColorsUnknown: null, missReasons: ["night_color_not_recorded" as const] },
+    ]) {
+      const r = parseScam({ ...f, clips: onlyNight(night1), passed: 5 });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.result.passed).toBe(5);
+      expect(r.result.gatePassed).toBe(false);
+    }
+    // And the count rule alone: 4 of 6 with no night miss.
+    const four = parseScam({ ...f, clips: f.clips.map((c) => (c.id === "day-1" ? { ...c, timeErrorS: 500, pass: false, missReasons: ["time" as const] } : c)), passed: 4 });
+    expect(four).toMatchObject({ ok: true, result: { passed: 4, gatePassed: false } });
   });
 
   it("refuses a file that does not say where its clips came from, or carries a field outside the allowlist", () => {
