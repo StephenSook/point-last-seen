@@ -105,6 +105,8 @@ button, input, select { font: inherit; color: inherit; }
 .sighting p { margin: 0; }
 .tray .file { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
 .tray .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+/* the input is invisible, so its keyboard focus is drawn on the label */
+.tray .file:has(input:focus-visible) { outline: 2px solid var(--fg-1); outline-offset: 2px; }
 .photos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
 .photo { background: var(--bg-2); padding: 8px; display: grid; gap: 6px; }
 .photo p { margin: 0; }
