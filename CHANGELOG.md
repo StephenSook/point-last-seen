@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules close the duplicate camera Confirm. An incident update that changes any prior input (the
+  input event ids, the start point and its source, the prior's layers, terrain, model, seed or engine
+  settings) must raise `priorVersion` by exactly 1 in the same write. A camera sighting created by command must
+  sit in the batch that moves the incident to the next version and lists that sighting among the prior's inputs.
+  Two seats confirming the same clip from the same version build identical probabilities with different event
+  ids; the second batch is now refused whole instead of landing a duplicate sighting and replacing the input
+  list. The family app's own clip confirm (which never moves the prior) is unchanged.
+  Source: review (a second seat's identical Confirm batch landed at the same version).
+  Verified: the tests with the real Confirm batch shape (segments, ROW, the incident and both events; each seat
+  first in turn, the second refused whole and no duplicate written; a confirm from the newer version lands;
+  command's camera sighting alone or not listed is refused; the family confirm still lands; each prior input
+  changed without a step or with +2 is refused) failed first, now all 101 rules tests pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md` row 12 records cloudGuard as on: deployed from ebd96a9 at 22:57 UTC on 2026-11-18, which calls
   it covers (every generateContent call, templated or not), the large-media exception with the measured sizes,
   what it does not cover by Google's design (streaming, which our iOS report read uses, and the Live API) and

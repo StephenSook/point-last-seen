@@ -70,8 +70,10 @@ service cloud.firestore {
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty'])
-        // The prior moves one version at a time, so two seats rebuilding from the same version cannot both land.
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion'])
+        // The prior moves one version at a time, and its inputs change only with that step, so two seats
+        // rebuilding from the same version cannot both land.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',
+              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams'])
             || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1);
       allow delete: if false;
 
@@ -397,6 +399,11 @@ service cloud.firestore {
     // A camera sighting carries its clip reference (ruling I10): the model's sighting, the clip's SHA-256,
     // its start time, whether the family confirmed the camera clock, and an 8-way facing or null. The clip
     // reading doc (consent record) must exist.
+    function cameraMovesPrior(incidentId, eventId, inc) {
+      let after = getAfter(/databases/$(database)/documents/incidents/$(incidentId)).data;
+      return after.get('priorVersion', -1) == inc.get('priorVersion', 0) + 1 && eventId in after.get('priorInputEventIds', []);
+    }
+
     function cameraReadingOk(incidentId, r) {
       return schema_CameraSightingReading(r)
         && exists(/databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(r.clipSha256));
@@ -445,6 +452,8 @@ service cloud.firestore {
         && typeAllowed(t, r)
         && (t != 'retraction' || retractionOk(incidentId, d))
         && (t != 'camera_sighting' || cameraReadingOk(incidentId, d.reading))
+        // Command adds a camera sighting only in the batch that moves the prior to the next version with it as an input.
+        && (t != 'camera_sighting' || r != 'command' || cameraMovesPrior(incidentId, eventId, inc))
         // targetEventId and decision are validated above; a confirmation only has to carry both.
         && (t != 'confirmation' || (d.targetEventId != null && d.decision != null));
     }
