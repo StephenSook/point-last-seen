@@ -714,3 +714,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `WhatChanged` takes the incident's teams and prints each assignment's team name ("Team 2"), falling back to the id only for a team it does not know; the post passes its teams. Dev-only harness `web/harness/plan.html`.
 - Source: UI review D14 (the person approved a plan that read Firestore document ids).
 - Verified: new `e2e/harness/plan.spec.ts` failed first ("T1 Search AA."), then passed ("Team 1 ..."). scripts/ci-local.sh exit 0.
+
+### fix(plan): pass the incident's teams to the plan card so it shows their names
+- What: the post passes its teams to `WhatChanged`. The previous commit's entry said so, but this one-line change had been left out of that commit; this commit makes the claim true.
+- Source: UI review D14 follow-up (committed-tree check).
+- Verified: typecheck and build clean; the plan harness spec passes. scripts/ci-local.sh exit 0.

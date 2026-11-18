@@ -519,7 +519,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
           />
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {incident && segments.length > 0 && (
