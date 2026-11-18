@@ -93,6 +93,44 @@ public struct EventDoc: Codable, Sendable, Equatable {
         self.priorVersion = priorVersion
     }
 
+    enum CodingKeys: String, CodingKey {
+        case eventId, schemaVersion, incidentId, teamId, deviceId, seq, authorUid, role, type, reporter, clientTimeMs,
+             serverTime, observedAtMs, position, positionSource, rawText, inputMethod, isTrainingInject, reading, effect,
+             route, targetEventId, decision, planVersion, priorVersion
+    }
+
+    /// Every one of the 25 keys is written, a nil as an explicit null: the shared schema and the
+    /// security rules require the full key set. The event store swaps `serverTime` for the
+    /// server timestamp on write.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(eventId, forKey: .eventId)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
+        try c.encode(incidentId, forKey: .incidentId)
+        try c.encode(teamId, forKey: .teamId)
+        try c.encode(deviceId, forKey: .deviceId)
+        try c.encode(seq, forKey: .seq)
+        try c.encode(authorUid, forKey: .authorUid)
+        try c.encode(role, forKey: .role)
+        try c.encode(type, forKey: .type)
+        try c.encode(reporter, forKey: .reporter)
+        try c.encode(clientTimeMs, forKey: .clientTimeMs)
+        try c.encode(serverTime, forKey: .serverTime)
+        try c.encode(observedAtMs, forKey: .observedAtMs)
+        try c.encode(position, forKey: .position)
+        try c.encode(positionSource, forKey: .positionSource)
+        try c.encode(rawText, forKey: .rawText)
+        try c.encode(inputMethod, forKey: .inputMethod)
+        try c.encode(isTrainingInject, forKey: .isTrainingInject)
+        try c.encode(reading ?? .null, forKey: .reading)
+        try c.encode(effect, forKey: .effect)
+        try c.encode(route, forKey: .route)
+        try c.encode(targetEventId, forKey: .targetEventId)
+        try c.encode(decision, forKey: .decision)
+        try c.encode(planVersion, forKey: .planVersion)
+        try c.encode(priorVersion, forKey: .priorVersion)
+    }
+
     /// The fields that identify who made the write. The outbox compares them with the
     /// server copy before it calls a denied write delivered.
     public var identity: EventIdentity {

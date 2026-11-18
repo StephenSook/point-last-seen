@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): encode all 25 event keys, nulls written out
+- What: `EventDoc` has an explicit encoder that always writes the 25 keys of
+  `shared/schemas/event.schema.json`, with nil as null. The synthesized encoder left out nil
+  fields (`position`, `observedAtMs`, `targetEventId`, `decision`, `planVersion`, ...), which the
+  schema and the create rule require.
+- Source: Codex review M8; lane A's rules contract (all 25 keys present and nothing else).
+- Verified: a test that reads the schema's required list failed on the old code (missing keys,
+  no nulls), then passed; a round-trip test; full suite 164 tests.
+
 ### fix(ios-core): a sighting records when it was seen, not when it was sent
 - What: `observedAtMs` on a sighting comes from the app's time picker (new
   `OutcomeContext.observedAtMs`), else from "N minutes ago" or "an hour ago" in the report
