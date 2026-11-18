@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): hold the live cloud gate in a lock-protected box
+- What: `LiveGateBox` keeps the current `LiveGate` (connectivity, consent, kill switch,
+  incident mode) behind a `Mutex`, so PLSCore's orchestrator can read it from any thread at the
+  moment of a cloud dispatch while the app updates it on the main actor.
+- Source: Codex review H1 follow-through (the app side of the live gate).
+- Verified: `LiveGateBoxTests` (latest value read from a detached task) red without the type,
+  then green on the iOS 27.2 simulator; app builds with only this commit's files.
+
 ### feat(ios-core): add the words on the report echo card
 - What: `EchoText` gives the card's lines: "Cleared AC. Coverage 0.8. POD 55%."; a clue's
   segment; what to do for each "none" reason ("Calling alone is not counted for this person.",
