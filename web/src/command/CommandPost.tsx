@@ -172,6 +172,10 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   return (
     <main className="panel">
       <p className="wordmark">Point Last Seen</p>
+      <p data-testid="purpose">Plans where to search for a missing person, and updates the map as reports come in.</p>
+      <p>
+        <a href="/judge">Judges: start here</a>
+      </p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Open the command post</h1>
       <form onSubmit={submit}>

@@ -29,3 +29,12 @@ test("the judge page names the cloud model Remote Config selects right now", asy
   await expect(s).toContainText(/Chosen by Remote Config \(fetched [0-9:]+\)/, { timeout: 15_000 });
   await expect(s).not.toContainText("(default)");
 });
+
+test("the join page says what the product does and sends judges to the judge's door", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("purpose")).toHaveText("Plans where to search for a missing person, and updates the map as reports come in.");
+  const link = page.getByRole("link", { name: "Judges: start here" });
+  await expect(link).toHaveAttribute("href", "/judge");
+  await link.click();
+  await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
+});
