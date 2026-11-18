@@ -7,7 +7,6 @@ describe("Remote Config", () => {
       cloud_model_ios: "gemini-3.5-flash-lite",
       cloud_model_web: "gemini-3.5-flash-lite",
       cloud_model_android: "gemini-3.5-flash-lite",
-      token_budget_fraction: 0.5,
       kill_cloud: false,
       use_limited_use_tokens: true,
       replan_use_tools: false,
@@ -44,14 +43,15 @@ describe("Remote Config", () => {
   });
 
   it("keeps numbers in range", () => {
-    expect(parseRc({ token_budget_fraction: "2" }).tokenBudgetFraction).toBe(0.5);
-    expect(parseRc({ token_budget_fraction: "abc" }).tokenBudgetFraction).toBe(0.5);
-    expect(parseRc({ token_budget_fraction: "0.3" }).tokenBudgetFraction).toBe(0.3);
     expect(parseRc({ judge_sessions_per_day: "-1" }).judgeSessionsPerDay).toBe(300);
   });
 
   it("does not parse clip_model: the clip read (Task 18) is not built, so nothing would read it", () => {
     expect("clipModel" in parseRc({})).toBe(false);
+  });
+
+  it("does not parse token_budget_fraction: only the iOS router uses it", () => {
+    expect("tokenBudgetFraction" in parseRc({})).toBe(false);
   });
 
   it("reads a boolean only from true or false", () => {

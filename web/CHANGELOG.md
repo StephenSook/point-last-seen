@@ -206,3 +206,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `rc.ts` no longer parses `clip_model` (wired-or-cut: no web code read it). The clip read is Task 18; it brings the key back together with a test that the value picks the clip model.
 - Source: orchestrator self-audit sweep (5 of 8 parsed Remote Config values had no reader).
 - Verified: `src/config/rc.test.ts` changed first to expect no `clip_model` (2 tests failed), then passed after the removal; `grep -c clip web/src/config/rc.ts` is 0.
+
+### fix(web): stop parsing token_budget_fraction, which only the iOS router uses
+- What: `rc.ts` no longer parses `token_budget_fraction` (wired-or-cut: the web has no router that budgets tokens; the iOS router reads it). The key stays in the Remote Config template for iOS.
+- Source: orchestrator self-audit sweep.
+- Verified: `src/config/rc.test.ts` changed first to expect no `token_budget_fraction` (2 tests failed), then passed after the removal.

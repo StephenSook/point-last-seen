@@ -8,7 +8,6 @@ export const RC_DEFAULTS = {
   cloud_model_ios: "gemini-3.5-flash-lite",
   cloud_model_web: "gemini-3.5-flash-lite",
   cloud_model_android: "gemini-3.5-flash-lite",
-  token_budget_fraction: 0.5,
   kill_cloud: false,
   use_limited_use_tokens: true,
   replan_use_tools: false,
@@ -20,7 +19,6 @@ export const RC_DEFAULTS = {
 
 export type WebRc = {
   cloudModelWeb: string;
-  tokenBudgetFraction: number;
   killCloud: boolean;
   useLimitedUseTokens: boolean;
   replanUseTools: boolean;
@@ -54,7 +52,6 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
   const d = RC_DEFAULTS;
   return {
     cloudModelWeb: model(values.cloud_model_web, d.cloud_model_web),
-    tokenBudgetFraction: num(values.token_budget_fraction, d.token_budget_fraction, (n) => n > 0 && n <= 1),
     killCloud: bool(values.kill_cloud, d.kill_cloud),
     useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
     replanUseTools: bool(values.replan_use_tools, d.replan_use_tools),
