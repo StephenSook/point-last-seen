@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Shared vectors: add the posterior case `walker_prior_then_cleared`, whose prior is the committed golden
+  walker table (AA 0.2664, AB 0.1372, ROW 0.5964) and whose one event clears AA at POD 0.5 (expected AA
+  0.15367, AB 0.15828, ROW 0.68805). The Swift engine never runs walkers, so this case is how it proves it
+  consumes walker output exactly as TypeScript does (PLS-DESIGN 10.6, "Determinism").
+  Source: PLS-PLAN Task 37a; built in the Codex build lane, reviewed by the orchestrator.
+  Verified: `make_vectors.py --check` reports 161 vectors current; removing the new case gives exact JSON
+  equality with all 160 existing cases; TypeScript vector suite 135 passed and Swift core 205 tests passed
+  (VectorTests and PosteriorTests run every posterior case, this one included); `bash scripts/ci-local.sh`
+  exit 0.
 - Grid builder: build the walker route graph (`tools/grid-builder/src/graph.ts`, Task 37a). Stations every
   25 m with x and y in local metres, a unit heading, a unit normal and the segment under each; a junction is
   inserted wherever a road or trail line crosses a stream or meets a water edge (OSM draws them as separate

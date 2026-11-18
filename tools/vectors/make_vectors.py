@@ -492,6 +492,9 @@ def build():
     pf = prior_of([("A", 0.3), ("B", 0.5), ("ROW", 0.2)])
     pc = prior_of([("S1", 0.31), ("S2", 0.31), ("S3", 0.31), ("S4", 0.07)])
     p6 = prior_of([("AA", 0.2), ("AB", 0.2), ("AC", 0.15), ("AD", 0.15), ("AE", 0.1), ("AF", 0.1), ("ROW", 0.1)])
+    walker_table_path = ROOT / "shared/engine-ts/test/fixtures/toy-walker-table.json"
+    walker_table = json.loads(walker_table_path.read_text())
+    walker_prior = walker_table["segments"] + prior_of([("ROW", walker_table["row"])])
     casie = ev(hexid(1), clue_eff({}, "high"), iocOverride={"S1": 0.917, "S2": 1, "S3": 0.5, "S4": 0.771})
     post_cases = [
         ("no_events_returns_prior", pa, []),
@@ -507,6 +510,7 @@ def build():
         ("unknown_segment_is_ignored", pa, [ev(hexid(1), cleared_eff("ZZ", 0.5)), ev(hexid(2), cleared_eff("B", 0.2))]),
         ("none_effect_is_ignored", pa, [ev(hexid(1), none("informational"))]),
         ("duplicate_event_applied_once", pa, [ev(hexid(1), cleared_eff("A", 0.5)), ev(hexid(1), cleared_eff("A", 0.5))]),
+        ("walker_prior_then_cleared", walker_prior, [ev(hexid(1), cleared_eff("AA", 0.5))]),
     ]
     v["posterior"] = [{"name": n, "input": {"prior": pr, "events": es, "params": P},
                        "expected": posterior(pr, es, P)} for n, pr, es in post_cases]
