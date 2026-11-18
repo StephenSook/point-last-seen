@@ -734,3 +734,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `loadRouteGraph` now reads the stored `RouteGraph` the grid builder writes (`build-grid --graph`) and indexes it with the engine's `indexRouteGraph`; a file without edges and nodes, or one the engine refuses (no bounds or projection, which would read as a graph with no exits), is "invalid".
 - Source: plan Task 37c; lane A moved `indexRouteGraph` into @pls/engine and built the dev site's graph.
 - Verified: `src/prior/walkerPrior.test.ts` (5 tests, with a two-station stored graph) failed first (the old reader expected an indexed file), then passed, including a refused graph without a projection. scripts/ci-local.sh exit 0.
+
+### test(e2e): sign in once per run and reuse the session in every test
+- What: a Playwright setup project signs in once (the page's anonymous sign-in) and saves the session with its IndexedDB, where Firebase keeps the user, to `web/e2e/.auth/state.json` (gitignored; not under test-results, which Playwright empties each run); every test starts from it. Before, each test context made a new anonymous user (about 25 per full run), and after several runs in one day Firebase Auth refused sign-ups from this machine with HTTP 400 `TOO_MANY_ATTEMPTS_TRY_LATER` (its per-IP limit), so ten deployed tests could not join. Real users are not affected (one sign-up each); a drill should sign its browsers in before reaching the site rather than all at once on one network.
+- Source: the failed deployed run and the limit confirmed with one probe.
+- Verified: after the limit lifted, setup plus joined tests against the local preview: one setup sign-in, and a joined test counted zero sign-up requests; the phone layout tests pass. scripts/ci-local.sh exit 0.

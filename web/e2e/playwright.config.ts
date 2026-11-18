@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { AUTH_STATE } from "./authState";
 
 const deployed = process.env["BASE_URL"];
 
@@ -17,7 +18,14 @@ export default defineConfig({
     video: "off",
     screenshot: "off",
   },
-  projects: [{ name: "chrome", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"], channel: "chrome" } },
+    {
+      name: "chrome",
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 }, storageState: AUTH_STATE },
+    },
+  ],
   // Without BASE_URL the tests run against a local preview of web/dist (run `npm run build -w web` first).
   webServer: deployed
     ? undefined
