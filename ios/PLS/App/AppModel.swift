@@ -66,10 +66,18 @@ final class AppModel {
         gate.update { $0 = LiveGate(networkOnline: online, cloudConsent: consent, killCloud: kill, incidentMode: mode) }
     }
 
-    /// Reads the report, builds the one event and journals it. The Firestore write is never awaited.
-    func send(_ text: String, inputMethod: InputMethod) async {
-        guard let mission, let reader, let identity, let store else { problem = "No pack loaded."; return }
-        guard let uid = identity.uid else { problem = "Not signed in yet. Stay in signal for a moment."; return }
+    /// Sends a report and returns the text to leave in the field: empty once the report is
+    /// journaled on this phone, the same words when it was not, so nothing the searcher said is lost.
+    func submit(_ text: String, inputMethod: InputMethod) async -> String {
+        guard !sending else { return text }
+        return await send(text, inputMethod: inputMethod) ? "" : text
+    }
+
+    /// Reads the report, builds the one event and journals it. The Firestore write is never
+    /// awaited. Returns true once the event is in the journal.
+    private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
+        guard let mission, let reader, let identity, let store else { problem = "No pack loaded."; return false }
+        guard let uid = identity.uid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         refreshGate()
@@ -95,8 +103,10 @@ final class AppModel {
                                                  seq: try identity.nextSeq())
             try store.append(event)
             problem = nil
+            return true
         } catch {
             problem = "The report was not saved on this phone. Try again."
+            return false
         }
     }
 }

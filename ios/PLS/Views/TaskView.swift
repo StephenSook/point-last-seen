@@ -7,7 +7,6 @@ import SwiftUI
 struct TaskView: View {
     @Bindable var model: AppModel
     @State private var text = ""
-    @State private var dictated = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -27,12 +26,14 @@ struct TaskView: View {
                     .lineLimit(2...6)
                 Button("Send") {
                     let report = text
-                    text = ""
                     focused = false
-                    Task { await model.send(report, inputMethod: .typed) }
+                    Task { text = await model.submit(report, inputMethod: .typed) }
                 }
                 .buttonStyle(.bordered)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending)
+                if model.sending {
+                    ProgressView("Reading your report")
+                }
                 if let problem = model.problem {
                     Text(problem).font(.footnote).foregroundStyle(.red)
                 }

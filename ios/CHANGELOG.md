@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): keep the searcher's words in the field until the report is journaled
+- What: `AppModel.submit` returns the text to leave in the field: empty once the event is in the
+  journal, the same words when it is not (no pack, not signed in, a journal error), so nothing a
+  searcher said is lost. A second Send while one is reading does nothing. The field screen shows
+  "Reading your report" while it reads. The unused `dictated` state is removed.
+- Source: fresh-eyes review I2 and M11 (M1's unused variable).
+- Verified: `AppModelTests` (a send with no pack keeps the text and says "No pack loaded.")
+  compile-red without `submit`, then green; 25 app tests pass on the iOS 27.2 simulator. CI:
+  Actions budget block; local `ci-local.sh` and `swift test` exit 0.
+
 ### fix(ios-core): give every model stage a time limit
 - What: each guided or permissive model call gets `stageTimeoutSeconds` (20 s by default). On
   timeout the read moves on as a failure (`network` on the cloud route, `other` on-device), so
