@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- New incidents start urban: the drill seed writes `terrain: "urban"`, and `build-grid --prior` accepts
+  `--terrain urban`. Command can still change the terrain (with the next prior version). Judge practice
+  searches copy their seed's terrain, so they follow the seed drill.
+  Source: review (field expert: a suburb or a big park around Atlanta is urban).
+  Verified: the seed test (a new drill is urban) and the CLI test (an urban prior builds and records its terrain)
+  failed first, now 18 seed tests and 26 grid-builder tests pass; grid-builder typecheck exit 0.
 - `shared/test-vectors/search.json` regenerated: each case's embedded engine params gain the urban rings (47
   blocks; no other change).
   Source: the urban terrain commit.

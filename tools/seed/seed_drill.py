@@ -57,7 +57,7 @@ def incident_doc(incident_id: str, name: str, params: dict) -> dict:
     engine = json.loads(json.dumps(params))
     return {
         "name": name, "mode": "drill", "drillLabel": DRILL_LABEL, "status": "open",
-        "ipp": None, "ippSource": "typed", "plsTimeMs": None, "terrain": "temperate_flat",
+        "ipp": None, "ippSource": "typed", "plsTimeMs": None, "terrain": "urban",
         "priorVersion": 1, "priorModel": "rings", "priorSeed": 20261122, "priorInputEventIds": [],
         "engineParams": engine, "gridId": None,
     }
