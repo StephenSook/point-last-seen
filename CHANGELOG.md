@@ -12,6 +12,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   parents kept its version.
   Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
   CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- `scripts/emulator_config.py --wait-ports SECONDS` waits, bounded, until every port in this worktree's emulator
+  block can be bound on 127.0.0.1 and ::1, and exits 1 naming the busy ports when the time runs out.
+  `ci-local.sh` runs it (180 s) before the emulator suite, because a socket left from the previous run made the
+  Firestore WebChannel server fail to bind ("Address already in use"). Local only: a CI runner starts clean.
+  Source: lane C's ci-local finding (two failed runs, back to back, on its own block).
+  Verified: 3 new tests (free block passes at once; a held port fails and is named; a port released after
+  1.5 s passes after waiting) failed first, now 8 of 8 pass; `bash scripts/ci-local.sh` exit 0.
 - Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
   to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
   Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog

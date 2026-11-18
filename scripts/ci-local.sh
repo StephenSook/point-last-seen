@@ -32,6 +32,9 @@ python3 -I tools/vectors/make_vectors.py --check
 npm test -w shared/engine-ts -- test/vectors.test.ts
 
 echo "== rules: functions typecheck, rules and joinIncident tests in the emulators"
+# Local only (a CI runner starts clean): a socket left from the previous run on this worktree's port block
+# made the Firestore emulator fail to bind, so wait (at most 180 s) until the block is free.
+python3 -I scripts/emulator_config.py . --wait-ports 180
 npm run typecheck -w functions
 npm run test:rules -w functions
 
