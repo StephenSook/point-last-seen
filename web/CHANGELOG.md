@@ -1110,3 +1110,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the clip form locks before its first await (so consent cannot change mid-read), but a file that became unreadable after it was chosen made `arrayBuffer()` reject outside any handler, leaving the form, Cancel and the file picker locked. The read is now caught: the form says "This clip could not be read from this computer. Choose it again." and unlocks, and nothing is sent.
 - Source: second-model review of PR #16, round 3, finding 3 (medium; follow-up after the merge).
 - Verified: new clip harness test (arrayBuffer rejects: the alert shows, the file input and Cancel are enabled, the model was never asked) failed first, then passed; all 13 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(prior): stop an older refused write from showing an alert beside a newer rebuild
+- What: the prior switch now claims each attempt's id before its run starts (it claimed it after the run). Before, if the previous write was refused while the next run was still going, the old attempt still owned the status and left a refusal alert beside the newer, successful rebuild.
+- Source: second-model review of PR #16, round 3, finding 5 (medium; follow-up after the merge).
+- Verified: the prior-switch harness gets a `?race=1` mode (first write refused on a button, second run finishes on a button); the new test (Walkers v6 pending, Rings started, first write refused, second run finishes: "Prior rebuilt as v7." and no alert) failed first (one alert), then passed; all 5 prior-switch harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

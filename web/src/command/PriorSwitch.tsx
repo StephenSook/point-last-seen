@@ -41,11 +41,13 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
 
   async function apply() {
     if (!want) return;
+    // Claimed before the run starts, so an earlier write refused during this run no longer owns the status.
+    const id = ++latest.current;
     setBusy(true);
     setError(null);
     try {
       const r = await onApply({ model: want, attract, lowMobility });
-      const id = ++latest.current;
+      if (id !== latest.current) return;
       setRun(r.run);
       setSent(r.version);
       setWant(null);
