@@ -18,6 +18,12 @@ service firebase.storage {
         ? (exp is timestamp && request.time < exp)
         : (exp == null || (exp is timestamp && request.time < exp));
     }
+    // Ruling I9: the uploader's own clip reading, with the three required consents, exists before the upload.
+    function clipReadingReady(incidentId, file) {
+      let c = firestore.get(/databases/(default)/documents/incidents/$(incidentId)/clipReadings/$(file.split('[.]')[0])).data;
+      return c.createdByUid == request.auth.uid
+        && c.consent.personInClip != null && c.consent.footageOwner != null && c.consent.cloudProcessing != null;
+    }
     function isMember(incidentId) {
       return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId);
     }
@@ -34,6 +40,7 @@ service firebase.storage {
       allow create: if isCommandOrFamily(incidentId)
         && resource == null
         && file.matches('^[0-9a-f]{64}[.]mp4$')
+        && clipReadingReady(incidentId, file)
         && request.resource.size <= 14000000
         && request.resource.contentType.matches('video/.*');
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';

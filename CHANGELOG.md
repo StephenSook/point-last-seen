@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Clip readings are written before the upload and the model call (ruling I9): `clipReadings/{sha256}` is
+  created by command or family with exactly the spec section 7 fields plus `createdByUid`, the three required
+  consents (person in clip, footage owner, cloud processing; each `{byUid, atMs}` recorded by the writer),
+  `publicUse` null or a consent, `reading` and `route` null, a timestamp `expiresAt` and a server
+  `createdAt`; only its creator may then add `reading` and `route`, once, with the consents untouched.
+  Storage refuses a clip upload unless the uploader's own clip reading with those consents exists.
+  Source: orchestrator ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
+  Verified: 3 new tests (create needs the consents and no reading; one creator-only update; upload needs the
+  uploader's own reading) failed first, now 84 emulator tests pass; ci-local exits 0.
 - A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
   TS type of the same name): the model's CameraSighting, `clipSha256`, `clipStartMs`, `clockConfirmed`
   and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules

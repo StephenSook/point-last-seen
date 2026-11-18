@@ -1,6 +1,7 @@
 import { getStorage as getAdminStorage } from "firebase-admin/storage";
 import { getMetadata, ref, uploadBytes } from "firebase/storage";
 import { afterAll, beforeEach, describe, it } from "vitest";
+import { clipReadingDoc } from "../fixtures";
 import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, familyClaims, searcherClaims, storageAs } from "../helpers";
 
 const SHA = "a".repeat(64);
@@ -10,6 +11,9 @@ beforeEach(async () => {
   await clearFirestore();
   await getAdminStorage(adminApp).bucket().deleteFiles({ force: true });
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+  // Ruling I9: the clip reading with its consent record exists before the upload.
+  await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set(clipReadingDoc("I1", SHA, "family-uid", { createdAt: new Date() }));
+  await admin.db.doc(`incidents/J1/clipReadings/${SHA}`).set(clipReadingDoc("J1", SHA, "family-uid", { createdAt: new Date() }));
 });
 afterAll(closeClients);
 
@@ -54,6 +58,16 @@ describe("storage rules (spec section 7)", () => {
       await assertFails(uploadBytes(ref(fam, `clips/I1/${name}`), bytes(1000), { contentType: "video/mp4" }));
     }
     await assertFails(uploadBytes(ref(fam, `photos/I1/${SHA}.png`), bytes(1000), { contentType: "image/jpeg" }));
+  });
+  it("a clip upload needs the uploader's own clip reading with consents first (ruling I9)", async () => {
+    const fam = storageAs("family-uid", familyClaims);
+    const other = "b".repeat(64);
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${other}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc(`incidents/I1/clipReadings/${other}`).set(clipReadingDoc("I1", other, "command-uid", { createdAt: new Date() }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${other}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    const third = "d".repeat(64);
+    await admin.db.doc(`incidents/I1/clipReadings/${third}`).set(clipReadingDoc("I1", third, "family-uid", { createdAt: new Date() }));
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${third}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
   it("no client writes packs", async () => {
     await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1/v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));
