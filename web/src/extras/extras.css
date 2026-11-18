@@ -78,3 +78,7 @@
 .extras-cube-table { border-collapse: collapse; font-size: 0.9rem; }
 .extras-cube-table caption { text-align: start; color: var(--fg-3, #aeaaa7); padding-block-end: 4px; }
 .extras-cube-table th, .extras-cube-table td { text-align: start; padding: 2px 12px 2px 0; border-block-end: 1px solid var(--line, #403c3a); }
+
+/* Camera read check (judge page only). */
+.extras-scam th[scope="row"] { white-space: nowrap; }
+.extras-scam-misses { margin: 0; padding-inline-start: 1.25rem; }
