@@ -589,3 +589,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Save profile closed the form only after Firestore acknowledged both documents, so with the link down it stayed on "Saving". The form now starts the save and closes at once (the profile is already in the local snapshot); if the server refuses it, the post shows "The profile was not saved. Edit it and save again." under the Edit profile button. New dev-only harness `web/harness/profile.html` with a save that never settles.
 - Source: review sweep finding, same pattern as Approve and the photo answers (writes awaited for UI state).
 - Verified: new `e2e/harness/profile.spec.ts` failed first (the form stayed open while the save waited), then passed (closed within 0.5 s, one save); all eleven harness specs pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### test(e2e): keep the extras lane's dev-server specs out of the deployed suite
+- What: the main Playwright config now ignores `e2e/extras/**` as it already ignores `e2e/harness/**`. Those specs open `/extras-harness/*.html`, which only the Vite dev server serves; the extras lane runs them with `e2e/extras.config.ts`.
+- Source: the first full deployed run after merge point 2 picked them up and they failed against the live site (the harness pages are not deployed).
+- Verified: `--list` on the main config shows no extras spec; `npx playwright test -c e2e/extras.config.ts` passes (8 of 8) with the dock and judge hooks mounted. scripts/ci-local.sh exit 0.
