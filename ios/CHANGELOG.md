@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): build the approach card from the profile's note ids
+- What: `ApproachNotes` reads `shared/constants/approach-notes.json`; `ApproachCard.build` takes
+  the note ids command chose (`approachNoteIds`), orders them by the file, fills in the family's
+  own words (`{primaryLanguage}`, `{triggersToAvoid}`, `{bestApproach}`,
+  `{uniqueDescription}`), leaves out a note whose words are empty, shows the first 7 and puts
+  the rest under More, with the footer. Code and fixed copy only, no model.
+- Source: Task 35 (ApproachCardView data), spec section 13.3, lane A 2bc711c.
+- Verified: two `ApproachCardTests` (file order with filled text and an unknown id ignored; the
+  7-line cut and empty family text) compile-red, then green; full suite 210 tests;
+  `scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): add the shared subject profile
 - What: `SharedProfile`, the 20 fields of `profile/shared` from
   `shared/schemas/subject-profile.schema.json` (all keys encoded, nulls written out). It is shown
