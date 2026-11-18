@@ -19,11 +19,11 @@ export interface OverpassJson { elements: OsmElement[] }
 
 const USAGE = "usage: build-grid <site.geojson> <gridId> --osm <overpass.json> --out <grid.json>\n"
   + "       build-grid --query <site.geojson>   (prints the Overpass query for the site's bounding box)\n"
-  + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <temperate_flat|temperate_mountain>\n"
+  + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <urban|temperate_flat|temperate_mountain>\n"
   + "                  [--linear] [--bearing <deg>] --out <segments.json>   (segment docs with the engine's prior)\n"
   + "       build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>\n"
   + "                  (the stored route graph for walkers, from the same extract, bounded by the grid's box)";
-const TERRAINS = ["temperate_flat", "temperate_mountain"] as const;
+const TERRAINS = ["urban", "temperate_flat", "temperate_mountain"] as const;
 
 const coords = (pts: OsmPoint[]): Position[] => pts.map(p => [p.lon, p.lat]);
 const closed = (c: Position[]) => c.length >= 4 && c[0]![0] === c[c.length - 1]![0] && c[0]![1] === c[c.length - 1]![1];

@@ -25,7 +25,8 @@ export type EventType =
 export type Reporter = "searcher" | "public_caller" | "family" | "camera" | "system";
 export type PositionSource = "gps" | "assigned_segment" | "manual" | "map_click" | "camera_pin" | "none";
 export type InputMethod = "keyboard_dictation" | "typed" | "picklist" | "clip" | "photo" | "system";
-export type Terrain = "temperate_flat" | "temperate_mountain";
+/** The ISRID distance column the prior uses; "urban" covers suburbs and big parks too (field expert). */
+export type Terrain = "temperate_flat" | "temperate_mountain" | "urban";
 
 export interface LatLon {
   lat: number;
@@ -323,7 +324,7 @@ export interface EngineParams {
   detectionRangeMinM: number;
   detectionRangeMaxM: number;
   detectionProfile: { soundCounts: boolean };
-  rings: { masses: number[]; temperate_flat: number[]; temperate_mountain: number[] };
+  rings: { masses: number[]; temperate_flat: number[]; temperate_mountain: number[]; urban: number[] };
   nearFeature: { bufferM: number; nearShare: number; farShare: number };
   wedge: { halfAngleDeg: number; inside: number; outside: number };
 }
