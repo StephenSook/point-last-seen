@@ -15,3 +15,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `getPls()` reads the build config, starts App Check with the reCAPTCHA Enterprise provider before any other service, opens Firestore with a persistent multi-tab cache of unlimited size, and sets up Auth and Functions (us-central1). `ensureSignedIn` signs in anonymously when there is no user.
 - Source: plan Task 15 step 3, spec sections 11 and 14.
 - Verified: export names read from the firebase 13.4.0 type files (`initializeAppCheck`, `ReCaptchaEnterpriseProvider`, `persistentLocalCache`, `persistentMultipleTabManager`, `CACHE_SIZE_UNLIMITED`, `signInAnonymously`); typecheck clean. Glue only, covered by the e2e smoke. Local smoke found anonymous sign-up returns 400 `CONFIGURATION_NOT_FOUND` because Authentication is not set up in the project yet (Task 0).
+
+### feat(web): subscribe to the incident, teams, segments and phone clock offsets
+- What: `subscribeIncident` keeps live views of the incident doc, the teams, each team's device docs (for `clockOffsetMs`) and the segments (geometry parsed from `geometryJson`; the reserved `ROW` segment carried as `rowPrior`, never drawn).
+- Source: plan Task 15, spec section 7 data model, `clockOffsetMs` in spec 11.3.
+- Verified: typecheck clean. Firestore glue, exercised by the e2e smoke once an incident can be seeded.
