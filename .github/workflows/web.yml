@@ -1,0 +1,52 @@
+name: web
+
+# Web command post: typecheck, unit tests and a build with placeholder config (proves it compiles; never
+# deployed). Runs on pull requests to main and on main (Actions minutes are budgeted). Until web/ is on
+# main the only trigger is web/** itself: a shared/** or lockfile trigger would start this job on main
+# with no web/ to build. After the lane C merge, widen to shared/**, package.json, package-lock.json and
+# this file.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "web/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install (clean, from the lockfile)
+        run: npm ci
+      - name: Web typecheck
+        run: npm run typecheck -w web
+      - name: Web unit tests
+        run: npm test -w web
+      - name: Web build (placeholder config; proves it compiles, never deployed)
+        env:
+          VITE_FIREBASE_API_KEY: ci-build-check
+          VITE_FIREBASE_AUTH_DOMAIN: ci-build-check.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: ci-build-check
+          VITE_FIREBASE_STORAGE_BUCKET: ci-build-check.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "0"
+          VITE_FIREBASE_APP_ID: "1:0:web:0"
+          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ci-build-check
+        run: npm run build -w web

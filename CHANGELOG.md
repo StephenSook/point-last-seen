@@ -5,6 +5,171 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
+  to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
+  Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
+  entry; CI verifies once per lane at each merge point through one pull request. This entry's own commit
+  and the one before it are pushed together, so CI runs for the head SHA only.
+  Source: orchestrator, after the Actions budget was reached (300 runs today); Stephen set the November
+  budget to $15, so the remaining $10 is spent only at merge points.
+  Verified: no workflow keeps a `branches: ["**"]` push trigger (grep count 0); `bash scripts/ci-local.sh`
+  exit 0.
+- `functions/package.json` lists only its runtime dependencies (firebase-admin, firebase-functions); the test
+  toolchain it used (firebase client 13.4.0, TypeScript 6.0.3, Vitest 5.1.0, @types/node 22.20.5) moves to
+  the root devDependencies, still hoisted for the workspace tests. Cloud Build generates a lockfile from the
+  functions folder alone, and npm's arborist crashed in peer-set resolution on the dev toolchain
+  ("Cannot read properties of null (reading 'edgesOut')"), failing the first joinIncident deploy.
+  Source: Cloud Build log of the failed deploy (build f5d65a45, about 55 s).
+  Verified: the crash reproduced locally from a copy of the old functions/package.json; production-only it
+  resolves (`npm install --package-lock-only` exit 0); the emulator suite still passes 85 and the functions
+  typecheck exits 0; `bash scripts/ci-local.sh` exit 0 (paid-usage fallback: CI is budget-limited).
+- Add the grid builder workspace (`tools/grid-builder`, Task 10): `buildCells` cuts the site into 125 m cells,
+  rows north to south, clipped to the site (slivers under 1 m2 dropped before ids), two-letter row-major ids
+  and edge neighbours; `applyFeatures` sets each segment's nearFrac (share within 71 m of a road, trail,
+  stream or water edge, from a 20 x 20 sample grid) and featureClasses (structures listed, not counted);
+  `applyStreams` links downstream and upstream from OSM way order (flow direction); `classifyOsm` maps OSM
+  tags to the grid classes. Pins: @turf along, area, bbox, boolean-point-in-polygon, centroid, helpers,
+  intersect, length, point-to-line-distance, polygon-to-line 7.4.0 and tsx 4.23.15 (dev), all exact.
+  The CLI and the drill-site data wait for Stephen's site (plan Task 10 step 5).
+  Source: plan Task 10; spec section 10.5.
+  Verified: the 10 tests failed first (no modules), now pass (16 cells for a 500 m site, AA neighbours AB and
+  AE, areas sum to the site, a west-edge trail gives about 71/125 near, a stream east through AA, AB, AC
+  links in order); typecheck exits 0; Socket scores 80 to 100; `npm audit --omit=dev` 0; ci-local exits 0.
+- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
+  standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
+  the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
+  once android/ is on main or on a pull request that carries it.
+  Source: orchestrator request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  cases exit 1).
+  Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
+  main).
+- Task 35a: approach notes and the profile split. `shared/constants/approach-notes.json` holds the spec 13.3
+  copy (ours), the display order (may_not_respond and approach_calm first), when each note shows, a source
+  role per note and the card footer. `shared/engine-ts/src/approach.ts` exports approachNoteIds,
+  profileForSearchers (exactly the 20 profile/shared fields; dementiaType null without the family's
+  consent), profileForCommand (the 5 command fields), profileForModel (appearance and clothing only),
+  profileWarnings (photo past 60 days, profile past 183 days, or a missing date), detectionProfile (sound
+  counts only if the family says they answer; hide or uniform fears ask for a hidden target) and
+  placeToCheck (one destination event with a label and position only, effect none/informational).
+  Source: plan Task 35a; spec sections 10.4, 13.2 and 13.3. Lane C (web form) and lane B (iOS card) build on it.
+  Verified: the 11 new tests failed first (no module), now 166 engine tests pass; typecheck and lint exit 0;
+  the shared keys match the rules' profile/shared allowlist; ci-local exits 0. The plan's device check
+  (step 5) is lane B's.
+- The vectors README's section table lists all three afterFailure result shapes, including
+  `{ next: "reroute_without_on_device" }`, matching the rule text below it and the router vectors.
+  Source: fresh-context review minor 10.
+  Verified: the router vectors contain that shape (`grep -c reroute_without_on_device` on search.json is
+  above 0); ci-local exits 0.
+- The rules gate's `LanguageModel.availability` rule also catches optional chaining (`LanguageModel?.availability`)
+  and bracket access (`LanguageModel["availability"]`), so the call stays confined to web/src/ai/gate.ts.
+  Source: fresh-context review minor 11.
+  Docs may name the call (this entry tripped the first version).
+  Verified: the new tests failed first, now 20 gate tests pass; the gate is clean on main and on archives of
+  lane-web, lane-ios and lane-android; ci-local exits 0.
+- Cap `joinIncident` at 5 instances (`maxInstances: 5`, us-central1) to bound cost under abuse, alongside the
+  per-caller attempt budget. Test reads the function's deploy manifest.
+  Source: fresh-context review minor 6.
+  Verified: the new test failed first, now 85 emulator tests pass; ci-local exits 0. Not deployed.
+- firebase.json builds the functions before every deploy (`predeploy: npm --prefix "$RESOURCE_DIR" run build`),
+  so a deploy can never ship a stale `functions/lib` (it is gitignored and only built locally).
+  Source: fresh-context review minor 1.
+  Verified: the same command run from the root exits 0 and writes lib/index.js and lib/join.js; firebase.json
+  parses; ci-local exits 0. Nothing is deployed by this commit.
+- Schema parity checks more: for TypeScript, a string-enum property's values must equal the literal union of
+  its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
+  silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,
+  ios/PLSCore, android/app) exists, unless the mapping is marked `pending:` (iOS Plan.swift and Profile.swift
+  are marked pending until lane B builds them). The check found and this commit fixes a real drift:
+  `sdk_fallback` was in route-record.schema.json but not in the TS RouteReason type.
+  Source: fresh-context review I5.
+  Verified: 4 new parity tests failed first (enum alias, inline union, missing file with root, real repo),
+  now 15 pass; dry runs against origin/lane-ios, lane-android and lane-web: 0 failures; ci-local exits 0.
+- Clip readings are written before the upload and the model call (ruling I9): `clipReadings/{sha256}` is
+  created by command or family with exactly the spec section 7 fields plus `createdByUid`, the three required
+  consents (person in clip, footage owner, cloud processing; each `{byUid, atMs}` recorded by the writer),
+  `publicUse` null or a consent, `reading` and `route` null, a timestamp `expiresAt` and a server
+  `createdAt`; only its creator may then add `reading` and `route`, once, with the consents untouched.
+  Storage refuses a clip upload unless the uploader's own clip reading with those consents exists.
+  Source: orchestrator ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
+  Verified: 3 new tests (create needs the consents and no reading; one creator-only update; upload needs the
+  uploader's own reading) failed first, now 84 emulator tests pass; ci-local exits 0.
+- A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
+  TS type of the same name): the model's CameraSighting, `clipSha256`, `clipStartMs`, `clockConfirmed`
+  and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules
+  check that exact shape and that `clipReadings/{clipSha256}` exists. Command places and confirms the
+  sighting from it; no extra event field is added.
+  Source: orchestrator ruling I10 (lane D found the camera sighting had no link to its clip reading).
+  Verified: 2 new tests (valid readings accepted; null reading, unknown clip, bad hash, 10-degree facing,
+  text clock flag, extra key, missing parts and a text sighting refused) failed first (1 of 2), now 81
+  emulator tests pass; schema parity checks 14 TS types (0 failures); typecheck and ci-local exit 0.
+- The App Check test now sends a valid Auth emulator ID token and varies only the App Check header (none,
+  and a bad token): both get 401 with the wrapper's "Unauthenticated" message, never the handler's sign-in
+  message, and no claims are set. A control sends the same request through a callable built without
+  enforcement and gets 200 with the family claims, so the 401 can only come from App Check.
+  Source: Codex adversarial review M8 and the fresh-context review I4 (the old test sent no Auth token
+  either, so it passed with enforcement off).
+  Verified: with `enforceAppCheck: false` in functions/src/index.ts the new test fails (1 of 19 join tests),
+  restored it passes; 79 emulator tests pass; ci-local exits 0.
+- joinIncident hardening: a code must be 8 Crockford symbols after normalization (refused before any
+  read); each caller spends one attempt from an atomic budget of 10 per rolling hour before the lookup
+  (`joinAttempts/{uid}`, admin only; the 11th call is refused even with the right code); every failed join,
+  including an unknown team, gets the same permission-denied message; an invite may carry `expiresAt` and
+  `maxUses`, with uses counted in a transaction. Test fixture codes no longer use I, L, O or U.
+  Source: Codex adversarial review M7.
+  Verified: 3 new tests (one refusal for unknown team and wrong code, the attempt budget with a second
+  caller unaffected, invite expiry and single use) failed first, now 78 emulator tests pass; functions
+  typecheck exits 0; ci-local exits 0.
+- `docs/LIMITS.md` gains a media retention section: expiry locks a judge sandbox's media at once through
+  the rules; deleting the stored objects at expiry (`deleteIncidentMedia`, Task 23) and the 30-day drill
+  lifecycle file (Task 18) are marked PLANNED, not built; no app uses Storage download URLs.
+  Source: Codex adversarial review round 3, item 2 (the function itself lands with Task 23 and its tests).
+  Verified: wording checked against the repo (no deleteIncidentMedia or storage.lifecycle.json yet);
+  ci-local exits 0.
+- Rules gate bans Storage token URLs (`getDownloadURL`, `downloadURL`, `downloadUrl`) in web/, ios/ and
+  android/ code: a download URL carries a token that bypasses Storage rules, so a URL saved before a judge
+  sandbox expires would keep serving its clip. Client reads go through getBytes/getBlob, which evaluate the
+  rules. Docs may name the calls.
+  Source: Codex adversarial review round 3 (MEDIUM), items 1 and 3.
+  Verified: the new gate test failed first, now 18 gate tests pass; the gate is clean on main and a grep
+  finds 0 uses on origin/lane-ios, lane-web and lane-android; ci-local exits 0.
+- Clips and photos are create-only at their hash names: `clips/{incidentId}/{sha256}.mp4` and
+  `photos/{incidentId}/{sha256}.jpg` must match a lowercase 64-hex name with the right extension, and no
+  object may already exist there (`resource == null`; the emulator allowed an overwrite under the create
+  rule alone). A cached reading or consent record tied to a hash can no longer point at replaced bytes.
+  Rules cannot hash the bytes, so the reader checks the SHA-256 of what it reads (Task 18). Storage tests
+  clear the bucket before each test.
+  Source: Codex adversarial review M6.
+  Verified: 2 new tests (replacing a clip and a photo refused; four bad clip names and a .png photo
+  refused) failed first, then the overwrite case still passed until `resource == null` was added; now 75
+  emulator tests pass; ci-local exits 0.
+- Packs are per team: the pack record `packs/{teamId}` and the bundle are readable by command and by that
+  team only. Bundles move to `packs/{incidentId}/{teamId}/v{n}.bundle` (the spec's `{teamId}-v{n}.bundle`
+  file name could not be matched by team in Storage rules); the pack function (Task 12) writes this path.
+  Source: Codex adversarial review M5.
+  Verified: 2 new tests (another team's record and bundle refused, own team and command allowed, family
+  refused) failed first, now 73 emulator tests pass; ci-local exits 0.
+- Profile documents take only their own fields: `profile/shared` (readable by every member and carried in
+  packs) accepts only the 20 shared fields of spec section 13.2, with the 18 flag names as booleans, free
+  text at most 200 characters and at most 40 approach note ids; `profile/command` accepts only its 5 fields.
+  A field-mapping slip can no longer put previous addresses, places, past wandering, water, vehicle or
+  medication text where searchers read it.
+  Source: Codex adversarial review M4; fresh-context review minor 4.
+  Verified: 2 new tests (9 leaking writes to shared and 2 to command refused, valid writes accepted) failed
+  first, now 71 emulator tests pass; ci-local exits 0.
+- Add the `web` CI job (`.github/workflows/web.yml`, lane C's snippet): npm ci, web typecheck, Vitest, and a
+  Vite build with placeholder config (no real value in the repo; the build refuses to run without config).
+  Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to
+  shared/**, the lockfile and the workflow at the lane C merge). Mirrored in `ci-local.sh` behind a
+  web/package.json guard.
+  Source: orchestrator (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
+  Verified: action SHAs are the ones already pinned in engine.yml; `bash scripts/ci-local.sh` exits 0 here
+  (web skipped on main). First run expected on the next lane-web push.
+- Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
+  emulator keeps uploaded blobs under $TMPDIR/firebase, which was shared by every worktree, so another
+  lane's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
+  Source: lane C report of two storage test timeouts during a parallel run.
+  Verified: the new test failed first, now 5 emulator-config tests pass; the suite wrote its `firebase`
+  folder into the per-worktree temp dir and passed 69; ci-local exits 0.
 - README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
   data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
   Source: orchestrator self-audit sweep (a README path that does not exist is a checkable claim).

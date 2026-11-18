@@ -38,3 +38,14 @@ export const validPlan = (uid: string) => ({
   assignments: [{ teamId: "T1", segmentIds: ["AC"], taskText: "Sweep AC", reason: "Highest POA" }],
   wordingRoute: null, approvedByUid: uid, approvedAt: serverTimestamp(), createdClientTimeMs: 1795860000000,
 });
+
+/** A clip reading written before upload (ruling I9): consent record present, reading null. */
+export function clipReadingDoc(incidentId: string, sha: string, uid: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+  const c = { byUid: uid, atMs: 1795860000000 };
+  return {
+    sha256: sha, storagePath: `clips/${incidentId}/${sha}.mp4`, durationS: 12, clipStartMs: 1795860000000,
+    clockConfirmed: true, cameraFacingDeg: 90, reading: null, route: null,
+    consent: { personInClip: c, footageOwner: c, cloudProcessing: c, publicUse: null },
+    expiresAt: new Date(Date.now() + 30 * 86400_000), createdAt: serverTimestamp(), createdByUid: uid, ...over,
+  };
+}

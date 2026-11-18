@@ -156,6 +156,35 @@ describe("events: each effect variant is validated (spec section 8)", () => {
   });
 });
 
+const SHA = "f".repeat(64);
+const camSighting = {
+  personVisible: true, firstSeen: "00:02", lastSeen: "00:09", entryEdge: "left", exitEdge: "right",
+  topColor: "red", bottomColor: "blue", topType: "coat", footwear: "slippers", headwear: "", carriedItems: [],
+  keyFrame: { time: "00:05", box2d: [100, 200, 600, 400] }, lighting: "day", legibility: "clear", evidence: "walks right",
+};
+const camReading = { sighting: camSighting, clipSha256: SHA, clipStartMs: 1795860000000, clockConfirmed: true, cameraFacingDeg: 90 };
+
+describe("events: a camera sighting carries its clip reference (ruling I10)", () => {
+  const fam = (over: Record<string, unknown> = {}) =>
+    validEvent(F, { role: "family", teamId: null, reporter: "camera", inputMethod: "clip", positionSource: "camera_pin",
+                    type: "camera_sighting", effect: { kind: "none", why: "incorporated_in_prior" }, reading: camReading, ...over });
+  beforeEach(async () => {
+    await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set({ sha256: SHA, createdByUid: F, reading: null });
+  });
+  it("a camera sighting with the clip hash, start, clock check and facing is accepted", async () => {
+    await assertSucceeds(put(dbAs(F, familyClaims), fam()));
+    await assertSucceeds(put(dbAs(F, familyClaims), fam({ seq: 2, reading: { ...camReading, cameraFacingDeg: null } })));
+  });
+  it("its reading must be that shape, name an existing clip reading, and use an 8-way facing", async () => {
+    const db = dbAs(F, familyClaims);
+    for (const reading of [null, { ...camReading, clipSha256: "e".repeat(64) }, { ...camReading, clipSha256: "XYZ" },
+                           { ...camReading, cameraFacingDeg: 10 }, { ...camReading, clockConfirmed: "yes" },
+                           { ...camReading, extra: 1 }, { clipSha256: SHA }, { ...camReading, sighting: "walked away" }]) {
+      await assertFails(put(db, fam({ reading })));
+    }
+  });
+});
+
 describe("events: types by role", () => {
   it("a searcher cannot confirm a sighting; command can", async () => {
     await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { type: "confirmation", targetEventId: TARGET, decision: "confirmed" })));
@@ -171,7 +200,8 @@ describe("events: types by role", () => {
     const fam = (seq: number, type: string, over: Record<string, unknown> = {}) =>
       validEvent(F, { seq, role: "family", teamId: null, reporter: "family", type, ...over });
     await assertSucceeds(put(db, fam(1, "sighting")));
-    await assertSucceeds(put(db, fam(2, "camera_sighting")));
+    await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set({ sha256: SHA, createdByUid: F, reading: null });
+    await assertSucceeds(put(db, fam(2, "camera_sighting", { reporter: "camera", reading: camReading })));
     await assertSucceeds(put(db, fam(3, "destination")));
     await assertSucceeds(put(db, fam(4, "confirmation", { targetEventId: eventIdFor("I1", F, 2), decision: "confirmed" })));
     await assertFails(put(db, fam(5, "cleared")));

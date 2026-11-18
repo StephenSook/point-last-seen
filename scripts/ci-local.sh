@@ -35,6 +35,15 @@ echo "== rules: functions typecheck, rules and joinIncident tests in the emulato
 npm run typecheck -w functions
 npm run test:rules -w functions
 
+if [ -e web/package.json ]; then
+  echo "== web: typecheck, unit tests and build (uses the developer's untracked .env.local)"
+  npm run typecheck -w web
+  npm test -w web
+  npm run build -w web
+else
+  echo "== web: skipped, web/ not on this branch"
+fi
+
 if [ -d ios/PLSCore ]; then
   echo "== swift-core: Swift core tests"
   swift test --package-path ios/PLSCore
@@ -45,6 +54,7 @@ fi
 if [ -x android/gradlew ]; then
   echo "== android: unit tests and debug build"
   (cd android && ./gradlew --no-daemon testDebugUnitTest assembleDebug)
+  python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 150
 else
   echo "== android: skipped, android/ not on this branch"
 fi

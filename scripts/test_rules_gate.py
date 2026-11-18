@@ -148,3 +148,33 @@ def test_model_builder_floor_catches_a_moved_builder(tmp_path):
     write(tmp_path, "web/src/ai/client.ts", "export const nothing = 1")
     out = run_gate(tmp_path)
     assert out.returncode == 1 and "web/src/ai/client.ts" in out.stdout
+
+
+def test_storage_token_urls_are_banned_in_client_code(tmp_path):
+    # A download URL carries a token that bypasses Storage rules, so a URL saved before a judge sandbox
+    # expires would still serve the clip afterwards. Client reads go through getBytes/getBlob instead.
+    write(tmp_path, "web/src/ok.ts", "const bytes = await getBytes(ref(storage, path))\n")
+    assert run_gate(tmp_path).returncode == 0
+    for rel, text in [("web/src/camera/Clip.tsx", "const url = await getDownloadURL(r)"),
+                      ("ios/PLS/Data/Media.swift", "ref.downloadURL { url, err in }"),
+                      ("android/app/src/main/java/app/pointlastseen/family/data/Media.kt", "ref.downloadUrl.addOnSuccessListener { }")]:
+        write(tmp_path, rel, text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and rel in out.stdout, rel
+        (tmp_path / rel).unlink()
+    write(tmp_path, "docs/LIMITS.md", "The apps never call getDownloadURL.\n")
+    assert run_gate(tmp_path).returncode == 0
+
+
+def test_availability_ban_covers_optional_chaining_and_brackets(tmp_path):
+    write(tmp_path, "web/src/ai/gate.ts", "LanguageModel?.availability(o)")
+    assert run_gate(tmp_path).returncode == 0
+    for text in ("window.LanguageModel?.availability(o)", 'LanguageModel["availability"](o)', "LanguageModel ?. availability(o)"):
+        write(tmp_path, "web/src/ai/other.ts", text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and "other.ts" in out.stdout, text
+
+
+def test_docs_may_name_the_availability_call(tmp_path):
+    write(tmp_path, "CHANGELOG.md", "The gate keeps `LanguageModel?.availability` in web/src/ai/gate.ts.\n")
+    assert run_gate(tmp_path).returncode == 0

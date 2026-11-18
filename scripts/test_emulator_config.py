@@ -54,3 +54,19 @@ def test_project_id_is_a_demo_project_per_worktree(tmp_path):
     a, b = project_id(REPO), project_id(other)
     assert a.startswith("demo-pls-") and b.startswith("demo-pls-") and a != b
     assert a == project_id(REPO) and len(a) <= 30
+
+
+def tmpdir(root):
+    out = subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--tmpdir"], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    return Path(out.stdout.strip())
+
+
+def test_tmpdir_is_per_worktree_and_exists(tmp_path):
+    # The Storage emulator keeps blobs under $TMPDIR/firebase; a shared folder let one worktree's run
+    # delete another's uploads in flight.
+    other = tmp_path / "point-last-seen-web"
+    other.mkdir()
+    (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
+    a, b = tmpdir(REPO), tmpdir(other)
+    assert a.is_dir() and b.is_dir() and a != b and a == tmpdir(REPO)

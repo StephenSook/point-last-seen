@@ -51,7 +51,13 @@ MODEL_BUILDERS = {
     "FirebaseAI.firebaseAI(": ("ios/PLS/AI/AIClient.swift",),
     "Firebase.ai(": ("android/app/src/main/java/app/pointlastseen/family/ai/AiClient.kt",),
 }
-AVAILABILITY = re.compile(r"(?<!System)LanguageModel\.availability")
+# A Storage download URL carries a token that bypasses Storage rules (a URL saved before a judge sandbox
+# expires would keep serving its clip). Client code reads media with getBytes/getBlob instead.
+TOKEN_URL = re.compile(r"\b(getDownloadURL|downloadURL|downloadUrl)\b")
+CLIENT_DIRS = ("web/", "ios/", "android/")
+
+# Plain, optional-chained (?.) and bracket ("availability") access all count.
+AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
 MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
 ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
@@ -98,7 +104,7 @@ def check_lines(rel: str, text: str) -> list[str]:
         m = ANYCASE.search(line)
         if m:
             bad(f"banned name '{m.group(0)}'")
-        if AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
+        if not is_doc and AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
             bad("LanguageModel.availability is allowed only in the web AI gate module")
         if rel in COUNT_TOKENS_BANNED_IN and "countTokens" in line:
             bad("countTokens is banned in private-data paths")
@@ -108,6 +114,10 @@ def check_lines(rel: str, text: str) -> list[str]:
                 bad(f"walkers.ts may use only integer PRNG steps and + - * / compare, found '{m.group(0)}'")
         if SLOW_MODEL in line and not is_doc:
             bad(f"model id '{SLOW_MODEL}' is banned on any live path")
+        if not is_doc and rel.startswith(CLIENT_DIRS):
+            m = TOKEN_URL.search(line)
+            if m:
+                bad(f"Storage token URL '{m.group(0)}' bypasses Storage rules; read with getBytes/getBlob")
         if not is_doc:
             for token, allowed in MODEL_BUILDERS.items():
                 if token in line and rel not in allowed:

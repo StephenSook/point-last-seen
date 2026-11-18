@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
-import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 
 export type JoinRole = "command" | "searcher" | "family";
@@ -31,8 +31,42 @@ function bad(message: string): never {
   throw new HttpsError("invalid-argument", message);
 }
 
-/** One message for every wrong code, closed incident or unknown incident, so the reply is not an oracle. */
+/** One message for every failed join (wrong or malformed code, wrong role, closed, expired or unknown
+ * incident, unknown team, used-up invite), so the reply is never an oracle. */
 const DENIED = "The join code does not match an open incident.";
+const denied = (): never => {
+  throw new HttpsError("permission-denied", DENIED);
+};
+/** 8 symbols of the Crockford base-32 alphabet (no I, L, O or U), after normalization. */
+const CODE_FORMAT = /^[0-9A-HJKMNP-TV-Z]{8}$/;
+export const JOIN_ATTEMPTS_PER_HOUR = 10;
+const HOUR_MS = 3600_000;
+
+/**
+ * Spends one join attempt for this caller, atomically, before any code lookup: at most
+ * JOIN_ATTEMPTS_PER_HOUR in a rolling one-hour window (joinAttempts/{uid}, admin only).
+ */
+async function spendAttempt(db: Firestore, uid: string): Promise<void> {
+  const ref = db.doc(`joinAttempts/${uid}`);
+  const allowed = await db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const start = snap.get("windowStartMs");
+    const fresh = typeof start !== "number" || now - start >= HOUR_MS;
+    const count = fresh ? 0 : (snap.get("count") as number) ?? 0;
+    if (count >= JOIN_ATTEMPTS_PER_HOUR) return false;
+    tx.set(ref, { windowStartMs: fresh ? now : start, count: count + 1 });
+    return true;
+  });
+  if (!allowed) throw new HttpsError("resource-exhausted", "Too many join attempts. Try again in an hour.");
+}
+
+function inviteUsable(code: DocumentSnapshot): boolean {
+  const exp = code.get("expiresAt");
+  if (exp != null && !(exp instanceof Timestamp && exp.toMillis() > Date.now())) return false;
+  const max = code.get("maxUses");
+  return max == null || (typeof max === "number" && ((code.get("uses") as number) ?? 0) < max);
+}
 
 /**
  * Checks the join code and sets the caller's custom claims { inc, role, team }. Code hashes live in
@@ -50,29 +84,41 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   if (incidentId !== undefined && (typeof incidentId !== "string" || !ID.test(incidentId))) bad("incidentId is malformed.");
   if (role === "searcher" && (typeof teamId !== "string" || !ID.test(teamId))) bad("A searcher must name a team.");
 
+  if (!CODE_FORMAT.test(normalizeJoinCode(joinCode))) denied();
   const db = getFirestore();
-  const code = await db.doc(`joinCodes/${hashJoinCode(joinCode)}`).get();
+  await spendAttempt(db, uid);
+  const codeRef = db.doc(`joinCodes/${hashJoinCode(joinCode)}`);
+  const code = await codeRef.get();
   const id = code.get("incidentId");
   const roles = code.get("roles");
   // One code per role: a code doc must name exactly one role, so a searcher's code can never admit
   // family (profile/command) or command.
   if (!code.exists || typeof id !== "string" || !Array.isArray(roles) || roles.length !== 1 || roles[0] !== role) {
-    throw new HttpsError("permission-denied", DENIED);
+    denied();
   }
-  if (incidentId !== undefined && incidentId !== id) throw new HttpsError("permission-denied", DENIED);
+  if (incidentId !== undefined && incidentId !== id) denied();
+  if (!inviteUsable(code)) denied();
   const incident = await db.doc(`incidents/${id}`).get();
   // A judge sandbox needs a future timestamp expiry; any other incident may have none, but a set one counts.
   const expiresAt = incident.get("expiresAt");
   const live = expiresAt instanceof Timestamp && expiresAt.toMillis() > Date.now();
   const expired = incident.get("mode") === "judge" ? !live : expiresAt != null && !live;
-  if (!incident.exists || incident.get("status") !== "open" || expired) {
-    throw new HttpsError("permission-denied", DENIED);
-  }
+  if (!incident.exists || incident.get("status") !== "open" || expired) denied();
   let team: string | null = null;
   if (role === "searcher") {
     const t = await db.doc(`incidents/${id}/teams/${teamId}`).get();
-    if (!t.exists) bad("That team is not part of this incident.");
+    if (!t.exists) denied();
     team = teamId!;
+  }
+  // Count a use of a limited invite atomically, refusing if another caller took the last one meanwhile.
+  if (code.get("maxUses") != null) {
+    const ok = await db.runTransaction(async tx => {
+      const fresh = await tx.get(codeRef);
+      if (!inviteUsable(fresh)) return false;
+      tx.update(codeRef, { uses: FieldValue.increment(1) });
+      return true;
+    });
+    if (!ok) denied();
   }
   await getAuth().setCustomUserClaims(uid, { inc: id, role, team });
   return { ok: true, incidentId: id };
