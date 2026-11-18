@@ -12,6 +12,18 @@ each line says what the limit is and why.
 - An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
   and the rules require 31 to 33 days, so the consent and the upload are refused.
 
+## Sign-in and joining
+
+- Firebase Auth refuses anonymous sign-ups from one network address after many in a short time: its REST
+  answer is HTTP 400 `TOO_MANY_ATTEMPTS_TRY_LATER`, which the web SDK raises as `auth/too-many-requests`, and
+  the web app then says it could not sign in. A real user signs up once. On drill day, open the site on each
+  device before arriving, not all at once on the site's Wi-Fi. (Hit by our own end-to-end suite on
+  2026-11-18; the suite now signs up once per run.)
+- `joinIncident` allows 10 join attempts per user in a one-hour window that starts at the first attempt
+  (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
+  again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
+  carefully.
+
 ## Search model
 
 - The linear-feature layer (ISRID: 75% of found subjects within 71 m of a road, trail, stream or water edge)

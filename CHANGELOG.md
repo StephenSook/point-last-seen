@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- LIMITS names two sign-in limits a drill can hit: Firebase Auth's anonymous sign-up limit per network
+  address (HTTP 400 TOO_MANY_ATTEMPTS_TRY_LATER, auth/too-many-requests on the web) and joinIncident's 10
+  join attempts per user per one-hour window from the first attempt, with what to do on drill day.
+  Source: lane C (both hit or checked on 2026-11-18).
+  Verified: the join limit, window and message read in functions/src/join.ts; the web's current sign-in
+  message read on main; `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md`: Firebase's AI Logic security checklist, row by row, with the state read back from the
   live project on 2026-11-18, and how anyone can check it: a keyless call a stranger can paste (with the site's
   Referer it answers 401 "Firebase App Check token is invalid."; without it the key answers 403
