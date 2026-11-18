@@ -669,3 +669,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `prior/walkerPrior.ts`: `loadRouteGraph(url)` reads the site's route graph file (absent on a 404 or the hosting's HTML answer, invalid when it is not JSON or lacks stations, edges and nodes, unavailable when the fetch fails); `walkerPriorWrites` makes a walker table the shared prior: every segment's `priorPoa` and ROW (the ring prior stays in `ringPoa` as the baseline), and the incident's `priorModel` "walkers", `priorSeed`, the places used as attractors added once to `priorInputEventIds`, and `priorVersion + 1`.
 - Source: plan Task 37c ("a change rewrites segments.priorPoa (rings stay in ringPoa), sets priorModel and priorSeed, adds any destination used as an attractor to priorInputEventIds, raises priorVersion").
 - Verified: `src/prior/walkerPrior.test.ts` (4 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
+
+### feat(walkers): add the Walkers or Rings switch with its two options of ours
+- What: `command/PriorSwitch.tsx`: Rings and Walkers buttons (pressed state), "Pull toward confirmed places (ours)" (enabled when confirmed places exist) and "Low mobility: shorter distances (ours)", always the line "The walker model is a prior for planning. It does not predict where a person is.", a confirm step ("Every team's map and match code change."), the measured run line ("10,000 walkers in 1.84 s on this laptop.") and the sending line. Without the site's route graph Walkers is disabled with the reason. Dev-only harness `web/harness/prior-switch.html`.
+- Source: plan Task 37c and spec 10.6.
+- Verified: new `e2e/harness/prior-switch.spec.ts` (2 tests) failed first (component missing), then passed. scripts/ci-local.sh exit 0.
