@@ -45,3 +45,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `TeamsRail` lists teams by name. Teams have no colours: the active team is fg-1 and the others fg-4, and each row carries `data-testid="team-card-<teamId>"` for the e2e tests.
 - Source: plan Task 15 (teams rail), spec 22.1 ("Teams have no colours").
 - Verified: typecheck and build clean.
+
+### feat(web): wire the command post: join as command, then map, teams, POA and lanes
+- What: `CommandPost` starts Firebase (or shows which build values are missing), signs in, and opens the post when the ID token already holds `inc` and role command for `?incident=`; otherwise it shows the join form. The post subscribes to the incident and its events, shows the drill line "Training drill. Nobody is missing." in the header, the map, the teams rail, the POA list and the merge lanes. Errors shown to the user are fixed plain sentences; raw error text never reaches the page. The convergence code reads "----" until the engine (Task 8) lands.
+- Source: plan Task 15 step 3; rival self-audit addendum ("no raw error text reaches the DOM").
+- Verified: typecheck and build clean; local smoke renders the join form with the drill line.
