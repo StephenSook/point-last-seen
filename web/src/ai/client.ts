@@ -68,3 +68,8 @@ export function photoGenerator(ai: AI): PhotoDeps["generate"] {
 export function photoCloudGenerator(ai: AI, model: string): PhotoDeps["generate"] {
   return photoGeneratorFor(getGenerativeModel(ai, photoCloudParams(model), { timeout: REPLY_TIMEOUT_MS }));
 }
+
+/** Starts Chrome's model download from a click, on a model built with the photo options the reads use. */
+export function deviceModelInitializer(ai: AI): (onProgress: (v: number) => void) => Promise<void> {
+  return (onProgress) => getGenerativeModel(ai, photoParams(), PRIVATE_REQUEST_OPTIONS).initializeDeviceModel(onProgress);
+}

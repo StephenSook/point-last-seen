@@ -13,9 +13,10 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { getFunctions, type Functions } from "firebase/functions";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { readEnv, type FirebaseEnv } from "./firebaseConfig";
 
-export type Pls = { env: FirebaseEnv; app: FirebaseApp; appCheck: AppCheck; db: Firestore; auth: Auth; functions: Functions };
+export type Pls = { env: FirebaseEnv; app: FirebaseApp; appCheck: AppCheck; db: Firestore; auth: Auth; functions: Functions; storage: FirebaseStorage };
 
 let instance: Pls | undefined;
 
@@ -29,7 +30,8 @@ export function getPls(): Pls {
   });
   const auth = getAuth(app);
   const functions = getFunctions(app, "us-central1");
-  instance = { env, app, appCheck, db, auth, functions };
+  const storage = getStorage(app);
+  instance = { env, app, appCheck, db, auth, functions, storage };
   return instance;
 }
 

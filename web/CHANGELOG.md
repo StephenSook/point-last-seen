@@ -266,3 +266,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `photos/jpeg.ts`: `fitWithin` keeps the shape, never scales up and refuses an empty image; `toStandardJpeg` draws the photo on a canvas at that size and re-encodes it as JPEG, so no EXIF (place, time, device) survives.
 - Source: plan Task 20 ("one photo per call, 1536 px JPEG"), spec 6.4 (photos standardized to JPEG, 1536 px, EXIF stripped).
 - Verified: `src/photos/jpeg.test.ts`, 3 tests, failed first (module missing), then passed. The canvas step runs only in a browser.
+
+### feat(photos): add Storage to the app and a click-started model download builder
+- What: `getPls()` now also returns the Storage instance; `client.ts` gains `deviceModelInitializer`, which calls the SDK's `initializeDeviceModel` on a model built with the photo options and the private request options, so the download a person starts is for the same model the photo reads use.
+- Source: plan Task 20 ("Get this laptop ready" calls `initializeDeviceModel` from the click).
+- Verified: typecheck and build clean; the progress and failure handling are tested in `deviceModel.test.ts`.
