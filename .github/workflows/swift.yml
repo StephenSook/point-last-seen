@@ -1,12 +1,16 @@
 name: Swift core
 
 # Expensive (Swift in Docker): runs on pull requests to main and on main only, when the Swift
-# core, the shared vectors or constants it reads, or this workflow change.
+# core, the iOS view sources its text-size test scans, the shared vectors or constants it reads, or this
+# workflow change.
 on:
   push:
     branches: [main]
     paths:
       - "ios/PLSCore/**"
+      - "ios/PLS/**"
+      - "ios/PLSWidgets/**"
+      - "ios/PLSShared/**"
       - "shared/test-vectors/**"
       - "shared/constants/**"
       - ".github/workflows/swift.yml"
@@ -14,6 +18,9 @@ on:
     branches: [main]
     paths:
       - "ios/PLSCore/**"
+      - "ios/PLS/**"
+      - "ios/PLSWidgets/**"
+      - "ios/PLSShared/**"
       - "shared/test-vectors/**"
       - "shared/constants/**"
       - ".github/workflows/swift.yml"

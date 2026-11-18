@@ -114,6 +114,15 @@ def test_slow_model_id_banned_outside_docs(tmp_path):
     assert run_gate(tmp_path).returncode == 1
 
 
+def test_slow_model_ban_matches_the_whole_id_only(tmp_path):
+    # gemini-3.8-flash is banned; the TTS ids that start with the same text are different models.
+    write(tmp_path, "shared/constants/models.json", '{"models": [{"id": "gemini-3.8-flash-lite-tts"}], "banned": []}')
+    write(tmp_path, "remoteconfig.template.json", '{"tts_model_ios": "gemini-3.8-flash-lite-tts"}')
+    assert run_gate(tmp_path).returncode == 0
+    write(tmp_path, "web/src/ai/x.ts", 'const m = "gemini-3.8-flash";\n')
+    assert run_gate(tmp_path).returncode == 1
+
+
 def test_binary_files_are_skipped(tmp_path):
     (tmp_path / "tiles.pmtiles").write_bytes(b"PMTiles\x00\x01import Speech\x00")
     write(tmp_path, "ok.ts", "export {}\n")

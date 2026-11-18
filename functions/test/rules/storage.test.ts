@@ -69,6 +69,16 @@ describe("storage rules (spec section 7)", () => {
     await admin.db.doc(`incidents/I1/clipReadings/${third}`).set(clipReadingDoc("I1", third, "family-uid", { createdAt: new Date() }));
     await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${third}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
+  it("a clip upload needs a fresh consent: its clip reading must be under 24 hours old (review round 2)", async () => {
+    // The consent record expires 31 to 33 days after it is written and the clip 30 days after upload, so an
+    // upload within a day of the consent can never outlive it.
+    const fam = storageAs("family-uid", familyClaims);
+    const stale = "e".repeat(64), fresh = "f".repeat(64);
+    await admin.db.doc(`incidents/I1/clipReadings/${stale}`).set(clipReadingDoc("I1", stale, "family-uid", { createdAt: new Date(Date.now() - 25 * 3_600_000) }));
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${stale}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc(`incidents/I1/clipReadings/${fresh}`).set(clipReadingDoc("I1", fresh, "family-uid", { createdAt: new Date(Date.now() - 23 * 3_600_000) }));
+    await assertSucceeds(uploadBytes(ref(fam, `clips/I1/${fresh}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
   it("no client writes packs", async () => {
     await assertFails(uploadBytes(ref(storageAs("command-uid", commandClaims), "packs/I1/T1/v1.bundle"), bytes(10), { contentType: "application/octet-stream" }));
   });

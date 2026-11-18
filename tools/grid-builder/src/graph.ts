@@ -237,16 +237,25 @@ export function buildRouteGraph(features: Feature<Geometry>[], grid?: Grid, opti
     }
   }
 
+  const bounds = options.bounds ? options.bounds.map(jsonNumber) as [number, number, number, number] : null;
   return {
     graphId: grid?.gridId ?? "routes", gridId: grid?.gridId ?? "routes", stationSpacingM: SPACING_M,
-    origin, nodes, edges, attribution: ATTRIBUTION,
+    origin, nodes, edges, bounds,
+    projection: { metresPerDegreeLat: jsonNumber(projection.metresPerDegreeLat), metresPerDegreeLon: jsonNumber(projection.metresPerDegreeLon) },
+    attribution: ATTRIBUTION,
   };
 }
 
-/** Adapt stored edges to station IDs, using the original extract bounds to mark exits. */
-export function indexRouteGraph(graph: RouteGraph, bounds?: Bounds): WalkerRouteGraph {
-  const projection = projectionAt(graph.origin);
-  const extent = toExtent(projection, bounds);
+/**
+ * Adapt stored edges to station IDs. The graph carries its own extract bounds and projection, so a reload
+ * rebuilds the same exits with no outside input; a graph without them is refused, because reading it as
+ * "no exits" would silently keep walkers that should leave the area on the graph.
+ */
+export function indexRouteGraph(graph: RouteGraph): WalkerRouteGraph {
+  if (graph.bounds === undefined) throw new Error(`route graph ${graph.graphId} has no bounds field: rebuild it with the grid builder`);
+  if (!graph.projection) throw new Error(`route graph ${graph.graphId} has no projection: rebuild it with the grid builder`);
+  const projection = { origin: graph.origin, ...graph.projection };
+  const extent = toExtent(projection, graph.bounds ?? undefined);
   const nodes = graph.nodes.map(node => ({ id: node.nodeId, edgeIds: [] as number[], boundary: onBoundary(node, extent) }));
   const nodesById = new Map(nodes.map(node => [node.id, node]));
   const stations: WalkerRouteGraph["stations"] = [];
@@ -260,7 +269,7 @@ export function indexRouteGraph(graph: RouteGraph, bounds?: Bounds): WalkerRoute
 }
 
 export function buildGraph(features: Feature<Geometry>[], grid?: Grid, options: GraphOptions = {}): WalkerRouteGraph {
-  return indexRouteGraph(buildRouteGraph(features, grid, options), options.bounds);
+  return indexRouteGraph(buildRouteGraph(features, grid, options));
 }
 
 /** Write the site's graph next to its grid, independent of the caller's working directory. */

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import constants from "../../constants/urgency.json";
 import vectors from "../../test-vectors/urgency.json";
-import { urgencyLevel } from "../src/index";
+import { urgencyFromConditions, urgencyLevel } from "../src/index";
 
 describe("urgency chip", () => {
   it("cites the CDC sentence it rests on, with the date it was read", () => {
@@ -18,4 +18,12 @@ describe("urgency chip", () => {
   for (const c of vectors.cases) {
     it(c.name, () => expect(urgencyLevel(c.input.tempF, c.input.wet)).toBe(c.expected));
   }
+});
+
+describe("urgency from the incident's conditions", () => {
+  it("reads the typed temperature and wet answer; no conditions gives no chip", () => {
+    expect(urgencyFromConditions({ tempF: 41, wet: true, setAtMs: 1 })).toBe("cool_wet");
+    expect(urgencyFromConditions({ tempF: 39, wet: null, setAtMs: 1 })).toBe("cold");
+    expect(urgencyFromConditions(null)).toBe("none");
+  });
 });

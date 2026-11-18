@@ -38,7 +38,8 @@
         "permissive_text",
         "deterministic_parser",
         "evidence_protocol",
-        "sdk"
+        "sdk",
+        "picklist"
       ]
     },
     "model": {

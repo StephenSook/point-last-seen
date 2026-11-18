@@ -62,7 +62,10 @@ it("a trail meeting a water edge keeps its junctions after a graph JSON round tr
   const reloaded: RouteGraph = JSON.parse(JSON.stringify(document));
   expect(reloaded).toEqual(document);
 
-  const graph = indexRouteGraph(reloaded, bounds);
+  // The stored graph carries its own extract bounds and projection, so a reload needs no outside input.
+  expect(reloaded.bounds).toEqual(bounds);
+  expect(reloaded.projection.metresPerDegreeLat).toBeGreaterThan(0);
+  const graph = indexRouteGraph(reloaded);
   const junctions = graph.nodes.filter(node => {
     const classes = edgeClasses(graph, node);
     return classes.has("water_edge") && classes.has("trail");
@@ -70,4 +73,18 @@ it("a trail meeting a water edge keeps its junctions after a graph JSON round tr
   expect(junctions).toHaveLength(2);
   expect(graph.nodes.filter(node => node.boundary)).toHaveLength(1);
   expect(graph.stations.some(station => station.segmentId !== null)).toBe(true);
+});
+
+it("a graph built without bounds stores null and has no exits, said explicitly", () => {
+  const document = buildRouteGraph(straightRoad1km, undefined, { origin: ORIGIN });
+  expect(document.bounds).toBeNull();
+  expect(indexRouteGraph(JSON.parse(JSON.stringify(document))).nodes.filter(n => n.boundary)).toHaveLength(0);
+});
+
+it("a stored graph without bounds or projection is refused, never read as having no exits", () => {
+  const document: Record<string, unknown> = JSON.parse(JSON.stringify(buildRouteGraph(straightRoad1km, undefined, { origin: ORIGIN })));
+  const { bounds: _b, ...noBounds } = document;
+  const { projection: _p, ...noProjection } = document;
+  expect(() => indexRouteGraph(noBounds as never)).toThrow(/bounds/);
+  expect(() => indexRouteGraph(noProjection as never)).toThrow(/projection/);
 });

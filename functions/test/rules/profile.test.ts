@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
-import { allFlags, clipReadingDoc } from "../fixtures";
+import { allFlags, clipReadingDoc, sharedProfile } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
 const S = "searcher-uid", C = "command-uid", F = "family-uid";
@@ -8,7 +8,7 @@ const S = "searcher-uid", C = "command-uid", F = "family-uid";
 beforeEach(async () => {
   await clearFirestore();
   await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
-  await admin.db.doc("incidents/I1/profile/shared").set({ answersTo: "Mom" });
+  await admin.db.doc("incidents/I1/profile/shared").set(sharedProfile());
   await admin.db.doc("incidents/I1/profile/command").set({ nearbyWater: "creek" });
 });
 afterAll(closeClients);
@@ -26,16 +26,15 @@ describe("subject profile split (spec section 13.2)", () => {
       const db = dbAs(uid, claims);
       await assertSucceeds(getDoc(doc(db, "incidents/I1/profile/shared")));
       await assertSucceeds(getDoc(doc(db, "incidents/I1/profile/command")));
-      await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), { answersTo: "Mom" }));
+      await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile()));
       await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/command"), { nearbyWater: "creek" }));
     }
   });
   it("profile/shared takes only the shared fields, so private history can never land in a searcher-readable doc", async () => {
     const db = dbAs(F, familyClaims);
-    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), {
-      answersTo: "Mom", ageYears: 81, clothingLastWorn: "red coat", mobilityAids: ["cane"],
+    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile({
       flags: allFlags(["mayNotRespond", "likelyToHide"]), approachNoteIds: ["may_not_respond"],
-    }));
+    })));
     for (const leak of [{ previousAddresses: [] }, { placesFrequented: [] }, { pastWandering: [] }, { vehicle: null },
                         { nearbyWater: "creek" }, { medications: "x" }, { flags: { notAFlag: true } }, { flags: { likelyToHide: "yes" } },
                         { appearance: "x".repeat(201) }]) {

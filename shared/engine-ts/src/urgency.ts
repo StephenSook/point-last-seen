@@ -1,4 +1,5 @@
 import constants from "../../constants/urgency.json";
+import type { IncidentConditions } from "./types";
 
 export type UrgencyLevel = "cold" | "cool_wet" | "none";
 
@@ -12,4 +13,9 @@ export function urgencyLevel(tempF: number | null, wet: boolean | null, coldF: n
   if (tempF === null) return "none";
   if (tempF <= coldF) return "cold";
   return wet === true ? "cool_wet" : "none";
+}
+
+/** The chip for an incident's typed conditions; no conditions doc gives none. */
+export function urgencyFromConditions(c: IncidentConditions | null | undefined): UrgencyLevel {
+  return c ? urgencyLevel(c.tempF, c.wet) : "none";
 }

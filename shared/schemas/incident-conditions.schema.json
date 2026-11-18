@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/incident-conditions.schema.json",
+  "title": "IncidentConditions",
+  "description": "The incident doc's `conditions` field: the typed temperature and wet answer that drive the urgency chip (shared/constants/urgency.json). Written by command; read by every member.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tempF",
+    "wet",
+    "setAtMs"
+  ],
+  "properties": {
+    "tempF": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": -80,
+          "maximum": 140
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Typed air temperature in Fahrenheit, or null when not known"
+    },
+    "wet": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Typed: is the person likely wet (rain, sweat, water)? null when unanswered (counts as dry)"
+    },
+    "setAtMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Client time the values were typed"
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "shared/engine-ts/src/types.ts#IncidentConditions",
+      "ios": "pending:ios/PLSCore/Sources/PLSCore/IncidentConditions.swift#IncidentConditions"
+    }
+  }
+}

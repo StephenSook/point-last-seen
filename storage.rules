@@ -24,7 +24,10 @@ service firebase.storage {
     // Ruling I9: the uploader's own clip reading, with the three required consents, exists before the upload.
     function clipReadingReady(incidentId, file) {
       let c = firestore.get(/databases/(default)/documents/incidents/$(incidentId)/clipReadings/$(file.split('[.]')[0])).data;
+      // The consent must be under 24 hours old: it expires 31 to 33 days after it is written and the clip 30
+      // days after upload, so an upload within a day can never outlive its consent.
       return c.createdByUid == request.auth.uid
+        && c.createdAt > request.time - duration.value(24, 'h')
         && c.consent.personInClip != null && c.consent.footageOwner != null && c.consent.cloudProcessing != null;
     }
     function isMember(incidentId) {
