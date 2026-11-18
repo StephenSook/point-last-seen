@@ -159,16 +159,16 @@ object Profiles {
     )
 
     /**
-     * Approach note ids (spec section 13.3), "may_not_respond" and "approach_calm" first,
-     * then the rest in table order. The dementia type counts only when the family shares it.
+     * Approach note ids in the spec section 13.3 table order, filtered by each row's
+     * "shown when" rule. The dementia type counts only when the family shares it.
      */
     fun approachNoteIds(p: SubjectProfile): List<String> {
         val f = p.flags
         val ids = mutableListOf<String>()
         if ("mayNotRespond" in f) ids += "may_not_respond"
-        ids += "approach_calm"
         if ("likelyToHide" in f) ids += "likely_to_hide"
         if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
+        ids += "approach_calm"
         if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"
         if ("lookingForHome" in f) ids += "looking_for_home"
         if ("gaitUnsteady" in f) ids += "gait_unsteady"

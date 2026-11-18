@@ -4,6 +4,11 @@ Lane D (Android). Newest first. Each entry: what changed, its source, how it was
 
 ## Unreleased
 
+- **Approach notes follow the spec table order.** `approachNoteIds` now lists notes exactly in the
+  spec 13.3 table order filtered by each row's rule, so iOS, the web and Android agree until
+  `shared/constants/approach-notes.json` lands. Source: lane A ruling on approach order.
+  Verified: `notesFollowTheSpecTableOrder` failed first (approach_calm was second), then passes;
+  all unit tests pass.
 - **App Check providers per build type.** Debug builds install the debug provider, whose token
   comes from the untracked `local.properties` through a debug-only string resource; release
   builds install Play Integrity and carry neither the debug provider nor a token. `FamilyApp`

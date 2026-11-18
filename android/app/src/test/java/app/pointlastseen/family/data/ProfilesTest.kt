@@ -78,8 +78,14 @@ class ProfilesTest {
     }
 
     @Test fun defaultProfileShowsMayNotRespondAndApproachCalmFirst() {
-        assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(SubjectProfile()).take(2))
-        assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(full).take(2))
+        assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(SubjectProfile()))
+    }
+
+    @Test fun notesFollowTheSpecTableOrder() {
+        assertEquals(
+            listOf("may_not_respond", "likely_to_hide", "approach_calm", "validate_feelings", "language", "triggers", "best_approach", "unique"),
+            Profiles.approachNoteIds(full),
+        )
     }
 
     @Test fun flagsAndTextAddTheirNotes() {
