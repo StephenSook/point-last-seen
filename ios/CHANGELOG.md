@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): an unknown named segment is rejected, never cleared as the assignment
+- What: the parser keeps an unknown two-letter id that follows "segment" (unless it is a common
+  word such as "by" or "in"), and the outcome builder adds such an id back when a model left it
+  out, so "cleared segment ZZ, coverage 1" gives effect none/invalid instead of clearing the
+  team's assigned segment. The assignment is used only when the report names no segment.
+- Source: Codex review H2, verified by the orchestrator; plan Review Focus 3.
+- Verified: new parser and builder tests (parser path and model path) failed on the old code,
+  then passed; "the segment by the creek" still names nothing; full suite 155 tests.
+
 ### fix(ios-core): check the cloud gate live at dispatch, keep the context-limit reason
 - What: the orchestrator reads a live gate (connectivity, consent, kill switch, incident mode)
   again when it reroutes and right before any cloud call; if the gate closed during the

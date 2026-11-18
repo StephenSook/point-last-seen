@@ -22,7 +22,18 @@ import Testing
     }
 
     @Test func parserNeverInventsASegment() {
-        #expect(ReportParser.parse("cleared segment ZZ", context: ctx).segmentIds.isEmpty)
+        #expect(ReportParser.parse("cleared it at the end, all good", context: ctx).segmentIds.isEmpty)
+    }
+
+    @Test func anUnknownSegmentNamedAfterTheWordSegmentIsKeptSoValidationRejectsIt() {
+        let r = ReportParser.parse("cleared segment ZZ", context: ctx)
+        #expect(r.segmentIds == ["ZZ"])
+        #expect(ReadingValidator.validate(r, knownSegmentIds: ctx.knownSegmentIds, rawText: "cleared segment ZZ").isOK == false)
+    }
+
+    @Test func commonWordsAfterTheWordSegmentAreNotSegmentNames() {
+        #expect(ReportParser.parse("we cleared the segment by the creek", context: ctx).segmentIds.isEmpty)
+        #expect(ReportParser.parse("cleared segment AT", context: ctx).segmentIds == ["AT"])     // a known id that is also a word
     }
 
     @Test func commonTwoLetterWordsAreNotSegments() {

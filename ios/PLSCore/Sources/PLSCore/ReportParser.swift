@@ -58,19 +58,30 @@ public enum ReportParser {
     // MARK: segments
 
     static let segmentKeywords: Set<String> = ["segment", "sector", "cell", "area", "grid", "seg"]
+    /// Two-letter English words that can follow "segment" without naming one ("the segment by the creek").
+    static let commonTwoLetterWords: Set<String> = ["am", "an", "as", "at", "be", "by", "do", "go", "he", "if", "in", "is", "it",
+                                                    "me", "my", "no", "of", "oh", "ok", "on", "or", "so", "to", "up", "us", "we"]
 
+    /// Segment ids the report names, in text order. A known id counts when written in capitals or
+    /// after "segment". An unknown id counts only when it follows "segment" (and is not a common
+    /// word): it is kept on purpose so validation rejects the reading instead of the clear falling
+    /// back to the team's assignment.
     static func segments(_ t: Tokens, known: Set<String>) -> [String] {
         var out: [String] = []
-        func add(_ id: String) { if known.contains(id) && !out.contains(id) && out.count < 3 { out.append(id) } }
+        func add(_ id: String) { if !out.contains(id) { out.append(id) } }
         for i in t.original.indices {
             let o = t.original[i]
-            if o.count == 2, o.allSatisfy({ $0.isUppercase && $0.isLetter }) { add(o); continue }
+            if o.count == 2, o.allSatisfy({ $0.isUppercase && $0.isLetter }), known.contains(o) { add(o); continue }
             guard segmentKeywords.contains(t.lower[i]), i + 1 < t.lower.count else { continue }
             let next = t.lower[i + 1]
-            if next.count == 2, next.allSatisfy(\.isLetter) { add(next.uppercased()) }
-            else if next.count == 1, i + 2 < t.lower.count, t.lower[i + 2].count == 1, (next + t.lower[i + 2]).allSatisfy(\.isLetter) {
-                add((next + t.lower[i + 2]).uppercased())
+            var id: String?
+            if next.count == 2, next.allSatisfy(\.isLetter) {
+                id = next.uppercased()
+            } else if next.count == 1, i + 2 < t.lower.count, t.lower[i + 2].count == 1, (next + t.lower[i + 2]).allSatisfy(\.isLetter) {
+                id = (next + t.lower[i + 2]).uppercased()
             }
+            guard let id else { continue }
+            if known.contains(id) || !commonTwoLetterWords.contains(id.lowercased()) { add(id) }
         }
         return out
     }

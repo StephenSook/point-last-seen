@@ -128,4 +128,14 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
         let o = ReadOutcome(reading: reading(segmentIds: ["AA"], coverage: 1, evidenceQuote: "cleared it at the bend"), route: route(), validation: .ok)
         #expect(ReadOutcomeBuilder.event(from: o, rawText: "cleared it at the bend", position: nil, context: outcomeCtx(assigned: ["AC"]), seq: 22).effect.clearedSegmentId == "AC")
     }
+
+    @Test func anUnknownNamedSegmentNeverFallsBackToTheAssignment() {
+        let text = "cleared segment ZZ, coverage 1"
+        let parsed = ReportParser.parse(text, context: ParseContext(knownSegmentIds: ["AA", "AB", "AC", "AD"]))
+        let fromParser = ReadOutcome(reading: parsed, route: route(), validation: .ok)
+        #expect(ReadOutcomeBuilder.event(from: fromParser, rawText: text, position: nil, context: outcomeCtx(assigned: ["AC"]), seq: 30).effect == .none(why: .invalid))
+        // A model that left the unknown id out must not get the assignment either.
+        let fromModel = ReadOutcome(reading: reading(segmentIds: [], coverage: 1, evidenceQuote: "cleared segment ZZ"), route: route(), validation: .ok)
+        #expect(ReadOutcomeBuilder.event(from: fromModel, rawText: text, position: nil, context: outcomeCtx(assigned: ["AC"]), seq: 31).effect == .none(why: .invalid))
+    }
 }
