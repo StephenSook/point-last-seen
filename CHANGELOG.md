@@ -5,6 +5,77 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
+  `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
+  test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
+  merged as JSON three ways from the merge base 2bc711c: no key changed on both sides; every entry from both
+  parents kept its version.
+  Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
+  CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
+- Widen the platform workflows now that every lane is on main (merge point 1): Swift core also runs when
+  shared/test-vectors/**, shared/constants/** or its workflow change; Android when shared/** or its workflow
+  change; web when shared/**, the root package files or its workflow change. Still pull requests to main
+  and main only.
+  Source: plan Global Constraints (widen at the merge points); the comments that held these back are removed.
+  Verified: each file keeps exactly two path lists (push and pull_request), both widened; pushed only after
+  PRs #2, #3 and #1 merged, so no job runs on main without its tree; `bash scripts/ci-local.sh` exit 0.
+- The `ts` job (and `ci-local.sh`) now typecheck and test `tools/grid-builder`: its 10 tests ran in neither
+  until now. A multi-line `run:` in Actions uses `bash -e`, so a failing typecheck stops the step.
+  Source: own finding while checking what CI covers for Task 10.
+  Verified: `bash scripts/ci-local.sh` exit 0 with the grid builder's typecheck and 10 tests in its output.
+- Add `storage.cors.json` (GET from the two hosting origins; the headers the web SDK sends) and apply it to the
+  bucket: the web photo tray's `getBytes` XHR was blocked with "No 'Access-Control-Allow-Origin' header is
+  present". `docs/PRODUCTION-CHECKLIST.md` gains a Firebase project section: the CORS apply and read-back
+  commands, and the callable invoker check (firebase-tools grants a callable's public invoker only on create).
+  Source: lane C's live command post finding; the joinIncident deploy.
+  Verified: `gcloud storage buckets update --cors-file` exit 0; the bucket's cors_config read back equals the
+  file (it was empty before). An unauthenticated request cannot prove it (error responses carry `*` for any
+  origin), so lane C's authorized live read is the proof. `bash scripts/ci-local.sh` exit 0.
+- `scripts/emulator_config.py --wait-ports SECONDS` waits, bounded, until every port in this worktree's emulator
+  block can be bound on 127.0.0.1 and ::1, and exits 1 naming the busy ports when the time runs out.
+  `ci-local.sh` runs it (180 s) before the emulator suite, because a socket left from the previous run made the
+  Firestore WebChannel server fail to bind ("Address already in use"). Local only: a CI runner starts clean.
+  Source: lane C's ci-local finding (two failed runs, back to back, on its own block).
+  Verified: 3 new tests (free block passes at once; a held port fails and is named; a port released after
+  1.5 s passes after waiting) failed first, now 8 of 8 pass; `bash scripts/ci-local.sh` exit 0.
+- Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
+  to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
+  Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
+  entry; CI verifies once per lane at each merge point through one pull request. This entry's own commit
+  and the one before it are pushed together, so CI runs for the head SHA only.
+  Source: orchestrator, after the Actions budget was reached (300 runs today); Stephen set the November
+  budget to $15, so the remaining $10 is spent only at merge points.
+  Verified: no workflow keeps a `branches: ["**"]` push trigger (grep count 0); `bash scripts/ci-local.sh`
+  exit 0.
+- `functions/package.json` lists only its runtime dependencies (firebase-admin, firebase-functions); the test
+  toolchain it used (firebase client 13.4.0, TypeScript 6.0.3, Vitest 5.1.0, @types/node 22.20.5) moves to
+  the root devDependencies, still hoisted for the workspace tests. Cloud Build generates a lockfile from the
+  functions folder alone, and npm's arborist crashed in peer-set resolution on the dev toolchain
+  ("Cannot read properties of null (reading 'edgesOut')"), failing the first joinIncident deploy.
+  Source: Cloud Build log of the failed deploy (build f5d65a45, about 55 s).
+  Verified: the crash reproduced locally from a copy of the old functions/package.json; production-only it
+  resolves (`npm install --package-lock-only` exit 0); the emulator suite still passes 85 and the functions
+  typecheck exits 0; `bash scripts/ci-local.sh` exit 0 (paid-usage fallback: CI is budget-limited).
+- Add the grid builder workspace (`tools/grid-builder`, Task 10): `buildCells` cuts the site into 125 m cells,
+  rows north to south, clipped to the site (slivers under 1 m2 dropped before ids), two-letter row-major ids
+  and edge neighbours; `applyFeatures` sets each segment's nearFrac (share within 71 m of a road, trail,
+  stream or water edge, from a 20 x 20 sample grid) and featureClasses (structures listed, not counted);
+  `applyStreams` links downstream and upstream from OSM way order (flow direction); `classifyOsm` maps OSM
+  tags to the grid classes. Pins: @turf along, area, bbox, boolean-point-in-polygon, centroid, helpers,
+  intersect, length, point-to-line-distance, polygon-to-line 7.4.0 and tsx 4.23.15 (dev), all exact.
+  The CLI and the drill-site data wait for Stephen's site (plan Task 10 step 5).
+  Source: plan Task 10; spec section 10.5.
+  Verified: the 10 tests failed first (no modules), now pass (16 cells for a 500 m site, AA neighbours AB and
+  AE, areas sum to the site, a west-edge trail gives about 71/125 near, a stream east through AA, AB, AC
+  links in order); typecheck exits 0; Socket scores 80 to 100; `npm audit --omit=dev` 0; ci-local exits 0.
+- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
+  standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
+  the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
+  once android/ is on main or on a pull request that carries it.
+  Source: orchestrator request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  cases exit 1).
+  Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
+  main).
 - Task 35a: approach notes and the profile split. `shared/constants/approach-notes.json` holds the spec 13.3
   copy (ours), the display order (may_not_respond and approach_calm first), when each note shows, a source
   role per note and the card footer. `shared/engine-ts/src/approach.ts` exports approachNoteIds,

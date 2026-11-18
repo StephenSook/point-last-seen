@@ -70,3 +70,57 @@ def test_tmpdir_is_per_worktree_and_exists(tmp_path):
     (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
     a, b = tmpdir(REPO), tmpdir(other)
     assert a.is_dir() and b.is_dir() and a != b and a == tmpdir(REPO)
+
+
+def ports_of(root):
+    return sorted(ports(make(root)).values())
+
+
+def wait(root, seconds):
+    return subprocess.run([sys.executable, "-I", str(SCRIPT), str(root), "--wait-ports", str(seconds)],
+                          capture_output=True, text=True, timeout=seconds + 30)
+
+
+def holder(port):
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", port))
+    s.listen()
+    return s
+
+
+def worktree(tmp_path, name):
+    other = tmp_path / name
+    other.mkdir()
+    (other / "firebase.json").write_text((REPO / "firebase.json").read_text())
+    return other
+
+
+def test_wait_ports_passes_at_once_when_the_block_is_free(tmp_path):
+    out = wait(worktree(tmp_path, "free-block"), 5)
+    assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_wait_ports_fails_and_names_a_port_that_stays_taken(tmp_path):
+    # A lingering emulator socket from the previous run made the Firestore WebChannel bind fail.
+    root = worktree(tmp_path, "taken-block")
+    port = ports(make(root))["firestore"]
+    s = holder(port)
+    try:
+        out = wait(root, 2)
+    finally:
+        s.close()
+    assert out.returncode == 1
+    assert str(port) in out.stdout + out.stderr
+
+
+def test_wait_ports_waits_until_the_port_is_released(tmp_path):
+    import threading
+    import time
+    root = worktree(tmp_path, "released-block")
+    s = holder(ports(make(root))["auth"])
+    threading.Timer(1.5, s.close).start()
+    t0 = time.monotonic()
+    out = wait(root, 20)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert time.monotonic() - t0 >= 1.0

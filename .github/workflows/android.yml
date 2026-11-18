@@ -1,18 +1,20 @@
 name: Android
 
-# Expensive (Gradle): runs on pull requests to main and on main only.
-# Until android/ is on main the only trigger is android/ itself, so a shared/ change cannot
-# start a job with nothing to build. After the lane D merge, widen the paths to shared/**
-# (the Android unit tests read shared/schemas and shared/test-vectors).
+# Expensive (Gradle): runs on pull requests to main and on main only, when android/, shared/ (the
+# unit tests read shared/schemas, shared/constants and shared/test-vectors) or this workflow change.
 on:
   push:
     branches: [main]
     paths:
       - "android/**"
+      - "shared/**"
+      - ".github/workflows/android.yml"
   pull_request:
     branches: [main]
     paths:
       - "android/**"
+      - "shared/**"
+      - ".github/workflows/android.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,3 +39,5 @@ jobs:
       - name: Android unit tests and debug build
         working-directory: android
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+      - name: Count Android unit tests (fails on zero, on fewer than 150, or on any failure or skip)
+        run: python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 150

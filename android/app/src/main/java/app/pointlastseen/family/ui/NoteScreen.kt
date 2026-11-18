@@ -1,0 +1,97 @@
+package app.pointlastseen.family.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import app.pointlastseen.family.ai.FamilyNote
+import app.pointlastseen.family.ai.FamilyNoteReading
+import app.pointlastseen.family.ai.NoteOutcome
+
+sealed class NoteUi {
+    data object Idle : NoteUi()
+    data object Busy : NoteUi()
+    data class Done(val outcome: NoteOutcome, val text: String) : NoteUi()
+}
+
+private val KIND_LABEL = mapOf(
+    "place" to "a place they like to go",
+    "address" to "a place they used to live",
+    "wandering" to "where they were found before",
+    "clothing" to "what they wear",
+)
+private val KIND_CHIP = listOf(
+    "place" to "A place they like to go",
+    "address" to "A place they used to live",
+    "wandering" to "Where they were found before",
+    "clothing" to "Clothing",
+)
+
+/** "I remembered something": the note is sorted by the SDK's hybrid mode, shown as a suggestion, and kept only if the family adds it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun NoteScreen(
+    mode: String?,
+    killCloud: Boolean,
+    ui: NoteUi,
+    onSort: (text: String, cloudConsent: Boolean) -> Unit,
+    onAdd: (FamilyNoteReading) -> Unit,
+    onBack: () -> Unit,
+) {
+    FamilyScaffold(mode, killCloud) {
+        when (ui) {
+            NoteUi.Idle, NoteUi.Busy -> {
+                var text by rememberSaveable { mutableStateOf("") }
+                Sentence("I remembered something.")
+                OutlinedTextField(
+                    text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
+                    minLines = 3, modifier = Modifier.fillMaxWidth(),
+                )
+                MainAction("Sort it", enabled = ui == NoteUi.Idle && text.isNotBlank()) { onSort(text.trim(), false) }
+            }
+            is NoteUi.Done -> when (val o = ui.outcome) {
+                NoteOutcome.NeedsConsent -> {
+                    Sentence("This phone has no on-device model. Send this note to the cloud to sort it?")
+                    MainAction("Send to the cloud") { onSort(ui.text, true) }
+                    ManualKind(ui.text, onAdd)
+                }
+                NoteOutcome.PossibleEvidence -> Sentence(Copy.EVIDENCE)
+                is NoteOutcome.Read -> {
+                    var label by remember(o) { mutableStateOf(o.reading.label) }
+                    Sentence("Suggested: ${KIND_LABEL[o.reading.kind] ?: o.reading.kind}")
+                    Note(if (o.route.path == "on_device") "Read on this phone" else "Read in the cloud")
+                    OutlinedTextField(label, { label = it.take(FamilyNote.MAX_LABEL) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    MainAction("Add to profile", enabled = label.isNotBlank()) { onAdd(o.reading.copy(label = label.trim())) }
+                }
+                NoteOutcome.FillByHand, NoteOutcome.Invalid, NoteOutcome.Failed -> {
+                    Sentence("It could not be sorted. Pick what it is.")
+                    ManualKind(ui.text, onAdd)
+                }
+            }
+        }
+        OtherAction("Back", enabled = ui != NoteUi.Busy, onClick = onBack)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ManualKind(text: String, onAdd: (FamilyNoteReading) -> Unit) {
+    var kind by remember { mutableStateOf<String?>(null) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KIND_CHIP.forEach { (k, label) -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(label) }) }
+    }
+    MainAction("Add to profile", enabled = kind != null) {
+        onAdd(FamilyNoteReading(kind ?: return@MainAction, text.trim().take(FamilyNote.MAX_LABEL), "", ""))
+    }
+}

@@ -1,0 +1,15 @@
+# SwiftPM and Xcode build output
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+build/
+# Firebase app config and any App Check debug token stay local
+GoogleService-Info.plist
+*.appcheck-debug-token
+
+# XcodeGen output (project.yml is the source)
+PLS.xcodeproj/
+PLS/Info.plist
+PLS/PLS.entitlements
