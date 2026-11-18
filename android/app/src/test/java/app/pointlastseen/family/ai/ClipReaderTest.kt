@@ -207,14 +207,19 @@ class ClipReaderTest {
         assertEquals(listOf("unreadable_reply"), noSighting(deps.completed.single().second))
     }
 
-    @Test fun aModelErrorCompletesTheRecordAsNoSighting() = runTest {
+    /**
+     * A model error is not a reading: the record stays open (consent only), so the next reader takes
+     * it over and tries again. A completed reading can never change, so caching a passing 503 as "no
+     * sighting" would hide a real sighting from everyone.
+     */
+    @Test fun aModelErrorLeavesTheRecordOpenForTheNextReader() = runTest {
         val inner = FakeDeps()
         val deps = object : ClipDeps by inner {
             override suspend fun callModel(bytes: ByteArray, mimeType: String): ModelReply = throw IllegalStateException("503")
         }
         assertEquals(ClipOutcome.Failed, ClipReader(deps).read(request(1000)))
         assertEquals(request(1000).consent, inner.consents.single().consent)
-        assertEquals(listOf("model_error"), noSighting(inner.completed.single().second))
+        assertTrue(inner.completed.isEmpty())
     }
 
     @Test fun aCachedNoSightingIsCouldNotReadWithNoModelCall() = runTest {

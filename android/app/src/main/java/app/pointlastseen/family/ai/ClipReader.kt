@@ -140,17 +140,13 @@ class ClipReader(
             if (found == null || !deps.clipExists(sha)) deps.upload(sha, r.bytes)
             if (!unchanged()) return ClipOutcome.Refused(NEEDS_CONSENT)
             if (r.killCloud()) return ClipOutcome.Refused(PAUSED)
-            val asked = deps.nowMs()
+            // A model error is not a reading: the record stays open (consent only), and the next reader
+            // takes it over and tries again. A completed reading never changes, so caching a passing
+            // error as "no sighting" would hide a real sighting from everyone.
             val reply = try {
                 deps.callModel(r.bytes, r.mimeType)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                // A model error completes the record too, so it is cached and never blocks another reader.
-                val route = RouteRecord(
-                    platform = "android", path = "cloud", stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud",
-                    latencyMs = (deps.nowMs() - asked).coerceAtLeast(0), sdkReported = false, blocked = null, decidedAtMs = deps.nowMs(),
-                )
-                deps.completeReading(sha, ClipNoSighting(listOf("model_error")).toJson(), route)
                 return ClipOutcome.Failed
             }
             val now = deps.nowMs()
