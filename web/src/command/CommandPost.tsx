@@ -690,6 +690,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               terrain={incident.terrain ?? "temperate_flat"}
               priorVersion={incident.priorVersion}
               hasBearing={bearing !== null}
+              model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}
               onApply={applyPrior}
             />

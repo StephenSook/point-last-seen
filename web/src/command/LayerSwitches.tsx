@@ -12,6 +12,8 @@ type Props = {
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
   vehicleInvolved: boolean;
+  /** The prior model in use; a layer rebuild always gives the ring prior. */
+  model?: "rings" | "walkers";
   /** Starts the rebuild and returns at once; `ack` settles when the server has it. */
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
@@ -21,7 +23,7 @@ const TERRAINS: [Terrain, string][] = [
   ["temperate_mountain", "Temperate mountain"],
 ];
 
-export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehicleInvolved, onApply }: Props) {
+export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export function LayerSwitches({ layers, terrain, priorVersion, hasBearing, vehic
       {vehicleInvolved && <p>Vehicle involved: these distances assume travel on foot.</p>}
       {changed && (
         <div className="suggested">
-          <p>Rebuild the prior? Every team's map and match code change.</p>
+          <p>{model === "walkers" ? "Rebuild the prior as rings?" : "Rebuild the prior?"} Every team's map and match code change.</p>
           <div className="row">
             <button type="button" className="btn" onClick={apply}>
               Rebuild prior

@@ -18,6 +18,7 @@ function Harness() {
         priorVersion={4}
         hasBearing={false}
         vehicleInvolved
+        model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
         onApply={(layers, terrain) => {
           setApplied(`${JSON.stringify(layers)} ${terrain}`);
           return { version: 5, ack: new Promise<void>(() => {}) };

@@ -34,3 +34,9 @@ test("Rebuild prior hands over the new layers and terrain, and says the new vers
   await expect(page.getByTestId("applied")).toHaveText('{"linear":false,"wedge":false} temperate_mountain');
   await expect(s.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
 });
+
+test("with Walkers on, the rebuild question says the prior goes back to rings", async ({ page }) => {
+  await page.goto("/harness/layers.html?model=walkers");
+  await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
+  await expect(page.getByText("Rebuild the prior as rings? Every team's map and match code change.")).toBeVisible();
+});

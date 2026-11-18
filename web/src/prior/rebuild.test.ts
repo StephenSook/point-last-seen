@@ -49,7 +49,9 @@ describe("rebuilding the prior from the stored segments", () => {
     expect(w.segments).toHaveLength(9);
     expect(w.segments[0]).toEqual({ segmentId: "AA", data: { priorPoa: r.segments[0]!.priorPoa, ringPoa: r.ring[0]!.priorPoa, priorVersion: 5 } });
     expect(w.row).toEqual({ priorPoa: r.row, priorVersion: 5 });
-    expect(w.incident).toEqual({ priorLayers: { linear: false, wedge: false }, terrain: "temperate_flat", priorVersion: 5 });
+    // These are ring probabilities, so the stored model says rings (a layer change made while
+    // Walkers was on must not leave the controls saying Walkers over a ring table).
+    expect(w.incident).toEqual({ priorLayers: { linear: false, wedge: false }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings" });
   });
 
   it("refuses the wedge without a travel direction", () => {

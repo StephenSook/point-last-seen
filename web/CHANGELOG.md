@@ -985,3 +985,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the walker prior is written only if the incident's prior version is still the one the run started from (`runAgainstVersion`, read through a ref to the latest incident). Before, a run that finished after another rebuild (for example a confirmed camera clip) was written as the same next version from the old start point and inputs, over the newer prior. The panel shows "The prior changed while the walkers ran. Run them again." This closes the case on one laptop; a write from another laptop at the same version needs a server-side version check (asked of lane A).
 - Source: second-model review of PR #16, finding 2 (high).
 - Verified: two new tests (an unchanged version returns the result; a version that moved during the run is refused with that sentence) failed first (export missing), then passed; typecheck clean; walker and prior-switch harness tests pass. scripts/ci-local.sh exit 0.
+
+### fix(prior): record rings as the model whenever the ring prior is rebuilt
+- What: `priorWrites` (every ring rebuild) now writes `priorModel: "rings"`, so a layer or distance-table change made while Walkers was on no longer leaves the stored model and the controls saying Walkers over a ring table. With Walkers on, the layer switches ask "Rebuild the prior as rings?" before doing it.
+- Source: second-model review of PR #16, finding 6 (medium).
+- Verified: the rebuild test (incident write includes priorModel rings) and a new layers harness test (the question names rings when Walkers is on) failed first, then passed; typecheck clean. scripts/ci-local.sh exit 0.

@@ -55,6 +55,7 @@ export function priorWrites(r: RebuiltPrior, incident: { priorVersion: number },
   return {
     segments: r.segments.map((s) => ({ segmentId: s.segmentId, data: { priorPoa: s.priorPoa, ringPoa: ring.get(s.segmentId) ?? 0, priorVersion } })),
     row: { priorPoa: r.row, priorVersion },
-    incident: { priorLayers: { ...layers }, terrain, priorVersion },
+    // Ring probabilities: the stored model says so, whichever model was on before.
+    incident: { priorLayers: { ...layers }, terrain, priorVersion, priorModel: "rings" },
   };
 }
