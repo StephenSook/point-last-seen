@@ -5,6 +5,48 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The shared profile carries `otherNames`: up to five other names she may answer to, each 1 to 60 characters,
+  optional so profiles saved before it stay valid. Writers mirror the first name into `nickname` ("" for an
+  empty list); readers call her by `namesToCall` (the list, else the nickname). Firestore rules take the new
+  key, regenerated from the schema.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the rules test (none, an empty list and five names accepted; six names, an empty name, 61
+  characters, a number, a string, a map and null refused) and the engine tests (shared as listed with the
+  nickname mirrored; an older profile keeps its nickname and adds no key; readers fall back) failed first, now
+  103 rules tests and 228 engine tests pass; engine typecheck exit 0. `bash scripts/ci-local.sh` fails only on
+  schema parity until the iOS and Android `SharedProfile` types add the field, which lands in this same pull
+  request.
+- The rules validator generator checks lists of up to five items one by one (was four), for the shared
+  profile's list of other names. A longer list is still refused at generation time.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the generator test (a five-string list is checked item by item; six is refused) failed first, now
+  10 generator tests pass; `bash scripts/ci-local.sh` exit 0.
+- cloudGuard's trigger tests build their template call from the published sighting template's own config in
+  `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
+  cap; a template that loses its limit now fails here as well as in the template tests.
+  Source: review of 5e1d56d..ebd96a9 (the test hardcoded the template's cap).
+  Verified: with `maxOutputTokens` removed from the sighting template, the new test fails; restored, 21
+  cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
+- Firestore rules accept a command camera sighting only when the prior's input ids are a list that contains it.
+  `in` also matches the keys of a map, so a map keyed by the sighting's id could have stood in for the list.
+  Source: review of d5d6176.
+  Verified: the test (a Confirm batch whose incident carries the ids as a map keyed by the sighting's id is
+  refused) failed first, now all 102 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` records the probe's positive read and its control (run 44420234691 on the real site passed
+  both App Check steps; run 44420309943 against a wrong site failed both), a table of the secrets the checks use
+  (names and places only, revoke by 2026-12-17), and rows 6 and 6a as they now stand: three calls use server
+  prompt templates (web sighting note, Android clip read, iOS voice), the photo template is published but not yet
+  called, and AI Logic enforces each template's declared inputs.
+  Source: review (record the CI token and both run ids; row 6 still said no templates were used).
+  Verified: live on 2026-11-18 a 2,001-character note, an empty note, a PNG sent to the JPEG-only photo template
+  and a call with no inputs were each refused with HTTP 400 and a 2,000-character note was answered; the two runs
+  read back with `gh run view`; `bash scripts/ci-local.sh` exit 0.
+- The live probe's positive read fails, instead of skipping, when the CI App Check token is missing: the
+  repository secret `APPCHECK_DEBUG_TOKEN_CI` exists since 2026-11-18, so a missing one means it was lost or
+  renamed, and a skip would report green with nothing checked.
+  Source: review (a guard under CI must fail, not skip).
+  Verified: the test (no token: exit 1, no network call) failed first, now 13 probe tests pass;
+  `bash scripts/ci-local.sh` exit 0.
 - The live probe takes a `site` input on a manual run: the wrong-URL control. Pointed at a wrong site, both App
   Check steps must fail, which proves they can fail. Scheduled runs pass the empty input and keep the real site.
   Source: review (each monitor needs a control that proves it can fail).

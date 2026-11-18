@@ -210,7 +210,10 @@ export interface ProfileFlags {
 
 export interface SharedProfile {
   answersTo: string;
+  /** Mirrors otherNames[0] when otherNames is present ("" for an empty list), so older readers still show one. */
   nickname: string;
+  /** Other names she may answer to, 0 to 5, each 1 to 60 characters. Absent on profiles saved before the list. */
+  otherNames?: string[];
   ageYears: number | null;
   gender: string;
   appearance: string;
