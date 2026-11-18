@@ -5,6 +5,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios-core): take segment ids from the report text or GPS, never from the model
+- What: `SegmentChoice.ids` picks a reading's segments in code: the ids the report names (the
+  parser's rule; an unknown named id is kept so the validator rejects it), else the segment
+  under the GPS fix (`ReadContext.positionSegmentId`), else none (the effect then uses the
+  assignment). The orchestrator applies it to every model and parser reading before
+  validation, and the outcome builder applies it before the write, so the model's segment
+  field never counts. The kind still comes from the model, with the parser's kind on a
+  timeout, a failure or an unknown kind.
+- Source: coordinator ruling 2026-11-18 after spike S1 on the Mac (both variants copied the
+  team's assignment, AC, instead of the segment the report named).
+- Verified: five `SegmentsFromCodeTests` (the choice order; AB named while assigned AC gives
+  AB; nothing named gives the GPS segment; "maybe" as the kind falls back to the parser; the
+  stored event uses the code choice) red with the orchestrator override removed, then green.
+  Two older tests used the model's own unknown id "ZZ" to make a reading invalid; they now use
+  a report naming ZZ and a coverage of 400. 230 tests; `scripts/ci-local.sh` exit 0.
+
 ### feat(ios): draw the field screens in the day and night colours only
 - What: the Report bar is filled with the theme accent (amber by day, red at night) with black
   text; secondary text, problems and the approach card footer use theme colours; the Ready

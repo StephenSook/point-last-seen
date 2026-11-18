@@ -39,7 +39,8 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
     }
 
     @Test func invalidReadingGivesNoEffect() {
-        #expect(ReadOutcomeBuilder.event(from: outcome(segmentIds: ["ZZ"]), rawText: raw, position: fix, context: outcomeCtx(), seq: 9).effect == .none(why: .invalid))
+        // The model's own ids are ignored (segments come from the text), so the unknown id is in the report.
+        #expect(ReadOutcomeBuilder.event(from: outcome(segmentIds: ["ZZ"]), rawText: "cleared segment ZZ", position: fix, context: outcomeCtx(), seq: 9).effect == .none(why: .invalid))
         #expect(ReadOutcomeBuilder.event(from: outcome(coverage: 400), rawText: raw, position: fix, context: outcomeCtx(), seq: 10).effect == .none(why: .invalid))
     }
 
