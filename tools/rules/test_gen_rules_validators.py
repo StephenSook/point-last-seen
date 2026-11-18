@@ -62,9 +62,12 @@ def test_shape_mode_keeps_every_value_constraint_and_only_drops_key_lists():
     box = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 1000}, "minItems": 2, "maxItems": 2}
     assert gen.value_check(box, "m.b", {}, shape=True) == ("(m.b is list && m.b.size() == 2 && (m.b[0] is int && m.b[0] >= 0 && m.b[0] <= 1000)"
                                                          " && (m.b[1] is int && m.b[1] >= 0 && m.b[1] <= 1000))")
-    # Short string lists: bounded by count and joined length (join fails, so the rule denies, on a non-string).
+    # Short string lists: one regex over the comma-joined list bounds every item's length (join fails, so the
+    # rule denies, on a non-string).
+    carried = {"type": "array", "items": {"type": "string", "maxLength": 40}, "maxItems": 3}
+    assert gen.value_check(carried, "m.c", {}, shape=True) == "(m.c is list && m.c.size() <= 3 && m.c.join(',').matches('^[^,]{0,40}(,[^,]{0,40}){0,2}$'))"
     ids = {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 16}, "maxItems": 3}
-    assert gen.value_check(ids, "m.k", {}, shape=True) == "(m.k is list && m.k.size() <= 3 && m.k.join('').size() <= 48)"
+    assert gen.value_check(ids, "m.k", {}, shape=True) == "(m.k is list && m.k.size() <= 3 && (m.k.size() == 0 || m.k.join(',').matches('^[^,]{1,16}(,[^,]{1,16}){0,2}$')))"
     # All keys required, shape mode: size() == n plus a check that reads every named key pins the key set
     # (a missing key is an error, and an error denies), with no list literal.
     obj = {"type": "object", "additionalProperties": False, "required": ["a", "b"], "properties": {"a": {"type": "boolean"}, "b": {"type": "boolean"}}}

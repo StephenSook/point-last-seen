@@ -129,9 +129,14 @@ def array_check(s: dict, ref: str, overrides: dict, shape: bool = False) -> str:
         cap = s.get("maxItems", len(items["enum"]))
         parts += [f"{ref}.size() <= {cap}", f"{ref}.hasOnly({lst(items['enum'])})"]
     elif shape and items.get("type") == "string" and "maxLength" in items and "maxItems" in s:
-        # Bounded by count and joined length; join fails (so the rule denies) if an item is not a string.
-        n = s["maxItems"]
-        parts += [f"{ref}.size() <= {n}", f"{ref}.join('').size() <= {n * items['maxLength']}"]
+        # One regex over the comma-joined list bounds each item's length; join fails (so the rule denies) if
+        # an item is not a string. An item that itself contains a comma is read as two shorter items.
+        n, lo, hi = s["maxItems"], items.get("minLength", 0), items["maxLength"]
+        item = f"[^,]{{{lo},{hi}}}"
+        more = f"(,{item}){{0,{n - 1}}}" if n > 1 else ""
+        regex = f"{ref}.join(',').matches({q('^' + item + more + '$')})"
+        # With a minimum length, an empty list (joined "") must be told apart from [""]: check the list itself.
+        parts += [f"{ref}.size() <= {n}", f"({ref}.size() == 0 || {regex})" if lo > 0 else regex]
         return "(" + " && ".join(parts) + ")"
     elif "maxItems" in s and s["maxItems"] <= MAX_INDEXED_ITEMS:
         n = s["maxItems"]

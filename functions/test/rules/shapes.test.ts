@@ -45,6 +45,7 @@ describe("event position, reading and route take only their schema shapes", () =
   it("an oversized or unknown-keyed reading or route is refused (the log is append-only and every device syncs it)", async () => {
     for (const over of [{ reading: reportReading({ evidenceQuote: "q".repeat(401) }) }, { reading: reportReading({ pad: "x".repeat(10_000) }) },
                         { reading: reportReading({ segmentIds: ["AA", "AB", "AC", "AD"] }) }, { reading: reportReading({ kind: "x".repeat(50) }) },
+                        { reading: reportReading({ segmentIds: ["ABCDEFGHIJKLMNOPQ"] }) }, { reading: reportReading({ segmentIds: [""] }) },
                         { reading: { pad: "x" } }, { route: routeRecord({ model: "m".repeat(81) }) }, { route: routeRecord({ extra: 1 }) },
                         { route: { pad: "x".repeat(10_000) } }]) {
       await assertFails(put(db(), validEvent(S, over)));

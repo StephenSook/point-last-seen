@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A reading's segment ids (and a camera sighting's carried items) are checked per item again: one regex over the
+  comma-joined list bounds each item's length (1 to 16 for segment ids), at about the cost of the joined-length
+  bound it replaces, so the heaviest events still fit the expression budget. A 17-character or empty segment id
+  is now refused (an empty list is told apart from [""] by its size when items have a minimum length). An
+  item that itself contains a comma is read as two shorter items; real ids are two letters or ROW.
+  Source: review round 2 (low: a 17-character segment id passed).
+  Verified: the generator test failed first, now 9 pass; the 17-character and empty id cases are refused;
+  emulator suite 114 including the heaviest events; `bash scripts/ci-local.sh` exit 0.
 - The App Check control's answer check requires the text to be a non-empty string: a part whose text is null
   or a number no longer counts as an answer (null used to read as the string "None").
   Source: review round 2 (low).
