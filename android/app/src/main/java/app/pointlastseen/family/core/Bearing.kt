@@ -33,3 +33,13 @@ object Bearing {
         return Math.floorMod(facingDeg + offset, 360)
     }
 }
+
+/** Compass words for the eight facings the family can pick, and for a travel bearing. */
+object Compass {
+    val FACINGS: List<Pair<String, Int>> = listOf(
+        "north" to 0, "northeast" to 45, "east" to 90, "southeast" to 135,
+        "south" to 180, "southwest" to 225, "west" to 270, "northwest" to 315,
+    )
+
+    fun word(deg: Int): String = FACINGS[Math.floorMod(Math.round(deg / 45.0).toInt(), 8)].first
+}

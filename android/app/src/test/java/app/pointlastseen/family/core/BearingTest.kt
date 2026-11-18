@@ -19,6 +19,16 @@ class BearingTest {
         assertNull(Bearing.fromExit(90, ExitEdge.BOTTOM))
     }
 
+    @Test fun bearingsReadAsEightCompassWords() {
+        assertEquals("north", Compass.word(0))
+        assertEquals("north", Compass.word(350))
+        assertEquals("northeast", Compass.word(45))
+        assertEquals("east", Compass.word(80))
+        assertEquals("west", Compass.word(270))
+        assertEquals("northwest", Compass.word(330))
+        assertEquals(listOf(0, 45, 90, 135, 180, 225, 270, 315), Compass.FACINGS.map { it.second })
+    }
+
     @Test fun edgesParseFromTheirWireNames() {
         assertEquals(ExitEdge.TOWARD_CAMERA, ExitEdge.fromWire("toward_camera"))
         assertEquals(ExitEdge.UNKNOWN, ExitEdge.fromWire("sideways"))
