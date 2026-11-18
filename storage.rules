@@ -41,9 +41,11 @@ service firebase.storage {
       allow delete: if isMember(incidentId) && request.auth.token.role == 'command';
     }
 
-    // Packs are built by the pack function only.
-    match /packs/{incidentId}/{file} {
-      allow read: if isMember(incidentId);
+    // Packs are built by the pack function only, at packs/{incidentId}/{teamId}/v{n}.bundle, and read by
+    // command and by their own team only.
+    match /packs/{incidentId}/{teamId}/{file} {
+      allow read: if isMember(incidentId)
+        && (request.auth.token.role == 'command' || request.auth.token.team == teamId);
       allow write: if false;
     }
   }

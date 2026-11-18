@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Packs are per team: the pack record `packs/{teamId}` and the bundle are readable by command and by that
+  team only. Bundles move to `packs/{incidentId}/{teamId}/v{n}.bundle` (the spec's `{teamId}-v{n}.bundle`
+  file name could not be matched by team in Storage rules); the pack function (Task 12) writes this path.
+  Source: Codex adversarial review M5.
+  Verified: 2 new tests (another team's record and bundle refused, own team and command allowed, family
+  refused) failed first, now 73 emulator tests pass; ci-local exits 0.
 - Profile documents take only their own fields: `profile/shared` (readable by every member and carried in
   packs) accepts only the 20 shared fields of spec section 13.2, with the 18 flag names as booleans, free
   text at most 200 characters and at most 40 approach note ids; `profile/command` accepts only its 5 fields.

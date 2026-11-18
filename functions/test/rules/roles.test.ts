@@ -107,6 +107,16 @@ describe("join codes", () => {
   });
 });
 
+describe("pack records are per team", () => {
+  it("a searcher reads its own team's pack record, not another team's; command reads all", async () => {
+    await admin.db.doc("incidents/I1/packs/T2").set({ packVersion: 1 });
+    await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1/packs/T1")));
+    await assertFails(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1/packs/T2")));
+    await assertSucceeds(getDoc(doc(dbAs(C, commandClaims), "incidents/I1/packs/T2")));
+    await assertFails(getDoc(doc(dbAs(F, familyClaims), "incidents/I1/packs/T1")));
+  });
+});
+
 describe("plans, plan drafts and packs", () => {
   it("only command creates plans; no client writes planDrafts or packs", async () => {
     await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0001"), validPlan(C)));

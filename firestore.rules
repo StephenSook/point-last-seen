@@ -102,8 +102,9 @@ service cloud.firestore {
       }
 
       // Written by Cloud Functions only.
+      // A pack record is read by command and by its own team only.
       match /packs/{teamId} {
-        allow read: if isMember(incidentId);
+        allow read: if isCommand(incidentId) || (isMember(incidentId) && request.auth.token.team == teamId);
         allow write: if false;
       }
       match /planDrafts/{eventSetHash} {
