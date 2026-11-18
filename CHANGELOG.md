@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-17
 
+- Ignore `functions/lib/` (TypeScript build output of the functions workspace).
+  Source: Task 11 build; the rules gate had walked the built JS as untracked files.
+  Verified: `git check-ignore functions/lib` matches; `bash scripts/ci-local.sh` exits 0.
 - Add the `@pls/functions` workspace (`functions/package.json`, `tsconfig.json`; lockfile updated):
   firebase-functions 7.4.0 and firebase-admin 14.5.1 at runtime; firebase 13.4.0 (client SDK, for rules tests
   with emulator mock tokens), TypeScript 6.0.3 and Vitest 5.1.0 for tests. Node 22 runtime, ESM.
