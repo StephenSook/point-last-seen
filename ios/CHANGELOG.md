@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): write events through the Outbox with a server read-back
+- What: `EventStore` journals each event, then calls `setData` with its completion callback and
+  never awaits it (the callback does not run while offline). Success marks the entry delivered;
+  an error reads `events/{eventId}` back from the server first: same identity is delivered,
+  absent is "Not delivered" and retryable, a different identity is an id conflict, no answer
+  waits as checking. Retry reads back before writing again. After a restart or reconnect,
+  unresolved entries are settled from the server. The payload has all 25 keys, integer `seq`
+  and `FieldValue.serverTimestamp()` in `serverTime`.
+- Source: Task 13 (EventStore), spec sections 6.2 and 11.1, lane A's rules contract.
+- Verified: `EventStorePayloadTests` (25 keys, server timestamp, integer seq, identity from a
+  Firestore dictionary) red without the type, then green on the iOS 27.2 simulator. The offline
+  and kill-before-callback runs are device acceptance (Task 13 step 5), on the morning list.
+
 ### fix(ios-core): check every stored effect against its exact shape before use
 - What: `EffectShape.isValid` checks a stored effect exactly as the create rule and the shared
   vectors do (cleared: exact keys, pod 0 to 1, inputs with coverage at least 0, sweep and track
