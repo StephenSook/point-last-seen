@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): set a damaged journal aside instead of stopping all reporting
+- What: `Outbox.openOrRecover` moves an unreadable journal aside as
+  `outbox.damaged-{ms}.json` (kept, never deleted) and starts a new one; `EventStore` opens with
+  it and reports where the old file went, and the app tells the person that earlier reports may
+  need to be sent again. `AppModel.start` now gives each start-up failure its own message
+  (numbering, missing evidence word list, journal) instead of one message that blamed the
+  journal for all of them.
+- Source: fresh-eyes review I9.
+- Verified: two `OutboxRecoveryTests` (a damaged file is moved aside and kept, a new journal
+  works; a healthy journal opens as it is) compile-red, then green; 198 PLSCore tests; 27 app
+  tests pass on the iOS 27.2 simulator.
+
 ### fix(ios): read Remote Config at each send so a kill-switch flip takes effect at once
 - What: `AppModel.config` refreshes the live gate whenever it changes, and the report reader is
   built at each send from the current values (cloud model, token budget, kill switch,

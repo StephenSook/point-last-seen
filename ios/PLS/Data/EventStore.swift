@@ -59,14 +59,17 @@ final class EventStore {
 
     private(set) var entries: [OutboxEntry]
     private(set) var journalProblem: String?
+    /// Where a damaged journal was moved aside at open, if one was.
+    let damagedJournal: URL?
     private var outbox: Outbox
     private let server: EventServer
 
     init(server: EventServer, outboxURL: URL) throws {
-        let box = try Outbox(fileURL: outboxURL)
+        let (box, moved) = try Outbox.openOrRecover(fileURL: outboxURL, nowMs: Int(Date().timeIntervalSince1970 * 1000))
         self.server = server
         self.outbox = box
         self.entries = box.entries
+        self.damagedJournal = moved
     }
 
     /// Journals the event, then starts the write. Not async: the UI never waits for the server.

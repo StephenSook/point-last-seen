@@ -36,12 +36,21 @@ final class AppModel {
         connectivity.onChange = { [weak self] in self?.connectivityChanged() }
         connectivity.start()
         Task { await self.trySignIn() }
+        // Each failure gets its own message, so the person and command know what to fix.
+        do { identity = try DeviceIdentity() } catch {
+            problem = "This phone could not start its report numbering. Tell command."
+        }
+        do { screen = try BundledConstants.evidenceScreen() } catch {
+            problem = "This app is missing its evidence word list. Reinstall the app."
+        }
         do {
-            identity = try DeviceIdentity()
-            screen = try BundledConstants.evidenceScreen()
-            store = try EventStore(server: FirestoreEventServer(db: Firestore.firestore()),
-                                   outboxURL: DeviceIdentity.storeDirectory().appendingPathComponent("outbox.json"))
-            store?.reconcileUnresolved()
+            let store = try EventStore(server: FirestoreEventServer(db: Firestore.firestore()),
+                                       outboxURL: DeviceIdentity.storeDirectory().appendingPathComponent("outbox.json"))
+            if store.damagedJournal != nil {
+                problem = "A damaged report journal was set aside. Reports from before may need to be sent again."
+            }
+            store.reconcileUnresolved()
+            self.store = store
         } catch {
             problem = "This phone could not open its report journal. Tell command."
         }

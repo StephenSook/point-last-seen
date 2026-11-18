@@ -148,3 +148,27 @@ private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.hi
     }
 }
 
+@Suite struct OutboxRecoveryTests {
+    @Test func aDamagedJournalIsMovedAsideAndANewOneStarts() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-rec-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("outbox.json")
+        try Data("not json".utf8).write(to: url)
+        let (box, movedTo) = try Outbox.openOrRecover(fileURL: url, nowMs: 1_795_860_000_000)
+        #expect(box.entries.isEmpty)
+        #expect(movedTo?.lastPathComponent == "outbox.damaged-1795860000000.json")
+        #expect(try Data(contentsOf: movedTo!) == Data("not json".utf8))           // kept for command, not deleted
+        var fresh = box
+        try fresh.add(e1)
+        #expect(try Outbox(fileURL: url).entries.count == 1)
+    }
+
+    @Test func aHealthyJournalOpensAsItIs() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-\(UUID().uuidString).json")
+        var box = try Outbox(fileURL: url); try box.add(e1)
+        let (again, movedTo) = try Outbox.openOrRecover(fileURL: url, nowMs: 1)
+        #expect(again.entries.count == 1)
+        #expect(movedTo == nil)
+    }
+}
+

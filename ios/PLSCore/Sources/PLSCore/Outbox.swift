@@ -89,6 +89,20 @@ public struct Outbox: Sendable {
         }
     }
 
+    /// Opens the journal; if the file cannot be read, moves it aside as
+    /// `outbox.damaged-{ms}.json` (kept, never deleted) and starts a new journal, so one damaged
+    /// file never stops the phone from reporting. Returns where the damaged file went.
+    public static func openOrRecover(fileURL: URL, nowMs: Int) throws -> (Outbox, URL?) {
+        do {
+            return (try Outbox(fileURL: fileURL), nil)
+        } catch {
+            let base = fileURL.deletingPathExtension().lastPathComponent
+            let aside = fileURL.deletingLastPathComponent().appendingPathComponent("\(base).damaged-\(nowMs).json")
+            try FileManager.default.moveItem(at: fileURL, to: aside)
+            return (try Outbox(fileURL: fileURL), aside)
+        }
+    }
+
     /// Adds a new event. The identical event again is an idempotent retry; a different event
     /// under the same id throws `Conflict` and changes nothing.
     public mutating func add(_ doc: EventDoc) throws {
