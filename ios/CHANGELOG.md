@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios-core): check a searcher's join code and team on the phone before calling
+- What: `JoinCode` reads a code the way the joinIncident callable does (case, spaces and hyphens
+  ignored; 8 symbols of the Crockford alphabet, no I, L, O or U). `SearcherJoin` builds the
+  callable's request (code, role searcher, the team command named, and the incident when given)
+  and says why a request cannot work before any call, so a malformed code never spends one of
+  the hour's ten attempts.
+- Source: plan task, joining an incident on the iPhone (the callable's contract in
+  `functions/src/join.ts`).
+- Verified: four tests (normalization; only eight Crockford symbols; the request's fields; the
+  messages for a bad code, team or incident) failed to compile, then passed; the CI mirror
+  `bash scripts/ci-local.sh` exit 0; the app tests pass.
+
 ### feat(ios): read the other names a person may answer to from the shared profile
 - What: `SharedProfile` gains `otherNames`, the optional list of up to five other names she may
   answer to, in the family's order. It is nil on profiles saved before the list and is written
