@@ -5,6 +5,55 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
+  allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
+  (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
+  it as `priorBuiltAtMs`.
+  Source: review (the replay needs to place the prior exactly).
+  Verified: the tests (refused without a version step and with a client-chosen time; accepted with the next
+  version and the server's time, alone or in a full prior batch) failed first, now 104 rules tests pass in the
+  emulator; `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` says what the published drill run leaves out and the one link it keeps: event ids stay as
+  stored, so someone who already holds a participant's uid could check which events are theirs (uids are never
+  published; every published run is a drill on team-owned devices). It also describes the media revoke marker,
+  and no longer says the sandbox media sweep waits for a rules deploy: it has been live since 2026-11-18.
+  Source: review (the exporter's event-id finding, kept and documented; the fact-sheet audit).
+  Verified: the sweep's `ops/storage` heartbeat read green earlier on 2026-11-18; `bash scripts/ci-local.sh`
+  exit 0.
+- `docs/evidence/model-latency.md` records why live cloud paths use the flash-lite family: one sample of
+  `gemini-3.8-flash` took 116,071 ms (333 thinking tokens) on 2026-11-17, against a flash-lite median of 839 ms
+  (925 ms with cloudGuard) over 10 warm calls on 2026-11-18. It says plainly that the slow figure is one sample and
+  that its raw record is local evidence, not in the repo.
+  Source: review (the film fact-sheet audit: a code comment cited "116 s" with no evidence file).
+  Verified: the figures copied from the 2026-11-17 test notes and the 2026-11-18 live check output;
+  `bash scripts/ci-local.sh` exit 0.
+- `shared/constants/models.json` names the speech model's caller as the server prompt template `pls-voice-v1`;
+  the retired Remote Config key `tts_model_ios` is gone from it.
+  Source: review (the film fact-sheet audit).
+  Verified: no other shipped file names `tts_model_ios` (`git grep`); `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md`'s table of cloud calls now lists all eight, with whether each is a server prompt template or a
+  direct call: it adds the web clip read (direct, because a template cannot pass the clip window) and the iOS
+  spoken assignment change (template `pls-voice-v1`), and replaces "None is templated today" with which three are.
+  Source: review (the film fact-sheet audit: the table contradicted row 6 and left two calls out).
+  Verified: each row checked against the calling code (`web/src/ai/clipRead.ts` cloud only;
+  `ios/PLS/AI/AssignmentSpeaker.swift`; the template ids in `shared/templates/`); `bash scripts/ci-local.sh` exit 0.
+- The gates job runs `scripts/test_firebase_config.py`, and `scripts/ci-local.sh` mirrors it.
+  Source: the hosting fix.
+  Verified: `bash scripts/ci-local.sh` exit 0.
+- Hosting no longer routes `/pack/**` to a `pack` function that was never built; packs come through Storage. A
+  test fails if any hosting rewrite names a function that `functions/src/index.ts` does not export.
+  Source: review (the film fact-sheet audit).
+  Verified: the test failed first on the `pack` rewrite and passes without it; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` marks the incident revoked before it removes any file: it writes
+  `incidents/{id}.mediaRevokedAt` (server time, a new value on every call), so every open command seat can clear
+  its photos and clip results and ignore a reload that started earlier. The rules make `mediaRevokedAt`
+  server-owned (a client update that changes it is refused), and a judge practice search does not copy it from its
+  seed. It is separate from `mediaDeletedAt`, which the ended-sandbox sweep stamps once.
+  Source: review (a delete on one command seat left the media readable on another).
+  Verified: the tests (the incident is marked before the first file is listed, with a later time on a second
+  delete and nothing on another incident; a refused caller marks nothing; command cannot write it; a practice
+  search does not inherit it) failed first, now 176 functions tests pass in the emulators;
+  `bash scripts/ci-local.sh` exit 0.
 - The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
   and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
   e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −

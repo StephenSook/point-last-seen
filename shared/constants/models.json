@@ -16,7 +16,7 @@
       "status": "Stable",
       "shutdown": null,
       "billingRequired": false,
-      "use": "spoken assignment changes on iOS, named only by Remote Config tts_model_ios"
+      "use": "spoken assignment changes on iOS, named only by the server prompt template pls-voice-v1"
     }
   ],
   "banned": [
