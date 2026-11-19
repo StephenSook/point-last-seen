@@ -58,3 +58,14 @@ describe("the search state the family may be told", () => {
     await assertFails(updateDoc(doc(dbAs(F, familyClaims), "incidents/I1"), { searchState: "paused" }));
   });
 });
+
+describe("the family push budget", () => {
+  it("is server-only: no member reads or writes it", async () => {
+    await admin.db.doc("incidents/I1/pushBudget/family-2026-11-21").set({ count: 3 });
+    for (const [uid, claims] of [[C, commandClaims], [F, familyClaims], [S, searcherClaims]] as const) {
+      const db = dbAs(uid, claims);
+      await assertFails(getDoc(doc(db, "incidents/I1/pushBudget/family-2026-11-21")));
+      await assertFails(setDoc(doc(db, "incidents/I1/pushBudget/family-2026-11-21"), { count: 0 }));
+    }
+  });
+});

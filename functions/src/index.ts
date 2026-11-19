@@ -5,14 +5,14 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { beforeGenerateContent } from "firebase-functions/v2/ai";
 import { onCall } from "firebase-functions/v2/https";
-import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectDeleted } from "firebase-functions/v2/storage";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
-import { handlePlanCreated } from "./notify.js";
+import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -104,3 +104,22 @@ export const notifyPlanApproved = onDocumentCreated({ document: "incidents/{inci
  */
 export const deletePhotoConsentOnPhotoDelete = onObjectDeleted({ region: "us-central1", retry: true },
   event => deletePhotoConsentForObject(getFirestore(), event.data.name).then(() => undefined));
+
+/**
+ * notifyFamilyQuestion (Firestore trigger on familyQuestions/{questionId} create): one push to the incident's family
+ * topic, with ids only. Never in a judge sandbox; capped per incident per day.
+ */
+export const notifyFamilyQuestion = onDocumentCreated({ document: "incidents/{incidentId}/familyQuestions/{questionId}", region: "us-central1" },
+  async event => {
+    await handleFamilyQuestion(getFirestore(), getMessaging(), event.params.incidentId, event.params.questionId, Date.now());
+  });
+
+/**
+ * notifyFamilySearchState (Firestore trigger on incident updates): one push to the family when searchState becomes
+ * searching or paused. Every other incident change, including its status, sends nothing.
+ */
+export const notifyFamilySearchState = onDocumentUpdated({ document: "incidents/{incidentId}", region: "us-central1" },
+  async event => {
+    await handleSearchState(getFirestore(), getMessaging(), event.params.incidentId,
+      event.data?.before.data(), event.data?.after.data(), Date.now());
+  });

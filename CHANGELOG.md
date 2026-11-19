@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Family pushes. `notifyFamilyQuestion` (on `familyQuestions/{questionId}` create) and `notifyFamilySearchState`
+  (on incident update, when `searchState` becomes `searching` or `paused`) send one push to the topic
+  `pls-{incidentId}-family`, with fixed wording and ids only: `{kind, incidentId}` plus `questionId` for a question.
+  The question's text never travels in the push; the phone reads it from Firestore. No kind for an outcome exists,
+  and no other incident change (its status included) sends anything. At most 20 family pushes per incident per UTC
+  day, counted in a server-only `pushBudget` doc; none in a judge practice search. A team named `family` never gets
+  a plan push, since its topic would be the family's.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (topic, wording and payload, with no question text; one push per new question; pushes only
+  on a change to searching or paused, not on a repeat, a status change or "found"; the daily cap across both kinds
+  and a new day; none in a judge sandbox; a "family" team skipped; both triggers registered; no member reads or
+  writes the budget) failed first where they test new behaviour, now pass; `bash scripts/ci-local.sh` exit 0
+  (218 tests).
 - Firestore rules for the family channel. `incidents/{id}/familyQuestions/{questionId}`: command asks, while the
   incident is open, with exactly `text` (1 to 280 characters), `createdByUid` (itself) and `createdAt` (server time);
   a family member answers once with `answer` (1 to 500 characters), `answeredByUid` (itself) and `answeredAt`
