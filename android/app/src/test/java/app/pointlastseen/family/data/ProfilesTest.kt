@@ -158,4 +158,32 @@ class ProfilesTest {
         val c = Profiles.forCommand(full.copy(previousAddresses = listOf(PlaceEntry("z".repeat(100), null), PlaceEntry("  ", null))))
         assertEquals(listOf(80), c.previousAddresses.map { it.label.length })
     }
+
+    /** Absent means unknown: a profile the family never answered sends no trackingAids key at all. */
+    @Test fun trackingAidsAreLeftOutUntilTheFamilyAnswers() {
+        assertFalse("trackingAids" in Profiles.forSearchers(SubjectProfile()).toMap())
+    }
+
+    /** An empty answer means the family said none, and it is sent as such. */
+    @Test fun anEmptyTrackingAnswerMeansNone() {
+        val shared = Profiles.forSearchers(SubjectProfile(trackingAids = TrackingAids(emptyList(), ""))).toMap()
+        assertEquals(mapOf("aids" to emptyList<String>(), "note" to ""), shared["trackingAids"])
+    }
+
+    /** Only the four known aids, each once, in a fixed order. */
+    @Test fun trackingAidsKeepOnlyKnownDistinctValuesInOrder() {
+        val t = TrackingAids(listOf("gps_tracker", "bogus", "project_lifesaver", "gps_tracker"), "")
+        assertEquals(listOf("project_lifesaver", "gps_tracker"), Profiles.forSearchers(SubjectProfile(trackingAids = t)).trackingAids?.aids)
+        assertEquals(listOf("project_lifesaver", "medicalert_id", "gps_tracker", "phone_location"), Profiles.TRACKING_AIDS)
+    }
+
+    /** The note is trimmed and capped at 80, and a note with any digit (fullwidth too) is never sent: no phone or device numbers. */
+    @Test fun aTrackingNoteIsCappedAndNeverCarriesADigit() {
+        fun note(n: String) = Profiles.forSearchers(SubjectProfile(trackingAids = TrackingAids(emptyList(), n))).trackingAids?.note
+        assertEquals("County gave her a wrist unit", note("  County gave her a wrist unit  "))
+        assertEquals(80, note("x".repeat(100))?.length)
+        assertEquals("", note("Unit 4 in his coat"))
+        assertEquals("", note("Unit \uFF14 in his coat"))
+        assertEquals("", note("Call 404 555 0142"))
+    }
 }

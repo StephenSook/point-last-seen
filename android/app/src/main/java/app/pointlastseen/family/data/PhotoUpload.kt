@@ -10,7 +10,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-fun interface PhotoBucket {
+interface PhotoBucket {
+    /** Whether an object is stored at [path]; throws when the check cannot run. */
+    suspend fun exists(path: String): Boolean
     suspend fun put(path: String, bytes: ByteArray, contentType: String)
 }
 
@@ -22,6 +24,8 @@ enum class CloudRead {
     ALLOWED,
     /** The photo uploaded, but the consent record was not saved, so the cloud read stays off. */
     NOT_SAVED,
+    /** Another family member's consent record already allows it; only that member can withdraw it. */
+    ALLOWED_BY_ANOTHER,
 }
 
 /**
@@ -39,7 +43,9 @@ data class PhotoConsentRecord(val storagePath: String, val cloudProcessing: Cons
     }
 }
 
-fun interface PhotoConsentSink {
+interface PhotoConsentSink {
+    /** Who created the photo's consent record, or null when there is none. */
+    suspend fun creatorOf(incidentId: String, sha256: String): String?
     suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord)
 }
 
@@ -51,7 +57,8 @@ sealed class PhotoOutcome {
 
 /**
  * Uploads a standardized family photo (JpegEncoder output) to
- * photos/{incidentId}/{sha256}.jpg. Only a JPEG under the 2 MB cap is sent.
+ * photos/{incidentId}/{sha256}.jpg. Only a JPEG under the 2 MB cap is sent. Photos and their consent
+ * records are create-only, so sharing the same photo again finds them and writes neither twice.
  */
 class PhotoUpload(
     private val bucket: PhotoBucket,
@@ -71,7 +78,8 @@ class PhotoUpload(
         val sha = Hashes.sha256Hex(jpeg)
         val path = "photos/$incidentId/$sha.jpg"
         try {
-            bucket.put(path, jpeg, "image/jpeg")
+            // A check that cannot run proves neither, so it fails like an upload would.
+            if (!bucket.exists(path)) bucket.put(path, jpeg, "image/jpeg")
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             return PhotoOutcome.Failed("The photo did not upload. Check the connection and try again.")
@@ -79,8 +87,11 @@ class PhotoUpload(
         val sink = consents
         if (consent == null || sink == null) return PhotoOutcome.Uploaded(path, CloudRead.NOT_ASKED)
         return try {
-            sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent))
-            PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+            when (sink.creatorOf(incidentId, sha)) {
+                null -> sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent)).let { PhotoOutcome.Uploaded(path, CloudRead.ALLOWED) }
+                consent.byUid -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+                else -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED_BY_ANOTHER)
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             PhotoOutcome.Uploaded(path, CloudRead.NOT_SAVED)
@@ -89,6 +100,11 @@ class PhotoUpload(
 }
 
 class FirestorePhotoConsentSink : PhotoConsentSink {
+    override suspend fun creatorOf(incidentId: String, sha256: String): String? =
+        com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("incidents").document(incidentId)
+            .collection("photoConsents").document(sha256).get(com.google.firebase.firestore.Source.SERVER).await()
+            .takeIf { it.exists() }?.getString(CREATED_BY)
+
     /** Withdraws one record; the rules let only its creator delete it. */
     suspend fun delete(incidentId: String, sha256: String) {
         com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("incidents").document(incidentId)
@@ -100,9 +116,20 @@ class FirestorePhotoConsentSink : PhotoConsentSink {
             .collection("photoConsents").document(sha256)
             .set(record.toMap(com.google.firebase.firestore.FieldValue.serverTimestamp())).await()
     }
+
+    private companion object {
+        const val CREATED_BY = "createdByUid"
+    }
 }
 
 class FirebasePhotoBucket : PhotoBucket {
+    override suspend fun exists(path: String): Boolean = try {
+        Firebase.storage.reference.child(path).metadata.await()
+        true
+    } catch (e: com.google.firebase.storage.StorageException) {
+        if (e.errorCode == com.google.firebase.storage.StorageException.ERROR_OBJECT_NOT_FOUND) false else throw e
+    }
+
     override suspend fun put(path: String, bytes: ByteArray, contentType: String) {
         Firebase.storage.reference.child(path).putBytes(bytes, storageMetadata { this.contentType = contentType }).await()
     }

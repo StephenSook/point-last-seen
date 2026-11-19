@@ -1,6 +1,7 @@
 package app.pointlastseen.family.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 
@@ -24,11 +25,19 @@ class ProfileStoreTest {
         placesFrequented = listOf(PlaceEntry("Grace Church", null)),
         pastWandering = listOf(WanderingEntry("the old mill", LatLon(33.1, -84.2))),
         nearbyWater = "creek", vehicle = Vehicle(involved = true, description = "blue sedan"),
+        trackingAids = TrackingAids(listOf("project_lifesaver", "gps_tracker"), "County gave her a wrist unit"),
     )
 
     @Test fun everyFieldSurvivesARoundTrip() {
         assertEquals(full, ProfileCodec.decode(ProfileCodec.encode(full)))
         assertEquals(SubjectProfile(), ProfileCodec.decode(ProfileCodec.encode(SubjectProfile())))
+    }
+
+    /** Unanswered stays unanswered (null), and "none" (an empty answer) survives as an answer. */
+    @Test fun trackingAidsKeepUnansweredApartFromNone() {
+        assertNull(ProfileCodec.decode("""{"answersTo":"Mae"}""").trackingAids)
+        val none = SubjectProfile(trackingAids = TrackingAids(emptyList(), ""))
+        assertEquals(none, ProfileCodec.decode(ProfileCodec.encode(none)))
     }
 
     @Test fun theStoreKeepsTheProfileOnThePhone() {
