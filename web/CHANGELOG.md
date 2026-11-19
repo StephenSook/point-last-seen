@@ -1714,3 +1714,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the live-test fixtures (`joinCommand` and the family consent helper) now refuse the judge's seeded incident with "This is the judge's seed incident; live tests run on the test drill (PLS_SMOKE_INCIDENT=drill-test-1).", because those tests write sightings, photos, consents and plans. The seed's id comes from one shared constant, `shared/constants/judge-seed.json` (with the test drill's id beside it), so no test types it. A no-backend test checks the refusal and that the test drill is accepted.
 - Source: the judge's seed must stay as judges see it; live writes go to the test drill.
 - Verified: the guard test failed first (no such export), then passed; 29 of 29 no-backend browser checks pass; typecheck clean.
+
+### test(e2e): form-only specs type the test drill's id, not the judge's seed
+- What: four specs that only type an incident id into the join form or a link (sign-in, App Check, the new-build reload and the shared-link note) now use the test drill's id; none of them joins. With this, the judge seed's id appears nowhere in web/e2e.
+- Source: a repository check that the judge seed is never named in test code.
+- Verified: a search of web/e2e (tracked files) for the judge seed's id finds none; 29 of 29 no-backend browser checks pass, including the new-build and shared-link specs.

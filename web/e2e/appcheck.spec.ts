@@ -12,7 +12,7 @@ test("an unregistered App Check token shows the refusal message at join", async 
   const unregistered = randomUUID();
   await page.addInitScript((t) => { (self as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string }).FIREBASE_APPCHECK_DEBUG_TOKEN = t; }, unregistered);
   await page.goto("/");
-  await page.getByLabel("Incident id").fill("drill-dev-1");
+  await page.getByLabel("Incident id").fill("drill-test-1");
   await page.getByLabel("Join code").fill("ABCD2345");
   await page.getByRole("button", { name: "Join as command" }).click();
   await expect(page.getByRole("alert")).toHaveText("Join refused by App Check. Try a normal browser window.", { timeout: 20_000 });
