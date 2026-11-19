@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Hosting no longer routes `/pack/**` to a `pack` function that was never built; packs come through Storage. A
+  test fails if any hosting rewrite names a function that `functions/src/index.ts` does not export.
+  Source: review (the film fact-sheet audit).
+  Verified: the test failed first on the `pack` rewrite and passes without it; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMediaNow` marks the incident revoked before it removes any file: it writes
   `incidents/{id}.mediaRevokedAt` (server time, a new value on every call), so every open command seat can clear
   its photos and clip results and ignore a reload that started earlier. The rules make `mediaRevokedAt`
