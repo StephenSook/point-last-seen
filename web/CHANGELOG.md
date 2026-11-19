@@ -1499,4 +1499,9 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 ### docs(web): name review sources plainly in this changelog
 - What: 14 source lines that named an internal audit of other projects now say "review", keeping each line's engineering reason (for example "review (version.json)"). No entry's facts change.
 - Source: public-repository hygiene review.
-- Verified: `grep -ciE "self-audit|\brival" web/CHANGELOG.md` gives 0 (the remaining "rival" substrings are the word "arrival"). scripts/ci-local.sh exit 0.
+- Verified: a case-insensitive search of this file for the audit's two names finds nothing (the word "arrival" aside). scripts/ci-local.sh exit 0.
+
+### docs(web): keep the audit's names out of the entry that removed them
+- What: the previous entry's Verified line quoted the search it ran, which put the two names back into this file; it now describes the search instead.
+- Source: the committed-tree check after that commit (want-0 found 1).
+- Verified: the same case-insensitive search of the committed file finds nothing. scripts/ci-local.sh exit 0.
