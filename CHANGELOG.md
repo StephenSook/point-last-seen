@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
+  of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
+  digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
+  the family said none. It is for the search cards only and is never sent to a model. The schema gives the shape and
+  the generated rule checks it; the profile rule adds each choice once and no digit of any script in the note
+  (`\P{Nd}`, so fullwidth digits are refused too).
+  Source: expert input (a state Alzheimer's association: Project Lifesaver runs in some Georgia counties, families
+  use other trackers, and a medical ID matters when the person cannot say who they are).
+  Verified: the rules test (a profile without the field, an empty one, all four, a note and an 80-character note are
+  accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
+  a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
+  Schema parity waits for the TypeScript, Swift and Kotlin types.
 - A rules test pins that the command post's photo tray can list a search's photos: command and family list
   `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
   list clips. A review had read the tray's list as having no matching rule.
