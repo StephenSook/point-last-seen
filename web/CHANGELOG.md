@@ -1070,3 +1070,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the shared approach notes now carry `stop_calling_name` ("If they may not come when called, stop calling their name.", shown when `may_not_respond` is), third in their order. The web card and the printed sheets render notes by id, so it shows with no code change; the default-notes test pinned exactly two and now expects the three, and a new test checks that a family answer of "answers when called" (`mayNotRespond: false`) removes both name-calling notes.
 - Source: field-expert input (search and rescue practitioner), with the shared note from the field-expert branch.
 - Verified: the old pin failed on the new shared notes (three, not two); the updated test and the new one pass; 12 profile unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(data): complete an incident's engine settings with the engine defaults
+- What: the command post reads the incident through `incidentFromDoc`, which completes the stored `engineParams` with `withEngineDefaults` from the engine. An incident saved before urban rings existed now has them when its terrain is urban, stored values are kept, and an incident with no stored settings gets the defaults; every reader and rebuild sees the same complete settings. Prior writes only read `engineParams`, so nothing new is written.
+- Source: review of the field-expert branch (urban terrain).
+- Verified: `src/data/incidentDoc.test.ts` (old rings gain urban and keep a stored column; nothing stored gives the defaults; the rest of the incident is unchanged) failed first (missing), then passed; 448 web unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
