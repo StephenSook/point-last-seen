@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): the search card's tracking-aid lines, from the shared constants
+- What: the iPhone reads `shared/constants/tracking-aids.json` and builds the card's tracking-aid
+  lines the way the engine's `trackingAidLines` does: one line per aid the family named, in the
+  file's order (an id this build does not know is skipped), then the family's trimmed note; the
+  file's "none" line when the family said there are none; nothing when the family has not said.
+  The approach card carries the lines when it is built with the file.
+- Source: shared profile change (tracking aids), card lines.
+- Verified: tests read the shared file itself: every aid and the none line are there, the order and
+  the unknown id, the trimmed note, the none line, nothing when absent, and the card carrying the
+  lines. They failed to compile before the change and pass after; 282 PLSCore tests pass.
+
 ### fix(ios): the approach card names every name she answers to
 - What: the iPhone's approach card had no names line, while the web's card says who to call,
   for example "Answers to Roberta (also Bea, Mom, Miss Bea)". The card now has the same line,
