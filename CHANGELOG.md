@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/evidence/drill/kennesaw-seed.md` records the Kennesaw drill as seeded: park staff confirmed by email on
+  2026-11-19 that the training exercise needs no Special Use Permit and suggested the trails south of Dallas Highway;
+  the incident `drill-kennesaw-1` (teams T1 to T3, urban terrain marked as the default and not verified for this site,
+  the point last seen on the Kolb Farm Loop Trail) and the exact commands that built and seeded it.
+  Source: the drill's seeding.
+  Verified: every command and value matches the run and its read-back (339 segment documents, prior version 1 with
+  `priorBuiltAt`, the export passes every check); no person or address is named.
 - The Kennesaw Mountain drill grid sits on the trails south of Dallas Highway, as park staff suggested: 338
   segments, 4.21 km2 over the Kolb's Farm, Cheatham Hill and Old John Ward trails, its northern edge about 100 m below
   the road. Before, its window was around the Visitor Center and the summits, all north of the road. Its route graph
