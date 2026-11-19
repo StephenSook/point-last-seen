@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a push reload keeps a newer plan the listener applied while it read
+- What: a tapped push reads the mission again. If the plan listener applied a newer plan while
+  that read ran, the read's older plan replaced it on screen and its task was spoken again; a newer
+  plan that took the task away was undone the same way. The reload now keeps the plan in the order
+  the listener uses: when the plan already on screen is newer than the one read, its version, task
+  and segments stay, also when it has no task for the team.
+- Source: review (finding 2, third round).
+- Verified: a test holds the tap's read at plan 2, applies plan 3 through the listener, then lets
+  the read finish, once with a new task in plan 3 and once with the task taken away. It failed
+  before the change (plan 2 came back and was spoken again) and passes after; the app tests pass.
+
 ### fix(ios): a push tap Auth cannot confirm opens a mission only for the user it was read for
 - What: when a tapped push could not get fresh claims, the phone opened the loaded mission's task
   for any reason the claims were missing: no user at all (signed out) as well as no signal. The
