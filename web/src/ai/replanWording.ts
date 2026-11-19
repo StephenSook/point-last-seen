@@ -1,7 +1,9 @@
 // Plan wording on the SDK's own hybrid mode, cloud first. The plan itself is
-// drafted by code; a model only words it, in a closed schema, and code
-// rejects wording whose teams differ from the draft. Any failure falls to a
-// fixed template, and the route says "rules".
+// drafted by code, and so is each team's task line ("Search segment AA."): a
+// model writes only each team's reason and the summary, in a closed schema.
+// Code rejects wording whose teams differ from the draft, or whose reason names
+// a segment that team was not given. Any failure falls to a fixed template, and
+// the route says "rules".
 
 import { InferenceMode, type HybridParams } from "firebase/ai";
 import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
@@ -23,8 +25,8 @@ export const PLAN_WORDING_JSON = {
       maxItems: 12,
       items: {
         type: "object",
-        properties: { teamId: { type: "string" }, taskText: { type: "string" }, reason: { type: "string" } },
-        required: ["teamId", "taskText", "reason"],
+        properties: { teamId: { type: "string" }, reason: { type: "string" } },
+        required: ["teamId", "reason"],
       },
     },
     summary: { type: "string" },
@@ -34,9 +36,9 @@ export const PLAN_WORDING_JSON = {
 
 const SYSTEM = [
   "You word a search plan that code has already decided. You never change which team searches which segment.",
-  "For each team, write taskText: one short instruction naming its segment ids, and reason: one short line from the table.",
+  "For each team, write reason: one short line from the table about that team's own segments only.",
   "Use plain words. Never say the person will be found or where the person is.",
-  "Return JSON with assignments (teamId, taskText, reason) and a one-sentence summary.",
+  "Return JSON with assignments (teamId, reason) and a one-sentence summary.",
 ].join(" ");
 
 export function wordingParams(model: string): HybridParams {
@@ -67,27 +69,37 @@ export function planPrompt(draft: PlanDraft): string {
   return lines.join("\n");
 }
 
+/** A team's task line, always from the plan's own assignment, never from a model. */
+export function taskTextFor(a: DraftAssignment): string {
+  return a.segmentIds.length > 0 ? `Search segment ${a.segmentIds.join(", ")}.` : "No segment left to assign.";
+}
+
 export function templateWording(draft: PlanDraft): PlanWording {
   const poa = new Map(draft.rank.map((r) => [r.segmentId, r.poa]));
   return {
     assignments: draft.assignments.map((a) => ({
       teamId: a.teamId,
-      taskText: `Search segment ${a.segmentIds.join(", ")}.`,
+      taskText: taskTextFor(a),
       reason: a.segmentIds.length > 0 ? `POA now ${pct(poa.get(a.segmentIds[0]!) ?? 0)}.` : "No segment left to assign.",
     })),
     summary: "Assignments follow the current POA ranking.",
   };
 }
 
-export function checkWording(draft: PlanDraft, wording: PlanWording): { ok: true } | { ok: false; reason: string } {
+/** What the model returns. A task line it sends anyway is ignored: task lines come from the plan. */
+type ModelWording = { assignments: { teamId: string; reason: string; taskText?: unknown }[]; summary: string };
+
+export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
   const want = draft.assignments.map((a) => a.teamId).sort();
   const got = wording.assignments.map((a) => a?.teamId).sort();
   if (want.length !== got.length || want.some((t, i) => t !== got[i])) return { ok: false, reason: "team ids differ from the draft" };
+  const known = [...new Set([...draft.rank.map((r) => r.segmentId), ...draft.assignments.flatMap((a) => a.segmentIds)])];
   for (const a of wording.assignments) {
-    for (const s of [a.taskText, a.reason]) {
-      if (typeof s !== "string" || s.trim() === "" || s.length > MAX_TEXT) return { ok: false, reason: "empty or overlong text" };
-    }
+    const s = a.reason;
+    if (typeof s !== "string" || s.trim() === "" || s.length > MAX_TEXT) return { ok: false, reason: "empty or overlong text" };
+    const own = new Set(draft.assignments.find((d) => d.teamId === a.teamId)?.segmentIds ?? []);
+    if (known.some((id) => !own.has(id) && new RegExp(`\\b${id}\\b`).test(s))) return { ok: false, reason: "a reason names another team's segment" };
   }
   if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
   return { ok: true };
@@ -139,13 +151,21 @@ export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<Wor
     });
     const reply = await Promise.race([Promise.resolve().then(() => deps.generate(planPrompt(draft))), late]);
     const t1 = deps.now();
-    let wording: PlanWording;
+    let modelWording: ModelWording;
     try {
-      wording = JSON.parse(reply.text) as PlanWording;
+      modelWording = JSON.parse(reply.text) as ModelWording;
     } catch {
       return template(null);
     }
-    if (!checkWording(draft, wording).ok) return template(null);
+    if (!checkWording(draft, modelWording).ok) return template(null);
+    // The task lines come from the plan; the model's own text supplies only the reasons and the summary.
+    const wording: PlanWording = {
+      assignments: modelWording.assignments.map((a) => {
+        const own = draft.assignments.find((d) => d.teamId === a.teamId)!;
+        return { teamId: a.teamId, taskText: taskTextFor(own), reason: a.reason };
+      }),
+      summary: modelWording.summary,
+    };
     if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "sdk_prefer_in_cloud", deps.model, t1 - t0, true, t1), notice: null };
     if (reply.inferenceSource === "on_device") return { wording, route: route("on_device", "link_down_fallback", "chrome-built-in", t1 - t0, true, t1), notice: null };
     return { wording, route: route("unknown", "sdk_prefer_in_cloud", deps.model, t1 - t0, false, t1), notice: null };

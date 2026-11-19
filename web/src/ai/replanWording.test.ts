@@ -53,7 +53,7 @@ describe("checkWording", () => {
 
   it("rejects empty or overlong text and a repeated team", () => {
     const w = JSON.parse(good);
-    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], taskText: " " }, w.assignments[1]] }).ok).toBe(false);
+    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: " " }, w.assignments[1]] }).ok).toBe(false);
     expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: "x".repeat(201) }, w.assignments[1]] }).ok).toBe(false);
     expect(checkWording(draft, { ...w, assignments: [w.assignments[0], w.assignments[0]] }).ok).toBe(false);
   });
@@ -74,6 +74,28 @@ describe("planPrompt", () => {
     expect(p).toContain("T1: AC");
     expect(p).toContain("AC 31.0%");
     expect(p).toContain("AB 22.0%");
+  });
+});
+
+describe("task lines come from code, the model writes only reasons", () => {
+  it("asks the model for each team's reason and the summary, never a task line", () => {
+    const item = PLAN_WORDING_JSON.properties.assignments.items;
+    expect(item.required).toEqual(["teamId", "reason"]);
+    expect("taskText" in item.properties).toBe(false);
+  });
+  it("ignores a task line the model wrote and keeps the plan's own segment", async () => {
+    const sly = JSON.stringify({ assignments: [{ teamId: "T1", taskText: "Search segment AD.", reason: "Highest POA now." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+    const out = await wordPlan(draft, deps({ generate: async () => ({ text: sly, inferenceSource: "in_cloud" }) }));
+    expect(out.wording.assignments).toEqual([
+      { teamId: "T1", taskText: "Search segment AC.", reason: "Highest POA now." },
+      { teamId: "T2", taskText: "Search segment AB.", reason: "Second highest." },
+    ]);
+  });
+  it("a reason that names a segment the team was not given falls to the template", async () => {
+    const wrong = JSON.stringify({ assignments: [{ teamId: "T1", reason: "AD is closest to the last sighting." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+    const out = await wordPlan(draft, deps({ generate: async () => ({ text: wrong, inferenceSource: "in_cloud" }) }));
+    expect(out.route.path).toBe("rules");
+    expect(out.wording.assignments[0]!.reason).toBe("POA now 31.0%.");
   });
 });
 
