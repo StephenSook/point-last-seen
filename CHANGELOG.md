@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- An incident has at most 10 teams, so every team can be planned for: the security rules no longer let any client
+  create, change or delete a team (none does; the web only reads them), and `tools/seed/seed_drill.py`, where teams
+  are made, refuses more than 10, a repeated id, `family` or an id a push cannot reach (letters, digits or `_`, up
+  to 32). The practice search copies its teams from the seed. Before, command could write any number of teams,
+  and an 11th could never be planned for under the 10-assignment rule.
+  Source: review (the web's plan card found plans capped at 10 while teams were not).
+  Verified: the tests (command's create, change and delete of a team are refused; 11 teams, no team, `T-1`,
+  `family`, `Family`, a 33-character id and a repeat are refused; 1 and 10 teams pass) failed first, now pass, with
+  all 122 rules tests in the emulator; `bash scripts/ci-local.sh --gates --rules` and `--ts` exit 0.
 - `npm audit` reports no high findings: an npm override moves the Firebase web SDK's Firestore from
   `@grpc/grpc-js` 1.9.16 (two advisories, GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4) to 1.14.7, the version
   `firebase-admin` already uses, so no new package enters the tree. That gRPC client only runs in Node (the

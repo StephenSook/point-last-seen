@@ -31,7 +31,8 @@ each line says what the limit is and why.
   rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the
   mass onto the small area far from every feature, the opposite of what the layer is for. The command post's
   source line for the layer says so.
-- A plan holds at most 10 team assignments. The security rules check every assignment's shape as the plan is
+- A plan holds at most 10 team assignments, and an incident has at most 10 teams: teams come only from the seed
+  tool, which refuses more, and the practice search's copy of it; no app can create one. The security rules check every assignment's shape as the plan is
   written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
   so each assignment is checked by its index; 10 is what fits the rules' 1,000-expression limit with room to spare.
   The one thing the rules cannot see is a segment id written as a number instead of text. Only a command seat can

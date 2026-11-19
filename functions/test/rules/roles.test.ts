@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { validEvent, validPlan } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
@@ -27,12 +27,16 @@ describe("incident, segments, teams", () => {
     await assertSucceeds(getDoc(doc(db, "incidents/I1/packs/T1")));
     await assertSucceeds(getDoc(doc(db, "incidents/I1/planDrafts/h1")));
   });
-  it("only command writes the incident doc, segments and teams", async () => {
+  it("only command writes the incident doc and segments; teams come only from admin tools", async () => {
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/segments/AD"), { segmentId: "AD" }));
     await assertFails(setDoc(doc(dbAs(F, familyClaims), "incidents/I1/teams/T2"), { teamId: "T2" }));
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1"), { name: "x", mode: "drill", status: "open" }));
     await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/segments/AD"), { segmentId: "AD" }));
-    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/teams/T2"), { teamId: "T2", name: "Team 2", colorSlot: 2 }));
+    // A plan holds at most 10 teams, and only the seed tool (at most 10) and the practice copy make teams.
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/teams/T2"), { teamId: "T2", name: "Team 2", colorSlot: 2 }));
+    await admin.db.doc("incidents/I1/teams/T1").set({ teamId: "T1", name: "Team 1", colorSlot: 1 });
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/teams/T1"), { name: "Renamed" }, { merge: true }));
+    await assertFails(deleteDoc(doc(dbAs(C, commandClaims), "incidents/I1/teams/T1")));
     await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Drill", mode: "drill", status: "open" }, { merge: true }));
   });
   it("command cannot switch the incident out of drill or judge mode", async () => {

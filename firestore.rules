@@ -99,7 +99,9 @@ service cloud.firestore {
 
       match /teams/{teamId} {
         allow read: if isMember(incidentId);
-        allow write: if isCommand(incidentId);
+        // Teams come only from admin tools (the seed, at most 10, and the practice copy of it): a plan holds at most
+        // 10 assignments, one a team, so a client-made 11th team could never be planned for.
+        allow write: if false;
 
         // A device doc's id is its own auth uid, under its own team.
         function ownDevice(deviceId) {
