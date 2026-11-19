@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules for a photo's cloud-read consent, `incidents/{id}/photoConsents/{sha256}`: created only by a
+  family member, for themselves, with exactly `storagePath` (this photo's `photos/{incident}/{sha256}.jpg`),
+  `cloudProcessing` (`byUid` the writer, `atMs` a number, as in the clip consent), `createdByUid` (the writer) and
+  `createdAt` (server time). Command and family read it, so command can check it from the server before any cloud
+  read of the photo; nobody changes it; only its creator deletes it, which withdraws the consent.
+  Source: review of PR #20 (the command post's cloud photo read needs a server-side consent per photo).
+  Verified: the tests (the family member records it; command and family read it and a searcher cannot; command
+  and searchers cannot create one; another incident's path, another photo's, a clip path, someone else's consent,
+  a non-numeric or missing time, someone else as creator, a client time, an extra field and a non-hash id are
+  refused; no update or overwrite; only the creator deletes) failed first, now pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md` row 14: App Check on Firestore and Storage is UNENFORCED (monitoring only, nothing refused)
   since 2026-11-19 01:33 UTC, read back by GET; enforcement follows a 24-hour read of verified against unverified
   requests per app; the rollback is to set the mode back.
