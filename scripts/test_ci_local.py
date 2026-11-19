@@ -90,6 +90,41 @@ def test_every_workflow_command_runs_in_ci_local():
     assert unmirrored(texts, SCRIPT.read_text()) == []
 
 
+def pytest_targets(workflow_texts: list[str]) -> set[str]:
+    """Every file or folder a workflow's pytest command names."""
+    named = set()
+    for text in workflow_texts:
+        for cmd in run_commands(text):
+            words = cmd.split()
+            if "pytest" in words:
+                named.update(w.rstrip("/") for w in words[words.index("pytest") + 1:] if not w.startswith("-"))
+    return named
+
+
+def unlisted_tests(files: list[str], named: set[str]) -> list[str]:
+    """Python test files no pytest command names, by path or by a parent folder."""
+    def listed(f: str) -> bool:
+        parts = f.split("/")
+        return any("/".join(parts[:i]) in named for i in range(1, len(parts) + 1))
+    return sorted(f for f in files if not listed(f))
+
+
+def test_every_python_test_file_runs_in_ci():
+    # The pytest lists name their files, so a new test file runs nowhere until it is added (review: three
+    # files under tools/extras ran only by hand). Every test file git would ship must be named.
+    files = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*test_*.py"],
+                           cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+    assert len(files) >= 20
+    texts = [(ROOT / ".github/workflows" / f"{w}.yml").read_text() for w in WORKFLOWS]
+    assert unlisted_tests(files, pytest_targets(texts)) == []
+
+
+def test_an_unlisted_python_test_file_is_found():
+    wf = "jobs:\n  x:\n    steps:\n      - run: python3 -I -m pytest scripts/test_a.py tools/b/ -q\n"
+    named = pytest_targets([wf])
+    assert unlisted_tests(["scripts/test_a.py", "tools/b/test_c.py", "tools/d/test_e.py"], named) == ["tools/d/test_e.py"]
+
+
 def test_a_workflow_step_missing_from_ci_local_is_found():
     wf = "jobs:\n  x:\n    steps:\n      - run: npm test -w web\n      - run: |\n          npx brand-new-check\n"
     assert unmirrored([wf], "npm test -w web\n") == ["npx brand-new-check"]
