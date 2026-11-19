@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/SECURITY.md` has a Dependencies section: no high or critical `npm audit` findings, why the gRPC override
+  is there, and the four moderate findings that remain (`glob` and `minimatch` inside `vite-plugin-pwa`'s
+  `workbox-build`), which run only while the service worker is built, on the repository's own patterns, and are
+  never shipped.
+  Source: review (a fresh clone's `npm audit`: fix or document each finding).
+  Verified: the versions, advisories and dev-only status match `npm audit --json` and `package-lock.json`;
+  `bash scripts/ci-local.sh --gates` exit 0.
 - An incident has at most 10 teams, so every team can be planned for: the security rules no longer let any client
   create, change or delete a team (none does; the web only reads them), and `tools/seed/seed_drill.py`, where teams
   are made, refuses more than 10, a repeated id, `family` or an id a push cannot reach (letters, digits or `_`, up
