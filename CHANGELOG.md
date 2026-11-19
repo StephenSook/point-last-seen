@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The plan and family push tests compare the whole message with `toEqual`, so a name, a place, a task or a
+  question's text added to a push fails them. Before, `toMatchObject` let any extra field through.
+  Source: review (a privacy assertion must fail on extra fields).
+  Verified: with a `place` field added to the plan push's data and a `name` field to the family push's, both
+  tests failed; with notify.ts restored, all 13 push tests pass.
 - Hosting answers a missing `/tiles/` or `/evidence/` file with a real 404. The app-shell rewrite's source is now
   `!/@(tiles|evidence)/**` instead of `**`, so a basemap, route graph or published run that a deploy left out can no
   longer come back as `index.html` with status 200, which read as "no streets", "walkers off" or "no published run"

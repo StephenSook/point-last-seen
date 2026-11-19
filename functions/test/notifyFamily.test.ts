@@ -20,9 +20,11 @@ describe("the family push", () => {
   it("goes to the incident's family topic with ids only and fixed wording, never the question's text", () => {
     expect(familyTopic("drill-dev-1")).toBe("pls-drill-dev-1-family");
     const q = familyMessage({ incidentId: "drill-dev-1", kind: "question", questionId: "q1", drill: true, nowMs: NOW });
-    expect(q).toMatchObject({ topic: "pls-drill-dev-1-family", data: { kind: "question", incidentId: "drill-dev-1", questionId: "q1" },
+    // The whole message, exactly: an added key (the question's text, a name) fails here.
+    expect(q).toEqual({ topic: "pls-drill-dev-1-family", data: { kind: "question", incidentId: "drill-dev-1", questionId: "q1" },
       notification: { title: "Training drill", body: "The search lead has a question." },
-      android: { collapseKey: "drill-dev-1-family", ttl: 7_200_000 } });
+      android: { collapseKey: "drill-dev-1-family", ttl: 7_200_000, priority: "high" },
+      apns: { headers: { "apns-collapse-id": "drill-dev-1-family", "apns-expiration": String(Math.floor(NOW / 1000) + 7200) } } });
     expect(familyMessage({ incidentId: "i", kind: "searching", drill: true, nowMs: NOW }).notification?.body).toBe("Teams are searching now.");
     expect(familyMessage({ incidentId: "i", kind: "searching", drill: false, nowMs: NOW }).notification?.title).toBe("Point Last Seen");
     expect(familyMessage({ incidentId: "i", kind: "paused", drill: true, nowMs: NOW }).notification?.body).toBe("The search is paused. The search lead will call you.");
