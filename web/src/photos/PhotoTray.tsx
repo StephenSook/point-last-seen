@@ -26,14 +26,14 @@ type Props = {
 const STATE_LINE: Record<DeviceState, string> = {
   "no-model": "This browser has no built-in model. Photos stay unread here unless you choose a cloud read for one.",
   downloadable: "This browser can download a built-in model.",
-  text: "This browser's model cannot read images. Photos stayed on this laptop.",
+  text: "This browser's model cannot read images, so no model read these photos.",
   image: "This laptop can read photos here.",
 };
 export { PHOTO_DELETED };
 
 const COULD_NOT: Record<string, string> = {
   deleted: PHOTO_DELETED,
-  "no-consent": "The family has not agreed to a cloud reading of this photo. It stays on this laptop.",
+  "no-consent": "The family has not agreed to a cloud reading of this photo, so no AI model in the cloud reads it.",
   mismatch: "This photo's file does not match its name, so it was not sent.",
   "consent-unchecked": "Could not check the family's consent with the server. Nothing was sent.",
   "not-on-device": "Couldn't read on this laptop. The result was discarded.",
