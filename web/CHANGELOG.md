@@ -1350,3 +1350,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when startJudgeSession answers `unavailable` with "Your practice search is still being set up. Try again in a moment." (a second start during another's setup, or a failed copy that was released), the judge's door shows that sentence instead of "No connection", and the Try a practice search button is enabled again so the retry resumes the same daily slot. Any other `unavailable` still reads as a lost connection.
 - Source: new error from the practice-search callable.
 - Verified: a new case in `src/data/practice.test.ts` failed first ("No connection" received), then passed; 5 practice tests pass. scripts/ci-local.sh exit 0.
+
+### ci(web): let the no-backend browser checks preview a build kept elsewhere
+- What: `web/e2e/ci.config.ts` previews `PLS_PREVIEW_DIR` when it is set (`vite preview --outDir`), so the local CI mirror can build the placeholder web into a temporary folder and never overwrite a real `web/dist`. Unset, as in the workflow, it previews `web/dist` as before.
+- Source: local CI mirror request.
+- Verified: a placeholder build in a temporary folder with a marker file only there; `vite preview --outDir` on that folder served the marker; `PLS_PREVIEW_DIR=<folder> npx playwright test -c e2e/ci.config.ts` ran 9 checks, 9 passed. scripts/ci-local.sh exit 0.
