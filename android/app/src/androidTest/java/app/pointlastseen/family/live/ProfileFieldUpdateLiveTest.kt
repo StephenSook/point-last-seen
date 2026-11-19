@@ -66,34 +66,63 @@ class ProfileFieldUpdateLiveTest {
         val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
         val base = SubjectProfile(answersTo = "Drill subject (synthetic)", clothingLastWorn = "green coat", flags = setOf("mayNotRespond"))
 
-        assertTrue("whole publish", publish(publisher, incidentId, base))
-        log("profile published whole")
+        val doc = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared")
+        // The drill's document persists between runs, so this phone's first publish adds only what it lacks.
+        assertTrue("first publish", publish(publisher, incidentId, base))
+        log("profile published (first publish of this phone)")
+        val before = doc.get(Source.SERVER).await()
         val stamp = "drill coat ${System.currentTimeMillis() % 100000}"
         assertTrue("field update accepted", publish(publisher, incidentId, base.copy(clothingLastWorn = stamp)))
-        val shared = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared").get(Source.SERVER).await()
+        val shared = doc.get(Source.SERVER).await()
         assertEquals(stamp, shared.getString("clothingLastWorn"))
-        assertEquals("Drill subject (synthetic)", shared.getString("answersTo"))
+        assertEquals(before.getString("answersTo"), shared.getString("answersTo"))
         log("field update accepted by the rules and read back; other fields unchanged")
         assertTrue("no-change publish", publish(publisher, incidentId, base.copy(clothingLastWorn = stamp)))
         log("unchanged profile published nothing")
     }
 
-    /** An answered tracking question goes in whole and as a field update, and reads back; needs the trackingAids rules live. */
+    /** An answered tracking question is accepted as a field update and reads back, then changes to none; needs the trackingAids rules live. */
     @Test fun anAnsweredTrackingQuestionIsAcceptedAndReadsBack(): Unit = runBlocking {
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         val incidentId = (joined as JoinOutcome.Joined).incidentId
         val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
-        val base = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"),
-            trackingAids = TrackingAids(listOf("gps_tracker"), "In his coat pocket"))
+        val unanswered = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"))
+        val base = unanswered.copy(trackingAids = TrackingAids(listOf("gps_tracker"), "In his coat pocket"))
         val shared = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared")
 
-        assertTrue("whole publish with tracking aids", publish(publisher, incidentId, base))
+        assertTrue("first publish, unanswered", publish(publisher, incidentId, unanswered))
+        assertTrue("tracking answer as a field update", publish(publisher, incidentId, base))
         assertEquals(mapOf("aids" to listOf("gps_tracker"), "note" to "In his coat pocket"), shared.get(Source.SERVER).await().get("trackingAids"))
-        log("tracking aids published whole and read back")
+        log("tracking aids accepted as a field update and read back")
         val none = base.copy(trackingAids = TrackingAids(emptyList(), ""))
         assertTrue("field update to none", publish(publisher, incidentId, none))
         assertEquals(mapOf("aids" to emptyList<String>(), "note" to ""), shared.get(Source.SERVER).await().get("trackingAids"))
         log("tracking aids changed to none by a field update and read back")
+    }
+
+    /**
+     * A phone's first publish (a reinstall, a second family phone) keeps what the document already holds: here an
+     * edited name and a tracking answer written on the server survive a profile that differs on the name and never
+     * answered the tracking question.
+     */
+    @Test fun aFirstPublishKeepsWhatTheDocumentHolds(): Unit = runBlocking {
+        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
+        assertTrue("join: $joined", joined is JoinOutcome.Joined)
+        val incidentId = (joined as JoinOutcome.Joined).incidentId
+        val shared = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared")
+        val base = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"))
+        assertTrue("the document exists", publish(ProfilePublisher(CodeLoggingSink(), MemoryPublished()), incidentId, base))
+        // Edits written on the server, as command or another phone would, field by field.
+        val edited = "Drill subject, edited (synthetic) ${System.currentTimeMillis() % 100000}"
+        val aid = listOf("medicalert_id", "gps_tracker", "project_lifesaver")[(System.currentTimeMillis() % 3).toInt()]
+        withTimeout(30_000) { shared.update(mapOf("answersTo" to edited, "trackingAids" to mapOf("aids" to listOf(aid), "note" to ""))).await() }
+        // A fresh install has no record of what it published, so this is its first publish of the document.
+        assertTrue("fresh install publishes", publish(ProfilePublisher(CodeLoggingSink(), MemoryPublished()), incidentId, base))
+        val doc = shared.get(Source.SERVER).await()
+        assertEquals(edited, doc.getString("answersTo"))
+        assertEquals(mapOf("aids" to listOf(aid), "note" to ""), doc.get("trackingAids"))
+        log("a first publish kept the edited name and the tracking answer it did not send")
+        withTimeout(30_000) { shared.update("answersTo", base.answersTo).await() }
     }
 }
