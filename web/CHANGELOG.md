@@ -1669,3 +1669,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when a note read fills the fields, the form now shows `From the note: "<quote>"`, the evidence quote the read returned, so command sees which words the suggestion rests on. With no quote it shows nothing. The read already refuses a reply whose quote is not in the note; the form also shows a quote only while the note still holds those exact words.
 - Source: review (the checked evidence quote was never shown).
 - Verified: three new sighting harness tests (a quote shows; no quote shows no line; a quote that is not in the note is never shown) were written first; the first failed (no line), the other two held, then all passed; 7 sighting harness tests pass, and the existing read test that drops a reply whose quote is not in the note still passes; typecheck clean. The full local run of every workflow command happens on the pull request head.
+
+### feat(command): show the family's tracking aids on the approach card
+- What: the approach card lists the engine's line for each tracking aid on the shared profile (`trackingAidLines`), for example "Enrolled in Project Lifesaver: ask the county team to bring receivers.", with the family's note after them. An empty list shows "No tracker or medical ID, as the family said."; a profile without the field shows nothing, since unknown is not none. The card reads only; no model sees this field.
+- Source: field input on approach (tracking and ID aids), with the shared trackingAids field now on main and in the live rules.
+- Verified: a new approach harness (`web/harness/approach.html`) and two tests (two aids and a note in card order; an empty list gives the none line and an absent field shows no list) failed first, then passed; typecheck clean.
+
+### fix(profile): keep the family's tracking aids when command saves the profile
+- What: a command save writes the shared profile document whole, built from what the post read, and the reader kept only fields it knew, so saving any shared field (gender, say) would have erased the tracking aids the family app writes. The reader now keeps `trackingAids` when it is stored (known aid ids only, the note as text) and leaves it absent when it is not, the same way it keeps the family's names list.
+- Source: review while adding tracking aids to the approach card.
+- Verified: two new tests (the stored aids read back and an absent field stays absent; a command save of another shared field keeps them) failed first (the field was dropped), then passed; 29 profile tests pass; typecheck clean.
