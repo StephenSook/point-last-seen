@@ -61,6 +61,19 @@ struct InstantRunner: ReadModelRunner {
 }
 
 @Suite struct ReportReaderTimeoutTests {
+    /// The token count is a call into Apple's model too: it gets the text with phone numbers removed.
+    @Test func theTokenCounterNeverSeesAPhoneNumber() async throws {
+        let seen = Mutex<[String]>([])
+        let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { text, _ in seen.withLock { $0.append(text) }; return 100 },
+                             makeRunner: { _, _, _ in InstantRunner() })
+        let situation = ReportSituation(incidentMode: "drill", knownSegmentIds: ["AC"], assignedSegmentIds: ["AC"], positionSegmentId: nil,
+                                        profile: ModelProfile(shared: .null), networkOnline: false, cloudConsent: false)
+        _ = await r.read("cleared segment AC, caller at 404-555-0123", situation: situation)
+        let texts = seen.withLock { $0 }
+        #expect(texts.count == 1 && !texts[0].contains("555") && texts[0].contains(PhoneNumbers.replacement))
+    }
+
     @Test func aHungTokenCountDoesNotHoldTheReport() async throws {
         let r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
                              estimateTokens: { _, _ in try? await Task.sleep(for: .seconds(60)); return 100 },

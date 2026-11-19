@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
+  frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
+  out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
+  first real CI runs. The check that every workflow command runs in `scripts/ci-local.sh` treats the install as
+  runner setup, as it does the Playwright browser install.
+  Source: CI (the web job's harness step, the first run with Actions minutes available).
+  Verified: the ci-local mirror check passes; the web job's result is on this change's pull request.
 - The Android unit-test floor is 290, the suite's real count with the tracking-aids form and profile tests (it was
   274). `android/count-tests.py --min` fails a run whose results hold fewer tests, so a test class that stops running
   cannot pass as green. It is set in `.github/workflows/android.yml` and `scripts/ci-local.sh`.

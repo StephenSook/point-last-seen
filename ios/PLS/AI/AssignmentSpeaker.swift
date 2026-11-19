@@ -5,10 +5,12 @@ import Foundation
 import PLSCore
 
 /// A voice that speaks one line and returns the milliseconds until the sound started, or nil if
-/// it could not speak.
+/// it could not speak. It asks `stillWanted` right before any sound starts (after a cloud voice's
+/// fetch), and plays nothing when the line is no longer wanted. `stop` silences it.
 @MainActor
 protocol AssignmentVoice: AnyObject {
-    func speak(_ text: String) async -> Double?
+    func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double?
+    func stop()
 }
 
 /// One spoken line, for the `assignment_speech` trace: which voice, whether it spoke, how fast.
@@ -28,6 +30,7 @@ final class AssignmentSpeaker {
     private let makeCloud: (String) -> AssignmentVoice
     private let record: (SpeechRecord) -> Void
     private var lastSpoken: Assignment?
+    private var cloud: AssignmentVoice?
 
     init(onDevice: AssignmentVoice = OnDeviceVoice(),
          makeCloud: @escaping (String) -> AssignmentVoice = { CloudVoice(templateId: $0) },
@@ -37,17 +40,37 @@ final class AssignmentSpeaker {
         self.record = record
     }
 
-    func update(_ assignment: Assignment?, voiceTemplate: String, online: Bool, killCloud: Bool, signedIn: Bool) async {
+    /// Speaks a new assignment. `isCurrent` says whether it is still the loaded mission's; it is
+    /// asked before any sound starts and before the phone's own voice stands in for a failed cloud
+    /// voice, so a line dropped meanwhile is never played.
+    func update(_ assignment: Assignment?, voiceTemplate: String, online: Bool, killCloud: Bool, signedIn: Bool,
+                isCurrent: @escaping @MainActor () -> Bool = { true }) async {
         guard SpokenAssignment.shouldSpeak(previous: lastSpoken, current: assignment), let assignment else { return }
         lastSpoken = assignment
         let text = SpokenAssignment.text(assignment)
         if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
-            let start = await makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces)).speak(text)
+            // The cloud voice is a model: it never gets a phone number. The phone's own voice reads the task as written.
+            let voice = makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces))
+            cloud = voice
+            let start = await voice.speak(PhoneNumbers.scrub(text), ifStillWanted: isCurrent)
+            guard isCurrent() else { return }
             record(SpeechRecord(path: .cloud, outcome: start == nil ? "failed" : "spoken", startMs: start))
             if start != nil { return }
         }
-        let start = await onDevice.speak(text)
+        guard isCurrent() else { return }
+        let start = await onDevice.speak(text, ifStillWanted: isCurrent)
+        guard isCurrent() else { return }
         record(SpeechRecord(path: .onDevice, outcome: start == nil ? "failed" : "spoken", startMs: start))
+    }
+
+    /// Silences both voices and forgets the last line, for a dropped mission or a new membership:
+    /// nothing of the old one plays, and the next membership's assignment is spoken even when it
+    /// matches a line spoken before.
+    func stop() {
+        onDevice.stop()
+        cloud?.stop()
+        cloud = nil
+        lastSpoken = nil
     }
 
     /// One Performance trace per attempt: the voice path, the outcome and the time to first sound.
@@ -78,13 +101,19 @@ final class OnDeviceVoice: NSObject, AssignmentVoice, AVSpeechSynthesizerDelegat
         synthesizer.delegate = self
     }
 
-    func speak(_ text: String) async -> Double? {
+    func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+        guard stillWanted() else { return nil }
         AssignmentSpeaker.activateAudio()
         requestedAt = Date()
         return await withCheckedContinuation { c in
             started = c
             synthesizer.speak(AVSpeechUtterance(string: text))
         }
+    }
+
+    /// Stops the line playing and every line queued after it.
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
     }
 
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
@@ -116,8 +145,8 @@ final class CloudVoice: AssignmentVoice {
     /// The template takes 1 to 600 characters of text.
     nonisolated static func fitsTemplate(_ text: String) -> Bool { (1...600).contains(text.count) }
 
-    func speak(_ text: String) async -> Double? {
-        guard Self.fitsTemplate(text) else { return nil }
+    func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+        guard Self.fitsTemplate(text), !stopped else { return nil }
         let requested = Date()
         let model = AIClient.make(useLimitedUseTokens: true).templateGenerativeModel()
         let templateId = templateId
@@ -125,10 +154,19 @@ final class CloudVoice: AssignmentVoice {
             try? await model.generateContent(templateID: templateId, inputs: ["text": text])
                 .inlineDataParts.first { $0.mimeType.hasPrefix("audio/") }?.data
         }
-        guard let data = wav ?? nil, let player = try? AVAudioPlayer(data: data) else { return nil }
+        // The fetch takes seconds: a stop or a dropped mission meanwhile plays nothing.
+        guard !stopped, stillWanted(), let data = wav ?? nil, let player = try? AVAudioPlayer(data: data) else { return nil }
         AssignmentSpeaker.activateAudio()
         self.player = player
         guard player.play() else { return nil }
         return Date().timeIntervalSince(requested) * 1000
+    }
+
+    private var stopped = false
+
+    func stop() {
+        stopped = true
+        player?.stop()
+        player = nil
     }
 }
