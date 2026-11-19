@@ -1630,3 +1630,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plans rule now takes at most 8 assignments (the worst case fits 9 under the rules' expression limit, so 8 keeps a margin), and the seed refuses more than 8 teams. The plan card's limit follows: "A plan can name at most 8 teams. This draft has 9, so it can't be approved. Search with 8 teams or fewer." and Suggest plan stays disabled past it.
 - Source: the plans rule change (at most 8 assignments).
 - Verified: the plan unit test and the plan harness test were changed to 8 first and failed, then passed (21 plan tests, 8 plan harness tests); typecheck clean. The full local mirror runs on the pull request head.
+
+### fix(plans): fall back to fixed wording when the model writes a number it was not given
+- What: the wording check looked at team ids, other teams' segment ids and text length, but not numbers, so a figure the model made up in a reason or the summary would reach command as fact. Now every run of digits (with an optional decimal part) in a reason or the summary must appear in the plan text the model was sent; otherwise the plan uses fixed wording, and the "What ran" receipt says "Not used: it used a number that is not in the plan."
+- Source: review (model-invented figures in plan wording).
+- Verified: new tests (numbers from the plan accepted; a number not in the plan refused in a reason and in the summary; "a reason with a number not in the draft falls to the template", with the attempt recorded as "number"; the receipt line) failed first, then passed; 27 wording tests and 3 receipt tests pass; typecheck clean. The full local mirror runs on the pull request head.
