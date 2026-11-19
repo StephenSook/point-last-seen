@@ -32,6 +32,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: the tests (the builder's segment keys include `ringPoa`, equal to the layers-off prior, and ROW has
   none; every segment and ROW write carries the prior version; a missing or negative `ringPoa` is refused) failed
   first, now all 32 grid-builder and 16 seed-segment tests pass.
+- The Android unit-test floor is 293, the suite's real count with the first-publish tests (it was 290), in
+  `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the first-publish fix.
+  Verified: the Android job on this branch runs 293 tests with 0 failures and `count-tests --min 293` passes.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
