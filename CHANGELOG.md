@@ -5,6 +5,50 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
+  and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
+  e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −
+  0.63) for sweep searches") and for the sweep width factor (Koester et al. 2014, as reproduced in Koester's 2018
+  thesis: "It was found on average W ≈ 1.645 × Rd with a strong correlation (R2 = .827)."). The constants' source
+  lines name these works instead of a private notes file.
+  Source: review (the film fact-sheet audit: a citation with no copy in the repository).
+  Verified: both quotes re-read at the source on 2026-11-18 (the PLoS One article page and the thesis PDF); the
+  vectors are current; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
+  is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
+  refuse a run that places one.
+  Source: automated security review of 6c90281 (a camera pin published a likely home position).
+  Verified: the tests (a camera sighting is written with no position while a GPS position stays; a planted camera
+  position is refused) failed first, now 14 exporter tests pass; typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
+- CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
+  `scripts/ci-local.sh` mirrors it.
+  Source: the exporter commit.
+  Verified: `bash scripts/ci-local.sh` exit 0, with the exporter's typecheck and 12 tests in its log.
+- `tools/export-run` exports a drill incident as the public run the judge replay reads:
+  `npm run export -w tools/export-run -- --incident <id> --out <file>`. It reads the incident, segments, teams,
+  devices and their read timings, events and plans through the Firestore REST API, writes only the contract's
+  fields (`src/contract.ts`, a copy of the reader's `RUN_FIELDS` until that file is on main), and refuses to
+  write unless every check passes. Every author and device becomes a pseudonym (`author-N`, `device-N`, one alias
+  per device everywhere); report text is null on every event; a reading survives only on a camera sighting, cut
+  to its clip start, clock check, presence, first and last seen and key-frame time; a destination never has a
+  position (it can be a previous home); server time, plan approval and the prior's build time are numbers. No
+  string anywhere may hold a uid-shaped token.
+  Source: review (the extras contract, and the reader's two privacy findings: no uid, no home position).
+  Verified: the tests (a run from drill docs on the real Piedmont Park grid passes the checks; only contract
+  fields; no uid with aliases matching between events and devices; text dropped, camera reading cut, destination
+  unplaced; times as numbers; a planted uid in a team name, a measurement, the run id or an author, a planted home
+  position, report text, a full camera reading, an extra incident field and a raw device id are each refused;
+  REST values decode, timestamps to milliseconds) failed first, now 12 pass; typecheck exit 0. A live read-only
+  export of drill-dev-1 to a scratch file wrote 68 segments, 24 events and 15 plans with every check passed; an
+  independent scan of that file found no uid-shaped token, no text and no destination position.
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/isrid-dementia-p164.md` keeps the source table behind the prior's rings: the ISRID dementia
+  distances from the IPP (all five columns, km and the urban miles) and the find-location shares, copied as
+  printed on Lost Person Behavior p. 164 (the publisher's public sample). The urban find-location shares
+  (structure 35%, road 36%) are kept for a later layer; no engine code reads them.
+  Source: review (keep the unused urban shares in a note).
+  Verified: values re-read from the `pdftotext -layout` extraction of the PDF; `bash scripts/ci-local.sh` exit 0.
 - `tools/seed/seed_segments.py` writes the ring column for the incident's terrain (`engineParams.rings.<terrain>`
   from the constants, by field path), so an incident created before that terrain existed can build its prior and
   its other stored engine values stay as they were.
