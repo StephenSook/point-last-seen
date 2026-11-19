@@ -37,6 +37,7 @@ describe("handlePlanCreated", () => {
     sent.length = 0;
     await clearFirestore();
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+    for (const t of ["T1", "T2"]) await admin.db.doc(`incidents/I1/teams/${t}`).set({ teamId: t, name: `Team ${t}` });
   });
   afterAll(closeClients);
   it("sends one push per changed team against the previous plan", async () => {
@@ -51,6 +52,22 @@ describe("handlePlanCreated", () => {
     expect((await handlePlanCreated(admin.db, messaging, "I1", "1", NOW)).teams).toEqual(["T1", "T2"]);
     sent.length = 0;
     expect(await handlePlanCreated(admin.db, messaging, "I1", "draft", NOW)).toEqual({ teams: [] });
+    expect(sent).toHaveLength(0);
+  });
+  it("pushes only to teams the incident has, with plain ids, at most 20 a plan, and never in a practice search (review)", async () => {
+    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T2", ["AA"]), a("T9", ["AB"]), a("x/../y", ["AC"])] });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "1", NOW)).teams).toEqual(["T2"]);
+    sent.length = 0;
+    const many = Array.from({ length: 30 }, (_, i) => `T${i + 10}`);
+    for (const t of many) await admin.db.doc(`incidents/I1/teams/${t}`).set({ teamId: t });
+    await admin.db.doc("incidents/I1/plans/2").set({ version: 2, assignments: many.map(t => a(t, ["AA"])) });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "2", NOW)).teams).toHaveLength(20);
+    expect(sent).toHaveLength(20);
+    sent.length = 0;
+    await admin.db.doc("incidents/judge-u1").set({ name: "Practice search", mode: "judge", status: "open" });
+    await admin.db.doc("incidents/judge-u1/teams/T1").set({ teamId: "T1" });
+    await admin.db.doc("incidents/judge-u1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"])] });
+    expect(await handlePlanCreated(admin.db, messaging, "judge-u1", "1", NOW)).toEqual({ teams: [] });
     expect(sent).toHaveLength(0);
   });
   it("is registered on plan creation", async () => {

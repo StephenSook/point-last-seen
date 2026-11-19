@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice
+  search), so it pushes only to team ids the incident has under `teams`, with plain ids (letters, digits, `_` and
+  `-`, at most 32), at most 20 a plan, and never in a judge practice search, where no phone is on a team.
+  Source: automated security review of 6f2b7fc (unbounded push fan-out from plan content).
+  Verified: the test (a plan naming a real team, a missing team and a path-like id pushes to the real team only;
+  30 changed teams give 20 pushes; a practice search sends none) failed first, now 190 functions tests pass in the
+  emulators; `bash scripts/ci-local.sh` exit 0.
 - A photo's cloud-read consent lives no longer than the photo: `deletePhotoConsentOnPhotoDelete` (Storage trigger on
   object deletion, retry on) deletes `incidents/{id}/photoConsents/{sha256}` when `photos/{id}/{sha256}.jpg` is
   deleted, whether by command, by the media delete or by the 30-day lifecycle. Photos are create-only, so a

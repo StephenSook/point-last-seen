@@ -3,6 +3,9 @@ import type { Message } from "firebase-admin/messaging";
 
 /** How long a push stays worth delivering: an assignment two hours old has usually changed again. */
 const TTL_S = 7200;
+/** The most pushes one plan sends: a plan is written by command, so its team list is bounded here. */
+export const MAX_PUSHES_PER_PLAN = 20;
+const TEAM_ID = /^[A-Za-z0-9_-]{1,32}$/;
 
 interface Assignment { teamId: string; segmentIds: string[]; taskText: string }
 
@@ -43,12 +46,17 @@ export async function handlePlanCreated(db: Firestore, messaging: { send(m: Mess
   if (!/^[1-9][0-9]{0,8}$/.test(versionId)) return { teams: [] };
   const version = Number(versionId);
   const base = db.doc(`incidents/${incidentId}`);
-  const [inc, plan, prev] = await Promise.all([base.get(), base.collection("plans").doc(versionId).get(),
-    version > 1 ? base.collection("plans").doc(String(version - 1)).get() : Promise.resolve(null)]);
+  const inc = await base.get();
+  // A practice search is a judge's own sandbox, with no phone on its teams: no push.
+  if (inc.get("mode") === "judge") return { teams: [] };
+  const [plan, prev, teamDocs] = await Promise.all([base.collection("plans").doc(versionId).get(),
+    version > 1 ? base.collection("plans").doc(String(version - 1)).get() : Promise.resolve(null), base.collection("teams").listDocuments()]);
   const next = (plan.get("assignments") ?? []) as Assignment[];
   const before = prev?.exists ? ((prev.get("assignments") ?? []) as Assignment[]) : null;
-  const teams = changedTeams(before, next);
-  const drill = ["drill", "judge"].includes(String(inc.get("mode")));
+  // Only teams the incident has, with plain ids, and a bounded number per plan.
+  const known = new Set(teamDocs.map(d => d.id));
+  const teams = changedTeams(before, next).filter(t => TEAM_ID.test(t) && known.has(t)).slice(0, MAX_PUSHES_PER_PLAN);
+  const drill = inc.get("mode") === "drill";
   for (const teamId of teams) await messaging.send(planMessage({ incidentId, teamId, version, drill, nowMs }));
   console.log(JSON.stringify({ event: "notifyPlanApproved", incidentId, version, teams }));
   return { teams };
