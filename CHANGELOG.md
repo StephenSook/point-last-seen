@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/PRODUCTION-CHECKLIST.md` lists the steps before and after enforcing App Check on Firestore and Storage:
+  the 24-hour verdict read, the probe with its token, an App Check debug token for every local dev session (the
+  reCAPTCHA Enterprise key allows only the two hosting origins), the checks within 15 minutes of each flip and the
+  rollback.
+  Source: review (the enforcement plan; the web lane's read of the site key's allowed domains).
+  Verified: the domains are as read with `gcloud recaptcha keys describe` by the web lane on 2026-11-19;
+  `bash scripts/ci-local.sh` exit 0.
 - `docs/evidence/drill/kennesaw-seed.md`: how to rebuild the Kennesaw grid and seed its drill incident, step by
   step, marked NOT RUN until the park gives written permission (the Piedmont drill is the fallback). It states the
   urban terrain, with temperate mountain as the alternative command can pick.
