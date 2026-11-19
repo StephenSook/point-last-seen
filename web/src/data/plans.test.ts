@@ -57,7 +57,7 @@ describe("plan versions", () => {
 });
 
 describe("localDraft", () => {
-  it("computes the same assignments the server draft would, from the rank and the teams", () => {
+  it("computes the engine's assignments from the rank and the teams", () => {
     const d = localDraft("b".repeat(64), 3, draft.rank, ["T1", "T2"], []);
     expect(d.assignments).toEqual(draft.assignments);
     expect(d.eventSetHash).toBe(draft.eventSetHash);

@@ -108,7 +108,7 @@ export function planDocId(version: number): string {
   return String(version).padStart(4, "0");
 }
 
-/** The same draft the server writes, computed here when the link is down. */
+/** The draft: the engine's team assignment for the ranked segments, computed on this laptop. */
 export function localDraft(eventSetHash: string, priorVersion: number, rank: RankedSegment[], teamIds: string[], current: DraftAssignment[]): PlanDraft {
   return { eventSetHash, priorVersion, rank, assignments: assignTeams(rank, teamIds, current) };
 }
@@ -167,18 +167,6 @@ export function subscribePlans(
     (snap) => {
       const { plans, unreadable } = readPlans(snap.docs.map((d) => ({ id: d.id, data: d.data() })));
       cb(plans, snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => Number(d.data()["version"])), !snap.metadata.fromCache, unreadable);
-    },
-    onError,
-  );
-}
-
-/** The server's draft for one event set (written by the draftPlanOnEvent function), or null while there is none. */
-export function subscribeDraft(db: Firestore, incidentId: string, eventSetHash: string, cb: (draft: PlanDraft | null) => void, onError: (e: unknown) => void): Unsubscribe {
-  return onSnapshot(
-    doc(db, "incidents", incidentId, "planDrafts", eventSetHash),
-    (snap) => {
-      const d = snap.data();
-      cb(d ? { eventSetHash: String(d["eventSetHash"]), priorVersion: Number(d["priorVersion"]), rank: d["rank"] as RankedSegment[], assignments: d["assignments"] as DraftAssignment[] } : null);
     },
     onError,
   );

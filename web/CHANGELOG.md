@@ -1355,3 +1355,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/ci.config.ts` previews `PLS_PREVIEW_DIR` when it is set (`vite preview --outDir`), so the local CI mirror can build the placeholder web into a temporary folder and never overwrite a real `web/dist`. Unset, as in the workflow, it previews `web/dist` as before.
 - Source: local CI mirror request.
 - Verified: a placeholder build in a temporary folder with a marker file only there; `vite preview --outDir` on that folder served the marker; `PLS_PREVIEW_DIR=<folder> npx playwright test -c e2e/ci.config.ts` ran 9 checks, 9 passed. scripts/ci-local.sh exit 0.
+
+### refactor(command): drop the listener for a server plan draft that is never written
+- What: the post no longer listens to `planDrafts/{eventSetHash}`; no backend function writes that collection, so the draft always came from `localDraft` (the engine's team assignment on this laptop). The plan card now always reads "Draft from this laptop for the current reports.", and the comments that named a draft function that does not exist are gone.
+- Source: review of the plan path against the deployed functions.
+- Verified: typecheck clean; 21 plan unit tests and 6 plan harness tests pass. scripts/ci-local.sh exit 0.

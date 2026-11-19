@@ -34,7 +34,6 @@ function Harness() {
       <p className="drill">Synthetic plan, not drill data.</p>
       <WhatChanged
         draft={draft}
-        draftSource="local"
         teams={[{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }]}
         onSuggest={async () => {
           if (slow) await new Promise<void>((resolve) => (answer.current = resolve));

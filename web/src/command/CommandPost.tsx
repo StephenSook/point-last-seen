@@ -35,7 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribeDraft, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
@@ -221,7 +221,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The latest activated Remote Config, for checks inside a read that started on an earlier render.
   const rcNow = useRef(rc);
   rcNow.current = rc;
-  const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
@@ -318,21 +317,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
-  const hash = vs?.hash ?? null;
-  useEffect(() => {
-    setServerDraft(null);
-    if (denied || !hash) return;
-    return subscribeDraft(pls.db, incidentId, hash, setServerDraft, (error) => dispatch({ type: "failed", error }));
-  }, [pls, incidentId, hash, denied]);
-
   const latestPlan = plans.length > 0 ? plans[plans.length - 1]! : null;
   const assignments = useMemo(() => Object.fromEntries((latestPlan?.assignments ?? []).map((a: Assignment) => [a.teamId, a])), [latestPlan]);
-  // The server's draft for this event set, or the same draft computed here when the link is down.
+  // The draft for this event set: the engine's team assignment, computed on this laptop.
   const draft: PlanDraft | null = useMemo(() => {
-    if (serverDraft && serverDraft.eventSetHash === hash) return serverDraft;
     if (!vs || !incident || teams.length === 0) return null;
     return localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []);
-  }, [serverDraft, hash, vs, incident, teams, latestPlan]);
+  }, [vs, incident, teams, latestPlan]);
 
   // One hybrid-inference trace per model call (path, reason, platform, stage and latency only).
   const sink = useMemo(() => {
@@ -722,7 +713,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             }
           />
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {incident && segments.length > 0 && (

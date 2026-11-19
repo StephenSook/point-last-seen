@@ -5,7 +5,6 @@ import { RouteGlyph } from "./RouteGlyph";
 
 type Props = {
   draft: PlanDraft | null;
-  draftSource: "server" | "local";
   onSuggest: () => Promise<WordedPlan>;
   /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
   onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
@@ -15,7 +14,7 @@ type Props = {
 };
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus, teams = [] }: Props) {
+export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [] }: Props) {
   const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
   // The reply is kept with the draft it was asked for; it shows (and can be approved) only while
   // that draft is still current, so a reply that lands after the draft changed is never used.
@@ -74,7 +73,7 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
         <p>No draft yet.</p>
       ) : (
         <>
-          <p className="muted">Draft from {draftSource === "server" ? "the server" : "this laptop"} for the current reports.</p>
+          <p className="muted">Draft from this laptop for the current reports.</p>
           {limit && (
             <p className="error" role="status">
               {limit}
