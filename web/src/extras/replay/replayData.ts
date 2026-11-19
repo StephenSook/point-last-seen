@@ -259,13 +259,14 @@ function holdsUidShape(v: unknown, depth = 0): boolean {
 
 export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayData } | Refusal {
   const { incident, segments, teams, devices, events, plans } = run;
+  // Before any walk of the run, so a very large file costs nothing to refuse.
+  if (Array.isArray(events) && events.length > MAX_RUN_EVENTS) return refuse(`The run has more reports than the replay can show (${MAX_RUN_EVENTS} at most).`);
+  // Before the field checks, so a user id is named as one wherever it sits, and a refusal never repeats it.
+  if (holdsUidShape(run)) return refuse(USER_ID);
   const topStray = strayField(run as Record<string, unknown>, RUN_FIELDS.run, null);
   if (topStray) return strayRefusal(topStray);
   const topType = wrongType(run as Record<string, unknown>, RUN_TYPES.run, null);
   if (topType) return typeRefusal(topType);
-  // Before any walk of the run, so a very large file costs nothing to refuse.
-  if (Array.isArray(events) && events.length > MAX_RUN_EVENTS) return refuse(`The run has more reports than the replay can show (${MAX_RUN_EVENTS} at most).`);
-  if (holdsUidShape(run)) return refuse(USER_ID);
   if (!isObj(incident) || !str(incident["name"]) || !num(incident["priorVersion"])) return refuse("The run is missing its incident.");
   const incidentStray = strayField(incident, RUN_FIELDS.incident, "incident");
   if (incidentStray) return strayRefusal(incidentStray);

@@ -86,6 +86,6 @@ export function harnessRun(): PublishedRunV1 {
     devices: [{ deviceId: runDevice("d1"), teamId: "alfa", clockOffsetMs: 0 }, { deviceId: runDevice("d2"), teamId: "bravo", clockOffsetMs: 0 }],
     events: docs.map(([d, at]) => runEvent(d, at)),
     plans: plans.map((p) => ({ version: p.version, approvedAtMs: (p.approvedAt as { toMillis(): number }).toMillis(), priorVersion: p.priorVersion, basedOnEventSetHash: p.basedOnEventSetHash, assignments: p.assignments })),
-    measurements: {},
+    measurements: [],
   };
 }

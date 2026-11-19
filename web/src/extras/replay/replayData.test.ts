@@ -162,6 +162,26 @@ describe("fromLive", () => {
   });
 });
 
+/**
+ * Engine settings of the right shape, every number finite and under 1e19, whose clue factor 1 - w * (1 - base) is
+ * about 1e36. Ten clues on one segment multiply past the largest number, so the map has no finite values.
+ */
+function overflowing(): typeof DEFAULT_PARAMS {
+  const big = -1e18;
+  return {
+    ...DEFAULT_PARAMS,
+    authenticityWeight: { high: big, medium: big, low: big },
+    iocBase: { strong_for: big, for: big, neutral: big, against: big, strong_against: big },
+  };
+}
+
+/** Ten clues on AA, one a minute from T0, arriving a minute after each is sent. */
+function tenClues() {
+  return Array.from({ length: 10 }, (_, k) =>
+    runEvent(eventDoc({ eventId: `c${k}`, seq: k + 1, clientTimeMs: T0 + k * MIN, effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + (k + 1) * MIN),
+  );
+}
+
 // Typed as the contract, so a change to the contract the reader does not follow fails the typecheck.
 function runV1(): PublishedRunV1 {
   const view = replayView();
@@ -182,7 +202,7 @@ function runV1(): PublishedRunV1 {
       runEvent(eventDoc({ eventId: "e2", teamId: "bravo", deviceId: "d2", clientTimeMs: T0 + 2 * MIN }), T0 + 3 * MIN),
     ],
     plans: [{ version: 1, approvedAtMs: T0 + 4 * MIN, priorVersion: 2, basedOnEventSetHash: "0".repeat(64), assignments: replayPlan(1, 0).assignments }],
-    measurements: {},
+    measurements: [],
   };
 }
 
@@ -442,19 +462,40 @@ describe("fromPublishedRun", () => {
   });
 
   it("refuses a run whose engine settings fail on any frame, not only the last", () => {
-    // The clue is retracted later, so the last frame never touches the missing table; the frame before it does.
-    const { iocBase: _missing, ...broken } = DEFAULT_PARAMS;
-    const clue = runEvent(eventDoc({ eventId: "c", clientTimeMs: T0, effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + MIN);
-    const retract = runEvent(eventDoc({ eventId: "r", type: "retraction", role: "command", teamId: null, deviceId: "cmd", clientTimeMs: T0 + 2 * MIN, targetEventId: "c", effect: { kind: "none", why: "informational" } }), T0 + 2 * MIN);
-    const r = fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: broken }, events: [clue, retract] }));
+    // Every clue is retracted later, so the last frame never uses them; the frames before it do.
+    const retractions = Array.from({ length: 10 }, (_, k) =>
+      runEvent(eventDoc({ eventId: `r${k}`, seq: 100 + k, type: "retraction", role: "command", teamId: null, deviceId: "cmd", clientTimeMs: T0 + (20 + k) * MIN, targetEventId: `c${k}`, effect: { kind: "none", why: "informational" } }), T0 + (20 + k) * MIN),
+    );
+    const r = fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: overflowing() }, events: [...tenClues(), ...retractions] }));
     expect(r).toEqual({ ok: false, reason: "The run's engine settings cannot be used." });
   });
 
-  it("refuses engine settings it cannot compute with", () => {
-    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: {} } }))).toEqual({
+  it("refuses engine settings of the right shape that it cannot compute with", () => {
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: overflowing() }, events: tenClues() }))).toEqual({
       ok: false,
       reason: "The run's engine settings cannot be used.",
     });
+  });
+
+  it("refuses engine settings that are not exactly the engine's own shape", () => {
+    const wrong = { ok: false, reason: "The run has a field of the wrong type: incident.engineParams." };
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: {} as never } }))).toEqual(wrong);
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: { ...DEFAULT_PARAMS, note: "x" } as never } }))).toEqual(wrong);
+    const textIn = { ...DEFAULT_PARAMS, iocBase: { ...DEFAULT_PARAMS.iocBase, for: "high" } };
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: textIn as never } }))).toEqual({
+      ok: false,
+      reason: "The run has a field of the wrong type: incident.engineParams.iocBase.for.",
+    });
+    expect(fromPublishedRun(run({ incident: { ...runV1().incident, engineParams: DEFAULT_PARAMS } })).ok).toBe(true);
+  });
+
+  it("reads measurement rows of the exact shape and refuses anything else", () => {
+    const row = { eventId: "e1", deviceId: "device-1", teamId: "alfa", submittedAtMs: T0, readDoneAtMs: T0 + 900, redrawnAtMs: T0 + 1_000 };
+    expect(fromPublishedRun(run({ measurements: [row] })).ok).toBe(true);
+    const wrong = { ok: false, reason: "The run has a field of the wrong type: measurements." };
+    for (const measurements of [{}, [{ ...row, note: "x" }], [{ ...row, deviceId: "d1" }], [{ ...row, readDoneAtMs: "soon" }]]) {
+      expect(fromPublishedRun(run({ measurements: measurements as never })), JSON.stringify(measurements)).toEqual(wrong);
+    }
   });
 
   it("names the contract version it reads", () => {

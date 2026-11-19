@@ -3,8 +3,8 @@
 // number belongs) refuses the run with the field's name instead of reaching code that would draw it or throw on it.
 // Which fields must be present is decided by the reader, which needs only some of them.
 
-import { isWellFormedEffect } from "../laneC";
-import { ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
+import { DEFAULT_PARAMS, isWellFormedEffect } from "../laneC";
+import { DEVICE_PSEUDONYM, ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
 
 /** Returns the path of the first part of `v` that is not of the type, under `at`, or null when it all is. */
 type Check = (v: unknown, at: string) => string | null;
@@ -15,7 +15,6 @@ const ok = (good: boolean, at: string) => (good ? null : at);
 const text: Check = (v, at) => ok(typeof v === "string", at);
 const number: Check = (v, at) => ok(typeof v === "number" && Number.isFinite(v), at);
 const yesNo: Check = (v, at) => ok(typeof v === "boolean", at);
-const plainObject: Check = (v, at) => ok(isPlain(v), at);
 const oneOf = (values: readonly unknown[]): Check => (v, at) => ok(values.includes(v), at);
 const orNull = (c: Check): Check => (v, at) => (v === null ? null : c(v, at));
 const listOf = (c: Check): Check => (v, at) => (Array.isArray(v) ? (v.every((x) => c(x, at) === null) ? null : at) : at);
@@ -48,6 +47,22 @@ const cameraReading = shape({
   sighting: shape({ personVisible: yesNo, firstSeen: text, lastSeen: text, keyFrame: shape({ time: text }) }),
 });
 const assignment = shape({ teamId: text, segmentIds: listOf(text), taskText: text, reason: text });
+/** The exact shape of `model`: the same fields, with a number where it has a number, and so on down. */
+function like(model: unknown): Check {
+  if (typeof model === "number") return number;
+  if (typeof model === "boolean") return yesNo;
+  if (typeof model === "string") return text;
+  if (Array.isArray(model)) return listOf(model.length > 0 ? like(model[0]) : () => "never");
+  if (isPlain(model)) return shape(Object.fromEntries(Object.entries(model).map(([k, v]) => [k, like(v)])));
+  return (_v, at) => at;
+}
+// Engine settings have exactly the engine's own fields (its defaults show them), all numbers or flags.
+const engineParams = like(DEFAULT_PARAMS);
+const devicePseudonym: Check = (v, at) => ok(typeof v === "string" && DEVICE_PSEUDONYM.test(v), at);
+const measurement = shape(
+  { eventId: text, deviceId: devicePseudonym },
+  { teamId: orNull(text), submittedAtMs: orNull(number), readDoneAtMs: orNull(number), redrawnAtMs: orNull(number) },
+);
 // The engine's own exact check for an effect: each kind's fields and nothing else.
 const effect: Check = (v, at) => ok(isWellFormedEffect(v), at);
 const route = shape({
@@ -64,14 +79,14 @@ const route = shape({
 
 /** The type of each field, per part of the run. Only fields the contract lists appear. */
 export const RUN_TYPES: Record<"run" | "incident" | "segment" | "row" | "team" | "device" | "event" | "plan", Record<string, Check>> = {
-  run: { runId: text, label: text, exportedAt: text },
+  run: { runId: text, label: text, exportedAt: text, measurements: listOf(measurement) },
   incident: {
     name: text,
     mode: oneOf(["drill", "judge"]),
     drillLabel: orNull(text),
     priorVersion: number,
     priorInputEventIds: listOf(text),
-    engineParams: orNull(plainObject),
+    engineParams: orNull(engineParams),
     priorBuiltAtMs: orNull(number),
     gridId: orNull(text),
     gridAttribution: orNull(text),

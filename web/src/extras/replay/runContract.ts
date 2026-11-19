@@ -108,8 +108,18 @@ export type PublishedRunV1 = {
   devices: { deviceId: string; teamId: string; clockOffsetMs: number | null }[];
   events: RunEvent[];
   plans: RunPlan[];
-  /** The numbers block. The replay does not read it. */
-  measurements: unknown;
+  /** The numbers block: one row per measured report. The replay does not read it. */
+  measurements: RunMeasurement[];
+};
+
+/** One measured report: when it was sent, read and redrawn, by a device pseudonym. */
+export type RunMeasurement = {
+  eventId: string;
+  deviceId: string;
+  teamId?: string | null;
+  submittedAtMs?: number | null;
+  readDoneAtMs?: number | null;
+  redrawnAtMs?: number | null;
 };
 
 export type RunSegment = {
