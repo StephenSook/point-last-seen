@@ -1390,3 +1390,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the served-run test now requires the replay's end-frame match code to be T43J, the code of the committed file (24 reports, plan v18), instead of any four characters. A change to the engine or the replay reader that moves the judged map now fails this test; re-exporting the run changes the file and the code in the same commit.
 - Source: review of the judge replay tests.
 - Verified: a copy of the test pinned to T43K failed with "Received: T43J"; the T43J pin passes; 13 of 13 no-backend browser checks pass. scripts/ci-local.sh exit 0.
+
+### test(photos): give the family's consent before the live cloud photo reads
+- What: the deployed privacy positive control and the telemetry check now read the photo's own SHA-256 from the tray (`data-sha256`) and give the family's cloud consent for it the way the family app does (`e2e/familyConsent.ts`): an anonymous sign-in, the registered App Check debug token exchanged for a token, `joinIncident` as family with the drill's family code, then a create-only `photoConsents/{sha256}` record at the server's time. An earlier run's consent for the same photo is kept. The debug token and the code come from the environment and are never logged.
+- Source: the consent gate before any cloud photo read.
+- Verified: against the deployed site (aaae392), `privacy.spec.ts` and `telemetry.spec.ts`: 4 of 4 pass, including the consented cloud read sending exactly one signed AI Logic request with App Check; the run log holds no token. scripts/ci-local.sh exit 0.
