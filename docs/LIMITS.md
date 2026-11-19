@@ -84,6 +84,13 @@ each line says what the limit is and why.
 - An incident's command can delete all its clips, photos and their readings at once with
   `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
   are not included; they are rebuilt from the incident and expire with the lifecycle rule.
+- A delete can land while another seat is already sending. The command post checks, right before a clip or
+  photo leaves the browser, that it is still allowed: a clip's consent record is read from the server (never a
+  cache; unreachable means nothing is sent) and must hold all three consents and an unexpired expiry, and a
+  photo must still be in Storage. Only synchronous checks run between that answer and the model call. A delete
+  that completes after the check has answered and before the request reaches the model cannot be stopped from
+  the browser, so that one copy can still be read. Its result is then discarded: a clip's reading cannot be
+  saved once its record is gone, and a photo tray empties and reloads when the delete is announced.
 - A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
   its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
   carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
