@@ -22,9 +22,19 @@ describe("segment docs for Firestore (incidents/{id}/segments)", () => {
     const d = priorDocs(grid, ipp, "temperate_flat", { linear: false, wedge: false }, null)[0]!;
     const s = grid.segments[0]!;
     expect(Object.keys(d).sort()).toEqual(["areaM2", "centroid", "downstream", "featureClasses", "geometryJson", "nearFrac",
-      "neighbors", "priorPoa", "segmentId", "upstream"]);
+      "neighbors", "priorPoa", "ringPoa", "segmentId", "upstream"]);
     expect(JSON.parse((d as { geometryJson: string }).geometryJson)).toEqual(s.geometry);
     expect(d).toMatchObject({ segmentId: s.segmentId, areaM2: s.areaM2, centroid: s.centroid, neighbors: s.neighbors });
+  });
+  it("each segment also carries the ring prior (layers off) as ringPoa, as the command post's rebuild stores it", () => {
+    // Review: the apps read a seeded segment exactly like a rebuilt one; the rebuild keeps the ring prior beside the
+    // layered one as the baseline.
+    const layered = priorDocs(grid, ipp, "temperate_flat", { linear: true, wedge: false }, null);
+    const rings = priorDocs(grid, ipp, "temperate_flat", { linear: false, wedge: false }, null);
+    for (const [i, d] of layered.slice(0, -1).entries()) {
+      expect((d as { ringPoa: number }).ringPoa).toBe(rings[i]!.priorPoa);
+    }
+    expect(layered.at(-1)).not.toHaveProperty("ringPoa");
   });
   it("cells wholly inside the 300 m first ring share its mass evenly; the far corner cell gets less", () => {
     // The IPP is at (60, 310) m: AA (holding it) and AE (farthest corner 265 m away) are wholly inside ring 1;

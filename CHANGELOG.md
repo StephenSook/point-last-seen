@@ -5,6 +5,53 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Kennesaw drill was re-seeded at prior version 2 with the fixed tools (the same grid, point last seen, terrain
+  and layer), so its segments now carry `priorVersion` and `ringPoa` and the iPhone can build its mission.
+  `docs/evidence/drill/kennesaw-seed.md` records the re-seed and the check.
+  Source: the iPhone app could not read the test drill's segments; the Kennesaw drill was seeded the same way.
+  Verified: `segment_contract.py` on the live project: Kennesaw 339 docs at prior version 2, the test drill 68 at
+  version 2 and the development drill 68 at version 5, all readable by the apps.
+- `tools/seed/segment_contract.py` checks an incident's segment docs against the shape the apps decode. The field
+  sets come from `shared/test-vectors/pack-segments-sample.json`, the real segment docs the iPhone's own tests
+  decode. On top of them it checks segmentId equal to the doc id, finite non-negative `priorPoa` and `ringPoa`, one
+  whole-number `priorVersion` equal to the incident's, area above 0, a numeric centroid, `geometryJson` as a string
+  holding a Polygon or MultiPolygon, string lists, `nearFrac` between 0 and 1, a ROW doc, and a prior summing to 1.
+  As a script it reads one live incident (exit 0 readable, 1 not, 2 cannot read). `seed_segments.py` runs it on
+  the docs before writing anything and on the read-back after, and fails if either check fails.
+  Source: the iPhone app could not read a seeded drill's segments; a seed must never produce one it cannot read.
+  Verified: the contract tests (the sample passes; each unreadable shape is named; a MultiPolygon passes; the
+  incident's version must match; a whole incident must sum to 1) and the seed tool's check pass, 32 seed tests in
+  all; against the live project the development drill passes (68 docs at prior version 5) and the test drill and
+  the Kennesaw drill fail on every segment, missing `priorVersion` and `ringPoa`, which is what the iPhone hit.
+- A seeded drill's segments now have the same fields as segments the command post's prior rebuild writes, so the
+  iPhone can build its mission from them. The grid builder's `--prior` adds `ringPoa` (the prior with every layer
+  off, which the rebuild keeps beside the layered prior as its baseline) to each segment, and `seed_segments.py`
+  writes `priorVersion` on every segment and on ROW, besides the incident. Before, a seeded segment had neither, and
+  the iPhone refused the first segment ("The search area could not be read").
+  Source: the iPhone app, joining the test drill.
+  Verified: the tests (the builder's segment keys include `ringPoa`, equal to the layers-off prior, and ROW has
+  none; every segment and ROW write carries the prior version; a missing or negative `ringPoa` is refused) failed
+  first, now all 32 grid-builder and 16 seed-segment tests pass.
+- `scripts/judge_seed_check.py` checks that the drill every judge practice search is copied from has not drifted:
+  it reads the seed named by `JUDGE_SEED_INCIDENT` from the live project and compares what a copy takes (every
+  incident field outside `NOT_COPIED`, both read from `functions/src/judgeSession.ts`; the segments, as a count and
+  a hash; the teams; the shared profile) and a count and hash of the seed's events with the committed
+  `scripts/judge_seed_baseline.json`. It names each difference and exits 1 on drift, and 2 when anything cannot be
+  read, never 0. `docs/PRODUCTION-CHECKLIST.md` runs it before every hosting or functions deploy; `--write`
+  refreshes the baseline after a deliberate change. The baseline was written from the live seed after its shared
+  profile was put back (68 segments, 30 events). Its test runs in the gates job.
+  Source: review (live tests had changed the judge seed's shared profile without anything noticing).
+  Verified: the tests (the seed id and the skipped fields come from the function source; values read as plain
+  JSON; the snapshot is the same in any order; a changed profile field, a new event and a changed segment are each
+  named; a match passes, drift fails, and a missing document or baseline is a failed read) failed first with the
+  module missing, now all 6 pass; against the live project the check exits 0.
+- A test-only drill, `drill-test-1`, exists for the apps' live and device tests, so they never write to the drill
+  every judge practice search is copied from. It has the development drill's grid, point last seen, terrain and
+  near-feature layer, teams T1 and T2, and the same 68 segment ids; its join codes are in the macOS Keychain under
+  account `drill-test-1`. `docs/evidence/drill/drill-test-1-seed.md` records the commands as run and the read-back.
+  Source: review (live tests had written a test stamp and a tracking aid into the judge seed's shared profile).
+  Verified: the read-back in the evidence file (incident fields, teams, 68 segments, ids equal to the development
+  drill's, each Keychain code 8 characters, never printed).
 - The root package accepts Node 22 or 24 (`"engines": { "node": ">=22 <25" }` in `package.json` and its lockfile
   entry), now that the Node 24 job runs the engine, the tools, the web app and the functions typecheck green on Node
   24. The functions package stays at Node 22, the Cloud Functions runtime. The README's requirements say the same.
