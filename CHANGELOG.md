@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A cleared effect belongs to a cleared event only. The event rules refused nothing on an event's effect kind by
+  type, so a family member could write a sighting carrying a cleared effect for a segment and use it to claim
+  that segment's debrief. Event creation now ties a cleared effect to the cleared type (the engine counts it on
+  no other type), and the debrief rule also checks that the event it points at is a cleared event.
+  Source: review of PR #21 (finding 1).
+  Verified: the tests (a searcher's sighting or clue with a cleared effect is refused while a cleared event is
+  accepted; a family member's own sighting with a cleared effect does not qualify a debrief) failed first, now
+  111 rules tests pass in the emulator.
 - New incidents start urban: the drill seed writes `terrain: "urban"`, and `build-grid --prior` accepts
   `--terrain urban`. Command can still change the terrain (with the next prior version). Judge practice
   searches copy their seed's terrain, so they follow the seed drill.

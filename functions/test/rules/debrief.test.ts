@@ -41,6 +41,12 @@ describe("segment debriefs", () => {
     await assertFails(put(dbAs(S, searcherClaims), "AA", debrief(S, { clearedEventId: "0".repeat(32) })));
     await assertFails(put(dbAs(F, familyClaims), "AA", debrief(F, { clearedEventId: clearedId })));
   });
+  it("only a cleared event counts: a member's own event of another type with a cleared effect does not (review)", async () => {
+    // Seeded by admin, so the event write rule is bypassed: the debrief rule must check the type itself.
+    const sighting = { ...cleared(F, "AA", 9), type: "sighting", role: "family", teamId: null };
+    await admin.db.doc(`incidents/I1/events/${sighting.eventId}`).set(sighting);
+    await assertFails(put(dbAs(F, familyClaims), "AA", debrief(F, { clearedEventId: sighting.eventId })));
+  });
   it("takes exactly its fields, in bounds, written as the writer at server time", async () => {
     const db = dbAs(C, commandClaims);
     for (const over of [{ tookMinutes: -1 }, { tookMinutes: 1441 }, { tookMinutes: 4.5 }, { tookMinutes: "45" }, { worked: "x".repeat(501) },

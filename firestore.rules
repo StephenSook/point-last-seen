@@ -107,7 +107,7 @@ service cloud.firestore {
         }
         function clearedBySelf(d) {
           let e = get(/databases/$(database)/documents/incidents/$(incidentId)/events/$(d.clearedEventId)).data;
-          return e.deviceId == request.auth.uid && e.effect.kind == 'cleared' && e.effect.segmentId == segmentId;
+          return e.type == 'cleared' && e.deviceId == request.auth.uid && e.effect.kind == 'cleared' && e.effect.segmentId == segmentId;
         }
         allow read: if isMember(incidentId);
         allow create: if isMember(incidentId) && debriefOk(request.resource.data)
@@ -477,6 +477,8 @@ service cloud.firestore {
         && (t == 'camera_sighting' || d.reading == null || schema_ReportReading(d.reading))
         && (d.route == null || schema_RouteRecord(d.route))
         && validEffect(d.effect)
+        // A cleared effect belongs to a cleared event only (the engine counts it on no other type).
+        && (d.effect.kind != 'cleared' || t == 'cleared')
         && (d.targetEventId == null || d.targetEventId.matches('^[0-9a-f]{32}$'))
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
         && typeAllowed(t, r)

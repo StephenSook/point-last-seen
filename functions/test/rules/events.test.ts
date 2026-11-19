@@ -190,6 +190,12 @@ describe("events: types by role", () => {
     await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { type: "confirmation", targetEventId: TARGET, decision: "confirmed" })));
     await assertSucceeds(put(dbAs(C, commandClaims), commandEvent(C, { type: "confirmation", targetEventId: TARGET, decision: "confirmed" })));
   });
+  it("a cleared effect belongs to a cleared event only (review: it would qualify a segment debrief)", async () => {
+    const effect = { kind: "cleared", segmentId: "AA", pod: 0.5, inputs: { coverage: 1, sweepWidthM: 20, trackLengthM: 1000, areaM2: 20000, rdBasis: "default" } };
+    await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { seq: 7, type: "sighting", effect })));
+    await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { seq: 8, type: "clue", effect })));
+    await assertSucceeds(put(dbAs(S, searcherClaims), validEvent(S, { seq: 9, type: "cleared", effect })));
+  });
   it("a searcher cannot write camera_sighting or destination", async () => {
     const db = dbAs(S, searcherClaims);
     await assertFails(put(db, validEvent(S, { type: "camera_sighting" })));
