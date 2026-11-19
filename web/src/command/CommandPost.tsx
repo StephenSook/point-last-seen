@@ -734,6 +734,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           {questions && (
             <FamilyChannel
               questions={questions}
+              open={incident?.status === "open"}
               searchState={searchStateOf(incident)}
               onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
               onTell={(next) => tellFamily(pls.db, incidentId, next)}
