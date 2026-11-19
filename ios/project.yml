@@ -1,6 +1,8 @@
 # XcodeGen spec for the searcher app. Generate with:
 #   xcodegen generate --spec ios/project.yml
-# The generated PLS.xcodeproj is not tracked; this file is the source.
+# The generated PLS.xcodeproj is not tracked; this file is the source. Only the app's package pins
+# are: PLS.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved, which XcodeGen
+# keeps. ios/PLSCore/Package.resolved is PLSCore's own lockfile (swift test owns it).
 name: PLS
 options:
   bundleIdPrefix: app.pointlastseen

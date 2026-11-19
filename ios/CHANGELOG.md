@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### build(ios): track the app's package pins so a fresh clone builds the same versions
+- What: the generated Xcode project was untracked as a whole, so its package pins never reached the
+  repo, and Xcode wrote the app's 16 pins into ios/PLSCore/Package.resolved instead. That file is
+  PLSCore's own lockfile: `swift test` rewrote it back to 2 pins on every run, so the two tools kept
+  overwriting each other. The app's pins now live where Xcode keeps them for a project
+  (PLS.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved), which is tracked;
+  the rest of the generated project stays ignored. Firebase 13.2.0 and MapLibre 7.0.0 are pinned
+  with every package beneath them.
+- Source: review (fresh-clone check).
+- Verified: with that file present, `xcodebuild -resolvePackageDependencies` leaves
+  ios/PLSCore/Package.resolved unchanged; `xcodegen generate` keeps the file. A simulated fresh
+  clone (a project folder holding only the pins, then XcodeGen, then a resolve into a new derived
+  data folder) left the pins byte-identical. `git check-ignore` still ignores project.pbxproj. The CI
+  mirror `bash scripts/ci-local.sh` exit 0; 109 app tests pass.
+
 ### fix(ios): the alerts question keeps every word on a task screen short of height
 - What: on the simulator the task screen cut the alerts sentence to one line ("... a new assignment
   re..."), because the screen had less height than its content and SwiftUI squeezed that text. The
