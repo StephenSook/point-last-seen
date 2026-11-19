@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): read the mission again without the code, and never re-join a team already held
+- What: when the server granted the join but the mission could not be read, the only button sent
+  the code again, which a one-use code refuses although the phone already had membership. The app
+  now keeps the membership the claims granted and offers "Read the mission again", which reads the
+  mission without the code. Before calling join, it also checks the token's claims (refreshed): a
+  team and incident the phone already holds are read directly, with no code spent.
+- Source: review.
+- Verified: two tests (a failed mission read is retried without a second call; a team already held
+  calls nothing while another team does) failed to compile, then passed; the join tests now start
+  from a phone not yet in the incident; 96 app tests pass; the CI mirror `bash scripts/ci-local.sh`
+  exit 0.
+
 ### fix(ios): a mission lists and counts only its own incident's reports
 - What: the task list, the task status and the probability over the team's segments read the
   whole journal, so after a phone moved to a new incident, an earlier incident's reports showed

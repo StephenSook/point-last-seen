@@ -39,6 +39,11 @@ final class AppModel {
     @ObservationIgnored private var stopPlanWatch: (@Sendable () -> Void)?
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
+    /// The incident and team the server's claims grant this phone, kept when the mission could not
+    /// be read, so it can be read again without sending the code again.
+    private var membership: (incidentId: String, teamId: String)?
+    /// True when the phone is in an incident but its mission is not loaded yet.
+    var canRetryMission: Bool { membership != nil && mission == nil }
     static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
 
     init(signIn: SignIn = .firebase(),
@@ -204,10 +209,26 @@ final class AppModel {
             joinMessage = (error as? SearcherJoin.InputError)?.message ?? Joiner.other
             return
         }
+        // Already in this team (and incident, when named): read the mission, do not spend the code.
+        if let claims = await joinBackend.currentClaims(forceRefresh: true), claims["role"] == .string("searcher"),
+           claims["team"] == .string(request.teamId), case let .string(held)? = claims["inc"],
+           request.incidentId == nil || request.incidentId == held {
+            membership = (held, request.teamId)
+            joinMessage = await loadMission(incidentId: held, teamId: request.teamId)
+            return
+        }
         switch await Joiner(backend: joinBackend).join(request) {
         case let .failed(message): joinMessage = message
-        case let .joined(incidentId, teamId): joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
+        case let .joined(incidentId, teamId):
+            membership = (incidentId, teamId)
+            joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
         }
+    }
+
+    /// Reads the mission again for the incident the phone is already in; the code is not sent again.
+    func retryMission() async {
+        guard let membership else { return }
+        joinMessage = await loadMission(incidentId: membership.incidentId, teamId: membership.teamId)
     }
 
     /// Reads the team's mission and loads it; says why not, or nil when it loaded.
@@ -234,6 +255,7 @@ final class AppModel {
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
     private func dropMission() {
         missionGeneration += 1
+        membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
         mission = nil
@@ -273,6 +295,7 @@ final class AppModel {
             if mission != nil { dropMission() }
             return
         }
+        membership = (incidentId, teamId)
         if mission?.incidentId == incidentId, mission?.teamId == teamId { return }
         let before = missionGeneration
         let message = await loadMission(incidentId: incidentId, teamId: teamId)

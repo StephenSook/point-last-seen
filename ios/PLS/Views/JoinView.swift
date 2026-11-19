@@ -6,6 +6,7 @@ struct JoinView: View {
     static let title = "Join your team"
     static let codeLabel = "Join code"
     static let teamLabel = "Team, for example T1"
+    static let retryLabel = "Read the mission again"
 
     @Bindable var model: AppModel
     @Environment(\.fieldTheme) private var theme
@@ -39,6 +40,13 @@ struct JoinView: View {
             .accessibilityIdentifier("join-button")
             if let message = model.joinMessage {
                 Text(message).font(.title3).accessibilityIdentifier("join-message")
+            }
+            if model.canRetryMission {
+                // Already in the incident: read the mission again without the code.
+                Button(Self.retryLabel) { Task { await model.retryMission() } }
+                    .font(.title3.bold()).frame(maxWidth: .infinity, minHeight: 60)
+                    .disabled(model.joining)
+                    .accessibilityIdentifier("join-retry-mission")
             }
         }
         .textFieldStyle(.roundedBorder)

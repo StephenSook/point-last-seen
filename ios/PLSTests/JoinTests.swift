@@ -13,10 +13,14 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
     private(set) var payloads: [[String: String]] = []
 
     func ensureSignedIn() async -> Bool { steps.append("signIn"); return signedIn }
+    /// The claims the server sets when the call succeeds (nil leaves `claims` as they are).
+    var claimsAfterJoin: [String: JSONValue]?
     func callJoin(_ payload: [String: String]) async throws -> JSONValue {
         steps.append("call")
         payloads.append(payload)
-        return try reply.get()
+        let r = try reply.get()
+        if let after = claimsAfterJoin { claims = after }
+        return r
     }
     func refreshClaims() async throws -> [String: JSONValue] { steps.append("refresh"); return claims }
     private(set) var claimRefreshes: [Bool] = []

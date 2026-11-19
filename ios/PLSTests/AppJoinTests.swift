@@ -115,6 +115,33 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission == nil && reader.stops == 2)
     }
 
+    /// The server granted the join but the mission could not be read: trying again reads the
+    /// mission and never sends the code again (a one-use code would be refused).
+    @Test func aMissionThatFailedToLoadIsReadAgainWithoutTheCode() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.joinMessage == AppModel.missionUnread && m.mission == nil && m.canRetryMission)
+        reader.docs = try drillDocs()
+        await m.retryMission()
+        #expect(m.mission?.teamId == "T1" && m.joinMessage == nil && !m.canRetryMission)
+        #expect(backend.steps.filter { $0 == "call" }.count == 1)
+    }
+
+    /// Joining a team the phone already holds reads the mission without spending the code.
+    @Test func aTeamAlreadyHeldIsNotJoinedAgain() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(!backend.steps.contains("call") && m.mission?.teamId == "T1")
+        // Another team is a real join.
+        backend.claimsAfterJoin = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T2")]
+        await m.join(code: "ABCDEFGH", teamId: "T2", incidentId: "")
+        #expect(backend.steps.contains("call") && m.mission?.teamId == "T2")
+    }
+
     /// A slow load from before (launch) never replaces a join that finished after it started.
     @Test func aSlowEarlierLoadNeverReplacesANewerJoin() async throws {
         let backend = FakeJoinBackend()
@@ -163,16 +190,25 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(reader.watching == ["drill-dev-1", "drill-dev-2"] && reader.stops == 1)
     }
 
+    /// A phone not yet in the incident: the callable sets its claims.
+    func newcomer() -> FakeJoinBackend {
+        let backend = FakeJoinBackend()
+        backend.claimsAfterJoin = backend.claims
+        backend.claims = [:]
+        return backend
+    }
+
     @Test func joiningLoadsTheTeamsMission() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
-        let m = model(FakeJoinBackend(), reader)
+        let backend = newcomer()
+        let m = model(backend, reader)
         await m.join(code: "abcd-efgh", teamId: "T1", incidentId: "")
-        #expect(m.joinMessage == nil && reader.reads == ["drill-dev-1"])
+        #expect(m.joinMessage == nil && reader.reads == ["drill-dev-1"] && backend.steps.contains("call"))
         #expect(m.mission?.incidentId == "drill-dev-1" && m.mission?.teamId == "T1" && m.mission?.assignment?.taskText == "Walk the creek bank.")
     }
 
     @Test func aJoinThatCannotWorkSaysSoAndLoadsNothing() async throws {
-        let backend = FakeJoinBackend()
+        let backend = newcomer()
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(backend, reader)
         await m.join(code: "ABC", teamId: "T1", incidentId: "")
