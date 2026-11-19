@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins that the command post's photo tray can list a search's photos: command and family list
+  `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
+  list clips. A review had read the tray's list as having no matching rule.
+  Source: review (cross-model, rules range, a finding to verify).
+  Verified: the test lists a stored photo as command and as family and is refused for a searcher; all 14 storage
+  rules tests pass in the emulator.
 - A plan holds at most 8 assignments and a drill at most 8 teams (both were 10), and each assignment's segment ids
   must be a list, so an empty string or a map no longer passes for one. The list check costs one more rules
   expression per assignment; with it, the heaviest plan no longer fit 10 even on a drill, and the worst case (a judge
