@@ -39,6 +39,7 @@ object ProfileCodec {
             "pastWandering" to JsonArray(p.pastWandering.map { JsonObject(mapOf("foundWhere" to s(it.foundWhere), "position" to ll(it.position))) }),
             "nearbyWater" to s(p.nearbyWater),
             "vehicle" to (p.vehicle?.let { JsonObject(mapOf("involved" to JsonPrimitive(it.involved), "description" to s(it.description))) } ?: JsonNull),
+            "trackingAids" to (p.trackingAids?.let { JsonObject(mapOf("aids" to strs(it.aids), "note" to s(it.note))) } ?: JsonNull),
         ),
     ).toString()
 
@@ -81,6 +82,9 @@ object ProfileCodec {
             nearbyWater = str("nearbyWater"),
             vehicle = (o["vehicle"] as? JsonObject)?.let {
                 Vehicle(it["involved"]?.jsonPrimitive?.booleanOrNull ?: false, it["description"]?.jsonPrimitive?.content ?: "")
+            },
+            trackingAids = (o["trackingAids"] as? JsonObject)?.let { t ->
+                TrackingAids((t["aids"] as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList(), t["note"]?.jsonPrimitive?.content ?: "")
             },
         )
     }
