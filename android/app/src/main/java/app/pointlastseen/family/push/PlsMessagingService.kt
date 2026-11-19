@@ -33,8 +33,7 @@ object PlanPushInbox {
 class PlsMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         FamilyPush.parse(message.data)?.let { notice ->
-            val question = (notice as? FamilyNotice.Question)?.questionId?.let { " question=$it" } ?: ""
-            Log.i(TAG, "family push kind=${message.data["kind"]} incident=${notice.incidentId}$question")
+            Log.i(TAG, "family push kind=${message.data["kind"]} incident=${notice.incidentId}")
             FamilyPushInbox.received.tryEmit(notice)
             showFamily(this, message.notification?.title ?: FAMILY_TITLE, notice, message.data)
             return
@@ -55,15 +54,15 @@ class PlsMessagingService : FirebaseMessagingService() {
 
         /**
          * A family notice in the foreground, with the fixed words. Tapping it opens the app with the
-         * push's own data keys (kind, incidentId, questionId), the same extras FCM sets when it shows
-         * the notice itself in the background, so one handler opens the question either way.
+         * push's kind and incident ([FamilyPush.EXTRA_KEYS]), which FCM also sets when it shows the notice
+         * itself in the background, so one handler opens the question either way.
          */
         private fun showFamily(context: Context, title: String, notice: FamilyNotice, data: Map<String, String>) {
             if (Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) return
             val intent = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            for (k in listOf("kind", "incidentId", "questionId")) data[k]?.let { intent.putExtra(k, it) }
+            for (k in FamilyPush.EXTRA_KEYS) data[k]?.let { intent.putExtra(k, it) }
             val id = (notice.incidentId + "-family").hashCode()
             val open = PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val n = Notification.Builder(context, PlanPush.CHANNEL_ID)
