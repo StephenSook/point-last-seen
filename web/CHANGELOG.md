@@ -1580,3 +1580,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the ripple test read the far dot's pixel right after the ripple started and expected it unlit; under load the far dot's start (a fixed delay later) had already passed by the time the pixel was read, so the test failed in full-suite runs and passed alone. The map harness now records every dot's grow value in order (`window.growLog`, harness only), and the test checks the ripple's own record: every dot starts at nothing, the far cell starts growing after the point last seen, and the far dot is never larger than the near one; at the end the far dot is drawn.
 - Source: full local mirror runs on main (2 of 2 failed on this test under load).
 - Verified: the new test passes; with the ripple's origin moved to the far cell it fails (the far cell grew first); 5 consecutive full harness-suite runs, 97 of 97 each (21.8 s to 1.0 m under other sessions' load). scripts/ci-local.sh exit 0.
+
+### test(judge): wait for the run file before checking the route's links
+- What: the route test read the replay step's link right after the page opened, while the published run was still loading; under load the run arrived between reading the link and checking its target, so the target section had already been swapped. The test now waits for the replay section before reading the links, and a second test serves no run file and checks the replay step goes to the "No published run yet." line.
+- Source: a full local mirror run under load (the route test failed once; the page logic was right).
+- Verified: `judgeRun.spec.ts` run 5 times over (35 of 35) against the placeholder build. scripts/ci-local.sh exit 0.
