@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The security rules check a plan's shape as it is written (`plan.schema.json`): exactly its eight fields; the doc
+  id is the version zero-padded to at least 4 digits; integer versions; the event-set hash's form; the approval time
+  is the server's; the wording route is null or a route record; and at most 10 assignments. Each assignment has
+  exactly its four fields, a team id a push can reach, up to 6 segment ids of grid form with no comma or empty id,
+  and texts within 200 characters. Rules cannot loop, so each assignment is checked by its index, written for few
+  rules expressions. Before, a plan create checked only who approved it. `docs/LIMITS.md` gives the 10-assignment
+  cap and the one gap (a numeric segment id).
+  Source: review (whole repo).
+  Verified: the tests (the heaviest 10-assignment plan with a wording route is accepted; a wrong or unpadded doc id,
+  extra or missing fields, a bad hash, a client approval time, bad versions, a bad wording route, and each bad
+  assignment at the first and the tenth place, plus 11 assignments, are refused) failed first where they test new
+  refusals, now all 119 rules tests pass in the emulator. Measured in the emulator: 11 heaviest assignments still
+  fit, 18 lighter ones did not before the checks were trimmed. `bash scripts/ci-local.sh` exit 0.
 - `docs/LIMITS.md` and `docs/SECURITY.md` say what the family push carries, and why: Firebase Cloud Messaging does not
   check who subscribes to a topic, so every push holds only fixed wording and ids, never an outcome. They also give
   the family push's limits (20 a day, once per event, no stale state, no retry once its slot is taken).

@@ -65,7 +65,7 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1")));
     const e3 = validEvent(S, { seq: 3 });
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/events/${e3.eventId as string}`), e3));
-    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0009"), validPlan(C)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0009"), validPlan(C, 9)));
   });
   it("command cannot change mode or expiresAt, so a sandbox cannot be extended or a drill relabelled", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
@@ -120,14 +120,14 @@ describe("pack records are per team", () => {
 describe("plans, plan drafts and packs", () => {
   it("only command creates plans; no client writes planDrafts or packs", async () => {
     await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0001"), validPlan(C)));
-    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/plans/0002"), validPlan(S)));
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/plans/0002"), validPlan(S, 2)));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/planDrafts/abc"), {}));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/packs/T1"), { packVersion: 2 }));
   });
   it("a plan is approved by the signed-in command user and never changed", async () => {
-    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0003"), validPlan("someone-else")));
-    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C)));
-    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0003"), validPlan("someone-else", 3)));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C, 4)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0004"), validPlan(C, 4)));
   });
 });
 

@@ -147,7 +147,7 @@ service cloud.firestore {
       match /plans/{version} {
         allow read: if isMember(incidentId);
         allow create: if isCommand(incidentId) && isOpen(incidentId)
-          && request.resource.data.approvedByUid == request.auth.uid;
+          && version.matches('^[0-9]{4,9}$') && validPlan(request.resource.data, int(version));
         allow update, delete: if false;
       }
 
@@ -391,6 +391,48 @@ service cloud.firestore {
     // Key sets are pinned by size: every check reads each named key, a missing key is an error and an
     // error denies, so size() == n admits exactly those keys without list literals (the 1,000-expression
     // limit; functions/test/rules/shapes.test.ts drops each key in turn to prove it).
+    // plan.schema.json, checked as it is written: the doc id is the version zero-padded to at least 4 digits, and
+    // approvedAt is the server's time. Rules cannot loop, so each of the at most 10 assignments (one a team) is checked
+    // by index; 10 keeps the heaviest plan (every text and id at its longest, a wording route) inside the
+    // 1,000-expression limit, measured in the emulator (functions/test/rules/plans.test.ts).
+    function validPlan(p, version) {
+      return exactKeys(p, ['version', 'basedOnEventSetHash', 'priorVersion', 'assignments', 'wordingRoute',
+          'approvedByUid', 'approvedAt', 'createdClientTimeMs'])
+        && p.version is int && p.version >= 1 && p.version == version
+        && p.basedOnEventSetHash is string && p.basedOnEventSetHash.matches('^[0-9a-f]{64}$')
+        && p.priorVersion is int && p.priorVersion >= 0
+        && (p.wordingRoute == null || schema_RouteRecord(p.wordingRoute))
+        && p.approvedByUid == request.auth.uid && p.approvedAt == request.time
+        && p.createdClientTimeMs is number && p.createdClientTimeMs >= 0
+        && validAssignments(p.assignments);
+    }
+    function validAssignments(l) {
+      return l is list && l.size() <= 10
+        && (l.size() < 1 || validAssignment(l[0]))
+        && (l.size() < 2 || validAssignment(l[1]))
+        && (l.size() < 3 || validAssignment(l[2]))
+        && (l.size() < 4 || validAssignment(l[3]))
+        && (l.size() < 5 || validAssignment(l[4]))
+        && (l.size() < 6 || validAssignment(l[5]))
+        && (l.size() < 7 || validAssignment(l[6]))
+        && (l.size() < 8 || validAssignment(l[7]))
+        && (l.size() < 9 || validAssignment(l[8]))
+        && (l.size() < 10 || validAssignment(l[9]));
+    }
+    // A team id a push can reach (as joinIncident requires), at most 6 segment ids of grid form, and bounded texts.
+    // Written for few rules expressions (10 of these must fit the 1,000-expression limit). An error denies, so:
+    // hasOnly() plus reading each of the four fields admits exactly those keys (a missing one errors); keys() and
+    // matches() error on a wrong type; join() errors on a non-list, its pattern allows at most 6 ids, and the second
+    // join (on ";", with no "," allowed) refuses an id that holds a comma; a non-empty list must join to at least
+    // one id, which refuses a list of one empty id. join() turns a number into text, so a
+    // numeric id gets through here (only command writes plans, and the command post writes text ids; docs/LIMITS.md).
+    function validAssignment(a) {
+      return a.keys().hasOnly(['teamId', 'segmentIds', 'taskText', 'reason'])
+        && a.teamId.matches('^[A-Za-z0-9_]{1,32}$')
+        && (a.segmentIds.size() == 0 || a.segmentIds.join(',').matches('^[A-Za-z0-9_]{1,16}(,[A-Za-z0-9_]{1,16}){0,5}$'))
+        && a.segmentIds.join(';').matches('^[A-Za-z0-9_;]{0,101}$')
+        && a.taskText.matches('(?s)^.{0,200}$') && a.reason.matches('(?s)^.{0,200}$');
+    }
     function exactKeys(m, keys) {
       return m.keys().hasOnly(keys) && m.keys().hasAll(keys);
     }
