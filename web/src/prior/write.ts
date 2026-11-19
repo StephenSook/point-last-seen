@@ -5,7 +5,8 @@
 // snapshot has the new prior at once).
 
 import type { EventDoc } from "@pls/engine";
-import { doc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { doc, getDocFromServer, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { classifyPriorRefusal } from "./refusal";
 import type { PriorWrites } from "./rebuild";
 import type { WalkerPriorWrites } from "./walkerPrior";
 
@@ -16,7 +17,8 @@ export function priorBatchOps(incidentId: string, w: PriorWrites | WalkerPriorWr
   return [
     ...w.segments.map((s) => ({ kind: "set" as const, path: `${inc}/segments/${s.segmentId}`, data: s.data })),
     { kind: "set", path: `${inc}/segments/ROW`, data: w.row },
-    { kind: "update", path: inc, data: w.incident },
+    // priorBuiltAt: when this prior was built, by the server's clock; the rules take it only with the version step.
+    { kind: "update", path: inc, data: { ...w.incident, priorBuiltAt: serverTimestamp() } },
     // Events are create-only: a set of a new document is a create under the rules, and the rules
     // refuse it (and so the whole batch) if the id already exists.
     ...events.map((e) => ({ kind: "create" as const, path: `${inc}/events/${e.eventId}`, data: { ...e, serverTime: serverTimestamp() } })),
@@ -31,5 +33,12 @@ export function writePrior(db: Firestore, incidentId: string, w: PriorWrites | W
     else if (op.kind === "set") batch.set(ref, op.data, { merge: true });
     else batch.set(ref, op.data);
   }
-  return batch.commit();
+  // A refusal is reported as "another seat saved first" only after the server confirms a newer version.
+  const serverVersion = async () => {
+    const v: unknown = (await getDocFromServer(doc(db, `incidents/${incidentId}`))).get("priorVersion");
+    return typeof v === "number" ? v : null;
+  };
+  return batch.commit().catch(async (e: unknown) => {
+    throw await classifyPriorRefusal(e, w.incident.priorVersion, serverVersion);
+  });
 }

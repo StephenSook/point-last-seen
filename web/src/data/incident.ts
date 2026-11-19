@@ -2,7 +2,7 @@
 // segments and each phone's clock offset (measured when it packed).
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
-import type { EngineParams, GridSegment, PriorLayers, Terrain } from "@pls/engine";
+import { withEngineDefaults, type EngineParams, type GridSegment, type PriorLayers, type Terrain } from "@pls/engine";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -50,6 +50,16 @@ export type IncidentView = {
   clockOffsets: Record<string, number>;
 };
 
+/**
+ * The incident as the post uses it: stored engine settings are completed with the engine's defaults,
+ * so an incident saved before a terrain's rings existed (urban) still has them, and every reader and
+ * rebuild sees the same complete settings.
+ */
+export function incidentFromDoc(data: Record<string, unknown>): IncidentDoc {
+  const d = data as IncidentDoc;
+  return { ...d, engineParams: withEngineDefaults(d.engineParams) };
+}
+
 function parseGeometry(json: unknown): MapSegment["geometry"] | null {
   try {
     const g = typeof json === "string" ? JSON.parse(json) : json;
@@ -72,7 +82,7 @@ export function subscribeIncident(
 
   const unsubs: Unsubscribe[] = [
     onSnapshot(doc(db, ...base), (s) => {
-      view.incident = s.exists() ? (s.data() as IncidentDoc) : null;
+      view.incident = s.exists() ? incidentFromDoc(s.data()) : null;
       emit();
     }, onError),
     onSnapshot(collection(db, ...base, "segments"), (s) => {

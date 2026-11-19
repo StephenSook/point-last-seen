@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { LayerSwitches } from "../command/LayerSwitches";
 import "../theme/fonts.css";
 import "../theme/base.css";
+import { PRIOR_SUPERSEDED } from "../prior/refusal";
 
 function Harness() {
   const [applied, setApplied] = useState("");
@@ -18,7 +19,8 @@ function Harness() {
       <p className="drill">Synthetic settings, not drill data.</p>
       <LayerSwitches
         layers={{ linear: true, wedge: false }}
-        terrain="temperate_flat"
+        terrain={new URLSearchParams(location.search).get("terrain") === "urban" ? "urban" : "temperate_flat"}
+        rings={new URLSearchParams(location.search).get("rings") === "custom" ? [0.5, 1, 2.5, 10] : undefined}
         hasBearing={false}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
@@ -34,6 +36,10 @@ function Harness() {
       </button>
       <button type="button" onClick={() => writes.current.shift()?.reject(Object.assign(new Error("x"), { code: "permission-denied" }))}>
         Server refuses the first
+      </button>
+      {/* What writePrior reports after the server confirms another seat saved a newer prior. */}
+      <button type="button" onClick={() => writes.current.shift()?.reject(Object.assign(new Error("x"), { code: PRIOR_SUPERSEDED }))}>
+        Another seat saved first
       </button>
     </main>
   );

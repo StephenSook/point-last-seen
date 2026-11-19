@@ -4,6 +4,7 @@ import { bbox } from "@turf/bbox";
 import type { Grid } from "@pls/engine";
 import type { Feature, Geometry, LineString, Polygon, Position } from "geojson";
 import { buildCells } from "./cells";
+import { siteFromOsm } from "./site";
 import { applyFeatures, classifyOsm } from "./features";
 import { buildRouteGraph } from "./graph";
 import { priorDocs } from "./seed";
@@ -18,12 +19,14 @@ interface OsmElement {
 export interface OverpassJson { elements: OsmElement[] }
 
 const USAGE = "usage: build-grid <site.geojson> <gridId> --osm <overpass.json> --out <grid.json>\n"
+  + "       build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>\n"
+  + "                  (the park relation's outline, its holes kept, clipped to the window)\n"
   + "       build-grid --query <site.geojson>   (prints the Overpass query for the site's bounding box)\n"
-  + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <temperate_flat|temperate_mountain>\n"
+  + "       build-grid --prior <grid.json> --ipp <lat,lon> --terrain <urban|temperate_flat|temperate_mountain>\n"
   + "                  [--linear] [--bearing <deg>] --out <segments.json>   (segment docs with the engine's prior)\n"
   + "       build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>\n"
   + "                  (the stored route graph for walkers, from the same extract, bounded by the grid's box)";
-const TERRAINS = ["temperate_flat", "temperate_mountain"] as const;
+const TERRAINS = ["urban", "temperate_flat", "temperate_mountain"] as const;
 
 const coords = (pts: OsmPoint[]): Position[] => pts.map(p => [p.lon, p.lat]);
 const closed = (c: Position[]) => c.length >= 4 && c[0]![0] === c[c.length - 1]![0] && c[0]![1] === c[c.length - 1]![1];
@@ -87,6 +90,8 @@ export function main(argv: string[]): number {
     process.stdout.write(overpassQuery(bbox(siteOf(query)) as [number, number, number, number]));
     return 0;
   }
+  const siteOsm = flag("--site-from-osm");
+  if (siteOsm) return siteMain(siteOsm, flag);
   const priorPath = flag("--prior");
   if (priorPath) return priorMain(argv, priorPath, flag);
   const graphPath = flag("--graph");
@@ -102,6 +107,24 @@ export function main(argv: string[]): number {
   writeFileSync(out, JSON.stringify(grid, null, 2) + "\n");
   process.stdout.write(`build-grid: ${grid.segments.length} segments written to ${out}\n`);
   return 0;
+}
+
+function siteMain(osmPath: string, flag: (n: string) => string | undefined): number {
+  const relation = Number(flag("--relation")), out = flag("--out"), windowText = flag("--window");
+  const window = windowText === undefined ? undefined : windowText.split(",").map(Number);
+  if (!Number.isInteger(relation) || !out || (window !== undefined && (window.length !== 4 || !window.every(Number.isFinite)))) {
+    process.stderr.write(USAGE + "\n");
+    return 2;
+  }
+  try {
+    const site = siteFromOsm(JSON.parse(readFileSync(osmPath, "utf8")), relation, window as [number, number, number, number] | undefined);
+    writeFileSync(out, JSON.stringify(site, null, 2) + "\n");
+    process.stdout.write(`build-grid: site of ${String(site.properties?.name)} written to ${out}\n`);
+    return 0;
+  } catch (e) {
+    process.stderr.write(`build-grid: ${String(e instanceof Error ? e.message : e)}\n`);
+    return 1;
+  }
 }
 
 function priorMain(argv: string[], gridPath: string, flag: (n: string) => string | undefined): number {

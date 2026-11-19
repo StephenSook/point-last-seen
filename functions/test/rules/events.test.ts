@@ -1,4 +1,5 @@
-import { deleteDoc, doc, getDoc, setDoc, updateDoc, type Firestore } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, type Firestore } from "firebase/firestore";
+import placementDocs from "./placement-event.json";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { commandEvent, eventIdFor, validEvent } from "../fixtures";
 import {
@@ -190,6 +191,12 @@ describe("events: types by role", () => {
     await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { type: "confirmation", targetEventId: TARGET, decision: "confirmed" })));
     await assertSucceeds(put(dbAs(C, commandClaims), commandEvent(C, { type: "confirmation", targetEventId: TARGET, decision: "confirmed" })));
   });
+  it("a cleared effect belongs to a cleared event only (review: it would qualify a segment debrief)", async () => {
+    const effect = { kind: "cleared", segmentId: "AA", pod: 0.5, inputs: { coverage: 1, sweepWidthM: 20, trackLengthM: 1000, areaM2: 20000, rdBasis: "default" } };
+    await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { seq: 7, type: "sighting", effect })));
+    await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { seq: 8, type: "clue", effect })));
+    await assertSucceeds(put(dbAs(S, searcherClaims), validEvent(S, { seq: 9, type: "cleared", effect })));
+  });
   it("a searcher cannot write camera_sighting or destination", async () => {
     const db = dbAs(S, searcherClaims);
     await assertFails(put(db, validEvent(S, { type: "camera_sighting" })));
@@ -214,5 +221,28 @@ describe("events: types by role", () => {
   });
   it("a retraction of an event that does not exist is rejected", async () => {
     await assertFails(put(dbAs(S, searcherClaims), validEvent(S, { seq: 2, type: "retraction", targetEventId: eventIdFor("I1", S, 999) })));
+  });
+});
+
+// "Place on map": command places a family sighting by writing a NEW command sighting that names the family event
+// (targetEventId) and carries the picked point; the family event never changes. The docs are the command post's own
+// builder output (placeFamilySighting), with this test's incident and uids.
+describe("a command placement of a family sighting", () => {
+  const familyId = eventIdFor("I1", F, 7);
+  beforeEach(async () => {
+    await admin.db.doc(path(familyId)).set({ ...placementDocs.family, incidentId: "I1", eventId: familyId, deviceId: F, authorUid: F });
+  });
+  const placement = (uid: string, over: Record<string, unknown> = {}) => {
+    const seq = placementDocs.placement.seq;
+    return { ...placementDocs.placement, incidentId: "I1", deviceId: uid, authorUid: uid, eventId: eventIdFor("I1", uid, seq),
+      targetEventId: familyId, serverTime: serverTimestamp(), ...over };
+  };
+  it("is accepted from command in the command post's exact shape (25 fields)", async () => {
+    expect(Object.keys(placementDocs.placement)).toHaveLength(25);
+    await assertSucceeds(put(dbAs(C, commandClaims), placement(C)));
+  });
+  it("is refused from a family or searcher seat claiming the command role", async () => {
+    await assertFails(put(dbAs(F, familyClaims), placement(F)));
+    await assertFails(put(dbAs(S, searcherClaims), placement(S)));
   });
 });

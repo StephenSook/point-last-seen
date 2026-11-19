@@ -8,13 +8,14 @@ test("with no built-in model D2 shows the no-model message and sends nothing", a
   await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
   await page.getByRole("button", { name: "Get this laptop ready" }).click();
   await expect(page.getByTestId("d2-state")).toHaveAttribute("data-state", "no-model");
-  await expect(page.getByTestId("d2-state")).toHaveText("This browser has no built-in model. Nothing private was sent.");
-  await expect(page.getByText(/replay above/)).toHaveCount(0);
+  // The site publishes a drill run, so the line points at its replay.
+  await expect(page.getByTestId("d2-state")).toHaveText("This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run.");
   expect(hits).toEqual([]);
   expect(consoleErrors).toEqual([]);
 });
 
-test("before a run is published the page says so once and offers a practice search first", { tag: "@no-backend" }, async ({ page }) => {
+test("with no published run the page says so once and offers a practice search first", { tag: "@no-backend" }, async ({ page }) => {
+  await page.route("**/evidence/published-run.json", (route) => route.fulfill({ status: 404, body: "" }));
   await page.goto("/judge");
   await expect(page.getByRole("region", { name: "Replay the training drill" }).getByText("No published run yet.")).toBeVisible();
   await expect(page.getByText("No published run yet.")).toHaveCount(1);
@@ -30,7 +31,7 @@ test("a practice search opens a labelled training incident on the real park map,
   await page.getByRole("button", { name: "Try a practice search" }).click();
   await expect(page).toHaveURL(/\?incident=judge-/, { timeout: 30_000 });
   await expect(page.locator(".post-head")).toContainText("Training drill. Practice search; nobody is missing.", { timeout: 20_000 });
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".post-head")).toContainText("MATCH");
 });
 

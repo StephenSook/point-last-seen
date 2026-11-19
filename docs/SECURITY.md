@@ -92,3 +92,22 @@ except the iOS report read, which streams.
 
 The security rules, media retention and other limits are in `docs/LIMITS.md`. The daily probe also reads the
 public `ops/storage` record (`scripts/media_probe.py`) to check that drill media still expires.
+
+## Dependencies
+
+`npm audit` reports no high or critical findings. The Firebase web SDK's Firestore is held to `@grpc/grpc-js` 1.14.7
+by an npm override in `package.json` (it pins 1.9.16, which has two advisories, GHSA-m9gg-hp2v-232j and
+GHSA-f596-whhp-79r4); that gRPC client only runs in Node, for the rules tests, and the browser bundle has none.
+
+Four moderate findings remain, all in the web build's offline support and never shipped: `vite-plugin-pwa` 2.0.0
+uses `workbox-build` 7.4.1, which uses `glob` 11.1.0 and `minimatch` 10.2.6 and 5.1.9 (GHSA-3g3m-2fjr-6pw4,
+GHSA-g3hv-75wg-m249). They run only while the service worker is built, on the repository's own file patterns, so
+no outside input reaches them; `npm audit`'s fix is to go back to `vite-plugin-pwa` 1.1.0. They are kept until
+`workbox-build` takes a fixed `glob`.
+
+## Push notifications
+
+Firebase Cloud Messaging does not check who subscribes to a topic, so anyone who knows an incident id could receive
+its pushes. Every push (`functions/src/notify.ts`) therefore carries only fixed wording and ids: no name, place, task
+or question text, and never an outcome. The tests compare each whole message, so an added field fails them. The
+details are in `docs/LIMITS.md`.

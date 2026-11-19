@@ -18,6 +18,13 @@ test("the sheet shows nine numbered blocks", async ({ page }) => {
   }
 });
 
+test("the sheet's match code line counts reports, not every event", async ({ page }) => {
+  // The harness has 14 sightings, a confirmation and a retraction of one sighting: 13 reports, 16 events.
+  await page.goto(harness);
+  await openExtra(page, "Print assignment sheet");
+  await expect(page.getByText(/Map match code at print time: .* \(plan v\d+, 13 reports\)\./).first()).toBeVisible();
+});
+
 test("in print media the command post is hidden and the sheet is visible", async ({ page }) => {
   await page.goto(harness);
   await openExtra(page, "Print assignment sheet");
@@ -46,6 +53,9 @@ test("the print view is usable by keyboard", async ({ page }) => {
   const more = page.getByRole("button", { name: "More", exact: true });
   await more.focus();
   await page.keyboard.press("Enter");
+  // "Replay" is the first item; the arrow keys move down the menu.
+  await expect(page.getByRole("menuitem", { name: "Replay" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("menuitem", { name: "Print assignment sheet" })).toBeFocused();
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
@@ -75,7 +85,7 @@ test("typing a different code shows the count line", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Check a radio code" });
   const field = dialog.getByLabel("Code heard on the radio");
   await field.fill("K7Q5");
-  await expect(dialog.getByRole("status")).toHaveText("Different map. Ask the team how many reports they have. Command has 14.");
+  await expect(dialog.getByRole("status")).toHaveText("Different map. Ask the team how many reports they have. Command has 13.");
   await field.fill("KU7Q");
   await expect(dialog.getByRole("status")).toHaveText("A match code has 4 characters. Letters I, L, O and U are never used.");
 });

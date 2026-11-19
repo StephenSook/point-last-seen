@@ -67,6 +67,8 @@ service cloud.firestore {
       allow update: if isCommand(incidentId)
         && resource.data.get('status', 'open') != 'closed'
         && request.resource.data.status in ['open', 'found', 'closed']
+        // What the family may be told about the search: only that teams are searching or that it is paused.
+        && (!('searchState' in request.resource.data) || request.resource.data.searchState in ['searching', 'paused'])
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt'])
@@ -110,7 +112,7 @@ service cloud.firestore {
         }
         function clearedBySelf(d) {
           let e = get(/databases/$(database)/documents/incidents/$(incidentId)/events/$(d.clearedEventId)).data;
-          return e.deviceId == request.auth.uid && e.effect.kind == 'cleared' && e.effect.segmentId == segmentId;
+          return e.type == 'cleared' && e.deviceId == request.auth.uid && e.effect.kind == 'cleared' && e.effect.segmentId == segmentId;
         }
         allow read: if isMember(incidentId);
         allow create: if isMember(incidentId) && debriefOk(request.resource.data)
@@ -124,7 +126,9 @@ service cloud.firestore {
 
       match /teams/{teamId} {
         allow read: if isMember(incidentId);
-        allow write: if isCommand(incidentId);
+        // Teams come only from admin tools (the seed, at most 10, and the practice copy of it): a plan holds at most
+        // 10 assignments, one a team, so a client-made 11th team could never be planned for.
+        allow write: if false;
 
         // A device doc's id is its own auth uid, under its own team.
         function ownDevice(deviceId) {
@@ -163,16 +167,12 @@ service cloud.firestore {
         allow read: if isCommand(incidentId) || (isMember(incidentId) && request.auth.token.team == teamId);
         allow write: if false;
       }
-      match /planDrafts/{eventSetHash} {
-        allow read: if isMember(incidentId);
-        allow write: if false;
-      }
 
       // An approved plan is written once by the command user who approved it.
       match /plans/{version} {
         allow read: if isMember(incidentId);
         allow create: if isCommand(incidentId) && isOpen(incidentId)
-          && request.resource.data.approvedByUid == request.auth.uid;
+          && version.matches('^[0-9]{4,9}$') && validPlan(request.resource.data, int(version));
         allow update, delete: if false;
       }
 
@@ -196,6 +196,24 @@ service cloud.firestore {
                   && clipConsentOk(request.resource.data)));
         allow delete: if isCommand(incidentId);
       }
+      // A question from command to the family, answered once by a family member. Every member reads it; nobody
+      // deletes it (incident cleanup does). The push about it carries ids only, never the text.
+      match /familyQuestions/{questionId} {
+        allow read: if isMember(incidentId);
+        // The id is a Firestore auto-id (20 letters and digits), so nothing a person types can ride the push as an
+        // id; and only an open incident (not a found or closed one) takes a new question.
+        allow create: if isCommand(incidentId) && incidentData(incidentId).status == 'open' && questionId.matches('^[A-Za-z0-9]{20}$')
+          && exactKeys(request.resource.data, ['text', 'createdByUid', 'createdAt'])
+          && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
+          && request.resource.data.createdByUid == request.auth.uid && request.resource.data.createdAt == request.time;
+        allow update: if isFamily(incidentId) && !('answer' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer', 'answeredByUid', 'answeredAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAll(['answer', 'answeredByUid', 'answeredAt'])
+          && request.resource.data.answer is string && request.resource.data.answer.size() >= 1 && request.resource.data.answer.size() <= 500
+          && request.resource.data.answeredByUid == request.auth.uid && request.resource.data.answeredAt == request.time;
+        allow delete: if false;
+      }
+
       match /photoReadings/{sha256} {
         allow read, write: if isCommand(incidentId);
       }
@@ -224,7 +242,11 @@ service cloud.firestore {
     // profile/shared is readable by every member and carried in packs, so it takes only the "shared with
     // searchers" fields of spec section 13.2: a field-mapping slip cannot put private history there.
     function validSharedProfile(p) {
-      return schema_SharedProfile(p);
+      return schema_SharedProfile(p)
+        // With the other-names list, nickname mirrors its first name ("" for an empty list), so every reader shows
+        // the same name. A profile saved before the list keeps any nickname.
+        && (!('otherNames' in p) || (p.otherNames.size() == 0 && p.nickname == '')
+            || (p.otherNames.size() > 0 && p.nickname == p.otherNames[0]));
     }
 
     // BEGIN GENERATED by tools/rules/gen_rules_validators.py from shared/schemas. Do not edit by hand.
@@ -399,6 +421,48 @@ service cloud.firestore {
     // Key sets are pinned by size: every check reads each named key, a missing key is an error and an
     // error denies, so size() == n admits exactly those keys without list literals (the 1,000-expression
     // limit; functions/test/rules/shapes.test.ts drops each key in turn to prove it).
+    // plan.schema.json, checked as it is written: the doc id is the version zero-padded to at least 4 digits, and
+    // approvedAt is the server's time. Rules cannot loop, so each of the at most 10 assignments (one a team) is checked
+    // by index; 10 keeps the heaviest plan (every text and id at its longest, a wording route) inside the
+    // 1,000-expression limit, measured in the emulator (functions/test/rules/plans.test.ts).
+    function validPlan(p, version) {
+      return exactKeys(p, ['version', 'basedOnEventSetHash', 'priorVersion', 'assignments', 'wordingRoute',
+          'approvedByUid', 'approvedAt', 'createdClientTimeMs'])
+        && p.version is int && p.version >= 1 && p.version == version
+        && p.basedOnEventSetHash is string && p.basedOnEventSetHash.matches('^[0-9a-f]{64}$')
+        && p.priorVersion is int && p.priorVersion >= 0
+        && (p.wordingRoute == null || schema_RouteRecord(p.wordingRoute))
+        && p.approvedByUid == request.auth.uid && p.approvedAt == request.time
+        && p.createdClientTimeMs is number && p.createdClientTimeMs >= 0
+        && validAssignments(p.assignments);
+    }
+    function validAssignments(l) {
+      return l is list && l.size() <= 10
+        && (l.size() < 1 || validAssignment(l[0]))
+        && (l.size() < 2 || validAssignment(l[1]))
+        && (l.size() < 3 || validAssignment(l[2]))
+        && (l.size() < 4 || validAssignment(l[3]))
+        && (l.size() < 5 || validAssignment(l[4]))
+        && (l.size() < 6 || validAssignment(l[5]))
+        && (l.size() < 7 || validAssignment(l[6]))
+        && (l.size() < 8 || validAssignment(l[7]))
+        && (l.size() < 9 || validAssignment(l[8]))
+        && (l.size() < 10 || validAssignment(l[9]));
+    }
+    // A team id a push can reach (as joinIncident requires), at most 6 segment ids of grid form, and bounded texts.
+    // Written for few rules expressions (10 of these must fit the 1,000-expression limit). An error denies, so:
+    // hasOnly() plus reading each of the four fields admits exactly those keys (a missing one errors); keys() and
+    // matches() error on a wrong type; join() errors on a non-list, its pattern allows at most 6 ids, and the second
+    // join (on ";", with no "," allowed) refuses an id that holds a comma; a non-empty list must join to at least
+    // one id, which refuses a list of one empty id. join() turns a number into text, so a
+    // numeric id gets through here; the command post's planFromDoc sets such a plan aside on read (docs/LIMITS.md).
+    function validAssignment(a) {
+      return a.keys().hasOnly(['teamId', 'segmentIds', 'taskText', 'reason'])
+        && a.teamId.matches('^[A-Za-z0-9_]{1,32}$')
+        && (a.segmentIds.size() == 0 || a.segmentIds.join(',').matches('^[A-Za-z0-9_]{1,16}(,[A-Za-z0-9_]{1,16}){0,5}$'))
+        && a.segmentIds.join(';').matches('^[A-Za-z0-9_;]{0,101}$')
+        && a.taskText.matches('(?s)^.{0,200}$') && a.reason.matches('(?s)^.{0,200}$');
+    }
     function exactKeys(m, keys) {
       return m.keys().hasOnly(keys) && m.keys().hasAll(keys);
     }
@@ -494,6 +558,8 @@ service cloud.firestore {
         && (t == 'camera_sighting' || d.reading == null || schema_ReportReading(d.reading))
         && (d.route == null || schema_RouteRecord(d.route))
         && validEffect(d.effect)
+        // A cleared effect belongs to a cleared event only (the engine counts it on no other type).
+        && (d.effect.kind != 'cleared' || t == 'cleared')
         && (d.targetEventId == null || d.targetEventId.matches('^[0-9a-f]{32}$'))
         && (d.decision == null || d.decision in ['confirmed', 'rejected'])
         && typeAllowed(t, r)

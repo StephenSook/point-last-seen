@@ -5,7 +5,7 @@
 // the note before it is stored or read.
 
 import type { ClothingColor, Direction } from "@pls/engine";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import type { SightingCues, SightingRead } from "../ai/sightingText";
 import type { SightingInput } from "../data/sightings";
 import type { LatLon } from "../map/geo";
@@ -48,7 +48,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [callbackName, setCallbackName] = useState("");
   const [callbackNumber, setCallbackNumber] = useState("");
   const [busy, setBusy] = useState<"read" | "cloud" | "save" | null>(null);
-  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent">("none");
+  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed">("none");
+  // The note as it is now: a reply for an older note is dropped rather than filled in.
+  const noteNow = useRef(note);
+  noteNow.current = note;
   const [error, setError] = useState<string | null>(null);
 
   function fill(c: { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string }) {
@@ -63,8 +66,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   async function readOnLaptop() {
     setBusy("read");
     setError(null);
+    const asked = note;
     try {
-      const r = await readNote(note);
+      const r = await readNote(asked);
+      if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) fill(r.reading);
       else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
@@ -77,8 +82,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   async function readInCloud() {
     setBusy("cloud");
     setError(null);
+    const asked = note;
     try {
-      const r = await readNoteInCloud(note);
+      const r = await readNoteInCloud(asked);
+      if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) fill(r.reading);
       else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
@@ -207,6 +214,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {readState === "filled" && <p role="status" className="muted">Suggested from the note. Check every field.</p>}
       {readState === "evidence" && <p role="status">This note may describe evidence. It was not sent to any model. Fill the fields by hand.</p>}
       {readState === "not-read" && <p role="status">The note could not be read. Fill the fields by hand.</p>}
+      {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}
       <fieldset className="callback">
         <legend>Callback (stays on this screen, cleared on save)</legend>
         <label>

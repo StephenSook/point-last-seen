@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
-import { convergenceCode } from "../laneC";
+import { convergenceCode } from "../hostApp";
 import { compareCodes, CROCKFORD, normalizeHeardCode, PHONETIC, spellCode } from "./radioCode";
 
 it("accepts lower case, spaces and hyphens", () => {

@@ -172,3 +172,17 @@ export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "g
   // Public doc: counts only; the failed incident ids go to the function log. The probe fails on a streak of 2.
   await ref.set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, sweepFailures, sweepFailureStreak, checkedAt: FieldValue.serverTimestamp() });
 }
+
+/**
+ * A photo's cloud-read consent lives no longer than the photo. For a deleted Storage object at
+ * photos/{incidentId}/{sha256}.jpg, deletes incidents/{incidentId}/photoConsents/{sha256} and returns its path;
+ * any other object returns null. A re-upload of the same bytes then needs the family's consent again.
+ */
+export async function deletePhotoConsentForObject(db: Firestore, objectName: string): Promise<string | null> {
+  const m = /^photos\/([A-Za-z0-9_-]{1,128})\/([0-9a-f]{64})\.jpg$/.exec(objectName);
+  if (!m) return null;
+  const path = `incidents/${m[1]}/photoConsents/${m[2]}`;
+  await db.doc(path).delete();
+  console.log(JSON.stringify({ event: "deletePhotoConsentOnPhotoDelete", path }));
+  return path;
+}

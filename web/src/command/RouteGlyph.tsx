@@ -2,7 +2,7 @@ import type { RouteRecord } from "@pls/engine";
 
 const LABEL: Record<RouteRecord["path"], string> = {
   cloud: "Cloud",
-  on_device: "This laptop",
+  on_device: "On this laptop",
   rules: "Fixed wording",
   unknown: "Route not reported",
 };

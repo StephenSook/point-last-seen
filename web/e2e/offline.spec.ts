@@ -6,7 +6,7 @@ test("after one visit the command post reloads with the network off and draws th
   await withDebugToken(page);
   await joinCommand(page);
   // One full visit: the segments have arrived (so Firestore has cached them) and the service worker controls the page.
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, { timeout: 15_000 });
 
   await context.setOffline(true);
@@ -17,7 +17,7 @@ test("after one visit the command post reloads with the network off and draws th
     await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
     await expect(page.getByRole("button", { name: "Add sighting" })).toBeVisible();
     // The last data comes from Firestore's local cache: the drill's segments still draw.
-    await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   } finally {
     await context.setOffline(false);
   }

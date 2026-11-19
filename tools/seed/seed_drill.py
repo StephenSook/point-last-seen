@@ -57,7 +57,7 @@ def incident_doc(incident_id: str, name: str, params: dict) -> dict:
     engine = json.loads(json.dumps(params))
     return {
         "name": name, "mode": "drill", "drillLabel": DRILL_LABEL, "status": "open",
-        "ipp": None, "ippSource": "typed", "plsTimeMs": None, "terrain": "temperate_flat",
+        "ipp": None, "ippSource": "typed", "plsTimeMs": None, "terrain": "urban",
         "priorVersion": 1, "priorModel": "rings", "priorSeed": 20261122, "priorInputEventIds": [],
         "engineParams": engine, "gridId": None,
     }
@@ -169,6 +169,22 @@ def keychain_store(service: str, account: str, value: str) -> None:
         raise SystemExit(f"Keychain read-back failed for {service}")
 
 
+MAX_TEAMS = 10  # a plan holds at most 10 assignments (firestore.rules validAssignments), one a team
+TEAM_ID = re.compile(r"[A-Za-z0-9_]{1,32}")
+
+
+def check_teams(teams: list[str]) -> list[str]:
+    """1 to 10 distinct team ids, each one a push can reach (no "-", the topic separator), never "family"."""
+    if not 1 <= len(teams) <= MAX_TEAMS:
+        raise SystemExit(f"a drill needs 1 to {MAX_TEAMS} teams; got {len(teams)}")
+    if len(set(teams)) != len(teams):
+        raise SystemExit("team ids must differ")
+    for t in teams:
+        if not TEAM_ID.fullmatch(t) or t.lower() == "family":
+            raise SystemExit(f"team id {t!r} must be 1 to 32 letters, digits or _, and not family")
+    return teams
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["--rotate"]:
         if len(argv) != 4:
@@ -178,7 +194,7 @@ def main(argv: list[str]) -> int:
     if len(argv) < 4:
         print(__doc__)
         return 2
-    project, incident_id, name, teams = argv[0], argv[1], argv[2], argv[3:]
+    project, incident_id, name, teams = argv[0], argv[1], argv[2], check_teams(argv[3:])
     params = json.loads((ROOT / "shared/constants/engine-params.json").read_text())["params"]
     token = _token()
     codes = make_codes()

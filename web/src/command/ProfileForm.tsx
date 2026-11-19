@@ -3,8 +3,8 @@
 // (never packed). Medication details stay on the family phone, so this form
 // has no field for them.
 
-import type { DementiaType, FamilyProfile, Place, ProfileFlags } from "@pls/engine";
-import { useState, type FormEvent } from "react";
+import { namesToCall, type DementiaType, type FamilyProfile, type Place, type ProfileFlags } from "@pls/engine";
+import { useState, type FormEvent, useRef } from "react";
 import type { LatLon } from "../map/geo";
 
 const FLAGS: [keyof ProfileFlags, string][] = [
@@ -24,8 +24,11 @@ type PlaceList = "previousAddresses" | "placesFrequented";
 
 type Props = {
   initial: FamilyProfile;
-  /** Starts the save. The form closes at once; the parent says so if the server refuses it. */
-  onSave: (p: FamilyProfile) => void;
+  /**
+   * Starts the save with the edited profile and the profile as it was when the form opened, so only the fields
+   * changed here are written. The form closes at once; the parent says so if the server refuses it.
+   */
+  onSave: (p: FamilyProfile, opened: FamilyProfile) => void;
   /** Start picking a point on the map for one place; the parent calls back with the point. */
   onPickPlace: (list: PlaceList, index: number, done: (p: LatLon) => void) => void;
   onPlaceToCheck: (place: Place) => Promise<void>;
@@ -36,6 +39,8 @@ const num = (v: string): number | null => (v.trim() === "" || !Number.isFinite(N
 
 export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onClose }: Props) {
   const [p, setP] = useState<FamilyProfile>(initial);
+  // The profile as it was when the form opened: the base a save compares against.
+  const opened = useRef(initial);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<Record<string, boolean>>({});
   const set = <K extends keyof FamilyProfile>(k: K, v: FamilyProfile[K]) => setP((x) => ({ ...x, [k]: v }));
@@ -69,7 +74,7 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
   // link down; the profile is already saved on this laptop, so the form closes at once.
   function save(e: FormEvent) {
     e.preventDefault();
-    onSave(p);
+    onSave(p, opened.current);
     onClose();
   }
 
@@ -100,7 +105,13 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
     <form className="sighting-form profile-form" onSubmit={save} aria-labelledby="profile-h">
       <h2 id="profile-h" className="label">Who we are looking for</h2>
       {text("answersTo", "Answers to")}
-      {text("nickname", "Nickname")}
+      {p.otherNames !== undefined ? (
+        // The family keeps a list of names in their app; its first entry is the nickname, so a nickname
+        // edited here would be overwritten. The list is shown, not edited, here.
+        <p className="small">{`Names they answer to: ${namesToCall(p).join(", ") || "none given"}. The family keeps this list in their app.`}</p>
+      ) : (
+        text("nickname", "Nickname")
+      )}
       <div className="two">
         <label>
           Age

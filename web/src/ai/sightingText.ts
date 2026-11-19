@@ -78,7 +78,12 @@ function checked(replyText: string, note: string): SightingCues | null {
     evidenceQuote: c.evidenceQuote,
   };
   if (!validateReading(reading, [], note).ok) return null;
-  return { direction: c.direction, topColor: c.topColor, bottomColor: c.bottomColor, footwear: c.footwear, carried: c.carried, evidenceQuote: c.evidenceQuote };
+  return { direction: c.direction, topColor: c.topColor, bottomColor: c.bottomColor, footwear: notUnknown(c.footwear), carried: notUnknown(c.carried), evidenceQuote: c.evidenceQuote };
+}
+
+/** Free-text fields: the model may answer "unknown" for "the note does not say", which must leave the field empty. */
+function notUnknown(v: string): string {
+  return v.trim().toLowerCase() === "unknown" ? "" : v;
 }
 
 export async function readSightingText(text: string, deps: SightingTextDeps): Promise<SightingRead> {

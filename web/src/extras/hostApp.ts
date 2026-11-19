@@ -3,26 +3,32 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import approachNotes from "../../../shared/constants/approach-notes.json";
 
 // MapLibre looks for its worker next to its own module; after bundling that file is not there. Point it at
-// the bundled worker, as lane C's MapView does (lane-web 3cf7bd0). Setting the same URL twice is harmless.
+// the bundled worker, as the web app's own MapView does. Setting the same URL twice is harmless.
 setWorkerUrl(workerUrl);
 
 export { MapView } from "../map/MapView";
 export { Map as MapLibreMap } from "maplibre-gl";
 export { POA_RAMP, formatPct, type MapSegment } from "../map/poaStyle";
+export { COMMAND } from "../theme/tokens";
 export { viewState, type ViewState } from "../command/viewState";
 export type { PostState } from "../command/postAccess";
 export type { IncidentView, SegmentDoc, Team } from "../data/incident";
 export type { StreamedEvent } from "../data/events";
 export { mergeModel } from "../command/mergeModel";
+export { DeleteMedia } from "../command/DeleteMedia";
 export type { PublishedRun } from "../judge/judge";
 export {
+  DEFAULT_PARAMS,
   convergenceCode,
+  isWellFormedEffect,
   type Assignment,
   type CameraSightingReading,
+  type Effect,
   type EngineParams,
   type EventDoc,
   type PlanDoc,
   type RankedSegment,
+  type RouteRecord,
   type SegmentPrior,
 } from "@pls/engine";
 

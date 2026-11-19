@@ -1,12 +1,12 @@
 // Family photos at the command post. Each photo is read on this laptop when
-// the gate allows; otherwise nothing is sent, and a cloud read needs a
-// consent tap for that one photo. A person answers yes, no or not sure.
+// the gate allows; otherwise nothing is sent, and a cloud read needs the family's
+// own consent for that photo, recorded when they shared it. A person answers yes, no or not sure.
 
 import type { PhotoCues, RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useState } from "react";
 import type { DeviceState } from "../ai/deviceModel";
 import { RouteGlyph } from "../command/RouteGlyph";
-import type { FamilyDecision } from "../data/photos";
+import { PHOTO_DELETED, PHOTO_UNCHECKED, type FamilyDecision } from "../data/photos";
 
 export type TrayPhoto = { sha256: string; bytes: Uint8Array };
 type Read = { cues: PhotoCues; route: RouteRecord } | { couldNot: string } | { noModel: true } | { consent: true };
@@ -29,7 +29,13 @@ const STATE_LINE: Record<DeviceState, string> = {
   text: "This browser's model cannot read images. Photos stayed on this laptop.",
   image: "This laptop can read photos here.",
 };
+export { PHOTO_DELETED };
+
 const COULD_NOT: Record<string, string> = {
+  deleted: PHOTO_DELETED,
+  "no-consent": "The family has not agreed to a cloud reading of this photo. It stays on this laptop.",
+  mismatch: "This photo's file does not match its name, so it was not sent.",
+  "consent-unchecked": "Could not check the family's consent with the server. Nothing was sent.",
   "not-on-device": "Couldn't read on this laptop. The result was discarded.",
   timeout: "Couldn't read in time.",
   invalid: "Couldn't read this photo.",
@@ -70,13 +76,14 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
     const r = reads[p.sha256];
     setDecided((x) => ({ ...x, [p.sha256]: d }));
     setSaveError((x) => ({ ...x, [p.sha256]: null }));
-    onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d).catch(() => {
+    onDecide(p, r && "cues" in r ? r.cues : null, r && "cues" in r ? r.route : null, d).catch((e: unknown) => {
       setDecided((x) => {
         const next = { ...x };
         if (next[p.sha256] === d) delete next[p.sha256];
         return next;
       });
-      setSaveError((x) => ({ ...x, [p.sha256]: "Not saved. Try again." }));
+      const known = e instanceof Error && (e.message === PHOTO_DELETED || e.message === PHOTO_UNCHECKED);
+      setSaveError((x) => ({ ...x, [p.sha256]: known ? (e as Error).message : "Not saved. Try again." }));
     });
   }
 
@@ -104,7 +111,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
         {photos.map((p) => {
           const r = reads[p.sha256];
           return (
-            <li key={p.sha256} className="photo">
+            <li key={p.sha256} className="photo" data-sha256={p.sha256}>
               <Thumb bytes={p.bytes} />
               <div className="row">
                 <button type="button" className="btn ghost" onClick={() => run(p, "laptop")} disabled={busy !== null}>
@@ -121,9 +128,9 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
               )}
               {r && "consent" in r && (
                 <div role="status" className="note-state">
-                  <p>This photo goes to Gemini in the cloud.</p>
+                  <p>This photo goes to Gemini in the cloud. Sent only if the family agreed to a cloud reading when they shared it.</p>
                   <button type="button" className="btn ghost" onClick={() => run(p, "cloud")} disabled={busy !== null}>
-                    I consent for this photo
+                    Send this photo to the cloud
                   </button>
                 </div>
               )}

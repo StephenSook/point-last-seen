@@ -31,6 +31,8 @@ def test_incident_doc_is_a_labelled_drill_without_join_hashes():
     assert "joinCodeHash" not in d and "commandJoinCodeHash" not in d
     assert d["engineParams"]["sweepWidthFactor"] == 1.645 and d["engineParams"]["detectionProfile"] == {"soundCounts": False}
     assert d["priorInputEventIds"] == [] and d["priorSeed"] == 20261122
+    # A new incident starts urban (field expert: a suburb or a big park around Atlanta is urban); command can change it.
+    assert d["terrain"] == "urban"
 
 
 def test_one_join_code_per_role():
@@ -93,3 +95,13 @@ def test_a_code_is_written_to_the_keychain_on_stdin_never_in_arguments(monkeypat
     seed.keychain_store("pls-drill-family-code", "drill-dev-1", "ABCDEFGH")
     assert all("ABCDEFGH" not in " ".join(args) for args, _ in calls)
     assert any(inp and "ABCDEFGH" in inp for _, inp in calls)
+
+
+def test_team_ids_must_be_ones_a_push_reaches_and_at_most_ten():
+    # A plan holds at most 10 assignments (the security rules), one a team, and a push reaches only plain ids.
+    import pytest
+    assert seed.check_teams(["T1", "T2"]) == ["T1", "T2"]
+    assert seed.check_teams([f"T{i}" for i in range(10)]) == [f"T{i}" for i in range(10)]
+    for bad in ([f"T{i}" for i in range(11)], [], ["T-1"], ["family"], ["Family"], ["x" * 33], ["T1", "T1"]):
+        with pytest.raises(SystemExit):
+            seed.check_teams(bad)
