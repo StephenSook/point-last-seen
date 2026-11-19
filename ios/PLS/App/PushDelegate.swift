@@ -34,9 +34,12 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         Messaging.messaging().apnsToken = deviceToken
     }
 
-    /// In the foreground the plan listener already shows and speaks the new assignment.
+    /// In the foreground nothing is shown, so the push's own words never appear in the app's
+    /// Notification Center list: the plan listener already shows and speaks the new assignment.
+    nonisolated static let foregroundPresentation: UNNotificationPresentationOptions = []
+
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.list]
+        Self.foregroundPresentation
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {

@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a push that arrives with the app open shows nothing
+- What: a push that arrived in the foreground went into Notification Center with the push's own
+  title and body. The app now shows nothing for it, because the plan listener already shows and
+  speaks the new assignment from the plan itself. Background delivery still shows the push's
+  words: the server sends only fixed wording ("New assignment" or "Training drill: new
+  assignment", "Your team has a new task. Open Point Last Seen to see it."); replacing that on the
+  phone would need a notification service extension.
+- Source: review (finding 8).
+- Verified: a test that the foreground presentation is empty failed to compile before the change
+  and passes after; the app tests pass.
+
 ### fix(ios): queued speech never speaks an assignment that was replaced while it waited
 - What: a voice waiting behind a slow one spoke the assignment it was given, even when a newer
   plan or a team change had replaced it meanwhile, so an old team's instruction could be spoken
