@@ -359,12 +359,39 @@ final class AppModel {
         }
     }
 
-    /// A tapped new-assignment push: when it names another incident or team than the one loaded (a
-    /// team change, or a tap that launched the app), the mission follows the token's claims first;
-    /// then the task screen opens, where the plan listener shows and speaks the assignment.
+    /// A tapped new-assignment push. Every tap is checked against the server, also when the push
+    /// names the loaded mission: the claims are read fresh, and they must name the push's incident
+    /// and team; then the incident and plan are read again, and only then the task screen opens. A
+    /// push for another team (an old push) or after the role was taken away opens nothing, and the
+    /// mission follows the claims. With no signal, the mission already on this phone is the offline
+    /// path: the task opens for a push that names it.
     func openedPush(_ payload: PushPayload) async {
-        if mission?.incidentId != payload.incidentId || mission?.teamId != payload.teamId { await trySignIn() }
-        openTaskRequests += 1
+        let matchesLoaded = { [weak self] in
+            self?.mission?.incidentId == payload.incidentId && self?.mission?.teamId == payload.teamId
+        }
+        accessCheck += 1
+        let check = accessCheck
+        let fresh = await joinBackend.currentClaims(forceRefresh: true)
+        guard check == accessCheck else { return }
+        guard let fresh else {
+            if matchesLoaded() { openTaskRequests += 1 }
+            return
+        }
+        guard let (incidentId, teamId) = Self.searcherTeam(fresh) else {
+            await dropMission()
+            return
+        }
+        guard incidentId == payload.incidentId, teamId == payload.teamId else {
+            // An old push: the claims name another team, which the mission follows; nothing opens.
+            await resumeMission()
+            return
+        }
+        if mission != nil, !matchesLoaded() { await dropMission() }
+        membership = (incidentId, teamId)
+        let message = await loadMission(incidentId: incidentId, teamId: teamId)
+        guard check == accessCheck else { return }
+        joinMessage = message
+        if message == nil, matchesLoaded() { openTaskRequests += 1 }
     }
 
     /// The searcher's answer to the alerts question; asked once, whatever the answer. With no

@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a tapped push is checked against the server before the task opens
+- What: a tap on a push that named the loaded mission opened the task with no check, so an old
+  push could reopen the mission of a team the phone had been removed from. A push for another team
+  could also fall back to cached claims and data. Every tap now reads the claims fresh. They must
+  name the push's incident and team; then the incident and plan are read again, and only then the
+  task opens. A push for another team (an old push) or after the role was taken away opens
+  nothing, and the mission follows the claims. With no signal, the mission already on the phone
+  opens for a push that names it, and nothing else does.
+- Source: review (findings 5 and 9).
+- Verified: tests for a tap on the loaded mission (a fresh claims read and one more mission read,
+  then it opens), an old push for another team (opens nothing, the mission follows the claims), a
+  push for the new team (loads it and opens), a push after the role was removed (drops the
+  mission, opens nothing), and no signal (only the mission on the phone opens, with no read). They
+  failed before the change and pass after; 135 app tests pass.
+
 ### fix(ios): the phone remembers every push topic it may hold, and a team change always wins
 - What: the followed topic lived only in memory and a failed leave was dropped. Since FCM keeps
   subscriptions across launches, a team change made while the app was closed could leave the old
