@@ -11,7 +11,7 @@ type Props = {
   layers: PriorLayers;
   terrain: Terrain;
   /** The incident's stored ring radii for this terrain (km); the source line names them when they differ from ISRID's. */
-  rings?: readonly number[];
+  rings?: unknown;
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
   vehicleInvolved: boolean;

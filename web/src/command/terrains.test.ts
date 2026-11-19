@@ -36,3 +36,15 @@ describe("the source line with stored radii", () => {
     expect(ringSourceLine("urban", [0.5, 1, 2.5, 10])).toBe("Urban rings, custom radii (0.5, 1, 2.5, 10 km), not the ISRID table, measured in a straight line.");
   });
 });
+
+describe("the source line with stored radii the engine cannot use", () => {
+  const invalid = "Urban rings: the radii stored for this incident are not valid settings (4 increasing positive distances are needed).";
+  it("says invalid settings instead of throwing for a column that is not a list", () => {
+    for (const bad of ["1,2,3", null, { a: 1 }, 7]) expect(ringSourceLine("urban", bad)).toBe(invalid);
+  });
+  it("says invalid settings for an empty, short, non-finite, non-positive or unordered column", () => {
+    for (const bad of [[], [1, 2, 3], [1, Number.NaN, 2, 3], [1, 2, 3, Number.POSITIVE_INFINITY], [0, 1, 2, 3], [3, 2, 1, 0.5]]) {
+      expect(ringSourceLine("urban", bad)).toBe(invalid);
+    }
+  });
+});
