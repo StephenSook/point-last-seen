@@ -11,6 +11,7 @@ import app.pointlastseen.family.data.ProfileSink
 import app.pointlastseen.family.data.ProfileWrite
 import app.pointlastseen.family.data.PublishedProfiles
 import app.pointlastseen.family.data.SubjectProfile
+import app.pointlastseen.family.data.TrackingAids
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
@@ -75,5 +76,24 @@ class ProfileFieldUpdateLiveTest {
         log("field update accepted by the rules and read back; other fields unchanged")
         assertTrue("no-change publish", publish(publisher, incidentId, base.copy(clothingLastWorn = stamp)))
         log("unchanged profile published nothing")
+    }
+
+    /** An answered tracking question goes in whole and as a field update, and reads back; needs the trackingAids rules live. */
+    @Test fun anAnsweredTrackingQuestionIsAcceptedAndReadsBack(): Unit = runBlocking {
+        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
+        assertTrue("join: $joined", joined is JoinOutcome.Joined)
+        val incidentId = (joined as JoinOutcome.Joined).incidentId
+        val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
+        val base = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"),
+            trackingAids = TrackingAids(listOf("gps_tracker"), "In his coat pocket"))
+        val shared = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared")
+
+        assertTrue("whole publish with tracking aids", publish(publisher, incidentId, base))
+        assertEquals(mapOf("aids" to listOf("gps_tracker"), "note" to "In his coat pocket"), shared.get(Source.SERVER).await().get("trackingAids"))
+        log("tracking aids published whole and read back")
+        val none = base.copy(trackingAids = TrackingAids(emptyList(), ""))
+        assertTrue("field update to none", publish(publisher, incidentId, none))
+        assertEquals(mapOf("aids" to emptyList<String>(), "note" to ""), shared.get(Source.SERVER).await().get("trackingAids"))
+        log("tracking aids changed to none by a field update and read back")
     }
 }
