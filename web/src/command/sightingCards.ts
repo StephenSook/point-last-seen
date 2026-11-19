@@ -10,6 +10,8 @@ export type SightingCard = {
   status: "awaiting" | "confirmed" | "rejected";
   needsPlace: boolean;
   outside: boolean;
+  /** A camera clip the family app read: confirming it rebuilds the prior from the camera's place. */
+  camera: boolean;
 };
 
 type Key = [number, number, string];
@@ -24,10 +26,13 @@ export function sightingCards(docs: readonly EventDoc[]): SightingCard[] {
     const t = byId.get(d.targetEventId);
     if (t && (d.role === "command" || d.authorUid === t.authorUid)) retracted.add(t.eventId);
   }
+  const isFamilyCamera = (d: EventDoc | undefined) => d?.type === "camera_sighting" && d.role === "family";
   const decided = new Map<string, { key: Key; decision: "confirmed" | "rejected" }>();
   for (const d of byId.values()) {
     if (d.type !== "confirmation" || !d.targetEventId || !d.decision || retracted.has(d.eventId)) continue;
     if (d.role !== "command" && d.role !== "family") continue;
+    // A family clip reaches the map only through command (only command can rebuild the prior).
+    if (d.role === "family" && isFamilyCamera(byId.get(d.targetEventId))) continue;
     const key: Key = [d.role === "command" ? 1 : 0, d.clientTimeMs, d.eventId];
     const prev = decided.get(d.targetEventId);
     if (!prev || greater(key, prev.key)) decided.set(d.targetEventId, { key, decision: d.decision });
@@ -38,12 +43,13 @@ export function sightingCards(docs: readonly EventDoc[]): SightingCard[] {
     if (d.type === "sighting" && d.role === "command" && d.targetEventId && !retracted.has(d.eventId)) placed.add(d.targetEventId);
   }
   return [...byId.values()]
-    .filter((d) => d.type === "sighting" && !retracted.has(d.eventId) && !placed.has(d.eventId))
+    .filter((d) => (d.type === "sighting" || isFamilyCamera(d)) && !retracted.has(d.eventId) && !placed.has(d.eventId))
     .sort((a, b) => (b.observedAtMs ?? 0) - (a.observedAtMs ?? 0) || (a.eventId < b.eventId ? -1 : 1))
     .map((s) => ({
       sighting: s,
       status: decided.get(s.eventId)?.decision ?? "awaiting",
       needsPlace: s.position === null,
       outside: s.effect.kind === "none" && s.effect.why === "outside_area",
+      camera: isFamilyCamera(s),
     }));
 }
