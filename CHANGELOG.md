@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A test-only drill, `drill-test-1`, exists for the apps' live and device tests, so they never write to the drill
+  every judge practice search is copied from. It has the development drill's grid, point last seen, terrain and
+  near-feature layer, teams T1 and T2, and the same 68 segment ids; its join codes are in the macOS Keychain under
+  account `drill-test-1`. `docs/evidence/drill/drill-test-1-seed.md` records the commands as run and the read-back.
+  Source: review (live tests had written a test stamp and a tracking aid into the judge seed's shared profile).
+  Verified: the read-back in the evidence file (incident fields, teams, 68 segments, ids equal to the development
+  drill's, each Keychain code 8 characters, never printed).
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
