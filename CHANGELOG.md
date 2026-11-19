@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Android unit-test floor is 293, the suite's real count with the first-publish tests (it was 290), in
+  `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the first-publish fix.
+  Verified: the Android job on this branch runs 293 tests with 0 failures and `count-tests --min 293` passes.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
