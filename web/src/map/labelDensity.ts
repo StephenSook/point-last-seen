@@ -1,20 +1,24 @@
-// A cell's code and percent need about 56 px across to be read. When the typical cell is narrower on screen
-// (a whole park on a phone, or zoomed out), only the most likely cells keep their labels; zooming in brings the
-// rest back. The labels stay in the page either way, so nothing a check reads disappears.
+// Each cell's code and percent are placed in POA order, most likely first. A cell whose labels would cover a
+// label already placed keeps its dot but hides its labels, so the labels a person can see never overlap. On a
+// whole park on a phone that leaves the most likely cells labelled; zooming in brings the rest back. The hidden
+// labels stay in the page, so anything that reads the plates still finds every one.
 
-/** How many of the most likely cells keep their labels on a crowded map. */
-export const KEY_LABELS = 8;
-const MIN_CELL_PX = 56;
+export type Box = { left: number; top: number; right: number; bottom: number };
 
-/** True when the median cell width on screen is under the width a code and a percent need. */
-export function labelsDense(cellWidthsPx: readonly number[]): boolean {
-  if (cellWidthsPx.length === 0) return false;
-  const sorted = [...cellWidthsPx].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)]! < MIN_CELL_PX;
+/** The ids in placing order: highest POA first, ties by id. */
+export function labelOrder(poa: Readonly<Record<string, number>>, ids: readonly string[]): string[] {
+  return [...ids].sort((a, b) => (poa[b] ?? 0) - (poa[a] ?? 0) || (a < b ? -1 : a > b ? 1 : 0));
 }
 
-/** The `k` cells with the highest POA (ties by id), which keep their labels when the map is crowded. */
-export function keyIds(poa: Readonly<Record<string, number>>, ids: readonly string[], k: number = KEY_LABELS): Set<string> {
-  const ranked = [...ids].sort((a, b) => (poa[b] ?? 0) - (poa[a] ?? 0) || (a < b ? -1 : a > b ? 1 : 0));
-  return new Set(ranked.slice(0, k));
+const touches = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/** Indexes of the units (in placing order) whose labels would cover a label placed before them. */
+export function overlapping(units: readonly (readonly Box[])[]): Set<number> {
+  const placed: Box[] = [];
+  const hidden = new Set<number>();
+  units.forEach((boxes, i) => {
+    if (boxes.some((b) => placed.some((p) => touches(b, p)))) hidden.add(i);
+    else placed.push(...boxes);
+  });
+  return hidden;
 }

@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { KEY_LABELS, keyIds, labelsDense } from "./labelDensity";
+import { labelOrder, overlapping } from "./labelDensity";
 
-describe("labelsDense", () => {
-  it("is true when the typical cell is too narrow on screen for its code and percent", () => {
-    expect(labelsDense([30, 34, 38, 200])).toBe(true);
-    expect(labelsDense([60, 70, 80])).toBe(false);
-    expect(labelsDense([])).toBe(false);
+const r = (left: number, top: number, w = 40, h = 16) => ({ left, top, right: left + w, bottom: top + h });
+
+describe("overlapping", () => {
+  it("hides a cell's labels when any of them would cover a label placed before it", () => {
+    // Placed in order: the first two sit apart, the third collides with the first.
+    const units = [[r(0, 0)], [r(100, 0)], [r(20, 8)], [r(0, 40)]];
+    expect([...overlapping(units)]).toEqual([2]);
+  });
+  it("treats a cell's code and percent as one unit", () => {
+    expect([...overlapping([[r(0, 0), r(0, 20)], [r(100, 0), r(10, 25)]])]).toEqual([1]);
+  });
+  it("hides nothing when no labels touch", () => {
+    expect(overlapping([[r(0, 0)], [r(0, 30)], [r(60, 0)]]).size).toBe(0);
   });
 });
 
-describe("keyIds", () => {
-  it("names the most likely cells, ties by id, so they keep their labels on a crowded map", () => {
-    const poa = { AA: 0.1, AB: 0.3, AC: 0.3, AD: 0.05 };
-    expect([...keyIds(poa, ["AA", "AB", "AC", "AD"], 2)]).toEqual(["AB", "AC"]);
-    expect(KEY_LABELS).toBe(8);
+describe("labelOrder", () => {
+  it("places the most likely cells first, ties by id", () => {
+    expect(labelOrder({ AA: 0.1, AB: 0.3, AC: 0.3, AD: 0.05 }, ["AA", "AB", "AC", "AD", "AE"])).toEqual(["AB", "AC", "AA", "AD", "AE"]);
   });
 });
