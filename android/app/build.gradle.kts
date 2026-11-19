@@ -48,6 +48,14 @@ if (releasePassword != null) {
     }
 }
 
+// versionCode is the HEAD commit's time (epoch seconds), so every newer build installs as an update
+// over an older one (android/check-version-code.sh checks the built APK). A shallow CI checkout still
+// has its HEAD commit; with no git at all the build falls back to 1.
+val headCommitTime: Int = providers.exec {
+    commandLine("git", "log", "-1", "--format=%ct")
+    isIgnoreExitValue = true
+}.standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
 // The shared possible-evidence terms ship inside the app. The build fails when the
 // file is missing; at run time the screen also fails closed without it.
 abstract class CopySharedAssets : DefaultTask() {
@@ -83,7 +91,7 @@ android {
         applicationId = "app.pointlastseen.family"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        versionCode = headCommitTime
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "SCRIPT_911", script911.toString())
