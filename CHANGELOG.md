@@ -3,6 +3,14 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- The ISRID ring prior refuses ring masses that are empty, negative, not finite, or add up to 0 or more than 1,
+  naming the masses. Before, an empty radii column with empty masses passed the length check and built a prior
+  with all the mass outside the rings.
+  Source: review (round 3).
+  Verified: the test (an empty pair, a negative mass, a NaN mass, masses adding to 1.2, and a zero sum are each
+  refused; masses adding to exactly 1 build) failed first, now all 235 engine tests pass; typecheck exit 0.
 ## 2026-11-18
 
 - `tools/seed/seed_segments.py` keeps an incident's own ring column: it writes `engineParams.rings.<terrain>` only
