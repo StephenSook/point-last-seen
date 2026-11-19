@@ -3,7 +3,7 @@ import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
 import { runDevice, runEvent } from "../testdata/replayIncident";
-import { PUBLISHED_RUN_VERSION, type PublishedRunV1 } from "./runContract";
+import { PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunCameraReading, type RunSegment } from "./runContract";
 
 const MIN = 60_000;
 const DAY = 24 * 3_600_000;
@@ -314,6 +314,33 @@ describe("fromPublishedRun", () => {
       expect(fromPublishedRun(run({ events: [e as typeof base] }))).toEqual(unknownKind);
     }
     expect(fromPublishedRun(run({ events: [{ ...base, decision: "confirmed" }] })).ok).toBe(true);
+  });
+
+  it("refuses a field of the wrong type anywhere, and never throws on one", () => {
+    const base = runV1();
+    const ev = base.events[0]!;
+    const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
+    const sighting = (cam.reading as RunCameraReading).sighting;
+    const seg = base.segments[0] as RunSegment;
+    const wrong = (field: string) => ({ ok: false, reason: `The run has a field of the wrong type: ${field}.` });
+    const cases: [Partial<Record<keyof PublishedRun, unknown>>, string][] = [
+      [{ events: [{ ...cam, reading: { ...cam.reading, sighting: ["private evidence"] } }] }, "event.reading.sighting"],
+      [{ events: [{ ...cam, reading: { ...cam.reading, sighting: { ...sighting, firstSeen: { toString: 1 } } } }] }, "event.reading.sighting.firstSeen"],
+      [{ events: [{ ...cam, reading: { ...cam.reading, clockConfirmed: "yes" } }] }, "event.reading.clockConfirmed"],
+      [{ events: [{ ...cam, reading: { ...cam.reading, sighting: { ...sighting, keyFrame: ["01:00"] } } }] }, "event.reading.sighting.keyFrame"],
+      [{ events: [{ ...ev, seq: "3" }] }, "event.seq"],
+      [{ events: [{ ...ev, isTrainingInject: "no" }] }, "event.isTrainingInject"],
+      [{ events: [{ ...ev, position: [33.79, -84.37] }] }, "event.position"],
+      [{ events: [{ ...ev, position: { lat: 33.79, lon: -84.37, accuracyM: null, address: "x" } }] }, "event.position"],
+      [{ events: [{ ...ev, effect: [] }] }, "event.effect"],
+      [{ segments: [{ ...seg, neighbors: "AB" }, ...base.segments.slice(1)] }, "segment.neighbors"],
+      [{ teams: [{ teamId: "alfa", name: 7 }] }, "team.name"],
+      [{ devices: [{ ...base.devices[0]!, clockOffsetMs: "5000" }, ...base.devices.slice(1)] }, "device.clockOffsetMs"],
+      [{ plans: [{ ...base.plans[0]!, assignments: [{ teamId: "alfa", segmentIds: "AA", taskText: "t", reason: "r" }] }] }, "plan.assignments"],
+      [{ incident: { ...base.incident, priorInputEventIds: "e0" } }, "incident.priorInputEventIds"],
+      [{ runId: 1 }, "runId"],
+    ];
+    for (const [over, field] of cases) expect(fromPublishedRun(run(over)), field).toEqual(wrong(field));
   });
 
   it("refuses a place to check that keeps its position: it may be a home from the family's profile", () => {

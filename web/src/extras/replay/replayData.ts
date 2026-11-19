@@ -18,6 +18,7 @@ import {
 } from "../laneC";
 import { DRILL_LABEL } from "../print/printModel";
 import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, RUN_ENUMS, RUN_FIELDS } from "./runContract";
+import { RUN_TYPES, wrongType } from "./runSchema";
 import { replayWindow, stateAt } from "./stateAt";
 
 export type ReplayEvent = {
@@ -216,6 +217,7 @@ function strayField(o: Record<string, unknown>, allowed: readonly string[], wher
   return k === undefined ? null : where ? `${where}.${k}` : k;
 }
 const strayRefusal = (field: string) => refuse(`The run carries a field a public run must not: ${field}.`);
+const typeRefusal = (field: string) => refuse(`The run has a field of the wrong type: ${field}.`);
 const USER_ID = "The run carries a user id. A public run must not.";
 
 /** A Firebase Auth uid standing alone inside longer text: 28 letters and digits with no letter or digit beside them. */
@@ -250,10 +252,14 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   const { incident, segments, teams, devices, events, plans } = run;
   const topStray = strayField(run as Record<string, unknown>, RUN_FIELDS.run, null);
   if (topStray) return strayRefusal(topStray);
+  const topType = wrongType(run as Record<string, unknown>, RUN_TYPES.run, null);
+  if (topType) return typeRefusal(topType);
   if (holdsUidShape(run)) return refuse(USER_ID);
   if (!isObj(incident) || !str(incident["name"]) || !num(incident["priorVersion"])) return refuse("The run is missing its incident.");
   const incidentStray = strayField(incident, RUN_FIELDS.incident, "incident");
   if (incidentStray) return strayRefusal(incidentStray);
+  const incidentType = wrongType(incident, RUN_TYPES.incident, "incident");
+  if (incidentType) return typeRefusal(incidentType);
   if (!Array.isArray(segments)) return refuse("The run is missing its map segments.");
   if (!Array.isArray(teams)) return refuse("The run is missing its teams.");
   if (!Array.isArray(devices)) return refuse("The run is missing its devices.");
@@ -267,6 +273,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     if (!isObj(s) || !str(s["segmentId"]) || !num(s["priorPoa"])) return refuse("The run has a map segment without a prior.");
     const segStray = strayField(s, s["segmentId"] === "ROW" ? RUN_FIELDS.row : RUN_FIELDS.segment, "segment");
     if (segStray) return strayRefusal(segStray);
+    const segType = wrongType(s, s["segmentId"] === "ROW" ? RUN_TYPES.row : RUN_TYPES.segment, "segment");
+    if (segType) return typeRefusal(segType);
     if (s["segmentId"] === "ROW") {
       rowPrior = s["priorPoa"];
       continue;
@@ -281,13 +289,19 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   prior.push({ segmentId: "ROW", priorPoa: rowPrior });
 
   for (const t of teams) {
-    const teamStray = isObj(t) ? strayField(t, RUN_FIELDS.team, "team") : null;
+    if (!isObj(t)) return typeRefusal("team");
+    const teamStray = strayField(t, RUN_FIELDS.team, "team");
     if (teamStray) return strayRefusal(teamStray);
+    const teamType = wrongType(t, RUN_TYPES.team, "team");
+    if (teamType) return typeRefusal(teamType);
   }
   const offsets: Record<string, number> = {};
   for (const d of devices) {
-    const deviceStray = isObj(d) ? strayField(d, RUN_FIELDS.device, "device") : null;
+    if (!isObj(d)) return typeRefusal("device");
+    const deviceStray = strayField(d, RUN_FIELDS.device, "device");
     if (deviceStray) return strayRefusal(deviceStray);
+    const deviceType = wrongType(d, RUN_TYPES.device, "device");
+    if (deviceType) return typeRefusal(deviceType);
     if (isObj(d) && !(str(d["deviceId"]) && DEVICE_PSEUDONYM.test(d["deviceId"]))) return refuse(USER_ID);
     if (isObj(d) && str(d["deviceId"]) && num(d["clockOffsetMs"])) offsets[d["deviceId"]] = d["clockOffsetMs"];
   }
@@ -327,6 +341,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     if (e["type"] === "destination" && e["position"] !== null && e["position"] !== undefined) {
       return refuse("The run carries a place from the family's profile. A public run must not.");
     }
+    const eventType = wrongType(e, RUN_TYPES.event, "event");
+    if (eventType) return typeRefusal(eventType);
     replayEvents.push(replayEvent(e as unknown as EventDoc, e["serverTimeMs"], offsets));
   }
 
@@ -335,6 +351,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     if (!isObj(p) || !num(p["version"]) || !num(p["priorVersion"]) || !Array.isArray(p["assignments"])) return refuse("The run has a plan it cannot read.");
     const planStray = strayField(p, RUN_FIELDS.plan, "plan");
     if (planStray) return strayRefusal(planStray);
+    const planType = wrongType(p, RUN_TYPES.plan, "plan");
+    if (planType) return typeRefusal(planType);
     if (!num(p["approvedAtMs"])) return refuse("The run has no approval time for a plan.");
     replayPlans.push({ version: p["version"], priorVersion: p["priorVersion"], approvedAtMs: p["approvedAtMs"], assignments: p["assignments"] as Assignment[] });
   }
