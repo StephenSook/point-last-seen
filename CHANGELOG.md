@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Android unit-test floor is 290, the suite's real count with the tracking-aids form and profile tests (it was
+  274). `android/count-tests.py --min` fails a run whose results hold fewer tests, so a test class that stops running
+  cannot pass as green. It is set in `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the tracking-aids work.
+  Verified: the Android job on this branch runs 290 tests with 0 failures and `count-tests --min 290` passes; the
+  check that every workflow command runs in ci-local passes.
 - CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
   work): the new check that every Python test file is in a pytest list found it on its first run after that work
   merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.
