@@ -1,4 +1,4 @@
-import { DRILL_LABEL, type PrintModel } from "../print/printModel";
+import type { PrintModel } from "../print/printModel";
 import { CROCKFORD, PHONETIC } from "./radioCode";
 
 export type RadioCardModel = {
@@ -29,7 +29,7 @@ export function radioCards(model: PrintModel, opts: { sayLines: boolean }): Radi
     : ` | ${new Date(model.planApprovedAtMs).toISOString().slice(0, 16).replace("T", " ")} UTC`;
   const planLine = model.planVersion === null ? "No approved plan." : `Plan v${model.planVersion}${approved}`;
   return model.teams.map(({ name, segmentIds, taskText }) => ({
-    drillLine: model.mode === "drill" ? DRILL_LABEL : null,
+    drillLine: model.drillLabel,
     incidentName: model.incidentName,
     teamName: name,
     planLine,

@@ -141,7 +141,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
       {terrain.on && terrain.file && <TerrainLegend classes={terrain.classes} file={terrain.file} hasStart={terrain.hasStart} />}
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
-          {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}
+          <p className="extras-drill-line">{view.incident?.drillLabel || DRILL_LABEL}</p>
           <ExtrasBoundary>
             <Suspense fallback={<p>Loading.</p>}>
               <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
