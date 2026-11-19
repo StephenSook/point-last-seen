@@ -14,7 +14,7 @@ const DAY_MS = 24 * HOUR_MS;
 // Seed fields a practice incident must not inherit; everything else (grid, IPP, terrain, prior and engine settings)
 // is copied so the practice search runs the real engine on the real grid.
 const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabel", "status", "priorInputEventIds",
-  "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty"]);
+  "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty", "mediaRevokedAt"]);
 
 type Config = { seedIncidentId: string; perDay: number };
 

@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteIncidentMediaNow` marks the incident revoked before it removes any file: it writes
+  `incidents/{id}.mediaRevokedAt` (server time, a new value on every call), so every open command seat can clear
+  its photos and clip results and ignore a reload that started earlier. The rules make `mediaRevokedAt`
+  server-owned (a client update that changes it is refused), and a judge practice search does not copy it from its
+  seed. It is separate from `mediaDeletedAt`, which the ended-sandbox sweep stamps once.
+  Source: review (a delete on one command seat left the media readable on another).
+  Verified: the tests (the incident is marked before the first file is listed, with a later time on a second
+  delete and nothing on another incident; a refused caller marks nothing; command cannot write it; a practice
+  search does not inherit it) failed first, now 176 functions tests pass in the emulators;
+  `bash scripts/ci-local.sh` exit 0.
 - The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
   and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
   e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −

@@ -1,5 +1,6 @@
 // deleteIncidentMediaNow (callable, command only): removes an incident's clips, photos and their readings on
 // request, for example when a family withdraws consent or a search closes.
+import { Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { handleDeleteMedia } from "../src/media";
@@ -35,6 +36,26 @@ describe("deleteIncidentMediaNow", () => {
     expect((await admin.db.doc(`incidents/I1/photoReadings/${PHOTO}`).get()).exists).toBe(false);
     expect(await exists(`clips/I2/${CLIP}.mp4`)).toBe(true);
     expect((await admin.db.doc(`incidents/I2/photoReadings/${PHOTO}`).get()).exists).toBe(true);
+  });
+  it("marks the incident revoked before removing any file, with a new time on every delete (review: every seat clears)", async () => {
+    // A bucket stand-in that records whether the incident was already marked when the first file was listed.
+    let markedBeforeListing: boolean | null = null;
+    const watching = { getFiles: async (q: { prefix: string }) => {
+      if (markedBeforeListing === null) markedBeforeListing = (await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt") != null;
+      return bucket.getFiles(q);
+    } } as unknown as typeof bucket;
+    await handleDeleteMedia(admin.db, watching, command(), { incidentId: "I1" });
+    expect(markedBeforeListing).toBe(true);
+    const first = (await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt");
+    expect(first).toBeInstanceOf(Timestamp);
+    await new Promise(r => setTimeout(r, 5));
+    await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" });
+    expect(((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt") as Timestamp).toMillis()).toBeGreaterThan(first.toMillis());
+    expect((await admin.db.doc("incidents/I2").get()).get("mediaRevokedAt")).toBeUndefined();
+  });
+  it("a refused caller marks nothing", async () => {
+    await expect(handleDeleteMedia(admin.db, bucket, command("I2"), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    expect((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt")).toBeUndefined();
   });
   it("searchers, family, another incident's command and a signed-out caller are refused, and nothing is deleted", async () => {
     for (const auth of [{ uid: "s", token: { inc: "I1", role: "searcher" } }, { uid: "f", token: { inc: "I1", role: "family" } }, command("I2")]) {

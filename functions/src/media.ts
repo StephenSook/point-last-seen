@@ -108,6 +108,9 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   if (!incident.exists || !(exp == null || (exp instanceof Timestamp && exp.toMillis() > Date.now()))) {
     throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
   }
+  // Mark the media revoked before any file goes, so every open command seat clears it and ignores a reload that
+  // started earlier. A new time on every call.
+  await incident.ref.update({ mediaRevokedAt: FieldValue.serverTimestamp() });
   let deleted = 0;
   for (const prefix of ["clips", "photos"]) {
     const [found] = await bucket.getFiles({ prefix: `${prefix}/${incidentId}/` });
