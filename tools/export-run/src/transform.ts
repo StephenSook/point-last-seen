@@ -72,8 +72,9 @@ export function toPublishedRun(raw: RawRun, meta: { runId: string; label: string
     out.deviceId = device(e.deviceId);
     out.rawText = null;
     out.reading = e.type === "camera_sighting" ? cameraReading(e.reading) : null;
-    // A place to check can be a home from the family's profile: never placed in public.
-    if (e.type === "destination") out.position = null;
+    // Never placed in public: a place to check can be a home from the family's profile, and a camera pin is
+    // usually the family's own camera, at home.
+    if (e.type === "destination" || e.positionSource === "camera_pin") out.position = null;
     out.serverTimeMs = Number(e.serverTime);
     return out as RunEvent;
   });

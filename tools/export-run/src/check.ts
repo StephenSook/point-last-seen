@@ -46,6 +46,7 @@ export function checkRun(run: unknown): string[] {
     if (e.rawText !== null) problems.push(`${id}: rawText must be null`);
     if (typeof e.serverTimeMs !== "number") problems.push(`${id}: serverTimeMs is not a number`);
     if (e.type === "destination" && e.position !== null) problems.push(`${id}: a destination must have no position`);
+    if (e.positionSource === "camera_pin" && e.position !== null) problems.push(`${id}: a camera pin must have no position`);
     if (e.type === "camera_sighting") {
       const reading = e.reading as Doc | null;
       if (reading !== null) {

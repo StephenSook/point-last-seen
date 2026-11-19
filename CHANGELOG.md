@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
+  is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
+  refuse a run that places one.
+  Source: automated security review of 6c90281 (a camera pin published a likely home position).
+  Verified: the tests (a camera sighting is written with no position while a GPS position stays; a planted camera
+  position is refused) failed first, now 14 exporter tests pass; typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
 - CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
   `scripts/ci-local.sh` mirrors it.
   Source: the exporter commit.

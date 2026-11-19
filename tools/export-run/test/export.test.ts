@@ -83,6 +83,11 @@ describe("toPublishedRun", () => {
     expect(run.events[1]!.type).toBe("destination");
     expect(run.events[1]!.position).toBeNull();
   });
+  it("never places a camera: a camera pin is usually the family's home (review)", () => {
+    expect(run.events[2]!.positionSource).toBe("camera_pin");
+    expect(run.events[2]!.position).toBeNull();
+    expect(run.events[0]!.position).toEqual({ lat: 33.786, lon: -84.373, accuracyM: 8 });
+  });
   it("gives times as numbers: event server time, plan approval and the prior's build time", () => {
     expect(run.events.map(e => e.serverTimeMs)).toEqual([T0 + 900, T0 + 900, T0 + 900]);
     expect(run.plans[0]).toEqual({ version: 1, approvedAtMs: T0 - 30_000, priorVersion: 2, basedOnEventSetHash: "d".repeat(64),
@@ -99,6 +104,11 @@ describe("checkRun refuses what must never be public", () => {
     expect(checkRun({ ...run, measurements: [{ note: `by ${UID_B}` }] })).not.toEqual([]);
     expect(checkRun({ ...run, runId: `judge-${UID_A}` })).not.toEqual([]);
     expect(checkRun({ ...run, events: run.events.map((e, i) => (i === 0 ? { ...e, authorUid: UID_A } : e)) })).not.toEqual([]);
+  });
+  it("a planted camera position", () => {
+    const run = toPublishedRun(rawDrill(), meta);
+    const planted = run.events.map(e => (e.type === "camera_sighting" ? { ...e, position: { lat: 33.79, lon: -84.36, accuracyM: null } } : e));
+    expect(checkRun({ ...run, events: planted })).not.toEqual([]);
   });
   it("a planted home position on a destination", () => {
     const run = toPublishedRun(rawDrill(), meta);
