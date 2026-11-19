@@ -25,6 +25,23 @@ test("the sheet's match code line counts reports, not every event", async ({ pag
   await expect(page.getByText(/Map match code at print time: .* \(plan v\d+, 13 reports\)\./).first()).toBeVisible();
 });
 
+/** Pages in a PDF, counted from its page objects. */
+function pdfPages(pdf: Buffer): number {
+  return (pdf.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+}
+
+// teams11long: eleven teams whose task text is long enough to wrap, the worst case a sheet must still fit.
+const sheetCases = [["kennesaw", "?site=kennesaw", 1], ["teams11", "?teams=11", 3], ["teams11long", "?teams=11&long=1", 3]] as const;
+for (const [site, query, sheets] of sheetCases) {
+  test(`each assignment sheet prints on exactly one page (${site}: ${sheets} sheet${sheets === 1 ? "" : "s"})`, async ({ page }) => {
+    await page.goto(`${harness}${query}`);
+    await openExtra(page, "Print assignment sheet");
+    await expect(page.locator("[data-block]").first()).toBeVisible();
+    await expect(page.locator(".extras-ics-sheet")).toHaveCount(sheets);
+    expect(pdfPages(await page.pdf({ format: "Letter", printBackground: true }))).toBe(sheets);
+  });
+}
+
 test("in print media the whole page is white, so no dark margin prints around the sheet", async ({ page }) => {
   await page.goto(harness);
   await openExtra(page, "Print assignment sheet");
@@ -52,10 +69,10 @@ test("the drill line is on every printed page", async ({ page }) => {
   await openExtra(page, "Print assignment sheet");
   await page.emulateMedia({ media: "print" });
   const sheets = page.locator(".extras-ics-sheet");
-  await expect(sheets).toHaveCount(2);
+  await expect(sheets).toHaveCount(3);
   for (const [index, sheet] of (await sheets.all()).entries()) {
     await expect(sheet).toContainText(drillLine);
-    await expect(sheet).toContainText(`${index + 1} of 2`);
+    await expect(sheet).toContainText(`${index + 1} of 3`);
   }
 });
 
