@@ -3,8 +3,8 @@
 Input is the JSON that `build-grid --prior` writes: { gridId, ipp, terrain, layers, travelBearingDeg,
 attribution, docs }. Every doc is set under incidents/{id}/segments/{segmentId} (ROW last), segment docs
 the new grid no longer has are deleted, and only the named incident fields change (gridId, ipp, terrain,
-priorLayers, gridAttribution, priorVersion, and engineParams.rings.<terrain> from the constants, so an incident
-created before its terrain existed can build that prior). The incident update is the last write, so the incident never
+priorLayers, gridAttribution, priorVersion, engineParams.rings.<terrain> from the constants, so an incident
+created before its terrain existed can build that prior, and priorBuiltAt at the server's time). The incident update is the last write, so the incident never
 points at a grid whose segments are not there yet. Then it reads the segments back and checks the count.
 
 Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N
@@ -82,7 +82,9 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     fields = to_value(inc)["mapValue"]["fields"]
     fields["engineParams"] = to_value({"rings": {terrain: column}})
     writes.append({"update": {"name": base, "fields": fields},
-                   "updateMask": {"fieldPaths": sorted(inc) + [f"engineParams.rings.{terrain}"]}, "currentDocument": {"exists": True}})
+                   "updateMask": {"fieldPaths": sorted(inc) + [f"engineParams.rings.{terrain}"]},
+                   "updateTransforms": [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}],
+                   "currentDocument": {"exists": True}})
     return writes
 
 

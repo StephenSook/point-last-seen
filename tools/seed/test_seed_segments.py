@@ -76,3 +76,10 @@ def test_the_incident_gets_the_ring_column_for_its_terrain_and_keeps_its_other_p
     col = inc["update"]["fields"]["engineParams"]["mapValue"]["fields"]["rings"]["mapValue"]["fields"]
     assert list(col) == ["urban"]
     assert [v["doubleValue"] for v in col["urban"]["arrayValue"]["values"]] == rings["urban"]
+
+
+def test_the_incident_records_when_its_prior_was_built_at_server_time():
+    # For the replay: priorBuiltAt is the server's time of the write that installs the prior.
+    inc = seed.build_writes("proj", "drill-dev-1", payload(), existing_ids=set(), prior_version=2)[-1]
+    assert inc["updateTransforms"] == [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}]
+    assert "priorBuiltAt" not in inc["update"]["fields"]

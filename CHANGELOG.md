@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/seed/seed_segments.py` records when it installs a prior: the incident update sets `priorBuiltAt` to the
+  server's time (a REQUEST_TIME transform), so a seeded drill's replay can place its prior.
+  Source: review (the replay needs the prior's build time).
+  Verified: the test (the incident write carries the server-time transform and no client value) failed first, now
+  20 seed tests pass; `bash scripts/ci-local.sh` exit 0.
 - The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
   allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
   (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
