@@ -5,6 +5,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): build the team's mission from the incident, its segments, the plan and the shared profile
+- What: `MissionBuilder` turns the member-readable documents a joined searcher can read into the
+  phone's `Mission`, with the parsers the pack uses: the segments (ROW included) give the grid,
+  the prior and its version; the latest approved plan gives the team's assignment and segments;
+  `profile/shared` gives the approach card's profile and the model's appearance fields; the
+  incident gives the mode, the engine settings command copied in (the bundled ones if absent),
+  the events already in the prior, and the conditions. It refuses, in words, an incident that is
+  not open, a search area it cannot read, and segments built for another prior than the
+  incident's.
+- Source: plan task, loading a mission on the iPhone after a join.
+- Verified: three tests on the drill incident's shape (the seed's incident fields with urban
+  terrain and the real segment documents from `shared/test-vectors/pack-segments-sample.json`,
+  a plan, a shared profile with other names and the stop_calling_name note; no plan or profile
+  yet; a closed incident, a prior mismatch and a missing ROW refused) failed to compile, then
+  passed; the CI mirror `bash scripts/ci-local.sh` exit 0; 80 app tests pass.
+
 ### feat(ios): join an incident as a searcher through the joinIncident callable
 - What: `Joiner` signs in, calls joinIncident (us-central1, limited-use App Check tokens, as the
   callable enforces App Check with replay protection), forces an ID-token refresh, and counts as
