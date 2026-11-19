@@ -5,7 +5,9 @@ import { afterAll, beforeEach, describe, it } from "vitest";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
 const C = "command-uid", F = "family-uid", F2 = "other-family-uid", S = "searcher-uid";
-const Q = (id = "q1") => `incidents/I1/familyQuestions/${id}`;
+// A Firestore auto-id (addDoc): 20 letters and digits, so nothing typed by a person can ride the push as an id.
+const QID = "Ab3dEf6hIj9kLm2nOp5q";
+const Q = (id = QID) => `incidents/I1/familyQuestions/${id}`;
 const question = (uid: string, over: Record<string, unknown> = {}) => ({ text: "Does she have a favourite song?", createdByUid: uid, createdAt: serverTimestamp(), ...over });
 const answer = (uid: string, over: Record<string, unknown> = {}) => ({ answer: "Moon River.", answeredByUid: uid, answeredAt: serverTimestamp(), ...over });
 
@@ -27,8 +29,16 @@ describe("family questions", () => {
     for (const over of [{ text: "" }, { text: "x".repeat(281) }, { text: 7 }, { createdByUid: F }, { createdAt: new Date(2026, 0, 1) }, { extra: true }]) {
       await assertFails(setDoc(doc(db, Q()), question(C, over)));
     }
-    for (const id of ["x".repeat(41), "bad id"]) await assertFails(setDoc(doc(db, Q(id)), question(C)));
+    for (const id of ["x".repeat(41), "bad id", "q1", "Ab3dEf6hIj9kLm2nOp5", "Ab3dEf6hIj9kLm2nOp5qR", "Ab3d-f6hIj9kLm2nOp5q", "Mrs_Jones_phone_5551"]) {
+      await assertFails(setDoc(doc(db, Q(id)), question(C)));
+    }
     await assertSucceeds(setDoc(doc(db, Q()), question(C, { text: "x".repeat(280) })));
+  });
+  it("command asks only while the incident is open: not once it is found or closed", async () => {
+    for (const status of ["found", "closed"]) {
+      await admin.db.doc("incidents/I1").update({ status });
+      await assertFails(setDoc(doc(dbAs(C, commandClaims), Q()), question(C)));
+    }
   });
   it("the family answers once, as itself, at server time, with 1 to 500 characters; nobody else answers", async () => {
     await admin.db.doc(Q()).set({ text: "Favourite song?", createdByUid: C, createdAt: new Date() });

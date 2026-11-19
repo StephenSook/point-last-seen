@@ -5,6 +5,129 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/SECURITY.md` has a Dependencies section: no high or critical `npm audit` findings, why the gRPC override
+  is there, and the four moderate findings that remain (`glob` and `minimatch` inside `vite-plugin-pwa`'s
+  `workbox-build`), which run only while the service worker is built, on the repository's own patterns, and are
+  never shipped.
+  Source: review (a fresh clone's `npm audit`: fix or document each finding).
+  Verified: the versions, advisories and dev-only status match `npm audit --json` and `package-lock.json`;
+  `bash scripts/ci-local.sh --gates` exit 0.
+- An incident has at most 10 teams, so every team can be planned for: the security rules no longer let any client
+  create, change or delete a team (none does; the web only reads them), and `tools/seed/seed_drill.py`, where teams
+  are made, refuses more than 10, a repeated id, `family` or an id a push cannot reach (letters, digits or `_`, up
+  to 32). The practice search copies its teams from the seed. Before, command could write any number of teams,
+  and an 11th could never be planned for under the 10-assignment rule.
+  Source: review (the web's plan card found plans capped at 10 while teams were not).
+  Verified: the tests (command's create, change and delete of a team are refused; 11 teams, no team, `T-1`,
+  `family`, `Family`, a 33-character id and a repeat are refused; 1 and 10 teams pass) failed first, now pass, with
+  all 122 rules tests in the emulator; `bash scripts/ci-local.sh --gates --rules` and `--ts` exit 0.
+- `npm audit` reports no high findings: an npm override moves the Firebase web SDK's Firestore from
+  `@grpc/grpc-js` 1.9.16 (two advisories, GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4) to 1.14.7, the version
+  `firebase-admin` already uses, so no new package enters the tree. That gRPC client only runs in Node (the
+  functions' rules tests); the browser bundle has none.
+  Source: review (a fresh clone's `npm ci` reported 4 high findings).
+  Verified: `npm audit` went from 4 high and 4 moderate to 0 high and 4 moderate; `npm ls` shows one
+  `@grpc/grpc-js` at 1.14.7; all 220 functions tests pass, including the rules tests that drive the Firestore
+  Node client over gRPC in the emulator; the placeholder web build has no gRPC code and its 9 browser checks pass;
+  `bash scripts/ci-local.sh` passes every check it runs.
+- The README says up front that the live `/judge` is the way to try it and that running the apps needs your own
+  Firebase project. It gives the toolchain with versions (Node 22 with the Firebase SDK's Node 24.12 warning,
+  Python 3.12 or later, Java 21 or later, the Firebase CLI 15, gitleaks 8, Xcode 27 with XcodeGen 2.45, the Android
+  SDK), how to run every check or one platform with `ci-local.sh` and what its exit codes mean, and ten numbered
+  steps for a developer's own project: Blaze plan, Anonymous sign-in, Firestore and Storage, the Gemini Developer
+  API, the three apps and their config files, App Check providers and debug tokens, deploy, template and Remote
+  Config publish, seeding a drill, and running each app.
+  Source: review (a fresh clone, following only the README, found no word that a Firebase project is needed).
+  Verified: each command and file name exists in the repository; the providers match `ios/PLS/App/PLSApp.swift`
+  and `android/app/src/release/.../AppCheckSetup.kt`; the versions are the ones installed where every check
+  passes; `bash scripts/ci-local.sh --gates` exit 0.
+- `scripts/ci-local.sh` takes `--gates`, `--ts`, `--rules`, `--web`, `--ios` and `--android` to run one platform's
+  checks (no flag runs them all), and a missing tool no longer stops the run: its section says "NOT RUN, <tool> is
+  not installed" and the script ends with exit 2 and the list of what did not run, never "all checks passed". Exit
+  0 means every check ran and passed, 1 that a check failed. The web section now also runs web.yml's no-backend
+  browser checks against its placeholder build, once `web/e2e/ci.config.ts` can preview a temp folder
+  (`PLS_PREVIEW_DIR`); until then they are listed as not run.
+  Source: review (a fresh clone stopped at the first missing tool and could not run one platform; the browser
+  checks were not mirrored).
+  Verified: the tests (`--help` names every flag; an unknown flag exits 64; `--ios` with swift hidden exits 2 with
+  the NOT RUN line and no pass line) failed first, now pass; a full run exits 2, listing only the browser checks,
+  with every other check passing; the browser checks pass separately on the placeholder build (9 passed).
+- `scripts/rules_gate.py` and `scripts/hygiene_guard.py` work on a copy with no `.git` (a ZIP download): they say
+  "not a git checkout" and walk the files on disk, skipping dependency, build and cache folders, instead of failing
+  on `git ls-files`. Every check still applies, and the walked-file floors still refuse an empty walk.
+  Source: review (whole repo: a ZIP download could not run the gates).
+  Verified: the tests (with no git, a clean tree passes with the note, a banned import or an internal name fails,
+  and the same in `node_modules` is skipped) failed first, now all 35 gate tests pass; on a `git archive` copy of
+  HEAD with no `.git`, rules_gate walks 865 files with 0 problems and hygiene_guard 846, both exit 0, the same
+  counts as the checkout; `bash scripts/ci-local.sh` exit 0.
+- Rules tests pin two command post writes. A placement of a family sighting: a new command sighting naming the
+  family event, in the command post's own builder output, 25 fields, kept as a fixture. And a confirmation of a
+  family camera sighting: one batch that moves the prior to the next version with the family clip among its inputs,
+  whose only event is command's confirmation. Both are accepted as the rules stand; a family or searcher seat cannot
+  write the placement.
+  Source: review (the command post's new "Place on map" and family clip confirm).
+  Verified: all 43 event and prior rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- `startJudgeSession` grants command only on a sandbox that finished setting up, and setup is safe to fail,
+  retry and race. One transaction decides each start: a live, ready sandbox is handed back; one still being set
+  up answers "unavailable, try again in a moment"; a missing or ended one, or a setup that died (5 minutes with
+  no finish, or released by a failed copy), is claimed by this call, which alone clears what is under it, copies
+  the seed and marks it ready. Only a new sandbox takes a slot of the daily cap, inside that transaction, so two
+  starts at once use one slot. A sandbox made before setup was tracked counts as ready. Before, a sandbox whose
+  copy failed still granted command on the next start, and two starts at once could each take a slot.
+  Source: review (whole repo).
+  Verified: the tests (a failed copy grants nothing and a retry finishes the same sandbox on the same slot; a
+  start during another's setup waits and grants nothing; two starts at once use one slot and end ready with all
+  segments; a legacy live sandbox is handed back without copying) failed first where they test new behaviour, now
+  all 11 judge session tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- The security rules check a plan's shape as it is written (`plan.schema.json`): exactly its eight fields; the doc
+  id is the version zero-padded to at least 4 digits; integer versions; the event-set hash's form; the approval time
+  is the server's; the wording route is null or a route record; and at most 10 assignments. Each assignment has
+  exactly its four fields, a team id a push can reach, up to 6 segment ids of grid form with no comma or empty id,
+  and texts within 200 characters. Rules cannot loop, so each assignment is checked by its index, written for few
+  rules expressions. Before, a plan create checked only who approved it. `docs/LIMITS.md` gives the 10-assignment
+  cap and the one gap (a numeric segment id).
+  Source: review (whole repo).
+  Verified: the tests (the heaviest 10-assignment plan with a wording route is accepted; a wrong or unpadded doc id,
+  extra or missing fields, a bad hash, a client approval time, bad versions, a bad wording route, and each bad
+  assignment at the first and the tenth place, plus 11 assignments, are refused) failed first where they test new
+  refusals, now all 119 rules tests pass in the emulator. Measured in the emulator: 11 heaviest assignments still
+  fit, 18 lighter ones did not before the checks were trimmed. `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` and `docs/SECURITY.md` say what the family push carries, and why: Firebase Cloud Messaging does not
+  check who subscribes to a topic, so every push holds only fixed wording and ids, never an outcome. They also give
+  the family push's limits (20 a day, once per event, no stale state, no retry once its slot is taken).
+  Source: review (family channel, round 1).
+  Verified: each statement matches `functions/src/notify.ts` and its tests; no dashes or curly quotes.
+- Family pushes go out once per trigger event and only while still true. One transaction reads the incident, claims
+  the event (by a hash of its id) and takes the day's budget slot, so a redelivered event sends nothing and uses no
+  budget. A question needs an incident that is still open, and a searching or paused push needs the incident to
+  still hold that state, so a late event for a state already left is dropped. A question id must be a Firestore
+  auto-id, and the incident id must make a valid topic, both checked before any budget is used. Logs keep ids
+  and text out.
+  Source: review (family channel, round 1).
+  Verified: the tests (the exact message for all three kinds, sent from a stored question with distinctive text that
+  never appears; a repeated event id sends once and counts once; a stale state sends nothing; the cap is the
+  literal 20; malformed question and incident ids send nothing and write no budget doc; a found incident gets no
+  question push) failed first, now all 16 push tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- A family question's id must be a Firestore auto-id (20 letters and digits), so nothing a person types can ride a
+  push as an id, and command can ask only while the incident's status is `open` (before, anything but `closed`, so
+  a found incident could still take a question).
+  Source: review (family channel, round 1).
+  Verified: the rules tests (`q1`, 19 and 21 characters, a `-`, an `_` and a name-like id are refused; a found or
+  closed incident takes no question) failed first, now all 114 rules tests pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- The web workflow also typechecks and tests the public-run exporter, since its tests run exports through the
+  replay reader in `web/src/extras/replay`; a change to the reader now re-runs that cross-check.
+  Source: review (a reader change would otherwise skip the exporter's tests).
+  Verified: `bash scripts/ci-local.sh` exit 0; the step runs the same two commands as the engine workflow.
+- The public-run exporter imports the judge replay reader's contract (`web/src/extras/replay/runContract.ts`:
+  fields, pseudonym shapes, the 1,000-event cap) instead of keeping a copy, and a new test runs an exported run
+  through the reader's own full check (`fromPublishedRun`). A negative control proves that check refuses a run with
+  a field the contract lacks. `PLS_RUN_FILE=<file>` runs the same check on a real export before it is published.
+  The exporter's typecheck now has the DOM, JSX and Vite types the reader's modules need.
+  Source: review (exporter and reader must not drift apart).
+  Verified: 22 exporter tests pass, including the reader check on the shared fixture and on a fresh read-only
+  export of drill-dev-1 (68 segments, 24 events, 18 plans); the export command still runs; typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The rules workflow also runs when `shared/constants/**`, `shared/schemas/**`, `shared/templates/**` or
   `storage.lifecycle.json` change, since the functions code and tests read them. A new guard,
   `scripts/test_workflow_paths.py`, finds every such file the functions code and tests name and fails when the

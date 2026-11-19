@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import type { Message } from "firebase-admin/messaging";
 
@@ -81,7 +82,10 @@ const FAMILY_BODY: Record<FamilyKind, string> = {
   searching: "Teams are searching now.",
   paused: "The search is paused. The search lead will call you.",
 };
-const QUESTION_ID = /^[A-Za-z0-9_-]{1,40}$/;
+/** A Firestore auto-id, as the rules require: nothing a person typed can ride the push as an id. */
+const QUESTION_ID = /^[A-Za-z0-9]{20}$/;
+/** An incident id that makes a valid topic name (FCM allows [A-Za-z0-9-_.~%]) and a single document path segment. */
+const INCIDENT_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 /** One topic per incident for its family; the family app subscribes on join. */
 export function familyTopic(incidentId: string): string {
@@ -100,40 +104,53 @@ export function familyMessage(o: { incidentId: string; kind: FamilyKind; questio
   };
 }
 
-/** Sends one family push unless the incident is a judge sandbox or has used today's budget. */
+/**
+ * Sends one family push for one trigger event, unless the ids are malformed, the event was already handled (a
+ * redelivery), the incident is a judge sandbox, the event is stale (a question to an incident no longer open, or a
+ * state the incident has since left) or today's budget is used. The event's claim and the budget slot are taken in one
+ * transaction with the incident read, so a redelivered event can neither send twice nor use the budget twice.
+ */
 async function sendFamily(db: Firestore, messaging: { send(m: Message): Promise<string> }, incidentId: string,
-  kind: FamilyKind, questionId: string | undefined, nowMs: number): Promise<boolean> {
-  const inc = await db.doc(`incidents/${incidentId}`).get();
-  // A practice search is a judge's own sandbox, with no family phone: no push.
-  if (!inc.exists || inc.get("mode") === "judge") return false;
+  kind: FamilyKind, questionId: string | undefined, eventId: string, nowMs: number): Promise<boolean> {
+  if (!INCIDENT_ID.test(incidentId) || typeof eventId !== "string" || eventId.length === 0) return false;
+  const incRef = db.doc(`incidents/${incidentId}`);
   const day = new Date(nowMs).toISOString().slice(0, 10);
-  const budget = db.doc(`incidents/${incidentId}/pushBudget/family-${day}`);
-  const allowed = await db.runTransaction(async tx => {
-    const used = ((await tx.get(budget)).get("count") as number | undefined) ?? 0;
-    if (used >= FAMILY_PUSHES_PER_DAY) return false;
+  const budget = incRef.collection("pushBudget").doc(`family-${day}`);
+  const claim = incRef.collection("pushBudget").doc(`event-${createHash("sha256").update(eventId).digest("hex")}`);
+  const outcome = await db.runTransaction(async tx => {
+    const [inc, used, seen] = await tx.getAll(incRef, budget, claim);
+    if (seen!.exists) return { send: false, reason: "already sent" } as const;
+    // A practice search is a judge's own sandbox, with no family phone: no push.
+    if (!inc!.exists || inc!.get("mode") === "judge") return { send: false, reason: "no family" } as const;
+    const current = kind === "question" ? inc!.get("status") === "open" : inc!.get("searchState") === kind;
+    if (!current) return { send: false, reason: "stale" } as const;
+    if (((used!.get("count") as number | undefined) ?? 0) >= FAMILY_PUSHES_PER_DAY) return { send: false, reason: "daily cap" } as const;
     tx.set(budget, { count: FieldValue.increment(1) }, { merge: true });
-    return true;
+    tx.create(claim, { kind, atMs: nowMs });
+    return { send: true, drill: inc!.get("mode") === "drill" } as const;
   });
-  if (!allowed) {
-    console.log(JSON.stringify({ event: "notifyFamily", incidentId, kind, sent: false, reason: "daily cap" }));
+  // Ids and text stay out of the log: the incident and the kind are enough to follow a push.
+  if (!outcome.send) {
+    console.log(JSON.stringify({ event: "notifyFamily", incidentId, kind, sent: false, reason: outcome.reason }));
     return false;
   }
-  await messaging.send(familyMessage({ incidentId, kind, questionId, drill: inc.get("mode") === "drill", nowMs }));
+  await messaging.send(familyMessage({ incidentId, kind, questionId, drill: outcome.drill, nowMs }));
   console.log(JSON.stringify({ event: "notifyFamily", incidentId, kind, sent: true }));
   return true;
 }
 
 /** notifyFamilyQuestion's work: one push to the family that command has asked a question. */
 export async function handleFamilyQuestion(db: Firestore, messaging: { send(m: Message): Promise<string> },
-  incidentId: string, questionId: string, nowMs: number): Promise<boolean> {
+  incidentId: string, questionId: string, eventId: string, nowMs: number): Promise<boolean> {
   if (!QUESTION_ID.test(questionId)) return false;
-  return sendFamily(db, messaging, incidentId, "question", questionId, nowMs);
+  return sendFamily(db, messaging, incidentId, "question", questionId, eventId, nowMs);
 }
 
 /** notifyFamilySearchState's work: one push when the incident's searchState becomes searching or paused. */
 export async function handleSearchState(db: Firestore, messaging: { send(m: Message): Promise<string> }, incidentId: string,
-  before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined, nowMs: number): Promise<boolean> {
+  before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined, eventId: string,
+  nowMs: number): Promise<boolean> {
   const next = after?.searchState;
   if (typeof next !== "string" || !(SEARCH_STATES as readonly string[]).includes(next) || before?.searchState === next) return false;
-  return sendFamily(db, messaging, incidentId, next as FamilyKind, undefined, nowMs);
+  return sendFamily(db, messaging, incidentId, next as FamilyKind, undefined, eventId, nowMs);
 }

@@ -63,3 +63,17 @@ def test_a_walk_below_the_file_floor_fails_in_both_modes(tmp_path):
         out = subprocess.run([sys.executable, "-I", str(root / "scripts" / "hygiene_guard.py"), str(root), "--floor", "50", *args],
                              capture_output=True, text=True)
         assert out.returncode == 1 and "expected at least 50" in out.stdout
+
+
+def test_without_git_it_walks_the_files_on_disk_and_still_fails_a_hit(tmp_path):
+    # A ZIP download has no .git: the guard says so and reads the files on disk, skipping dependency folders.
+    (tmp_path / "scripts").mkdir()
+    shutil.copy(SCRIPT, tmp_path / "scripts" / "hygiene_guard.py")
+    (tmp_path / "a.md").write_text("clean\n")
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "x.md").write_text("orchestrator\n")
+    clean = run(tmp_path, "--public")
+    assert clean.returncode == 0, clean.stdout
+    assert "not a git checkout" in clean.stdout
+    (tmp_path / "b.md").write_text("Source: coordinator\n")
+    assert run(tmp_path, "--public").returncode == 1

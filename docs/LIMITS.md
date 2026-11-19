@@ -31,6 +31,12 @@ each line says what the limit is and why.
   rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the
   mass onto the small area far from every feature, the opposite of what the layer is for. The command post's
   source line for the layer says so.
+- A plan holds at most 10 team assignments, and an incident has at most 10 teams: teams come only from the seed
+  tool, which refuses more, and the practice search's copy of it; no app can create one. The security rules check every assignment's shape as the plan is
+  written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
+  so each assignment is checked by its index; 10 is what fits the rules' 1,000-expression limit with room to spare.
+  The one thing the rules cannot see is a segment id written as a number instead of text. Only a command seat can
+  write a plan, and the command post always writes ids as text; the apps read ids only as text.
 
 ## On-device safety (Android)
 
@@ -134,4 +140,12 @@ each line says what the limit is and why.
   name. So a push carries nothing private: a fixed line ("Your team has a new task. Open Point Last Seen to see
   it."), the incident and team ids, and the plan version. The task itself is read in the app, behind the security
   rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
+- The family gets a push on its own topic, `pls-{incident}-family`, when command asks it a question or sets the
+  search to searching or paused. The push says only that ("The search lead has a question.", "Teams are searching
+  now.", "The search is paused. The search lead will call you.") with the incident id and, for a question, its
+  Firestore auto-id; the question is read in the app. No push ever carries an outcome. At most 20 a day per incident,
+  one per trigger event (a redelivered event sends nothing), none for a state the incident has since left, and none
+  in a judge practice search. A push that fails to send after its slot is taken is not retried.
+- Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
+  every push carries only fixed wording and ids, never a name, a place, a task or a question's text.
 - iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.
