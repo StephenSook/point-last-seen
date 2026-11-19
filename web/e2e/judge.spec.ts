@@ -31,7 +31,7 @@ test("a practice search opens a labelled training incident on the real park map,
   await page.getByRole("button", { name: "Try a practice search" }).click();
   await expect(page).toHaveURL(/\?incident=judge-/, { timeout: 30_000 });
   await expect(page.locator(".post-head")).toContainText("Training drill. Practice search; nobody is missing.", { timeout: 20_000 });
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".post-head")).toContainText("MATCH");
 });
 

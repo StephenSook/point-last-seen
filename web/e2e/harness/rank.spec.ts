@@ -20,3 +20,21 @@ test("with reduced motion the new order shows at once", async ({ page }) => {
   await page.getByRole("button", { name: "Report" }).click();
   expect(Math.abs((await top(page, "AC")) - firstRow)).toBeLessThan(2);
 });
+
+test("a long list shows the top 5 segments, with Show all for the rest", async ({ page }) => {
+  await page.goto("/harness/rank.html?rows=67");
+  const rank = page.getByTestId("poa-rank");
+  await expect(rank.locator("tr[data-seg]")).toHaveCount(5);
+  await expect(rank.locator("tr[data-seg]").first()).toContainText("S01");
+  await expect(rank.getByText("Outside the mapped area")).toBeVisible();
+  await page.getByRole("button", { name: "Show all 67" }).click();
+  await expect(rank.locator("tr[data-seg]")).toHaveCount(67);
+  await page.getByRole("button", { name: "Show top 5" }).click();
+  await expect(rank.locator("tr[data-seg]")).toHaveCount(5);
+});
+
+test("a short list has no Show all", async ({ page }) => {
+  await page.goto("/harness/rank.html");
+  await expect(page.getByTestId("poa-rank").locator("tr[data-seg]")).toHaveCount(4);
+  await expect(page.getByRole("button", { name: /^Show/ })).toHaveCount(0);
+});

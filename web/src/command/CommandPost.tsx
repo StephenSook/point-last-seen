@@ -35,6 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
+import { PURPOSE_LINE } from "../purpose";
 import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
@@ -60,6 +61,8 @@ import { priorWrites, rebuildPrior } from "../prior/rebuild";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
+import { FamilyChannel } from "./FamilyChannel";
+import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -145,6 +148,8 @@ type JoinPanelProps = {
 
 function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [incidentId, setIncidentId] = useState(incidentFromUrl() ?? "");
+  // The incident a shared link named, kept as it was when the page opened.
+  const [linked] = useState(() => incidentFromUrl());
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -175,12 +180,17 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   return (
     <main className="panel">
       <p className="wordmark">Point Last Seen</p>
-      <p data-testid="purpose">Plans where to search for a missing person, and updates the map as reports come in.</p>
+      <p data-testid="purpose">{PURPOSE_LINE}</p>
       <p>
         <a href="/judge">Judges: start here</a>
       </p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Open the command post</h1>
+      {linked && (
+        <p className="muted" data-testid="link-note">
+          This link names incident {linked}. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access.
+        </p>
+      )}
       <form onSubmit={submit}>
         <label>
           Incident id
@@ -238,6 +248,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
   // Camera places command picked for family camera clips that came without one, until each is confirmed.
   const [placedCameras, setPlacedCameras] = useState<Record<string, LatLon>>({});
+  // Questions to the family and their answers. A refused read hides the section and never ends the post's
+  // access: the channel has its own rules, and the rest of the post works without it.
+  const [questions, setQuestions] = useState<FamilyQuestion[] | null>(null);
+  useEffect(() => {
+    if (denied) return;
+    return subscribeQuestions(pls.db, incidentId, setQuestions, () => setQuestions(null));
+  }, [pls, incidentId, denied]);
 
   // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
   // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
@@ -712,6 +729,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               })
             }
           />
+          {questions && (
+            <FamilyChannel
+              questions={questions}
+              searchState={searchStateOf(incident)}
+              onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
+              onTell={(next) => tellFamily(pls.db, incidentId, next)}
+            />
+          )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}

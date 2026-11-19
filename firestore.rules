@@ -140,10 +140,6 @@ service cloud.firestore {
         allow read: if isCommand(incidentId) || (isMember(incidentId) && request.auth.token.team == teamId);
         allow write: if false;
       }
-      match /planDrafts/{eventSetHash} {
-        allow read: if isMember(incidentId);
-        allow write: if false;
-      }
 
       // An approved plan is written once by the command user who approved it.
       match /plans/{version} {
@@ -427,7 +423,7 @@ service cloud.firestore {
     // matches() error on a wrong type; join() errors on a non-list, its pattern allows at most 6 ids, and the second
     // join (on ";", with no "," allowed) refuses an id that holds a comma; a non-empty list must join to at least
     // one id, which refuses a list of one empty id. join() turns a number into text, so a
-    // numeric id gets through here (only command writes plans, and the command post writes text ids; docs/LIMITS.md).
+    // numeric id gets through here; the command post's planFromDoc sets such a plan aside on read (docs/LIMITS.md).
     function validAssignment(a) {
       return a.keys().hasOnly(['teamId', 'segmentIds', 'taskText', 'reason'])
         && a.teamId.matches('^[A-Za-z0-9_]{1,32}$')

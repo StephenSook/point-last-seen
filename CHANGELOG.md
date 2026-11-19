@@ -5,6 +5,23 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins the command post's family question listener: command and family list `familyQuestions`
+  ordered by `createdAt`, newest first, and a non-member cannot. A command update of `searchState` alone was already
+  pinned.
+  Source: review (the command post's Family section).
+  Verified: all 8 family question rules tests pass in the emulator; the live drill incident has status `open` and
+  no stored conditions, so a `searchState`-only update passes its rule there; `bash scripts/ci-local.sh --gates
+  --rules` exit 0.
+- `docs/LIMITS.md` says how the one gap the plan rule leaves (a numeric segment id) is closed: the command post reads
+  each stored plan field by field (`planFromDoc`) and sets aside, and names, any record that is not a plan.
+  Source: review (the command post now decodes plans on read).
+  Verified: matches `web/src/data/plans.ts` (a segment id that is not text returns null); no dashes or curly quotes.
+- The security rules drop the `planDrafts` read path: no function writes plan drafts and, since the command post
+  removed its draft listener (now deployed), nothing reads them. Reads and writes there are now refused by default.
+  Source: review (a read-only path to a collection nothing uses).
+  Verified: the test (a searcher and command reading a plan draft are refused) failed first, now all 122 rules tests
+  pass in the emulator; no app code names `planDrafts`; `bash scripts/ci-local.sh` exit 0, including the 13
+  no-backend browser checks.
 - `docs/SECURITY.md` has a Dependencies section: no high or critical `npm audit` findings, why the gRPC override
   is there, and the four moderate findings that remain (`glob` and `minimatch` inside `vite-plugin-pwa`'s
   `workbox-build`), which run only while the service worker is built, on the repository's own patterns, and are
