@@ -97,3 +97,10 @@ test("a refusal the server did not confirm as a newer prior gets the plain failu
   await page.getByRole("button", { name: "Server refuses the first" }).click();
   await expect(page.getByRole("alert")).toHaveText("The prior was not saved. Try again.");
 });
+
+test("an incident's terrain note shows under the ring source line, and nothing shows without one", async ({ page }) => {
+  await page.goto("/harness/layers.html?terrain=urban&note=1");
+  await expect(page.getByTestId("terrain-note")).toHaveText("Default terrain column (urban), not verified for this site.");
+  await page.goto("/harness/layers.html?terrain=urban");
+  await expect(page.getByTestId("terrain-note")).toHaveCount(0);
+});

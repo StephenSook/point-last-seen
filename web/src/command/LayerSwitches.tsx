@@ -12,6 +12,8 @@ type Props = {
   terrain: Terrain;
   /** The incident's stored ring radii for this terrain (km); the source line names them when they differ from ISRID's. */
   rings?: unknown;
+  /** The incident's own note on its terrain column (written by the seed, e.g. a default not verified for the site). */
+  terrainNote?: unknown;
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
   vehicleInvolved: boolean;
@@ -21,7 +23,8 @@ type Props = {
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
 
-export function LayerSwitches({ layers, terrain, rings, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
+export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
+  const note = typeof terrainNote === "string" ? terrainNote.trim().slice(0, 200) : "";
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
@@ -59,6 +62,11 @@ export function LayerSwitches({ layers, terrain, rings, hasBearing, vehicleInvol
       <div className="layer">
         <p>Rings, always on</p>
         <p className="muted small">{ringSourceLine(terrain, rings)}</p>
+        {note && (
+          <p className="muted small" data-testid="terrain-note">
+            {note}
+          </p>
+        )}
         <label>
           Distance table
           <select value={draft.terrain} onChange={(e) => setDraft((d) => ({ ...d, terrain: e.target.value as Terrain }))}>

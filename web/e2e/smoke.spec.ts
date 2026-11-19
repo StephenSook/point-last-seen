@@ -57,16 +57,18 @@ test.describe("fresh browser", () => {
   });
 });
 
-// Deployed-only: the map's basemap and the walker model's route graph are files the build copies from
-// shared/grid. A missing one is a 404 (not the app shell), and each must come back as its own type.
-test("the deployed site serves the grid's basemap tiles and route graph", async ({ request }) => {
-  deployedOnly();
-  const tiles = await request.get("/tiles/piedmont-park-dev.pmtiles", { headers: { range: "bytes=0-15" } });
-  expect([200, 206]).toContain(tiles.status());
-  expect(tiles.headers()["content-type"] ?? "").not.toContain("text/html");
-  expect((await tiles.body()).subarray(0, 7).toString("latin1")).toBe("PMTiles");
-  const graph = await request.get("/tiles/piedmont-park-dev.graph.json");
-  expect(graph.status()).toBe(200);
-  expect(graph.headers()["content-type"] ?? "").toContain("application/json");
-  expect(Object.keys((await graph.json()) as object).length).toBeGreaterThan(0);
-});
+// The map's basemap and the walker model's route graph are files the build copies from shared/grid, one pair per
+// grid (the dev park and the Kennesaw drill). A missing one is a 404 (not the app shell), and each must come back as
+// its own type. Runs against the placeholder build too, so a grid left out of the build fails before a deploy.
+for (const grid of ["piedmont-park-dev", "kennesaw-mountain-drill"]) {
+  test(`the site serves ${grid}'s basemap tiles and route graph`, { tag: "@no-backend" }, async ({ request }) => {
+    const tiles = await request.get(`/tiles/${grid}.pmtiles`, { headers: { range: "bytes=0-15" } });
+    expect([200, 206]).toContain(tiles.status());
+    expect(tiles.headers()["content-type"] ?? "").not.toContain("text/html");
+    expect((await tiles.body()).subarray(0, 7).toString("latin1")).toBe("PMTiles");
+    const graph = await request.get(`/tiles/${grid}.graph.json`);
+    expect(graph.status()).toBe(200);
+    expect(graph.headers()["content-type"] ?? "").toContain("application/json");
+    expect(Object.keys((await graph.json()) as object).length).toBeGreaterThan(0);
+  });
+}

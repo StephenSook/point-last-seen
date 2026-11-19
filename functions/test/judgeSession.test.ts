@@ -2,7 +2,7 @@
 // command role on it, capped per visitor and per day, and deleted a day after it ends.
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_LABEL } from "../src/judgeSession";
+import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_LABEL, SETUP_STALE_MS } from "../src/judgeSession";
 import { callRaw, emulatorIdToken } from "./callable";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
@@ -127,13 +127,55 @@ describe("startJudgeSession setup is safe to fail, retry and race", () => {
     expect((await admin.db.doc(`incidents/judge-${uid}`).get()).get("setupReady")).toBe(true);
     expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
   });
-  it("a live sandbox made before setup was tracked counts as ready", async () => {
-    const uid = await freshUid();
-    await admin.db.doc(`incidents/judge-${uid}`).set({ mode: "judge", status: "open", createdAt: Timestamp.fromMillis(NOW),
-      expiresAt: Timestamp.fromMillis(NOW + DAY) });
+  it("a live sandbox made before setup was tracked is checked against the seed: a full copy is ready, a short one is rebuilt", async () => {
+    // Review round 1: no flag used to mean ready even when the copy had failed part way.
+    const uid = await freshUid(), ref = admin.db.doc(`incidents/judge-${uid}`);
+    await ref.set({ mode: "judge", status: "open", createdAt: Timestamp.fromMillis(NOW), expiresAt: Timestamp.fromMillis(NOW + DAY) });
     expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, cfg)).incidentId).toBe(`judge-${uid}`);
-    expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(0);
+    expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
+    expect((await admin.db.collection(`incidents/judge-${uid}/teams`).get()).size).toBe(2);
+    expect((await ref.get()).get("setupReady")).toBe(true);
     expect((await admin.db.doc("ops/judgeSessions").get()).exists).toBe(false);
+    // A legacy sandbox whose copy is complete is handed back as it is, its judge's own work kept.
+    const uid2 = await freshUid(), ref2 = admin.db.doc(`incidents/judge-${uid2}`);
+    await ref2.set({ mode: "judge", status: "open", createdAt: Timestamp.fromMillis(NOW), expiresAt: Timestamp.fromMillis(NOW + DAY) });
+    for (const sg of ["AA", "AB", "ROW"]) await admin.db.doc(`incidents/judge-${uid2}/segments/${sg}`).set({ segmentId: sg, priorPoa: 0.3 });
+    for (const t of ["T1", "T2"]) await admin.db.doc(`incidents/judge-${uid2}/teams/${t}`).set({ teamId: t });
+    await admin.db.doc(`incidents/judge-${uid2}/profile/shared`).set({ nickname: "Practice person" });
+    await admin.db.doc(`incidents/judge-${uid2}/events/mine`).set({ type: "clue" });
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid2, NOW + HOUR, cfg)).incidentId).toBe(`judge-${uid2}`);
+    expect((await admin.db.doc(`incidents/judge-${uid2}/events/mine`).get()).exists).toBe(true);
+    expect((await ref2.get()).get("setupReady")).toBe(true);
+  });
+  it("a copy whose writes fail is not marked ready, and a retry finishes it", async () => {
+    // Review round 1: BulkWriter.close() resolves even when a write failed; each write's own result is checked.
+    const uid = await freshUid(), ref = admin.db.doc(`incidents/judge-${uid}`);
+    const failing = { ...cfg, writer: () => {
+      const w = admin.db.bulkWriter();
+      return { set: (r: FirebaseFirestore.DocumentReference, d: FirebaseFirestore.DocumentData) =>
+        (r.path.endsWith("/teams/T2") ? Promise.reject(new Error("write failed")) : w.set(r, d)), close: () => w.close() };
+    } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW, failing)).rejects.toThrow();
+    expect((await ref.get()).get("setupReady")).toBe(false);
+    expect((await admin.auth.getUser(uid)).customClaims ?? {}).not.toHaveProperty("inc");
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 60_000, cfg)).incidentId).toBe(`judge-${uid}`);
+    expect((await admin.db.collection(`incidents/judge-${uid}/teams`).get()).size).toBe(2);
+    expect((await ref.get()).get("setupReady")).toBe(true);
+  });
+  it("a builder that resumes after another took over never clears or writes the newer sandbox", async () => {
+    // Review round 1: the stalled first copy used to clear the sandbox it no longer owned.
+    const uid = await freshUid(), ref = admin.db.doc(`incidents/judge-${uid}`);
+    let release!: () => void;
+    const stalled = { ...cfg, copy: (copy: () => Promise<void>) => new Promise<void>(r => { release = r; }).then(copy) };
+    const first = handleStartJudgeSession(admin.db, admin.auth, uid, NOW, stalled);
+    while (!(await ref.get()).exists) await new Promise(r => setTimeout(r, 20));
+    const later = NOW + SETUP_STALE_MS + 1000;
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, later, cfg)).incidentId).toBe(`judge-${uid}`);
+    await admin.db.doc(`incidents/judge-${uid}/events/judge-work`).set({ type: "clue" });
+    release();
+    await expect(first).rejects.toMatchObject({ code: "unavailable" });
+    expect((await admin.db.doc(`incidents/judge-${uid}/events/judge-work`).get()).exists).toBe(true);
+    expect((await ref.get()).get("setupReady")).toBe(true);
   });
 });
 

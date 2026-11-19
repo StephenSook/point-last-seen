@@ -46,3 +46,20 @@ test("a refused ask or state change says so", async ({ page }) => {
   await expect(page.getByRole("alert")).toHaveText("The question was not sent. Try again.");
   await expect(page.getByLabel("Question for the family")).toHaveValue("Where did they work?");
 });
+
+test("once the search is no longer open, asking closes but the questions and answers stay", async ({ page }) => {
+  await page.goto("/harness/family.html?status=found");
+  const family = page.getByRole("region", { name: "Family" });
+  await expect(family.getByText("Questions close when the search is no longer open.")).toBeVisible();
+  await expect(family.getByRole("button", { name: "Ask the family" })).toBeDisabled();
+  await expect(family.getByRole("textbox", { name: "Question for the family" })).toBeDisabled();
+  await expect(family.getByRole("button", { name: "Did they ever go by another name?" })).toBeDisabled();
+  await expect(family.getByTestId("question-q1")).toContainText("Answer: Bea, and Mom to the grandkids");
+  await expect(family.getByTestId("question-q2")).toContainText("No answer yet.");
+});
+
+test("while the search is open there is no closed line", async ({ page }) => {
+  await page.goto("/harness/family.html");
+  await expect(page.getByText("Questions close when the search is no longer open.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ask the family" })).toBeEnabled();
+});

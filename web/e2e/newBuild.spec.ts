@@ -31,3 +31,24 @@ test("while words are typed the page asks before reloading, so nothing typed is 
   await expect(page.getByRole("textbox").first()).toHaveValue("drill-dev-1");
   await expect(bar.getByRole("button", { name: "Reload" })).toBeVisible();
 });
+
+test("the page answers the new worker's ping, so the worker leaves it to reload or ask on its own", { tag: "@no-backend" }, async ({ page }) => {
+  await controlled(page, "/judge");
+  const answered = await page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const ch = new MessageChannel();
+        const t = setTimeout(() => resolve(false), 1000);
+        ch.port1.onmessage = (e) => { clearTimeout(t); resolve(e.data === "pls-build-pong"); };
+        navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: { type: "pls-build-ping" }, ports: [ch.port2] }));
+      }),
+  );
+  expect(answered).toBe(true);
+});
+
+test("the built worker loads the takeover script that moves pages of older builds onto the new one", { tag: "@no-backend" }, async ({ request }) => {
+  expect(await (await request.get("/sw.js")).text()).toContain("sw-takeover.js");
+  const script = await request.get("/sw-takeover.js");
+  expect(script.status()).toBe(200);
+  expect(await script.text()).toContain("pls-build-ping");
+});
