@@ -43,3 +43,15 @@ test("a run file that is not JSON is called unreadable, not missing", { tag: "@n
   await expect(page.getByRole("region", { name: "Replay the training drill" }).getByText("The published run file can't be read, so nothing is replayed and no numbers are shown.")).toBeVisible();
   await expect(page.getByText("No published run yet.")).toHaveCount(0);
 });
+
+test("the site serves its published drill run, and the judge page replays it", { tag: "@no-backend" }, async ({ page, request }) => {
+  const res = await request.get("/evidence/published-run.json");
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("application/json");
+  expect(((await res.json()) as { label: string }).label).toContain("Training drill. Nobody is missing.");
+  await page.goto("/judge");
+  const section = page.getByRole("region", { name: "Watch the run over time" });
+  await expect(section.getByTestId("replay-code")).toHaveText(/^[0-9A-Z]{4}$/);
+  await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
+  await expect(page.getByTestId("replay-refused")).toHaveCount(0);
+});
