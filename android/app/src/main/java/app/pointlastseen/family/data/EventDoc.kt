@@ -22,7 +22,7 @@ sealed class Effect {
 }
 
 /**
- * The reading of a camera_sighting event (lane A ruling on review I10): the clip's
+ * The reading of a camera_sighting event (design decision on review I10): the clip's
  * CameraSighting plus the reference command needs, clipReadings/{clipSha256}.
  */
 data class CameraSightingReading(

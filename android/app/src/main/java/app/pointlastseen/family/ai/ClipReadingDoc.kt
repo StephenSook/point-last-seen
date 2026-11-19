@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * clipReadings/{sha256} (spec section 7, lane A ruling on review I9): a consent record
+ * clipReadings/{sha256} (spec section 7, design decision on review I9): a consent record
  * created before the upload (reading and route null, createdAt the server's time,
  * expiresAt a timestamp for the TTL policy), then one completion with the reading
  * (an object) and the route.
