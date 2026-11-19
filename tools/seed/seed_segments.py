@@ -3,7 +3,8 @@
 Input is the JSON that `build-grid --prior` writes: { gridId, ipp, terrain, layers, travelBearingDeg,
 attribution, docs }. Every doc is set under incidents/{id}/segments/{segmentId} (ROW last), segment docs
 the new grid no longer has are deleted, and only the named incident fields change (gridId, ipp, terrain,
-priorLayers, gridAttribution, priorVersion). The incident update is the last write, so the incident never
+priorLayers, gridAttribution, priorVersion, and engineParams.rings.<terrain> from the constants, so an incident
+created before its terrain existed can build that prior). The incident update is the last write, so the incident never
 points at a grid whose segments are not there yet. Then it reads the segments back and checks the count.
 
 Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N
@@ -15,6 +16,9 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+ENGINE_PARAMS = Path(__file__).resolve().parents[2] / "shared/constants/engine-params.json"
 
 COMMIT_MAX = 500
 ID = re.compile(r"^[A-Z]{2}$")
@@ -71,8 +75,14 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     inc = {"gridId": p["gridId"], "ipp": {"lat": float(p["ipp"]["lat"]), "lon": float(p["ipp"]["lon"])},
            "terrain": p["terrain"], "priorLayers": p["layers"], "gridAttribution": p["attribution"],
            "priorVersion": int(prior_version)}
-    writes.append({"update": {"name": base, "fields": to_value(inc)["mapValue"]["fields"]},
-                   "updateMask": {"fieldPaths": sorted(inc)}, "currentDocument": {"exists": True}})
+    # The ring column for this terrain, by field path, so an incident created before the terrain existed can build
+    # its prior and every other stored engine value stays as it was.
+    terrain = p["terrain"]
+    column = [float(r) for r in json.loads(ENGINE_PARAMS.read_text())["params"]["rings"][terrain]]
+    fields = to_value(inc)["mapValue"]["fields"]
+    fields["engineParams"] = to_value({"rings": {terrain: column}})
+    writes.append({"update": {"name": base, "fields": fields},
+                   "updateMask": {"fieldPaths": sorted(inc) + [f"engineParams.rings.{terrain}"]}, "currentDocument": {"exists": True}})
     return writes
 
 

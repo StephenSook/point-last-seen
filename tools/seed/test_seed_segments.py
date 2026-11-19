@@ -48,7 +48,8 @@ def test_writes_set_every_doc_delete_stale_ones_and_update_only_the_named_incide
     base = "projects/proj/databases/(default)/documents/incidents/drill-dev-1"
     assert names == [f"{base}/segments/AA", f"{base}/segments/AB", f"{base}/segments/ROW", f"{base}/segments/ZZ", base]
     inc = writes[-1]
-    assert sorted(inc["updateMask"]["fieldPaths"]) == ["gridAttribution", "gridId", "ipp", "priorLayers", "priorVersion", "terrain"]
+    assert sorted(inc["updateMask"]["fieldPaths"]) == ["engineParams.rings.temperate_flat", "gridAttribution", "gridId", "ipp",
+                                                        "priorLayers", "priorVersion", "terrain"]
     f = inc["update"]["fields"]
     assert f["gridId"] == {"stringValue": "park-dev"} and f["priorVersion"] == {"integerValue": "1"}
     assert f["ipp"]["mapValue"]["fields"]["lat"] == {"doubleValue": 33.78}
@@ -64,3 +65,14 @@ def test_writes_are_split_into_commits_of_at_most_500():
     batches = seed.batches(writes)
     assert [len(b) for b in batches] == [500, 102]
     assert batches[-1][-1]["update"]["name"].endswith("/incidents/i")
+
+
+def test_the_incident_gets_the_ring_column_for_its_terrain_and_keeps_its_other_params():
+    # Review: an incident created before a terrain existed has no rings for it in its stored engineParams.
+    rings = json.loads((Path(__file__).resolve().parents[2] / "shared/constants/engine-params.json").read_text())["params"]["rings"]
+    writes = seed.build_writes("proj", "drill-dev-1", {**payload(), "terrain": "urban"}, existing_ids=set(), prior_version=2)
+    inc = writes[-1]
+    assert "engineParams.rings.urban" in inc["updateMask"]["fieldPaths"] and "engineParams" not in inc["updateMask"]["fieldPaths"]
+    col = inc["update"]["fields"]["engineParams"]["mapValue"]["fields"]["rings"]["mapValue"]["fields"]
+    assert list(col) == ["urban"]
+    assert [v["doubleValue"] for v in col["urban"]["arrayValue"]["values"]] == rings["urban"]

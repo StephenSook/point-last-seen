@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/seed/seed_segments.py` writes the ring column for the incident's terrain (`engineParams.rings.<terrain>`
+  from the constants, by field path), so an incident created before that terrain existed can build its prior and
+  its other stored engine values stay as they were.
+  Source: review of PR #21 (finding 2).
+  Verified: the test (an urban seed updates `engineParams.rings.urban` only, not `engineParams`, with the
+  constants' values) failed first, now 19 seed tests pass.
 - The engine refuses, by name, a terrain its params hold no rings for ("No distance rings for terrain
   "urban" in these engine params"), instead of failing on an undefined ring list. `withEngineDefaults(stored)`
   fills what an incident's stored params predate (a ring column added later, such as urban) from the sourced
