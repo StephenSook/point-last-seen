@@ -189,7 +189,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       });
       const b = bounds(segments);
       if (b && !fitted.current) {
-        m.fitBounds(b, { padding: 40, duration: 0 });
+        // The extra room at the bottom keeps the lowest cells' labels above the map credit.
+        m.fitBounds(b, { padding: { top: 40, right: 40, bottom: 64, left: 40 }, duration: 0 });
         fitted.current = true;
       }
       dense();

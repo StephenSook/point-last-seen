@@ -1440,3 +1440,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: under 900 px wide the header wraps: "Training drill. Nobody is missing." takes its own row, and the incident name, the match code and More share the second. At 390 px the drill line had been squeezed into four lines beside the other items (126 px of header).
 - Source: live judge walk, item 7 (phone).
 - Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: header at most 110 px, the drill line whole) failed on the deployed site at aaae392 (126 px); it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
+
+### fix(map): keep the lowest cells' labels above the map credit
+- What: the first view now fits the grid with 64 px of room at the bottom (40 px on the other sides), so the percent plates and codes of the lowest row sit above the OpenStreetMap credit instead of under it.
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: no visible plate or code overlaps the credit) failed on the deployed site at aaae392; it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
