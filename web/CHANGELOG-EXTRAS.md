@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
+- Merge: main (f903ec0, a rules-gate fix and README wording) into the extras branch, so PR #40 merges the combination its local mirror ran on. No conflicts; no extras, lockfile or test file changed. Source: merge to main. Verified: the full local mirror runs once on this head; its exit code is in the PR's comment.
+
 - Merge: main (1ca9776, with the shared "Answers to" line builder and the eight-team plan cap) into the extras branch. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: the extras unit tests pass 202; web typecheck exit 0. The full local mirror runs once on the PR head; its exit code is in the PR's comment.
 
 - Docs: `docs/drill-day.md` for the Kennesaw Mountain drill (`drill-kennesaw-1`, teams T1 to T3). It covers what was checked before the drill; the drill-morning steps to print each team's assignment sheet and radio cards after plan v1 is approved (which buttons, the printer settings including Letter, 100% scale, background graphics on and headers off, and what to check on the printout); and the after-drill steps. Those are the one command that publishes the run to the judge page, the independent check of its end code against the live command post, then commit, mirror, merge and deploy, and what to look for on the judge page. Source: drill-day preparation. Verified: every interface text the page quotes was found in the code ("Same map.", "Approved as plan v1. Sent.", "Include the approach notes", "IAP Page 1 of 1"); the public hygiene guard reports no hit in it; no dash or curly quote.

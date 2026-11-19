@@ -29,6 +29,28 @@ def test_banned_import_fails(tmp_path):
     assert run_gate(tmp_path).returncode == 1
 
 
+def test_speech_recognition_is_banned_on_every_platform(tmp_path):
+    # Recognition reads the user's speech with a model outside Firebase AI Logic, so no platform may use it.
+    for rel, text in (("ios/PLS/A.swift", "let r = SFSpeechRecognizer()"),
+                      ("android/app/src/main/A.kt", "SpeechRecognizer.createSpeechRecognizer(ctx)"),
+                      ("android/app/src/main/B.kt", "Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)"),
+                      ("android/app/src/main/C.kt", 'Intent("android.speech.action.RECOGNIZE_SPEECH")'),
+                      ("web/src/a.ts", "new webkitSpeechRecognition()"),
+                      ("web/src/b.ts", "new SpeechRecognition()")):
+        write(tmp_path, rel, text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and rel in out.stdout, rel
+        write(tmp_path, rel, "ok")
+
+
+def test_system_text_to_speech_is_allowed_as_the_fallback_voice(tmp_path):
+    # The system voice speaks text the app already holds; it reads nothing from the user.
+    write(tmp_path, "ios/PLS/A.swift", "import AVFoundation\nlet s = AVSpeechSynthesizer()")
+    write(tmp_path, "android/app/src/main/A.kt", "import android.speech.tts.TextToSpeech")
+    write(tmp_path, "web/src/a.ts", "window.speechSynthesis.speak(new SpeechSynthesisUtterance(t))")
+    assert run_gate(tmp_path).returncode == 0
+
+
 def test_clean_tree_passes(tmp_path):
     (tmp_path / "a.swift").write_text("import FoundationModels\n")
     assert run_gate(tmp_path).returncode == 0
