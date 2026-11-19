@@ -45,6 +45,7 @@ final class AppModel {
     /// True when the phone is in an incident but its mission is not loaded yet.
     var canRetryMission: Bool { membership != nil && mission == nil }
     static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
+    static let notOnATeam = "This phone is no longer on a team. Ask command for a join code."
 
     init(signIn: SignIn = .firebase(),
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
@@ -226,9 +227,30 @@ final class AppModel {
     }
 
     /// Reads the mission again for the incident the phone is already in; the code is not sent again.
+    /// The claims are checked first: a role command took away reads nothing and drops the membership.
     func retryMission() async {
-        guard let membership else { return }
-        joinMessage = await loadMission(incidentId: membership.incidentId, teamId: membership.teamId)
+        guard membership != nil else { return }
+        guard let claims = await latestClaims() else { joinMessage = Self.missionUnread; return }
+        guard let held = Self.searcherTeam(claims) else {
+            dropMission()
+            joinMessage = Self.notOnATeam
+            return
+        }
+        membership = held
+        joinMessage = await loadMission(incidentId: held.incidentId, teamId: held.teamId)
+    }
+
+    /// The claims read fresh from the server, or the cached ones with no signal; nil with no token.
+    private func latestClaims() async -> [String: JSONValue]? {
+        if let fresh = await joinBackend.currentClaims(forceRefresh: true) { return fresh }
+        return await joinBackend.currentClaims(forceRefresh: false)
+    }
+
+    /// The incident and team the claims grant a searcher; nil for any other role.
+    private static func searcherTeam(_ claims: [String: JSONValue]) -> (incidentId: String, teamId: String)? {
+        guard claims["role"] == .string("searcher"), case let .string(incidentId)? = claims["inc"],
+              case let .string(teamId)? = claims["team"] else { return nil }
+        return (incidentId, teamId)
     }
 
     /// Reads the team's mission and loads it; says why not, or nil when it loaded.
@@ -287,12 +309,11 @@ final class AppModel {
     /// command changed gets the new team's mission, and claims that no longer name a searcher's
     /// incident drop it. With no signal the cached token answers; with no token, nothing changes.
     private func resumeMission() async {
-        var claims = await joinBackend.currentClaims(forceRefresh: true)
-        if claims == nil { claims = await joinBackend.currentClaims(forceRefresh: false) }
-        guard let claims else { return }
-        guard claims["role"] == .string("searcher"), case let .string(incidentId)? = claims["inc"],
-              case let .string(teamId)? = claims["team"] else {
-            if mission != nil { dropMission() }
+        guard let claims = await latestClaims() else { return }
+        // Not a searcher any more: drop whatever is held, a loaded mission or only a membership
+        // whose mission never loaded (and any load still running).
+        guard let (incidentId, teamId) = Self.searcherTeam(claims) else {
+            dropMission()
             return
         }
         membership = (incidentId, teamId)

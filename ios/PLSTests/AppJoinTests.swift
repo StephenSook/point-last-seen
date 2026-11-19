@@ -129,6 +129,34 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(backend.steps.filter { $0 == "call" }.count == 1)
     }
 
+    /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
+    /// membership is kept and "Read the mission again" is no longer offered.
+    @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission == nil && m.canRetryMission)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(!m.canRetryMission && m.mission == nil)
+    }
+
+    /// "Read the mission again" checks the claims first: a role command took away reads nothing.
+    @Test func readingTheMissionAgainChecksTheClaimsFirst() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.canRetryMission)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        reader.docs = try drillDocs()
+        let readsBefore = reader.reads.count
+        await m.retryMission()
+        #expect(reader.reads.count == readsBefore && m.mission == nil && !m.canRetryMission)
+        #expect(m.joinMessage == AppModel.notOnATeam)
+    }
+
     /// Joining a team the phone already holds reads the mission without spending the code.
     @Test func aTeamAlreadyHeldIsNotJoinedAgain() async throws {
         let backend = FakeJoinBackend()

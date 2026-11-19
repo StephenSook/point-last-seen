@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a lost searcher role drops the membership too, and a retry checks the claims first
+- What: when claims stopped naming a searcher, the phone dropped only a loaded mission. A membership
+  whose first mission read had failed survived, so "Read the mission again" stayed on screen and
+  read the mission with no check of the claims. Now any non-searcher claims drop everything held
+  (the membership, a loaded mission, and any load still running). "Read the mission again" reads
+  the claims first (fresh, or cached with no signal). If they no longer name a searcher, it drops
+  the membership and says "This phone is no longer on a team. Ask command for a join code."
+- Source: review (finding 1).
+- Verified: tests for a role lost while only the membership is held, and for a retry after the role
+  was lost (no mission read, no retry offered, the message shown). They failed before the change
+  and pass after; 100 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): the cloud switch says what leaves the phone, and when
 - What: the Ready check's cloud switch read "Allow cloud reading when the phone cannot read a
   report" without naming what is sent. It now reads "Allow cloud reading", with the line "Only when
