@@ -24,7 +24,7 @@ struct FirestoreMissionReader: MissionReader {
         let profileData = try await profile.data()
         return MissionDocs(incident: incidentData.map(FirestoreJSON.value) ?? .null,
                            segments: try await segments.documents.map { FirestoreJSON.value($0.data()) },
-                           plan: try await plans.documents.first.map { FirestoreJSON.value($0.data()) },
+                           plan: try await plans.documents.first.flatMap { FirestoreJSON.plan($0.data()) },
                            sharedProfile: profileData.map(FirestoreJSON.value))
     }
 
@@ -32,8 +32,7 @@ struct FirestoreMissionReader: MissionReader {
         let registration = Firestore.firestore().collection("incidents").document(incidentId).collection("plans")
             .order(by: "version", descending: true).limit(to: 1)
             .addSnapshotListener { snapshot, _ in
-                guard let doc = snapshot?.documents.first else { return }
-                let plan = FirestoreJSON.value(doc.data())
+                guard let doc = snapshot?.documents.first, let plan = FirestoreJSON.plan(doc.data()) else { return }
                 Task { @MainActor in onPlan(plan) }
             }
         let box = Registration(registration)

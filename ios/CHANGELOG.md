@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a plan counts only when its stored version is a whole number
+- What: the phone turns a Firestore Timestamp into epoch milliseconds, so a plan whose `version`
+  was stored as a Timestamp read as a huge version, and every later plan would have been ignored as
+  older. The first mission read and the plan listener now take a plan only when its stored version
+  is a whole number 0 or above; any other plan counts as none.
+- Source: review (finding 5, second round).
+- Verified: tests for whole-number versions (a plan) and for a Timestamp, text, a boolean, a
+  fraction, a negative number and a missing version (no plan). They failed to compile before the
+  change and pass after; the app tests pass.
+
 ### fix(ios): an old load never replaces the new team's plan listener, and retired listeners are ignored
 - What: a load re-checked that it was still the newest only before it installed the mission. Its
   speaking takes time, and a newer load (a team change) could take over meanwhile; when the old
