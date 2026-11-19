@@ -5,6 +5,36 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
+  characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
+  approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
+  beside the rest. The text limits and choices are read from the schema and the approach-notes constants, so the
+  test follows them.
+  Source: review (the rules' 1,000-expression limit; the plans worst case had no room).
+  Verified: all 16 profile rules tests pass in the emulator.
+- The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
+  `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
+  note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
+  choice it does not know is skipped), then the family's note; nothing when the family has not said; and "No tracker
+  or medical ID, as the family said." when it said none. `SharedProfile` gains the optional `trackingAids`, and
+  `profileForSearchers` carries it into profile/shared; `profileForModel` never includes it.
+  Source: expert input, with the card wording agreed with the web, iPhone and Android apps.
+  Verified: the tests (absent gives nothing; empty gives the none line; the order, the skipped unknown choice and the
+  trimmed note; profile/shared carries it only when given; the model profile never does; the constants' choices and
+  note limit equal the schema's) failed first, now all 248 engine tests pass; typecheck and lint exit 0; TypeScript
+  schema parity holds (Swift and Kotlin follow in their apps).
+- The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
+  of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
+  digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
+  the family said none. It is for the search cards only and is never sent to a model. The schema gives the shape and
+  the generated rule checks it; the profile rule adds each choice once and no digit of any script in the note
+  (`\P{Nd}`, so fullwidth digits are refused too).
+  Source: expert input (a state Alzheimer's association: Project Lifesaver runs in some Georgia counties, families
+  use other trackers, and a medical ID matters when the person cannot say who they are).
+  Verified: the rules test (a profile without the field, an empty one, all four, a note and an 80-character note are
+  accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
+  a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
+  Schema parity waits for the TypeScript, Swift and Kotlin types.
 - The rules gate now refuses speech recognition on every platform and says why, and keeps the system voice allowed.
   It already refused Apple's Speech framework and the webkit-prefixed browser recognizer; it now also refuses
   Android's speech recognizer, Android's recognize-speech intent (by class name and by its action string) and the
