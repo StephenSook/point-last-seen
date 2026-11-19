@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): the search map's shading, numbers and OpenStreetMap line, as the web draws them
+- What: the iPhone gets the web map's ink for its coming map screen: each segment's step in the
+  eight-step warm ramp by its share of the largest probability (poaClass8), the printed percent
+  (one decimal, "<0.1%", "0%"), the OpenStreetMap license line (the grid's own line when segments
+  are drawn, else "Map data from OpenStreetMap", none on an empty map), and the grid's segments
+  with their step, number and whether they are the team's.
+- Source: map screen, step 1 (segment polygons shaded by the posterior).
+- Verified: tests with the web's own cases for the step and the percent, the credit rules, the
+  segment list, and a parity test that reads the ramp from web/src/theme/tokens.ts. They failed to
+  compile before the change and pass after; 282 PLSCore tests pass.
+
 ### fix(ios): the approach card names every name she answers to
 - What: the iPhone's approach card had no names line, while the web's card says who to call,
   for example "Answers to Roberta (also Bea, Mom, Miss Bea)". The card now has the same line,
