@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { allFlags, camSighting, clipReadingDoc, routeRecord, sharedProfile } from "../fixtures";
@@ -80,6 +81,20 @@ describe("subject profile split (spec section 13.2)", () => {
       { aids: [], note: "", extra: 1 }, { aids: [] }, { aids: "medicalert_id", note: "" }, "medicalert_id", { aids: [3], note: "" }]) {
       await assertFails(put(bad));
     }
+  });
+  it("the heaviest profile/shared still fits the rules' expression limit, tracking aids and five other names included", async () => {
+    const schema = JSON.parse(readFileSync(new URL("../../../shared/schemas/subject-profile.schema.json", import.meta.url), "utf8"));
+    const props = schema.$defs.SharedProfile.properties;
+    const noteIds = Object.keys(JSON.parse(readFileSync(new URL("../../../shared/constants/approach-notes.json", import.meta.url), "utf8")).notes);
+    const names = Array.from({ length: 5 }, (_, i) => `${"N".repeat(59)}${i}`);
+    const text = (k: string) => "x".repeat(props[k].maxLength);
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/profile/shared"), sharedProfile({
+      answersTo: text("answersTo"), otherNames: names, nickname: names[0], gender: text("gender"), appearance: text("appearance"),
+      hair: text("hair"), eyeColor: text("eyeColor"), primaryLanguage: text("primaryLanguage"), clothingLastWorn: text("clothingLastWorn"),
+      mobilityAids: [...props.mobilityAids.items.enum], flags: allFlags(Object.keys(allFlags())), triggersToAvoid: text("triggersToAvoid"),
+      bestApproach: text("bestApproach"), uniqueDescription: text("uniqueDescription"), approachNoteIds: noteIds,
+      trackingAids: { aids: [...props.trackingAids.properties.aids.items.enum], note: "x".repeat(80) },
+    })));
   });
   it("profile/command takes only the command fields", async () => {
     const db = dbAs(C, commandClaims);

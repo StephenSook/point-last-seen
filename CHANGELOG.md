@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
+  characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
+  approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
+  beside the rest. The text limits and choices are read from the schema and the approach-notes constants, so the
+  test follows them.
+  Source: review (the rules' 1,000-expression limit; the plans worst case had no room).
+  Verified: all 16 profile rules tests pass in the emulator.
 - The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
   `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
   note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
