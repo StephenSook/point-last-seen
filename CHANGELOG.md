@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The live probe workflow gives the media check the CI App Check debug token, so its `ops/storage` read carries a
+  token.
+  Source: the media probe fix.
+  Verified: the workflow change only adds the step's environment; `bash scripts/ci-local.sh` exit 0. The first run
+  after this push is checked below in the probe's run log.
 - The media probe sends an App Check token with its `ops/storage` read when it has the CI debug token
   (`APPCHECK_DEBUG_TOKEN_CI`), exchanged for the web app from the hosting origin, so the daily check keeps working
   once App Check is enforced on Firestore. The token is never printed; the probe says whether it read with one.
