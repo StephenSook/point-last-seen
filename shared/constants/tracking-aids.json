@@ -1,0 +1,27 @@
+{
+  "description": "Tracking aids the family can name on the shared profile (trackingAids), with the form's label and the search card's line for each, in card order. For the cards only: never sent to a model. The ids must equal the choices in subject-profile.schema.json.",
+  "aids": [
+    {
+      "id": "project_lifesaver",
+      "label": "Enrolled in Project Lifesaver",
+      "line": "Enrolled in Project Lifesaver: ask the county team to bring receivers."
+    },
+    {
+      "id": "medicalert_id",
+      "label": "Wears a MedicAlert ID",
+      "line": "Wears a MedicAlert or other medical ID: check wrists and neck when found."
+    },
+    {
+      "id": "gps_tracker",
+      "label": "Carries a GPS tracker",
+      "line": "Carries a GPS tracker: ask the family for its last location."
+    },
+    {
+      "id": "phone_location",
+      "label": "Phone location is shared",
+      "line": "Phone location may be shared: command can ask the family for its last location."
+    }
+  ],
+  "noneLine": "No tracker or medical ID, as the family said.",
+  "noteMaxChars": 80
+}

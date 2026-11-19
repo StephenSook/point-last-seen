@@ -92,5 +92,10 @@ class PhotoConsentLiveTest {
         assertEquals(PhotoOutcome.Uploaded("photos/$incidentId/$plainSha.jpg", CloudRead.NOT_ASKED), out2)
         assertFalse(consents.document(plainSha).get(Source.SERVER).await().exists())
         log("unticked photo: uploaded, no record")
+
+        // 4. The same photo shared again: Storage is create-only, so it is found and not uploaded twice.
+        val out3 = withTimeout(60_000) { upload.upload(incidentId, plain, consent = null) }
+        assertEquals(PhotoOutcome.Uploaded("photos/$incidentId/$plainSha.jpg", CloudRead.NOT_ASKED), out3)
+        log("same photo shared again: found in Storage, no second upload")
     }
 }

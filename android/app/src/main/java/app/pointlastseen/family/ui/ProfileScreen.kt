@@ -156,6 +156,28 @@ fun ProfileScreen(
                 FilterChip(selected = a in p.mobilityAids, onClick = { p = p.copy(mobilityAids = p.mobilityAids.toggle(a)) }, label = { Text(a) })
             }
         }
+        Note("Tracking and ID")
+        Profiles.TRACKING_AIDS.forEach { a ->
+            val on = p.trackingAids?.aids?.contains(a) == true
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(on, role = Role.Checkbox) { p = p.copy(trackingAids = TrackingForm.toggle(p.trackingAids, a)) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = on, onCheckedChange = null)
+                Text(TrackingForm.LABELS.getValue(a), modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(TrackingForm.isNone(p.trackingAids), role = Role.Checkbox) {
+                p = p.copy(trackingAids = TrackingForm.none(p.trackingAids))
+            },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = TrackingForm.isNone(p.trackingAids), onCheckedChange = null)
+            Text(TrackingForm.NONE, modifier = Modifier.padding(start = 8.dp))
+        }
+        Field(TrackingForm.NOTE_LABEL, p.trackingAids?.note ?: "", max = Profiles.MAX_TRACKING_NOTE) { p = p.copy(trackingAids = TrackingForm.note(p.trackingAids, it)) }
+        TrackingForm.noteProblem(p.trackingAids?.note ?: "")?.let { Note(it) }
         Note("Type of dementia")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DEMENTIA_LABELS.forEach { (v, label) -> FilterChip(selected = p.dementiaType == v, onClick = { p = p.copy(dementiaType = v) }, label = { Text(label) }) }

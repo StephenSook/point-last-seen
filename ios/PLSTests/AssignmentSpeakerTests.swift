@@ -8,10 +8,16 @@ final class FakeVoice: AssignmentVoice {
     var spoken: [String] = []
     var fails = false
     var startMs: Double = 120
-    func speak(_ text: String) async -> Double? {
+    private(set) var stops = 0
+    /// Runs before any sound would start, as a cloud voice's fetch does.
+    var beforeSound: (@MainActor () -> Void)?
+    func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+        beforeSound?()
+        guard stillWanted() else { return nil }
         spoken.append(text)
         return fails ? nil : startMs
     }
+    func stop() { stops += 1 }
 }
 
 @MainActor
@@ -43,6 +49,19 @@ final class FakeVoice: AssignmentVoice {
         #expect(log.entries == [SpeechRecord(path: .cloud, outcome: "spoken", startMs: 900)])
     }
 
+    /// The cloud voice is a model: it never gets a phone number from the task text. The phone's own
+    /// voice, which no model hears, reads the task as command wrote it.
+    @Test func theCloudVoiceNeverGetsAPhoneNumber() async {
+        let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
+        let task = Assignment(teamId: "T1", segmentIds: ["AB"], taskText: "Call 404 555 0123 at the gate.", reason: "r")
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(task, voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
+        #expect(cloud.spoken.count == 1 && !cloud.spoken[0].contains("555") && cloud.spoken[0].contains(PhoneNumbers.replacement))
+        cloud.fails = true
+        let other = Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Call 404 555 0123 at the gate.", reason: "r")
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(other, voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
+        #expect(onDevice.spoken.last?.contains("404 555 0123") == true)
+    }
+
     @Test func aFailedCloudVoiceFallsBackToTheDevice() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
         cloud.fails = true
@@ -50,6 +69,30 @@ final class FakeVoice: AssignmentVoice {
         #expect(onDevice.spoken.count == 1)
         #expect(log.entries == [SpeechRecord(path: .cloud, outcome: "failed", startMs: nil),
                                 SpeechRecord(path: .onDevice, outcome: "spoken", startMs: 120)])
+    }
+
+    /// A line no longer wanted when its sound would start (the mission was dropped while the cloud
+    /// voice was fetching) is not played, and the phone's own voice does not stand in for it.
+    @Test func aLineNoLongerWantedIsNotPlayedOrReplaced() async {
+        let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
+        var wanted = true
+        cloud.beforeSound = { wanted = false }
+        await speaker(onDevice: onDevice, cloud: cloud, log: log)
+            .update(assignment(["AB"]), voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true,
+                    isCurrent: { wanted })
+        #expect(cloud.spoken.isEmpty && onDevice.spoken.isEmpty)
+    }
+
+    /// Stopping silences both voices and forgets the last line, so the same assignment is spoken
+    /// again for a new membership.
+    @Test func stopSilencesTheVoicesAndForgetsTheLastLine() async {
+        let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
+        let s = speaker(onDevice: onDevice, cloud: cloud, log: log)
+        await s.update(assignment(["AC"]), voiceTemplate: "", online: true, killCloud: false, signedIn: true)
+        s.stop()
+        #expect(onDevice.stops == 1)
+        await s.update(assignment(["AC"]), voiceTemplate: "", online: true, killCloud: false, signedIn: true)
+        #expect(onDevice.spoken.count == 2)
     }
 
     @Test func noAssignmentSaysNothing() async {

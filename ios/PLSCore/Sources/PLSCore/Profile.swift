@@ -27,11 +27,14 @@ public struct SharedProfile: Codable, Sendable, Equatable {
     public var uniqueDescription: String
     public var photoTakenOn: String?
     public var approachNoteIds: [String]
+    /// Tracking aids the family named, for the search cards only (never sent to a model). Absent
+    /// (nil) means unknown: profiles saved before the field, or the family has not said.
+    public var trackingAids: TrackingAids?
 
     enum CodingKeys: String, CodingKey {
         case answersTo, nickname, otherNames, ageYears, gender, appearance, heightFt, heightIn, weightLb, hair, eyeColor, primaryLanguage,
              clothingLastWorn, mobilityAids, dementiaType, flags, triggersToAvoid, bestApproach, uniqueDescription, photoTakenOn,
-             approachNoteIds
+             approachNoteIds, trackingAids
     }
 
     /// The rules let command write the document in parts, so every missing (or null) key reads
@@ -60,10 +63,11 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         uniqueDescription = try text(.uniqueDescription)
         photoTakenOn = try c.decodeIfPresent(String.self, forKey: .photoTakenOn)
         approachNoteIds = try c.decodeIfPresent([String].self, forKey: .approachNoteIds) ?? []
+        trackingAids = try c.decodeIfPresent(TrackingAids.self, forKey: .trackingAids)
     }
 
-    /// All 20 keys, nulls written out (the schema allows no other keys), plus `otherNames` only
-    /// when the profile has the list.
+    /// All 20 keys, nulls written out (the schema allows no other keys), plus `otherNames` and
+    /// `trackingAids` only when the profile has them.
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(answersTo, forKey: .answersTo)
@@ -87,6 +91,7 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         try c.encode(uniqueDescription, forKey: .uniqueDescription)
         try c.encode(photoTakenOn, forKey: .photoTakenOn)
         try c.encode(approachNoteIds, forKey: .approachNoteIds)
+        try c.encodeIfPresent(trackingAids, forKey: .trackingAids)
     }
 
     /// The names to call her by: the other-names list when present, else the nickname; blank names
@@ -95,5 +100,25 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         let has = { (s: String) in !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         if let otherNames { return otherNames.filter(has) }
         return has(nickname) ? [nickname] : []
+    }
+}
+
+/// `profile/shared.trackingAids`: up to four of the schema's aids (project_lifesaver, medicalert_id,
+/// gps_tracker, phone_location) and a short note with no digits. A missing part reads as empty.
+public struct TrackingAids: Codable, Sendable, Equatable {
+    public var aids: [String]
+    public var note: String
+
+    public init(aids: [String], note: String) {
+        self.aids = aids
+        self.note = note
+    }
+
+    enum CodingKeys: String, CodingKey { case aids, note }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        aids = try c.decodeIfPresent([String].self, forKey: .aids) ?? []
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
     }
 }

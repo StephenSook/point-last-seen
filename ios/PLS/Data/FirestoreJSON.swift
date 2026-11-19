@@ -22,4 +22,13 @@ enum FirestoreJSON {
             return .null
         }
     }
+
+    /// A plan document, only when its stored `version` is a whole number 0 or above. A Timestamp
+    /// would become epoch milliseconds, and any other type would not be a version: either could
+    /// read as a huge version and hide every later plan, so such a plan counts as none.
+    static func plan(_ data: [String: Any]) -> JSONValue? {
+        guard let n = data["version"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(),
+              let version = Int(exactly: n.doubleValue), version >= 0 else { return nil }
+        return value(data)
+    }
 }
