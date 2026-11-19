@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
+  and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
+  e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −
+  0.63) for sweep searches") and for the sweep width factor (Koester et al. 2014, as reproduced in Koester's 2018
+  thesis: "It was found on average W ≈ 1.645 × Rd with a strong correlation (R2 = .827)."). The constants' source
+  lines name these works instead of a private notes file.
+  Source: review (the film fact-sheet audit: a citation with no copy in the repository).
+  Verified: both quotes re-read at the source on 2026-11-18 (the PLoS One article page and the thesis PDF); the
+  vectors are current; `bash scripts/ci-local.sh` exit 0.
 - The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
   is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
   refuse a run that places one.
