@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Two tests pin that a visitor whose pointer (`judgeUsers/{uid}`) names a dead attempt gets a fresh practice
+  search and never the dead one: an attempt the cleanup job has deleted, and an unfinished attempt whose window has
+  ended. Both already held, so the pointer needs no separate pending field.
+  Source: review (round 3 on the functions: the pointer can name an unfinished attempt and outlive it).
+  Verified: both tests pass in the emulators.
 - `docs/LIMITS.md` says what the practice search and the notices do and do not guarantee: each setup attempt has
   its own incident and a pointer names the one in use, and an older practice search is kept only with every one of
   the drill's ids; a start at the moment a practice search ends can give the role on the one that just ended (the

@@ -226,6 +226,31 @@ describe("startJudgeSession setup is safe to fail, retry and race", () => {
   });
 });
 
+describe("startJudgeSession when the pointer names a dead attempt", () => {
+  it("a pointer to a deleted attempt gives a fresh one and never hands back the dead id (review round 3)", async () => {
+    const uid = await freshUid();
+    const dead = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW - 3 * DAY, cfg)).incidentId;
+    expect(await deleteEndedSandboxes(admin.db, NOW)).toEqual([dead]);
+    expect(await pointer(uid)).toBe(dead);
+    const fresh = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    expect(fresh).not.toBe(dead);
+    expect(await pointer(uid)).toBe(fresh);
+    expect(await claims(uid)).toEqual({ inc: fresh, role: "command", team: null });
+    expect((await inc(fresh).get()).get("setupReady")).toBe(true);
+  });
+  it("a pointer to an unfinished attempt that has ended gives a fresh one, not the half-built one (review round 3)", async () => {
+    const uid = await freshUid();
+    const broken = { ...cfg, copy: async () => { throw new Error("copy failed"); } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW - 2 * DAY, broken)).rejects.toThrow();
+    const unfinished = await pointer(uid);
+    expect((await inc(unfinished).get()).get("setupReady")).toBe(false);
+    const fresh = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    expect(fresh).not.toBe(unfinished);
+    expect((await inc(fresh).get()).get("setupReady")).toBe(true);
+    expect(await claims(uid)).toEqual({ inc: fresh, role: "command", team: null });
+  });
+});
+
 describe("startJudgeSession and a sandbox made before setup was tracked", () => {
   const legacy = (uid: string) => admin.db.doc(`incidents/judge-${uid}`);
   async function fullLegacy(uid: string, ids = { segments: ["AA", "AB", "ROW"], teams: ["T1", "T2"] }) {
