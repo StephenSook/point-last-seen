@@ -25,3 +25,10 @@ From the repository root with the gcloud user's token. Each step is create-only 
 Read back: the incident is a drill, open, labelled "Training drill. Nobody is missing.", grid `piedmont-park-dev`,
 terrain temperate flat with the linear layer on, prior version 1 with `priorBuiltAt` set, teams T1 and T2, and 68
 segment documents whose ids equal the development drill's. Each join code's Keychain entry holds 8 characters.
+
+## Re-seeded at prior version 2, 2026-11-19
+
+The first seed's segments had no `priorVersion` or `ringPoa`, so the iPhone could not build its mission. Steps 2 and
+3 were run again with the fixed seed tools at `--prior-version 2`, and
+`python3 -I tools/seed/segment_contract.py buildhybridai-2026-yg3m drill-test-1` reports 68 docs at prior version 2,
+readable by the apps.
