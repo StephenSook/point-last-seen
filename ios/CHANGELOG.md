@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a phone number that mixes written and spoken digits is still removed
+- What: written digit runs and spoken digit words were checked separately, so a dictated
+  "404 five five five 0123" passed both checks and reached the model. One scanner now counts
+  written digits and spoken digit words alike: seven or more joined only by short separators
+  (spaces, - . , ( )), with an optional leading + or (, are one number. Report numbers stay.
+- Source: review.
+- Verified: a test removes four mixed shapes and keeps "2 searchers, five minutes, segment 12, one
+  hour"; it failed on the old code (4 issues), then passed with every earlier phone-number test;
+  276 core tests and the app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): an incident with no mode, or a mistyped one, keeps the phone on the rules path
 - What: a mission read from an incident with no `mode` (or one that is not text) was treated as a
   drill, which lets reports reach a model when consent and routing allow it. The mode is now kept
