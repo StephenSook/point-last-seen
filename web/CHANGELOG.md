@@ -1280,3 +1280,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: each photo row in the tray carries `data-sha256`, the photo's SHA-256, which is also its Storage name and the id of its family consent record. It is a public hash, not the image. The live photo specs read it to give the family's consent for exactly the photo they then read.
 - Source: the live photo specs needed a consented cloud read (second-model review of PR #20, round 4, finding 5).
 - Verified: the new photo tray harness test (both rows carry their hash) failed first, then passed; 7 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(sightings): leave footwear and carried empty when a note read answers unknown
+- What: a sighting-note read (on this laptop or in the cloud; both go through the same parser) now leaves Footwear and Carrying empty when the model answers "unknown" (any case, with spaces), which is how it says the note does not mention them. Before, the word "unknown" was written into both fields.
+- Source: live judge walk of the command post.
+- Verified: the new `sightingText` test (footwear "unknown" and carried " Unknown " read as empty) failed first, then passed; 14 sighting text unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
