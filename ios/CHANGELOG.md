@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the cloud switch says what leaves the phone, and when
+- What: the Ready check's cloud switch read "Allow cloud reading when the phone cannot read a
+  report" without naming what is sent. It now reads "Allow cloud reading", with the line "Only when
+  this phone cannot read a report. Google's model then gets the report's words (phone numbers
+  removed), the segment you are in, your team's segments, and the person's description: clothing,
+  appearance, height, hair and mobility aids.", which is exactly what the cloud read sends (the
+  report text, the two segment tools and the profile tool).
+- Source: a consent wording audit.
+- Verified: two tests (the switch's words; the named description is exactly the profile tool's
+  fields) failed to compile, then passed; the text is Title 3 (the field text size check passes);
+  98 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### test(ios): pin the exact text each model route receives and the join adapter's real options
 - What: the redaction test exercised only the on-device guided call, and the join tests checked a
   static option and a fake's refresh, so neither could catch its own regression. The core test now

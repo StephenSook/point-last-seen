@@ -4,6 +4,13 @@ import SwiftUI
 /// The Ready check: what must be true before the team leaves signal, each line from the real
 /// state of this phone. Drawn in theme colours only, on plain black rows.
 struct ReadyCheckView: View {
+    static let cloudLabel = "Allow cloud reading"
+    /// What leaves the phone, and when: exactly what the cloud read sends (report text, the two
+    /// segment tools, the profile tool).
+    static let cloudDetail = "Only when this phone cannot read a report. Google's model then gets the report's words (phone numbers removed), "
+        + "the segment you are in, your team's segments, and the person's description: clothing, appearance, height, hair "
+        + "and mobility aids."
+
     @Bindable var model: AppModel
     @Environment(ThemeStore.self) private var themeStore
     @Environment(\.fieldTheme) private var theme
@@ -45,8 +52,9 @@ struct ReadyCheckView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(theme.accentColor)
-                    Toggle("Allow cloud reading when the phone cannot read a report", isOn: $model.cloudConsent)
+                    Toggle(Self.cloudLabel, isOn: $model.cloudConsent)
                         .toggleStyle(FieldToggleStyle())
+                    Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
                 }
             }
             .padding()
