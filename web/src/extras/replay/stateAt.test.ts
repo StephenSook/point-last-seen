@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { viewState, type EventDoc } from "../laneC";
+import { viewState, type EventDoc } from "../hostApp";
 import { T0, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
 import { frameKey, replayWindow, stateAt } from "./stateAt";

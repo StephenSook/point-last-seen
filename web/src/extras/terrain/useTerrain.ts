@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { IncidentView } from "../laneC";
+import type { IncidentView } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { classifyTerrain, LEVEL_BAND_M, parseElevation, segmentAt, type ElevationFile, type TerrainClass } from "./classify";
 import { attachTerrain } from "./terrainLayer";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EventDoc } from "../laneC";
+import type { EventDoc } from "../hostApp";
 import { T0, cameraReading, eventDoc, replayView, streamed } from "../testdata/replay";
 import type { ExtrasMapLike } from "../types";
 import { fromLive } from "./replayData";

@@ -1,4 +1,4 @@
-import type { EventDoc, IncidentView, PlanDoc, SegmentDoc, StreamedEvent } from "../laneC";
+import type { EventDoc, IncidentView, PlanDoc, SegmentDoc, StreamedEvent } from "../hostApp";
 import type { PublishedRunV1, RunEvent } from "../replay/runContract";
 import { drillView } from "./fixtures";
 import { T0, eventDoc, replayPlan, streamed } from "./replay";

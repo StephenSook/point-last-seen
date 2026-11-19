@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MapSegment } from "../laneC";
+import type { MapSegment } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { attachTerrain } from "./terrainLayer";
 

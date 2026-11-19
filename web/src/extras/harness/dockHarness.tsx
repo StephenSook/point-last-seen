@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import type { PostState } from "../laneC";
+import type { PostState } from "../hostApp";
 
 const state: PostState = {
   view: {

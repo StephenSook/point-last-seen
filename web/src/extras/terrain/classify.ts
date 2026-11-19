@@ -1,7 +1,7 @@
 // Terrain as a display only: each segment marked lower than the start segment, higher, or about level, next to the
 // ISRID dementia profile's elevation shares. The search prior has no elevation term, and this changes no number.
 
-import type { MapSegment } from "../laneC";
+import type { MapSegment } from "../hostApp";
 
 export type ElevationFile = {
   gridId: string;

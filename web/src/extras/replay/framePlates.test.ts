@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPct, type MapSegment } from "../laneC";
+import { formatPct, type MapSegment } from "../hostApp";
 import { framePlates } from "./framePlates";
 
 const seg = (segmentId: string, lat: number, lon: number): MapSegment => ({

@@ -1,4 +1,4 @@
-import type { PostState, ViewState } from "./laneC";
+import type { PostState, ViewState } from "./hostApp";
 
 export type ExtrasMapLike = {
   addSource(id: string, source: unknown): unknown;

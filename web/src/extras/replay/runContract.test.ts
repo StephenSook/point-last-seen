@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EventDoc, RouteRecord } from "../laneC";
+import type { EventDoc, RouteRecord } from "../hostApp";
 import { ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
 
 // Each list must name every value the engine allows: a value the engine adds later would otherwise be refused.

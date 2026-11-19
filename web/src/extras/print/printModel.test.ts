@@ -86,7 +86,7 @@ it("the model holds no uid, join code or profile field", () => {
   const model = buildPrintModel({
     ...input,
     view: { ...drillView, incident, teams },
-    // Lane C reads approved Firestore documents as PlanDoc without a shape check.
+    // The command post reads approved Firestore documents as PlanDoc without a shape check.
     plans: [{ ...plan, assignments: assignments as unknown as typeof plan.assignments }],
   });
 

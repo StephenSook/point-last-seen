@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
-import type { PlanDoc } from "../laneC";
+import type { PlanDoc } from "../hostApp";
 import { radioCards } from "../radio/radioCard";
 import { RadioCards } from "../radio/RadioCards";
 import { Ics204 } from "./Ics204View";

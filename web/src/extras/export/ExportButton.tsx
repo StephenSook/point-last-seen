@@ -1,4 +1,4 @@
-import type { IncidentView, PlanDoc, ViewState } from "../laneC";
+import type { IncidentView, PlanDoc, ViewState } from "../hostApp";
 import { loadGeoJsonExport } from "../lazyPanels";
 import { buildPrintModel } from "../print/printModel";
 

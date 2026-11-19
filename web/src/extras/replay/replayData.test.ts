@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../laneC";
+import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../hostApp";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
 import { runDevice, runEvent } from "../testdata/replayIncident";

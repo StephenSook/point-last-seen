@@ -1,4 +1,4 @@
-import type { SegmentDoc, ViewState } from "../laneC";
+import type { SegmentDoc, ViewState } from "../hostApp";
 import { DRILL_LABEL, type PrintModel, type PrintTeam } from "../print/printModel";
 
 export type ExportInput = {

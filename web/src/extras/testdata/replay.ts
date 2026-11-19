@@ -1,4 +1,4 @@
-import type { CameraSightingReading, EventDoc, IncidentView, PlanDoc, SegmentDoc, StreamedEvent } from "../laneC";
+import type { CameraSightingReading, EventDoc, IncidentView, PlanDoc, SegmentDoc, StreamedEvent } from "../hostApp";
 
 // Made-up data for tests and dev harnesses only. Never on the judged path.
 export const T0 = 1_795_372_800_000;

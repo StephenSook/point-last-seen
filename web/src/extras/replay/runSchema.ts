@@ -3,7 +3,7 @@
 // number belongs) refuses the run with the field's name instead of reaching code that would draw it or throw on it.
 // Which fields must be present is decided by the reader, which needs only some of them.
 
-import { DEFAULT_PARAMS, isWellFormedEffect } from "../laneC";
+import { DEFAULT_PARAMS, isWellFormedEffect } from "../hostApp";
 import { DEVICE_PSEUDONYM, ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
 
 /** Returns the path of the first part of `v` that is not of the type, under `at`, or null when it all is. */

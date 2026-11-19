@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { MapView, type MapLibreMap } from "../laneC";
+import { MapView, type MapLibreMap } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
 import { pendingLine, type ReplayData } from "./replayData";

@@ -14,9 +14,9 @@ const sources = readdirSync(root, { recursive: true, withFileTypes: true })
     return { path, source: readFileSync(path, "utf8") };
   });
 
-it("only laneC.ts imports from outside the extras folder", () => {
+it("only hostApp.ts imports from outside the extras folder", () => {
   const violations = sources.flatMap(({ path, source }) => {
-    if (relative(root, path) === "laneC.ts") return [];
+    if (relative(root, path) === "hostApp.ts") return [];
 
     return ts.preProcessFile(source, true, true).importedFiles.flatMap(({ fileName }) => {
       const target = relative(root, resolve(dirname(path), fileName));

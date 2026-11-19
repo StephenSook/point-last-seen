@@ -2,7 +2,7 @@
 // higher one, in neutral ink, set off the centre so it never covers the percent plate. No fill, no hue, no lightness
 // change: probability keeps its signals to itself. The glyphs are drawn on a canvas, so no sprite host is needed.
 
-import { COMMAND, type MapSegment } from "../laneC";
+import { COMMAND, type MapSegment } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import type { TerrainClass } from "./classify";
 
