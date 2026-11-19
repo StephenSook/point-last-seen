@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import shared from "../../../shared/schemas/camera-sighting.schema.json";
-import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, CONSENT_GONE, CONSENT_UNCONFIRMED, clipCloudParams, clipParts, clipReadDeps, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
+import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, CONSENT_GONE, CONSENT_UNCONFIRMED, MEDIA_DELETED, clipCloudParams, clipParts, clipReadDeps, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
 import { sha256Hex } from "../data/photos";
 import type { StoredClipReading } from "../data/clips";
 
@@ -271,6 +271,28 @@ describe("readClip", () => {
     const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
     expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
     expect(t.calls).toEqual(["find", "exists"]);
+  });
+
+  it("a delete before the read starts sends nothing", async () => {
+    const t = await setup();
+    expect(await readClip({ ...t.req, stillCurrent: () => false }, t.deps)).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).toEqual([]);
+  });
+
+  it("a delete during the consent write stops the read before the upload", async () => {
+    const t = await setup();
+    let current = true;
+    const r = await readClip({ ...t.req, stillCurrent: () => current }, { ...t.deps, writeConsent: async () => { t.calls.push("consent"); current = false; } });
+    expect(r).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).toEqual(["find", "consent"]);
+  });
+
+  it("a delete during the model call discards the reply: nothing is saved", async () => {
+    const t = await setup();
+    let current = true;
+    const r = await readClip({ ...t.req, stillCurrent: () => current }, { ...t.deps, generate: async (b, m, w) => { const out = await t.deps.generate(b, m, w); current = false; return out; } });
+    expect(r).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).not.toContain("complete");
   });
 
   it("passes the flagged window to the model and records the route's reason", async () => {

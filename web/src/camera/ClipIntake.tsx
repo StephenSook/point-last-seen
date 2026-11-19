@@ -17,7 +17,8 @@ export type ClipConsents = { personInClip: boolean; footageOwner: boolean; cloud
 
 /** How the cloud read runs after triage: the flagged seconds, and why the clip is sent. */
 /** `retry`: the whole-clip read after a flagged window showed no one; it uses the first read's consent record. */
-export type ReadHow = { window?: ClipWindow; reason?: RouteReason; retry?: boolean };
+/** `stillCurrent` turns false once this search's media is deleted after the read began. */
+export type ReadHow = { window?: ClipWindow; reason?: RouteReason; retry?: boolean; stillCurrent?: () => boolean };
 
 export type ClipIntakeInput = {
   bytes: Uint8Array;
@@ -128,12 +129,24 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     if (f && !sizeProblem(f.size)) setDurationS(await readDurationS(f));
   }
 
-  async function read(input: ClipIntakeInput, asked: ReadHow) {
-    const how = reachedCloud.current ? { ...asked, retry: true } : asked;
+  // The delete epoch when a read is pressed: the read, and everything it waits on, holds only while it is unchanged.
+  const epochNow = () => {
+    const at = lastRevocation.current;
+    return () => at === lastRevocation.current;
+  };
+
+  async function read(input: ClipIntakeInput, asked: ReadHow, current: () => boolean = epochNow()) {
+    if (!current()) {
+      setBusy(false);
+      return;
+    }
+    const how = { ...(reachedCloud.current ? { ...asked, retry: true } : asked), stillCurrent: current };
     setBusy("reading");
     setHeld(null);
     try {
       const outcome = await onRead(input, how);
+      // A delete landed while this read ran: its result belongs to a withdrawn consent and is dropped.
+      if (!current()) return;
       // A reading, a no-sighting result or a model failure all mean the consent record was written.
       if (outcome.kind !== "refused") reachedCloud.current = true;
       if (outcome.kind === "could-not-read" && how.window) {
@@ -153,7 +166,9 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!ready || !file || durationS === null || busy !== false) return;
-    // Locked before the first await: consent and the file cannot change while this read prepares.
+    // Locked before the first await: consent and the file cannot change while this read prepares. A delete
+    // can still land; it is checked after every await.
+    const current = epochNow();
     setBusy(onTriage ? "checking" : "reading");
     setMessage(null);
     setHeld(null);
@@ -163,6 +178,10 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     } catch {
       // The file can become unreadable after it was chosen (moved, deleted, permission lost).
       setMessage({ text: "This clip could not be read from this computer. Choose it again.", alert: true });
+      setBusy(false);
+      return;
+    }
+    if (!current()) {
       setBusy(false);
       return;
     }
@@ -176,7 +195,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       camera,
       consents,
     };
-    if (!onTriage) return read(input, {});
+    if (!onTriage) return read(input, {}, current);
     let t: TriageResult;
     try {
       t = await onTriage(file);
@@ -184,12 +203,13 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       t = { kind: "unavailable" };
     }
     setBusy(false);
-    if (t.kind === "flagged") return read(input, { window: t.window, reason: "on_device_triage_flagged" });
+    if (!current()) return;
+    if (t.kind === "flagged") return read(input, { window: t.window, reason: "on_device_triage_flagged" }, current);
     if (t.kind === "no-motion" || t.kind === "no-person") {
       setHeld({ input, kind: t.kind });
       return;
     }
-    return read(input, {});
+    return read(input, {}, current);
   }
 
   const consent = (key: keyof ClipConsents, label: string) => (

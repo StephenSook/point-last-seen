@@ -33,6 +33,9 @@ const TRIAGE: Record<string, TriageResult> = {
   flagged: { kind: "flagged", window: { startS: 1, endS: 5 }, windows: [], latencyMs: 5 },
 };
 const triage = params.get("triage");
+// ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
+const slowTriage = params.get("slowtriage") === "1";
+let finishTriage: (() => void) | null = null;
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
@@ -49,7 +52,10 @@ function Harness() {
         cameraSegmentId={camera ? segmentContaining(camera, HARNESS_SEGMENTS) : null}
         choices={segmentChoices(HARNESS_SEGMENTS)}
         onPlaceCamera={setCamera}
-        onTriage={triage ? async () => TRIAGE[triage]! : undefined}
+        onTriage={triage ? async () => {
+          if (slowTriage) await new Promise<void>((resolve) => (finishTriage = resolve));
+          return TRIAGE[triage]!;
+        } : undefined}
         onRead={async (input, h) => {
           setAsked(input);
           setHow(JSON.stringify(h));
@@ -64,6 +70,9 @@ function Harness() {
       />
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted
+      </button>
+      <button type="button" onClick={() => finishTriage?.()}>
+        Triage finishes
       </button>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>

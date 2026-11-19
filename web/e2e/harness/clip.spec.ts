@@ -221,3 +221,29 @@ test("after a delete and fresh ticks, the next read is a new read, not a retry",
   await page.getByRole("button", { name: "Read clip" }).click();
   await expect.poll(() => how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
 });
+
+test("a delete while the clip file is still loading stops the read: nothing reaches the model", async ({ page }) => {
+  await page.addInitScript(() => {
+    const load = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function held(this: File) {
+      return new Promise<ArrayBuffer>((resolve) => {
+        (window as unknown as { releaseFile: () => void }).releaseFile = () => void load.call(this).then(resolve);
+      });
+    };
+  });
+  await fillAndRead(page, "/harness/clip.html");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.evaluate(() => (window as unknown as { releaseFile: () => void }).releaseFile());
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeDisabled();
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId("asked")).toHaveText("");
+});
+
+test("a delete while triage runs stops the read: nothing reaches the model", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged&slowtriage=1");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.getByRole("button", { name: "Triage finishes" }).click();
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId("asked")).toHaveText("");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+});
