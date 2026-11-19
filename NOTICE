@@ -9,6 +9,14 @@ tile extract in shared/grid/ are made available under the Open Database License
 was made. The basemap tiles are Protomaps Basemap layers from OpenStreetMap and
 Natural Earth (public domain).
 
+Search distances: the dementia distance rings (the 25, 50, 75 and 95 percent
+distances from the point last seen, with each column's case count) are ISRID
+figures from R. J. Koester, Lost Person Behavior, "Dementia (Alzheimer's)",
+p. 164, read from the publisher's public sample at
+https://www.dbs-sar.com/LPB/Dementia.pdf. docs/evidence/isrid-dementia-p164.md
+gives the figures as printed, and docs/evidence/search-math-sources.md lists the
+other published sources the search math uses.
+
 Fonts, under the SIL Open Font License 1.1 (not the Apache License), shipped as
 unmodified originals in web/public/fonts/<name>/ with OFL.txt and SOURCE.txt:
 - DINish, https://github.com/playbeing/dinish, release v4.007

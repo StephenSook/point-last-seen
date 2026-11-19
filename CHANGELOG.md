@@ -5,6 +5,37 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
+  a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
+  under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
+  gate checked only the availability call. Docs may name them, and the iPhone and Android code is not affected.
+  Source: review (the web's direct built-in model calls were unguarded, unlike the companion guard's).
+  Verified: one test per call (each form fails the gate) failed first, now passes, with a control that a doc
+  mention, a Swift session and the AI Logic builder pass; all 35 gate tests pass; the gate over the repository exits
+  0 with 966 files walked.
+- The public-hygiene guard keeps its word list as SHA-256 hashes, so neither `scripts/hygiene_guard.py` nor its test
+  spells a word it protects. It splits the text into lowercased words and checks each word's hash (and the word
+  without a trailing "s"), and the hash of each two- or three-word phrase joined exactly as written by "-", a space
+  or "/". The review rule id, the work-stream-as-role form and the settings path stay as shapes, the author's
+  surname is still allowed after the given name, and the floor, the self-exclusion and the public and private modes
+  are unchanged. The test builds every planted term from parts.
+  Source: review (the repository is public, so the guarded words were readable in the guard itself).
+  Verified: the new tests (the guard holds each term's hash and spells none; a plural such as an upper-case word
+  with a trailing "s" is found; every phrase in any case is found, and its parts alone or with another joiner are
+  not) failed first on the old guard, now all 9 pass; the old and the new guard both walk 938 files with no hits.
+- The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
+  frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
+  out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
+  first real CI runs. The check that every workflow command runs in `scripts/ci-local.sh` treats the install as
+  runner setup, as it does the Playwright browser install.
+  Source: CI (the web job's harness step, the first run with Actions minutes available).
+  Verified: the ci-local mirror check passes; the web job's result is on this change's pull request.
+- The Android unit-test floor is 290, the suite's real count with the tracking-aids form and profile tests (it was
+  274). `android/count-tests.py --min` fails a run whose results hold fewer tests, so a test class that stops running
+  cannot pass as green. It is set in `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the tracking-aids work.
+  Verified: the Android job on this branch runs 290 tests with 0 failures and `count-tests --min 290` passes; the
+  check that every workflow command runs in ci-local passes.
 - A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
   characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
   approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
@@ -35,6 +66,51 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
   a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
   Schema parity waits for the TypeScript, Swift and Kotlin types.
+- A Node 24 job (`.github/workflows/node24.yml`) runs the engine, the grid builder, the public-run exporter and the
+  web app (typecheck, tests and the placeholder build) and the functions typecheck on Node 24, beside the Node 22
+  jobs, on pull requests to main and on main. The Firebase web SDK asks for Node 24.12; the root package's engines
+  field stays at Node 22 until this job is green, and Cloud Functions keep the nodejs22 runtime. The check that every
+  workflow command also runs in `scripts/ci-local.sh` covers the new workflow.
+  Source: review (the web SDK's Node requirement; a fresh clone on Node 24).
+  Verified: the ci-local and workflow-path tests pass (14); rules_gate and the public hygiene guard exit 0. The job's
+  own result is on its pull request.
+- CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
+  work): the new check that every Python test file is in a pytest list found it on its first run after that work
+  merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.
+  Source: the check above.
+  Verified: the check named the file and now passes; the gates job's whole pytest line passes locally.
+- `NOTICE` credits the source of the dementia distance rings: ISRID figures from R. J. Koester, Lost Person
+  Behavior, "Dementia (Alzheimer's)", p. 164, read from the publisher's public sample, and points to the evidence
+  files that hold the figures as printed and the other published sources.
+  Source: review (credit for the distance tables).
+  Verified: the page, URL and wording match `docs/evidence/isrid-dementia-p164.md` and
+  `shared/constants/engine-params.json`; rules_gate and the public hygiene guard exit 0.
+- CI now runs the two test files under `tools/extras` (the elevation build and the scam-panel publisher, 32 tests),
+  which were named in no pytest list and so had only run by hand. They are added to the gates job's pytest line in
+  `.github/workflows/ci.yml` and to the same line in `scripts/ci-local.sh`, and a new test in
+  `scripts/test_ci_local.py` fails when any Python test file git would ship is named in no workflow's pytest command
+  (by its path or a parent folder), so a new test file cannot be missed again.
+  Source: review (a test file outside every CI list).
+  Verified: the new test failed first naming the two files, now passes, with a companion test that it finds an
+  unlisted file; the gates job's whole pytest line passes locally (185 tests).
+- The rules gate now refuses speech recognition on every platform and says why, and keeps the system voice allowed.
+  It already refused Apple's Speech framework and the webkit-prefixed browser recognizer; it now also refuses
+  Android's speech recognizer, Android's recognize-speech intent (by class name and by its action string) and the
+  browser's unprefixed recognizer. The gate's comment states the rule: recognition reads the user's speech with a
+  model outside Firebase AI Logic; the system text-to-speech voice (the iPhone app's fallback when the cloud voice
+  cannot be reached) speaks text the app already holds. The README says the same, and that iPhone keyboard
+  dictation gives the app typed text.
+  Source: review (the speech rule, made to agree across the project's guards).
+  Verified: the new test (six recognizer uses across Swift, Kotlin and TypeScript each fail the gate) failed first,
+  the system-voice test (AVSpeechSynthesizer, TextToSpeech, speechSynthesis pass) passes; all 31 gate tests pass;
+  the gate over the repository exits 0 with 936 files walked.
+- The README says what is true now rather than what is planned: the judge page replays a published drill run and
+  says "No published run yet." until one exists; the iPhone app's public TestFlight link and the Android app's
+  release asset are named as not published yet; and the status line says the project was built for #BuildHybridAI
+  2026 with made-up drill data.
+  Source: review (README tense).
+  Verified: the judge page's wording matches `web/src/judge/JudgePage.tsx`; `gh release list` shows no release;
+  rules_gate and the public hygiene guard exit 0.
 - A rules test pins that the command post's photo tray can list a search's photos: command and family list
   `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
   list clips. A review had read the tray's list as having no matching rule.

@@ -63,6 +63,8 @@ import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
 import { FamilyChannel } from "./FamilyChannel";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
+import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
+import { DebriefSection } from "./DebriefSection";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -290,6 +292,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     };
   }, [pls, incidentId, denied]);
 
+  // Debriefs: notes after a clear, shown beside it and never read by the map, the probabilities or the plans.
+  // A listen failure is said in the section's place; it does not stop the post.
+  const [debriefs, setDebriefs] = useState<Record<string, Debrief>>({});
+  const [debriefError, setDebriefError] = useState<string | null>(null);
+  useEffect(() => {
+    if (denied) return;
+    return subscribeDebriefs(pls.db, incidentId, (d) => {
+      setDebriefs(d);
+      setDebriefError(null);
+    }, () => setDebriefError("Debriefs could not be loaded."));
+  }, [pls, incidentId, denied]);
+
   // Teams in a plan approved while this page is open carry "New" for 10 seconds.
   useEffect(() => {
     const { latest, newTeamIds: fresh } = planChange(latestSeen.current, plans);
@@ -384,15 +398,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const readNote = async (text: string) => {
     const t0 = Date.now();
     const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
-    if ("reading" in r) traced(photoRoute("on_device", Date.now() - t0));
-    return r;
+    if (!("reading" in r)) return r;
+    const route = photoRoute("on_device", Date.now() - t0);
+    traced(route);
+    return { ...r, route, sentBytes: 0 };
   };
   const readNoteInCloud = async (text: string) => {
     const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
     const r = await readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingTemplateGenerator(ai(), rc.sightingTemplateId)(t), killCloud: rc.killCloud });
-    if ("reading" in r) traced(photoRoute("cloud", Date.now() - t0));
-    return r;
+    if (!("reading" in r)) return r;
+    const route = photoRoute("cloud", Date.now() - t0);
+    traced(route);
+    return { ...r, route };
   };
 
   // The route of a photo or sighting-note read (strict on-device, or a consented cloud read).
@@ -413,11 +431,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!("cues" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);
-    return { cues: r.cues, route };
+    return { cues: r.cues, route, sentBytes: 0 };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
     // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
-    // still stored) lives in readStoredPhotoInCloud; without all three the photo stays on this laptop.
+    // still stored) lives in readStoredPhotoInCloud; without all three no cloud model reads the photo.
     const t0 = Date.now();
     const r = await readStoredPhotoInCloud(p, {
       confirmConsent: (sha) => confirmPhotoConsent(pls.db, incidentId, sha),
@@ -428,7 +446,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!("cues" in r)) return r;
     const route = photoRoute("cloud", Date.now() - t0);
     traced(route);
-    return { cues: r.cues, route };
+    // The request carries the photo as base64 (bytesToBase64 in readStoredPhotoInCloud): 4 characters per 3 bytes.
+    return { cues: r.cues, route, sentBytes: 4 * Math.ceil(p.bytes.length / 3) };
   };
   const checkDevice = async () => {
     let st = await readDeviceState();
@@ -736,6 +755,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           {questions && (
             <FamilyChannel
               questions={questions}
+              open={incident?.status === "open"}
               searchState={searchStateOf(incident)}
               onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
               onTell={(next) => tellFamily(pls.db, incidentId, next)}
@@ -743,6 +763,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          {debriefError && (
+            <p className="error" role="alert">
+              {debriefError}
+            </p>
+          )}
+          <DebriefSection
+            cleared={clearedSegments(events)}
+            debriefs={debriefs}
+            teams={teams}
+            onSave={(segmentId, input, existing, clearedEventId) =>
+              saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
+            }
+          />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {incident && segments.length > 0 && (
@@ -758,6 +791,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
               rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
+              terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
               hasBearing={bearing !== null}
               model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}

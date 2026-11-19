@@ -10,9 +10,12 @@ final class FakeRunner: ReadModelRunner, @unchecked Sendable {
     var permissiveResults: [Result<String, ReadFailure>] = []
     var duringOnDeviceCall: (() -> Void)?
     private(set) var calls: [Call] = []
+    /// The text each call was handed, as a model would receive it.
+    private(set) var texts: [String] = []
 
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
         calls.append(.guided(path))
+        texts.append(text)
         if path == .onDevice { duringOnDeviceCall?() }
         guard var list = guidedResults[path], !list.isEmpty else { return .failure(.other) }
         let r = list.removeFirst(); guidedResults[path] = list; return r
@@ -20,6 +23,7 @@ final class FakeRunner: ReadModelRunner, @unchecked Sendable {
 
     func permissive(_ text: String) async -> Result<String, ReadFailure> {
         calls.append(.permissive)
+        texts.append(text)
         guard !permissiveResults.isEmpty else { return .failure(.other) }
         return permissiveResults.removeFirst()
     }
@@ -38,6 +42,22 @@ private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = tr
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
 
 @Suite struct ReadOrchestratorTests {
+    /// A phone number is removed before the report reaches any model: each route's model gets
+    /// exactly the scrubbed text, on the phone (guided, then permissive) and in the cloud.
+    @Test func everyRouteHandsItsModelExactlyTheScrubbedText() async {
+        let text = "Team two cleared segment AC, caller at 404 five five five 0123, nothing found"
+        let scrubbed = "Team two cleared segment AC, caller at [number removed], nothing found"
+        let onPhone = FakeRunner()
+        onPhone.guidedResults[.onDevice] = [.failure(.guardrailBlock)]
+        onPhone.permissiveResults = [.failure(.guardrailBlock)]
+        _ = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: onPhone, clock: clock)
+        #expect(onPhone.calls == [.guided(.onDevice), .permissive] && onPhone.texts == [scrubbed, scrubbed])
+        let inCloud = FakeRunner()
+        inCloud.guidedResults[.cloud] = [.success(okReading())]
+        _ = await ReadOrchestrator.read(text: text, context: rctx(online: true, onDevice: false), runner: inCloud, clock: clock)
+        #expect(inCloud.calls == [.guided(.cloud)] && inCloud.texts == [scrubbed])
+    }
+
     @Test func onDeviceGuidedReadingIsUsedWhenValid() async {
         let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)

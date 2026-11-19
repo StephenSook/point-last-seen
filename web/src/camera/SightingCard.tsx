@@ -2,8 +2,9 @@
 // clothing) and "See the frame", the clip's clearest frame with the model's box. Code, not
 // the model, gives the time (clip start plus lastSeen) and the heading (facing plus exit edge).
 
-import { lastSeenMs, type CameraSightingInput } from "@pls/engine";
+import { lastSeenMs, type CameraSightingInput, type RouteRecord } from "@pls/engine";
 import { useEffect, useState } from "react";
+import { receiptLines } from "../ai/receipt";
 import { ClipBand } from "../extras/clip/ClipBand";
 
 const POINTS = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
@@ -74,9 +75,12 @@ type Props = {
   clip: Blob | null;
   /** The clip's length in whole seconds, for the person-in-view band; null when not known. */
   durationS?: number | null;
+  /** Where the read ran and what it sent, for the "What ran" receipt (absent: no receipt). */
+  route?: RouteRecord | null;
+  sentBytes?: number;
 };
 
-export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null }: Props) {
+export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null, route = null, sentBytes }: Props) {
   // The second the clip is shown at; null while it is hidden.
   const [frameS, setFrameS] = useState<number | null>(null);
   const keyS = seconds(reading.keyFrame.time);
@@ -88,6 +92,16 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
       <p>{f.clothing}</p>
       <ClipBand durationS={durationS} reading={reading} onSeek={clip ? setFrameS : undefined} />
       {cached && <p className="muted small">Read before, not sent again.</p>}
+      {route && sentBytes !== undefined && (
+        <details className="receipt">
+          <summary>What ran</summary>
+          {receiptLines({ asked: "the cloud, with the clip's three consents", route, sentBytes, what: "the clip, as base64" })
+            .map((l) => (cached && l.startsWith("Sent:") ? "Sent: nothing now; this reading came from an earlier read of the same clip." : l))
+            .map((l) => (
+              <p key={l} className="small">{l}</p>
+            ))}
+        </details>
+      )}
       {clip && (
         <button type="button" className="btn ghost" aria-pressed={frameS === keyS} onClick={() => setFrameS((v) => (v === keyS ? null : keyS))}>
           See the frame

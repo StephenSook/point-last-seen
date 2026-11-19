@@ -14,6 +14,9 @@ export function RadioCards({ cards, matchCode }: { cards: readonly RadioCardMode
           <p>{card.incidentName} | {card.planLine}</p>
           {card.segmentIds.length > 0 && <p><strong>Segments:</strong> {card.segmentIds.join(", ")}</p>}
           {card.taskText && <p>{card.taskText}</p>}
+          {card.personLines.length > 0 && (
+            <ul className="extras-radio-person">{card.personLines.map((line) => <li key={line}>{line}</li>)}</ul>
+          )}
           <h3>Read the match code one character at a time</h3>
           {words && <p><strong>{matchCode}</strong> | {words}</p>}
           <dl className="extras-spell-table">

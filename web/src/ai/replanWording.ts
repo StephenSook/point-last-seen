@@ -90,6 +90,9 @@ export function templateWording(draft: PlanDraft): PlanWording {
 /** What the model returns. A task line it sends anyway is ignored: task lines come from the plan. */
 type ModelWording = { assignments: { teamId: string; reason: string; taskText?: unknown }[]; summary: string };
 
+export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
+const NUMBER = /\d+(?:\.\d+)?/g;
+
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
   const want = draft.assignments.map((a) => a.teamId).sort();
@@ -103,6 +106,10 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
     if (known.some((id) => !own.has(id) && new RegExp(`\\b${id}\\b`).test(s))) return { ok: false, reason: "a reason names another team's segment" };
   }
   if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
+  // Every number the model writes must be one it was given: an invented figure would reach command as fact.
+  const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
+  const written = [...wording.assignments.map((a) => a.reason), wording.summary].flatMap((t) => t.match(NUMBER) ?? []);
+  if (written.some((n) => !given.has(n))) return { ok: false, reason: NUMBER_NOT_IN_PLAN };
   return { ok: true };
 }
 
@@ -116,7 +123,7 @@ export type WordingDeps = {
 };
 
 /** A model asked for wording whose answer was not used: where it ran (as far as the SDK said) and why. */
-export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" };
+export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" | "number" };
 /** `attempt` is present only when a model was asked and its answer was not used; `route` is what worded the plan. */
 /** `promptBytes`: the UTF-8 size of the plan text a model is sent (for the receipt), when this file built it. */
 export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt; promptBytes?: number };
@@ -177,7 +184,8 @@ async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<Worde
     } catch {
       return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: "unreadable" });
     }
-    if (!checkWording(draft, modelWording).ok) return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: "rejected" });
+    const checked = checkWording(draft, modelWording);
+    if (!checked.ok) return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: checked.reason === NUMBER_NOT_IN_PLAN ? "number" : "rejected" });
     // The task lines come from the plan; the model's own text supplies only the reasons and the summary.
     const wording: PlanWording = {
       assignments: modelWording.assignments.map((a) => {

@@ -29,6 +29,28 @@ def test_banned_import_fails(tmp_path):
     assert run_gate(tmp_path).returncode == 1
 
 
+def test_speech_recognition_is_banned_on_every_platform(tmp_path):
+    # Recognition reads the user's speech with a model outside Firebase AI Logic, so no platform may use it.
+    for rel, text in (("ios/PLS/A.swift", "let r = SFSpeechRecognizer()"),
+                      ("android/app/src/main/A.kt", "SpeechRecognizer.createSpeechRecognizer(ctx)"),
+                      ("android/app/src/main/B.kt", "Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)"),
+                      ("android/app/src/main/C.kt", 'Intent("android.speech.action.RECOGNIZE_SPEECH")'),
+                      ("web/src/a.ts", "new webkitSpeechRecognition()"),
+                      ("web/src/b.ts", "new SpeechRecognition()")):
+        write(tmp_path, rel, text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and rel in out.stdout, rel
+        write(tmp_path, rel, "ok")
+
+
+def test_system_text_to_speech_is_allowed_as_the_fallback_voice(tmp_path):
+    # The system voice speaks text the app already holds; it reads nothing from the user.
+    write(tmp_path, "ios/PLS/A.swift", "import AVFoundation\nlet s = AVSpeechSynthesizer()")
+    write(tmp_path, "android/app/src/main/A.kt", "import android.speech.tts.TextToSpeech")
+    write(tmp_path, "web/src/a.ts", "window.speechSynthesis.speak(new SpeechSynthesisUtterance(t))")
+    assert run_gate(tmp_path).returncode == 0
+
+
 def test_clean_tree_passes(tmp_path):
     (tmp_path / "a.swift").write_text("import FoundationModels\n")
     assert run_gate(tmp_path).returncode == 0
@@ -39,6 +61,32 @@ def test_availability_allowed_only_in_gate(tmp_path):
     write(tmp_path, "web/src/ai/other.ts", "LanguageModel.availability(o)")
     out = run_gate(tmp_path)
     assert out.returncode == 1 and "other.ts" in out.stdout and "gate.ts" not in out.stdout
+
+
+def test_web_code_never_creates_a_built_in_model_session_itself(tmp_path):
+    # Review: the web reaches the browser's model only through Firebase AI Logic's hybrid mode.
+    for text in ("const s = await LanguageModel.create(opts)", "LanguageModel?.create(o)", 'LanguageModel["create"](o)'):
+        write(tmp_path, "web/src/ai/other.ts", text)
+        assert run_gate(tmp_path).returncode == 1, text
+
+
+def test_web_code_never_prompts_a_built_in_model_session_itself(tmp_path):
+    for text in ("await session.prompt(x)", "await s?.prompt(x)", 'await s["prompt"](x)'):
+        write(tmp_path, "web/src/ai/other.ts", text)
+        assert run_gate(tmp_path).returncode == 1, text
+
+
+def test_web_code_never_streams_a_built_in_model_session_itself(tmp_path):
+    for text in ("for await (const c of session.promptStreaming(x)) {}", 's["promptStreaming"](x)'):
+        write(tmp_path, "web/e2e/harness/x.spec.ts", text)
+        assert run_gate(tmp_path).returncode == 1, text
+
+
+def test_built_in_model_calls_may_be_named_in_docs_and_other_platforms_are_not_web(tmp_path):
+    write(tmp_path, "web/README.md", "We never call LanguageModel.create or session.prompt( directly.")
+    write(tmp_path, "ios/PLS/A.swift", "let r = try await session.respond(to: p)")
+    write(tmp_path, "web/src/ai/client.ts", "const m = getGenerativeModel(ai, { mode: 'prefer_on_device' })")
+    assert run_gate(tmp_path).returncode == 0
 
 
 def test_count_tokens_banned_in_private_paths(tmp_path):

@@ -5,6 +5,7 @@
 // never leave the family phone, so the command form neither shows nor stores them.
 
 import {
+  namesToCall,
   type Place,
   type ProfileFlags,
   profileForCommand,
@@ -98,6 +99,17 @@ const NOTES = notesFile as unknown as NoteFile;
 export const APPROACH_FOOTER = NOTES.footer;
 
 export type ApproachLine = { id: string; text: string; sourceRole: string };
+
+/**
+ * The card's names line: the main name, then every other name they answer to (the family's list, else the
+ * nickname), each once. Null when no name was given.
+ */
+export function answersToLine(shared: SharedProfile): string | null {
+  const main = shared.answersTo.trim();
+  const others = namesToCall(shared).map((n) => n.trim()).filter((n, i, all) => n && n !== main && all.indexOf(n) === i);
+  if (main) return others.length ? `Answers to ${main} (also ${others.join(", ")})` : `Answers to ${main}`;
+  return others.length ? `Answers to ${others.join(", ")}` : null;
+}
 
 /** The approach card's lines from the shared document: code and fixed copy, no model. */
 export function approachLines(shared: SharedProfile): { first: ApproachLine[]; more: ApproachLine[] } {

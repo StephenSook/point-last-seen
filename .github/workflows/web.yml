@@ -70,6 +70,10 @@ jobs:
       - name: Browser checks with no backend
         working-directory: web
         run: npx playwright test -c e2e/ci.config.ts
+      # The clip harnesses make their test clips with ffmpeg (the repository keeps every .mp4 out), and the runner
+      # image does not ship it.
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
       # Component harnesses (map, beat, plan, sightings, family, clips, ...) and the extras lane's pages, on the
       # Vite dev server with Playwright's Chromium. The few tests that need Chrome's built-in model are left out.
       - name: Component harness checks

@@ -25,6 +25,23 @@ test("the sheet's match code line counts reports, not every event", async ({ pag
   await expect(page.getByText(/Map match code at print time: .* \(plan v\d+, 13 reports\)\./).first()).toBeVisible();
 });
 
+/** Pages in a PDF, counted from its page objects. */
+function pdfPages(pdf: Buffer): number {
+  return (pdf.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+}
+
+// teams11long: eleven teams whose task text is long enough to wrap, the worst case a sheet must still fit.
+const sheetCases = [["kennesaw", "?site=kennesaw", 1], ["teams11", "?teams=11", 3], ["teams11long", "?teams=11&long=1", 3]] as const;
+for (const [site, query, sheets] of sheetCases) {
+  test(`each assignment sheet prints on exactly one page (${site}: ${sheets} sheet${sheets === 1 ? "" : "s"})`, async ({ page }) => {
+    await page.goto(`${harness}${query}`);
+    await openExtra(page, "Print assignment sheet");
+    await expect(page.locator("[data-block]").first()).toBeVisible();
+    await expect(page.locator(".extras-ics-sheet")).toHaveCount(sheets);
+    expect(pdfPages(await page.pdf({ format: "Letter", printBackground: true }))).toBe(sheets);
+  });
+}
+
 test("in print media the whole page is white, so no dark margin prints around the sheet", async ({ page }) => {
   await page.goto(harness);
   await openExtra(page, "Print assignment sheet");
@@ -52,10 +69,10 @@ test("the drill line is on every printed page", async ({ page }) => {
   await openExtra(page, "Print assignment sheet");
   await page.emulateMedia({ media: "print" });
   const sheets = page.locator(".extras-ics-sheet");
-  await expect(sheets).toHaveCount(2);
+  await expect(sheets).toHaveCount(3);
   for (const [index, sheet] of (await sheets.all()).entries()) {
     await expect(sheet).toContainText(drillLine);
-    await expect(sheet).toContainText(`${index + 1} of 2`);
+    await expect(sheet).toContainText(`${index + 1} of 3`);
   }
 });
 
@@ -71,7 +88,7 @@ test("the print view is usable by keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
   await expect(dialog).toBeVisible();
-  for (const label of ["Date From", "Date To", "Time From", "Time To", "Branch", "Division", "Group", "Staging Area", "Include the approach notes"]) {
+  for (const label of ["Date From", "Date To", "Time From", "Time To", "Branch", "Division", "Group", "Staging Area", "Print the person's names and approach notes (teams need them in the field; paper leaves this app)"]) {
     await page.keyboard.press("Tab");
     await expect(dialog.getByLabel(label, { exact: true })).toBeFocused();
   }
@@ -116,3 +133,39 @@ test("two cards fit one letter page in print media", async ({ page }) => {
   }
   expect((await sheet.boundingBox())?.height).toBeLessThanOrEqual(10 * 96);
 });
+
+const personBox = "Print the person's names and approach notes (teams need them in the field; paper leaves this app)";
+const namesLine = "Answers to Roberta (also Bea, Mom, Miss Bea)";
+const stopLine = "If they may not come when called, stop calling their name.";
+
+test("the sheet prints the person's names above the stop-calling note only when the plain-worded box is ticked", async ({ page }) => {
+  await page.goto(`${harness}?profile=1`);
+  await openExtra(page, "Print assignment sheet");
+  const box = page.getByRole("checkbox", { name: personBox });
+  await expect(box).not.toBeChecked();
+  const block7 = page.locator('[data-block="7"]').first();
+  await expect(block7).not.toContainText("Answers to");
+  await box.check();
+  const text = (await block7.textContent()) ?? "";
+  expect(text).toContain(namesLine);
+  expect(text.indexOf(namesLine)).toBeLessThan(text.indexOf(stopLine));
+  expect(text).not.toMatch(/seizure/i);
+  await expect(block7).toContainText("Training drill. Nobody is missing.");
+});
+
+test("each radio card prints the person's names only when the same box is ticked, and keeps its training line", async ({ page }) => {
+  await page.goto(`${harness}?profile=1`);
+  await openExtra(page, "Print radio cards");
+  const box = page.getByRole("checkbox", { name: personBox });
+  await expect(box).not.toBeChecked();
+  const cards = page.locator(".extras-radio-card");
+  await expect(cards.first()).toBeVisible();
+  await expect(page.locator(".extras-radio-sheet")).not.toContainText("Answers to");
+  await box.check();
+  for (const card of await cards.all()) {
+    await expect(card).toContainText(namesLine);
+    await expect(card).toContainText(stopLine);
+    await expect(card).toContainText("Training drill. Nobody is missing.");
+  }
+});
+
