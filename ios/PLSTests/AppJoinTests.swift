@@ -258,6 +258,28 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.assignment == nil)
     }
 
+    /// Command changes or takes away the team's task while a line is playing: the team stays the
+    /// same, and the old line stops at once. Reading the same task again stops nothing.
+    @Test func aChangedOrWithdrawnTaskStopsTheLinePlaying() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let voice = FakeVoice()
+        let m = model(FakeJoinBackend(), reader, voice: voice)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        let loaded = try #require(m.mission?.assignedSegmentIds)
+        let stops = voice.stops
+        await m.planArrived(DrillDocs.plan(segmentIds: loaded, task: "Walk the creek bank.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 4),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops + 1)
+        await m.speech?.value
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 5, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops + 2 && m.mission?.assignment == nil)
+    }
+
     /// Plans apply in version order only: an older plan (a cache snapshot, or an update handled out
     /// of order) or another copy of the loaded version never replaces the newer assignment and is
     /// never spoken.

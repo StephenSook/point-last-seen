@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a changed or withdrawn task stops the line playing, and each voice callback is its own line's
+- What: speech stopped only on a new incident or team, so when command changed or took away the
+  team's task, the old line kept playing. Any change to the task now stops the line playing and any
+  line queued after it. The phone's own voice also kept one shared callback: a line handed to the
+  synthesizer while another was playing waited behind it, and was checked only at hand-off. Each
+  line now waits until the one before has ended, is checked again when its turn comes, and only its
+  own start, finish or cancel answers it; a stop ends it at once even if no callback comes.
+- Source: review (finding 5, third round).
+- Verified: a test changes and then withdraws the task on the same team: each stops the voice,
+  and the same task again stops nothing; it failed with the new rule taken out. Tests for the
+  line turns: another line's callback is ignored, a line ended before it started was not heard,
+  the next line waits for the one before, and a stop releases the line and every waiter. 147 app
+  tests pass.
+
 ### fix(ios): a push reload keeps a newer plan the listener applied while it read
 - What: a tapped push reads the mission again. If the plan listener applied a newer plan while
   that read ran, the read's older plan replaced it on screen and its task was spoken again; a newer

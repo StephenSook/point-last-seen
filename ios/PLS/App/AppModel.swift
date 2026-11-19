@@ -577,8 +577,10 @@ final class AppModel {
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
         let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
-        // Another incident or team: whatever the old one was saying stops, and its lines are forgotten.
-        if newTeam { speaker.stop() }
+        // Another incident or team, or a task that changed or was taken away: whatever was being said
+        // stops, queued lines included, and its lines are forgotten.
+        let newTask = self.mission != nil && self.mission?.assignment != mission.assignment
+        if newTeam || newTask { speaker.stop() }
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
