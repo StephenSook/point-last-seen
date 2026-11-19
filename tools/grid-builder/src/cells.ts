@@ -7,6 +7,11 @@ import type { Grid, GridSegment } from "@pls/engine";
 import type { Feature, MultiPolygon, Polygon, Position } from "geojson";
 
 export const CELL_M = 125;
+/**
+ * The most segments a grid may have: the web writes a rebuilt prior in one Firestore batch (every segment, ROW, the
+ * incident and up to two events), and a batch holds at most 500 writes.
+ */
+export const MAX_SEGMENTS = 480;
 const M_PER_DEG = (6371008.8 * Math.PI) / 180;
 const MIN_AREA_M2 = 1;
 export const ATTRIBUTION = "Map data from OpenStreetMap contributors (ODbL)";
@@ -48,6 +53,9 @@ export function buildCells(site: Feature<Polygon>, gridId: string, cellM = CELL_
       const a = area(polygon(coords));
       if (a >= MIN_AREA_M2) kept.push({ r, c, coords, areaM2: a });
     }
+  }
+  if (kept.length > MAX_SEGMENTS) {
+    throw new Error(`${gridId}: ${kept.length} cells, more than the ${MAX_SEGMENTS} one prior batch can write; clip the site to a smaller window`);
   }
   const idAt = new Map<string, string>();
   kept.forEach((k, i) => idAt.set(`${k.r},${k.c}`, segmentIdFor(i)));

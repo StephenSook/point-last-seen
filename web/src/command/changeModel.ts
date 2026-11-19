@@ -3,6 +3,7 @@
 // readers. Code and fixed copy only; no model writes any of it.
 
 import type { EventDoc, ReportReading } from "@pls/engine";
+import { formatPct } from "../map/poaStyle";
 
 export type Changed = { segmentId: string; fromPct: number; toPct: number; deltaPts: number };
 export type ChangeResult = { changed: Changed[]; banner: string; announce: string };
@@ -34,22 +35,33 @@ function causeLabel(ev: EventDoc): string {
       return "Found";
     case "destination":
       return "Place to check";
+    case "confirmation":
+      return ev.decision === "rejected" ? "Sighting rejected" : "Sighting confirmed";
+    case "retraction":
+      return "Report withdrawn";
     default:
       return "Report";
   }
 }
 
-const pct = (v: number | undefined) => Math.round((v ?? 0) * 100);
+// One decimal, the POA table's precision (formatPct), so the line, the chip and the table agree.
+const pct = (v: number | undefined) => Number(((v ?? 0) * 100).toFixed(1));
+
+const CONFIRM_SIGHTING = "Sighting saved. Confirm it under Sightings to move the map.";
+const awaitsConfirm = (ev: EventDoc) =>
+  ev.type === "sighting" && ev.effect.kind === "clue" && (ev.effect.authenticity === "high" || ev.effect.authenticity === "medium");
 
 export function changeModel(before: Readonly<Record<string, number>>, after: Readonly<Record<string, number>>, cause: EventDoc): ChangeResult {
   const ids = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((id) => id !== "ROW");
   const changed = ids
     .map((segmentId) => ({ segmentId, fromPct: pct(before[segmentId]), toPct: pct(after[segmentId]) }))
-    .map((c) => ({ ...c, deltaPts: c.toPct - c.fromPct }))
+    .map((c) => ({ ...c, deltaPts: Math.round((c.toPct - c.fromPct) * 10) / 10 }))
     .filter((c) => c.deltaPts !== 0)
     .sort((a, b) => Math.abs(b.deltaPts) - Math.abs(a.deltaPts) || a.segmentId.localeCompare(b.segmentId));
   const top = changed[0];
   if (!top) {
+    // A likely sighting counts only once confirmed (the engine's rule), so say where the next step is.
+    if (awaitsConfirm(cause)) return { changed: [], banner: CONFIRM_SIGHTING, announce: CONFIRM_SIGHTING };
     return { changed: [], banner: "Report logged. Map unchanged. Ask the team.", announce: "Report logged. Map unchanged." };
   }
   const label = causeLabel(cause);
@@ -57,13 +69,13 @@ export function changeModel(before: Readonly<Record<string, number>>, after: Rea
   const dir = top.deltaPts > 0 ? "up" : "down";
   return {
     changed,
-    banner: `${label}${inject}. ${top.segmentId} ${top.fromPct}% to ${top.toPct}%.`,
-    announce: `Segment ${top.segmentId}. POA ${top.toPct} percent, ${dir} ${Math.abs(top.deltaPts)}, after report: ${spoken(label)}.`,
+    banner: `${label}${inject}. ${top.segmentId} ${formatPct(before[top.segmentId] ?? 0)} to ${formatPct(after[top.segmentId] ?? 0)}.`,
+    announce: `Segment ${top.segmentId}. POA ${top.toPct.toFixed(1)} percent, ${dir} ${Math.abs(top.deltaPts).toFixed(1)}, after report: ${spoken(label)}.`,
   };
 }
 
-/** The chip on a moved segment: signed percentage points, ASCII signs only. */
+/** The chip on a moved segment: signed percentage points to one decimal, ASCII signs only. */
 export function deltaLabel(deltaPts: number): string {
   const n = Math.abs(deltaPts);
-  return `${deltaPts > 0 ? "+" : "-"}${n} ${n === 1 ? "pt" : "pts"}`;
+  return `${deltaPts > 0 ? "+" : "-"}${n.toFixed(1)} ${n === 1 ? "pt" : "pts"}`;
 }

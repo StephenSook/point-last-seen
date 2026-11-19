@@ -1,4 +1,4 @@
-// The person-in-view band for a clip (P-40, hand-off H4). Today the only stored interval is the
+// The person-in-view band for a clip. Today the only stored interval is the
 // cloud reading's first seen to last seen. On-device triage stores no per-window checks, so
 // "device_check" intervals are drawn only when a caller passes them (none does yet).
 

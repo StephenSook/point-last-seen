@@ -26,9 +26,17 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
     private(set) var claimRefreshes: [Bool] = []
     /// When set, a forced refresh fails (no signal) and only the cached claims answer.
     var refreshFails = false
+    /// When set, the next claims read waits here and then answers with the claims as they were
+    /// when it started, as a slow token refresh does (one read only).
+    var holdNextClaims: ReadGate?
     func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? {
         claimRefreshes.append(forceRefresh)
-        return forceRefresh && refreshFails ? nil : claims
+        let answer = forceRefresh && refreshFails ? nil : claims
+        if let gate = holdNextClaims {
+            holdNextClaims = nil
+            await gate.wait()
+        }
+        return answer
     }
 }
 

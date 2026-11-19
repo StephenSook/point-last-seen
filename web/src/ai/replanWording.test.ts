@@ -53,7 +53,7 @@ describe("checkWording", () => {
 
   it("rejects empty or overlong text and a repeated team", () => {
     const w = JSON.parse(good);
-    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], taskText: " " }, w.assignments[1]] }).ok).toBe(false);
+    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: " " }, w.assignments[1]] }).ok).toBe(false);
     expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: "x".repeat(201) }, w.assignments[1]] }).ok).toBe(false);
     expect(checkWording(draft, { ...w, assignments: [w.assignments[0], w.assignments[0]] }).ok).toBe(false);
   });
@@ -77,10 +77,33 @@ describe("planPrompt", () => {
   });
 });
 
+describe("task lines come from code, the model writes only reasons", () => {
+  it("asks the model for each team's reason and the summary, never a task line", () => {
+    const item = PLAN_WORDING_JSON.properties.assignments.items;
+    expect(item.required).toEqual(["teamId", "reason"]);
+    expect("taskText" in item.properties).toBe(false);
+  });
+  it("ignores a task line the model wrote and keeps the plan's own segment", async () => {
+    const sly = JSON.stringify({ assignments: [{ teamId: "T1", taskText: "Search segment AD.", reason: "Highest POA now." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+    const out = await wordPlan(draft, deps({ generate: async () => ({ text: sly, inferenceSource: "in_cloud" }) }));
+    expect(out.wording.assignments).toEqual([
+      { teamId: "T1", taskText: "Search segment AC.", reason: "Highest POA now." },
+      { teamId: "T2", taskText: "Search segment AB.", reason: "Second highest." },
+    ]);
+  });
+  it("a reason that names a segment the team was not given falls to the template", async () => {
+    const wrong = JSON.stringify({ assignments: [{ teamId: "T1", reason: "AD is closest to the last sighting." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+    const out = await wordPlan(draft, deps({ generate: async () => ({ text: wrong, inferenceSource: "in_cloud" }) }));
+    expect(out.route.path).toBe("rules");
+    expect(out.wording.assignments[0]!.reason).toBe("POA now 31.0%.");
+  });
+});
+
 describe("wordPlan", () => {
   it("records the SDK's route", async () => {
-    expect((await wordPlan(draft, deps({}))).route).toMatchObject({ platform: "web", path: "cloud", sdkReported: true, reason: "sdk_prefer_in_cloud", stage: "sdk" });
-    expect((await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: "on_device" }) }))).route).toMatchObject({ path: "on_device", reason: "link_down_fallback", sdkReported: true });
+    // On this laptop first: the cloud answers only when there is no local model, and the route says which ran.
+    expect((await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: "on_device" }) }))).route).toMatchObject({ platform: "web", path: "on_device", sdkReported: true, reason: "sdk_prefer_on_device", stage: "sdk" });
+    expect((await wordPlan(draft, deps({}))).route).toMatchObject({ path: "cloud", sdkReported: true, reason: "on_device_unavailable" });
   });
 
   it("with no inferenceSource records path unknown and says the route was not reported", async () => {
@@ -146,8 +169,8 @@ describe("wordPlan", () => {
 describe("wordingParams", () => {
   const p = wordingParams("gemini-3.5-flash-lite");
 
-  it("is the SDK's hybrid mode with the cloud first", () => {
-    expect(p.mode).toBe(InferenceMode.PREFER_IN_CLOUD);
+  it("is the SDK's hybrid mode with this laptop first", () => {
+    expect(p.mode).toBe(InferenceMode.PREFER_ON_DEVICE);
     expect(p.inCloudParams).toMatchObject({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON } });
   });
 
@@ -168,5 +191,36 @@ describe("wordPlan with the cloud paused", () => {
     expect(out.wording).toEqual(templateWording(draft));
     expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
     expect(out.notice).toBe("Cloud paused by command. The plan below uses fixed wording.");
+  });
+});
+
+describe("a model attempt whose answer was not used", () => {
+  it("is kept apart from the fixed-wording route, so an attempt that may have sent the draft stays visible", async () => {
+    const failed = await wordPlan(draft, deps({ generate: async () => { throw httpError(503, "raw"); } }));
+    expect(failed.route).toMatchObject({ path: "rules", reason: "template_fallback" });
+    expect(failed.attempt).toMatchObject({ failure: "error", route: { path: "unknown", stage: "sdk", sdkReported: false, model: "gemini-3.5-flash-lite" } });
+
+    const unread = await wordPlan(draft, deps({ generate: async () => ({ text: "not json", inferenceSource: "in_cloud" }) }));
+    expect(unread.attempt).toMatchObject({ failure: "unreadable", route: { path: "cloud", sdkReported: true } });
+    expect(unread.notice).toBe("The model's wording could not be used. The plan below uses fixed wording.");
+
+    const rejected = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify({ assignments: [], summary: "" }), inferenceSource: "on_device" }) }));
+    expect(rejected.attempt).toMatchObject({ failure: "rejected", route: { path: "on_device", sdkReported: true, model: "chrome-built-in" } });
+
+    const late = await wordPlan(draft, deps({ timeoutMs: 1, generate: () => new Promise(() => {}) }));
+    expect(late.attempt).toMatchObject({ failure: "timeout", route: { path: "unknown", sdkReported: false } });
+  });
+
+  it("is absent when the model's wording was used, or when no model was asked", async () => {
+    expect((await wordPlan(draft, deps({}))).attempt).toBeUndefined();
+    expect((await wordPlan(draft, deps({ killCloud: true }))).attempt).toBeUndefined();
+  });
+});
+
+describe("the plan text's size", () => {
+  it("is the UTF-8 size of the exact prompt the model is sent, for the receipt", async () => {
+    const out = await wordPlan(draft, deps({}));
+    expect(out.promptBytes).toBe(new TextEncoder().encode(planPrompt(draft)).length);
+    expect(out.promptBytes).toBeGreaterThan(0);
   });
 });

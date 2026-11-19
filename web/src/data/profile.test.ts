@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import notesFile from "../../../shared/constants/approach-notes.json";
-import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, profileDocs, profileFromDocs, sharedFromDoc } from "./profile";
+import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, mergeProfileSave, profileDocs, profileFromDocs, profilePatch, sharedFromDoc } from "./profile";
 
 const full = {
   ...emptyProfile(),
@@ -123,5 +123,78 @@ describe("other names", () => {
   it("reads only string names, and adds no list when none was stored", () => {
     expect(sharedFromDoc({ otherNames: ["Bea", 7, null, "Mom"] }).otherNames).toEqual(["Bea", "Mom"]);
     expect("otherNames" in sharedFromDoc({ nickname: "Bea" })).toBe(false);
+  });
+});
+
+describe("profilePatch", () => {
+  it("a clothing edit writes the clothing only, so names the family adds meanwhile are kept", () => {
+    const opened = profileFromDocs(sharedFromDoc({ ...profileDocs(emptyProfile()).shared, otherNames: ["Bea", "Mom"], nickname: "Bea" }), undefined);
+    const patch = profilePatch(opened, { ...opened, clothingLastWorn: "Green raincoat" });
+    expect(patch.shared).toEqual({ clothingLastWorn: "Green raincoat" });
+    expect(patch.command).toEqual({});
+  });
+  it("a flag change writes the flag map and the approach notes it changes, nothing else", () => {
+    const opened = emptyProfile();
+    const patch = profilePatch(opened, { ...opened, flags: { ...opened.flags, likelyToHide: true } });
+    expect(Object.keys(patch.shared).sort()).toEqual(["approachNoteIds", "flags"]);
+  });
+  it("a command-only edit touches only the command document", () => {
+    const opened = emptyProfile();
+    const patch = profilePatch(opened, { ...opened, nearbyWater: "Clear Creek" });
+    expect(patch.shared).toEqual({});
+    expect(patch.command).toEqual({ nearbyWater: "Clear Creek" });
+  });
+});
+
+describe("mergeProfileSave: what a command save writes over the documents as the server holds them now", () => {
+  const emptyDocs = profileDocs(emptyProfile());
+  const names = ["Bea", "Mom", "Roberta"];
+
+  it("family created the shared profile after command opened the form: the names stay, the clothing is added", () => {
+    const opened = emptyProfile();
+    const family = { ...emptyDocs.shared, otherNames: names, nickname: "Bea" };
+    const out = mergeProfileSave(opened, { ...opened, clothingLastWorn: "Green raincoat" }, { shared: family, command: null });
+    expect(out.shared).toMatchObject({ otherNames: names, nickname: "Bea", clothingLastWorn: "Green raincoat" });
+  });
+
+  it("family changed the names after command opened the form: both edits are kept", () => {
+    const opened = profileFromDocs(sharedFromDoc({ ...emptyDocs.shared, otherNames: ["Bea"], nickname: "Bea" }), undefined);
+    const family = { ...emptyDocs.shared, otherNames: names, nickname: "Bea" };
+    const out = mergeProfileSave(opened, { ...opened, clothingLastWorn: "Green raincoat" }, { shared: family, command: null });
+    expect(out.shared).toMatchObject({ otherNames: names, clothingLastWorn: "Green raincoat" });
+  });
+
+  it("a legacy shared document with only a nickname is completed, so the save is a full valid document", () => {
+    const opened = profileFromDocs(sharedFromDoc({ nickname: "Bea" }), undefined);
+    const out = mergeProfileSave(opened, { ...opened, clothingLastWorn: "Green raincoat" }, { shared: { nickname: "Bea" }, command: null });
+    expect(Object.keys(out.shared!).sort()).toEqual(Object.keys(emptyDocs.shared).sort());
+    expect(out.shared).toMatchObject({ nickname: "Bea", clothingLastWorn: "Green raincoat" });
+  });
+
+  it("a family flag set meanwhile keeps the search guidance it adds", () => {
+    const opened = emptyProfile();
+    const family = profileDocs({ ...emptyProfile(), flags: { ...emptyProfile().flags, fallRisk: true } }).shared;
+    const out = mergeProfileSave(opened, { ...opened, bestApproach: "Sing with her." }, { shared: family, command: null });
+    expect((out.shared as { flags: { fallRisk: boolean } }).flags.fallRisk).toBe(true);
+    expect((out.shared as { approachNoteIds: string[] }).approachNoteIds).toContain("fall_risk");
+    expect(out.shared).toMatchObject({ bestApproach: "Sing with her." });
+  });
+
+  it("a nickname edit loses to a names list the family added meanwhile, and the other edits still land", () => {
+    const opened = emptyProfile();
+    const family = { ...emptyDocs.shared, otherNames: names, nickname: "Bea" };
+    const out = mergeProfileSave(opened, { ...opened, nickname: "Bobbie", clothingLastWorn: "Green raincoat" }, { shared: family, command: null });
+    expect(out.shared).toMatchObject({ nickname: "Bea", otherNames: names, clothingLastWorn: "Green raincoat" });
+  });
+
+  it("writes nothing when nothing changed", () => {
+    const opened = profileFromDocs(emptyDocs.shared, emptyDocs.command);
+    expect(mergeProfileSave(opened, opened, { shared: emptyDocs.shared, command: emptyDocs.command })).toEqual({ shared: null, command: null });
+  });
+
+  it("creates a document that is still absent on the server from the edited profile", () => {
+    const opened = emptyProfile();
+    const out = mergeProfileSave(opened, { ...opened, nearbyWater: "Clear Creek" }, { shared: null, command: null });
+    expect(out.command).toMatchObject({ nearbyWater: "Clear Creek" });
   });
 });

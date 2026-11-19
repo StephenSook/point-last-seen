@@ -28,11 +28,19 @@ function usable(v: unknown): v is string {
   return typeof v === "string" && v.trim() !== "" && !v.includes("replace-me");
 }
 
+/** A build with no Firebase settings (no .env): the app cannot reach any backend. */
+export class MissingConfigError extends Error {
+  constructor(missing: string[]) {
+    super(`Missing build config: ${missing.join(", ")}. Copy .env.example to .env and fill it.`);
+    this.name = "MissingConfigError";
+  }
+}
+
 export function readEnv(env: Record<string, unknown>): FirebaseEnv {
   const names = [...Object.values(FIELDS), SITE_KEY];
   const missing = names.filter((n) => !usable(env[n]));
   if (missing.length > 0) {
-    throw new Error(`Missing build config: ${missing.join(", ")}. Copy .env.example to .env and fill it.`);
+    throw new MissingConfigError(missing);
   }
   const get = (n: string) => (env[n] as string).trim();
   return {

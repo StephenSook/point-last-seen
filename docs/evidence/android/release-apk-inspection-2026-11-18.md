@@ -29,4 +29,4 @@ from lane-android at dd5dd0b. 17,020,486 bytes, SHA-256
 | API keys | One `AIza` key, in resources only: the public Firebase Android config from `google-services.json` |
 | Private key material | None. "BEGIN PRIVATE KEY" occurs only as a PEM label constant in library TLS code; "service_account" only in a proto descriptor and a resource name |
 | Model id | `gemini-3.5-flash-lite`, once: the in-app Remote Config default (spec section 14). The live value comes from `cloud_model_android` and `clip_model` |
-| Prompt text | Present: the family-note instruction and the clip instruction. The note prompt must stay in the app because `PREFER_ON_DEVICE` runs it on the phone when a local model exists; the clip prompt could move to a server prompt template (lane A P-04) |
+| Prompt text | Present: the family-note instruction and the clip instruction. The note prompt must stay in the app because `PREFER_ON_DEVICE` runs it on the phone when a local model exists; the clip prompt could move to a server prompt template (plan item P-04) |

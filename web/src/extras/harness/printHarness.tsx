@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../laneC";
+import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../hostApp";
 import { DRILL_LABEL } from "../print/printModel";
 import { drillView, planFixture } from "../testdata/fixtures";
 
@@ -20,7 +20,12 @@ const extraTeams = new URLSearchParams(location.search).get("teams") === "11"
 const plan = planFixture(5);
 const state: PostState = {
   view: { ...drillView, segments, teams: [...drillView.teams, ...extraTeams], rowPrior: 0.2 },
-  events: Array.from({ length: 14 }, (_, index) => ({ eventId: `harness-${index}`, serverTimeMs: null, pendingWrite: false })),
+  // 14 sightings, command's confirmation of the first and a retraction of the last: 13 reports, 16 events.
+  events: [
+    ...Array.from({ length: 14 }, (_, index) => ({ eventId: `harness-${index}`, type: "sighting", role: "searcher", targetEventId: null, serverTimeMs: null, pendingWrite: false })),
+    { eventId: "harness-confirm", type: "confirmation", role: "command", targetEventId: "harness-0", serverTimeMs: null, pendingWrite: false },
+    { eventId: "harness-retract", type: "retraction", role: "command", targetEventId: "harness-13", serverTimeMs: null, pendingWrite: false },
+  ],
   plans: [{ ...plan, assignments: [...plan.assignments, ...extraTeams.map(({ teamId }) => ({ teamId, segmentIds: ["BB"], taskText: "Search BB from the trail.", reason: "" }))] }],
   profile: null,
   denied: false,

@@ -103,3 +103,28 @@ describe("stored engine params from before a terrain existed (review)", () => {
     expect(() => buildPrior(ringGrid, ipp, "urban", off, null, filled)).not.toThrow();
   });
 });
+
+describe("a ring column must be usable before a prior is built from it (review round 2)", () => {
+  it("refuses an empty, short, non-positive or non-increasing column by name", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    for (const urban of [[], [0.3, 1.1, 3.2], [0.3, 1.1, 3.2, 12.6, 20], [0, 1.1, 3.2, 12.6], [0.3, -1, 3.2, 12.6], [0.3, 3.2, 1.1, 12.6],
+      [0.3, 1.1, 1.1, 12.6], [0.3, 1.1, Number.NaN, 12.6], [0.3, 1.1, Number.POSITIVE_INFINITY, 12.6]]) {
+      const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban } };
+      expect(() => buildPrior(ringGrid, ipp, "urban", off, null, params), JSON.stringify(urban)).toThrow(/urban/);
+    }
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, DEFAULT_PARAMS)).not.toThrow();
+  });
+});
+
+describe("the ring masses must be usable too (review round 3)", () => {
+  it("refuses empty, negative, non-finite or over-one masses, even with a matching radii column", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const cases: [number[], number[]][] = [[[], []], [[0.3], [-0.1]], [[0.3], [Number.NaN]], [[0.3, 1.1], [0.6, 0.6]], [[0.3], [0]]];
+    for (const [urban, masses] of cases) {
+      const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban, masses } };
+      expect(() => buildPrior(ringGrid, ipp, "urban", off, null, params), JSON.stringify(masses)).toThrow(/mass/);
+    }
+    const one = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban: [0.3, 1.1], masses: [0.5, 0.5] } };
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, one)).not.toThrow();
+  });
+});

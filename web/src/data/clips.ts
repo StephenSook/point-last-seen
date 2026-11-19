@@ -4,7 +4,7 @@
 // the reading and the route, and is read-only after that. Clips are create-only in Storage.
 
 import type { ConsentMark, RouteRecord } from "@pls/engine";
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, type FieldValue, type Firestore } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, type FieldValue, type Firestore, getDocFromServer } from "firebase/firestore";
 import { getMetadata, ref, uploadBytes, type FirebaseStorage } from "firebase/storage";
 
 const HASH = /^[0-9a-f]{64}$/;
@@ -153,6 +153,12 @@ export async function findClipReading(db: Firestore, incidentId: string, sha256:
   return snap.exists() ? clipReadingFromDoc(snap.data()) : null;
 }
 
+/** The record as the server holds it now, never a cached copy; rejects when the server cannot be reached. */
+export async function confirmClipReading(db: Firestore, incidentId: string, sha256: string): Promise<StoredClipReading | null> {
+  const snap = await getDocFromServer(recordRef(db, incidentId, sha256));
+  return snap.exists() ? clipReadingFromDoc(snap.data()) : null;
+}
+
 /** Writes (or renews) the consent record and waits for the server, within CONSENT_WRITE_TIMEOUT_MS. */
 export async function writeConsentRecord(db: Firestore, incidentId: string, record: ClipRecordDoc, timeoutMs = CONSENT_WRITE_TIMEOUT_MS): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -189,6 +195,7 @@ export async function completeClipReading(db: Firestore, incidentId: string, sha
 export function firestoreClipIo(db: Firestore, storage: FirebaseStorage, incidentId: string) {
   return {
     findReading: (sha256: string) => findClipReading(db, incidentId, sha256),
+    confirmReading: (sha256: string) => confirmClipReading(db, incidentId, sha256),
     writeConsent: (record: ClipRecordDoc) => writeConsentRecord(db, incidentId, record),
     clipExists: (sha256: string) => clipExists(storage, clipPath(incidentId, sha256)),
     upload: (sha256: string, bytes: Uint8Array, mimeType: string) => uploadClip(storage, clipPath(incidentId, sha256), bytes, mimeType),

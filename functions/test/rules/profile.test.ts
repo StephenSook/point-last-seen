@@ -19,7 +19,8 @@ describe("subject profile split (spec section 13.2)", () => {
     await assertSucceeds(getDoc(doc(db, "incidents/I1/profile/shared")));
     await assertFails(getDoc(doc(db, "incidents/I1/profile/command")));
     await assertFails(setDoc(doc(db, "incidents/I1/profile/command"), {}));
-    await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), { answersTo: "x" }));
+    // A complete, valid profile, so only the role gate can refuse it (review round 2).
+    await assertFails(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile()));
   });
   it("command and family read and write both profile documents", async () => {
     for (const [uid, claims] of [[C, commandClaims], [F, familyClaims]] as const) {
@@ -47,9 +48,14 @@ describe("subject profile split (spec section 13.2)", () => {
     await assertSucceeds(put({}));
     await assertSucceeds(put({ nickname: "", otherNames: [] }));
     await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "Margaret", "Peggy", "Mrs. Lee", "x".repeat(60)] }));
-    for (const otherNames of [["a", "b", "c", "d", "e", "f"], [""], ["x".repeat(61)], ["Peggy", 7], "Peggy", { 0: "Peggy" }, null]) {
-      await assertFails(put({ otherNames }));
+    // Each bad list keeps a valid first name that the nickname mirrors, so only the list rule under test can refuse it.
+    for (const otherNames of [["Mom", "b", "c", "d", "e", "f"], ["Mom", ""], ["Mom", "x".repeat(61)], ["Mom", 7]]) {
+      await assertFails(put({ nickname: "Mom", otherNames }));
     }
+    for (const otherNames of ["Peggy", { 0: "Peggy" }, null]) await assertFails(put({ otherNames }));
+    // The controls: the same lists made valid pass.
+    await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "b", "c", "d", "e"] }));
+    await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "x".repeat(60)] }));
   });
   it("with the list present, nickname mirrors its first name, or is empty for an empty list (review)", async () => {
     const db = dbAs(F, familyClaims);

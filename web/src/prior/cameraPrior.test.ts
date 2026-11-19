@@ -2,7 +2,7 @@ import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import { buildCameraSighting, type ClipFacts } from "../data/cameraSighting";
 import type { SegmentDoc } from "../data/incident";
-import { cameraConfirmWrites, cameraPriorWrites } from "./cameraPrior";
+import { cameraConfirmWrites, cameraPriorWrites, familyCameraConfirmWrites } from "./cameraPrior";
 import { gridFromDocs } from "./rebuild";
 
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
@@ -62,5 +62,28 @@ describe("cameraConfirmWrites", () => {
   });
   it("throws, with nothing to write, when the prior cannot be built", () => {
     expect(() => cameraConfirmWrites({ ...clip, cameraFacingDeg: 10 }, [writer, { ...writer, seq: 4 }], SEGS, incident, null)).toThrow(/8 compass points/);
+  });
+});
+
+describe("familyCameraConfirmWrites", () => {
+  // The family app's camera sighting: its own clip read, no camera pin, the prior not rebuilt (only command can).
+  const famCam = { ...buildCameraSighting({ ...clip, camera: null }, { ...writer, uid: "fam" }), role: "family" as const };
+
+  it("confirms the family's clip as command and rebuilds the prior from the camera place command picked", () => {
+    const out = familyCameraConfirmWrites(famCam, CAMERA, writer, SEGS, incident);
+    expect(out.events).toHaveLength(1);
+    expect(out.events[0]).toMatchObject({ type: "confirmation", role: "command", targetEventId: famCam.eventId, decision: "confirmed" });
+    expect(out.prior.incident.priorInputEventIds).toEqual(["x", famCam.eventId]);
+    expect(out.prior.incident.ipp).toEqual(CAMERA);
+    expect(out.prior.incident.priorVersion).toBe(8);
+  });
+
+  it("uses the clip's own camera place when the family gave one", () => {
+    const pinned = { ...famCam, position: { lat: CAMERA.lat, lon: CAMERA.lon, accuracyM: null } };
+    expect(familyCameraConfirmWrites(pinned, null, writer, SEGS, incident).prior.incident.ipp).toEqual(CAMERA);
+  });
+
+  it("needs a camera place before anything is built", () => {
+    expect(() => familyCameraConfirmWrites(famCam, null, writer, SEGS, incident)).toThrow("Place the camera on the map first.");
   });
 });

@@ -71,6 +71,14 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         guard let docs else { throw URLError(.notConnectedToInternet) }
         return docs
     }
+
+    private(set) var statusReads = 0
+    func incidentStatus(incidentId: String) async throws -> String? {
+        statusReads += 1
+        guard let docs else { throw URLError(.notConnectedToInternet) }
+        if case let .string(s)? = docs.incident["status"] { return s }
+        return nil
+    }
 }
 
 /// After a join the phone reads its team's mission and loads it; at launch, a searcher who joined
@@ -345,6 +353,79 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.teamId == "T2" && !m.canRetryMission)
     }
 
+    /// A retry whose claims check is slow loses to a newer check: when the newer one has found the
+    /// role gone, the slow one's old searcher claims restore nothing and read nothing.
+    @Test(.timeLimit(.minutes(1))) func aSlowRetryNeverRestoresADroppedMembership() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.canRetryMission)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let retrying = Task { await m.retryMission() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(!m.canRetryMission)
+        reader.docs = try drillDocs()
+        let reads = reader.reads.count
+        gate.release()
+        await retrying.value
+        #expect(m.mission == nil && !m.canRetryMission && reader.reads.count == reads)
+    }
+
+    /// The same for the check after a sign-in: a slow one never brings back a membership a newer
+    /// one dropped.
+    @Test(.timeLimit(.minutes(1))) func aSlowResumeNeverRestoresADroppedMembership() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let resuming = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        reader.docs = try drillDocs()
+        gate.release()
+        await resuming.value
+        #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
+    }
+
+    /// An incident command closed, with the claims unchanged: the next sign-in check reads its status
+    /// and drops the mission with the closure message. With no signal the mission stays.
+    @Test func aClosedIncidentIsDroppedEvenWithUnchangedClaims() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        reader.docs = nil
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        reader.docs = try drillDocs(status: "closed")
+        await m.trySignIn()
+        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == "This incident is not open for searching.")
+    }
+
+    /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
+    /// given back, T1's assignment is spoken again.
+    @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {
+        let backend = FakeJoinBackend()
+        let voice = FakeVoice()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), voice: voice)
+        await m.trySignIn()
+        #expect(voice.spoken.count == 1)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(m.mission == nil && voice.stops >= 1)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && voice.spoken.count == 2)
+    }
+
     /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
     /// membership is kept and "Read the mission again" is no longer offered.
     @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {
@@ -431,7 +512,11 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     @Test(.timeLimit(.minutes(1))) func aVoiceThatNeverStartsHoldsNothingUp() async throws {
         final class SilentVoice: AssignmentVoice {
             let gate = ReadGate()
-            func speak(_ text: String) async -> Double? { await gate.wait(); return 1 }
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                await gate.wait()
+                return 1
+            }
+            func stop() {}
         }
         let voice = SilentVoice()
         let reader = FakeMissionReader(docs: try drillDocs())
@@ -453,11 +538,13 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         final class FirstHeldVoice: AssignmentVoice, @unchecked Sendable {
             let gate = ReadGate()
             private(set) var spoken: [String] = []
-            func speak(_ text: String) async -> Double? {
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                guard stillWanted() else { return nil }
                 spoken.append(text)
                 if spoken.count == 1 { await gate.wait() }
                 return 1
             }
+            func stop() {}
         }
         let voice = FirstHeldVoice()
         let backend = FakeJoinBackend()
@@ -484,6 +571,63 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(voice.spoken.count == 2)
         #expect(voice.spoken.first?.contains("Walk the creek bank.") == true && voice.spoken.last?.contains("Check the parking deck.") == true)
         #expect(!voice.spoken.contains { $0.contains("north field") })
+    }
+
+    /// A team change while the old team's line is still being spoken leaves the new team's listener
+    /// in place: its plans keep arriving, and the old line never plays.
+    @Test(.timeLimit(.minutes(1))) func anOldLoadNeverReplacesTheNewTeamsListener() async throws {
+        final class HeldVoice: AssignmentVoice {
+            let gate = ReadGate()
+            private(set) var played = 0
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                await gate.wait()
+                guard stillWanted() else { return nil }
+                played += 1
+                return 1
+            }
+            func stop() {}
+        }
+        let voice = HeldVoice()
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "listener-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        for _ in 0..<1000 where !voice.gate.isWaiting { await Task.yield() }
+        #expect(voice.gate.isWaiting && m.mission?.teamId == "T1")
+        backend.claims["team"] = .string("T2")
+        reader.docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments(),
+                                  plan: DrillDocs.plan(segmentIds: [], task: "No task yet.", version: 2, team: "T9"),
+                                  sharedProfile: DrillDocs.shared)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T2" && reader.watching.count == 2 && reader.stops == 1)
+        voice.gate.release()
+        await m.speech?.value
+        #expect(reader.watching.count == 2 && reader.stops == 1 && m.mission?.teamId == "T2" && voice.played == 0)
+        // The listener in place is T2's: its plan reaches the mission.
+        reader.onPlan?(DrillDocs.plan(segmentIds: ["X"], task: "T2's new task.", version: 3, team: "T2"))
+        for _ in 0..<200 where m.mission?.assignment == nil { await Task.yield() }
+        #expect(m.mission?.assignment?.taskText == "T2's new task.")
+    }
+
+    /// A callback from a retired listener is ignored, also after a move away and back to the same
+    /// team (where the incident and team checks alone would pass).
+    @Test func aRetiredListenersPlanIsIgnored() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        await m.trySignIn()
+        let retired = try #require(reader.onPlan)
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        backend.claims["team"] = .string("T1")
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && reader.watching.count == 3)
+        retired(DrillDocs.plan(segmentIds: ["X"], task: "From the retired listener.", version: 9))
+        for _ in 0..<200 { await Task.yield() }
+        #expect(m.mission?.assignment?.taskText == "Walk the creek bank.")
     }
 
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {

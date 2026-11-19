@@ -9,6 +9,7 @@ Usage: python3 -I scripts/rules_gate.py [root]
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -83,7 +84,34 @@ MATH_CALL = re.compile(r"\bMath\.(?!imul\b)[A-Za-z_]\w*")
 ANYCASE = re.compile("|".join(re.escape(w) for w in BANNED_ANYCASE), re.IGNORECASE)
 
 
+# Folders a walk on disk skips: dependencies, build output and caches (git would ignore them).
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", ".build", ".gradle", "DerivedData", "__pycache__",
+             ".pytest_cache", ".mypy_cache", ".ruff_cache", ".firebase", ".swiftpm", "coverage", ".turbo"}
+
+
+def in_git_checkout(root: Path) -> bool:
+    try:
+        r = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"], capture_output=True)
+    except FileNotFoundError:
+        return False
+    return r.returncode == 0 and r.stdout.strip() == b"true"
+
+
+def disk_files(root: Path, skip: tuple[str, ...]) -> list[str]:
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for f in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, f), root).replace(os.sep, "/")
+            if rel not in skip:
+                out.append(rel)
+    return sorted(out)
+
+
 def list_files(root: Path) -> list[str]:
+    if not in_git_checkout(root):
+        print("rules_gate: not a git checkout (no .git, for example a ZIP download); walking the files on disk instead")
+        return disk_files(root, SELF_PATHS)
     cmd = ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others",
            "--exclude-standard", "--", "."]
     cmd += [f":(exclude){p}" for p in SELF_PATHS]

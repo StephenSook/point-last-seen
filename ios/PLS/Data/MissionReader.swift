@@ -8,6 +8,9 @@ protocol MissionReader: Sendable {
     /// Calls `onPlan` with the latest approved plan now and whenever command approves a newer one;
     /// the result stops listening.
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void
+    /// The incident's `status` ("open" while searching); nil when it has none. Throws when it
+    /// cannot be read.
+    func incidentStatus(incidentId: String) async throws -> String?
 }
 
 /// From Firestore, as a member of the incident (the rules let every member read these): the
@@ -24,16 +27,19 @@ struct FirestoreMissionReader: MissionReader {
         let profileData = try await profile.data()
         return MissionDocs(incident: incidentData.map(FirestoreJSON.value) ?? .null,
                            segments: try await segments.documents.map { FirestoreJSON.value($0.data()) },
-                           plan: try await plans.documents.first.map { FirestoreJSON.value($0.data()) },
+                           plan: try await plans.documents.first.flatMap { FirestoreJSON.plan($0.data()) },
                            sharedProfile: profileData.map(FirestoreJSON.value))
+    }
+
+    func incidentStatus(incidentId: String) async throws -> String? {
+        try await Firestore.firestore().collection("incidents").document(incidentId).getDocument().data()?["status"] as? String
     }
 
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void {
         let registration = Firestore.firestore().collection("incidents").document(incidentId).collection("plans")
             .order(by: "version", descending: true).limit(to: 1)
             .addSnapshotListener { snapshot, _ in
-                guard let doc = snapshot?.documents.first else { return }
-                let plan = FirestoreJSON.value(doc.data())
+                guard let doc = snapshot?.documents.first, let plan = FirestoreJSON.plan(doc.data()) else { return }
                 Task { @MainActor in onPlan(plan) }
             }
         let box = Registration(registration)

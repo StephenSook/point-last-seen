@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { harnessRun } from "../extras/testdata/replayIncident";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
-  it("(a) no built-in model: nothing private was sent, and the cloud replay is named only when it exists", () => {
-    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. Use the replay above, which runs in the cloud."], photoButton: null });
+  it("(a) no built-in model: nothing private was sent, and the replay is named only when it exists", () => {
+    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run."], photoButton: null });
     expect(d2Copy("no-model", { replay: false })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent."], photoButton: null });
   });
 
@@ -11,15 +12,16 @@ describe("d2Copy", () => {
     expect(d2Copy("downloadable", { replay: false, downloadFailed: true }).lines).toEqual(["This browser could not download its built-in model. Nothing private was sent."]);
   });
 
-  it("(b) text only: the note is read here and photos stay unread", () => {
+  // The check only asks Chrome what the model can take; it reads nothing, so the lines say "ready", never "read".
+  it("(b) text only: the model is ready for the note, and photos stay on this laptop", () => {
     expect(d2Copy("text", { replay: false })).toEqual({
-      lines: ["The sighting note is read on this laptop.", "This browser's model cannot read images. Photos stayed on this laptop."],
+      lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so photos stay on this laptop."],
       photoButton: null,
     });
   });
 
-  it("(c) image input: sample photos too", () => {
-    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The sighting note and sample photos are read on this laptop."], photoButton: "Read sample photos on this laptop" });
+  it("(c) image input: ready for sample photos too", () => {
+    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" });
   });
 
   it("downloadable: says the model can be downloaded first", () => {
@@ -30,20 +32,27 @@ describe("d2Copy", () => {
 
 describe("loadPublishedRun", () => {
   const ok = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  const run = { runId: "r1", label: "Training drill", exportedAt: "2026-11-22T20:00:00Z", incident: {}, segments: [], teams: [], devices: [], events: [], plans: [], measurements: [] };
+  // Made-up run data (the replay harness's), read by the same reader the replay uses.
+  const run = harnessRun();
 
   it("says there is no published run on a 404", async () => {
     expect(await loadPublishedRun(async () => new Response("", { status: 404 }))).toEqual({ state: "none" });
   });
 
-  it("returns a run that has every required part", async () => {
+  it("returns a run the replay reader accepts", async () => {
     expect(await loadPublishedRun(ok(run))).toEqual({ state: "run", run });
   });
 
-  it("refuses a file that is missing a part or is not JSON, rather than show wrong numbers", async () => {
-    const { measurements: _m, ...partial } = run;
-    expect(await loadPublishedRun(ok(partial))).toEqual({ state: "invalid" });
+  it("names why the replay reader refuses a run, rather than show it or call it missing", async () => {
+    const broken = { ...run, events: run.events.map((e, i) => (i === 0 ? { ...e, serverTimeMs: undefined } : e)) };
+    expect(await loadPublishedRun(ok(broken))).toEqual({ state: "refused", run: JSON.parse(JSON.stringify(broken)), reason: "The run has no arrival time for a report." });
+    const { events: _e, ...noReports } = run;
+    expect(await loadPublishedRun(ok(noReports))).toMatchObject({ state: "refused" });
+  });
+
+  it("calls a file that is not a JSON object unreadable", async () => {
     expect(await loadPublishedRun(async () => new Response("not json", { status: 200 }))).toEqual({ state: "invalid" });
+    expect(await loadPublishedRun(ok([1, 2]))).toEqual({ state: "invalid" });
   });
 
   it("treats the app's own HTML (the hosting rewrite for a missing file) as no run", async () => {

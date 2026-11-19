@@ -1,35 +1,99 @@
 # Point Last Seen
 
-A search-planning aid for search and rescue training drills.
+A search-planning aid for search and rescue training drills, for a person with dementia who has walked away.
 
-Searchers send a field report with no signal. Their own iPhone reads it with an
-on-device model and redraws the probability shading of their segments. When a
-connection returns, the command post merges every report and drafts new
-assignments. A person at command approves every assignment change.
+**Judges: open https://buildhybridai-2026-yg3m.web.app/judge.** It needs no account and no key. From there you can
+start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours) and
+check which on-device and cloud models the command post is using. The replay of the published drill run appears there
+after the drill.
 
-All model calls go through Firebase AI Logic.
+## What it does
 
-Status: in development for #BuildHybridAI 2026. Training drill use only.
+Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model
+and redraws the probability shading of their segments. When a connection returns, the command post merges every
+report and drafts new assignments, and a person at command approves every assignment change. The family shares a
+profile, notes, photos and camera clips from their own app, and decides which of them may be read in the cloud.
+
+## What ships, and how to try it
+
+| Platform | Who uses it | How a judge tries it |
+|---|---|---|
+| Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
+| iPhone searcher app | Searchers in the field | TestFlight, once the public build exists |
+| Android family app | The missing person's family | Signed APK as a GitHub release asset |
+
+## How the models are called
+
+- Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Three calls
+  use server prompt templates; `docs/SECURITY.md` lists every call.
+- On-device reads on the web and on Android use Firebase AI Logic's hybrid inference (the browser's or the phone's
+  own model, with the cloud as the fallback where a call allows it).
+- On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
+  cloud reads use Gemini through Firebase AI Logic in the same session.
+
+Status: in development for #BuildHybridAI 2026. Training drill use only: nobody in any drill is missing.
 
 ## Layout
 
-- `shared/`: schemas, constants, the shared test vectors and the TypeScript engine
-- `tools/`: the vector generator and the grid builder
+- `shared/`: schemas, constants, test vectors, the TypeScript engine, server prompt templates and the site grids
+- `tools/`: the vector generator, the grid builder, the drill seed tools and the public-run exporter
 - `functions/`: Cloud Functions, with Firestore and Storage security rules at the root
 - `ios/`: the searcher app and its Swift engine package
 - `web/`: the command post
 - `android/`: the family app
-- `scripts/`: local and CI gates
+- `scripts/`: local and CI gates, and the live probes
+- `docs/`: security, limits, the production checklist and the evidence behind each claim
 
-## Checks
+## Run it yourself
 
-Run every CI check locally:
+The live site is the way to try it: `/judge` needs no account, no key and no setup. Running the apps yourself needs
+your own Firebase project (below). Running the checks needs none.
 
+### The checks, from a clean checkout
+
+You need Node 22 (CI's version; `npm ci` warns that the Firebase web SDK asks for Node 24.12, and every check passes
+on 22), Python 3.12 or later (CI's version is 3.12), Java 21 or later (Firebase emulators and Android; JDK 25 works), the Firebase CLI 15 and
+gitleaks 8. For iOS: Xcode 27 and XcodeGen 2.45. For Android: the Android SDK.
+
+```bash
+npm ci
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+bash scripts/ci-local.sh          # every check CI runs; add --gates, --ts, --rules, --web, --ios or --android for one
 ```
-bash scripts/ci-local.sh
-```
+
+`ci-local.sh` exits 0 when every check ran and passed, 1 when one failed, and 2 when a tool is missing: it says
+which checks did not run and never reports that case as a pass.
+
+### With your own Firebase project
+
+Pass your project id to the Firebase CLI with `--project`. The publish scripts name this project
+(`buildhybridai-2026-yg3m`) in their `PROJECT` line; change it to yours first.
+
+1. Create a Firebase project on the Blaze plan (Cloud Functions and Firebase AI Logic need it).
+2. In Authentication, turn on Anonymous sign-in.
+3. Create a Cloud Firestore database (Native mode) and a Cloud Storage bucket.
+4. In Firebase AI Logic, turn on the Gemini Developer API.
+5. Register the apps: a web app, the Android app (`app.pointlastseen.family`) and the iOS app. Put the web app's
+   config in `.env` at the repository root (copy `.env.example`), `google-services.json` in `android/app`, and
+   `GoogleService-Info.plist` beside the iOS app.
+6. In App Check, give the web app a reCAPTCHA Enterprise key, the Android app Play Integrity and the iOS app App
+   Attest. Debug builds use App Check debug tokens: register one per device or browser.
+7. Deploy the rules, indexes and functions: `firebase deploy --only firestore,storage,functions --project <id>`.
+8. Publish the server prompt templates and Remote Config: `python3 -I scripts/template_publish.py --publish` and
+   `python3 -I scripts/rc_publish.py --publish` (each is a dry run without `--publish`).
+9. Seed a drill: `python3 -I tools/seed/seed_drill.py <id> <incidentId> "<name>" T1 T2` (its join codes go to the
+   macOS Keychain, never to the screen), then its segments: `npm run build-grid -w tools/grid-builder` (see
+   `shared/grid/README.md`) and `python3 -I tools/seed/seed_segments.py <id> <incidentId> <segments.json>
+   --prior-version 1`.
+10. Run the apps:
+    - Web: `npm run dev -w web`. The reCAPTCHA key accepts only the hosting origins, so a local browser needs an
+      App Check debug token (`self.FIREBASE_APPCHECK_DEBUG_TOKEN`).
+    - iPhone: `xcodegen generate --spec ios/project.yml`, then open the generated project in Xcode.
+    - Android: `cd android && ./gradlew assembleDebug`.
+
+Firebase config files, `.env` and App Check debug tokens are never committed.
 
 ## License
 
-Apache-2.0. See `LICENSE` and `NOTICE`. The drill-site map data (added with the site grid) is ODbL, not
-Apache-2.0; `NOTICE` says how it is licensed.
+Apache-2.0. See `LICENSE` and `NOTICE`. The drill-site map data in `shared/grid/` is from OpenStreetMap and is
+ODbL, not Apache-2.0; `NOTICE` and `shared/grid/README.md` say how it is licensed.

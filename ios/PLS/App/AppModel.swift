@@ -56,6 +56,9 @@ final class AppModel {
     private(set) var joining = false
     /// Stops listening for the loaded mission's plans.
     @ObservationIgnored private var stopPlanWatch: (@Sendable () -> Void)?
+    /// Names the plan listener in place: a callback from a retired one (queued before it stopped)
+    /// is ignored, also after a move away and back to the same team.
+    @ObservationIgnored private var planWatchId = 0
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
     /// The incident and team the server's claims grant this phone, kept when the mission could not
@@ -222,12 +225,19 @@ final class AppModel {
         if signedIn { await resumeMission() }
     }
 
+    /// Counts the join, retry and sign-in checks of this phone's access. Each takes a number when it
+    /// starts, and only the newest acts on the claims it read or says anything, so a slow check
+    /// that returns old searcher claims never restores what a newer check dropped.
+    @ObservationIgnored private var accessCheck = 0
+
     /// Joins as a searcher with the code and team command gave, then loads the team's mission.
     func join(code: String, teamId: String, incidentId: String) async {
         joining = true
         defer { joining = false }
-        // A join is the newest wish: any load still running from before must not replace it.
+        // A join is the newest wish: any load or check still running from before must not replace it.
         missionGeneration += 1
+        accessCheck += 1
+        let check = accessCheck
         let request: SearcherJoin
         do {
             request = try SearcherJoin.make(code: code, teamId: teamId, incidentId: incidentId)
@@ -236,18 +246,24 @@ final class AppModel {
             return
         }
         // Already in this team (and incident, when named): read the mission, do not spend the code.
-        if let claims = await joinBackend.currentClaims(forceRefresh: true), claims["role"] == .string("searcher"),
+        let current = await joinBackend.currentClaims(forceRefresh: true)
+        guard check == accessCheck else { return }
+        if let claims = current, claims["role"] == .string("searcher"),
            claims["team"] == .string(request.teamId), case let .string(held)? = claims["inc"],
            request.incidentId == nil || request.incidentId == held {
             membership = (held, request.teamId)
-            joinMessage = await loadMission(incidentId: held, teamId: request.teamId)
+            let message = await loadMission(incidentId: held, teamId: request.teamId)
+            if check == accessCheck { joinMessage = message }
             return
         }
-        switch await Joiner(backend: joinBackend).join(request) {
+        let result = await Joiner(backend: joinBackend).join(request)
+        guard check == accessCheck else { return }
+        switch result {
         case let .failed(message): joinMessage = message
         case let .joined(incidentId, teamId):
             membership = (incidentId, teamId)
-            joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
+            let message = await loadMission(incidentId: incidentId, teamId: teamId)
+            if check == accessCheck { joinMessage = message }
         }
     }
 
@@ -255,14 +271,20 @@ final class AppModel {
     /// The claims are checked first: a role command took away reads nothing and drops the membership.
     func retryMission() async {
         guard membership != nil else { return }
-        guard let claims = await latestClaims() else { joinMessage = Self.missionUnread; return }
+        accessCheck += 1
+        let check = accessCheck
+        let claims = await latestClaims()
+        // A newer check (or a drop) came first: this one has no say.
+        guard check == accessCheck, membership != nil else { return }
+        guard let claims else { joinMessage = Self.missionUnread; return }
         guard let held = Self.searcherTeam(claims) else {
             await dropMission()
             joinMessage = Self.notOnATeam
             return
         }
         membership = held
-        joinMessage = await loadMission(incidentId: held.incidentId, teamId: held.teamId)
+        let message = await loadMission(incidentId: held.incidentId, teamId: held.teamId)
+        if check == accessCheck { joinMessage = message }
     }
 
     /// The claims read fresh from the server, or the cached ones with no signal; nil with no token.
@@ -290,6 +312,8 @@ final class AppModel {
             // A newer join or load started while this one read: it has the say.
             guard generation == missionGeneration else { return nil }
             await load(mission)
+            // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
+            guard generation == missionGeneration else { return nil }
             watchPlans(incidentId: incidentId, teamId: teamId)
             followTopicSoon()
             await refreshAlerts()
@@ -307,8 +331,11 @@ final class AppModel {
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
+        planWatchId += 1
         mission = nil
         offersAlerts = false
+        // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
+        speaker.stop()
         refreshGate()
         followTopicSoon()
     }
@@ -402,8 +429,13 @@ final class AppModel {
     /// this phone (and is spoken once) without a new join.
     private func watchPlans(incidentId: String, teamId: String) {
         stopPlanWatch?()
+        planWatchId += 1
+        let id = planWatchId
         stopPlanWatch = missionReader.watchLatestPlan(incidentId: incidentId) { [weak self] plan in
-            Task { await self?.planArrived(plan, incidentId: incidentId, teamId: teamId) }
+            Task {
+                guard let self, self.planWatchId == id else { return }
+                await self.planArrived(plan, incidentId: incidentId, teamId: teamId)
+            }
         }
     }
 
@@ -430,7 +462,11 @@ final class AppModel {
     /// command changed gets the new team's mission, and claims that no longer name a searcher's
     /// incident drop it. With no signal the cached token answers; with no token, nothing changes.
     private func resumeMission() async {
-        guard let claims = await latestClaims() else { return }
+        accessCheck += 1
+        let check = accessCheck
+        let latest = await latestClaims()
+        // A newer check came first: this one's claims may be older, so it changes nothing.
+        guard check == accessCheck, let claims = latest else { return }
         // Not a searcher any more: drop whatever is held, a loaded mission or only a membership
         // whose mission never loaded (and any load still running).
         guard let (incidentId, teamId) = Self.searcherTeam(claims) else {
@@ -440,6 +476,13 @@ final class AppModel {
         if mission?.incidentId == incidentId, mission?.teamId == teamId {
             membership = (incidentId, teamId)
             followTopicSoon()
+            // The claims are unchanged, but command may have closed the incident: when its status
+            // can be read and is no longer open, the mission goes. With no signal it stays.
+            let generation = missionGeneration
+            guard let status = try? await missionReader.incidentStatus(incidentId: incidentId),
+                  check == accessCheck, generation == missionGeneration, status != "open" else { return }
+            await dropMission()
+            joinMessage = MissionBuilder.Failure.notOpen.message
             return
         }
         // Another incident or team now: the old mission, its plan listener and its spoken updates
@@ -449,8 +492,8 @@ final class AppModel {
         membership = (incidentId, teamId)
         let before = missionGeneration
         let message = await loadMission(incidentId: incidentId, teamId: teamId)
-        // Superseded by a join meanwhile: that join's words stay.
-        if missionGeneration == before + 1 { joinMessage = message }
+        // Superseded by a join or a newer check meanwhile: their words stay.
+        if missionGeneration == before + 1, check == accessCheck { joinMessage = message }
     }
 
     /// Back in the foreground: the same check, in case the reconnect happened while suspended.
@@ -463,23 +506,31 @@ final class AppModel {
     }
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
-    /// The voice runs after any voice still speaking, and loading does not wait for it. When its turn
-    /// comes it checks the mission again: an assignment a newer plan, a team change or a drop
-    /// replaced meanwhile is not spoken.
+    /// The voice runs after any voice still speaking, and loading does not wait for it. The line is
+    /// spoken only while it is still this mission's assignment, checked when its turn comes, before
+    /// any sound and before the phone's own voice stands in: a drop, a newer load or a newer plan
+    /// meanwhile keeps it silent.
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
+        let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
+        // Another incident or team: whatever the old one was saying stops, and its lines are forgotten.
+        if newTeam { speaker.stop() }
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
         let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
-        let incidentId = mission.incidentId, teamId = mission.teamId
+        let generation = missionGeneration, incidentId = mission.incidentId, teamId = mission.teamId
         let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
+        let isCurrent: @MainActor () -> Bool = { [weak self] in
+            guard let self, let current = self.mission else { return false }
+            return self.missionGeneration == generation && current.incidentId == incidentId
+                && current.teamId == teamId && current.assignment == assignment
+        }
         speech = Task { [weak self] in
             await previous?.value
-            guard let self, let current = self.mission, current.incidentId == incidentId, current.teamId == teamId,
-                  current.assignment == assignment else { return }
+            guard let self, isCurrent() else { return }
             await self.speaker.update(assignment, voiceTemplate: template, online: online,
-                                      killCloud: killCloud, signedIn: signedIn)
+                                      killCloud: killCloud, signedIn: signedIn, isCurrent: isCurrent)
         }
     }
 

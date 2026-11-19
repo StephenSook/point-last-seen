@@ -1,54 +1,343 @@
 # Changelog
 
-Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
+This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
+  was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
+  engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled
+  with the constants' value, the exporter's own rule for an incident made before a field existed; nothing else in
+  the run changes.
+  Source: the merge of main into the field-expert branch (the web test of the served run failed).
+  Verified: the file differs from main's only by the added column (6 lines; every other value equal when parsed);
+  the web test of the served run (2 tests) and the exporter's reader check on the file pass.
+- `seed_segments.py` binds its commit to the incident version it validated. The same read that checks the
+  incident's stored ring column returns its `updateTime`. The incident write is now the first write, with that
+  `updateTime` as its precondition, so if anyone changed the incident between the read and the commit, the first
+  commit fails and no segment is written. Before, it wrote segments first and the incident last, with only
+  "exists" as the condition.
+  Source: review (round 3).
+  Verified: the tests (the incident write is first and carries the read's updateTime; no other write has a
+  precondition; a call without the updateTime is a TypeError; the existing order, mask, ring column and batch
+  tests updated to match) failed first, now 22 seed tests pass; `bash scripts/ci-local.sh` exit 0.
+- The ISRID ring prior refuses ring masses that are empty, negative, not finite, or add up to 0 or more than 1,
+  naming the masses. Before, an empty radii column with empty masses passed the length check and built a prior
+  with all the mass outside the rings.
+  Source: review (round 3).
+  Verified: the test (an empty pair, a negative mass, a NaN mass, masses adding to 1.2, and a zero sum are each
+  refused; masses adding to exactly 1 build) failed first, now all 235 engine tests pass; typecheck exit 0.
+- `scripts/ci-local.sh` takes the machine-wide heavy-suite lock itself: when `PLS_HEAVY_LOCK` is not set and `lockf`
+  is there, it re-runs under `lockf -k /tmp/heavy-suite.lock` and waits its turn, so only one full suite runs on the
+  machine at a time (several worktrees running full suites at once had pushed the load past 170 and made
+  timing-based browser tests flake). `--help` and a bad option never wait; a runner without `lockf` (CI) runs as is.
+  Source: review (a shared rule for every worktree on this machine, kept as a check rather than a habit).
+  Verified: the test (the script re-runs under the lock unless it already holds it, and only after the options are
+  read) failed first, now all 6 ci-local tests pass; a run with the variable unset showed the waiting line and ran
+  under `lockf`; `bash scripts/ci-local.sh --gates` exit 0 through the lock.
+- The root CHANGELOG, a test comment and an evidence note are reworded where the public-repository guard found
+  build-process words (four review sources, a work stream named as a role).
+  Source: review (public-repository hygiene).
+  Verified: `python3 -I scripts/hygiene_guard.py . --public` reports no hit in CHANGELOG.md, scripts/, docs/ or any
+  other folder this file covers.
+- `scripts/hygiene_guard.py` also refuses, in a public repository, more words of the build process and of private
+  notes, and a build work stream named as a role; its `PATTERN` lists them. Git branch names such as lane-web and
+  lane-android do not match.
+  Source: review (public-repository hygiene: a rule kept as a check, not a memory).
+  Verified: the test (13 planted phrases, one per pattern, each fail with `--public`; branch names in git commands and
+  ordinary uses of "lane" pass) failed first, now all 7 guard tests pass; `--public` on main lists 152 hits, none in
+  this file's folders; `bash scripts/ci-local.sh --gates` exit 0.
+- The root CHANGELOG is reworded for the public repository in plain engineering words: the parts of the product
+  (the backend, the command post, the iPhone app, the Android app, the judge extras) instead of the build's internal
+  names for its work streams and branches, "adversarial review" and "decision" instead of the build process's words,
+  and the header says which folders the file covers. Entries keep their facts, commits and verification; no history
+  is rewritten.
+  Source: review (public-repository hygiene pass).
+  Verified: a grep for those internal names and the review tools' names finds none; 119 lines changed, no
+  dashes or curly quotes; `bash scripts/ci-local.sh --gates` exit 0.
+- `scripts/ci-local.sh` runs web.yml's harness and extras browser checks too (`CI=1`, so Playwright's Chromium as on
+  the runner), and a new test fails whenever any workflow runs a command ci-local does not: it reads every `run:`
+  step of the six workflows, leaves out runner setup (installs, the gitleaks download), and treats CI's
+  regenerate-and-diff of the test vectors as the generator's `--check`.
+  Source: review (web.yml gained two steps that the local mirror did not run).
+  Verified: the new test failed first, naming exactly the two missing commands, now passes, and a synthetic
+  workflow with an extra step is reported; `bash scripts/ci-local.sh --web` exit 0 (22 no-backend, 93 harness and 42
+  extras browser checks), `--gates` exit 0.
+- A rules test pins the command post's family question listener: command and family list `familyQuestions`
+  ordered by `createdAt`, newest first, and a non-member cannot. A command update of `searchState` alone was already
+  pinned.
+  Source: review (the command post's Family section).
+  Verified: all 8 family question rules tests pass in the emulator; the live drill incident has status `open` and
+  no stored conditions, so a `searchState`-only update passes its rule there; `bash scripts/ci-local.sh --gates
+  --rules` exit 0.
+- `docs/LIMITS.md` says how the one gap the plan rule leaves (a numeric segment id) is closed: the command post reads
+  each stored plan field by field (`planFromDoc`) and sets aside, and names, any record that is not a plan.
+  Source: review (the command post now decodes plans on read).
+  Verified: matches `web/src/data/plans.ts` (a segment id that is not text returns null); no dashes or curly quotes.
+- The security rules drop the `planDrafts` read path: no function writes plan drafts and, since the command post
+  removed its draft listener (now deployed), nothing reads them. Reads and writes there are now refused by default.
+  Source: review (a read-only path to a collection nothing uses).
+  Verified: the test (a searcher and command reading a plan draft are refused) failed first, now all 122 rules tests
+  pass in the emulator; no app code names `planDrafts`; `bash scripts/ci-local.sh` exit 0, including the 13
+  no-backend browser checks.
+- `docs/SECURITY.md` has a Dependencies section: no high or critical `npm audit` findings, why the gRPC override
+  is there, and the four moderate findings that remain (`glob` and `minimatch` inside `vite-plugin-pwa`'s
+  `workbox-build`), which run only while the service worker is built, on the repository's own patterns, and are
+  never shipped.
+  Source: review (a fresh clone's `npm audit`: fix or document each finding).
+  Verified: the versions, advisories and dev-only status match `npm audit --json` and `package-lock.json`;
+  `bash scripts/ci-local.sh --gates` exit 0.
+- An incident has at most 10 teams, so every team can be planned for: the security rules no longer let any client
+  create, change or delete a team (none does; the web only reads them), and `tools/seed/seed_drill.py`, where teams
+  are made, refuses more than 10, a repeated id, `family` or an id a push cannot reach (letters, digits or `_`, up
+  to 32). The practice search copies its teams from the seed. Before, command could write any number of teams,
+  and an 11th could never be planned for under the 10-assignment rule.
+  Source: review (the web's plan card found plans capped at 10 while teams were not).
+  Verified: the tests (command's create, change and delete of a team are refused; 11 teams, no team, `T-1`,
+  `family`, `Family`, a 33-character id and a repeat are refused; 1 and 10 teams pass) failed first, now pass, with
+  all 122 rules tests in the emulator; `bash scripts/ci-local.sh --gates --rules` and `--ts` exit 0.
+- `npm audit` reports no high findings: an npm override moves the Firebase web SDK's Firestore from
+  `@grpc/grpc-js` 1.9.16 (two advisories, GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4) to 1.14.7, the version
+  `firebase-admin` already uses, so no new package enters the tree. That gRPC client only runs in Node (the
+  functions' rules tests); the browser bundle has none.
+  Source: review (a fresh clone's `npm ci` reported 4 high findings).
+  Verified: `npm audit` went from 4 high and 4 moderate to 0 high and 4 moderate; `npm ls` shows one
+  `@grpc/grpc-js` at 1.14.7; all 220 functions tests pass, including the rules tests that drive the Firestore
+  Node client over gRPC in the emulator; the placeholder web build has no gRPC code and its 9 browser checks pass;
+  `bash scripts/ci-local.sh` passes every check it runs.
+- The README says up front that the live `/judge` is the way to try it and that running the apps needs your own
+  Firebase project. It gives the toolchain with versions (Node 22 with the Firebase SDK's Node 24.12 warning,
+  Python 3.12 or later, Java 21 or later, the Firebase CLI 15, gitleaks 8, Xcode 27 with XcodeGen 2.45, the Android
+  SDK), how to run every check or one platform with `ci-local.sh` and what its exit codes mean, and ten numbered
+  steps for a developer's own project: Blaze plan, Anonymous sign-in, Firestore and Storage, the Gemini Developer
+  API, the three apps and their config files, App Check providers and debug tokens, deploy, template and Remote
+  Config publish, seeding a drill, and running each app.
+  Source: review (a fresh clone, following only the README, found no word that a Firebase project is needed).
+  Verified: each command and file name exists in the repository; the providers match `ios/PLS/App/PLSApp.swift`
+  and `android/app/src/release/.../AppCheckSetup.kt`; the versions are the ones installed where every check
+  passes; `bash scripts/ci-local.sh --gates` exit 0.
+- `scripts/ci-local.sh` takes `--gates`, `--ts`, `--rules`, `--web`, `--ios` and `--android` to run one platform's
+  checks (no flag runs them all), and a missing tool no longer stops the run: its section says "NOT RUN, <tool> is
+  not installed" and the script ends with exit 2 and the list of what did not run, never "all checks passed". Exit
+  0 means every check ran and passed, 1 that a check failed. The web section now also runs web.yml's no-backend
+  browser checks against its placeholder build, once `web/e2e/ci.config.ts` can preview a temp folder
+  (`PLS_PREVIEW_DIR`); until then they are listed as not run.
+  Source: review (a fresh clone stopped at the first missing tool and could not run one platform; the browser
+  checks were not mirrored).
+  Verified: the tests (`--help` names every flag; an unknown flag exits 64; `--ios` with swift hidden exits 2 with
+  the NOT RUN line and no pass line) failed first, now pass; a full run exits 2, listing only the browser checks,
+  with every other check passing; the browser checks pass separately on the placeholder build (9 passed).
+- `scripts/rules_gate.py` and `scripts/hygiene_guard.py` work on a copy with no `.git` (a ZIP download): they say
+  "not a git checkout" and walk the files on disk, skipping dependency, build and cache folders, instead of failing
+  on `git ls-files`. Every check still applies, and the walked-file floors still refuse an empty walk.
+  Source: review (whole repo: a ZIP download could not run the gates).
+  Verified: the tests (with no git, a clean tree passes with the note, a banned import or an internal name fails,
+  and the same in `node_modules` is skipped) failed first, now all 35 gate tests pass; on a `git archive` copy of
+  HEAD with no `.git`, rules_gate walks 865 files with 0 problems and hygiene_guard 846, both exit 0, the same
+  counts as the checkout; `bash scripts/ci-local.sh` exit 0.
+- Rules tests pin two command post writes. A placement of a family sighting: a new command sighting naming the
+  family event, in the command post's own builder output, 25 fields, kept as a fixture. And a confirmation of a
+  family camera sighting: one batch that moves the prior to the next version with the family clip among its inputs,
+  whose only event is command's confirmation. Both are accepted as the rules stand; a family or searcher seat cannot
+  write the placement.
+  Source: review (the command post's new "Place on map" and family clip confirm).
+  Verified: all 43 event and prior rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- `startJudgeSession` grants command only on a sandbox that finished setting up, and setup is safe to fail,
+  retry and race. One transaction decides each start: a live, ready sandbox is handed back; one still being set
+  up answers "unavailable, try again in a moment"; a missing or ended one, or a setup that died (5 minutes with
+  no finish, or released by a failed copy), is claimed by this call, which alone clears what is under it, copies
+  the seed and marks it ready. Only a new sandbox takes a slot of the daily cap, inside that transaction, so two
+  starts at once use one slot. A sandbox made before setup was tracked counts as ready. Before, a sandbox whose
+  copy failed still granted command on the next start, and two starts at once could each take a slot.
+  Source: review (whole repo).
+  Verified: the tests (a failed copy grants nothing and a retry finishes the same sandbox on the same slot; a
+  start during another's setup waits and grants nothing; two starts at once use one slot and end ready with all
+  segments; a legacy live sandbox is handed back without copying) failed first where they test new behaviour, now
+  all 11 judge session tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- The security rules check a plan's shape as it is written (`plan.schema.json`): exactly its eight fields; the doc
+  id is the version zero-padded to at least 4 digits; integer versions; the event-set hash's form; the approval time
+  is the server's; the wording route is null or a route record; and at most 10 assignments. Each assignment has
+  exactly its four fields, a team id a push can reach, up to 6 segment ids of grid form with no comma or empty id,
+  and texts within 200 characters. Rules cannot loop, so each assignment is checked by its index, written for few
+  rules expressions. Before, a plan create checked only who approved it. `docs/LIMITS.md` gives the 10-assignment
+  cap and the one gap (a numeric segment id).
+  Source: review (whole repo).
+  Verified: the tests (the heaviest 10-assignment plan with a wording route is accepted; a wrong or unpadded doc id,
+  extra or missing fields, a bad hash, a client approval time, bad versions, a bad wording route, and each bad
+  assignment at the first and the tenth place, plus 11 assignments, are refused) failed first where they test new
+  refusals, now all 119 rules tests pass in the emulator. Measured in the emulator: 11 heaviest assignments still
+  fit, 18 lighter ones did not before the checks were trimmed. `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` and `docs/SECURITY.md` say what the family push carries, and why: Firebase Cloud Messaging does not
+  check who subscribes to a topic, so every push holds only fixed wording and ids, never an outcome. They also give
+  the family push's limits (20 a day, once per event, no stale state, no retry once its slot is taken).
+  Source: review (family channel, round 1).
+  Verified: each statement matches `functions/src/notify.ts` and its tests; no dashes or curly quotes.
+- Family pushes go out once per trigger event and only while still true. One transaction reads the incident, claims
+  the event (by a hash of its id) and takes the day's budget slot, so a redelivered event sends nothing and uses no
+  budget. A question needs an incident that is still open, and a searching or paused push needs the incident to
+  still hold that state, so a late event for a state already left is dropped. A question id must be a Firestore
+  auto-id, and the incident id must make a valid topic, both checked before any budget is used. Logs keep ids
+  and text out.
+  Source: review (family channel, round 1).
+  Verified: the tests (the exact message for all three kinds, sent from a stored question with distinctive text that
+  never appears; a repeated event id sends once and counts once; a stale state sends nothing; the cap is the
+  literal 20; malformed question and incident ids send nothing and write no budget doc; a found incident gets no
+  question push) failed first, now all 16 push tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- A family question's id must be a Firestore auto-id (20 letters and digits), so nothing a person types can ride a
+  push as an id, and command can ask only while the incident's status is `open` (before, anything but `closed`, so
+  a found incident could still take a question).
+  Source: review (family channel, round 1).
+  Verified: the rules tests (`q1`, 19 and 21 characters, a `-`, an `_` and a name-like id are refused; a found or
+  closed incident takes no question) failed first, now all 114 rules tests pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- The web workflow also typechecks and tests the public-run exporter, since its tests run exports through the
+  replay reader in `web/src/extras/replay`; a change to the reader now re-runs that cross-check.
+  Source: review (a reader change would otherwise skip the exporter's tests).
+  Verified: `bash scripts/ci-local.sh` exit 0; the step runs the same two commands as the engine workflow.
+- The public-run exporter imports the judge replay reader's contract (`web/src/extras/replay/runContract.ts`:
+  fields, pseudonym shapes, the 1,000-event cap) instead of keeping a copy, and a new test runs an exported run
+  through the reader's own full check (`fromPublishedRun`). A negative control proves that check refuses a run with
+  a field the contract lacks. `PLS_RUN_FILE=<file>` runs the same check on a real export before it is published.
+  The exporter's typecheck now has the DOM, JSX and Vite types the reader's modules need.
+  Source: review (exporter and reader must not drift apart).
+  Verified: 22 exporter tests pass, including the reader check on the shared fixture and on a fresh read-only
+  export of drill-dev-1 (68 segments, 24 events, 18 plans); the export command still runs; typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
+- The rules workflow also runs when `shared/constants/**`, `shared/schemas/**`, `shared/templates/**` or
+  `storage.lifecycle.json` change, since the functions code and tests read them. A new guard,
+  `scripts/test_workflow_paths.py`, finds every such file the functions code and tests name and fails when the
+  workflow's filter misses one, or when its push and pull-request filters differ. ci-local and CI both run it.
+  Source: review (a models.json or template change skipped the functions tests).
+  Verified: the guard failed first, listing 6 files outside the filter (models.json, three schemas, a template,
+  the lifecycle file), now passes; `bash scripts/ci-local.sh` exit 0.
+- The plan and family push tests compare the whole message with `toEqual`, so a name, a place, a task or a
+  question's text added to a push fails them. Before, `toMatchObject` let any extra field through.
+  Source: review (a privacy assertion must fail on extra fields).
+  Verified: with a `place` field added to the plan push's data and a `name` field to the family push's, both
+  tests failed; with notify.ts restored, all 13 push tests pass.
+- Hosting answers a missing `/tiles/` or `/evidence/` file with a real 404. The app-shell rewrite's source is now
+  `!/@(tiles|evidence)/**` instead of `**`, so a basemap, route graph or published run that a deploy left out can no
+  longer come back as `index.html` with status 200, which read as "no streets", "walkers off" or "no published run"
+  with nothing pointing at the missing file.
+  Source: review (a judge walk of the live site).
+  Verified: the config test (the only `/index.html` rewrite has exactly that source) failed first, now passes; on
+  the Hosting emulator `/`, `/judge` and `/command/x` return the shell with 200, and `/tiles/missing.pmtiles`,
+  `/tiles/a/b.graph.json` and `/evidence/published-run.json` return 404; `bash scripts/ci-local.sh` exit 0.
+- The development site's route graph (`shared/grid/piedmont-park-dev.graph.json`) and basemap tiles
+  (`shared/grid/piedmont-park-dev.pmtiles`) are now in the repository beside its grid, so a deploy from a clean
+  checkout can carry them to `/tiles/`. Before, they lived only on build machines, and a clean-worktree deploy
+  served the app shell at both paths: no streets on the map and no walkers. The graph rebuilds byte for byte from
+  the committed grid and its OpenStreetMap extract; the tiles are a Protomaps Basemap extract (basemap 4.15.2,
+  OpenStreetMap data as of 2026-11-18 04:00 UTC), kept because daily builds expire. `shared/grid/README.md` records
+  how each was made with its sha256, and `NOTICE` names them under ODbL, with the Protomaps and Natural Earth credit.
+  Source: review (a judge walk of the live site found both files missing).
+  Verified: the tests (the graph names the same grid, is bounded by its box, has over 100 edges, credits
+  OpenStreetMap and indexes in the engine; the tiles are PMTiles v3 whose bounds cover the grid's box) failed
+  first, now pass; the rebuilt graph is identical to the committed one; `bash scripts/ci-local.sh` exit 0.
+- A searcher's join names a team a push can reach: letters, digits or `_`, at most 32 characters, and never
+  `family` (any case), whose topic is the family's. Before, any id up to 128 characters joined, including ones with
+  `-`, which no plan push reaches.
+  Source: review (the family topic `pls-{incident}-family` and the team topic share a form).
+  Verified: the test (`dev-1`, a 33-character id, `family` and `Family` are each refused as invalid-argument, even
+  when the team exists) failed first, now 21 join tests pass; every team id in the live project (20 teams, T1 and
+  T2) still passes; `bash scripts/ci-local.sh` exit 0.
+- Family pushes. `notifyFamilyQuestion` (on `familyQuestions/{questionId}` create) and `notifyFamilySearchState`
+  (on incident update, when `searchState` becomes `searching` or `paused`) send one push to the topic
+  `pls-{incidentId}-family`, with fixed wording and ids only: `{kind, incidentId}` plus `questionId` for a question.
+  The question's text never travels in the push; the phone reads it from Firestore. No kind for an outcome exists,
+  and no other incident change (its status included) sends anything. At most 20 family pushes per incident per UTC
+  day, counted in a server-only `pushBudget` doc; none in a judge practice search. A team named `family` never gets
+  a plan push, since its topic would be the family's.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (topic, wording and payload, with no question text; one push per new question; pushes only
+  on a change to searching or paused, not on a repeat, a status change or "found"; the daily cap across both kinds
+  and a new day; none in a judge sandbox; a "family" team skipped; both triggers registered; no member reads or
+  writes the budget) failed first where they test new behaviour, now pass; `bash scripts/ci-local.sh` exit 0
+  (218 tests).
+- Firestore rules for the family channel. `incidents/{id}/familyQuestions/{questionId}`: command asks, while the
+  incident is open, with exactly `text` (1 to 280 characters), `createdByUid` (itself) and `createdAt` (server time);
+  a family member answers once with `answer` (1 to 500 characters), `answeredByUid` (itself) and `answeredAt`
+  (server time), changing nothing else; every member reads; nobody deletes. The incident's new `searchState`, which
+  command sets, may only be `searching` or `paused`: what the family may be told about the search, never an
+  outcome.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (command asks and every member reads; family and searchers cannot ask; an empty, 281-character
+  or numeric text, someone else as asker, a client time, an extra field and malformed ids are refused; only
+  family answers, once, as itself, at server time, within 500 characters and without touching the question;
+  nobody deletes; searchState takes searching or paused only, from command only) failed first, now all 112 rules
+  tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter holds the judge replay reader's shape and size rules too: `engineParams` is written in
+  exactly the engine's shape (an incident created before a field existed gets the constants' value; a stored value
+  is kept; nothing the constants lack), a route is an exact route record or null, an effect has the engine's exact
+  shape and names only segments the run exports, no id is `__proto__`, `constructor` or `prototype`, every server
+  time lies between 2000 and 2100 and within 7 days of the rest, and a run has at most 1,000 events. A breach of
+  any refuses the write.
+  Source: review (the extras reader's rules at aa5bbf7).
+  Verified: the tests (the filled params match the engine's keys and keep the stored sweep width; a partial params
+  object, a route with an extra or a missing field, an effect with an extra field, a missing `why` or a segment
+  the run lacks, the three unsafe ids, times in 1999 or 2100 or 8 days apart, and 1,001 events are each refused)
+  failed first, now 19 exporter tests pass; typecheck exit 0; a read-only export of drill-dev-1 still passes every
+  check (68 segments, 24 events, 17 plans); `bash scripts/ci-local.sh` exit 0.
+- The README is written for judges first: the judge page's link at the top and what it offers today (a practice
+  search, and which models the command post uses; the replay after the drill), what ships on each platform and how
+  to try it (the command post's URL, TestFlight once the public build exists, a signed APK as a GitHub release
+  asset), and a setup from a clean checkout. It now says how the models are called: cloud reads through Firebase
+  AI Logic, on-device reads on the web and Android through AI Logic's hybrid inference, and on iPhone through Apple
+  Foundation Models (`SystemLanguageModel`). It no longer claims that every model call goes through Firebase AI
+  Logic, which the iPhone's on-device reads do not.
+  Source: review (the backlog audit: an untrue line, and a README that was not written for a judge).
+  Verified: the live site and `/judge` answer HTTP 200; the judge page's replay flag is off on main
+  (`REPLAY_LIVE`); the model paths match `ios/PLS/AI/ModelSessionFactory.swift`,
+  `android/.../ai/AiClient.kt` and `web/src/ai/client.ts`; `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
+  is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
+  and that its check compares each segment's percent and centroid, not its polygon. A new section on push
+  notifications says FCM topics are open, so a push carries no private content, and that iPhone delivery waits on an
+  APNs key.
+  Source: review (the judge extras' reader limits; the push security review).
+  Verified: each line matches the shipped code (`tools/export-run`, `functions/src/notify.ts`) or the reader's
+  stated checks; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` pushes only to team ids made of letters, digits and `_` (no `-`). Incident ids hold `-`, so
+  a team id with `-` could build another incident's topic: in incident `I1`, team `dev-1-T1` gives
+  `pls-I1-dev-1-T1`, which is incident `I1-dev-1`'s team `T1`. With no `-` in team ids, the last `-` in a topic is the
+  separator, and the topic format the apps subscribe to is unchanged.
+  Source: automated security review of 8083aa3 (topic collision across incidents).
+  Verified: the test (a team `dev-1-T1` that exists in the incident is refused) failed first, now 190 functions
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` reads plan doc ids as the web writes them, zero-padded (`plans/0015`), and finds the previous
+  plan at the padded id too. It had accepted only unpadded ids, so it would have sent no push for any real plan.
+  Source: found before the first live push test (the drill's plan ids are `0001` to `0015`).
+  Verified: the tests now use padded ids (and `0000`, `-1` and `draft` send nothing), failed first, now 6 notify
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 ## 2026-11-18
 
-- The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
-  and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
-  e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −
-  0.63) for sweep searches") and for the sweep width factor (Koester et al. 2014, as reproduced in Koester's 2018
-  thesis: "It was found on average W ≈ 1.645 × Rd with a strong correlation (R2 = .827)."). The constants' source
-  lines name these works instead of a private notes file.
-  Source: review (the film fact-sheet audit: a citation with no copy in the repository).
-  Verified: both quotes re-read at the source on 2026-11-18 (the PLoS One article page and the thesis PDF); the
-  vectors are current; `bash scripts/ci-local.sh` exit 0.
-- The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
-  is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
-  refuse a run that places one.
-  Source: automated security review of 6c90281 (a camera pin published a likely home position).
-  Verified: the tests (a camera sighting is written with no position while a GPS position stays; a planted camera
-  position is refused) failed first, now 14 exporter tests pass; typecheck exit 0; `bash scripts/ci-local.sh`
-  exit 0.
-- CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
-  `scripts/ci-local.sh` mirrors it.
-  Source: the exporter commit.
-  Verified: `bash scripts/ci-local.sh` exit 0, with the exporter's typecheck and 12 tests in its log.
-- `tools/export-run` exports a drill incident as the public run the judge replay reads:
-  `npm run export -w tools/export-run -- --incident <id> --out <file>`. It reads the incident, segments, teams,
-  devices and their read timings, events and plans through the Firestore REST API, writes only the contract's
-  fields (`src/contract.ts`, a copy of the reader's `RUN_FIELDS` until that file is on main), and refuses to
-  write unless every check passes. Every author and device becomes a pseudonym (`author-N`, `device-N`, one alias
-  per device everywhere); report text is null on every event; a reading survives only on a camera sighting, cut
-  to its clip start, clock check, presence, first and last seen and key-frame time; a destination never has a
-  position (it can be a previous home); server time, plan approval and the prior's build time are numbers. No
-  string anywhere may hold a uid-shaped token.
-  Source: review (the extras contract, and the reader's two privacy findings: no uid, no home position).
-  Verified: the tests (a run from drill docs on the real Piedmont Park grid passes the checks; only contract
-  fields; no uid with aliases matching between events and devices; text dropped, camera reading cut, destination
-  unplaced; times as numbers; a planted uid in a team name, a measurement, the run id or an author, a planted home
-  position, report text, a full camera reading, an extra incident field and a raw device id are each refused;
-  REST values decode, timestamps to milliseconds) failed first, now 12 pass; typecheck exit 0. A live read-only
-  export of drill-dev-1 to a scratch file wrote 68 segments, 24 events and 15 plans with every check passed; an
-  independent scan of that file found no uid-shaped token, no text and no destination position.
-  `bash scripts/ci-local.sh` exit 0.
-- `docs/evidence/isrid-dementia-p164.md` keeps the source table behind the prior's rings: the ISRID dementia
-  distances from the IPP (all five columns, km and the urban miles) and the find-location shares, copied as
-  printed on Lost Person Behavior p. 164 (the publisher's public sample). The urban find-location shares
-  (structure 35%, road 36%) are kept for a later layer; no engine code reads them.
-  Source: review (keep the unused urban shares in a note).
-  Verified: values re-read from the `pdftotext -layout` extraction of the PDF; `bash scripts/ci-local.sh` exit 0.
+- `tools/seed/seed_segments.py` keeps an incident's own ring column: it writes `engineParams.rings.<terrain>` only
+  when the incident has none, leaves a column that already holds the sourced radii alone, and refuses to seed an
+  incident whose own radii differ, because the prior it would install was built from the sourced radii.
+  Source: review of PR #21 round 2 (finding 2: reseeding overwrote a stored override).
+  Verified: the test (the same radii: nothing written to engineParams; different radii: refused naming the
+  terrain) failed first, now 21 seed tests pass; a read-only check of drill-dev-1 found no urban column and a
+  temperate flat column equal to the constants; `bash scripts/ci-local.sh` exit 0.
+- The engine builds a ring prior only from a usable ring column: one radius per ring mass, each finite, positive
+  and larger than the last. An empty stored column (for example `urban: []`) used to pass and put all the mass
+  outside the map; it, a short or long column, a zero, a negative, a repeat, a decrease, NaN or infinity now each
+  refuse by name.
+  Source: review of PR #21 round 2 (finding 4).
+  Verified: the test (nine bad columns refused naming the terrain; the sourced column builds) failed first, now 234
+  engine tests pass; engine typecheck and lint exit 0.
+- Two shared-profile rules tests now fail only on the rule they target: the searcher's write uses a complete valid
+  profile, so only the role gate can refuse it, and each bad other-names list keeps a valid first name the
+  nickname mirrors, so only the list rule can refuse it (with valid controls for the five-name and 60-character
+  limits).
+  Source: review of PR #21 round 2 (finding 6: both passed for the wrong reason).
+  Verified: with the profile write opened to any member, and with the list cap raised to six, each test fails;
+  restored, 14 profile tests pass in the emulator.
+- `tools/seed/seed_segments.py` records when it installs a prior: the incident update sets `priorBuiltAt` to the
+  server's time (a REQUEST_TIME transform), so a seeded drill's replay can place its prior.
+  Source: review (the replay needs the prior's build time).
+  Verified: the test (the incident write carries the server-time transform and no client value) failed first, now
+  20 seed tests pass; `bash scripts/ci-local.sh` exit 0.
 - `tools/seed/seed_segments.py` writes the ring column for the incident's terrain (`engineParams.rings.<terrain>`
   from the constants, by field path), so an incident created before that terrain existed can build its prior and
   its other stored engine values stay as they were.
@@ -137,6 +426,193 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Source: review (field expert: get every name the person may answer to).
   Verified: the generator test (a five-string list is checked item by item; six is refused) failed first, now
   10 generator tests pass; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice
+  search), so it pushes only to team ids the incident has under `teams`, with plain ids (letters, digits, `_` and
+  `-`, at most 32), at most 20 a plan, and never in a judge practice search, where no phone is on a team.
+  Source: automated security review of 6f2b7fc (unbounded push fan-out from plan content).
+  Verified: the test (a plan naming a real team, a missing team and a path-like id pushes to the real team only;
+  30 changed teams give 20 pushes; a practice search sends none) failed first, now 190 functions tests pass in the
+  emulators; `bash scripts/ci-local.sh` exit 0.
+- A photo's cloud-read consent lives no longer than the photo: `deletePhotoConsentOnPhotoDelete` (Storage trigger on
+  object deletion, retry on) deletes `incidents/{id}/photoConsents/{sha256}` when `photos/{id}/{sha256}.jpg` is
+  deleted, whether by command, by the media delete or by the 30-day lifecycle. Photos are create-only, so a
+  re-upload of the same bytes follows a delete and needs the family's consent again. A consent written just after a
+  re-upload can be removed by the old object's delete event; the read then waits for a new consent, which fails
+  closed.
+  Source: review of PR #20 (a re-uploaded photo passed with the old consent; the media delete already removed
+  consents since 54d6323, but a single photo deleted by command or by the lifecycle did not).
+  Verified: the tests (the deleted photo's consent goes and another incident's stays; clips, packs, a PNG, a
+  non-hash name, a nested path and a path without an incident are ignored; the trigger registers on object
+  deletion) failed first, now 189 functions tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` (Firestore trigger on `incidents/{id}/plans/{version}` create) sends one push per team whose
+  assignment is new, changed or dropped since the previous plan, on the team's topic `pls-{incident}-{team}`. The
+  push names no person, place or task ("Your team has a new task. Open Point Last Seen to see it.", titled
+  "Training drill: new assignment" on a drill or practice search), collapses per incident and lives 2 hours
+  (Android collapse key and TTL; APNs collapse id and expiration). No model is involved. A plan id that is not a
+  positive integer sends nothing. iOS delivery waits for an APNs key in Firebase Cloud Messaging.
+  Source: plan task 32 item 2 (P-06).
+  Verified: the tests (new, changed and dropped assignments count and identical ones do not; the topic, collapse
+  key, TTL and wording; one push per changed team against the previous plan; the first plan notifies every team;
+  a non-version id sends nothing; the trigger registers on create) failed first, now pass in the emulators;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `docs/PRODUCTION-CHECKLIST.md` lists the steps before and after enforcing App Check on Firestore and Storage:
+  the 24-hour verdict read, the probe with its token, an App Check debug token for every local dev session (the
+  reCAPTCHA Enterprise key allows only the two hosting origins), the checks within 15 minutes of each flip and the
+  rollback.
+  Source: review (the enforcement plan; the command post's read of the site key's allowed domains).
+  Verified: the domains are as read with `gcloud recaptcha keys describe` by the command post on 2026-11-19;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/drill/kennesaw-seed.md`: how to rebuild the Kennesaw grid and seed its drill incident, step by
+  step, marked NOT RUN until the park gives written permission (the Piedmont drill is the fallback). It states the
+  urban terrain, with temperate mountain as the alternative command can pick.
+  Source: review (keep the second drill ready, not live).
+  Verified: the commands match the tools' usage (`build-grid --site-from-osm`, `--query`, `--prior`, `--graph`;
+  `seed_drill.py`, `seed_segments.py`); `bash scripts/ci-local.sh` exit 0.
+- `shared/grid/kennesaw-mountain-drill.grid.json`: a second drill grid, ready but not used: Kennesaw Mountain
+  National Battlefield Park (OpenStreetMap relation 143353) inside a 2.4 km window around the Visitor Center and
+  the two summits, 285 segments and 3.76 km2, the park's inholdings kept out as holes. Built from an OpenStreetMap
+  extract read on 2026-11-19 (data as of 02:06 UTC). `shared/grid/README.md` gives its source, window and credit
+  (ODbL). The grid test now checks both grids, including that each fits one prior batch (480 segments).
+  Source: review (a second drill site in case the park permits it).
+  Verified: the grid test failed first (file missing) and now passes for both grids; the build printed 285
+  segments and a route graph of 549 edges; `bash scripts/ci-local.sh` exit 0.
+- `build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>`
+  builds a drill site from an OpenStreetMap park relation: its outer ways stitched into rings, its inner rings
+  (private inholdings) kept as holes, clipped to a window, with the relation and window recorded. Grid building
+  refuses a site of more than 480 cells, because the web writes a rebuilt prior in one Firestore batch (every
+  segment, ROW, the incident and up to two events) and a batch holds at most 500 writes.
+  Source: review (a drill grid for a second, larger park).
+  Verified: the tests (two outer ways stitched with a hole kept and the source recorded; a window clip with its
+  window recorded; a missing relation, an open ring and a window outside the park refused; a 3 km square refused
+  at 480 cells; the CLI writes the site and refuses a missing relation or a malformed window) failed first, now 30
+  grid-builder tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` also deletes the incident's photo consent records, with the photos and their
+  readings.
+  Source: the photo consent rules (consents are deleted with the media).
+  Verified: the delete test (the consent goes, another incident's stays; the counts include it) failed first,
+  now 181 functions tests pass in the emulators.
+- Firestore rules for a photo's cloud-read consent, `incidents/{id}/photoConsents/{sha256}`: created only by a
+  family member, for themselves, with exactly `storagePath` (this photo's `photos/{incident}/{sha256}.jpg`),
+  `cloudProcessing` (`byUid` the writer, `atMs` a number, as in the clip consent), `createdByUid` (the writer) and
+  `createdAt` (server time). Command and family read it, so command can check it from the server before any cloud
+  read of the photo; nobody changes it; only its creator deletes it, which withdraws the consent.
+  Source: review of PR #20 (the command post's cloud photo read needs a server-side consent per photo).
+  Verified: the tests (the family member records it; command and family read it and a searcher cannot; command
+  and searchers cannot create one; another incident's path, another photo's, a clip path, someone else's consent,
+  a non-numeric or missing time, someone else as creator, a client time, an extra field and a non-hash id are
+  refused; no update or overwrite; only the creator deletes) failed first, now pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` row 14: App Check on Firestore and Storage is UNENFORCED (monitoring only, nothing refused)
+  since 2026-11-19 01:33 UTC, read back by GET; enforcement follows a 24-hour read of verified against unverified
+  requests per app; the rollback is to set the mode back.
+  Source: the approved monitoring step before enforcement.
+  Verified: both services' GET returned UNENFORCED at 01:33:35 and 01:33:36 UTC; a token-less ops/storage read
+  still passed afterwards; `bash scripts/ci-local.sh` exit 0.
+- The live probe workflow gives the media check the CI App Check debug token, so its `ops/storage` read carries a
+  token.
+  Source: the media probe fix.
+  Verified: the workflow change only adds the step's environment; `bash scripts/ci-local.sh` exit 0. The first run
+  after this push is checked below in the probe's run log.
+- The media probe sends an App Check token with its `ops/storage` read when it has the CI debug token
+  (`APPCHECK_DEBUG_TOKEN_CI`), exchanged for the web app from the hosting origin, so the daily check keeps working
+  once App Check is enforced on Firestore. The token is never printed; the probe says whether it read with one.
+  Source: review (enforcing App Check on Firestore would have broken the probe's token-less read).
+  Verified: the tests (the read carries the token when given and no header otherwise; the debug token comes from
+  the environment) failed first, now 8 probe tests pass; run locally, the probe passed with a token and without
+  one; `bash scripts/ci-local.sh` exit 0.
+- The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
+  allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
+  (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
+  it as `priorBuiltAtMs`.
+  Source: review (the replay needs to place the prior exactly).
+  Verified: the tests (refused without a version step and with a client-chosen time; accepted with the next
+  version and the server's time, alone or in a full prior batch) failed first, now 104 rules tests pass in the
+  emulator; `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` says what the published drill run leaves out and the one link it keeps: event ids stay as
+  stored, so someone who already holds a participant's uid could check which events are theirs (uids are never
+  published; every published run is a drill on team-owned devices). It also describes the media revoke marker,
+  and no longer says the sandbox media sweep waits for a rules deploy: it has been live since 2026-11-18.
+  Source: review (the exporter's event-id finding, kept and documented; the fact-sheet audit).
+  Verified: the sweep's `ops/storage` heartbeat read green earlier on 2026-11-18; `bash scripts/ci-local.sh`
+  exit 0.
+- `docs/evidence/model-latency.md` records why live cloud paths use the flash-lite family: one sample of
+  `gemini-3.8-flash` took 116,071 ms (333 thinking tokens) on 2026-11-17, against a flash-lite median of 839 ms
+  (925 ms with cloudGuard) over 10 warm calls on 2026-11-18. It says plainly that the slow figure is one sample and
+  that its raw record is local evidence, not in the repo.
+  Source: review (the film fact-sheet audit: a code comment cited "116 s" with no evidence file).
+  Verified: the figures copied from the 2026-11-17 test notes and the 2026-11-18 live check output;
+  `bash scripts/ci-local.sh` exit 0.
+- `shared/constants/models.json` names the speech model's caller as the server prompt template `pls-voice-v1`;
+  the retired Remote Config key `tts_model_ios` is gone from it.
+  Source: review (the film fact-sheet audit).
+  Verified: no other shipped file names `tts_model_ios` (`git grep`); `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md`'s table of cloud calls now lists all eight, with whether each is a server prompt template or a
+  direct call: it adds the web clip read (direct, because a template cannot pass the clip window) and the iOS
+  spoken assignment change (template `pls-voice-v1`), and replaces "None is templated today" with which three are.
+  Source: review (the film fact-sheet audit: the table contradicted row 6 and left two calls out).
+  Verified: each row checked against the calling code (`web/src/ai/clipRead.ts` cloud only;
+  `ios/PLS/AI/AssignmentSpeaker.swift`; the template ids in `shared/templates/`); `bash scripts/ci-local.sh` exit 0.
+- The gates job runs `scripts/test_firebase_config.py`, and `scripts/ci-local.sh` mirrors it.
+  Source: the hosting fix.
+  Verified: `bash scripts/ci-local.sh` exit 0.
+- Hosting no longer routes `/pack/**` to a `pack` function that was never built; packs come through Storage. A
+  test fails if any hosting rewrite names a function that `functions/src/index.ts` does not export.
+  Source: review (the film fact-sheet audit).
+  Verified: the test failed first on the `pack` rewrite and passes without it; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` marks the incident revoked before it removes any file: it writes
+  `incidents/{id}.mediaRevokedAt` (server time, a new value on every call), so every open command seat can clear
+  its photos and clip results and ignore a reload that started earlier. The rules make `mediaRevokedAt`
+  server-owned (a client update that changes it is refused), and a judge practice search does not copy it from its
+  seed. It is separate from `mediaDeletedAt`, which the ended-sandbox sweep stamps once.
+  Source: review (a delete on one command seat left the media readable on another).
+  Verified: the tests (the incident is marked before the first file is listed, with a later time on a second
+  delete and nothing on another incident; a refused caller marks nothing; command cannot write it; a practice
+  search does not inherit it) failed first, now 176 functions tests pass in the emulators;
+  `bash scripts/ci-local.sh` exit 0.
+- The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
+  and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
+  e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −
+  0.63) for sweep searches") and for the sweep width factor (Koester et al. 2014, as reproduced in Koester's 2018
+  thesis: "It was found on average W ≈ 1.645 × Rd with a strong correlation (R2 = .827)."). The constants' source
+  lines name these works instead of a private notes file.
+  Source: review (the film fact-sheet audit: a citation with no copy in the repository).
+  Verified: both quotes re-read at the source on 2026-11-18 (the PLoS One article page and the thesis PDF); the
+  vectors are current; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
+  is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
+  refuse a run that places one.
+  Source: automated security review of 6c90281 (a camera pin published a likely home position).
+  Verified: the tests (a camera sighting is written with no position while a GPS position stays; a planted camera
+  position is refused) failed first, now 14 exporter tests pass; typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
+- CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
+  `scripts/ci-local.sh` mirrors it.
+  Source: the exporter commit.
+  Verified: `bash scripts/ci-local.sh` exit 0, with the exporter's typecheck and 12 tests in its log.
+- `tools/export-run` exports a drill incident as the public run the judge replay reads:
+  `npm run export -w tools/export-run -- --incident <id> --out <file>`. It reads the incident, segments, teams,
+  devices and their read timings, events and plans through the Firestore REST API, writes only the contract's
+  fields (`src/contract.ts`, a copy of the reader's `RUN_FIELDS` until that file is on main), and refuses to
+  write unless every check passes. Every author and device becomes a pseudonym (`author-N`, `device-N`, one alias
+  per device everywhere); report text is null on every event; a reading survives only on a camera sighting, cut
+  to its clip start, clock check, presence, first and last seen and key-frame time; a destination never has a
+  position (it can be a previous home); server time, plan approval and the prior's build time are numbers. No
+  string anywhere may hold a uid-shaped token.
+  Source: review (the extras contract, and the reader's two privacy findings: no uid, no home position).
+  Verified: the tests (a run from drill docs on the real Piedmont Park grid passes the checks; only contract
+  fields; no uid with aliases matching between events and devices; text dropped, camera reading cut, destination
+  unplaced; times as numbers; a planted uid in a team name, a measurement, the run id or an author, a planted home
+  position, report text, a full camera reading, an extra incident field and a raw device id are each refused;
+  REST values decode, timestamps to milliseconds) failed first, now 12 pass; typecheck exit 0. A live read-only
+  export of drill-dev-1 to a scratch file wrote 68 segments, 24 events and 15 plans with every check passed; an
+  independent scan of that file found no uid-shaped token, no text and no destination position.
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/isrid-dementia-p164.md` keeps the source table behind the prior's rings: the ISRID dementia
+  distances from the IPP (all five columns, km and the urban miles) and the find-location shares, copied as
+  printed on Lost Person Behavior p. 164 (the publisher's public sample). The urban find-location shares
+  (structure 35%, road 36%) are kept for a later layer; no engine code reads them.
+  Source: review (keep the unused urban shares in a note).
+  Verified: values re-read from the `pdftotext -layout` extraction of the PDF; `bash scripts/ci-local.sh` exit 0.
 - cloudGuard's trigger tests build their template call from the published sighting template's own config in
   `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
   cap; a template that loses its limit now fails here as well as in the template tests.
@@ -260,7 +736,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   practice search use, committed so the terrain work can build against a real site before the drill site is
   chosen. `shared/grid/README.md` gives the credit ("Map data © OpenStreetMap contributors", ODbL 1.0, with
   the copyright link); the file's own `attribution` field carries it too.
-  Source: review (the extras lane's terrain task needs a site grid on main).
+  Source: review (the judge extras' terrain task needs a site grid on main).
   Verified: the test (the file parses as the engine's Grid: unique ids, positive areas, centroids inside the
   box, neighbours that exist, no ROW, and the OpenStreetMap credit) failed first (file missing), now passes;
   engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
@@ -285,7 +761,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
   would skip App Check, authenticated-users mode, the per-user limit and cloudGuard. Docs and tests may name
   them; AI Logic's own host does not match.
-  Source: review (a rival lost a stage for calling model hosts directly).
+  Source: review (calling a model host directly is outside the hackathon's rules).
   Verified: the test (six planted hits across the four trees each fail; a clean tree with AI Logic's host, a
   doc and a test mention passes) failed first, now 28 gate tests pass; the repo walks with 0 problems;
   `bash scripts/ci-local.sh` exit 0.
@@ -388,7 +864,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - The seeding tool writes join codes to the Keychain through `security -i` on stdin instead of
   `security add-generic-password -w <code>`, whose arguments any local process can read while it runs; seeding
   and `--rotate` both use it. A value or name with unexpected characters is refused before anything runs.
-  Source: review (no secret in a command line; lane D found the same in its drill tests).
+  Source: review (no secret in a command line; the Android drill tests showed the same).
   Verified: the test (the code appears in no argument list, only on stdin) failed first, now 9 seed tests pass;
   a live round trip on a throwaway Keychain item read back equal and was deleted; `bash scripts/ci-local.sh`
   exit 0.
@@ -396,7 +872,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   target, so the schema parity check covers it. LIMITS says a model or network error stores nothing: a
   completed reading never changes, so the record stays open and the next reader retries (both clients do this;
   `model_error` stays in the schema, unused).
-  Source: lane D (3603f3c, 30ef4eb) and lane C (readClip), with review.
+  Source: the Android app (3603f3c, 30ef4eb) and the command post (readClip), with review.
   Verified: schema parity 12 schemas, 30 platform types, 0 failures; `bash scripts/ci-local.sh` exit 0.
 - The first server prompt template, `shared/templates/pls-sighting-note-v1.json`, for the command post's
   consented cloud read of a sighting note: the model on the allow-list, temperature 0, a typed input (`note`,
@@ -411,9 +887,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and limits equal to the report-reading schema, the publish plan) failed first, now pass; the dry run read the
   live list and plans one create; the API's validateOnly accepted the rendered template; `bash
   scripts/ci-local.sh` exit 0.
-- Lane A's files are scrubbed for the public repository: the root CHANGELOG, two vector-tool comments, the
+- The backend's files are scrubbed for the public repository: the root CHANGELOG, two vector-tool comments, the
   linear-layer and urgency comments and tests, a judging-window docstring and the S4 spike evidence now name
-  review rulings and design decisions instead of internal roles, a private rule id or a private plan file.
+  reviews and design decisions instead of internal roles, a private rule id or a private plan file.
   Meaning is unchanged; no code behaviour changes. The remaining hits are in the web changelogs, scrubbed
   separately.
   Source: review (the repository goes public on 2026-11-28).
@@ -451,7 +927,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   downstream links; and ROW) and the incident fields a pack carries (gridId, ipp, terrain, priorVersion), read
   from the drill incident on 2026-11-18 in Firestore's typed REST form, so integer and double values keep the
   types they are stored with. Labelled ODbL with the grid's own OpenStreetMap attribution. Synthetic drill data.
-  Source: lane B (decoding test for the iPhone's pack segments).
+  Source: the iPhone app (decoding test for the iPhone's pack segments).
   Verified: read back by API from incidents/drill-dev-1 (68 segments; 19 with flow links; ROW present);
   `bash scripts/ci-local.sh` exit 0.
 - `scripts/check_rc_keys.py` (a CI gate in the gates job and ci-local): exit 0 only when every Remote Config
@@ -476,7 +952,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   creator renewing is the same case). Before, only the creator could renew or complete it, so a second seat,
   a family phone or the same person after a new anonymous sign-in got "The clip was not read" for 32 days.
   The camera sighting fixture moves to the shared test fixtures. LIMITS describes both.
-  Source: review ruling on lane C's live finding.
+  Source: review on the command post's live finding.
   Verified: the typed-reading test (a junk map, an unknown reason, another status, no reasons, an extra key
   and a bad route refused; a no-sighting result accepted, once) and the takeover test (another incident's
   member, a takeover keeping the old owner, and a searcher refused; another family member and then command
@@ -486,14 +962,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   no usable sighting, `{ status: "no_sighting", reasons: [...] }`, with 1 to 11 reasons from a closed list (the
   shared camera check's codes plus "unreadable_reply" and "model_error"), so a could-not-read result can be
   stored as the reading and cached. Android's mirror is marked pending in the schema's parity map.
-  Source: review ruling on a stalled clip reading (lane C found it on the live site).
+  Source: review on a stalled clip reading (the command post found it on the live site).
   Verified: schema parity 12 schemas 0 failures; engine typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - Four route reasons for clip triage on the web: "on_device_triage_flagged" (the cloud read of a span the
   laptop's model flagged), "on_device_triage_no_person" and "triage_no_motion" (nothing sent; trace only), and
   "user_override_after_triage" (the consented cloud read anyway after such a result). Added to the route-record
   schema and the TypeScript RouteReason; the generated rules' bound on route.reason grows from 21 to 26
   characters. iOS decodes an unknown reason as `unknown` and keeps the event.
-  Source: lane C (clip triage on Chrome), approved by review.
+  Source: the command post (clip triage on Chrome), approved by review.
   Verified: the rules test (an event with each reason) failed first, now passes; emulator suite 132 including
   the heaviest events; schema parity 11 schemas 0 failures; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMediaNow` also requires, as the security rules do, that the incident exists and has not ended
@@ -550,7 +1026,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - LIMITS names two sign-in limits a drill can hit: Firebase Auth's anonymous sign-up limit per network
   address (HTTP 400 TOO_MANY_ATTEMPTS_TRY_LATER, auth/too-many-requests on the web) and joinIncident's 10
   join attempts per user per one-hour window from the first attempt, with what to do on drill day.
-  Source: lane C (both hit or checked on 2026-11-18).
+  Source: the command post (both hit or checked on 2026-11-18).
   Verified: the join limit, window and message read in functions/src/join.ts; the web's current sign-in
   message read on main; `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md`: Firebase's AI Logic security checklist, row by row, with the state read back from the
@@ -664,14 +1140,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   now pass; emulator suite 116; judging-window test 3; `bash scripts/ci-local.sh` exit 0.
 - `simulateWalkers` takes an optional `onProgress(done)`, called after every 1,000 walkers and once at the end,
   so the web worker can show progress on a long run. It reads no random draw and never changes the table.
-  Source: lane C (Task 37c progress every 1,000 walkers).
+  Source: the command post (Task 37c progress every 1,000 walkers).
   Verified: the test (2,500 walkers report 1,000, 2,000, 2,500, and the table equals a run without the
   callback) failed first, now 198 engine tests pass; lint exit 0; `bash scripts/ci-local.sh` exit 0.
 - `build-grid --graph <grid.json> --osm <overpass.json> --out <site.graph.json>` writes the stored route graph
   for walkers from the same Overpass extract as the grid, bounded by the grid's box (the box the extract was
   queried on), so a site's graph is one command after its grid. The Piedmont Park dev graph built this way has
   1,549 edges, 1,203 nodes and 130 exits (local evidence, not in the repo).
-  Source: lane C (Task 37c needs the drill's route graph).
+  Source: the command post (Task 37c needs the drill's route graph).
   Verified: the CLI test (graph written with the grid's id and box, edges and projection present, exit 2
   without --osm) failed first, now 25 grid-builder tests pass; typecheck exit 0; a 2,000-walker run on the dev
   graph through the engine's indexRouteGraph returned sample tracks; `bash scripts/ci-local.sh` exit 0.
@@ -679,7 +1155,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   so the web worker and the grid builder index the same stored RouteGraph file the same way (exits from its
   stored bounds, the stored projection) instead of the web keeping a second loader or a second file format. The
   grid builder imports it back, with its tests unchanged.
-  Source: lane C (Task 37c walkers on the web need the drill's route graph).
+  Source: the command post (Task 37c walkers on the web need the drill's route graph).
   Verified: the new engine tests (exit on the stored bounds, stored projection, refusal without bounds) failed
   first, now 197 engine tests pass; 24 grid-builder tests pass; both typechecks and lint exit 0; rules gate 0
   problems; `bash scripts/ci-local.sh` exit 0.
@@ -735,17 +1211,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - The incident doc gains `conditions` for the urgency chip: shared/schemas/incident-conditions.schema.json
   (tempF a number from -80 to 140 or null, wet a boolean or null, setAtMs), the IncidentConditions type and
   `urgencyFromConditions` in @pls/engine (no conditions gives no chip), and a generated rules validator applied
-  whenever a command update carries the field. The iOS twin is marked pending in the parity map for lane B.
-  Source: lane B (P-12 urgency chip inputs).
+  whenever a command update carries the field. The iOS twin is marked pending in the parity map for the iPhone app.
+  Source: the iPhone app (P-12 urgency chip inputs).
   Verified: the engine test (no function) and the rules test (any shape accepted) failed first, now pass; schema
   parity ok (11 schemas, 27 types); engine 195 tests, typecheck and lint exit 0; emulator suite 112 (refusal
   cases use updateDoc, since a merging setDoc deep-merges the map); `bash scripts/ci-local.sh` exit 0.
 - A route record's stage may be "picklist": a person picked the report from a list, so no model ran. Added to
   shared/schemas/route-record.schema.json and the TypeScript ReadStage union (parity checks the TS values; the
-  Swift and Kotlin types follow in their lanes). The rules already bound stage by length, so the generated block
+  Swift and Kotlin types follow in those apps). The rules already bound stage by length, so the generated block
   is unchanged; a new rules test pins that a picklist route is accepted. No vector: the router never computes
   this stage.
-  Source: lane B (P-12 / pick-list reports).
+  Source: the iPhone app (P-12 / pick-list reports).
   Verified: schema parity ok (10 schemas, 26 types); generator and vectors checks current; the new rules test
   passes (it passed at once, since stage was already length-bounded); emulator suite 111;
   `bash scripts/ci-local.sh` exit 0.
@@ -754,12 +1230,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   whose in-app default is empty (on-device speech only). The model joins the allow-list in
   shared/constants/models.json: Stable, no shutdown date, billing not required, as read on the live models page
   on 2026-11-18. The rules gate checks the template's model ids against the list like any source file.
-  Source: lane B (spoken assignment changes; the model name lives in Remote Config only).
+  Source: the iPhone app (spoken assignment changes; the model name lives in Remote Config only).
   Verified: the gate passes on the tree (589 files, 0 problems) with the template naming the listed model;
   firebase.json parses and its emulator config tests pass; `bash scripts/ci-local.sh` exit 0.
 - The rules gate bans gemini-3.8-flash by whole model id, not by substring: the TTS models whose ids start with
   the same text (gemini-3.8-flash-lite-tts) are different models and no longer trip it.
-  Source: lane B (the substring check would have failed the TTS model everywhere).
+  Source: the iPhone app (the substring check would have failed the TTS model everywhere).
   Verified: the new test failed first, now 26 gate tests pass; the gate walks 588 files with 0 problems;
   `bash scripts/ci-local.sh` exit 0.
 - The emulator port wait also waits for any running emulator process whose arguments name a port in this
@@ -768,7 +1244,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   failed seconds after the previous emulator run returned, with no other worktree's block overlapping, which
   points at `emulators:exec` returning before the Firestore JVM has released its ports. The wait tests now pick a
   test worktree whose block is free, so a live emulator cannot make them fail.
-  Source: lane B's flake report and its reproduction in this worktree.
+  Source: the iPhone app's flake report and its reproduction in this worktree.
   Verified: the process test failed first, now 11 emulator_config tests pass; `--who-holds` prints all three
   sections; `bash scripts/ci-local.sh` exit 0.
 - The App Check control counts the debug-token call as passed only when the 200 carries a non-empty answer
@@ -792,7 +1268,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Swift core CI also runs when the iOS view sources change (ios/PLS/**, ios/PLSWidgets/**, ios/PLSShared/**):
   PLSCore's FieldTextSizeTests scans them for text styles below Title 3 or fixed point sizes, so a view-only
   change must not skip it.
-  Source: lane B request (c8ec85a adds the test).
+  Source: the iPhone app request (c8ec85a adds the test).
   Verified: both path lists carry the three folders; `bash scripts/ci-local.sh` exit 0.
 - profile/shared must be written whole: all 20 keys the schema requires (the schema always required them; the
   rules allowed partial writes). A nickname-only write was accepted and then crashed readers that expect every
@@ -823,11 +1299,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Source: review of 2bdb778..dc762be (M3; low: generator drift).
   Verified: generator tests rewritten first (8 pass); the heaviest-event tests went over the limit until the
   cuts, now the emulator suite passes 108; the position test now refuses an extra key, a missing key and a
-  wrong type (ranges no longer checked, recorded as a ruling); `bash scripts/ci-local.sh` exit 0.
+  wrong type (ranges no longer checked, recorded as a decision); `bash scripts/ci-local.sh` exit 0.
 - deleteIncidentMedia runs every 5 minutes (still one Cloud Scheduler job), so "a sandbox's media is deleted
   within 15 minutes of its end" (docs/LIMITS.md) holds even when a run starts late; a 15-minute schedule
   could not keep a 15-minute promise. The timeout drops to 240 s so a run ends before the next starts.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M2 (review preferred 5 minutes).
+  Source: adversarial review of 2bdb778..dc762be, finding M2 (review preferred 5 minutes).
   Verified: the schedule test (reads the function's own endpoint metadata) failed first with "every 15
   minutes", now passes; emulator suite 108; `bash scripts/ci-local.sh` exit 0.
 - deleteIncidentMedia handles each ended sandbox on its own: a failed delete (a Storage hold, a transient
@@ -836,7 +1312,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   one throw left every later sandbox's media in place. A sandbox stamped and ended more than 24 hours ago is
   no longer listed, so the work stays flat as sandboxes pile up; inside the 24 hours an upload in flight at the
   end is still caught.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M1 (verified in review and against
+  Source: adversarial review of 2bdb778..dc762be, finding M1 (verified in review and against
   the code).
   Verified: 2 new tests (a held sandbox does not stop the next and stays unstamped; a long-stamped sandbox is
   not listed) and the updated ones failed first, now pass; emulator suite 107; functions typecheck exit 0;
@@ -845,7 +1321,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   action Delete, condition keys exactly age and matchesPrefix, age exactly 30, prefixes exactly clips/, photos/
   and packs/ in any order. Before, a bucket-wide or shorter delete, an extra condition such as isLive, or a
   fourth prefix read as OK while deleting drill media early or not at all.
-  Source: Codex adversarial review of 2bdb778..dc762be, finding M6 (verified in review and against
+  Source: adversarial review of 2bdb778..dc762be, finding M6 (verified in review and against
   the code).
   Verified: the new exact-rule test failed first (the 7-day bucket-wide rule read OK), now passes; emulator
   suite 105; `bash scripts/ci-local.sh` exit 0.
@@ -855,25 +1331,25 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   node as not a boundary, so walkers that should exit the area into ROW stayed on the graph; and each load
   recomputed the projection with Math.cos, which can differ in the last bit across engines. Schema, TS type
   (the only parity target) and the builder change together.
-  Source: merge point 2 review of codex-walkers (fresh code-reviewer agent, medium design finding and a low
-  determinism finding); my bounds ruling at merge point 2.
+  Source: merge point 2 review of the walkers branch (a fresh review, medium design finding and a low
+  determinism finding); the bounds decision at merge point 2.
   Verified: 3 graph tests failed first (round trip without the bounds argument, null bounds, refused reload),
   now 24 grid-builder tests pass; both typechecks exit 0; schema parity ok (10 schemas, 26 types);
   `bash scripts/ci-local.sh` exit 0.
 - LIMITS: the Android on-device structured-output path (generateObject), whether it fills response.text, and
   whether wire-named enum constants survive ML Kit's on-device schema translation are marked NOT VERIFIED (no
   Gemini Nano phone); a mismatch is refused by the closed-schema check, not used.
-  Source: lane D.
+  Source: the Android app.
   Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - The `android` job and ci-local also compile the instrumented tests (`compileDebugAndroidTestKotlin`, no
-  emulator needed), so a broken androidTest fails at merge instead of only when lane D runs it by hand.
-  Source: lane D.
+  emulator needed), so a broken androidTest fails at merge instead of only when the Android app runs it by hand.
+  Source: the Android app.
   Verified: `./gradlew --no-daemon compileDebugAndroidTestKotlin` BUILD SUCCESSFUL on main's android/;
   `bash scripts/ci-local.sh` exit 0.
 - Checklist: the judging-window model line now points at the gate's allow-list and asks for a re-read of the
   live models page on or after 2026-11-28, moving any newly retiring id to `banned` and updating `readOn`;
   Remote Config values get the same check before the template is published.
-  Source: review ruling (turn the model line into a test; re-read the page on Nov 28).
+  Source: review (turn the model line into a test; re-read the page on Nov 28).
   Verified: docs only; `bash scripts/ci-local.sh` exit 0.
 - Model allow-list: `shared/constants/models.json` lists the model ids the project may name (today only
   gemini-3.5-flash-lite: Stable, released 2026-07-21, no shutdown date) and the banned ones
@@ -882,45 +1358,45 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and on a banned id anywhere outside docs, tests included; test files may name other ids as data.
   Source: review (judging-window audit: a model shutting down inside the window would break the cloud
   route; read of the models page 2026-11-18).
-  Verified: 2 gate tests failed first, now 25 pass; the gate passes on this tree and on the trees of lane-ios,
-  lane-web, lane-android, codex-walkers and lane-extras (each walked with this gate and list);
+  Verified: 2 gate tests failed first, now 25 pass; the gate passes on this tree and on the iOS, web,
+  Android, walkers and extras branches (each walked with this gate and list);
   `bash scripts/ci-local.sh` exit 0.
 - P-12 urgency chip: `shared/constants/urgency.json` (coldF 40, the CDC sentence it rests on, its URL and the
   date it was read), `urgencyLevel(tempF, wet)` in @pls/engine, and shared vectors in
-  `shared/test-vectors/urgency.json` from the Python reference so web (lane C) and iOS (lane B) agree: cold at
-  or below 40 F, cool_wet above it when typed wet, none otherwise. Clothing does not enter. Ruling: no typed
+  `shared/test-vectors/urgency.json` from the Python reference so web (the command post) and iOS (the iPhone app) agree: cold at
+  or below 40 F, cool_wet above it when typed wet, none otherwise. Clothing does not enter. Decision: no typed
   temperature gives none (no chip without data) and an unanswered wet question counts as dry. The vectors sit
   in their own file because the Swift vector test refuses unknown sections in search.json.
-  Source: review ruling (P-12), design decisions.
+  Source: review (P-12), design decisions.
   Verified: the CDC sentence was found word for word on the live page (reviewed 2026-08-25, read 2026-11-18);
   the urgency tests failed first (no constants file), now 183 engine tests pass with the 7 vectors;
   search.json unchanged; 16 generator tests pass; `make_vectors.py --check` covers the file; the
   vectors-parity job diffs it and runs its TS test; `bash scripts/ci-local.sh` exit 0.
 - NOTICE credits anime.js 4.5.0 (Julian Garnier, MIT), imported only by web/src/motion/engine.ts (the rules
-  gate enforces that); it arrives with lane C's merge (dependency 657d96b, engine cf627b4).
-  Source: plan Task 39.3, lane C hand-over.
+  gate enforces that); it arrives with the command post's merge (dependency 657d96b, engine cf627b4).
+  Source: plan Task 39.3, the command post hand-over.
   Verified: `npm view animejs@4.5.0` reports license MIT, author Julian Garnier, repository
   juliangarnier/anime; `bash scripts/ci-local.sh` exit 0.
 - NOTICE lists the three web fonts under the SIL Open Font License 1.1 (DINish v4.007, Ioskeley Mono v2.2.0,
-  DSEG7 Classic v0.46) with their repositories and commits; the files arrive with lane C's merge.
-  Source: plan Task 39, lane C hand-over.
+  DSEG7 Classic v0.46) with their repositories and commits; the files arrive with the command post's merge.
+  Source: plan Task 39, the command post hand-over.
   Verified: each tag resolves to the stated commit and each repository's license reads OFL-1.1 through the
   GitHub API (2026-11-18); `bash scripts/ci-local.sh` exit 0.
 - Rules gate, Task 39: the font names "Berkeley Mono" and "Digital-7" fail outside docs (only the OFL fonts in
   web/public/fonts ship); animejs may be imported only by web/src/motion/engine.ts (dynamic imports and
   require included; package.json may list it); and web/index.html and web CSS may not load a font from a
   remote host (Google Fonts, Typekit, Bunny, fonts.com, cdnfonts, Adobe).
-  Source: plan Task 39, lane C hand-over.
+  Source: plan Task 39, the command post hand-over.
   Verified: 3 gate tests failed first, now 23 pass (one test assertion was tightened to file:line, since the
-  message itself names engine.ts); the gate walks 420 files with 0 problems; lane-web and lane-extras show no
+  message itself names engine.ts); the gate walks 420 files with 0 problems; the web and extras branches show no
   match; `bash scripts/ci-local.sh` exit 0.
 - docs/LIMITS.md gains "On-device safety (Android)": the family app's on-device path (firebase-ai-ondevice
   16.0.0-beta08 over the ML Kit GenAI Prompt API and AICore), Google's own statements about its safety
   filters and the 4,000-token input window (three quotes, each with its URL), our own checks on every path, the
   byte bound for our largest request, and what was not tested (no Gemini Nano phone; non-English notes).
-  Source: lane D hand-over (promotion item F5); the "128K" figure from the talk is left out, as lane D
+  Source: the Android app hand-over (promotion item F5); the "128K" figure from the talk is left out, as the Android app
   found it in no Google doc.
-  Verified: a fetch agent found all four quoted passages word for word on the three live pages (2026-11-18);
+  Verified: a fetch found all four quoted passages word for word on the three live pages (2026-11-18);
   no dashes in the file; `bash scripts/ci-local.sh` exit 0.
 - The linear-feature layer is neutral (every weight 1) when the grid's mass-weighted near share NEAR is at or
   above 0.75, the ISRID share; below it the spec 10.5 formula is unchanged. `linearWeights` is now a pure
@@ -932,7 +1408,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   10: mass weighting is what makes the target exact when segments are wholly near or far, and the guard must
   use the same NEAR as the formula or the layer jumps at the threshold (the design note says "area-weighted";
   flagged in review).
-  Source: review ruling 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
+  Source: review 2026-11-18 on the Piedmont Park dev grid (nearFrac at least 0.927 everywhere).
   Verified: 2 engine tests failed first (no function; a dense grid was not neutral), now 174 pass with the 5
   prior vectors; search.json byte-identical (no existing expected value changed); 15 generator tests pass;
   `make_vectors.py --check` covers both files; the vectors-parity job diffs both and runs both TS vector tests;
@@ -940,8 +1416,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Production checklist, Android: raise the Remote Config key `minimum_version_android` only after the repo is
   public (not before 2026-11-28) and the release APK is a GitHub Release asset, because the family app's
   update screen opens the repo's latest release, a 404 while the repo is private; the line names the two `gh`
-  checks to run first. The in-app default stays 0 (lane D's RcValuesTest pins it).
-  Source: lane D hand-over (J10), ruled in review.
+  checks to run first. The in-app default stays 0 (the Android app's RcValuesTest pins it).
+  Source: the Android app hand-over (J10), ruled in review.
   Verified: text as handed over; no code change.
 - `docs/PRODUCTION-CHECKLIST.md`: a Judging window (2026-12-10 to 2026-12-16) section lists every time-based
   value on a judged path (Storage lifecycle, clipReadings TTL, judge sandbox limits, App Check token TTLs and
@@ -965,11 +1441,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   exit 0, state CREATING (re-checked at merge point 2); `bash scripts/ci-local.sh` exit 0.
 - ci-local: when the emulator suite fails, it now prints who holds this worktree's emulator ports
   (`scripts/emulator_config.py --who-holds`, lsof over the 10-port block) and still fails with exit 1.
-  Lane B saw one WebChannel bind failure ("Address already in use") on its websocketPort right after the
+  The iPhone app saw one WebChannel bind failure ("Address already in use") on its websocketPort right after the
   port wait said the block was free; the cause is not known yet, so this records evidence instead of
   hiding the flake with a retry or a longer timeout. A new test shows the wait already counts a socket held
   on the 0.0.0.0 wildcard as busy, so the wildcard is ruled out.
-  Source: lane B flake report (ledgered as a flake).
+  Source: the iPhone app flake report (ledgered as a flake).
   Verified: the who-holds test failed first, now 10 emulator_config tests pass (the wildcard test passed at
   once, which is its finding); `bash scripts/ci-local.sh` exit 0.
 - `scripts/media_probe.py` reads ops/storage with the site's public key and fails if the 30-day lifecycle rule
@@ -992,7 +1468,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   daily half (config from the site's /__/firebase/init.json, no model call) and retires itself after
   2026-12-17. Firebase's documented automatic App Check enforcement for AI Logic did not happen on a project
   created 2026-11-17, so this control proves the manual enforcement is still on.
-  Source: review (BYT upstream finding; self-audit gap SA:86).
+  Source: review (a finding upstream, gap SA:86).
   Verified: 5 tests failed first (no module), now pass; the live run gave 401 then 200 (evidence
   2026-11-18T08-55-34+00-00.json, 0 key matches in it and in the logs); the App Check API reads
   firebaseml ENFORCED since 2026-11-17T18:32Z; `bash scripts/ci-local.sh` exit 0.
@@ -1060,7 +1536,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   every size bound but spends fewer rules expressions (string enums bounded by length, short string lists by
   joined length, numbers by type, all-required key sets pinned by size). The gates job and ci-local run it with
   `--check`, so the rules can never drift from the schemas. The block is not used yet; the next commits use it.
-  Source: rules audit 2026-11-18 (fresh agent with the firebase rules-auditor checklist: events and
+  Source: rules audit 2026-11-18 (a fresh audit with the Firebase rules-auditor checklist: events and
   profile/shared values unbounded or untyped).
   Verified: 8 generator tests (each failed first) pass; `--check` exits 0 and fails on a stale block;
   `bash scripts/ci-local.sh` exit 0.
@@ -1083,10 +1559,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   last; the prior sums to 1 within 1e-12; cells wholly inside the 300 m first ring have equal mass per m2 and
   the far corner cell less than half); typecheck exits 0; `bash scripts/ci-local.sh` exit 0.
 - `ci-local.sh` builds the web app with CI's placeholder config (the same values as web.yml) into a temp folder,
-  so every lane can run the web step without a web/.env.local, and no worktree's real web/dist (built from its
+  so every branch can run the web step without a web/.env.local, and no worktree's real web/dist (built from its
   .env.local and deployed from there) is overwritten. Vite lets variables already in the environment beat .env
   files, which is why the output folder moves too.
-  Source: lane B's ci-local stopped at "Missing build config" after merging main.
+  Source: the iPhone app's ci-local stopped at "Missing build config" after merging main.
   Verified: `bash scripts/ci-local.sh` exit 0 from a shell with no VITE variables; the build printed
   `vite build --outDir <temp> --emptyOutDir`; web/dist/index.html kept its timestamp.
 - Task 10 CLI: `npm run build-grid -w tools/grid-builder -- <site.geojson> <gridId> --osm <overpass.json> --out
@@ -1103,7 +1579,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   walker table (AA 0.2664, AB 0.1372, ROW 0.5964) and whose one event clears AA at POD 0.5 (expected AA
   0.15367, AB 0.15828, ROW 0.68805). The Swift engine never runs walkers, so this case is how it proves it
   consumes walker output exactly as TypeScript does (PLS-DESIGN 10.6, "Determinism").
-  Source: plan Task 37a; built in the Codex build lane, then reviewed.
+  Source: plan Task 37a; built on a separate branch, then reviewed.
   Verified: `make_vectors.py --check` reports 161 vectors current; removing the new case gives exact JSON
   equality with all 160 existing cases; TypeScript vector suite 135 passed and Swift core 205 tests passed
   (VectorTests and PosteriorTests run every posterior case, this one included); `bash scripts/ci-local.sh`
@@ -1115,7 +1591,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   builder writes the stored `RouteGraph` shape from shared/schemas and adapts it to the indexed
   `WalkerRouteGraph` for simulation; the original extract bounds are passed back in on reload to restore
   boundary exits, because the stored schema has no field for them.
-  Source: plan Task 37a; built in the Codex build lane, then reviewed.
+  Source: plan Task 37a; built on a separate branch, then reviewed.
   Verified: the 3 new tests failed first (missing module), then pass (25 m stations with unit headings; one
   shared junction where a road crosses a stream; a walker can turn onto the stream there, 40.8 percent of
   walkers stopped on a stream station, seed 6) plus a JSON round-trip regression; grid-builder suite 14
@@ -1130,20 +1606,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   bit-identical across JavaScript engines. Constants in `shared/constants/walker-params.json`, each traced
   to PLS-DESIGN:400 and 10.6 and PLS-PLAN:900. Ours, labelled as ours: the offset tail above the 0.95
   quantile is capped at 307 m (the ISRID offset table ends there). A golden toy table is committed.
-  Source: plan Task 37a; built in the Codex build lane from a written brief, reviewed against the
+  Source: plan Task 37a; built on a separate branch from a written spec, reviewed against the
   spec line by line.
   Verified: the 10 engine tests failed first (missing API), then pass: straight road 25.33 percent stop
   within 300 m and ROW 4.79 percent (seed 1), fork stream share 0.6641 (seed 2), wedge 0.8360 (seed 3),
   attractor 0.5956 (seed 4), low mobility max 2,400 m and ROW 0 (seed 5), all 10,000 walkers and inside
   the plan's tolerances; engine suite 177 passed; `bash scripts/ci-local.sh` exit 0 on the series head.
-- Merge point 1, lane C: merge main into lane-web on `merge/lane-web-1`. The only conflict was
-  `package-lock.json` (lane-web added the web workspace, main added tools/grid-builder and moved the functions
+- Merge point 1, the command post: merge main into the web branch. The only conflict was
+  `package-lock.json` (the web branch added the web workspace, main added tools/grid-builder and moved the functions
   test toolchain to the root). npm's own conflict resolver crashed (arborist "edgesOut"), so the lockfile was
   merged as JSON three ways from the merge base 2bc711c: no key changed on both sides; every entry from both
   parents kept its version.
   Verified: `npm ci` accepts the merged lock; `bash scripts/ci-local.sh` exit 0 in the integration worktree with
   CI's placeholder web config (166 engine, 134 vector, 85 emulator and 211 web tests; web build).
-- Widen the platform workflows now that every lane is on main (merge point 1): Swift core also runs when
+- Widen the platform workflows now that every app is on main (merge point 1): Swift core also runs when
   shared/test-vectors/**, shared/constants/** or its workflow change; Android when shared/** or its workflow
   change; web when shared/**, the root package files or its workflow change. Still pull requests to main
   and main only.
@@ -1158,21 +1634,21 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   bucket: the web photo tray's `getBytes` XHR was blocked with "No 'Access-Control-Allow-Origin' header is
   present". `docs/PRODUCTION-CHECKLIST.md` gains a Firebase project section: the CORS apply and read-back
   commands, and the callable invoker check (firebase-tools grants a callable's public invoker only on create).
-  Source: lane C's live command post finding; the joinIncident deploy.
+  Source: the command post's live command post finding; the joinIncident deploy.
   Verified: `gcloud storage buckets update --cors-file` exit 0; the bucket's cors_config read back equals the
   file (it was empty before). An unauthenticated request cannot prove it (error responses carry `*` for any
-  origin), so lane C's authorized live read is the proof. `bash scripts/ci-local.sh` exit 0.
+  origin), so the command post's authorized live read is the proof. `bash scripts/ci-local.sh` exit 0.
 - `scripts/emulator_config.py --wait-ports SECONDS` waits, bounded, until every port in this worktree's emulator
   block can be bound on 127.0.0.1 and ::1, and exits 1 naming the busy ports when the time runs out.
   `ci-local.sh` runs it (180 s) before the emulator suite, because a socket left from the previous run made the
   Firestore WebChannel server fail to bind ("Address already in use"). Local only: a CI runner starts clean.
-  Source: lane C's ci-local finding (two failed runs, back to back, on its own block).
+  Source: the command post's ci-local finding (two failed runs, back to back, on its own block).
   Verified: 3 new tests (free block passes at once; a held port fails and is named; a port released after
   1.5 s passes after waiting) failed first, now 8 of 8 pass; `bash scripts/ci-local.sh` exit 0.
 - Every workflow (CI, Engine, web; Swift core, Android and Rules already did) now runs only on pull requests
-  to main and on pushes to main, never on lane branch pushes; pushes to one pull request cancel each other.
-  Lanes verify each commit with `bash scripts/ci-local.sh` and record its bare exit code in their changelog
-  entry; CI verifies once per lane at each merge point through one pull request. This entry's own commit
+  to main and on pushes to main, never on feature branch pushes; pushes to one pull request cancel each other.
+  Each branch verifies each commit with `bash scripts/ci-local.sh` and records its bare exit code in its changelog
+  entry; CI verifies each branch once at each merge point through one pull request. This entry's own commit
   and the one before it are pushed together, so CI runs for the head SHA only.
   Source: review, after the Actions budget was reached (300 runs today); Stephen set the November
   budget to $15, so the remaining $10 is spent only at merge points.
@@ -1199,11 +1675,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: the 10 tests failed first (no modules), now pass (16 cells for a 500 m site, AA neighbours AB and
   AE, areas sum to the site, a west-edge trail gives about 71/125 near, a stream east through AA, AB, AC
   links in order); typecheck exits 0; Socket scores 80 to 100; `npm audit --omit=dev` 0; ci-local exits 0.
-- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, lane D's
+- The `android` job counts the Android unit tests after the Gradle run (`android/count-tests.py`, the Android app's
   standard-library script): it fails on zero tests, on fewer than 150, or on any failure, error or skip, so
   the job log proves the tests ran. Mirrored in `ci-local.sh` inside the android guard. The job only runs
   once android/ is on main or on a pull request that carries it.
-  Source: review request via lane D (lane D measured 181 tests; empty, missing, failing and --min 500
+  Source: review request via the Android app (the Android app measured 181 tests; empty, missing, failing and --min 500
   cases exit 1).
   Verified: script read in full (40 lines, XML from Gradle only); ci-local exits 0 here (android skipped on
   main).
@@ -1215,10 +1691,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   profileWarnings (photo past 60 days, profile past 183 days, or a missing date), detectionProfile (sound
   counts only if the family says they answer; hide or uniform fears ask for a hidden target) and
   placeToCheck (one destination event with a label and position only, effect none/informational).
-  Source: plan Task 35a; spec sections 10.4, 13.2 and 13.3. Lane C (web form) and lane B (iOS card) build on it.
+  Source: plan Task 35a; spec sections 10.4, 13.2 and 13.3. The command post (web form) and the iPhone app (iOS card) build on it.
   Verified: the 11 new tests failed first (no module), now 166 engine tests pass; typecheck and lint exit 0;
   the shared keys match the rules' profile/shared allowlist; ci-local exits 0. The plan's device check
-  (step 5) is lane B's.
+  (step 5) is the iPhone app's.
 - The vectors README's section table lists all three afterFailure result shapes, including
   `{ next: "reroute_without_on_device" }`, matching the rule text below it and the router vectors.
   Source: fresh-context review minor 10.
@@ -1229,7 +1705,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Source: fresh-context review minor 11.
   Docs may name the call (this entry tripped the first version).
   Verified: the new tests failed first, now 20 gate tests pass; the gate is clean on main and on archives of
-  lane-web, lane-ios and lane-android; ci-local exits 0.
+  the web, iOS and Android branches; ci-local exits 0.
 - Cap `joinIncident` at 5 instances (`maxInstances: 5`, us-central1) to bound cost under abuse, alongside the
   per-caller attempt budget. Test reads the function's deploy manifest.
   Source: fresh-context review minor 6.
@@ -1243,18 +1719,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   its field type (inline, or a same-file type alias), so a value added to a schema can no longer pass
   silently; and a mapped file that is missing now fails once its platform root (shared/engine-ts,
   ios/PLSCore, android/app) exists, unless the mapping is marked `pending:` (iOS Plan.swift and Profile.swift
-  are marked pending until lane B builds them). The check found and this commit fixes a real drift:
+  are marked pending until the iPhone app builds them). The check found and this commit fixes a real drift:
   `sdk_fallback` was in route-record.schema.json but not in the TS RouteReason type.
   Source: fresh-context review I5.
   Verified: 4 new parity tests failed first (enum alias, inline union, missing file with root, real repo),
-  now 15 pass; dry runs against origin/lane-ios, lane-android and lane-web: 0 failures; ci-local exits 0.
-- Clip readings are written before the upload and the model call (ruling I9): `clipReadings/{sha256}` is
+  now 15 pass; dry runs against the iOS, Android and web branches: 0 failures; ci-local exits 0.
+- Clip readings are written before the upload and the model call (decision I9): `clipReadings/{sha256}` is
   created by command or family with exactly the spec section 7 fields plus `createdByUid`, the three required
   consents (person in clip, footage owner, cloud processing; each `{byUid, atMs}` recorded by the writer),
   `publicUse` null or a consent, `reading` and `route` null, a timestamp `expiresAt` and a server
   `createdAt`; only its creator may then add `reading` and `route`, once, with the consents untouched.
   Storage refuses a clip upload unless the uploader's own clip reading with those consents exists.
-  Source: review ruling I9 (lane D found a clip could be uploaded and never read, with no consent record).
+  Source: review I9 (the Android app found a clip could be uploaded and never read, with no consent record).
   Verified: 3 new tests (create needs the consents and no reading; one creator-only update; upload needs the
   uploader's own reading) failed first, now 84 emulator tests pass; ci-local exits 0.
 - A camera_sighting event carries its clip reference in `reading` (new schema def CameraSightingReading,
@@ -1262,7 +1738,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and `cameraFacingDeg` (one of the 8 compass headings, or null when the family set no facing). The rules
   check that exact shape and that `clipReadings/{clipSha256}` exists. Command places and confirms the
   sighting from it; no extra event field is added.
-  Source: review ruling I10 (lane D found the camera sighting had no link to its clip reading).
+  Source: review I10 (the Android app found the camera sighting had no link to its clip reading).
   Verified: 2 new tests (valid readings accepted; null reading, unknown clip, bad hash, 10-degree facing,
   text clock flag, extra key, missing parts and a text sighting refused) failed first (1 of 2), now 81
   emulator tests pass; schema parity checks 14 TS types (0 failures); typecheck and ci-local exit 0.
@@ -1270,7 +1746,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and a bad token): both get 401 with the wrapper's "Unauthenticated" message, never the handler's sign-in
   message, and no claims are set. A control sends the same request through a callable built without
   enforcement and gets 200 with the family claims, so the 401 can only come from App Check.
-  Source: Codex adversarial review M8 and the fresh-context review I4 (the old test sent no Auth token
+  Source: adversarial review M8 and the fresh-context review I4 (the old test sent no Auth token
   either, so it passed with enforcement off).
   Verified: with `enforceAppCheck: false` in functions/src/index.ts the new test fails (1 of 19 join tests),
   restored it passes; 79 emulator tests pass; ci-local exits 0.
@@ -1279,37 +1755,37 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   (`joinAttempts/{uid}`, admin only; the 11th call is refused even with the right code); every failed join,
   including an unknown team, gets the same permission-denied message; an invite may carry `expiresAt` and
   `maxUses`, with uses counted in a transaction. Test fixture codes no longer use I, L, O or U.
-  Source: Codex adversarial review M7.
+  Source: adversarial review M7.
   Verified: 3 new tests (one refusal for unknown team and wrong code, the attempt budget with a second
   caller unaffected, invite expiry and single use) failed first, now 78 emulator tests pass; functions
   typecheck exits 0; ci-local exits 0.
 - `docs/LIMITS.md` gains a media retention section: expiry locks a judge sandbox's media at once through
   the rules; deleting the stored objects at expiry (`deleteIncidentMedia`, Task 23) and the 30-day drill
   lifecycle file (Task 18) are marked PLANNED, not built; no app uses Storage download URLs.
-  Source: Codex adversarial review round 3, item 2 (the function itself lands with Task 23 and its tests).
+  Source: adversarial review round 3, item 2 (the function itself lands with Task 23 and its tests).
   Verified: wording checked against the repo (no deleteIncidentMedia or storage.lifecycle.json yet);
   ci-local exits 0.
 - Rules gate bans Storage token URLs (`getDownloadURL`, `downloadURL`, `downloadUrl`) in web/, ios/ and
   android/ code: a download URL carries a token that bypasses Storage rules, so a URL saved before a judge
   sandbox expires would keep serving its clip. Client reads go through getBytes/getBlob, which evaluate the
   rules. Docs may name the calls.
-  Source: Codex adversarial review round 3 (MEDIUM), items 1 and 3.
+  Source: adversarial review round 3 (MEDIUM), items 1 and 3.
   Verified: the new gate test failed first, now 18 gate tests pass; the gate is clean on main and a grep
-  finds 0 uses on origin/lane-ios, lane-web and lane-android; ci-local exits 0.
+  finds 0 uses on the iOS, web and Android branches; ci-local exits 0.
 - Clips and photos are create-only at their hash names: `clips/{incidentId}/{sha256}.mp4` and
   `photos/{incidentId}/{sha256}.jpg` must match a lowercase 64-hex name with the right extension, and no
   object may already exist there (`resource == null`; the emulator allowed an overwrite under the create
   rule alone). A cached reading or consent record tied to a hash can no longer point at replaced bytes.
   Rules cannot hash the bytes, so the reader checks the SHA-256 of what it reads (Task 18). Storage tests
   clear the bucket before each test.
-  Source: Codex adversarial review M6.
+  Source: adversarial review M6.
   Verified: 2 new tests (replacing a clip and a photo refused; four bad clip names and a .png photo
   refused) failed first, then the overwrite case still passed until `resource == null` was added; now 75
   emulator tests pass; ci-local exits 0.
 - Packs are per team: the pack record `packs/{teamId}` and the bundle are readable by command and by that
   team only. Bundles move to `packs/{incidentId}/{teamId}/v{n}.bundle` (the spec's `{teamId}-v{n}.bundle`
   file name could not be matched by team in Storage rules); the pack function (Task 12) writes this path.
-  Source: Codex adversarial review M5.
+  Source: adversarial review M5.
   Verified: 2 new tests (another team's record and bundle refused, own team and command allowed, family
   refused) failed first, now 73 emulator tests pass; ci-local exits 0.
 - Profile documents take only their own fields: `profile/shared` (readable by every member and carried in
@@ -1317,51 +1793,51 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   text at most 200 characters and at most 40 approach note ids; `profile/command` accepts only its 5 fields.
   A field-mapping slip can no longer put previous addresses, places, past wandering, water, vehicle or
   medication text where searchers read it.
-  Source: Codex adversarial review M4; fresh-context review minor 4.
+  Source: adversarial review M4; fresh-context review minor 4.
   Verified: 2 new tests (9 leaking writes to shared and 2 to command refused, valid writes accepted) failed
   first, now 71 emulator tests pass; ci-local exits 0.
-- Add the `web` CI job (`.github/workflows/web.yml`, lane C's snippet): npm ci, web typecheck, Vitest, and a
+- Add the `web` CI job (`.github/workflows/web.yml`, the command post's snippet): npm ci, web typecheck, Vitest, and a
   Vite build with placeholder config (no real value in the repo; the build refuses to run without config).
   Runs on every branch push touching web/**; until web/ is on main that is its only trigger (widen to
-  shared/**, the lockfile and the workflow at the lane C merge). Mirrored in `ci-local.sh` behind a
+  shared/**, the lockfile and the workflow at the the command post merge). Mirrored in `ci-local.sh` behind a
   web/package.json guard.
-  Source: review (lane C's 112 unit tests, tsc and build never ran in CI); lane C handover.
+  Source: review (the command post's 112 unit tests, tsc and build never ran in CI); the command post handover.
   Verified: action SHAs are the ones already pinned in engine.yml; `bash scripts/ci-local.sh` exits 0 here
-  (web skipped on main). First run expected on the next lane-web push.
+  (web skipped on main). First run expected on the next web branch push.
 - Give the emulator step a per-worktree TMPDIR (`scripts/emulator_config.py --tmpdir`). The Storage
   emulator keeps uploaded blobs under $TMPDIR/firebase, which was shared by every worktree, so another
-  lane's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
-  Source: lane C report of two storage test timeouts during a parallel run.
+  worktree's run starting or stopping its Storage emulator deleted blobs mid-upload (ENOENT, 30 s timeouts).
+  Source: the command post report of two storage test timeouts during a parallel run.
   Verified: the new test failed first, now 5 emulator-config tests pass; the suite wrote its `firebase`
   folder into the per-worktree temp dir and passed 69; ci-local exits 0.
 - README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
   data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
-  Source: self-audit sweep (a README path that does not exist is a checkable claim).
+  Source: review sweep (a README path that does not exist is a checkable claim).
   Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
 - Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
   never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
   (no reopen, no edit). A judge sandbox must carry a timestamp `expiresAt` in the future for every member
   read and write (Firestore and Storage rules) and for joinIncident; other incidents may have none.
-  Source: Codex review M3, the fresh-context review I1 and the Codex C1 re-review item 2.
+  Source: review M3, the fresh-context review I1 and the C1 re-review item 2.
   Verified: 5 new tests (rules: no mode or expiry change, no reopen, judge without a timestamp locked out;
   storage: judge upload needs a future expiry; join: judge needs a future expiry) failed first, now 69
   emulator tests pass; ci-local exits 0.
 - The seeding tool draws all three role codes and checks they are distinct (drawing again if not) before
   any Keychain entry or Firestore doc is written.
-  Source: Codex re-review of the C1 fix.
+  Source: re-review of the C1 fix.
   Verified: the new test (a forced collision on the first draw) failed first, now 6 seed tests pass;
   ci-local exits 0.
 - Run the rules suite under a per-worktree demo project id (`demo-pls-` + 8 hex of the worktree path, from
   `scripts/emulator_config.py --project-id`); test helpers read it from GCLOUD_PROJECT. Separate ports alone
   still let the emulator hub report "running multiple instances of the emulator suite for project demo-pls"
   when two worktrees ran at once.
-  Source: lane B report from its ci-local runs.
+  Source: the iPhone app report from its ci-local runs.
   Verified: the new test failed first, now 4 emulator-config tests pass; the suite ran as demo-pls-68ccce04
   and passed 63; ci-local exits 0.
 - joinIncident tests that fail on the pre-fix handler: a legacy two-role code doc grants neither role, with
   claims checked unchanged after each refusal; the cross-incident test now uses I1's command code with the
   right role against another OPEN incident (I2), so only the incident comparison can refuse it.
-  Source: Codex re-review of the C1 fix (only one new test failed on the old code; the cross-incident test
+  Source: re-review of the C1 fix (only one new test failed on the old code; the cross-incident test
   stopped at the role check).
   Verified: with join.ts from 6c4dc21 (the parent of 406f97f) swapped in, 2 of 14 join tests fail (both
   legacy-doc tests); on HEAD all 63 emulator tests pass; ci-local exits 0.
@@ -1370,7 +1846,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   the document id, and seq must be a whole number of 0 or more. A member can no longer occupy another
   device's future event id, and an id derived from another seq, device or incident is refused. Event tests
   now write every event at its derived id (fixtures compute it independently with node:crypto).
-  Source: Codex adversarial review H1 and the fresh-context review I2 (the earlier deviceId binding alone did
+  Source: adversarial review H1 and the fresh-context review I2 (the earlier deviceId binding alone did
   not stop squatting; the 2026-11-18 rules entry above overstated it).
   Verified: the 3 new H1 tests failed first (squatting at a victim's seq-5 id succeeded), now 62 emulator
   tests pass; ci-local exits 0.
@@ -1380,7 +1856,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   hidden-target measurement. Reference, vectors (160; new cases measured_range_beats_stated and
   stated_range_used_without_measurement replace stated_detection_range_basis_stated), README and the TS
   engine in one commit (vectors alone would turn the Engine job red).
-  Source: fresh-context review, ruling sent for review, reversed on review.
+  Source: fresh-context review; the decision was sent for review and reversed.
   Verified: the new anchor failed first, now 14 generator tests pass; the TS vector case failed first, now
   155 engine tests pass; typecheck and lint exit 0.
 - Change the eventId framing so the security rules can recompute it: SHA-256 over the UTF-8 string made of,
@@ -1389,7 +1865,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   keep their binary framing. Reference generator, regenerated vectors (159; ids now include an epoch-ms seq
   case; the ("ab","c") vs ("a","bc") pair and the UTF-8 byte-length case stay), README and the TS engine
   change in ONE commit, because the vectors alone would turn the Engine job red on their own SHA.
-  Source: Codex adversarial review H1 (a member could occupy another device's future event id), option 1
+  Source: adversarial review H1 (a member could occupy another device's future event id), option 1
   approved in review after an emulator probe showed rules can compute hashing.sha256 over this
   string; recorded in the design's decisions. The Swift and Kotlin twins follow against this SHA.
   Verified: new anchors (hand-computed hashes of "2:ab1:c1:1", "1:a2:bc1:1", the UTF-8 case and the
@@ -1420,7 +1896,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   command) check the same shape the rules now enforce. Eight new docToEngine vectors (cleared without
   inputs, pod as text, unknown rdBasis, unknown influence, empty influences, null effect, none without a
   reason, and a malformed event beside good ones), README rule added; 158 vectors in total.
-  Source: Codex adversarial review H2 (engine side) and the fresh-context review I3; the Swift and Kotlin
+  Source: adversarial review H2 (engine side) and the fresh-context review I3; the Swift and Kotlin
   twins must mirror this (relayed in review).
   Verified: the TS vector suite failed first on the new cases (6 cases plus the count check; one threw on
   `eff.inputs.coverage`), now 153 engine tests pass; generator anchors 12 pass; typecheck and lint exit 0.
@@ -1429,7 +1905,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   >= 0), areaM2 (> 0) and a known rdBasis; clue needs 1 to 64 influences with known values and a known
   authenticity; none needs a known reason and nothing else. Every other device applies a stored effect
   without re-deriving it, so a malformed one must never be stored.
-  Source: Codex adversarial review H2 (rules side), verified in review.
+  Source: adversarial review H2 (rules side), verified in review.
   Verified: 4 new emulator tests (17 malformed effects rejected, 3 well-formed accepted) failed first (3 of 4),
   now the suite passes 57; `bash scripts/ci-local.sh` exits 0.
 - Add the ISRID ring prior (`shared/engine-ts/src/prior.ts`, `buildPrior`): ring layer by annulus area share
@@ -1443,12 +1919,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Socket scores for the turf modules 84 to 100, `npm audit --omit=dev` finds 0; typecheck and lint exit 0.
 - Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
   closest an unrelated game; a site-scoped devpost.com search found no project).
-  Source: plan addendum (rival self-audit, name search line); searches run in review.
+  Source: plan addendum (the name search line); searches run in review.
   Verified: text matches the recorded search results; `bash scripts/ci-local.sh` exits 0.
 - Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
   Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
   FIREBASE_APPCHECK_DEBUG_TOKEN and debug-provider hits on the exact signed APK (the debug APK reports 5).
-  Source: lane D handover.
+  Source: the Android app handover.
   Verified: text matches the handover; no dashes or curly quotes; `bash scripts/ci-local.sh` exits 0.
 - Run the seeding tool's tests in the `gates` job and in `ci-local.sh`.
   Source: CI mirrors every test suite in the repo.
@@ -1458,7 +1934,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   constants), its teams, and the two admin-only join code docs (team code for searchers and family, separate
   command code). Codes are 8 Crockford symbols from `secrets`, stored only in the macOS Keychain, never
   printed; every write is create-only. Tests in `tools/seed/test_seed_drill.py`.
-  Source: review go for one drill incident (lane D end-to-end test); plan Task 11 join design.
+  Source: review go for one drill incident (the Android app end-to-end test); plan Task 11 join design.
   Verified: 5 tests pass (code alphabet and length, hash equals join.ts normalization, labelled drill with no
   join hashes on the incident doc, role scopes, Firestore value encoding); rules gate clean.
 - Storage rules: membership also reads the incident from Firestore (cross-service rules) and refuses an
@@ -1481,7 +1957,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   jars, functions typecheck, then `npm run test:rules -w functions` (Firestore, Auth and Storage emulators,
   project demo-pls). Runs on pull requests to main and on main when rules, functions, firebase.json or the
   lockfile change; mirrored in `ci-local.sh`.
-  Source: plan Task 11 step 4; CI-minutes ruling.
+  Source: plan Task 11 step 4; CI-minutes decision.
   Verified: `bash scripts/ci-local.sh` exits 0 with the emulator suite (48 tests); action SHAs re-read with gh
   (cache v6.1.0 55cc834; checkout, setup-node, setup-java as already pinned).
   Correction to the joinIncident entry above: the join suite has 11 tests, not 14 (37 rules + 11 join = 48).
@@ -1491,7 +1967,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   joinCodes collection; the team code admits searchers and family, command has its own code; a searcher must
   name an existing team; closed or expired incidents and mismatched incident ids are refused with one
   message; claims set to {inc, role, team} (team null for command and family). No model call in any function.
-  Source: plan Task 11; spec sections 7 and 14; lane D contract question 1 (code-only join).
+  Source: plan Task 11; spec sections 7 and 14; the Android app contract question 1 (code-only join).
   Verified: 14 join tests pass in the emulator, including one that drives the exported HTTP handler with
   no App Check token and gets 401 UNAUTHENTICATED, and a control that gets 400 for a malformed body;
   functions typecheck exits 0; the rules gate finds no model call under functions/.
@@ -1556,38 +2032,38 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   file exits 0; `bash scripts/ci-local.sh` exits 0.
 - Add the `@pls/engine` workspace (`shared/engine-ts/package.json`, `tsconfig.json`) and the root
   `package-lock.json`. Pins: @noble/hashes 2.4.0 (runtime, synchronous SHA-256), typescript 6.0.3 and vitest
-  5.1.0 (same as lane C), @types/node 22.20.5. Strict TypeScript with noUncheckedIndexedAccess.
+  5.1.0 (same as the command post), @types/node 22.20.5. Strict TypeScript with noUncheckedIndexedAccess.
   Source: plan Task 8 (TypeScript engine).
   Verified: Socket scores for all four (supply chain 98 to 100, vulnerability 100); `npm install` exit 0;
   `npm audit --omit=dev` finds 0; the 5 dev-only highs are one picomatch ReDoS via vite/vitest globs we
-  control (accepted, same toolchain as lane C). `bash scripts/ci-local.sh` exits 0.
-- Add the `android` CI job (`.github/workflows/android.yml`): lane D's snippet, Temurin 21,
+  control (accepted, same toolchain as the command post). `bash scripts/ci-local.sh` exits 0.
+- Add the `android` CI job (`.github/workflows/android.yml`): the Android app's snippet, Temurin 21,
   `./gradlew --no-daemon testDebugUnitTest assembleDebug`, on pull requests to main and on main only,
   triggered by `android/**` until android/ is on main (then widen to shared/**). Mirrored in `ci-local.sh`.
-  Source: plan Task 19a; lane D handover; CI-minutes ruling.
+  Source: plan Task 19a; the Android app handover; CI-minutes decision.
   Verified: action SHAs re-read with gh (setup-java v6.3.0 d1374f8, setup-gradle v6.4.1 8da46b5, both latest);
-  `bash scripts/ci-local.sh` exits 0 (android skipped on main). Lane D reports the gradle command green locally.
-- Narrow the `swift-core` trigger to `ios/PLSCore/**` until lane B's package is on main. With the shared
+  `bash scripts/ci-local.sh` exits 0 (android skipped on main). The Android app reports the gradle command green locally.
+- Narrow the `swift-core` trigger to `ios/PLSCore/**` until the iPhone app's package is on main. With the shared
   paths, the next vector or constants change on main would have started a job with no package and failed.
-  Widen to shared/test-vectors/** and shared/constants/** after the lane B merge.
+  Widen to shared/test-vectors/** and shared/constants/** after the the iPhone app merge.
   Source: self-review of a695a9c (same trap the workflow's own path had).
   Verified: `git diff` shows only the path list and comment; `bash scripts/ci-local.sh` exits 0.
 - Add the `swift-core` CI job (`.github/workflows/swift.yml`): `swift test --package-path ios/PLSCore` in
   `swift:6.4.2-noble` pinned by index digest, on pull requests to main and on main only, path-filtered to
   ios/PLSCore, shared/test-vectors and shared/constants (not its own path, so it cannot run before
   ios/PLSCore lands). `ci-local.sh` runs it when ios/PLSCore exists.
-  Source: plan Task 9a; CI-minutes ruling (expensive suites on PR to main and main only).
+  Source: plan Task 9a; CI-minutes decision (expensive suites on PR to main and main only).
   Verified: tag resolved with `docker buildx imagetools inspect swift:6.4.2-noble`; checkout SHA reused from
-  ci.yml; lane B reports the same suite green in swift 6.4.2 on Linux; `bash scripts/ci-local.sh` exits 0 here.
-- Point the schema parity map at lane D's Kotlin files: `data/EventDoc.kt` (EventDoc, RouteRecord),
+  ci.yml; the iPhone app reports the same suite green in swift 6.4.2 on Linux; `bash scripts/ci-local.sh` exits 0 here.
+- Point the schema parity map at the Android app's Kotlin files: `data/EventDoc.kt` (EventDoc, RouteRecord),
   `core/CameraSighting.kt` (CameraSighting), `data/Profiles.kt` (SharedProfile, CommandProfile); drop the
   Android mapping for ReportReading (no Kotlin type planned).
-  Source: lane D contract question 7.
-  Verified: parity dry run against origin/lane-android: CameraSighting, RouteRecord and both profiles pass;
-  EventDoc reports missing schemaVersion and serverTime (lane D to add). Main has no android/ yet, so
+  Source: the Android app contract question 7.
+  Verified: parity dry run against the Android branch: CameraSighting, RouteRecord and both profiles pass;
+  EventDoc reports missing schemaVersion and serverTime (the Android app to add). Main has no android/ yet, so
   `bash scripts/ci-local.sh` exits 0.
 - Add route reason `sdk_fallback` to `shared/schemas/route-record.schema.json` (PREFER_ON_DEVICE answered from the cloud).
-  Source: lane D contract question 3 (Android RouteRecord reasons); lane D maps its other reasons to
+  Source: the Android app contract question 3 (Android RouteRecord reasons); the Android app maps its other reasons to
   `on_device_unavailable` and `sdk_only_in_cloud`.
   Verified: schema parses; `python3 -I scripts/check_schema_parity.py .` and `bash scripts/ci-local.sh` exit 0.
 - Enable anonymous sign-in as code: `firebase.json` gains `auth.providers.anonymous: true`.
@@ -1595,7 +2071,6 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: `firebase deploy --only auth --project buildhybridai-2026-yg3m` printed
   "Auth providers enabled: anonymous"; the Identity Toolkit admin config read back
   `signIn.anonymous.enabled: true` (HTTP 200).
-
 ## Before this changelog (2026-11-17)
 
 - bf6e729: repo bootstrap (Apache-2.0, first CI job `gates`, rules gate, gitleaks, freeze hooks).

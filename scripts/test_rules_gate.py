@@ -277,3 +277,16 @@ def test_a_model_shut_down_before_judging_ends_fails_even_in_tests(tmp_path):
     write(tmp_path, "android/app/src/test/java/TtsTest.kt", 'val m = "gemini-3.1-flash-tts-preview"\n')
     out = run_gate(tmp_path)
     assert out.returncode == 1 and "TtsTest.kt:1" in out.stdout
+
+
+def test_without_git_it_walks_the_files_on_disk_and_still_gates(tmp_path):
+    # A ZIP download has no .git: the gate says so and checks the files on disk, skipping dependency folders.
+    def gate():
+        return subprocess.run([sys.executable, "-I", str(GATE), str(tmp_path)], capture_output=True, text=True)
+    (tmp_path / "a.swift").write_text("import FoundationModels\n")
+    write(tmp_path, "node_modules/pkg/b.swift", "import Speech\n")
+    clean = gate()
+    assert clean.returncode == 0, clean.stdout
+    assert "not a git checkout" in clean.stdout
+    (tmp_path / "c.swift").write_text("import Speech\n")
+    assert gate().returncode == 1

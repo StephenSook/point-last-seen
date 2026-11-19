@@ -112,6 +112,31 @@ export function buildSightingEvent(input: SightingInput, w: CommandWriter): Even
   };
 }
 
+/**
+ * Command places a family sighting on the map. The family app sends a sighting with no position and no effect
+ * (it needs command); events are create-only, so command writes its own sighting at the picked point: the
+ * family's time, words and reading, reported by the family, linked to the original by targetEventId, and with
+ * the effect the engine derives for that point. Confirming it then moves the map like any command sighting.
+ */
+export function placeFamilySighting(family: EventDoc, position: LatLon, w: CommandWriter): EventDoc {
+  const r = (family.reading ?? {}) as Partial<ReportReading>;
+  const built = buildSightingEvent(
+    {
+      observedAtMs: family.observedAtMs ?? w.clientTimeMs,
+      position,
+      direction: (r.direction ?? "unknown") as Direction,
+      topColor: (r.topColor ?? "unknown") as ClothingColor,
+      bottomColor: (r.bottomColor ?? "unknown") as ClothingColor,
+      footwear: r.footwear ?? "",
+      carried: r.carried ?? "",
+      reportedBy: "family",
+      freeText: family.rawText ?? "",
+    },
+    w,
+  );
+  return { ...built, targetEventId: family.eventId };
+}
+
 export function buildConfirmation(target: EventDoc, decision: "confirmed" | "rejected", w: CommandWriter): EventDoc {
   return {
     ...commandEventBase(w),

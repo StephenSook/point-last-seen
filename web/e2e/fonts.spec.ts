@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 
 // Spec 22.1 fonts: DINish for text and numbers, Ioskeley Mono for 12 px caps labels,
 // DSEG7 Classic for the clock, all self-hosted (no third-party font host).
-test("the self-hosted fonts load from this origin and DINish digits are tabular", async ({ page, consoleErrors }) => {
+test("the self-hosted fonts load from this origin and DINish digits are tabular", { tag: "@no-backend" }, async ({ page, consoleErrors }) => {
   const fontHosts: string[] = [];
   page.on("request", (r) => { if (/fonts\.(googleapis|gstatic)\.com|use\.typekit|fonts\.bunny/.test(r.url())) fontHosts.push(r.url()); });
   await page.goto("/");

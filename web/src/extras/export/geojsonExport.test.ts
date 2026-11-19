@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { SegmentDoc, ViewState } from "../laneC";
+import type { SegmentDoc, ViewState } from "../hostApp";
 import { buildPrintModel } from "../print/printModel";
 import { drillView, planFixture } from "../testdata/fixtures";
 import { exportFileName, rewind, ringIsCounterClockwise, round6, segmentsToGeoJson, type ExportInput } from "./geojsonExport";

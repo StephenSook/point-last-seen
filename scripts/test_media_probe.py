@@ -50,3 +50,17 @@ def test_the_firestore_read_sends_the_hosting_origin_as_referer():
     req = mp.ops_storage_request({"projectId": "p", "apiKey": "k"})
     assert req.get_header("Referer") == "https://buildhybridai-2026-yg3m.web.app/"
     assert req.full_url.endswith("/projects/p/databases/(default)/documents/ops/storage?key=k")
+
+
+def test_the_firestore_read_carries_an_app_check_token_when_it_has_one():
+    # Review: under App Check enforcement on Firestore, a read without a token is refused.
+    req = mp.ops_storage_request({"projectId": "p", "apiKey": "k"}, app_check="token-1")
+    assert req.get_header("X-firebase-appcheck") == "token-1"
+    assert mp.ops_storage_request({"projectId": "p", "apiKey": "k"}).get_header("X-firebase-appcheck") is None
+
+
+def test_the_debug_token_comes_from_the_ci_secret_and_is_never_printed(monkeypatch, capsys):
+    assert mp.ci_debug_token({"APPCHECK_DEBUG_TOKEN_CI": "secret-value"}) == "secret-value"
+    assert mp.ci_debug_token({}) is None
+    assert mp.ci_debug_token({"APPCHECK_DEBUG_TOKEN_CI": ""}) is None
+    assert "secret-value" not in capsys.readouterr().out

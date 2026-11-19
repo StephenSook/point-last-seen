@@ -1,6 +1,6 @@
 # iOS changelog
 
-Lane B owns `ios/`. Each commit adds one entry here: what changed, its source (plan task or
+This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
 ## 2026-11-19
@@ -174,6 +174,64 @@ finding) and how it was verified. Newest first.
   number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
   tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
 
+### fix(ios): a closed incident drops its mission even when the claims are unchanged
+- What: the sign-in check returned early when the claims still named the loaded mission's
+  incident and team, so an incident command had closed kept its mission (and its listener and
+  reports) through every sign-in and reconnect. That check now also reads the incident's status.
+  If it can be read and is no longer open, the mission is dropped and the join screen says "This
+  incident is not open for searching." With no signal the mission stays, as before.
+- Source: review (finding 4, second round).
+- Verified: a test closes the incident with unchanged claims: no signal keeps the mission, then a
+  readable closed status drops it (listener stopped, the message shown). It failed before the
+  change and passes after; 112 app tests pass.
+
+### fix(ios): a plan counts only when its stored version is a whole number
+- What: the phone turns a Firestore Timestamp into epoch milliseconds, so a plan whose `version`
+  was stored as a Timestamp read as a huge version, and every later plan would have been ignored as
+  older. The first mission read and the plan listener now take a plan only when its stored version
+  is a whole number 0 or above; any other plan counts as none.
+- Source: review (finding 5, second round).
+- Verified: tests for whole-number versions (a plan) and for a Timestamp, text, a boolean, a
+  fraction, a negative number and a missing version (no plan). They failed to compile before the
+  change and pass after; the app tests pass.
+
+### fix(ios): an old load never replaces the new team's plan listener, and retired listeners are ignored
+- What: a load re-checked that it was still the newest only before it installed the mission. Its
+  speaking takes time, and a newer load (a team change) could take over meanwhile; when the old
+  load went on, it stopped the new team's listener and installed its own. A callback queued by a
+  retired listener could also pass the incident and team checks after a move away and back. A load
+  now checks again before it installs its listener. Each listener has a number, and a callback
+  from any listener but the one in place is ignored (a drop retires it too).
+- Source: review (finding 3, second round).
+- Verified: tests for an old load still speaking when T2 loads (T2's listener stays and its plan
+  arrives) and for a retired listener's plan after T1 to T2 to T1 (ignored). They failed before the
+  change and pass after; 109 app tests pass.
+
+### fix(ios): a dropped assignment is never played, and the next membership starts fresh
+- What: a drop cleared the mission and its plan listener, but the voice kept going. A cloud voice
+  still fetching could play the old instruction or fall back to the phone's own voice, a queued
+  device line could still play, and the speaker remembered the last line across memberships, so
+  after T1 to T2 (no task) to T1 it stayed silent for T1. Now a drop or a move to another incident
+  or team stops both voices and forgets the last line. Each line is spoken only while it is still
+  the loaded mission's assignment: checked before any sound starts (after the cloud fetch) and
+  before the phone's own voice stands in for a failed cloud voice.
+- Source: review (finding 2, second round).
+- Verified: speaker tests for a line dropped during the cloud fetch (neither voice plays it) and for
+  stop (both voices silenced, the same line spoken again after). They failed to compile before the
+  change and pass after. An app test for a drop then the same team again fails when the stop in
+  the drop is removed, and passes with it. 107 app tests pass.
+
+### fix(ios): a slow access check never restores what a newer one dropped
+- What: a retry or a sign-in check whose claims read was slow could come back with old searcher
+  claims after a newer check had found the role gone and dropped the membership; it then restored
+  the membership and could read and load the old mission, or overwrite a newer message. Join,
+  "Read the mission again" and the sign-in check now each take a number when they start. Only the
+  newest acts on the claims it read or sets the join screen's words.
+- Source: review (finding 1, second round).
+- Verified: tests hold a retry's and a sign-in's claims read open while a newer check drops the
+  role; before the change the slow one restored the membership, after it nothing is restored and
+  no mission is read. 104 app tests pass.
+
 ### fix(ios): plans apply in version order, so an older plan never replaces a newer assignment
 - What: the plan listener compared only assignments, so an older plan (a cache snapshot, or an
   update handled out of order) could replace the newer assignment and speak it, and the newer one
@@ -311,6 +369,14 @@ finding) and how it was verified. Newest first.
 - Verified: a test holds the launch load for T1 open, joins T2, then lets the T1 read finish; T1
   replaced T2 on the old code (failed), T2 stays now (passes); 89 app tests pass; the CI mirror
   `bash scripts/ci-local.sh` exit 0.
+
+### docs(ios): plain engineering words in the changelog and two comments
+- What: earlier entries and two comments named work streams and private review notes. They now say
+  what the source was in plain words ("the security rules contract", "a pack design decision",
+  "commit 2bc711c", "review item"); the facts and commit ids are unchanged.
+- Source: review (public hygiene).
+- Verified: `python3 -I scripts/hygiene_guard.py . --public` reports 0 hits under ios/ (30 before
+  the change); the CI mirror `bash scripts/ci-local.sh` exit 0; app tests pass.
 
 ## 2026-11-18
 
@@ -534,7 +600,7 @@ finding) and how it was verified. Newest first.
   them" section shows "Cold raises urgency" or "Cool and wet raises urgency" (`UrgencyChip`) with
   the CDC sentence word for word and its read date under it. Search urgency only, no treatment
   advice; clothing does not enter. The section appears when there is a chip or a profile.
-- Source: P-12, using the shared rule and lane A's conditions schema.
+- Source: P-12, using the shared rule and the shared conditions schema.
 - Verified: `theAppBundleCarriesTheUrgencyRule` and
   `theUrgencyChipFollowsTheIncidentsConditions` compile-red, then green; 64 app tests pass; the
   Title 3 scan passes; a night still of a local-only build with the chip forced on (never
@@ -546,7 +612,7 @@ finding) and how it was verified. Newest first.
   incident document's field leniently (absent or not an object gives nil).
   `UrgencyRule.level(conditions:)` gives no chip with no conditions, as the shared engine does.
   The schema's iOS parity entry is no longer pending, so the parity check now enforces it.
-- Source: P-12; lane A's conditions schema (a79f54a).
+- Source: P-12; the shared conditions schema (a79f54a).
 - Verified: three `IncidentConditionsTests` compile-red, then green; 255 tests;
   `check_schema_parity.py` reports iOS incident-conditions with 3 fields, 0 failures;
   `scripts/ci-local.sh` exit 0.
@@ -685,7 +751,7 @@ finding) and how it was verified. Newest first.
   can be compared on measured numbers. `Mission.assignment` carries the latest approved
   assignment; `AppModel.load` speaks it. Audio plays as spoken audio and lowers other sound.
   A locked screen is not covered yet (that needs push delivery).
-- Source: spoken assignment changes (EXTRA-MILE F1); Firebase generate-speech page read
+- Source: spoken assignment changes (optional item F1); Firebase generate-speech page read
   2026-11-18 (unary output is `audio/wav`, 24 kHz mono 16-bit; voice list includes Kore).
 - Verified: four `AssignmentSpeakerTests` (on-device once per change; cloud when named and
   online; cloud failure falls back; no assignment says nothing) and
@@ -697,7 +763,7 @@ finding) and how it was verified. Newest first.
 - What: `RemoteConfigValues` reads `tts_model_ios` (default empty). Empty means the phone's own
   voice only; the app's source names no voice model id, so the model allow-list stays the only
   place a model is named.
-- Source: spoken assignment changes (EXTRA-MILE F1), key agreed with lane A.
+- Source: spoken assignment changes (optional item F1), key agreed in review.
 - Verified: `RemoteConfigValuesTests` updated (the key is read; the default is empty; defaults
   round-trip) compile-red, then green; `scripts/ci-local.sh` exit 0.
 
@@ -708,7 +774,7 @@ finding) and how it was verified. Newest first.
   never spoken. `shouldSpeak` speaks only when the words would change. `path` picks the cloud
   voice only when Remote Config names a model (`tts_model_ios`, default empty), the phone is
   online and the kill switch is off; otherwise the phone's own synthesizer.
-- Source: TTS first cut approved in review 2026-11-18 (EXTRA-MILE F1); lane A's key
+- Source: TTS first cut approved in review 2026-11-18 (optional item F1); the shared key
   name `tts_model_ios`.
 - Verified: five `SpokenAssignmentTests` compile-red, then green; 245 tests;
   `scripts/ci-local.sh` exit 0.
@@ -721,7 +787,7 @@ finding) and how it was verified. Newest first.
   urgency" or "Cool and wet raises urgency"; `sourceLine` quotes the CDC sentence word for word
   with its read date. Search urgency only, no treatment advice.
 - Source: promotion P-12; review ruling 2026-11-18 (CDC winter-weather page, read
-  2026-11-18); lane A's constants and vectors on main.
+  2026-11-18); the shared constants and vectors on main.
 - Verified: three `UrgencyTests` (all 7 shared vectors agree, words and source line, nonsense
   temperatures give no chip) compile-red, then green; 240 tests; `scripts/ci-local.sh` exit 0.
 
@@ -786,7 +852,7 @@ finding) and how it was verified. Newest first.
   attributes and `latency_ms` from `RouteTelemetry`, and stops it. `ReportReader` records the
   route of every read on every path (evidence protocol, parser, on-device, cloud) through
   `recordRoute`, a seam for tests.
-- Source: promotion P-15 (Performance traces per route), EXTRA-MILE C4.
+- Source: promotion P-15 (Performance traces per route), optional item C4.
 - Verified: `everyReadRecordsExactlyOneRouteTrace` (an evidence read and a parser read record
   exactly their two routes) compile-red without `recordRoute`, then green; 42 app tests pass on
   the iOS 27.2 simulator; `scripts/ci-local.sh` exit 0. Not verified yet: traces arriving in the
@@ -797,7 +863,7 @@ finding) and how it was verified. Newest first.
   attributes (path, stage, reason, model, blocked) and a `latency_ms` metric. It carries the
   route only, never the report, the reading or anything about the subject. AI monitoring sees
   cloud calls only, so this is how the on-device share and latency can be shown.
-- Source: promotion P-15 (telemetry), EXTRA-MILE C4.
+- Source: promotion P-15 (telemetry), optional item C4.
 - Verified: three `RouteTelemetryTests` (the mapping; every path, stage and reason fits the
   installed SDK's limits of 5 attributes, 40-character names, 100-character values, no
   reserved prefix; strange latencies) compile-red, then green. The huge-latency case crashed
@@ -831,7 +897,7 @@ finding) and how it was verified. Newest first.
   tests pass; the app launches on the simulator and is still running 8 s later against the
   project's template, which is empty today (so the defaults are in force);
   `scripts/ci-local.sh` exit 0. Not verified yet: a live update arriving, which needs the
-  template that lane A publishes.
+  template the backend publishes.
 
 ### feat(ios-core): compare app versions for the minimum version check
 - What: `AppVersion.isBelow(_:minimum:)` compares dotted versions part by part as numbers
@@ -967,7 +1033,7 @@ finding) and how it was verified. Newest first.
   own words (`{primaryLanguage}`, `{triggersToAvoid}`, `{bestApproach}`,
   `{uniqueDescription}`), leaves out a note whose words are empty, shows the first 7 and puts
   the rest under More, with the footer. Code and fixed copy only, no model.
-- Source: Task 35 (ApproachCardView data), spec section 13.3, lane A 2bc711c.
+- Source: Task 35 (ApproachCardView data), spec section 13.3, commit 2bc711c.
 - Verified: two `ApproachCardTests` (file order with filled text and an unknown id ignored; the
   7-line cut and empty family text) compile-red, then green; full suite 210 tests;
   `scripts/ci-local.sh` exit 0.
@@ -976,7 +1042,7 @@ finding) and how it was verified. Newest first.
 - What: `SharedProfile`, the 20 fields of `profile/shared` from
   `shared/schemas/subject-profile.schema.json` (all keys encoded, nulls written out). It is shown
   to people and carried in the pack; only `ModelProfile`'s six appearance fields reach a model.
-- Source: Task 35 (phone side), spec section 13.2, lane A's parity map (Profile.swift#SharedProfile).
+- Source: Task 35 (phone side), spec section 13.2, the parity map (Profile.swift#SharedProfile).
 - Verified: `ProfileTests` (decode; encoded keys equal the schema's required list) compile-red,
   then green; `check_schema_parity.py` now checks iOS SharedProfile (20 fields, 0 failures);
   full suite passes; `scripts/ci-local.sh` exit 0.
@@ -1073,7 +1139,7 @@ finding) and how it was verified. Newest first.
   monitor (`requestFailed` / `requestSucceeded`). So joined Wi-Fi with no internet now counts as
   offline for the next minute, as the earlier changelog entry for the monitor already said; before
   this commit no code called those methods.
-- Source: fresh-eyes review I6; plan self-audit addendum (test the failed-request case).
+- Source: fresh-eyes review I6; plan addendum (test the failed-request case).
 - Verified: two `ReadOrchestrator` tests (a network failure is reported; a success and an on-device
   read are reported) compile-red without the field, then green; full suite 196 tests; app builds.
 
@@ -1165,8 +1231,8 @@ finding) and how it was verified. Newest first.
 - What: `ReadMeasurement` holds `submittedAtMs`, `readDoneAtMs` and `redrawnAtMs` (the spec's
   three fields), the read and redraw durations, and its path
   `incidents/{incidentId}/teams/{teamId}/devices/{uid}/measurements/{eventId}`.
-- Source: Task 13 (write the three timings after the redraw), spec section 7, lane A's rules
-  contract (device docs under the writer's own uid).
+- Source: Task 13 (write the three timings after the redraw), spec section 7, the security
+  rules contract (device docs under the writer's own uid).
 - Verified: `MeasurementTests` red without the type, then green; full suite 190 tests.
 
 ### feat(ios-core): build the undo event as a retraction of the searcher's own report
@@ -1174,8 +1240,8 @@ finding) and how it was verified. Newest first.
   `retraction` event that targets the report (effect none/informational, no text, no reading, no
   route), and refuses another author's event; `canUndo` keeps the echo card's Undo to 5 s. The
   engine then drops the report.
-- Source: Task 13 (ReportEchoView: 5-second undo, a retraction), spec section 8, lane A's rules
-  (searchers retract own events only).
+- Source: Task 13 (ReportEchoView: 5-second undo, a retraction), spec section 8, the security
+  rules (searchers retract own events only).
 - Verified: three `RetractionTests` red without the API, then green; full suite 189 tests.
 
 ### feat(ios-core): read the pack's segments into the grid and the prior
@@ -1183,15 +1249,15 @@ finding) and how it was verified. Newest first.
   order, `geometryJson` parsed as a GeoJSON Polygon string, `centroid` {lat, lon}) and the
   engine prior (grid segments in that order, then ROW last from its own document). A pack with no
   ROW document, a broken segment (named in the error) or mixed prior versions is refused.
-- Source: Task 12b (PackLoader), lane A's pack rulings (ROW never computed as one minus the
+- Source: Task 12b (PackLoader), the pack design decisions (ROW never computed as one minus the
   rest, geometryJson string, centroid shape).
 - Verified: four `PackSegmentsTests` red without the type, then green; full suite 186 tests.
 
 ### feat(ios-core): add the approved plan and its per-team assignment
 - What: `PlanDoc` and `Assignment` with the field names of `shared/schemas/plan.schema.json`
   (all keys encoded, nulls written out); `assignment(for:)` gives a team its segments. The phone
-  takes its current assignment from the latest approved plan in the pack (lane A's pack ruling).
-- Source: Task 12b/16b (phone reads the plan), lane A's parity map (Plan.swift#PlanDoc and
+  takes its current assignment from the latest approved plan in the pack (a pack design decision).
+- Source: Task 12b/16b (phone reads the plan), the parity map (Plan.swift#PlanDoc and
   #Assignment).
 - Verified: two `PlanTests` (decode and look up a team; encoded keys equal the schema's required
   list) red without the type, then green; `check_schema_parity.py` passes; full suite 182 tests.
@@ -1238,7 +1304,7 @@ finding) and how it was verified. Newest first.
   rules (every model output is "Suggested").
 - Verified: four `EchoTextTests` red without the type, then green; full suite 180 tests.
 
-### fix(ios-core): match lane A's regenerated vectors (eventId framing, measured range first)
+### fix(ios-core): match the regenerated vectors (eventId framing, measured range first)
 One commit for two changes: the shared `search.json` carries both, so no tree with only one of
 them passes the Swift suite in `scripts/ci-local.sh`.
 
@@ -1246,12 +1312,12 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   frame(incidentId) + frame(deviceId) + frame(decimal seq), frame(s) = decimal byte length, ":",
   s, and keeps the first 32 hex characters; ("ab", "c", 1) hashes "2:ab1:c1:1". The Firestore
   rules can recompute this form. `eventSetHash` and `convergenceCode` keep the binary framing.
-  Source: lane A ae8446e (review decision). Verified: all 7 eventId vector cases and the
+  Source: commit ae8446e (review decision). Verified: all 7 eventId vector cases and the
   new `epoch_ms_seq` case failed on the old framing, then passed; unit-test reference values
   recomputed independently in Python.
 - Detection range measured first. What: the team's measured `visualDetectionRangeM` (with its
   `rdBasis`) is used when present; a range stated in the report is used only when nothing was
-  measured, with basis "stated". Source: lane A 73632e9. Verified: vector
+  measured, with basis "stated". Source: commit 73632e9. Verified: vector
   `measured_range_beats_stated` and the new unit test failed on the old rule, then passed.
 - Both: 160 of 160 vector cases, full suite 176 tests.
 
@@ -1268,7 +1334,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   failures and successes, into PLSCore's `Connectivity`. `isOnline` is the router's
   `networkOnline`: a satisfied path and no transport failure in the last minute since the last
   success, so joined Wi-Fi with no internet counts as offline.
-- Source: Task 13; self-audit item (record how iOS `networkOnline` is computed).
+- Source: Task 13; review item (record how iOS `networkOnline` is computed).
 - Verified: app builds with only this commit's files; the rule itself is `ConnectivityTests`
   in PLSCore (including the failed-request case).
 
@@ -1276,7 +1342,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - What: `DeviceIdentity` gives the anonymous Firebase Auth uid as the event device id (the
   create rule checks `deviceId == request.auth.uid`) and the next sequence number from
   `SeqAllocator` in Application Support.
-- Source: lane A's security-rules contract (points 1 and 2), Task 13 (DeviceIdentity).
+- Source: the security rules contract (points 1 and 2), Task 13 (DeviceIdentity).
 - Verified: app builds for the simulator with only this commit's files; the allocator's own tests
   cover the numbering. A reinstall check is on the morning device list.
 
@@ -1288,7 +1354,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   waits as checking. Retry reads back before writing again. After a restart or reconnect,
   unresolved entries are settled from the server. The payload has all 25 keys, integer `seq`
   and `FieldValue.serverTimestamp()` in `serverTime`.
-- Source: Task 13 (EventStore), spec sections 6.2 and 11.1, lane A's rules contract.
+- Source: Task 13 (EventStore), spec sections 6.2 and 11.1, the security rules contract.
 - Verified: `EventStorePayloadTests` (25 keys, server timestamp, integer seq, identity from a
   Firestore dictionary) red without the type, then green on the iOS 27.2 simulator. The offline
   and kill-before-callback runs are device acceptance (Task 13 step 5), on the morning list.
@@ -1300,7 +1366,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   known authenticity; none: a known reason; null is malformed). `EventFilter.decode` skips and
   flags any event that fails it, and the vector harness now decodes docToEngine events one by
   one, as the app does.
-- Source: lane A 6c4dc21 (malformed_* docToEngine vectors).
+- Source: commit 6c4dc21 (malformed_* docToEngine vectors).
 - Verified: 8 malformed vector cases failed before (whole-array decode errors, an empty
   influence map applied), then passed; 158 of 158 vector cases; 3 new `EffectShapeTests`;
   full suite 175 tests.
@@ -1310,7 +1376,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   integers (the rules require `seq` to be an int), fractions as doubles, null as `NSNull`.
   `EventIdentity(json:)` reads deviceId, seq, authorUid and clientTimeMs from a server copy, so
   the Outbox can tell "already delivered" from "a different event".
-- Source: Task 13 (EventStore read-back), lane A's rules contract (seq int).
+- Source: Task 13 (EventStore read-back), the security rules contract (seq int).
 - Verified: two `FirestoreValueTests` red, then green; full suite 172 tests.
 
 ### feat(ios-core): allocate event sequence numbers from epoch milliseconds
@@ -1318,7 +1384,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   one, persisting each number before handing it out. A reinstall keeps the anonymous uid (the
   Keychain survives) but loses this file, so starting from the clock means it can never reuse an
   event id that already exists on the server.
-- Source: lane A's security-rules contract (deviceId is the auth uid; seq must not repeat after
+- Source: the security rules contract (deviceId is the auth uid; seq must not repeat after
   a reinstall).
 - Verified: three `SeqAllocatorTests` (fresh start, restart continues even with a clock moved
   back, a failed write does not use the number) red, then green; full suite passes.
@@ -1327,7 +1393,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
 - What: `EventFilter.decode` reads stored events one by one; one that does not decode (for
   example a clear with no inputs) is skipped and its id listed in `malformedIds` for command,
   while the rest go on to the engine.
-- Source: lane A's security-rules review.
+- Source: the security rules review.
 - Verified: the new test (a good clear, a clear with no inputs, a document with no id) failed
   without `decode`, then passed; full suite 167 tests.
 
@@ -1351,7 +1417,7 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   `shared/schemas/event.schema.json`, with nil as null. The synthesized encoder left out nil
   fields (`position`, `observedAtMs`, `targetEventId`, `decision`, `planVersion`, ...), which the
   schema and the create rule require.
-- Source: Codex review M8; lane A's rules contract (all 25 keys present and nothing else).
+- Source: Codex review M8; the security rules contract (all 25 keys present and nothing else).
 - Verified: a test that reads the schema's required list failed on the old code (missing keys,
   no nulls), then passed; a round-trip test; full suite 164 tests.
 
@@ -1534,11 +1600,11 @@ them passes the Swift suite in `scripts/ci-local.sh`.
   Verified: 148 of 148 vector cases.
 - `ddc1150` feat(ios-core): report parser, read plan (drill or judge gate, evidence first),
   outcome builder, Outbox journal, connectivity (`networkOnline`). Source: Task 13 and the
-  self-audit item on `networkOnline`. Verified: plan tests plus new ones.
+  review item on `networkOnline`. Verified: plan tests plus new ones.
 - `82b5e02` test(ios-core): every shared vector case runs through the Swift engine; a missing
   file fails, never skips. Source: Task 9. Verified: 148 of 148.
 - `6e317b8` fix(ios-core): phone numbers scrubbed from every stored reading string, in any
   script or spoken as digit words. Source: commit security review. Verified: `PhoneNumbersTests`
   on macOS and Linux.
 - `a9c8701` fix(ios-core): a command confirmation outranks the family's. Source: security
-  review, adopted by lane A in 861ec6a. Verified: 150 of 150 vector cases.
+  review, adopted in 861ec6a. Verified: 150 of 150 vector cases.

@@ -70,6 +70,12 @@ describe("joinIncident (spec sections 7 and 14)", () => {
     await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "searcher", teamId: "T1" }), "permission-denied");
     await expectCode(handleJoin(uid, { joinCode: "TWOR2345", role: "family" }), "permission-denied");
   });
+  it("a searcher's team id must be one a push can reach: letters, digits or _, up to 32, and never family", async () => {
+    for (const teamId of ["dev-1", "x".repeat(33), "family", "Family"]) {
+      await admin.db.doc(`incidents/I1/teams/${teamId}`).set({ teamId, name: "Team", colorSlot: 2 });
+      await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher", teamId }), "invalid-argument");
+    }
+  });
   it("a searcher must name a team; an unknown team gets the same refusal as a wrong code", async () => {
     await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: CODE, role: "searcher" }), "invalid-argument");
     const wrongCode = await handleJoin(uid, { joinCode: "ZZZZ2345", role: "family" }).catch((e: Error) => e.message);

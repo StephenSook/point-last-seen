@@ -18,7 +18,7 @@ async function freshUid(): Promise<string> {
 beforeEach(async () => {
   await clearFirestore();
   await admin.db.doc("incidents/SEED").set({ name: "Development drill (synthetic)", mode: "drill", drillLabel: "Training drill. Nobody is missing.",
-    status: "open", gridId: "piedmont-park-dev", ipp: { lat: 33.78, lon: -84.37 }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings",
+    status: "open", mediaRevokedAt: new Date(2026, 10, 1), gridId: "piedmont-park-dev", ipp: { lat: 33.78, lon: -84.37 }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings",
     priorSeed: 20261122, priorInputEventIds: ["e1"], priorLayers: { linear: true, wedge: false }, engineParams: { sweepWidthFactor: 1.6 } });
   for (const s of ["AA", "AB", "ROW"]) await admin.db.doc(`incidents/SEED/segments/${s}`).set({ segmentId: s, priorPoa: 0.3, priorVersion: 5 });
   for (const t of ["T1", "T2"]) await admin.db.doc(`incidents/SEED/teams/${t}`).set({ teamId: t, name: `Team ${t}`, colorSlot: 1 });
@@ -39,6 +39,7 @@ describe("startJudgeSession", () => {
     expect((inc.expiresAt as Timestamp).toMillis()).toBe(NOW + DAY);
     expect(inc.gridId).toBe("piedmont-park-dev");
     expect(inc.priorInputEventIds).toEqual([]);
+    expect(inc).not.toHaveProperty("mediaRevokedAt");
     expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
     expect((await admin.db.collection(`incidents/judge-${uid}/teams`).get()).size).toBe(2);
     expect((await admin.db.doc(`incidents/judge-${uid}/profile/shared`).get()).get("nickname")).toBe("Practice person");
@@ -86,6 +87,53 @@ describe("startJudgeSession", () => {
       expect(res.status).toBe(401);
     }
     expect((await admin.db.doc(`incidents/judge-${uid}`).get()).exists).toBe(false);
+  });
+});
+
+describe("startJudgeSession setup is safe to fail, retry and race", () => {
+  const claims = async (uid: string) => (await admin.auth.getUser(uid)).customClaims ?? {};
+  it("a failed copy grants nothing; a retry finishes the same sandbox without using another slot", async () => {
+    const uid = await freshUid(), ref = admin.db.doc(`incidents/judge-${uid}`);
+    const broken = { ...cfg, copy: async () => { throw new Error("copy failed"); } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW, broken)).rejects.toThrow();
+    expect(await claims(uid)).not.toHaveProperty("inc");
+    expect((await ref.get()).get("setupReady")).toBe(false);
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 60_000, cfg)).incidentId).toBe(`judge-${uid}`);
+    expect((await ref.get()).get("setupReady")).toBe(true);
+    expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
+    expect(await claims(uid)).toEqual({ inc: `judge-${uid}`, role: "command", team: null });
+    expect((await admin.db.doc("ops/judgeSessions").get()).get("count")).toBe(1);
+  });
+  it("while another start is still setting up, a second one waits instead of granting a half-built sandbox", async () => {
+    const uid = await freshUid(), ref = admin.db.doc(`incidents/judge-${uid}`);
+    let release!: () => void;
+    const slow = { ...cfg, copy: (copy: () => Promise<void>) => new Promise<void>(r => { release = r; }).then(copy) };
+    const first = handleStartJudgeSession(admin.db, admin.auth, uid, NOW, slow);
+    while (!(await ref.get()).exists) await new Promise(r => setTimeout(r, 20));
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 1000, cfg)).rejects.toMatchObject({ code: "unavailable" });
+    expect(await claims(uid)).not.toHaveProperty("inc");
+    release();
+    expect((await first).incidentId).toBe(`judge-${uid}`);
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 2000, cfg)).incidentId).toBe(`judge-${uid}`);
+    expect((await admin.db.doc("ops/judgeSessions").get()).get("count")).toBe(1);
+  });
+  it("two starts at once by one visitor use one slot and end on one ready sandbox", async () => {
+    const uid = await freshUid();
+    const results = await Promise.allSettled([handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg),
+      handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)]);
+    expect(results.filter(r => r.status === "fulfilled")).not.toHaveLength(0);
+    for (const r of results) if (r.status === "rejected") expect(r.reason).toMatchObject({ code: "unavailable" });
+    expect((await admin.db.doc("ops/judgeSessions").get()).get("count")).toBe(1);
+    expect((await admin.db.doc(`incidents/judge-${uid}`).get()).get("setupReady")).toBe(true);
+    expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
+  });
+  it("a live sandbox made before setup was tracked counts as ready", async () => {
+    const uid = await freshUid();
+    await admin.db.doc(`incidents/judge-${uid}`).set({ mode: "judge", status: "open", createdAt: Timestamp.fromMillis(NOW),
+      expiresAt: Timestamp.fromMillis(NOW + DAY) });
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, cfg)).incidentId).toBe(`judge-${uid}`);
+    expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(0);
+    expect((await admin.db.doc("ops/judgeSessions").get()).exists).toBe(false);
   });
 });
 

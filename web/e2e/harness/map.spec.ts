@@ -64,3 +64,37 @@ test("with reduced motion the walkers skip straight to the grid", async ({ page 
   await page.goto("/harness/map.html?walkers");
   await expect(page.getByTestId("walker-canvas")).toHaveAttribute("data-mode", "final-grid", { timeout: 20_000 });
 });
+
+test("every segment's code is drawn beside its dot, so a judge can name the cell", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const codes = page.locator(".seg-code");
+  await expect(codes).toHaveCount(24); // every cell, including the one left out of the POA
+  await expect(codes.filter({ hasText: /^AB$/ })).toHaveCount(1);
+  // The code sits left of the dot and never on the percent plate.
+  const plate = (await page.locator(".plate").first().boundingBox())!;
+  const dotX = plate.x + plate.width / 2;
+  const code = (await codes.first().boundingBox())!;
+  expect(code.x + code.width).toBeLessThanOrEqual(dotX - 14); // clear of the largest dot's radius
+  await expect(page.locator(".plate .seg-code")).toHaveCount(0);
+});
+
+test("on a crowded map no two visible labels overlap, and the most likely cell keeps its labels", async ({ page }) => {
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const boxes = await page.locator(".seg-code:visible, .plate:visible").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+  const pairs = boxes.flatMap((a, i) => boxes.slice(i + 1).filter((b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom).map((b) => [a, b]));
+  expect(pairs).toEqual([]);
+  expect(boxes.length).toBeLessThan(47); // some labels gave way
+  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(1);
+  // Every label is still in the page for anything that reads it.
+  await expect(page.locator(".seg-code")).toHaveCount(24);
+});
+
+test("on a roomy map every label shows", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  await expect(page.locator(".seg-code:visible")).toHaveCount(24);
+  await expect(page.locator(".plate:visible")).toHaveCount(23);
+});
