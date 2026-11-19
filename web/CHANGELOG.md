@@ -1478,7 +1478,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(command): put the family channel on the command post
 - What: the post's right rail now has the Family section: Searching or Paused for the family (from `incident.searchState`, sent with `tellFamily`), the three question templates, Ask (`askFamily`, auto-id), and the family's answers as they arrive (`subscribeQuestions`). If the questions cannot be read (for example before the channel's rules are deployed), the section is not drawn and the rest of the post keeps working; that refusal never counts as the post losing access.
-- Source: Ask the family (coordinator queue), with the family-channel rules.
+- Source: Ask the family, with the family-channel rules.
 - Verified: a new read-only deployed test (`e2e/family.spec.ts`: the Family region, Searching and Paused, a template) failed on the live site at 784f5e2 (no section); it passes once this deploy and the channel's rules are both live. The 6 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### ci(web): run the component harness and extras browser suites in the web workflow
@@ -1490,3 +1490,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/pagefacts.spec.ts` (robots.txt is a real file, each page's description and title, the join page does not shift) and `e2e/fonts.spec.ts` (self-hosted fonts from this origin, tabular digits) are tagged `@no-backend`, so the web workflow and the local mirror run them on every change instead of only against the deployed site.
 - Source: CI audit.
 - Verified: in a fresh worktree with no `.env.local`, against the placeholder build with `CI=1`, the 4 tests pass; with them, 22 of 22 no-backend browser checks pass here. scripts/ci-local.sh exit 0.
+
+### docs(web): drop an internal planning name from a changelog source line
+- What: the family channel entry's source line named an internal planning queue; it now names the feature and its rules only.
+- Source: public-repository hygiene review.
+- Verified: a scan of web/CHANGELOG.md and web/CHANGELOG-EXTRAS.md for internal names and private paths finds none. scripts/ci-local.sh exit 0.
