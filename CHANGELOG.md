@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
+  is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
+  and that its check compares each segment's percent and centroid, not its polygon. A new section on push
+  notifications says FCM topics are open, so a push carries no private content, and that iPhone delivery waits on an
+  APNs key.
+  Source: review (the extras lane's reader limits; the push security review).
+  Verified: each line matches the shipped code (`tools/export-run`, `functions/src/notify.ts`) or the reader's
+  stated checks; `bash scripts/ci-local.sh` exit 0.
 - `notifyPlanApproved` pushes only to team ids made of letters, digits and `_` (no `-`). Incident ids hold `-`, so
   a team id with `-` could build another incident's topic: in incident `I1`, team `dev-1-T1` gives
   `pls-I1-dev-1-T1`, which is incident `I1-dev-1`'s team `T1`. With no `-` in team ids, the last `-` in a topic is the
