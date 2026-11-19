@@ -15,12 +15,17 @@ object PlanPush {
     /** No "-" in a team id: pls-a-b-c could otherwise be incident a-b team c or incident a team b-c. */
     private val TEAM_PART = Regex("[A-Za-z0-9._~%]+")
 
-    /** The team's topic, or null when a part has a character FCM topic names, or a team id, cannot take. */
+    /**
+     * The team's topic, or null when a part has a character FCM topic names, or a team id, cannot take.
+     * A team named "family" gets none: that topic is the family's.
+     */
     fun topic(incidentId: String, teamId: String): String? =
-        if (INCIDENT_PART.matches(incidentId) && TEAM_PART.matches(teamId)) "pls-$incidentId-$teamId" else null
+        if (INCIDENT_PART.matches(incidentId) && TEAM_PART.matches(teamId) && !teamId.equals(FAMILY, ignoreCase = true)) "pls-$incidentId-$teamId" else null
+
+    private const val FAMILY = "family"
 
     /** The family's topic for an incident: neutral notices and the search lead's questions, never outcomes. */
-    fun familyTopic(incidentId: String): String? = topic(incidentId, "family")
+    fun familyTopic(incidentId: String): String? = if (INCIDENT_PART.matches(incidentId)) "pls-$incidentId-$FAMILY" else null
 
     /** A plan push, or null when any of its three fields is missing or empty. */
     fun parse(data: Map<String, String>): PlanPushData? {
