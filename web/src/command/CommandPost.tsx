@@ -11,7 +11,7 @@ import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
-import { cameraConfirmWrites } from "../prior/cameraPrior";
+import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
@@ -27,7 +27,7 @@ import { onDeviceAvailable } from "../ai/gate";
 import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
+import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
@@ -35,7 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribeDraft, subscribePlans, writePlan } from "../data/plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
@@ -221,7 +221,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The latest activated Remote Config, for checks inside a read that started on an earlier render.
   const rcNow = useRef(rc);
   rcNow.current = rc;
-  const [serverDraft, setServerDraft] = useState<PlanDraft | null>(null);
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
@@ -237,6 +236,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [editingProfile, setEditingProfile] = useState(false);
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
+  // Camera places command picked for family camera clips that came without one, until each is confirmed.
+  const [placedCameras, setPlacedCameras] = useState<Record<string, LatLon>>({});
 
   // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
   // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
@@ -262,7 +263,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
       failed,
     );
-    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending, fromServer) => dispatch({ type: "plans", plans: p, pending, fromServer }), failed);
+    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending, fromServer, unreadable) => dispatch({ type: "plans", plans: p, pending, fromServer, unreadable }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
       stopIncident();
@@ -316,21 +317,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const poa = vs?.result.poa ?? {};
   const rows = vs ? vs.rank.map((r) => ({ segmentId: r.segmentId, poa: r.poa })) : [];
 
-  const hash = vs?.hash ?? null;
-  useEffect(() => {
-    setServerDraft(null);
-    if (denied || !hash) return;
-    return subscribeDraft(pls.db, incidentId, hash, setServerDraft, (error) => dispatch({ type: "failed", error }));
-  }, [pls, incidentId, hash, denied]);
-
   const latestPlan = plans.length > 0 ? plans[plans.length - 1]! : null;
   const assignments = useMemo(() => Object.fromEntries((latestPlan?.assignments ?? []).map((a: Assignment) => [a.teamId, a])), [latestPlan]);
-  // The server's draft for this event set, or the same draft computed here when the link is down.
+  // The draft for this event set: the engine's team assignment, computed on this laptop.
   const draft: PlanDraft | null = useMemo(() => {
-    if (serverDraft && serverDraft.eventSetHash === hash) return serverDraft;
     if (!vs || !incident || teams.length === 0) return null;
     return localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []);
-  }, [serverDraft, hash, vs, incident, teams, latestPlan]);
+  }, [vs, incident, teams, latestPlan]);
 
   // One hybrid-inference trace per model call (path, reason, platform, stage and latency only).
   const sink = useMemo(() => {
@@ -566,7 +559,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const approve = (worded: WordedPlan): { version: number; ack: Promise<void> } => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
-    return approveNow({ plans: state.plans, plansLoaded: state.plansLoaded === true, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
+    return approveNow({ plans: state.plans, unreadable: state.unreadablePlans ?? [], plansLoaded: state.plansLoaded === true, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
   };
 
   if (denied) {
@@ -613,6 +606,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       {offline && (
         <p className="error" role="status">
           No connection. Showing the last data received.
+        </p>
+      )}
+      {unreadablePlanLine(state.unreadablePlans ?? []) && (
+        <p className="error" role="status" data-testid="unreadable-plans">
+          {unreadablePlanLine(state.unreadablePlans ?? [])}
         </p>
       )}
       <div className="post-body">
@@ -686,12 +684,36 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             </button>
           )}
           <SightingsPanel
-            cards={cards}
-            segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
-            onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
+            cards={cards.map((c) => (c.camera && placedCameras[c.sighting.eventId] ? { ...c, needsPlace: false } : c))}
+            segmentOf={(c) => {
+              const at = c.sighting.position ?? (c.camera ? placedCameras[c.sighting.eventId] : undefined);
+              return at ? segmentContaining(at, segments) : null;
+            }}
+            onDecide={async (c, d) => {
+              if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
+              // A family camera clip: command's confirmation and the camera prior, in one batch.
+              if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+              const { events: built, prior } = familyCameraConfirmWrites(
+                c.sighting,
+                placedCameras[c.sighting.eventId] ?? null,
+                writer(),
+                segments,
+                { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
+              );
+              await writePrior(pls.db, incidentId, prior, built);
+            }}
+            onPlace={(c) =>
+              setPicker(() => (p: LatLon) => {
+                setPicker(null);
+                // A family clip's camera place is kept here until Confirm; the family's event is never changed.
+                if (c.camera) setPlacedCameras((m) => ({ ...m, [c.sighting.eventId]: p }));
+                // A family report has no place: command writes its own placement at the picked point.
+                else write(placeFamilySighting(c.sighting, p, writer()));
+              })
+            }
           />
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {incident && segments.length > 0 && (

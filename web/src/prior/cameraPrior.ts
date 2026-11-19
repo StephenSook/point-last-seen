@@ -2,8 +2,8 @@
 // start (the camera, when it was placed), the sighting added to the prior's inputs, and the
 // direction-of-travel wedge on when the clip gives a bearing.
 
-import type { EngineParams, EventDoc, PriorLayers, Terrain } from "@pls/engine";
-import { buildCameraSighting, cameraStartPatch, type ClipFacts } from "../data/cameraSighting";
+import { bearingFromExit, type EngineParams, type EventDoc, type PriorLayers, type Terrain } from "@pls/engine";
+import { buildCameraSighting, cameraReading, cameraStartPatch, type ClipFacts } from "../data/cameraSighting";
 import { buildConfirmation, type CommandWriter } from "../data/sightings";
 import type { SegmentDoc } from "../data/incident";
 import type { LatLon } from "../map/geo";
@@ -48,4 +48,27 @@ export function cameraConfirmWrites(
   const conf = buildConfirmation(cam, "confirmed", writers[1]);
   const prior = cameraPriorWrites(segments, incident, cam, bearingDeg);
   return { events: [cam, conf], prior };
+}
+
+/**
+ * Confirming a camera clip the family app read. Its camera_sighting is already written (the family's own, which
+ * cannot rebuild the prior), so command writes its confirmation and the camera prior in one batch: the start
+ * point is the clip's camera place, or the one command picked when the family gave none; the direction comes
+ * from the clip's camera facing and the side the person left by.
+ */
+export function familyCameraConfirmWrites(
+  familyCam: EventDoc,
+  placed: LatLon | null,
+  writer: CommandWriter,
+  segments: readonly SegmentDoc[],
+  incident: CameraPriorIncident,
+): { events: EventDoc[]; prior: PriorWrites } {
+  const reading = cameraReading(familyCam);
+  if (!reading) throw new Error("This is not a camera clip reading.");
+  const at = familyCam.position ?? (placed ? { lat: placed.lat, lon: placed.lon, accuracyM: null } : null);
+  if (!at) throw new Error("Place the camera on the map first.");
+  const bearing = bearingFromExit(reading.cameraFacingDeg, reading.sighting.exitEdge);
+  const conf = buildConfirmation(familyCam, "confirmed", writer);
+  const prior = cameraPriorWrites(segments, incident, { ...familyCam, position: at }, bearing);
+  return { events: [conf], prior };
 }

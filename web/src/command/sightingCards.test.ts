@@ -47,3 +47,33 @@ describe("sightingCards", () => {
     expect(sightingCards([s, ev({ type: "retraction", targetEventId: s.eventId, effect: { kind: "none", why: "informational" } })])).toEqual([]);
   });
 });
+
+describe("a family sighting command placed on the map", () => {
+  it("shows the placement, placed and ready to confirm, in place of the family's unplaced report", () => {
+    const family = ev({ role: "family", reporter: "family", position: null, positionSource: "none", effect: { kind: "none", why: "needs_command" } });
+    const placed = ev({ role: "command", reporter: "family", targetEventId: family.eventId });
+    const cards = sightingCards([family, placed]);
+    expect(cards.map((c) => c.sighting.eventId)).toEqual([placed.eventId]);
+    expect(cards[0]).toMatchObject({ needsPlace: false, status: "awaiting" });
+  });
+});
+
+describe("camera clips the family app read", () => {
+  const famCam = () => ev({ type: "camera_sighting", role: "family", reporter: "camera", position: null, positionSource: "none", effect: { kind: "none", why: "incorporated_in_prior" } });
+  it("are in the review list as camera cards, awaiting command even when the family confirmed them", () => {
+    const cam = famCam();
+    const cards = sightingCards([cam, decide(cam, "confirmed", "family")]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({ camera: true, status: "awaiting", needsPlace: true });
+  });
+  it("count as confirmed once command confirms them", () => {
+    const cam = famCam();
+    expect(sightingCards([cam, decide(cam, "confirmed", "command")])[0]).toMatchObject({ camera: true, status: "confirmed" });
+  });
+  it("leave out command's own camera clips, which were applied when they were confirmed", () => {
+    expect(sightingCards([ev({ type: "camera_sighting", role: "command", reporter: "camera" })])).toEqual([]);
+  });
+  it("mark ordinary reports as not camera", () => {
+    expect(sightingCards([ev({})])[0]!.camera).toBe(false);
+  });
+});

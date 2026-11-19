@@ -1260,3 +1260,133 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the dev-page guard reads each page's imports with the TypeScript parser (already a web dev dependency), so a comment before the module name, a template-string module name or a re-export can no longer hide a load of `firebase/ai`. It also flags any dynamic import whose module name is computed, since the scan cannot follow it and no dev page needs one. Loading the SDK for `getAI` alone stays allowed.
 - Source: second-model review of PR #20, round 4, finding 7 (medium).
 - Verified: new controls (a comment before the name, a template string, a re-export, a computed dynamic import) failed against the regex version, then passed; the earlier controls and the walk over every dev page still pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(prior): stamp each rebuilt prior with the server's build time
+- What: every prior batch (`priorBatchOps`: ring rebuilds, layer changes, walker runs and camera Confirm) adds `priorBuiltAt: serverTimestamp()` to the incident update that carries the version step. The rules take the field only in a write that raises `priorVersion` by exactly one and only as the server's time; the exporter publishes it as `priorBuiltAtMs` for the replay.
+- Source: shared rules for `priorBuiltAt` (live since ca5b51f).
+- Verified: new `write.test.ts` test (the incident update has the version step and a server-timestamp `priorBuiltAt`) failed first, then passed; 27 prior unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(config): cite the one-sample latency record behind the flash-lite rule
+- What: the comment above `LIVE_MODEL` in `config/rc.ts` now says the 116 s figure is one sample (116,071 ms) and points at `docs/evidence/model-latency.md`, where the model and the record are now public. The comment does not name the model id, because the rules gate refuses that id on any live path. No code change.
+- Source: evidence file published on main.
+- Verified: the figures match the evidence table on main (one sample, 116,071 ms, 2026-11-17); a first wording that named the model id failed the rules gate ("banned on any live path") and was reworded. Typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(judge): say a copy with no Firebase settings cannot start a practice search
+- What: `readEnv` now throws a named `MissingConfigError` when the build has no Firebase settings, and the judge page's practice search says "This copy has no Firebase settings, so it cannot start a practice search. Use the live site." instead of "The practice search could not start. Try again.", which sent a fresh clone's visitor retrying something that can never work.
+- Source: fresh-clone test of the repository.
+- Verified: the new `practice.test.ts` test (an empty config throws `MissingConfigError`, and its message is the new sentence) failed first, then passed; the 10 practice and config unit tests pass; the judge page catches the error on both of its Firebase calls; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(photos): mark each tray photo with its own hash
+- What: each photo row in the tray carries `data-sha256`, the photo's SHA-256, which is also its Storage name and the id of its family consent record. It is a public hash, not the image. The live photo specs read it to give the family's consent for exactly the photo they then read.
+- Source: the live photo specs needed a consented cloud read (second-model review of PR #20, round 4, finding 5).
+- Verified: the new photo tray harness test (both rows carry their hash) failed first, then passed; 7 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(sightings): leave footwear and carried empty when a note read answers unknown
+- What: a sighting-note read (on this laptop or in the cloud; both go through the same parser) now leaves Footwear and Carrying empty when the model answers "unknown" (any case, with spaces), which is how it says the note does not mention them. Before, the word "unknown" was written into both fields.
+- Source: live judge walk of the command post.
+- Verified: the new `sightingText` test (footwear "unknown" and carried " Unknown " read as empty) failed first, then passed; 14 sighting text unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### build(web): copy each grid's tiles and route graph from shared/grid into the build
+- What: a build plugin (`src/buildinfo/gridFiles.ts`, `gridFilesPlugin`) copies `shared/grid/piedmont-park-dev.pmtiles` and `.graph.json`, where the grid builder commits them with their provenance and licence, into the build at `tiles/`, and serves the same files in dev. A missing file fails the build. Before, the files lived only in the gitignored `web/public/tiles/`, so a build from a clean checkout had no basemap and no route graph: the deploy of eff2db1 went out that way.
+- Source: live judge walk (the map had no streets and Walkers was off) and the grid files committed to shared/grid.
+- Verified: `src/buildinfo/gridFiles.test.ts` (both files under tiles/; a missing file fails the build) failed first (module missing), then passed; a real build with no `web/public/tiles/` emits both files byte-identical to shared/grid; and before shared/grid was merged in, the same build failed with "shared/grid/piedmont-park-dev.pmtiles is missing". scripts/ci-local.sh exit 0.
+
+### test(smoke): check the deployed site serves the grid's tiles and route graph
+- What: a deployed-only smoke test fetches `/tiles/piedmont-park-dev.pmtiles` (a range of its first bytes) and `/tiles/piedmont-park-dev.graph.json` and requires a real file each time: status 200 or 206, not `text/html`, the "PMTiles" magic bytes, and a non-empty JSON graph with `application/json`. Hosting now answers a missing tile with 404, never the app shell, so a deploy without its map fails here.
+- Source: live judge walk (the tiles came back as the app shell).
+- Verified: against the deployed eff2db1 site it failed ("text/html; charset=utf-8"); after the deploy of 00dccae it passes. scripts/ci-local.sh exit 0.
+
+### fix(plans): build each team's task line from the plan; the model writes reasons only
+- What: plan wording asks the model only for each team's reason and the summary (`PLAN_WORDING_JSON` no longer has a task line); each team's task line ("Search segment AC.") is built from the plan's own assignment (`taskTextFor`), and a task line the model sends anyway is ignored. `checkWording` also refuses a reason that names a segment the team was not given, and the fixed template is used instead. Before, only team ids were checked, so the model could tell a team to search one segment while the saved plan assigned another. The approval card shows the team, the code-built task line and the reason.
+- Source: whole-repository review (Codex, Gemini), item 3 (high).
+- Verified: three new tests (the model is asked for no task line; a task line naming another segment is replaced by the plan's; a reason naming another team's segment falls to the template, and with the segment check disabled that test fails) failed first where they should, then passed; 21 wording tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(plans): word plans on this laptop first, labelled by the route that ran
+- What: plan wording now uses the SDK's PREFER_ON_DEVICE: Chrome's built-in model words the plan when the browser has it, and the cloud model only when it does not. The route records which one ran from the SDK's `inferenceSource`, never the mode asked for: on this laptop is `sdk_prefer_on_device`; the cloud is `on_device_unavailable`. The route glyph reads "On this laptop" (it read "This laptop") or "Cloud". The model now writes only reasons and the summary, so the smaller local model cannot misassign a segment.
+- Source: whole-repository review, item 6 (decision: this laptop first); live judge walk, item 4 (the plan was labelled Cloud beside "Draft from this laptop").
+- Verified: the updated `replanWording` tests (this-laptop-first mode; each route's reason) and a new plan harness test (`?route=cloud`: "Cloud"; `?route=on_device`: "On this laptop") failed first, then passed; 128 ai unit tests and all 79 harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(sightings): let command place a family sighting so it can move the map
+- What: `placeFamilySighting` builds command's placement of a family sighting. The family app sends a sighting with no position and no effect ("needs command"), so it could never move the map. Events are create-only, so command writes its own sighting at the picked point: the family's time, words and reading, reported by the family, `positionSource: "map_click"`, linked to the original by `targetEventId`, and with the effect the engine derives for that point. Confirming it then moves the map like any command sighting. The review list (`sightingCards`) shows the placement in place of the family's unplaced report.
+- Source: whole-repository review, item 1 (high).
+- Verified: new tests (the placement keeps the family's report and links to it, and is strong evidence for the picked segment; an Android-shaped family sighting, placed and confirmed, raises segment AA's probability through the engine's `posterior`; the review list shows only the placement, ready to confirm) failed first (missing), then passed; 22 sighting and card unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add Place on map for family sightings that have no place
+- What: a sighting with no place (a family report) offers "Place on map" in the review list; it starts the map pick ("Click the map to place it."), and the click writes command's placement (`placeFamilySighting`) through the post's event writer. The placement then appears in the list with Confirm ready. Before, such a report showed "No place yet." with Confirm disabled and no way to place it.
+- Source: whole-repository review, item 1 (high).
+- Verified: a new harness page (`web/harness/sightings.html`) and two tests (an unplaced family report offers Place on map, Confirm waits, and pressing it hands over that report; a placed report offers no Place on map) failed first where they should, then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(prior): confirm a family camera clip as command and rebuild the prior from it
+- What: `familyCameraConfirmWrites` builds what command writes to apply a camera clip the family app read: command's confirmation of the family's `camera_sighting` and the camera prior, for one batch. The start point is the clip's camera place, or the place command picked when the family gave none ("Place the camera on the map first." otherwise); the direction comes from the clip's camera facing and the side the person left by (`bearingFromExit`). The family's event is not changed; its id joins the prior's inputs. `cameraReading` is now exported for it.
+- Source: whole-repository review, item 2 (high).
+- Verified: three new tests (a family clip with no camera pin, confirmed from the picked place: one command confirmation, the family event in the prior's inputs, the start point and the next version; the clip's own camera place is used when given; no place throws before anything is built) failed first (missing), then passed; 8 camera prior tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(sightings): list camera clips the family app read for command to apply
+- What: the review list (`sightingCards`) now includes the family app's `camera_sighting` events as camera cards (`camera: true`). The family's own confirmation of its clip does not count as applied, since only command can rebuild the prior; a card is confirmed once command confirms it. Command's own camera clips stay out: they are applied when confirmed. Before, a family camera clip never reached the review list.
+- Source: whole-repository review, item 2 (high).
+- Verified: four new card tests (a family clip with the family's confirmation is awaiting and needs a place; command's confirmation makes it confirmed; command's own clips are left out; ordinary reports are not camera cards) failed first, then passed; 10 card tests pass; the sightings harness carries a family camera card for the panel; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): review and apply camera clips the family app read
+- What: a camera clip from the family app shows in the review list as "Camera clip from the family, last seen HH:MM.", with what the clip saw (colours, footwear, carried items) and "Confirming rebuilds the map from the camera's place." With no camera place it offers "Place camera" (the map pick), kept on this post until Confirm since the family's event never changes, and Confirm waits for it. Confirm writes command's confirmation and the camera prior in one batch (`familyCameraConfirmWrites`, then `writePrior`); Reject is a plain rejection. A refused write shows "Not saved. Try again." beside the card.
+- Source: whole-repository review, item 2 (high).
+- Verified: a new sightings harness test (the family clip's line, what it saw, the rebuild sentence, Confirm disabled until placed, Place camera handing over the clip) failed first, then passed; 3 sightings harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(plans): read stored plans field by field instead of casting them
+- What: `planFromDoc` checks every field a plan holds (integer version, text hash and approver, numeric prior version and time, a list of assignments each with a text team id, task, reason and a list of text segment ids, a route that is an object or null) and returns null when any is not what a plan holds, instead of handing an unchecked record to the plan panel.
+- Source: whole-repository review, item 4 (medium).
+- Verified: two new tests (a stored plan reads back; a numeric segment id, assignments that are not a list, an assignment with missing fields, a text version and a null record each give null) failed first (function missing), then passed; 15 plan tests pass. scripts/ci-local.sh exit 0.
+
+### feat(command): say which plan records can't be read and keep their versions taken
+- What: the plans listener reads each record through `planFromDoc` (`readPlans`), so a record that is not a plan never reaches the team list, the change marks, the draft or the extras views. The post shows "This plan record can't be read: plan 3. Teams show the newest plan that can." (one line naming every such record), and Approve counts those records' versions as taken, so the next plan does not collide with one the create-only rule already holds.
+- Source: whole-repository review, item 4 (medium).
+- Verified: new tests (records left out and named by id, plans oldest first; approval after unreadable 0002 writes version 3; the reducer keeps the ids and clears them on a denial; the line for one record, for two, and none) failed first (functions and field missing), then passed; 18 plan tests and the reducer tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): say a draft is past the plan limits before it can be suggested
+- What: `planLimitLine` holds the plans rule's limits (at most 10 teams, at most 6 segments for one team, team ids of letters, digits and underscores up to 32). For a draft past them the plan card shows, for example, "A plan can name at most 10 teams. This draft has 11, so it can't be approved. Search with 10 teams or fewer." and Suggest plan is disabled, so no model call is spent on a plan the server would refuse and the refusal is never reported as "another plan was approved first". The plan harness takes `?teams=N`.
+- Source: plans rule limits (at most 10 assignments), whole-repository review follow-up.
+- Verified: three unit tests (10 teams pass; 11 teams, 7 segments for one team and an id with a space each give their line) and a plan harness test (11 teams: the line shows, Suggest plan is disabled, no Approve) failed first, then passed; 21 plan tests and 6 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): show the server's still-being-set-up answer for a practice search
+- What: when startJudgeSession answers `unavailable` with "Your practice search is still being set up. Try again in a moment." (a second start during another's setup, or a failed copy that was released), the judge's door shows that sentence instead of "No connection", and the Try a practice search button is enabled again so the retry resumes the same daily slot. Any other `unavailable` still reads as a lost connection.
+- Source: new error from the practice-search callable.
+- Verified: a new case in `src/data/practice.test.ts` failed first ("No connection" received), then passed; 5 practice tests pass. scripts/ci-local.sh exit 0.
+
+### ci(web): let the no-backend browser checks preview a build kept elsewhere
+- What: `web/e2e/ci.config.ts` previews `PLS_PREVIEW_DIR` when it is set (`vite preview --outDir`), so the local CI mirror can build the placeholder web into a temporary folder and never overwrite a real `web/dist`. Unset, as in the workflow, it previews `web/dist` as before.
+- Source: local CI mirror request.
+- Verified: a placeholder build in a temporary folder with a marker file only there; `vite preview --outDir` on that folder served the marker; `PLS_PREVIEW_DIR=<folder> npx playwright test -c e2e/ci.config.ts` ran 9 checks, 9 passed. scripts/ci-local.sh exit 0.
+
+### refactor(command): drop the listener for a server plan draft that is never written
+- What: the post no longer listens to `planDrafts/{eventSetHash}`; no backend function writes that collection, so the draft always came from `localDraft` (the engine's team assignment on this laptop). The plan card now always reads "Draft from this laptop for the current reports.", and the comments that named a draft function that does not exist are gone.
+- Source: review of the plan path against the deployed functions.
+- Verified: typecheck clean; 21 plan unit tests and 6 plan harness tests pass. scripts/ci-local.sh exit 0.
+
+### fix(judge): say the laptop's model is ready, not that it read anything
+- What: Get this laptop ready only asks Chrome what its built-in model can take; it reads no note and no photo. The lines now say "The built-in model on this laptop is ready for the sighting note." (and "... and sample photos." when it takes images), with "It cannot read images, so photos stay on this laptop." for a text-only model. With no model, the line points at "The replay above shows a recorded drill run." instead of saying the replay runs in the cloud, which it does not.
+- Source: judge-page claims review, item (c).
+- Verified: the three d2Copy tests were changed to the new lines first and failed, then passed; 15 judge tests pass. scripts/ci-local.sh exit 0.
+
+### feat(judge): check the published run with the replay's own reader
+- What: `loadPublishedRun` no longer checks for ten field names; it runs the file through `fromPublishedRun`, the reader the replay uses. A file the reader accepts is a run; one it refuses comes back as `refused` with the reader's reason (for example "The run has no arrival time for a report."), and still reaches the replay section, which shows that reason. A file that is not a JSON object is `invalid`.
+- Source: judge-page review, item (b).
+- Verified: new loader tests (the harness run is accepted; one with a report missing its arrival time is refused with that reason; one with no reports is refused; a JSON array is invalid) failed first (a refused file read as a run, a run with no reports as invalid), then passed; 16 judge tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): replay the published run in one section, or say why there is none
+- What: the judge page no longer holds the replay behind a switch. A run the replay reader accepts plays in the replay section ("Watch the run over time", with its match code, map plates, time slider and the "Training drill. Nobody is missing." label); a run it refuses shows the reason there; with no file the page's own section says "No published run yet."; a file that is not JSON says "The published run file can't be read, so nothing is replayed and no numbers are shown."; a failed load says to reload. The page has one replay section in every state, the old "opens here once the sandbox is live" line is gone, the laptop line names the replay only when it plays, and the Numbers section shows only for an accepted run.
+- Source: judge-page review, items (a) and (d).
+- Verified: `e2e/judgeRun.spec.ts` (three no-backend tests serving the replay harness's made-up run, a copy with a report missing its arrival time, and a non-JSON file) failed first (the placeholder section was still drawn beside the replay; no unreadable line), then passed; against a placeholder build all 12 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): publish the development drill run at /evidence/published-run.json
+- What: the site now serves its drill run (85,288 bytes, sha256 2811a59a89a8cdd3...), labelled "Development drill, Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing." It holds 24 reports, 18 plans and 68 segments, and the replay reader accepts it (no user ids, no stray fields), so the judge page replays it with its match code. The no-model laptop line now points at that replay. The "no published run" test serves a 404 for the file so it keeps testing that state.
+- Source: judge-page review (the replay needs a published run to show).
+- Verified: a new no-backend test (the built site serves the file as JSON with the drill label, and /judge replays it with no refusal) failed first (the preview answered with the app page), then passed; 13 of 13 no-backend browser checks pass against a placeholder build; the reader accepted the file in a one-off check before it was added. scripts/ci-local.sh exit 0.
+
+### fix(judge): say which run is published without promising an unbuilt panel
+- What: for an accepted run the Numbers section reads "Published run drill-dev-1-2026-11-19." (the file's own id); the sentence "The numbers panel is added with the recompute script." is gone, since that panel is not built.
+- Source: review of the judge page copy.
+- Verified: the served-run test now checks the Numbers line names the run and says nothing about a recompute; it failed first (the old sentence was there), then passed; 13 of 13 no-backend browser checks pass against a placeholder build. scripts/ci-local.sh exit 0.
+
+### test(judge): pin the published run's match code at T43J
+- What: the served-run test now requires the replay's end-frame match code to be T43J, the code of the committed file (24 reports, plan v18), instead of any four characters. A change to the engine or the replay reader that moves the judged map now fails this test; re-exporting the run changes the file and the code in the same commit.
+- Source: review of the judge replay tests.
+- Verified: a copy of the test pinned to T43K failed with "Received: T43J"; the T43J pin passes; 13 of 13 no-backend browser checks pass. scripts/ci-local.sh exit 0.

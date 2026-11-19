@@ -26,8 +26,9 @@ export type WebRc = {
   fetchedAtMs?: number | null;
 };
 
-// Live paths use the flash-lite family only. A larger flash model took 116 s
-// on one call (measured), so any other id falls back to the default.
+// Live paths use the flash-lite family only. A larger flash model took 116 s on one call
+// (one sample, 116,071 ms; the model and the record are in docs/evidence/model-latency.md), so any other id
+// falls back to the default.
 const LIVE_MODEL = /^gemini-[0-9]+(\.[0-9]+)*-flash-lite$/;
 
 function model(v: string | undefined, fallback: string): string {

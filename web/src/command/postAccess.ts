@@ -17,17 +17,19 @@ export type PostState = {
   plansLoaded?: boolean;
   /** Plan versions written on this laptop that the server has not acknowledged yet (absent: none). */
   pendingPlans?: number[];
+  /** Ids of plan records whose fields are not what a plan holds (absent: none). */
+  unreadablePlans?: string[];
   profile: ProfileDocs | null;
   denied: boolean;
   offline: boolean;
 };
 
-export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], profile: null, denied: false, offline: false };
+export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], unreadablePlans: [], profile: null, denied: false, offline: false };
 
 export type PostAction =
   | { type: "view"; view: IncidentView }
   | { type: "events"; events: StreamedEvent[] }
-  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean }
+  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean; unreadable?: string[] }
   | { type: "profile"; profile: ProfileDocs }
   | { type: "failed"; error: unknown };
 
@@ -44,12 +46,12 @@ export function postReducer(state: PostState, action: PostAction): PostState {
     case "events":
       return { ...state, events: action.events, offline: false };
     case "plans":
-      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], offline: false };
+      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], unreadablePlans: action.unreadable ?? [], offline: false };
     case "profile":
       return { ...state, profile: action.profile, offline: false };
     case "failed":
       return listenerFailure(action.error) === "denied"
-        ? { view: null, events: [], plans: [], pendingPlans: [], profile: null, denied: true, offline: false }
+        ? { view: null, events: [], plans: [], pendingPlans: [], unreadablePlans: [], profile: null, denied: true, offline: false }
         : { ...state, offline: true };
   }
 }

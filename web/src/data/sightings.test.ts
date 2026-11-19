@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { eventId, toEngineEvents } from "@pls/engine";
+import { DEFAULT_PARAMS, eventId, posterior, toEngineEvents, type EventDoc } from "@pls/engine";
 import type { GridSegmentDoc } from "../map/geo";
-import { buildConfirmation, buildSightingEvent, removePhoneNumbers, useAsStartPoint, type CommandWriter, type SightingInput } from "./sightings";
+import { buildConfirmation, buildSightingEvent, placeFamilySighting, removePhoneNumbers, useAsStartPoint, type CommandWriter, type SightingInput } from "./sightings";
 
 const sq = (lon: number, lat: number) => ({ type: "Polygon" as const, coordinates: [[[lon, lat], [lon + 0.01, lat], [lon + 0.01, lat + 0.01], [lon, lat + 0.01], [lon, lat]]] });
 const segments: GridSegmentDoc[] = [
@@ -119,5 +119,34 @@ describe("useAsStartPoint", () => {
 
   it("refuses a sighting without a place", () => {
     expect(() => useAsStartPoint(buildSightingEvent({ ...input, position: null }, writer()), { priorVersion: 1 })).toThrow(/place/i);
+  });
+});
+
+describe("placing a family sighting on the map", () => {
+  // The shape the family app writes (Events.familySighting): no position, no effect until command acts.
+  const family = {
+    eventId: "f".repeat(32), schemaVersion: 1, incidentId: "drill-dev-1", teamId: null, deviceId: "uid-fam", seq: 7, authorUid: "uid-fam", role: "family",
+    clientTimeMs: 1795859500000, serverTime: null, isTrainingInject: false, route: null, planVersion: null, priorVersion: 2,
+    type: "sighting", reporter: "family", observedAtMs: 1795859000000, position: null, positionSource: "none",
+    rawText: "Where: by the creek. Blue coat", inputMethod: "typed",
+    reading: { kind: "sighting", segmentIds: [], method: "unknown", coverage: null, minutes: null, searchers: null, searchType: "unknown", detectionRangeM: null, item: "", feature: "none", direction: "e", topColor: "blue", bottomColor: "unknown", footwear: "boots", carried: "", matchesProfile: "unknown", evidenceQuote: "" },
+    effect: { kind: "none", why: "needs_command" }, targetEventId: null, decision: null,
+  } as unknown as EventDoc;
+  const picked = { lat: 33.004, lon: -83.996 };
+
+  it("command's placement keeps the family's report and time, links to it, and is evidence for the picked segment", () => {
+    const p = placeFamilySighting(family, picked, writer());
+    expect(p).toMatchObject({ type: "sighting", role: "command", reporter: "family", observedAtMs: 1795859000000, positionSource: "map_click", targetEventId: "f".repeat(32), rawText: "Where: by the creek. Blue coat" });
+    expect(p.reading).toMatchObject({ direction: "e", topColor: "blue", footwear: "boots" });
+    expect((p.effect as { influences: Record<string, string> }).influences["AA"]).toBe("strong_for");
+  });
+
+  it("once confirmed, the family's sighting moves the map: segment AA's probability rises", () => {
+    const prior = [{ segmentId: "AA", priorPoa: 0.4 }, { segmentId: "AB", priorPoa: 0.4 }, { segmentId: "ROW", priorPoa: 0.2 }];
+    const before = posterior(prior, toEngineEvents([family], []), DEFAULT_PARAMS).poa["AA"]!;
+    const placed = placeFamilySighting(family, picked, writer());
+    const after = posterior(prior, toEngineEvents([family, placed, buildConfirmation(placed, "confirmed", writer())], []), DEFAULT_PARAMS).poa["AA"]!;
+    expect(before).toBeCloseTo(0.4);
+    expect(after).toBeGreaterThan(before);
   });
 });
