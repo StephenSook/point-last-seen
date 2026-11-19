@@ -31,7 +31,12 @@ export function tickStepMs(windowMs: number): 60_000 | 300_000 | 900_000 | 3_600
   return 3_600_000;
 }
 
+/** The most ticks a ruler draws: past this the step grows in whole hours, however long the window. */
+export const MAX_TICKS = 2_000;
+
 export function clockLabel(tMs: number, timeZone: string): string {
+  // Outside the dates a clock can show, the formatter throws; say so instead.
+  if (!Number.isFinite(tMs) || Math.abs(tMs) > 8.64e15) return "--:--";
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(tMs);
 }
 
@@ -73,7 +78,11 @@ export function rulerModel(data: ReplayData, w: ReplayWindow, widthPx: number, t
   const x = (t: number) => Math.min(widthPx, Math.max(0, ((t - w.startMs) / span) * widthPx));
   const teamName = new Map(data.teams.map((t) => [t.teamId, t.name]));
 
-  const step = tickStepMs(w.endMs - w.startMs);
+  // The usual step, unless it would draw more than MAX_TICKS ticks; then the smallest whole-hour step that does not.
+  const HOUR = 3_600_000;
+  const usual = tickStepMs(w.endMs - w.startMs);
+  const budget = span / (MAX_TICKS - 1);
+  const step = budget <= usual ? usual : Math.ceil(budget / HOUR) * HOUR;
   const labelEvery = Math.max(1, Math.ceil(LABEL_GAP_PX / ((step / span) * widthPx)));
   const ticks: RulerModel["ticks"] = [];
   for (let t = Math.ceil(w.startMs / step) * step; t <= w.endMs; t += step) {

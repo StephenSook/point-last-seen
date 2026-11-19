@@ -185,6 +185,11 @@ export function pendingLine(data: ReplayData): string | null {
   return n === 1 ? "1 report is still sending and is not in the replay." : `${n} reports are still sending and are not in the replay.`;
 }
 
+const YEAR_2000_MS = Date.UTC(2000, 0, 1);
+const YEAR_2100_MS = Date.UTC(2100, 0, 1);
+/** The longest stretch a public run may cover. */
+const MAX_RUN_SPAN_MS = 7 * DAY_MS;
+
 type Refusal = { ok: false; reason: string };
 const refuse = (reason: string): Refusal => ({ ok: false, reason });
 
@@ -395,6 +400,14 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     events: ordered(replayEvents),
     plans: replayPlans.sort((a, b) => a.version - b.version),
   };
+  // Server times come from the server's clock, so a time outside these years is not one. A replay of more than a
+  // week is not a drill, and its ruler would be unreadable.
+  const inYears = (t: number) => t >= YEAR_2000_MS && t < YEAR_2100_MS;
+  if (data.events.some((ev) => ev.arrivedAtMs !== null && !inYears(ev.arrivedAtMs)) || data.plans.some((pl) => !inYears(pl.approvedAtMs)) || (data.priorBuiltAtMs !== null && !inYears(data.priorBuiltAtMs))) {
+    return refuse("The run has a server time outside the years 2000 to 2100.");
+  }
+  const span = replayWindow(data);
+  if (span && span.endMs - span.startMs > MAX_RUN_SPAN_MS) return refuse("The run covers more time than the replay can show (7 days at most).");
   // Compute every frame the replay can show (each arrival and the end) once here, so a run whose engine settings or
   // reports the engine cannot use is refused with a reason instead of failing on the judge's screen.
   try {

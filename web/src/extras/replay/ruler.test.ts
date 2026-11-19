@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { elapsedLabel, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, sliderScale, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
+import { clockLabel, elapsedLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, sliderScale, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -29,6 +29,21 @@ function data(): ReplayData {
 const model = (d = data(), w: ReplayWindow = replayWindow(d)!) => rulerModel(d, w, WIDTH, "UTC");
 
 describe("tickStepMs", () => {
+  it("never draws more than MAX_TICKS ticks, however long the window", () => {
+    const d = data();
+    const w = replayWindow(d)!;
+    const tenYears = { ...w, endMs: w.startMs + 10 * 365 * 24 * 60 * MIN };
+    const m = rulerModel(d, tenYears, WIDTH, "UTC");
+    expect(m.ticks.length).toBeGreaterThan(0);
+    expect(m.ticks.length).toBeLessThanOrEqual(MAX_TICKS);
+  });
+
+  it("labels a time outside the dates a clock can show without throwing", () => {
+    expect(() => clockLabel(9e15, "UTC")).not.toThrow();
+    expect(clockLabel(9e15, "UTC")).toBe("--:--");
+    expect(clockLabel(Number.NaN, "UTC")).toBe("--:--");
+  });
+
   it("tick step is 1 minute up to 20 minutes, 5 up to 2 hours, 15 up to 6 hours, else 60", () => {
     expect([20 * MIN, 20 * MIN + 1, 120 * MIN, 120 * MIN + 1, 360 * MIN, 360 * MIN + 1].map(tickStepMs)).toEqual([
       60_000, 300_000, 300_000, 900_000, 900_000, 3_600_000,

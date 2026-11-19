@@ -470,6 +470,20 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ segments: [offEarth, ...base.segments.slice(1)] }))).toEqual({ ok: false, reason: "The run has a field of the wrong type: segment.centroid.lat." });
   });
 
+  it("refuses a run that covers more than 7 days, or carries a server time outside the years 2000 to 2100", () => {
+    const base = runV1();
+    const e = base.events[0]!;
+    const DAY = 24 * 60 * MIN;
+    expect(fromPublishedRun(run({ events: [e, { ...e, eventId: "late", seq: 9, clientTimeMs: e.clientTimeMs + 8 * DAY, serverTimeMs: e.serverTimeMs + 8 * DAY }] }))).toEqual({
+      ok: false,
+      reason: "The run covers more time than the replay can show (7 days at most).",
+    });
+    const outOfYears = { ok: false, reason: "The run has a server time outside the years 2000 to 2100." };
+    expect(fromPublishedRun(run({ events: [{ ...e, serverTimeMs: 9e15 }] }))).toEqual(outOfYears);
+    expect(fromPublishedRun(run({ plans: [{ ...base.plans[0]!, approvedAtMs: 0 }] }))).toEqual(outOfYears);
+    expect(fromPublishedRun(run({ incident: { ...base.incident, priorBuiltAtMs: 4_200_000_000_000 } }))).toEqual(outOfYears);
+  });
+
   it("refuses a run with more reports than the replay can check and show", () => {
     const base = runV1();
     const e = base.events[0]!;
