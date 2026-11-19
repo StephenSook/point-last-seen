@@ -181,3 +181,18 @@ test("a clip that cannot be read from this computer says so and unlocks the form
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await expect(page.getByTestId("asked")).toHaveText("");
 });
+
+test("triage: when the flagged seconds show no one, the whole clip can be read with the same consents", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByRole("status")).toHaveText("No one was found in the flagged seconds. Nothing changed.");
+  expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+  await page.getByRole("button", { name: "Read the whole clip in the cloud" }).click();
+  await expect.poll(() => how(page)).toEqual({ reason: "user_override_after_triage" });
+});
+
+test("triage: changing a consent withdraws the whole-clip read", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toBeVisible();
+  await page.getByLabel("Public use").check();
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+});

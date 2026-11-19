@@ -5,7 +5,7 @@
 // possible only with the three required consents; readClip checks them again.
 // With this laptop's model, the clip is triaged here first: a clip with no motion or no person
 // is not sent (a consented "Read in the cloud anyway" stays open), and a flagged clip is read
-// only for its flagged seconds.
+// only for its flagged seconds; if they show no one, "Read the whole clip in the cloud" stays open.
 
 import { sizeProblem, type RouteReason } from "@pls/engine";
 import { useState, type FormEvent } from "react";
@@ -80,6 +80,8 @@ const NO_CONSENT: ClipConsents = { personInClip: false, footageOwner: false, clo
 const HELD = {
   "no-motion": "Nothing moves in this clip. Nothing was sent.",
   "no-person": "No person found on this laptop. Nothing was sent.",
+  // A flagged window read in the cloud found no one; triaging again would flag the same seconds.
+  "window-miss": "No one was found in the flagged seconds. Nothing changed.",
 } as const;
 
 export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onClose }: Props) {
@@ -111,6 +113,11 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
     setHeld(null);
     try {
       const outcome = await onRead(input, how);
+      if (outcome.kind === "could-not-read" && how.window) {
+        // Offer the rest of the clip, with the consents given for this read.
+        setHeld({ input, kind: "window-miss" });
+        return;
+      }
       const text = clipOutcomeMessage(outcome);
       if (text) setMessage({ text, alert: outcome.kind !== "could-not-read" });
     } catch {
@@ -242,7 +249,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
         <div className="note-state">
           <p role="status">{HELD[held.kind]}</p>
           <button type="button" className="btn ghost" onClick={() => void read(held.input, { reason: "user_override_after_triage" })} disabled={busy !== false}>
-            Read in the cloud anyway
+            {held.kind === "window-miss" ? "Read the whole clip in the cloud" : "Read in the cloud anyway"}
           </button>
         </div>
       )}
