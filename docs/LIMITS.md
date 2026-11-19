@@ -144,9 +144,9 @@ each line says what the limit is and why.
   rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
 - The family gets a push on its own topic, `pls-{incident}-family`, when command asks it a question or sets the
   search to searching or paused. The push says only that ("The search lead has a question.", "Teams are searching
-  now.", "The search is paused. The search lead will call you.") with the incident id and, for a question, its
-  Firestore auto-id; the question is read in the app. No push ever carries an outcome. At most 20 a day per incident,
-  one per trigger event (a redelivered event sends nothing), none for a state the incident has since left, and none
+  now.", "The search is paused. The search lead will call you.") with the incident id only; the app lists the
+  unanswered questions from Firestore when it opens. No push ever carries an outcome. At most 20 a day per incident,
+  one per trigger event (a redelivered event sends nothing), none for a state the incident has since left or once it is found, closed or past its end, and none
   in a judge practice search. A push that fails to send after its slot is taken is not retried.
 - Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
   every push carries only fixed wording and ids, never a name, a place, a task or a question's text.
