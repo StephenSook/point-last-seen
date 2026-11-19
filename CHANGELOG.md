@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/SECURITY.md`'s table of cloud calls now lists all eight, with whether each is a server prompt template or a
+  direct call: it adds the web clip read (direct, because a template cannot pass the clip window) and the iOS
+  spoken assignment change (template `pls-voice-v1`), and replaces "None is templated today" with which three are.
+  Source: review (the film fact-sheet audit: the table contradicted row 6 and left two calls out).
+  Verified: each row checked against the calling code (`web/src/ai/clipRead.ts` cloud only;
+  `ios/PLS/AI/AssignmentSpeaker.swift`; the template ids in `shared/templates/`); `bash scripts/ci-local.sh` exit 0.
 - The gates job runs `scripts/test_firebase_config.py`, and `scripts/ci-local.sh` mirrors it.
   Source: the hosting fix.
   Verified: `bash scripts/ci-local.sh` exit 0.

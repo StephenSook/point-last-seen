@@ -73,17 +73,20 @@ protection enforced, setting it to `false` would make every cloud call fail.
 
 ## Every cloud model call
 
-Each call goes through Firebase AI Logic with an App Check token and a Firebase Auth ID token. None is
-templated today (row 6).
+Each call goes through Firebase AI Logic with an App Check token and a Firebase Auth ID token. Three calls use a
+server prompt template (row 6); the rest are direct calls that name their model, which cloudGuard checks (row 12),
+except the iOS report read, which streams.
 
-| Surface | What it reads | Mode | Starts when |
-|---|---|---|---|
-| Web command post | Suggested wording for a changed plan | Prefer cloud, on-device fallback | Command clicks Suggest |
-| Web command post | A typed or pasted sighting note | Cloud only, after the on-device read | Command asks for the cloud read |
-| Web command post | One photo from the tray | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
-| iOS searcher app | A spoken or typed field report | On-device first; cloud by the read router (`ios/PLS/AI/ModelSessionFactory.swift`) | The searcher sends a report |
-| Android family app | A family note | Hybrid, from Remote Config `kill_cloud` and the caller's route | The family sends a note |
-| Android family app | A camera clip | Cloud only, after the consent record is written | The family shares a clip |
+| Surface | What it reads | Template or direct | Mode | Starts when |
+|---|---|---|---|---|
+| Web command post | Suggested wording for a changed plan | Direct | Prefer cloud, on-device fallback | Command clicks Suggest |
+| Web command post | A typed or pasted sighting note | Template `pls-sighting-note-v1` | Cloud only, after the on-device read | Command asks for the cloud read |
+| Web command post | One photo from the tray | Direct (`pls-photo-cues-v1` is published for it) | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
+| Web command post | A camera clip, or the seconds of it that matter | Direct (a template cannot pass the clip window) | Cloud only | Command asks for a clip read |
+| iOS searcher app | A spoken or typed field report | Direct, streaming | On-device first; cloud by the read router (`ios/PLS/AI/ModelSessionFactory.swift`) | The searcher sends a report |
+| iOS searcher app | A spoken assignment change | Template `pls-voice-v1` | Cloud voice, falling back to the phone's voice | Command changes the team's assignment |
+| Android family app | A family note | Direct | Hybrid, from Remote Config `kill_cloud` and the caller's route | The family sends a note |
+| Android family app | A camera clip | Template `pls-clip-read-v1` | Cloud only, after the consent record is written | The family shares a clip |
 
 ## Data and media
 
