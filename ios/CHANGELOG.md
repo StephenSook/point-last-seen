@@ -5,6 +5,27 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs(ios): restore the changelog headings a merge dropped
+- What: a merge of main into a profile branch kept one side in the changelog's conflicting part,
+  which removed 24 entry headings, their blank lines and 8 "Source: review." lines; entries ran
+  together under the wrong titles. The file is now the correct three-way merge of both sides: every
+  entry from each side, each under its own heading.
+- Source: review (changelog read while merging).
+- Verified: a script checked that every non-blank line of main's file and of both merge parents is
+  in the restored file (0 missing from each), and the restored file has 132 headings.
+
+### feat(ios-core): read the shared profile's tracking aids
+- What: profile/shared gains `trackingAids` ({ aids, note }), the tracking aids the family named.
+  The iPhone now reads it: absent means unknown, missing parts read as empty, and it is written
+  back only when present. It is for the search cards only; the profile text a model may see is
+  unchanged by it. Unknown aid values are kept here and skipped where the card lines are built.
+- Source: shared profile schema change (tracking aids).
+- Verified: a test for a profile with aids and a note, one without the field, one with only aids,
+  the written form, and the model-facing text being the same with or without the aids. It failed
+  to compile before the change and passes after; 270 PLSCore tests pass. The schema parity check
+  passes only together with the schema change that adds the field (checked on a dry merge).
+
+### fix(ios): a closed incident drops its mission even when the claims are unchanged
 - What: the sign-in check returned early when the claims still named the loaded mission's
   incident and team, so an incident command had closed kept its mission (and its listener and
   reports) through every sign-in and reconnect. That check now also reads the incident's status.
@@ -14,6 +35,8 @@ finding) and how it was verified. Newest first.
 - Verified: a test closes the incident with unchanged claims: no signal keeps the mission, then a
   readable closed status drops it (listener stopped, the message shown). It failed before the
   change and passes after; 112 app tests pass.
+
+### fix(ios): a plan counts only when its stored version is a whole number
 - What: the phone turns a Firestore Timestamp into epoch milliseconds, so a plan whose `version`
   was stored as a Timestamp read as a huge version, and every later plan would have been ignored as
   older. The first mission read and the plan listener now take a plan only when its stored version
@@ -22,6 +45,8 @@ finding) and how it was verified. Newest first.
 - Verified: tests for whole-number versions (a plan) and for a Timestamp, text, a boolean, a
   fraction, a negative number and a missing version (no plan). They failed to compile before the
   change and pass after; the app tests pass.
+
+### fix(ios): an old load never replaces the new team's plan listener, and retired listeners are ignored
 - What: a load re-checked that it was still the newest only before it installed the mission. Its
   speaking takes time, and a newer load (a team change) could take over meanwhile; when the old
   load went on, it stopped the new team's listener and installed its own. A callback queued by a
@@ -32,6 +57,8 @@ finding) and how it was verified. Newest first.
 - Verified: tests for an old load still speaking when T2 loads (T2's listener stays and its plan
   arrives) and for a retired listener's plan after T1 to T2 to T1 (ignored). They failed before the
   change and pass after; 109 app tests pass.
+
+### fix(ios): a dropped assignment is never played, and the next membership starts fresh
 - What: a drop cleared the mission and its plan listener, but the voice kept going. A cloud voice
   still fetching could play the old instruction or fall back to the phone's own voice, a queued
   device line could still play, and the speaker remembered the last line across memberships, so
@@ -44,6 +71,8 @@ finding) and how it was verified. Newest first.
   stop (both voices silenced, the same line spoken again after). They failed to compile before the
   change and pass after. An app test for a drop then the same team again fails when the stop in
   the drop is removed, and passes with it. 107 app tests pass.
+
+### fix(ios): a slow access check never restores what a newer one dropped
 - What: a retry or a sign-in check whose claims read was slow could come back with old searcher
   claims after a newer check had found the role gone and dropped the membership; it then restored
   the membership and could read and load the old mission, or overwrite a newer message. Join,
@@ -53,6 +82,8 @@ finding) and how it was verified. Newest first.
 - Verified: tests hold a retry's and a sign-in's claims read open while a newer check drops the
   role; before the change the slow one restored the membership, after it nothing is restored and
   no mission is read. 104 app tests pass.
+
+### fix(ios): plans apply in version order, so an older plan never replaces a newer assignment
 - What: the plan listener compared only assignments, so an older plan (a cache snapshot, or an
   update handled out of order) could replace the newer assignment and speak it, and the newer one
   then spoke again. The mission now keeps the version of the plan its assignment came from, set
@@ -62,6 +93,8 @@ finding) and how it was verified. Newest first.
 - Verified: a test sends another copy of the loaded version, a newer version, then an older one and
   a second copy of the newer one, then a newer one again. Before the change the old plans replaced
   the assignment; after it only the newer ones apply and each is spoken once. 102 app tests pass.
+
+### fix(ios): a team change retires the old team's mission before the new one is read
 - What: when command moved a searcher to another team, the phone read the new team's mission while
   the old one stayed loaded. If that read failed, the old team's mission, plan listener and spoken
   updates stayed alive, reports were stamped with the old team (which the security rules refuse),
@@ -72,6 +105,8 @@ finding) and how it was verified. Newest first.
   listener stopped, the retry offered with the read message, and a late T1 plan neither loads nor
   speaks. A retry then loads T2. It failed before the change and passes after; 101 app tests pass;
   the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): a lost searcher role drops the membership too, and a retry checks the claims first
 - What: when claims stopped naming a searcher, the phone dropped only a loaded mission. A membership
   whose first mission read had failed survived, so "Read the mission again" stayed on screen and
   read the mission with no check of the claims. Now any non-searcher claims drop everything held
@@ -82,6 +117,8 @@ finding) and how it was verified. Newest first.
 - Verified: tests for a role lost while only the membership is held, and for a retry after the role
   was lost (no mission read, no retry offered, the message shown). They failed before the change
   and pass after; 100 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): the cloud switch says what leaves the phone, and when
 - What: the Ready check's cloud switch read "Allow cloud reading when the phone cannot read a
   report" without naming what is sent. It now reads "Allow cloud reading", with the line "Only when
   this phone cannot read a report. Google's model then gets the report's words (phone numbers
@@ -92,6 +129,8 @@ finding) and how it was verified. Newest first.
 - Verified: two tests (the switch's words; the named description is exactly the profile tool's
   fields) failed to compile, then passed; the text is Title 3 (the field text size check passes);
   98 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### test(ios): pin the exact text each model route receives and the join adapter's real options
 - What: the redaction test exercised only the on-device guided call, and the join tests checked a
   static option and a fake's refresh, so neither could catch its own regression. The core test now
   asserts that each route's model gets exactly the scrubbed text (on the phone, guided then
@@ -99,76 +138,88 @@ finding) and how it was verified. Newest first.
   seams, so a test sees the callable it calls (joinIncident), its limited-use App Check option and
   the refresh flag of each claims read. Also corrects a comment: the callable enforces App Check,
   and limited-use tokens are what replay protection consumes when it is turned on.
+- Source: review.
 - Verified: with the scrub line removed, the route test fails on both routes; the adapter test
   failed to compile before the seams and fails if the option or the forced refresh is dropped;
   all pass now; 276 core and 96 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): read the mission again without the code, and never re-join a team already held
 - What: when the server granted the join but the mission could not be read, the only button sent
   the code again, which a one-use code refuses although the phone already had membership. The app
   now keeps the membership the claims granted and offers "Read the mission again", which reads the
   mission without the code. Before calling join, it also checks the token's claims (refreshed): a
   team and incident the phone already holds are read directly, with no code spent.
+- Source: review.
 - Verified: two tests (a failed mission read is retried without a second call; a team already held
   calls nothing while another team does) failed to compile, then passed; the join tests now start
   from a phone not yet in the incident; 96 app tests pass; the CI mirror `bash scripts/ci-local.sh`
   exit 0.
+
+### fix(ios): a mission lists and counts only its own incident's reports
 - What: the task list, the task status and the probability over the team's segments read the
   whole journal, so after a phone moved to a new incident, an earlier incident's reports showed
   under the new mission and a clear on a same-named segment shifted its probability. `missionEntries`
   keeps only the loaded incident's reports, and the probability also takes only that incident's
   events from the listener. The journal itself keeps every report (an earlier incident's stay for
   recovery), and the link glyph still counts every report not yet sent.
+- Source: review.
 - Verified: a test puts one report from an earlier incident and one from the mission's incident in
   the journal; the mission shows only its own while the journal keeps both; it failed to compile,
   then passed; 94 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): a phone number that mixes written and spoken digits is still removed
 - What: written digit runs and spoken digit words were checked separately, so a dictated
   "404 five five five 0123" passed both checks and reached the model. One scanner now counts
   written digits and spoken digit words alike: seven or more joined only by short separators
   (spaces, - . , ( )), with an optional leading + or (, are one number. Report numbers stay.
+- Source: review.
 - Verified: a test removes four mixed shapes and keeps "2 searchers, five minutes, segment 12, one
   hour"; it failed on the old code (4 issues), then passed with every earlier phone-number test;
   276 core tests and the app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): an incident with no mode, or a mistyped one, keeps the phone on the rules path
 - What: a mission read from an incident with no `mode` (or one that is not text) was treated as a
   drill, which lets reports reach a model when consent and routing allow it. The mode is now kept
   as command wrote it, and a missing or non-text mode reads as empty; only an incident marked
   exactly "drill" or "judge" can reach a model.
+- Source: review.
 - Verified: a test builds missions with "drill" and "judge" (model modes) and with no mode, null,
   a number, "Drill", "training" and "" (none a model mode); it failed on the old code (3 issues),
   then passed; 93 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): remove phone numbers from profile and task text where they reach a model
 - What: a phone number in a profile description field (appearance, clothing) reached the report
   model through the subject-description tool, and one in an approved task reached the cloud voice.
   The tool's rendered text and the cloud voice's input are now scrubbed. The approach card and the
   phone's own voice, which no model hears, keep the words as written.
+- Source: review.
 - Verified: two tests (the tool text keeps the description but not the number; the cloud voice
   gets "[number removed]" while the phone's own voice reads the task as written) failed on the old
   code, then passed; 275 core tests and 92 app tests pass; the CI mirror `bash scripts/ci-local.sh`
   exit 0.
+
+### fix(ios): after sign-in, the mission follows the token's claims read fresh from the server
 - What: resuming trusted the cached ID token and ran only when no mission was loaded, so a
   searcher command moved from T1 to T2 kept T1's mission and assignment. After every sign-in (at
   launch, and when signal returns) the claims are now read with a forced refresh, falling back to
   the cached token only when the refresh fails (no signal). The mission follows them: unchanged
   claims change nothing, a new team loads that team's mission, and claims that no longer name a
   searcher's incident drop the mission and stop its plan listener.
+- Source: review.
 - Verified: two tests (the claims are refreshed after sign-in and the cached token answers when
   the refresh fails; a team change loads the new team and a lost searcher role drops the mission
   and its listener) failed to compile, then passed; 91 app tests pass; the CI mirror
   `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): a slow earlier mission load never replaces a newer join
 - What: a load started at launch for the token's team could finish after a join for another team
   and replace that mission, so reports would go out under the old team. Every join and load now
   takes a generation number; a load installs its mission only if no newer join or load started
   while it read, and a superseded launch load leaves the join's words alone.
+- Source: review.
 - Verified: a test holds the launch load for T1 open, joins T2, then lets the T1 read finish; T1
   replaced T2 on the old code (failed), T2 stays now (passes); 89 app tests pass; the CI mirror
   `bash scripts/ci-local.sh` exit 0.
-### feat(ios-core): read the shared profile's tracking aids
-- What: profile/shared gains `trackingAids` ({ aids, note }), the tracking aids the family named.
-  The iPhone now reads it: absent means unknown, missing parts read as empty, and it is written
-  back only when present. It is for the search cards only; the profile text a model may see is
-  unchanged by it. Unknown aid values are kept here and skipped where the card lines are built.
-- Source: shared profile schema change (tracking aids).
-- Verified: a test for a profile with aids and a note, one without the field, one with only aids,
-  the written form, and the model-facing text being the same with or without the aids. It failed
-  to compile before the change and passes after; 270 PLSCore tests pass. The schema parity check
-  passes only together with the schema change that adds the field (checked on a dry merge).
 
 ### docs(ios): plain engineering words in the changelog and two comments
 - What: earlier entries and two comments named work streams and private review notes. They now say
@@ -180,6 +231,7 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): a plan command approves after the mission loads reaches the phone
 - What: once a mission loads, the phone listens for the incident's latest approved plan (highest
   version). A plan that changes this team's assignment updates the task and its segments and goes
   through `load`, so the new assignment is spoken once; the same plan again says nothing, and a plan
@@ -190,6 +242,8 @@ finding) and how it was verified. Newest first.
   plan for another team clears it, a plan for another incident is ignored; a second mission stops
   the first listener) failed to compile, then passed; the CI mirror `bash scripts/ci-local.sh`
   exit 0; 88 app tests pass.
+
+### fix(ios): remove phone numbers before a report reaches any model, not only before it is stored
 - What: the iPhone removed phone numbers only from what it stored, so the on-device model, the
   cloud model and the token count (also a call into Apple's model) were handed the report with
   the number in it, while SECURITY.md and LIMITS.md say numbers are removed before any prompt.
@@ -199,6 +253,8 @@ finding) and how it was verified. Newest first.
 - Verified: two tests (the text every model call receives carries "[number removed]" and no digits
   of the number; the token counter sees the scrubbed text) failed on the old code, then passed;
   274 core tests and 86 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### feat(ios): a join section on the Ready check while no mission is loaded
 - What: until a mission is loaded, the Ready check opens with "Join your team": the join code,
   the team (for example T1), the incident id folded away for when command gives one, a Join
   button and the result in words. The task screen's empty state now says "No mission loaded" and
@@ -209,6 +265,8 @@ finding) and how it was verified. Newest first.
   code answered "The join code has 8 letters and numbers." with no call made. Every line is
   Title 3 or larger (the field text size check caught the first draft's body-size message). The CI mirror
   `bash scripts/ci-local.sh` exit 0; 85 app tests pass.
+
+### feat(ios): load the team's mission after a join, and again after sign-in for a searcher who joined before
 - What: `AppModel.join(code:teamId:incidentId:)` checks the request, joins through the callable
   and then reads the team's mission: `FirestoreMissionReader` reads the incident, its segments, the
   latest approved plan (by version) and `profile/shared` as a member (offline, from Firestore's
@@ -222,6 +280,8 @@ finding) and how it was verified. Newest first.
   nothing and a refused join loads nothing; a closed incident and an unreadable mission say why;
   a searcher's token loads the mission after sign-in once, a family token loads nothing) failed to
   compile, then passed; the CI mirror `bash scripts/ci-local.sh` exit 0; 84 app tests pass.
+
+### feat(ios): build the team's mission from the incident, its segments, the plan and the shared profile
 - What: `MissionBuilder` turns the member-readable documents a joined searcher can read into the
   phone's `Mission`, with the parsers the pack uses: the segments (ROW included) give the grid,
   the prior and its version; the latest approved plan gives the team's assignment and segments;
@@ -236,6 +296,8 @@ finding) and how it was verified. Newest first.
   a plan, a shared profile with other names and the stop_calling_name note; no plan or profile
   yet; a closed incident, a prior mismatch and a missing ROW refused) failed to compile, then
   passed; the CI mirror `bash scripts/ci-local.sh` exit 0; 80 app tests pass.
+
+### feat(ios): join an incident as a searcher through the joinIncident callable
 - What: `Joiner` signs in, calls joinIncident (us-central1, limited-use App Check tokens, as the
   callable enforces App Check with replay protection), forces an ID-token refresh, and counts as
   joined only when the new claims name the incident, the searcher role and the team asked for.
@@ -248,6 +310,8 @@ finding) and how it was verified. Newest first.
   another team or incident refused; no sign-in calls nothing; every refusal's words; the error
   codes' mapping; the region and limited-use option) failed to compile, then passed; the CI
   mirror `bash scripts/ci-local.sh` exit 0; 77 app tests pass.
+
+### feat(ios-core): check a searcher's join code and team on the phone before calling
 - What: `JoinCode` reads a code the way the joinIncident callable does (case, spaces and hyphens
   ignored; 8 symbols of the Crockford alphabet, no I, L, O or U). `SearcherJoin` builds the
   callable's request (code, role searcher, the team command named, and the incident when given)
@@ -258,6 +322,7 @@ finding) and how it was verified. Newest first.
 - Verified: four tests (normalization; only eight Crockford symbols; the request's fields; the
   messages for a bad code, team or incident) failed to compile, then passed; the CI mirror
   `bash scripts/ci-local.sh` exit 0; the app tests pass.
+
 ### feat(ios): read the other names a person may answer to from the shared profile
 - What: `SharedProfile` gains `otherNames`, the optional list of up to five other names she may
   answer to, in the family's order. It is nil on profiles saved before the list and is written
