@@ -430,6 +430,22 @@ describe("fromPublishedRun", () => {
     }
   });
 
+  it("refuses a shape whose positions carry anything beyond two numbers, or which carries fields beyond its kind and rings", () => {
+    const base = runV1();
+    const seg = base.segments[0] as RunSegment;
+    const noShape = { ok: false, reason: "The run has a map segment without a shape." };
+    const sq = [[-84.37, 33.78], [-84.369, 33.78], [-84.369, 33.781], [-84.37, 33.781], [-84.37, 33.78]];
+    const withThird = (third: unknown) => sq.map((p, i) => (i === 1 ? [...p, third] : p));
+    for (const geometry of [
+      { type: "Polygon", coordinates: [withThird("her porch")] },
+      { type: "Polygon", coordinates: [withThird(12)] },
+      { type: "Polygon", coordinates: [sq], note: "behind the church" },
+    ]) {
+      const broken = { ...seg, geometryJson: JSON.stringify(geometry) };
+      expect(fromPublishedRun(run({ segments: [broken, ...base.segments.slice(1)] })), JSON.stringify(geometry)).toEqual(noShape);
+    }
+  });
+
   it("refuses a ring that is not closed or leaves the earth's ranges, in a Polygon or a MultiPolygon, and a centroid off the earth", () => {
     const base = runV1();
     const seg = base.segments[0] as RunSegment;
