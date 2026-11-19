@@ -113,8 +113,16 @@ each line says what the limit is and why.
 - A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
   its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
   carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
-  once one is published. A visitor gets one new practice search an hour, at most 50 are started a day, and each
-  is deleted, with everything in it, a day after it ends.
+  once one is published. A visitor gets one new practice search an hour, at most 50 are started a day (counted on
+  one document per UTC day), and each is deleted, with everything in it, a day after it ends.
+- Each setup attempt has its own incident, `judge-{uid}-{attempt}`, and `judgeUsers/{uid}` names the one in use. A
+  setup that died is replaced by a new attempt, and the dead one ends at once. So a setup that resumes late (a 2nd
+  gen function can keep running after its timeout), the cleanup job and the media sweep each touch only their own
+  attempt. An older practice search at `judge-{uid}` is kept only if it holds every one of the drill's segment and
+  team ids.
+- A start that runs at the moment a visitor's practice search ends can give the command role on the one that just
+  ended, after a second start has made the next one. The security rules refuse an ended practice search's data
+  from its end, so the visitor sees nothing there and starts again, which gives the role on the new one.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. Both are live (deployed 2026-11-18); the daily
@@ -142,13 +150,22 @@ each line says what the limit is and why.
   `pls-{incident}-{team}`. Firebase Cloud Messaging topics are open: any install of an app can subscribe to any topic
   name. So a push carries nothing private: a fixed line ("Your team has a new task. Open Point Last Seen to see
   it."), the incident and team ids, and the plan version. The task itself is read in the app, behind the security
-  rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
+  rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search. Each
+  team's notice for a plan version is sent once (a repeated delivery of the event sends nothing), none goes for a
+  plan a newer version has replaced, and one whose send fails is sent on the next delivery.
 - The family gets a push on its own topic, `pls-{incident}-family`, when command asks it a question or sets the
   search to searching or paused. The push says only that ("The search lead has a question.", "Teams are searching
   now.", "The search is paused. The search lead will call you.") with the incident id only; the app lists the
   unanswered questions from Firestore when it opens. No push ever carries an outcome. At most 20 a day per incident,
   one per trigger event (a redelivered event sends nothing), none for a state the incident has since left or once it is found, closed or past its end, and none
   in a judge practice search. A push that fails to send after its slot is taken is not retried.
+- A family notice can arrive late or out of order. Searching, paused and searching again in quick order can send
+  "Teams are searching now." twice, a question's notice can arrive after the family has answered it, and the search
+  can end between the check and the send. A notice only says to open the app, which shows the current state and the
+  questions still waiting from Firestore.
 - Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
-  every push carries only fixed wording and ids, never a name, a place, a task or a question's text.
+  every push carries only fixed wording and ids, never a name, a place, a task or a question's text. Such a
+  subscriber can still see when a search's teams get new tasks, when it starts or pauses, and when the family is
+  asked a question. A real search's incident id is never published (people join with a code); the drills' ids are
+  in this repository, and they are drills.
 - iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

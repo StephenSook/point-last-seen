@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` says what the practice search and the notices do and do not guarantee: each setup attempt has
+  its own incident and a pointer names the one in use, and an older practice search is kept only with every one of
+  the drill's ids; a start at the moment a practice search ends can give the role on the one that just ended (the
+  rules refuse its data, so the visitor starts again); a team's plan notice goes once per version and never for a
+  replaced plan; a family notice can arrive late, repeat a state the search returned to, or come after its question
+  was answered, and only says to open the app; and anyone who knows an incident id can see when its search gets new
+  tasks, starts, pauses or asks the family a question (a real search's id is never published; the drills' ids are in
+  this repository). `docs/PRODUCTION-CHECKLIST.md` names the per-day counter documents.
+  Source: review (round 2 on the functions: the gaps kept as stated limits).
+  Verified: each line matches the code in `functions/src/judgeSession.ts` and `functions/src/notify.ts` as changed
+  here; rules_gate and the public hygiene guard exit 0.
 - A team's new-assignment notice goes once per plan version, and never for a plan that has already been replaced.
   `notifyPlanApproved` claims each team's notice (`pushBudget/plan-{version}-{team}`, which no client can read or
   write) before sending, so a redelivered event sends nothing twice; a send that fails gives its claim back, so the

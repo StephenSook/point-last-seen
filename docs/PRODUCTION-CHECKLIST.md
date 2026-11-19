@@ -77,7 +77,8 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 - [ ] Every judge-sandbox copy of a clip reading gets `expiresAt` set from the sandbox's own end (Task 23,
   `startJudgeSession`), never the drill's original value, so the TTL cannot remove a sandbox's readings early.
 - [ ] The daily sandbox cap is the function's in-code value: `JUDGE_SESSIONS_PER_DAY = 50` new practice searches per
-  UTC day across all visitors (`functions/src/judgeSession.ts`, counted in the admin-only `ops/judgeSessions`).
+  UTC day across all visitors (`functions/src/judgeSession.ts`, counted in the admin-only `ops/judgeSessions-{YYYY-MM-DD}`,
+  one document per day, so the sessions so far are the sum of those counts).
   Lower it there, and redeploy, if the Gemini burn rate line below needs it.
 - [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
   and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
