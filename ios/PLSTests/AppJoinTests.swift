@@ -177,6 +177,48 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.teamId == "T2" && !m.canRetryMission)
     }
 
+    /// A retry whose claims check is slow loses to a newer check: when the newer one has found the
+    /// role gone, the slow one's old searcher claims restore nothing and read nothing.
+    @Test(.timeLimit(.minutes(1))) func aSlowRetryNeverRestoresADroppedMembership() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.canRetryMission)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let retrying = Task { await m.retryMission() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(!m.canRetryMission)
+        reader.docs = try drillDocs()
+        let reads = reader.reads.count
+        gate.release()
+        await retrying.value
+        #expect(m.mission == nil && !m.canRetryMission && reader.reads.count == reads)
+    }
+
+    /// The same for the check after a sign-in: a slow one never brings back a membership a newer
+    /// one dropped.
+    @Test(.timeLimit(.minutes(1))) func aSlowResumeNeverRestoresADroppedMembership() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let resuming = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        reader.docs = try drillDocs()
+        gate.release()
+        await resuming.value
+        #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
+    }
+
     /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
     /// membership is kept and "Read the mission again" is no longer offered.
     @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {

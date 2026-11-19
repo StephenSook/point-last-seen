@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a slow access check never restores what a newer one dropped
+- What: a retry or a sign-in check whose claims read was slow could come back with old searcher
+  claims after a newer check had found the role gone and dropped the membership; it then restored
+  the membership and could read and load the old mission, or overwrite a newer message. Join,
+  "Read the mission again" and the sign-in check now each take a number when they start. Only the
+  newest acts on the claims it read or sets the join screen's words.
+- Source: review (finding 1, second round).
+- Verified: tests hold a retry's and a sign-in's claims read open while a newer check drops the
+  role; before the change the slow one restored the membership, after it nothing is restored and
+  no mission is read. 104 app tests pass.
+
 ### fix(ios): plans apply in version order, so an older plan never replaces a newer assignment
 - What: the plan listener compared only assignments, so an older plan (a cache snapshot, or an
   update handled out of order) could replace the newer assignment and speak it, and the newer one
