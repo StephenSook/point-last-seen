@@ -31,7 +31,7 @@ class MainFlowTest {
     @Test fun shesGoneLeadsToCallFirstThenTheJoinScreen() {
         rule.onNodeWithText("Who might go missing?").assertIsDisplayed()
         rule.onNodeWithText("She's gone").performScrollTo().performClick()
-        rule.onNodeWithText("Call 911 first.").assertIsDisplayed()
+        rule.onNodeWithText("Look in the immediate area now. If you don't find them within 5 minutes, call 911.").assertIsDisplayed()
         rule.onNodeWithText("I called").performScrollTo().performClick()
         rule.onNodeWithText("Type the code from command.").assertIsDisplayed()
     }

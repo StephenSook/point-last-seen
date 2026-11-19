@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
+  project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
+  Source: review (seen after the merge point's Android build).
+  Verified: `git check-ignore android/.kotlin` matches and `git status` no longer lists it.
+- The Android unit-test floor is the real count, 274, in both `android.yml` and `scripts/ci-local.sh` (it was 150), so
+  losing even one test class fails CI and the local mirror instead of passing quietly.
+  Source: review (a floor far below the count would not notice a dropped class).
+  Verified: the merge point's full local mirror counted 274 Android unit tests, 0 failures, 0 skipped; `count-tests.py
+  --min 274` passes on those results and `--min 275` fails; the ci-local mirror test still finds the two commands equal.
 - `scripts/heavy.sh <command...>` runs any heavy command (a full vitest or Playwright suite, a Gradle or Xcode test
   run) in one of the machine's two heavy-suite slots, with the same rules `ci-local.sh` follows: take a free slot at
   once, or wait on slot 1 naming the process that holds it every 5 minutes, give up after 90 minutes, and never wait
