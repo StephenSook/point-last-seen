@@ -1435,3 +1435,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a cell's code and percent need about 56 px across to be read. When the median cell is narrower on screen (the whole park on a phone, or zoomed out on a laptop), only the 8 most likely cells keep their code and percent; zooming in past that width brings the rest back. The hidden labels stay in the page, so anything that reads the plates still finds every one. On the drill park at its first view the cells are about 30 px across, so before this the percents overlapped each other.
 - Source: live judge walk, item 7 (phone), and the segment codes from item 6.
 - Verified: unit tests (`src/map/labelDensity.test.ts`: dense below a 56 px median, the top cells by POA with ties by id) failed first (module missing), then passed; a map harness test at a 300 px wide viewport shows 8 codes and 8 percents, AB among them, with all 24 codes still in the page, and fails with the hiding rule removed (24 shown); 86 harness and 42 extras browser tests pass. scripts/ci-local.sh exit 0.
+
+### fix(command): fit the post header in two lines on a phone
+- What: under 900 px wide the header wraps: "Training drill. Nobody is missing." takes its own row, and the incident name, the match code and More share the second. At 390 px the drill line had been squeezed into four lines beside the other items (126 px of header).
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: header at most 110 px, the drill line whole) failed on the deployed site at aaae392 (126 px); it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.

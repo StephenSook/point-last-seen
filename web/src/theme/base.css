@@ -82,6 +82,9 @@ button, input, select { font: inherit; color: inherit; }
   .post { height: auto; min-height: 100%; }
   .post-body { grid-template-columns: 1fr; grid-template-rows: 55vh auto auto; }
   .map-wrap { order: -1; }
+  /* The drill line takes its own row; the incident, the match code and More share the second. */
+  .post-head { flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
+  .post-head .drill { flex: 1 0 100%; }
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
   /* Phones: 16 px field text keeps iOS Safari from zooming on focus; 44 px tap targets. */
   input, select, textarea { font-size: 16px; }
