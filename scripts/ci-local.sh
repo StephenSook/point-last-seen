@@ -7,7 +7,8 @@
 #   Exit 0: every check ran and passed. Exit 1: a check failed (the run stops there).
 #   Exit 2: every check that ran passed, but a tool was missing, so some checks did NOT run (listed at the end).
 # CI_LOCAL_HIDE="tool ..." makes the named tools count as missing (for this script's own tests).
-# PLS_HEAVY_LOCK=1 skips taking the machine-wide heavy-suite lock (set by the script once it holds it).
+# PLS_HEAVY_LOCK=1 skips taking a heavy-suite slot (set by the script once it holds one); PLS_HEAVY_LOCK_DIR,
+# PLS_HEAVY_LOCK_STEP_S and PLS_HEAVY_LOCK_MAX_MIN move the slot files, the waiting line's interval and the cap.
 set -euo pipefail
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(git rev-parse --show-toplevel)"
@@ -35,13 +36,40 @@ for arg in "$@"; do
 done
 if [ -z "$SECTIONS" ]; then SECTIONS=" gates ts rules web ios android"; fi
 
-# One heavy suite at a time on this machine: several worktrees running full suites at once overload it and make
-# timing-based browser tests flake. Re-run this script under the shared lock (lockf waits its turn); a runner
-# without lockf (CI) runs as is.
-if [ -z "${PLS_HEAVY_LOCK:-}" ] && command -v lockf >/dev/null 2>&1; then
+# At most two heavy suites at once on this machine: more overload it and make timing-based browser tests flake.
+# Take a free slot (heavy-suite-1.lock, then -2.lock) without waiting, or wait on slot 1, saying who holds it every
+# few minutes and giving up after a cap. Skipped when this run already holds a slot (PLS_HEAVY_LOCK) or was started
+# by lockf on a heavy-suite lock by hand (waiting then would wait on itself forever); a runner without lockf (CI)
+# runs as is.
+LOCK_DIR="${PLS_HEAVY_LOCK_DIR:-/tmp}"
+STEP_S="${PLS_HEAVY_LOCK_STEP_S:-300}"
+MAX_MIN="${PLS_HEAVY_LOCK_MAX_MIN:-90}"
+parent_holds_a_slot() {
+  [ "$(ps -o comm= -p "$PPID" 2>/dev/null | sed 's#.*/##')" = lockf ] && ps -o args= -p "$PPID" 2>/dev/null | grep -q 'heavy-suite'
+}
+# Runs this script under one slot; the inner run's own exit 75 becomes 1, so 75 always means "slot busy".
+under_slot() {
+  lockf -t "$1" -k "$2" bash -c 'bash "$0" "$@"; rc=$?; [ "$rc" -eq 75 ] && rc=1; exit "$rc"' "$SELF" "${@:3}"
+}
+if [ -z "${PLS_HEAVY_LOCK:-}" ] && command -v lockf >/dev/null 2>&1 && ! parent_holds_a_slot; then
   export PLS_HEAVY_LOCK=1
-  echo "ci-local: waiting for the machine's heavy-suite lock (/tmp/heavy-suite.lock)"
-  exec lockf -k /tmp/heavy-suite.lock bash "$SELF" "$@"
+  set +e
+  for slot in 1 2; do
+    under_slot 0 "$LOCK_DIR/heavy-suite-$slot.lock" "$@"; rc=$?
+    if [ "$rc" -ne 75 ]; then exit "$rc"; fi
+  done
+  waited_s=0
+  while :; do
+    holder="$("$(command -v lsof || echo /usr/sbin/lsof)" -t "$LOCK_DIR/heavy-suite-1.lock" 2>/dev/null | head -1)"
+    echo "ci-local: both heavy-suite slots are busy; waiting on $LOCK_DIR/heavy-suite-1.lock (held by PID ${holder:-unknown}) for $((waited_s / 60)) min"
+    under_slot "$STEP_S" "$LOCK_DIR/heavy-suite-1.lock" "$@"; rc=$?
+    if [ "$rc" -ne 75 ]; then exit "$rc"; fi
+    waited_s=$((waited_s + STEP_S))
+    if [ "$waited_s" -ge $((MAX_MIN * 60)) ]; then
+      echo "ci-local: gave up after $MAX_MIN min waiting for a heavy-suite slot"
+      exit 75
+    fi
+  done
 fi
 
 want() { case " $SECTIONS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }

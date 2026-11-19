@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/ci-local.sh` takes one of two heavy-suite slots (`/tmp/heavy-suite-1.lock`, then `-2.lock`) without
+  waiting, and only when both are busy waits on the first, printing which process holds it every 5 minutes and giving
+  up after 90 minutes. It never waits on itself: a run already holding a slot (`PLS_HEAVY_LOCK`) or started by hand
+  under `lockf` on a heavy-suite lock skips the slots. Before, a hand-wrapped run held the one lock while the script's
+  own re-run waited on it forever, which stopped every other suite on the machine for 2.5 hours.
+  Source: review (the single lock deadlocked under a hand wrap; two full suites at once keep the load reasonable).
+  Verified: the tests (a hand-wrapped nested run finishes; with one slot busy the run takes the other at once; with
+  both busy it names the holder's PID while it waits, then runs) failed first, now all 9 ci-local tests pass, using a
+  temporary lock folder so the machine's slots are never touched (skipped where lockf does not exist, as on CI);
+  `bash -n`, rules_gate and hygiene_guard pass.
 - The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
   was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
   engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled

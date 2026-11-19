@@ -95,10 +95,61 @@ def test_a_workflow_step_missing_from_ci_local_is_found():
     assert unmirrored([wf], "npm test -w web\n") == ["npx brand-new-check"]
 
 
-def test_a_full_run_takes_the_machine_wide_heavy_suite_lock_unless_it_already_holds_it():
-    # Several worktrees on one machine: only one heavy suite runs at a time, or timing-based browser tests flake.
+# The heavy-suite slots: two full suites at most run on this machine at once. lockf exists on this Mac, not on CI.
+import shutil
+import pytest
+
+needs_lockf = pytest.mark.skipif(shutil.which("lockf") is None, reason="lockf is a macOS tool; the slots apply only there")
+
+
+def run_unlocked(*args: str, lock_dir: Path, wrap: list[str] | None = None, step_s: str = "300", timeout: int = 60):
+    env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": str(Path.home()), "CI_LOCAL_HIDE": "swift",
+           "PLS_HEAVY_LOCK_DIR": str(lock_dir), "PLS_HEAVY_LOCK_STEP_S": step_s}
+    return subprocess.run([*(wrap or []), "bash", str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=timeout)
+
+
+def hold(lock: Path, seconds: int):
+    holder = subprocess.Popen(["lockf", "-k", str(lock), "sleep", str(seconds)])
+    import time
+    for _ in range(50):
+        if subprocess.run(["lockf", "-t", "0", str(lock), "true"]).returncode == 75:
+            return holder
+        time.sleep(0.1)
+    raise AssertionError(f"could not hold {lock}")
+
+
+@needs_lockf
+def test_a_run_already_inside_a_heavy_suite_lockf_does_not_wait_on_itself(tmp_path):
+    # A hand-wrapped run used to deadlock: the outer lockf held the lock and the script waited on it forever.
+    r = run_unlocked("--ios", lock_dir=tmp_path, wrap=["lockf", "-k", str(tmp_path / "heavy-suite-1.lock")])
+    assert r.returncode == 2, r.stdout
+    assert "ios: NOT RUN, swift is not installed" in r.stdout
+
+
+@needs_lockf
+def test_with_one_slot_busy_the_run_takes_the_other_at_once(tmp_path):
+    holder = hold(tmp_path / "heavy-suite-1.lock", 30)
+    try:
+        r = run_unlocked("--ios", lock_dir=tmp_path, timeout=20)
+        assert r.returncode == 2, r.stdout
+        assert "waiting" not in r.stdout
+    finally:
+        holder.kill()
+
+
+@needs_lockf
+def test_with_both_slots_busy_it_names_the_holder_while_it_waits_then_runs(tmp_path):
+    first = hold(tmp_path / "heavy-suite-1.lock", 3)
+    second = hold(tmp_path / "heavy-suite-2.lock", 30)
+    try:
+        r = run_unlocked("--ios", lock_dir=tmp_path, step_s="1", timeout=30)
+        assert r.returncode == 2, r.stdout
+        assert "both heavy-suite slots are busy" in r.stdout and f"held by PID {first.pid}" in r.stdout
+    finally:
+        first.kill()
+        second.kill()
+
+
+def test_the_slots_are_taken_after_the_options_are_read():
     text = SCRIPT.read_text()
-    assert 'exec lockf -k /tmp/heavy-suite.lock bash "$SELF" "$@"' in text
-    assert 'if [ -z "${PLS_HEAVY_LOCK:-}" ]' in text and "export PLS_HEAVY_LOCK=1" in text
-    # The lock comes after the options are read, so --help and a bad option never wait for it.
-    assert text.index("exec lockf") > text.index('*) echo "ci-local: unknown option')
+    assert text.index("heavy-suite-$slot.lock") > text.index('*) echo "ci-local: unknown option')
