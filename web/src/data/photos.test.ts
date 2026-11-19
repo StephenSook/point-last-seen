@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, sha256Hex } from "./photos";
+import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, PHOTO_DELETED, PHOTO_UNCHECKED, photoConsentFromDoc, saveIfStillStored, sha256Hex, stillStored } from "./photos";
 
 const cues = { placeType: "store" as const, placeName: "", signText: "OPEN", landmarks: [], outdoors: "yes" as const, evidence: "a shop" };
 const route = { platform: "web" as const, path: "on_device" as const, stage: "sdk" as const, model: "chrome-built-in", reason: "sdk_only_on_device" as const, latencyMs: 1200, sdkReported: true, blocked: null, decidedAtMs: 1 };
@@ -51,5 +51,51 @@ describe("loadPhotosOrError", () => {
 
   it("says plainly when photos could not be loaded, instead of an empty list", async () => {
     expect(await loadPhotosOrError(async () => { throw new Error("CORS"); })).toEqual({ photos: [], error: "Photos could not be loaded. Reload to try again." });
+  });
+});
+
+describe("stillStored", () => {
+  it("is true while the object's metadata can be read", async () => {
+    expect(await stillStored(async () => ({ name: "x.jpg" }))).toBe(true);
+  });
+  it("is false once the object is gone", async () => {
+    expect(await stillStored(async () => { throw Object.assign(new Error("gone"), { code: "storage/object-not-found" }); })).toBe(false);
+  });
+  it("throws for anything else, so a check that could not run never counts as present or absent", async () => {
+    await expect(stillStored(async () => { throw Object.assign(new Error("offline"), { code: "storage/retry-limit-exceeded" }); })).rejects.toThrow("offline");
+  });
+});
+
+describe("saveIfStillStored", () => {
+  it("saves while the photo is stored", async () => {
+    let saved = 0;
+    await saveIfStillStored(async () => true, async () => { saved += 1; });
+    expect(saved).toBe(1);
+  });
+  it("refuses, saving nothing, when the photo is gone", async () => {
+    let saved = 0;
+    await expect(saveIfStillStored(async () => false, async () => { saved += 1; })).rejects.toThrow(PHOTO_DELETED);
+    expect(saved).toBe(0);
+  });
+  it("refuses, saving nothing, when the check cannot run: an answer is never queued unchecked", async () => {
+    let saved = 0;
+    await expect(saveIfStillStored(async () => { throw new Error("offline"); }, async () => { saved += 1; })).rejects.toThrow(PHOTO_UNCHECKED);
+    expect(saved).toBe(0);
+    expect(PHOTO_UNCHECKED).toBe("Could not check this photo. The answer was not saved. Try again.");
+  });
+});
+
+describe("photoConsentFromDoc", () => {
+  const sha = "c".repeat(64);
+  const good = { storagePath: `photos/inc-1/${sha}.jpg`, cloudProcessing: { byUid: "fam-1", atMs: 1_763_500_000_000 }, createdByUid: "fam-1" };
+  it("gives the family's cloud consent when the record is for this photo and is the sharer's own", () => {
+    expect(photoConsentFromDoc("inc-1", sha, good)).toEqual({ byUid: "fam-1", atMs: 1_763_500_000_000 });
+  });
+  it("is null with no record, a record for another path, or a mark that is not the sharer's", () => {
+    expect(photoConsentFromDoc("inc-1", sha, undefined)).toBeNull();
+    expect(photoConsentFromDoc("inc-1", sha, { ...good, storagePath: `photos/inc-2/${sha}.jpg` })).toBeNull();
+    expect(photoConsentFromDoc("inc-1", sha, { ...good, cloudProcessing: { byUid: "someone-else", atMs: 1 } })).toBeNull();
+    expect(photoConsentFromDoc("inc-1", sha, { ...good, cloudProcessing: { byUid: "fam-1" } })).toBeNull();
+    expect(photoConsentFromDoc("inc-1", sha, { ...good, createdByUid: 7 })).toBeNull();
   });
 });

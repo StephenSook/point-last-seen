@@ -39,7 +39,7 @@ test("positive control: a consented cloud read sends exactly one AI Logic reques
   await page.locator('input[type="file"]').setInputFiles({ name: "sign.jpg", mimeType: "image/jpeg", buffer: await syntheticSignJpeg(page) });
   await page.getByRole("button", { name: "Read on this laptop" }).first().click();
   await page.getByRole("button", { name: "Read in the cloud" }).first().click();
-  await page.getByRole("button", { name: "I consent for this photo" }).first().click();
+  await page.getByRole("button", { name: "Send this photo to the cloud" }).first().click();
   await expect(page.getByTestId("photo-cues").first()).toBeVisible();
   expect(hits).toHaveLength(1);
   expect(signed).toEqual([{ auth: true, appCheck: true }]);

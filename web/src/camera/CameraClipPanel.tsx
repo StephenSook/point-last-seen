@@ -20,9 +20,11 @@ type Props = {
   onTriage?: (clip: Blob) => Promise<TriageResult>;
   onConfirm: (read: ClipRead, input: ClipIntakeInput) => { version: number; ack: Promise<void> };
   onClose: () => void;
+  /** Changes whenever this search's media is deleted; the clip form then drops every consent given. */
+  revocation?: number;
 };
 
-export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose }: Props) {
+export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
@@ -35,6 +37,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
   if (!read) {
     return (
       <ClipIntake
+        revocation={revocation}
         camera={camera}
         cameraSegmentId={cameraSegmentId}
         choices={choices}

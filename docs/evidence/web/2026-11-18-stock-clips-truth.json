@@ -1,0 +1,75 @@
+{
+  "label": "STOCK FOOTAGE, ACTORS, NOT A REAL CASE. Internal measurement only: these people are never shown as a missing person in the film or on a judged page.",
+  "source": "Pexels, Pexels License (https://www.pexels.com/license/); clips are not in this repo",
+  "written": "2026-11-18, from four frames per clip (10, 40, 70 and 95 percent of its length), before any model was run on them",
+  "time_field": "not measurable: no on-screen timestamp in any clip",
+  "clips": [
+    {
+      "pexelsId": 29055706,
+      "creator": "keith byers",
+      "durationS": 19.7,
+      "light": "day",
+      "personPresent": true,
+      "people": 1,
+      "travel": "away_from_camera",
+      "top": "black (sleeveless tank top)",
+      "bottom": "black (shorts)",
+      "footwear": "dark shoes",
+      "carried": "nothing visible"
+    },
+    {
+      "pexelsId": 14289740,
+      "creator": "Andrew Kota",
+      "durationS": 14.3,
+      "light": "day (overcast)",
+      "personPresent": true,
+      "people": 1,
+      "travel": "away_from_camera",
+      "top": "green or teal (jacket with a white hood)",
+      "bottom": "gray (light trousers)",
+      "footwear": "light shoes",
+      "carried": "nothing visible"
+    },
+    {
+      "pexelsId": 9424222,
+      "creator": "PinkWitch",
+      "durationS": 5.1,
+      "light": "day (indoor, by a glass door)",
+      "personPresent": true,
+      "people": 1,
+      "travel": "leaves by the left edge, close to the camera",
+      "top": "pink (light, short sleeves, white collar)",
+      "bottom": "not clearly visible",
+      "footwear": "not visible",
+      "carried": "nothing visible",
+      "note": "seen close and in part; the person fills the frame for a moment"
+    },
+    {
+      "pexelsId": 35705187,
+      "creator": "apertur 2.8",
+      "durationS": 12.0,
+      "light": "dusk (snow, street lights; low light)",
+      "personPresent": true,
+      "people": 2,
+      "travel": "away_from_camera",
+      "top": "person 1 orange or rust (long hooded coat); person 2 black (coat)",
+      "bottom": "dark",
+      "footwear": "not clear",
+      "carried": "person 2: a black bag",
+      "note": "filmed from porch height; the camera pans"
+    },
+    {
+      "pexelsId": 4121893,
+      "creator": "Akif Ok",
+      "durationS": 11.6,
+      "light": "night (street and shop lights, not infrared)",
+      "personPresent": true,
+      "people": 1,
+      "travel": "away_from_camera",
+      "top": "black (dark hooded jacket)",
+      "bottom": "black (dark trousers)",
+      "footwear": "dark",
+      "carried": "nothing clearly visible"
+    }
+  ]
+}

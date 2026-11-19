@@ -40,12 +40,6 @@ export function photoParams(): HybridParams {
   return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: { createOptions: PHOTO_OPTS, promptOptions: { responseConstraint: PHOTO_CUES_JSON } } };
 }
 
-export function photoCloudParams(model: string): HybridParams {
-  return {
-    mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: { model, systemInstruction: SYSTEM, generationConfig: { responseMimeType: "application/json", responseJsonSchema: PHOTO_CUES_JSON } },
-  };
-}
 
 const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
 
@@ -110,13 +104,13 @@ export async function readPhotoOnDevice(
 
 export type CloudConsent = { byUid: string; atMs: number };
 
-/** A cloud read of one photo, only after a consent tap for that photo. */
+/** A cloud read of one photo, only with the family's own consent for it (read from the server first). */
 export async function readPhotoInCloud(
   jpegBase64: string,
   consent: CloudConsent | null,
   deps: { generateCloud: (jpegBase64: string) => Promise<Reply>; killCloud: boolean },
 ): Promise<{ cues: PhotoCues } | { refused: "cloud-paused" | "not-in-cloud" | "invalid" }> {
-  if (!consent || !consent.byUid || !Number.isFinite(consent.atMs)) throw new Error("A cloud read needs a consent tap for this photo.");
+  if (!consent || !consent.byUid || !Number.isFinite(consent.atMs)) throw new Error("A cloud read needs the family's consent for this photo.");
   if (deps.killCloud) return { refused: "cloud-paused" };
   const reply = await deps.generateCloud(jpegBase64);
   if (reply.inferenceSource !== "in_cloud") return { refused: "not-in-cloud" };

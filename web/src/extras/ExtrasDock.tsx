@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import { ExportButton } from "./export/ExportButton";
-import { printableApproachLines, type IncidentView, type PlanDoc } from "./laneC";
+import { DeleteMedia, printableApproachLines, type IncidentView, type PlanDoc } from "./laneC";
 import { Ics204 } from "./print/Ics204View";
 import { defaultTyped, ics204Sheets } from "./print/ics204";
 import { buildPrintModel, DRILL_LABEL, isStale, type PrintModel } from "./print/printModel";
@@ -15,6 +15,7 @@ import "./extras.css";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
 const checkTitle = "Check a radio code";
+const deleteTitle = "Delete this search's clips and photos";
 const editFields = [
   ["dateFrom", "Date From", "mm/dd/yyyy"], ["dateTo", "Date To", "mm/dd/yyyy"],
   ["timeFrom", "Time From", "hh:mm"], ["timeTo", "Time To", "hh:mm"],
@@ -22,7 +23,7 @@ const editFields = [
 ] as const;
 
 type PrintSessionData = { kind: "assignment" | "cards"; model: PrintModel; approachLines: string[] };
-type Surface = PrintSessionData | { kind: "check"; planVersion: number | null };
+type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "delete" };
 
 function PrintSession({ session, plans, matchCode, reportCount, onClose, returnFocus }: {
   session: PrintSessionData;
@@ -91,12 +92,12 @@ function PrintSession({ session, plans, matchCode, reportCount, onClose, returnF
   );
 }
 
-export function ExtrasDock({ incidentId, state, vs }: DockProps): JSX.Element | null {
+export function ExtrasDock({ incidentId, state, vs, deleteMedia }: DockProps): JSX.Element | null {
   if (state.denied || state.view === null) return null;
-  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} />;
+  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} deleteMedia={deleteMedia} />;
 }
 
-function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> & { view: IncidentView }) {
+function ActiveExtrasDock({ view, state, vs, deleteMedia }: Pick<DockProps, "state" | "vs" | "deleteMedia"> & { view: IncidentView }) {
   const [open, setOpen] = useState(false);
   const [surface, setSurface] = useState<Surface | null>(null);
   const menuId = useId();
@@ -169,6 +170,12 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
             setOpen(false);
           }}>{checkTitle}</button>
           {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} />}
+          {deleteMedia && (
+            <button type="button" role="menuitem" onClick={() => {
+              setSurface({ kind: "delete" });
+              setOpen(false);
+            }}>{deleteTitle}</button>
+          )}
         </div>
       </div>
       {surface?.kind === "check" && (
@@ -178,7 +185,12 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
-      {surface && surface.kind !== "check" && (
+      {surface?.kind === "delete" && deleteMedia && (
+        <ExtrasDialog title={deleteTitle} onClose={closeDialog} returnFocus={more}>
+          <DeleteMedia count={deleteMedia.count} run={deleteMedia.run} onClose={closeDialog} />
+        </ExtrasDialog>
+      )}
+      {surface && surface.kind !== "check" && surface.kind !== "delete" && (
         <PrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
       )}
     </>

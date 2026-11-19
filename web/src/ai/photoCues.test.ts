@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
-import { PHOTO_CUES_JSON, PHOTO_OPTS, cleanCues, photoCloudParams, photoParams, readPhotoInCloud, readPhotoOnDevice, type PhotoDeps } from "./photoCues";
+import template from "../../../shared/templates/pls-photo-cues-v1.json";
+import { PHOTO_CUES_JSON, PHOTO_OPTS, cleanCues, photoParams, readPhotoInCloud, readPhotoOnDevice, type PhotoDeps } from "./photoCues";
 
 const b64 = "AAAA";
 const cues = { placeType: "store", placeName: "", signText: "HARDWARE OPEN 8-6", landmarks: ["red awning"], outdoors: "yes", evidence: "a store front with a sign" };
@@ -100,11 +101,24 @@ describe("readPhotoInCloud", () => {
 });
 
 describe("photo model params", () => {
-  it("on-device is strictly on-device with the schema as the constraint; cloud is strictly cloud", () => {
+  it("on-device is strictly on-device with the schema as the constraint", () => {
     expect(photoParams().mode).toBe(InferenceMode.ONLY_ON_DEVICE);
     expect(photoParams().onDeviceParams?.promptOptions?.responseConstraint).toEqual(PHOTO_CUES_JSON);
-    const c = photoCloudParams("gemini-3.5-flash-lite");
-    expect(c.mode).toBe(InferenceMode.ONLY_IN_CLOUD);
-    expect(c.inCloudParams).toMatchObject({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json", responseJsonSchema: PHOTO_CUES_JSON } });
+  });
+});
+
+describe("the cloud photo read's server template", () => {
+  it("returns the same fields, closed lists and caps the reply is checked against", () => {
+    const out = template.output.schema as Record<string, { enum?: string[]; maxLength?: number; maxItems?: number; items?: { maxLength?: number } }>;
+    const P = PHOTO_CUES_JSON.properties as Record<string, { enum?: readonly string[]; maxLength?: number; maxItems?: number; items?: { maxLength?: number } }>;
+    expect(Object.keys(out).sort()).toEqual(Object.keys(P).sort());
+    for (const [k, v] of Object.entries(P)) {
+      if (v.enum) expect(out[k]!.enum, k).toEqual([...v.enum]);
+      if (v.maxLength) expect(out[k]!.maxLength, k).toBe(v.maxLength);
+      if (v.maxItems) expect(out[k]!.maxItems, k).toBe(v.maxItems);
+      if (v.items?.maxLength) expect(out[k]!.items?.maxLength, k).toBe(v.items.maxLength);
+    }
+    expect(template.templateId).toBe("pls-photo-cues-v1");
+    expect(template.input.schema.mimeType.enum).toEqual(["image/jpeg"]);
   });
 });

@@ -164,3 +164,104 @@ test("from the moment Read clip is pressed, consent and the file are locked unti
   await expect(page.getByTestId("asked")).not.toHaveText("", { timeout: 5_000 });
   expect(JSON.parse(await page.getByTestId("asked").innerText()).consents.cloudProcessing).toBe(true);
 });
+
+test("a clip that cannot be read from this computer says so and unlocks the form", async ({ page }) => {
+  await page.addInitScript(() => {
+    File.prototype.arrayBuffer = function fail() {
+      return Promise.reject(new DOMException("The file could not be read.", "NotReadableError"));
+    };
+  });
+  await page.goto("/harness/clip.html");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByRole("alert")).toHaveText("This clip could not be read from this computer. Choose it again.");
+  await expect(page.getByLabel("Clip", { exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  await expect(page.getByTestId("asked")).toHaveText("");
+});
+
+test("triage: when the flagged seconds give no usable reading, the whole clip can be read with the same consents", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  // A miss and an unusable reply look the same here, so it never claims no one was there.
+  await expect(page.getByRole("status")).toHaveText("No usable reading from the flagged seconds. Nothing changed.");
+  expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+  await page.getByRole("button", { name: "Read the whole clip in the cloud" }).click();
+  // A retry: it uses the first read's consent record and writes no new one.
+  await expect.poll(() => how(page)).toEqual({ reason: "user_override_after_triage", retry: true });
+});
+
+test("triage: changing a consent withdraws the whole-clip read", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toBeVisible();
+  await page.getByLabel("Public use").check();
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+});
+
+test("after a flagged window's cloud read, reading the same clip again goes out as a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toBeVisible();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect.poll(() => how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged", retry: true });
+});
+
+test("a delete of the search's media unticks every consent, so a new read needs fresh ticks", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await expect(page.getByLabel(c)).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeDisabled();
+});
+
+test("after a delete and fresh ticks, the next read is a new read, not a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  // The second read must have happened before its options are checked: the first read's options are the same.
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+});
+
+test("a delete while the clip file is still loading stops the read: nothing reaches the model", async ({ page }) => {
+  await page.addInitScript(() => {
+    const load = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function held(this: File) {
+      return new Promise<ArrayBuffer>((resolve) => {
+        (window as unknown as { releaseFile: () => void }).releaseFile = () => void load.call(this).then(resolve);
+      });
+    };
+  });
+  await fillAndRead(page, "/harness/clip.html");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.evaluate(() => (window as unknown as { releaseFile: () => void }).releaseFile());
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeDisabled();
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId("asked")).toHaveText("");
+});
+
+test("a delete while triage runs stops the read: nothing reaches the model", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged&slowtriage=1");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.getByRole("button", { name: "Triage finishes" }).click();
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId("asked")).toHaveText("");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+});
+
+test("a read that failed before any consent record existed is not followed by a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=failed-early");
+  await expect(page.getByTestId("calls")).toHaveText("1");
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({});
+});
+
+test("a read that failed after its consent record was written is followed by a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=failed-late");
+  await expect(page.getByTestId("calls")).toHaveText("1");
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({ retry: true });
+});

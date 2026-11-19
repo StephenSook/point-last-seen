@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import shared from "../../../shared/schemas/camera-sighting.schema.json";
-import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, clipCloudParams, clipParts, clipReadDeps, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
+import { CAMERA_SIGHTING_JSON, CLIP_PROMPT, CONSENT_GONE, CONSENT_UNCONFIRMED, MEDIA_DELETED, clipCloudParams, clipParts, clipReadDeps, parseCameraSighting, readClip, type ClipReadDeps, type ClipReadRequest } from "./clipRead";
 import { sha256Hex } from "../data/photos";
 import type { StoredClipReading } from "../data/clips";
 
@@ -67,9 +67,17 @@ async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?
     reading: null, route: null, consent: { personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
     expiresAtMs: 1, createdAtMs: 1, createdByUid: "u1", ...over.stored,
   };
+  // The record as the server holds it: the consent write renews it (a 31-day expiry); dropRecord() is a
+  // command deleting it.
+  let current: StoredClipReading | null = stored;
   const deps: ClipReadDeps = {
-    findReading: async () => { calls.push("find"); return stored; },
-    writeConsent: async (d) => { calls.push("consent"); written.push(d as unknown as Record<string, unknown>); },
+    findReading: async () => { calls.push("find"); return current; },
+    confirmReading: async () => { calls.push("confirm"); return current; },
+    writeConsent: async (d) => {
+      calls.push("consent");
+      written.push(d as unknown as Record<string, unknown>);
+      current = { ...(current ?? (stored as StoredClipReading) ?? ({} as StoredClipReading)), sha256: sha, reading: null, route: null, consent: (d as unknown as StoredClipReading).consent, expiresAtMs: NOW + 31 * 86_400_000 };
+    },
     clipExists: async () => { calls.push("exists"); return over.exists ?? false; },
     upload: async () => { calls.push("upload"); },
     generate: async (_b, _m, w) => { calls.push("model"); generated.push(w); if (over.modelThrows) throw new Error("x"); return { text: typeof over.reply === "string" ? over.reply : JSON.stringify(over.reply ?? goodReply), inferenceSource: "in_cloud" }; },
@@ -81,7 +89,7 @@ async function setup(over: { stored?: Partial<StoredClipReading> | null; exists?
     consent: { clipSha256: sha, personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null },
     killCloud: () => over.killCloud ?? false, model: "gemini-3.5-flash-lite", uid: "u1",
   };
-  return { sha, calls, written, completed, generated, deps, req };
+  return { sha, calls, written, completed, generated, deps, req, dropRecord: () => { current = null; } };
 }
 
 describe("readClip", () => {
@@ -131,7 +139,7 @@ describe("readClip", () => {
   it("on a miss: consent record, then upload, then the model, then the completion", async () => {
     const t = await setup();
     const r = await readClip(t.req, t.deps);
-    expect(t.calls).toEqual(["find", "consent", "upload", "model", "complete"]);
+    expect(t.calls).toEqual(["find", "consent", "upload", "confirm", "model", "complete"]);
     expect(r.kind).toBe("read");
     if (r.kind !== "read") return;
     expect(r.cached).toBe(false);
@@ -150,7 +158,7 @@ describe("readClip", () => {
   it("takes over a stalled record (no reading) left by another user, and skips the upload when the clip is stored", async () => {
     const t = await setup({ stored: { createdByUid: "someone-else" }, exists: true });
     await readClip(t.req, t.deps);
-    expect(t.calls).toEqual(["find", "consent", "exists", "model", "complete"]);
+    expect(t.calls).toEqual(["find", "consent", "exists", "confirm", "model", "complete"]);
     // The writer becomes the owner with fresh consent; the stored start time, facing and length stay.
     expect(t.written[0]).toMatchObject({ createdByUid: "u1", clipStartMs: 5, cameraFacingDeg: 180, durationS: 20, consent: { personInClip: mark } });
   });
@@ -158,7 +166,7 @@ describe("readClip", () => {
   it("a reading that fails its checks is stored as a typed no-sighting result with its reasons", async () => {
     const t = await setup({ reply: { ...goodReply, firstSeen: "00:15", lastSeen: "00:10" } });
     expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
-    expect(t.calls).toEqual(["find", "consent", "upload", "model", "complete"]);
+    expect(t.calls).toEqual(["find", "consent", "upload", "confirm", "model", "complete"]);
     expect(t.completed[0]!.reading).toEqual({ status: "no_sighting", reasons: ["first_after_last"] });
     expect(t.completed[0]!.route).toMatchObject({ reason: "sdk_only_in_cloud" });
   });
@@ -166,7 +174,7 @@ describe("readClip", () => {
   it("a windowed read that finds no one stores nothing, so a later full-clip read is not blocked", async () => {
     const t = await setup({ reply: { ...goodReply, personVisible: false } });
     expect(await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps)).toEqual({ kind: "could-not-read" });
-    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+    expect(t.calls).toEqual(["find", "consent", "upload", "confirm", "model"]);
   });
 
   it("a reply it cannot read is stored as no sighting, reason unreadable_reply", async () => {
@@ -181,6 +189,114 @@ describe("readClip", () => {
     expect(t.calls).toEqual(["find"]);
   });
 
+  it("a windowed miss stored by older code does not block a full read: it reads again and writes nothing", async () => {
+    const windowedMiss = { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 };
+    // The clip must still be stored (a delete removes it), but nothing is uploaded: the upload rule needs the
+    // caller to own the record with 31 days left, which a second seat does not.
+    const t = await setup({ stored: windowedMiss, exists: true });
+    const r = await readClip(t.req, t.deps);
+    expect(t.calls).toEqual(["find", "exists", "confirm", "model"]);
+    expect(t.generated).toEqual([undefined]);
+    expect(r).toMatchObject({ kind: "read", cached: false, route: { reason: "sdk_only_in_cloud" } });
+    expect(t.written).toEqual([]);
+    expect(t.completed).toEqual([]);
+  });
+
+  it("an old windowed miss whose clip is no longer stored is not read again", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 }, exists: false });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists"]);
+    expect(t.generated).toEqual([]);
+  });
+
+  it("an old windowed miss whose consent has expired is not read again", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW - 1 }, exists: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find"]);
+  });
+
+  it("a full-clip no-sighting stays final", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "sdk_only_in_cloud" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 } });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "could-not-read" });
+    expect(t.calls).toEqual(["find"]);
+  });
+
+  it("a consent record deleted after it was written stops the clip before it reaches the model", async () => {
+    const t = await setup();
+    const r = await readClip(t.req, { ...t.deps, upload: async () => { t.calls.push("upload"); t.dropRecord(); } });
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "consent", "upload", "confirm"]);
+    expect(t.generated).toEqual([]);
+  });
+
+  it("an old windowed miss whose record is deleted after the lookup is not sent", async () => {
+    // The clip is stored, so only the server's consent check can stop the read.
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 }, exists: true });
+    const r = await readClip(t.req, { ...t.deps, confirmReading: async () => { t.calls.push("confirm"); return null; } });
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists", "confirm"]);
+    expect(t.generated).toEqual([]);
+  });
+
+  it("the last check reads the server: when it cannot, nothing is sent", async () => {
+    const t = await setup();
+    const r = await readClip(t.req, { ...t.deps, confirmReading: async () => { t.calls.push("confirm"); throw new Error("offline"); } });
+    expect(r).toEqual({ kind: "refused", message: CONSENT_UNCONFIRMED });
+    expect(t.generated).toEqual([]);
+  });
+
+  it("the last check refuses a record missing one of the three consents", async () => {
+    const t = await setup();
+    const r = await readClip(t.req, { ...t.deps, confirmReading: async () => ({ ...(await t.deps.findReading(t.sha))!, consent: { personInClip: mark, footageOwner: mark, cloudProcessing: null, publicUse: null } }) });
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.generated).toEqual([]);
+  });
+
+  it("a whole-clip retry never writes consent: with the record gone it is refused", async () => {
+    const t = await setup({ stored: null });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find"]);
+    expect(t.written).toEqual([]);
+  });
+
+  it("a whole-clip retry uses the record and clip already stored, and writes no consent and no clip", async () => {
+    const t = await setup({ stored: { expiresAtMs: NOW + 60_000 }, exists: true });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toMatchObject({ kind: "read", route: { reason: "user_override_after_triage" } });
+    expect(t.calls).toEqual(["find", "exists", "confirm", "model", "complete"]);
+    expect(t.written).toEqual([]);
+  });
+
+  it("a whole-clip retry whose clip is no longer stored is refused, not uploaded again", async () => {
+    const t = await setup({ stored: { expiresAtMs: NOW + 60_000 }, exists: false });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists"]);
+  });
+
+  it("a delete before the read starts sends nothing", async () => {
+    const t = await setup();
+    expect(await readClip({ ...t.req, stillCurrent: () => false }, t.deps)).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).toEqual([]);
+  });
+
+  it("a delete during the consent write stops the read before the upload", async () => {
+    const t = await setup();
+    let current = true;
+    const r = await readClip({ ...t.req, stillCurrent: () => current }, { ...t.deps, writeConsent: async () => { t.calls.push("consent"); current = false; } });
+    expect(r).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).toEqual(["find", "consent"]);
+  });
+
+  it("a delete during the model call discards the reply: nothing is saved", async () => {
+    const t = await setup();
+    let current = true;
+    const r = await readClip({ ...t.req, stillCurrent: () => current }, { ...t.deps, generate: async (b, m, w) => { const out = await t.deps.generate(b, m, w); current = false; return out; } });
+    expect(r).toEqual({ kind: "refused", message: MEDIA_DELETED });
+    expect(t.calls).not.toContain("complete");
+  });
+
   it("passes the flagged window to the model and records the route's reason", async () => {
     const t = await setup();
     const r = await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps);
@@ -188,10 +304,21 @@ describe("readClip", () => {
     expect(r).toMatchObject({ kind: "read", route: { reason: "on_device_triage_flagged" } });
   });
 
-  it("a model failure keeps only the consent record", async () => {
+  it("a model failure keeps only the consent record, and says a record exists", async () => {
     const t = await setup({ modelThrows: true });
-    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed" });
-    expect(t.calls).toEqual(["find", "consent", "upload", "model"]);
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed", recorded: true });
+    expect(t.calls).toEqual(["find", "consent", "upload", "confirm", "model"]);
+  });
+
+  it("a failure before any consent record exists says so, so the next read is not a retry", async () => {
+    const t = await setup();
+    expect(await readClip(t.req, { ...t.deps, findReading: async () => { throw new Error("offline"); } })).toEqual({ kind: "failed", recorded: false });
+    expect(await readClip(t.req, { ...t.deps, writeConsent: async () => { throw new Error("offline"); } })).toEqual({ kind: "failed", recorded: false });
+  });
+
+  it("a failure after finding another seat's record says a record exists", async () => {
+    const t = await setup({ stored: { createdByUid: "someone-else" }, exists: true, modelThrows: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed", recorded: true });
   });
 });
 

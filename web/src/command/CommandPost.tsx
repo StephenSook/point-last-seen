@@ -3,12 +3,13 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoCloudGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { readPhotoOnDevice } from "../ai/photoCues";
+import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
+import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
@@ -18,6 +19,8 @@ import { jpegAt, sampleFrames } from "../camera/frames";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
+import { readStoredPhotoInCloud } from "../photos/cloudRead";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -226,7 +229,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [clipping, setClipping] = useState(false);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
-  const [photos, setPhotos] = useState<TrayPhoto[]>([]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
   const [eventsSynced, setEventsSynced] = useState(false);
@@ -236,16 +238,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const reloadPhotos = async () => {
-    const r = await loadPhotosOrError(() => loadPhotos(pls.storage, incidentId));
-    setPhotos(r.photos);
-    setPhotoError(r.error);
-  };
-  useEffect(() => {
-    if (!denied) void reloadPhotos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pls, incidentId, denied]);
+  // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
+  // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
+  const loadTray = useCallback(() => loadPhotosOrError(() => loadPhotos(pls.storage, incidentId)), [pls, incidentId]);
+  const tray = usePhotoTray(loadTray, revokedAtMs((view?.incident as { mediaRevokedAt?: unknown } | null)?.mediaRevokedAt), !denied);
+  const photos = tray.photos;
+  const reloadPhotos = tray.reload;
+  const setPhotoError = tray.setError;
 
   useEffect(() => startRemoteConfig(pls.app, setRc), [pls]);
 
@@ -405,10 +404,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return { cues: r.cues, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
+    // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
+    // still stored) lives in readStoredPhotoInCloud; without all three the photo stays on this laptop.
     const t0 = Date.now();
-    const uid = pls.auth.currentUser?.uid ?? "";
-    const r = await readPhotoInCloud(bytesToBase64(p.bytes), uid ? { byUid: uid, atMs: Date.now() } : null, {
-      generateCloud: (b) => photoCloudGenerator(ai(), rc.cloudModelWeb)(b),
+    const r = await readStoredPhotoInCloud(p, {
+      confirmConsent: (sha) => confirmPhotoConsent(pls.db, incidentId, sha),
+      stillStored: (sha) => photoStillStored(pls.storage, incidentId, sha),
+      generateCloud: (b) => photoTemplateGenerator(ai(), rc.photoTemplateId)(b),
       killCloud: rc.killCloud,
     });
     if (!("cues" in r)) return r;
@@ -508,7 +510,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
         clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
-        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
+        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason, retry: how.retry, stillCurrent: how.stillCurrent,
       },
       clipReadDeps(firestoreClipIo(pls.db, pls.storage, incidentId), clipCloudGenerator(ai(), rc.cloudModelWeb)),
     );
@@ -590,7 +592,23 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <span className="label">MATCH</span>
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
-        <ExtrasDock incidentId={incidentId} state={state} vs={vs} map={extrasMap} />
+        <ExtrasDock
+          incidentId={incidentId}
+          state={state}
+          vs={vs}
+          map={extrasMap}
+          deleteMedia={{
+            count: () => countMedia(pls.storage, pls.db, incidentId),
+            run: async () => {
+              try {
+                return await deleteMediaNow(pls.functions, incidentId);
+              } finally {
+                // Whatever the server answered, drop this seat's copies and read what is stored now.
+                tray.revoke();
+              }
+            },
+          }}
+        />
       </header>
       {offline && (
         <p className="error" role="status">
@@ -649,6 +667,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           )}
           {clipping ? (
             <CameraClipPanel
+              revocation={tray.epoch}
               camera={pin}
               cameraSegmentId={pin ? segmentContaining(pin, segments) : null}
               choices={segmentChoices(segments)}
@@ -694,15 +713,22 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             />
           )}
           <PhotoTray
+            key={tray.epoch}
             photos={photos}
-            loadError={photoError}
+            loadError={tray.error}
             deviceState={device}
             onCheckDevice={checkDevice}
             downloadPct={downloadPct}
             onAddFiles={addPhotoFiles}
             readOnLaptop={readPhotoHere}
             readInCloud={readPhotoCloud}
-            onDecide={(p, cues, route, d) => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now()))}
+            onDecide={(p, cues, route, d) =>
+              // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
+              saveIfStillStored(
+                () => photoStillStored(pls.storage, incidentId, p.sha256),
+                () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
+              )
+            }
           />
           <MergeLanes lanes={lanes} />
         </aside>
