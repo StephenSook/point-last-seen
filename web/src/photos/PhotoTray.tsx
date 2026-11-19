@@ -34,6 +34,7 @@ export { PHOTO_DELETED };
 const COULD_NOT: Record<string, string> = {
   deleted: PHOTO_DELETED,
   "no-consent": "The family has not agreed to a cloud reading of this photo. It stays on this laptop.",
+  mismatch: "This photo's file does not match its name, so it was not sent.",
   "consent-unchecked": "Could not check the family's consent with the server. Nothing was sent.",
   "not-on-device": "Couldn't read on this laptop. The result was discarded.",
   timeout: "Couldn't read in time.",

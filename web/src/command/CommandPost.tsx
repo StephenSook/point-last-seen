@@ -5,8 +5,8 @@ import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint,
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto, type PhotoConsent } from "../data/photos";
+import { readPhotoOnDevice } from "../ai/photoCues";
+import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
@@ -20,6 +20,7 @@ import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
+import { readStoredPhotoInCloud } from "../photos/cloudRead";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -403,20 +404,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return { cues: r.cues, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
-    // A cloud read needs the family's own consent for this photo, which only they write (photoConsents), read
-    // from the server, never a cache. Without it the photo stays on this laptop.
-    let consent: PhotoConsent | null;
-    try {
-      consent = await confirmPhotoConsent(pls.db, incidentId, p.sha256);
-    } catch {
-      return { refused: "consent-unchecked" as const };
-    }
-    if (!consent) return { refused: "no-consent" as const };
-    // Command may have deleted this search's media from any seat: nothing leaves this laptop unless the photo
-    // is still stored. A check that cannot run throws, and the tray says the photo was not read.
-    if (!(await photoStillStored(pls.storage, incidentId, p.sha256))) return { refused: "deleted" as const };
+    // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
+    // still stored) lives in readStoredPhotoInCloud; without all three the photo stays on this laptop.
     const t0 = Date.now();
-    const r = await readPhotoInCloud(bytesToBase64(p.bytes), consent, {
+    const r = await readStoredPhotoInCloud(p, {
+      confirmConsent: (sha) => confirmPhotoConsent(pls.db, incidentId, sha),
+      stillStored: (sha) => photoStillStored(pls.storage, incidentId, sha),
       generateCloud: (b) => photoTemplateGenerator(ai(), rc.photoTemplateId)(b),
       killCloud: rc.killCloud,
     });
