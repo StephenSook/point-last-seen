@@ -1719,3 +1719,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: four specs that only type an incident id into the join form or a link (sign-in, App Check, the new-build reload and the shared-link note) now use the test drill's id; none of them joins. With this, the judge seed's id appears nowhere in web/e2e.
 - Source: a repository check that the judge seed is never named in test code.
 - Verified: a search of web/e2e (tracked files) for the judge seed's id finds none; 29 of 29 no-backend browser checks pass, including the new-build and shared-link specs.
+
+### test(e2e): the family spec names the Family region exactly
+- What: `family.spec.ts` finds the command post's family channel with `{ name: "Family", exact: true }`. On a post whose family has shared photos, the "Family photos" tray also matched the plain name, and the strict locator failed before checking anything.
+- Source: a deployed-site run on the test drill (the tray is present there).
+- Verified: the spec failed against the live site on the test drill with "strict mode violation ... resolved to 2 elements", then passed with the exact name; typecheck clean.
