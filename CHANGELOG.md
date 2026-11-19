@@ -3,6 +3,13 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- `notifyPlanApproved` reads plan doc ids as the web writes them, zero-padded (`plans/0015`), and finds the previous
+  plan at the padded id too. It had accepted only unpadded ids, so it would have sent no push for any real plan.
+  Source: found before the first live push test (the drill's plan ids are `0001` to `0015`).
+  Verified: the tests now use padded ids (and `0000`, `-1` and `draft` send nothing), failed first, now 6 notify
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 ## 2026-11-18
 
 - `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice

@@ -6,6 +6,8 @@ const TTL_S = 7200;
 /** The most pushes one plan sends: a plan is written by command, so its team list is bounded here. */
 export const MAX_PUSHES_PER_PLAN = 20;
 const TEAM_ID = /^[A-Za-z0-9_-]{1,32}$/;
+/** A plan doc id as the web writes it: the version, zero-padded to at least 4 digits (web/src/data/plans.ts). */
+export const planDocId = (version: number): string => String(version).padStart(4, "0");
 
 interface Assignment { teamId: string; segmentIds: string[]; taskText: string }
 
@@ -38,19 +40,19 @@ export function planMessage(o: { incidentId: string; teamId: string; version: nu
 }
 
 /**
- * notifyPlanApproved's work for one new plans/{version} doc: compares it with plans/{version - 1} and sends one push
+ * notifyPlanApproved's work for one new plans/{0001...} doc: compares it with the previous version's doc and sends one push
  * per changed team. Returns the teams it sent to.
  */
 export async function handlePlanCreated(db: Firestore, messaging: { send(m: Message): Promise<string> },
   incidentId: string, versionId: string, nowMs: number): Promise<{ teams: string[] }> {
-  if (!/^[1-9][0-9]{0,8}$/.test(versionId)) return { teams: [] };
+  if (!/^[0-9]{1,9}$/.test(versionId) || Number(versionId) < 1) return { teams: [] };
   const version = Number(versionId);
   const base = db.doc(`incidents/${incidentId}`);
   const inc = await base.get();
   // A practice search is a judge's own sandbox, with no phone on its teams: no push.
   if (inc.get("mode") === "judge") return { teams: [] };
   const [plan, prev, teamDocs] = await Promise.all([base.collection("plans").doc(versionId).get(),
-    version > 1 ? base.collection("plans").doc(String(version - 1)).get() : Promise.resolve(null), base.collection("teams").listDocuments()]);
+    version > 1 ? base.collection("plans").doc(planDocId(version - 1)).get() : Promise.resolve(null), base.collection("teams").listDocuments()]);
   const next = (plan.get("assignments") ?? []) as Assignment[];
   const before = prev?.exists ? ((prev.get("assignments") ?? []) as Assignment[]) : null;
   // Only teams the incident has, with plain ids, and a bounded number per plan.

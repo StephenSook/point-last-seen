@@ -41,33 +41,33 @@ describe("handlePlanCreated", () => {
   });
   afterAll(closeClients);
   it("sends one push per changed team against the previous plan", async () => {
-    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
-    await admin.db.doc("incidents/I1/plans/2").set({ version: 2, assignments: [a("T1", ["AA"]), a("T2", ["AC"])] });
-    expect(await handlePlanCreated(admin.db, messaging, "I1", "2", NOW)).toEqual({ teams: ["T2"] });
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    await admin.db.doc("incidents/I1/plans/0002").set({ version: 2, assignments: [a("T1", ["AA"]), a("T2", ["AC"])] });
+    expect(await handlePlanCreated(admin.db, messaging, "I1", "0002", NOW)).toEqual({ teams: ["T2"] });
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ topic: "pls-I1-T2" });
   });
   it("the first plan notifies every team in it; a plan doc that is not a positive integer version sends nothing", async () => {
-    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
-    expect((await handlePlanCreated(admin.db, messaging, "I1", "1", NOW)).teams).toEqual(["T1", "T2"]);
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW)).teams).toEqual(["T1", "T2"]);
     sent.length = 0;
-    expect(await handlePlanCreated(admin.db, messaging, "I1", "draft", NOW)).toEqual({ teams: [] });
+    for (const id of ["draft", "0000", "-1"]) expect(await handlePlanCreated(admin.db, messaging, "I1", id, NOW)).toEqual({ teams: [] });
     expect(sent).toHaveLength(0);
   });
   it("pushes only to teams the incident has, with plain ids, at most 20 a plan, and never in a practice search (review)", async () => {
-    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T2", ["AA"]), a("T9", ["AB"]), a("x/../y", ["AC"])] });
-    expect((await handlePlanCreated(admin.db, messaging, "I1", "1", NOW)).teams).toEqual(["T2"]);
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T2", ["AA"]), a("T9", ["AB"]), a("x/../y", ["AC"])] });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW)).teams).toEqual(["T2"]);
     sent.length = 0;
     const many = Array.from({ length: 30 }, (_, i) => `T${i + 10}`);
     for (const t of many) await admin.db.doc(`incidents/I1/teams/${t}`).set({ teamId: t });
-    await admin.db.doc("incidents/I1/plans/2").set({ version: 2, assignments: many.map(t => a(t, ["AA"])) });
-    expect((await handlePlanCreated(admin.db, messaging, "I1", "2", NOW)).teams).toHaveLength(20);
+    await admin.db.doc("incidents/I1/plans/0002").set({ version: 2, assignments: many.map(t => a(t, ["AA"])) });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0002", NOW)).teams).toHaveLength(20);
     expect(sent).toHaveLength(20);
     sent.length = 0;
     await admin.db.doc("incidents/judge-u1").set({ name: "Practice search", mode: "judge", status: "open" });
     await admin.db.doc("incidents/judge-u1/teams/T1").set({ teamId: "T1" });
-    await admin.db.doc("incidents/judge-u1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"])] });
-    expect(await handlePlanCreated(admin.db, messaging, "judge-u1", "1", NOW)).toEqual({ teams: [] });
+    await admin.db.doc("incidents/judge-u1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"])] });
+    expect(await handlePlanCreated(admin.db, messaging, "judge-u1", "0001", NOW)).toEqual({ teams: [] });
     expect(sent).toHaveLength(0);
   });
   it("is registered on plan creation", async () => {
