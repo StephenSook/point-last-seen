@@ -1,4 +1,4 @@
-import { formatPct, type MapSegment } from "../laneC";
+import { formatPct, type MapSegment } from "../hostApp";
 
 /** One segment as a frame draws it: its percent plate and where the plate sits. */
 export type FramePlate = { segmentId: string; label: string; lat: number; lon: number };

@@ -3,7 +3,7 @@
 // sightings. Legs print distance, time and the speed that implies; no speed is judged, because there is no
 // sourced limit to compare it with.
 
-import { COMMAND } from "../laneC";
+import { COMMAND } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import type { ReplayEvent } from "./replayData";
 import type { ReplayFrame } from "./stateAt";

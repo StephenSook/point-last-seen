@@ -16,7 +16,7 @@ import {
   type SegmentPrior,
   type StreamedEvent,
   type Team,
-} from "../laneC";
+} from "../hostApp";
 import { DRILL_LABEL } from "../print/printModel";
 import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, MAX_RUN_EVENTS, RUN_ENUMS, RUN_FIELDS } from "./runContract";
 import { RUN_TYPES, wrongType } from "./runSchema";

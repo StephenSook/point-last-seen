@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useState, type JSX } from "react";
 import { cubeGate, cubeScene } from "./cube/scene";
 import { ExtrasBoundary } from "./ExtrasBoundary";
-import type { PublishedRun } from "./laneC";
+import type { PublishedRun } from "./hostApp";
 import { LazyReplayPanel, LazyScamPanel, LazySpaceTimeCube, prefetchJudgePanels } from "./lazyPanels";
 import { fromPublishedRun, type ReplayData } from "./replay/replayData";
 import { replayWindow } from "./replay/stateAt";

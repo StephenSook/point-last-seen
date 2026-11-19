@@ -1,7 +1,7 @@
 // The map at any replay time, recomputed from the events that had arrived by then. Firestore keeps only the
 // current prior, so a time before that prior came into use has no stored map: that span shows reports only.
 
-import { viewState, type ViewState } from "../laneC";
+import { viewState, type ViewState } from "../hostApp";
 import type { ReplayData, ReplayEvent } from "./replayData";
 
 /** priorInUseFromMs is +Infinity when no time in the window can be shown to have the current prior. */

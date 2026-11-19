@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
 import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
-import { DeleteMedia, printableApproachLines, type IncidentView } from "./laneC";
+import { DeleteMedia, printableApproachLines, type IncidentView } from "./hostApp";
 import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
 import { reportsIn } from "./reports";
 import type { PrintSessionData } from "./print/PrintSession";

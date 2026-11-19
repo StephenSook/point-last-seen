@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../laneC";
+import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../hostApp";
 import { DRILL_LABEL } from "../print/printModel";
 import { drillView, planFixture } from "../testdata/fixtures";
 

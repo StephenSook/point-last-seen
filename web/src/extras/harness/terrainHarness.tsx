@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { DEFAULT_PARAMS, MapView, viewState, type MapLibreMap, type PostState, type SegmentDoc } from "../laneC";
+import { DEFAULT_PARAMS, MapView, viewState, type MapLibreMap, type PostState, type SegmentDoc } from "../hostApp";
 import { drillView } from "../testdata/fixtures";
 
 // Made-up harness data for the terrain e2e. Dev server only; never in the production build.

@@ -14,7 +14,7 @@
 // - The judge check compares each segment's percent and centroid with the live map, not its polygon: a change to a
 //   polygon alone does not show in it.
 
-import type { Assignment, EngineParams, EventDoc, RouteRecord } from "../laneC";
+import type { Assignment, EngineParams, EventDoc, RouteRecord } from "../hostApp";
 
 export const PUBLISHED_RUN_VERSION = 1;
 

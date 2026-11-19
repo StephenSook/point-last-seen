@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { viewState, type EventDoc, type PostState } from "../laneC";
+import { viewState, type EventDoc, type PostState } from "../hostApp";
 import { fromLive } from "../replay/replayData";
 import { harnessIncident } from "../testdata/replayIncident";
 

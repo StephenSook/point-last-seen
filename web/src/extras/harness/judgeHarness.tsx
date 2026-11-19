@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { JudgeExtras } from "../JudgeExtras";
-import { formatPct, viewState, type EventDoc, type PublishedRun } from "../laneC";
+import { formatPct, viewState, type EventDoc, type PublishedRun } from "../hostApp";
 import { framePlates } from "../replay/framePlates";
 import { fromLive } from "../replay/replayData";
 import { harnessIncident, harnessRun } from "../testdata/replayIncident";

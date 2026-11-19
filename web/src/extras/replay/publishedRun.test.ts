@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cubeGate, cubeScene } from "../cube/scene";
-import type { PublishedRun } from "../laneC";
+import type { PublishedRun } from "../hostApp";
 import { fromPublishedRun } from "./replayData";
 import { replayWindow, stateAt } from "./stateAt";
 
