@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Kennesaw Mountain drill grid sits on the trails south of Dallas Highway, as park staff suggested: 338
+  segments, 4.21 km2 over the Kolb's Farm, Cheatham Hill and Old John Ward trails, its northern edge about 100 m below
+  the road. Before, its window was around the Visitor Center and the summits, all north of the road. Its route graph
+  (644 edges) and basemap tiles (Protomaps 2026-11-18) are committed beside it, and `shared/grid/README.md` records
+  how each was made with its sha256.
+  Source: review (park staff's advice for the drill).
+  Verified: the grid tests now cover both sites' graph and tiles (the graph indexes in the engine and is bounded by
+  the grid's box; the tiles are PMTiles v3 covering it) and pin the grid below 33.945 north; they failed first, now
+  all 9 pass; the engine suite passes; rules_gate passes.
 - `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
   project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
   Source: review (seen after the merge point's Android build).
