@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a dropped assignment is never played, and the next membership starts fresh
+- What: a drop cleared the mission and its plan listener, but the voice kept going. A cloud voice
+  still fetching could play the old instruction or fall back to the phone's own voice, a queued
+  device line could still play, and the speaker remembered the last line across memberships, so
+  after T1 to T2 (no task) to T1 it stayed silent for T1. Now a drop or a move to another incident
+  or team stops both voices and forgets the last line. Each line is spoken only while it is still
+  the loaded mission's assignment: checked before any sound starts (after the cloud fetch) and
+  before the phone's own voice stands in for a failed cloud voice.
+- Source: review (finding 2, second round).
+- Verified: speaker tests for a line dropped during the cloud fetch (neither voice plays it) and for
+  stop (both voices silenced, the same line spoken again after). They failed to compile before the
+  change and pass after. An app test for a drop then the same team again fails when the stop in
+  the drop is removed, and passes with it. 107 app tests pass.
+
 ### fix(ios): a slow access check never restores what a newer one dropped
 - What: a retry or a sign-in check whose claims read was slow could come back with old searcher
   claims after a newer check had found the role gone and dropped the membership; it then restored

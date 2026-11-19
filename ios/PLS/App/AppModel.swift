@@ -300,6 +300,8 @@ final class AppModel {
         stopPlanWatch?()
         stopPlanWatch = nil
         mission = nil
+        // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
+        speaker.stop()
         refreshGate()
     }
 
@@ -371,13 +373,25 @@ final class AppModel {
     }
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
+    /// The line is spoken only while it is still this mission's assignment: a drop, a newer load or
+    /// a newer plan meanwhile keeps it silent.
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
+        let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
+        // Another incident or team: whatever the old one was saying stops, and its lines are forgotten.
+        if newTeam { speaker.stop() }
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
-        await speaker.update(mission.assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,
-                             killCloud: config.killCloud, signedIn: signIn.signedIn)
+        let generation = missionGeneration, assignment = mission.assignment
+        let incidentId = mission.incidentId, teamId = mission.teamId
+        await speaker.update(assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,
+                             killCloud: config.killCloud, signedIn: signIn.signedIn,
+                             isCurrent: { [weak self] in
+                                 guard let self, let current = self.mission else { return false }
+                                 return self.missionGeneration == generation && current.incidentId == incidentId
+                                     && current.teamId == teamId && current.assignment == assignment
+                             })
     }
 
     func refreshGate() {

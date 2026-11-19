@@ -219,6 +219,22 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
     }
 
+    /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
+    /// given back, T1's assignment is spoken again.
+    @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {
+        let backend = FakeJoinBackend()
+        let voice = FakeVoice()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), voice: voice)
+        await m.trySignIn()
+        #expect(voice.spoken.count == 1)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(m.mission == nil && voice.stops >= 1)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && voice.spoken.count == 2)
+    }
+
     /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
     /// membership is kept and "Read the mission again" is no longer offered.
     @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {
