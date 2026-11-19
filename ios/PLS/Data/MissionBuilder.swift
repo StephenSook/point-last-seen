@@ -56,7 +56,8 @@ enum MissionBuilder {
         return Mission(incidentId: incidentId, mode: mode, teamId: teamId, priorVersion: parsed.priorVersion, grid: parsed.grid,
                        prior: parsed.prior, assignedSegmentIds: assignment?.segmentIds ?? [], params: params,
                        profile: ModelProfile(shared: shared ?? .null), sharedProfile: try? shared?.decode(SharedProfile.self),
-                       visualDetectionRangeM: nil, rdBasis: .default, assignment: assignment, priorInputEventIds: priorInputs,
+                       visualDetectionRangeM: nil, rdBasis: .default, assignment: assignment, planVersion: plan?.version,
+                       priorInputEventIds: priorInputs,
                        conditions: IncidentConditions(incidentField: docs.incident["conditions"]))
     }
 }

@@ -157,6 +157,37 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.assignment == nil)
     }
 
+    /// Plans apply in version order only: an older plan (a cache snapshot, or an update handled out
+    /// of order) or another copy of the loaded version never replaces the newer assignment and is
+    /// never spoken.
+    @Test func anOlderPlanNeverReplacesANewerOne() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let voice = FakeVoice()
+        let m = model(FakeJoinBackend(), reader, voice: voice)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        // The loaded mission came from version 2: another copy of version 2 is not newer.
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Version two, other words.", version: 2),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
+        #expect(m.mission?.assignment?.taskText == "Walk the creek bank." && voice.spoken.count == 1)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
+        #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Old plan.", version: 2),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Same version, other words.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
+        #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Check the parking deck.", version: 4),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
+        #expect(m.mission?.assignment?.taskText == "Check the parking deck." && voice.spoken.count == 3)
+    }
+
     /// After sign-in the claims are read fresh from the server, so a team change command made
     /// since the last token reaches the phone; with no signal, the cached token answers.
     @Test func afterSignInTheClaimsAreReadFresh() async throws {
@@ -195,6 +226,58 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         await m.retryMission()
         #expect(m.mission?.teamId == "T1" && m.joinMessage == nil && !m.canRetryMission)
         #expect(backend.steps.filter { $0 == "call" }.count == 1)
+    }
+
+    /// A team change retires the old team's mission before the new one is read: if that read fails,
+    /// no T1 mission, listener or spoken update stays, and reading T2's mission again is offered.
+    @Test func aTeamChangeWhoseReadFailsLeavesNothingOfTheOldTeam() async throws {
+        let backend = FakeJoinBackend()
+        let voice = FakeVoice()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader, voice: voice)
+        await m.trySignIn()
+        await m.speech?.value
+        #expect(m.mission?.teamId == "T1" && reader.stops == 0)
+        backend.claims["team"] = .string("T2")
+        reader.docs = nil
+        await m.trySignIn()
+        #expect(m.mission == nil && reader.stops == 1 && m.canRetryMission && m.joinMessage == AppModel.missionUnread)
+        // A T1 plan that still arrives changes nothing and is not spoken.
+        let spoken = voice.spoken.count
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], task: "Old team task.", version: 9), incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
+        #expect(m.mission == nil && voice.spoken.count == spoken)
+        reader.docs = try drillDocs()
+        await m.retryMission()
+        #expect(m.mission?.teamId == "T2" && !m.canRetryMission)
+    }
+
+    /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
+    /// membership is kept and "Read the mission again" is no longer offered.
+    @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission == nil && m.canRetryMission)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(!m.canRetryMission && m.mission == nil)
+    }
+
+    /// "Read the mission again" checks the claims first: a role command took away reads nothing.
+    @Test func readingTheMissionAgainChecksTheClaimsFirst() async throws {
+        let backend = newcomer()
+        let reader = FakeMissionReader(docs: nil)
+        let m = model(backend, reader)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.canRetryMission)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        reader.docs = try drillDocs()
+        let readsBefore = reader.reads.count
+        await m.retryMission()
+        #expect(reader.reads.count == readsBefore && m.mission == nil && !m.canRetryMission)
+        #expect(m.joinMessage == AppModel.notOnATeam)
     }
 
     /// Joining a team the phone already holds reads the mission without spending the code.

@@ -129,6 +129,41 @@ finding) and how it was verified. Newest first.
   number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
   tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
 
+### fix(ios): plans apply in version order, so an older plan never replaces a newer assignment
+- What: the plan listener compared only assignments, so an older plan (a cache snapshot, or an
+  update handled out of order) could replace the newer assignment and speak it, and the newer one
+  then spoke again. The mission now keeps the version of the plan its assignment came from, set
+  when the mission loads. Only a newer plan counts. A newer plan with the same task for this team
+  updates the version and says nothing.
+- Source: review (finding 3).
+- Verified: a test sends another copy of the loaded version, a newer version, then an older one and
+  a second copy of the newer one, then a newer one again. Before the change the old plans replaced
+  the assignment; after it only the newer ones apply and each is spoken once. 102 app tests pass.
+
+### fix(ios): a team change retires the old team's mission before the new one is read
+- What: when command moved a searcher to another team, the phone read the new team's mission while
+  the old one stayed loaded. If that read failed, the old team's mission, plan listener and spoken
+  updates stayed alive, reports were stamped with the old team (which the security rules refuse),
+  and no retry was offered. The old mission is now dropped first. A failed read leaves nothing of
+  the old team, and "Read the mission again" is offered for the new team.
+- Source: review (finding 2).
+- Verified: a test moves the searcher from T1 to T2 with the read failing: no mission, the T1
+  listener stopped, the retry offered with the read message, and a late T1 plan neither loads nor
+  speaks. A retry then loads T2. It failed before the change and passes after; 101 app tests pass;
+  the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): a lost searcher role drops the membership too, and a retry checks the claims first
+- What: when claims stopped naming a searcher, the phone dropped only a loaded mission. A membership
+  whose first mission read had failed survived, so "Read the mission again" stayed on screen and
+  read the mission with no check of the claims. Now any non-searcher claims drop everything held
+  (the membership, a loaded mission, and any load still running). "Read the mission again" reads
+  the claims first (fresh, or cached with no signal). If they no longer name a searcher, it drops
+  the membership and says "This phone is no longer on a team. Ask command for a join code."
+- Source: review (finding 1).
+- Verified: tests for a role lost while only the membership is held, and for a retry after the role
+  was lost (no mission read, no retry offered, the message shown). They failed before the change
+  and pass after; 100 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): the cloud switch says what leaves the phone, and when
 - What: the Ready check's cloud switch read "Allow cloud reading when the phone cannot read a
   report" without naming what is sent. It now reads "Allow cloud reading", with the line "Only when
