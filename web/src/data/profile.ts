@@ -46,6 +46,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : n
 const arr = <T,>(v: unknown, keep: (x: unknown) => x is T = (x: unknown): x is T => true): T[] => (Array.isArray(v) ? v.filter(keep) : []);
 const obj = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const AIDS = new Set(["cane", "walker", "wheelchair", "other"]);
+const TRACKING = new Set(["project_lifesaver", "medicalert_id", "gps_tracker", "phone_location"]);
 const isPlace = (x: unknown): x is Place => typeof x === "object" && x !== null && typeof (x as Place).label === "string";
 
 export function sharedFromDoc(data: unknown): SharedProfile {
@@ -66,6 +67,15 @@ export function sharedFromDoc(data: unknown): SharedProfile {
     // Kept when stored (the family app writes the list), so a later save from here writes it back: the shared
     // document is replaced whole, and dropping the list here would erase the names. Absent stays absent.
     ...(Array.isArray(d["otherNames"]) ? { otherNames: arr(d["otherNames"], (x): x is string => typeof x === "string") } : {}),
+    // The same for the tracking aids the family named: kept when stored, so a command save does not erase them.
+    ...(typeof d["trackingAids"] === "object" && d["trackingAids"] !== null
+      ? {
+          trackingAids: {
+            aids: arr(obj(d["trackingAids"])["aids"], (x): x is NonNullable<SharedProfile["trackingAids"]>["aids"][number] => typeof x === "string" && TRACKING.has(x)),
+            note: str(obj(d["trackingAids"])["note"]),
+          },
+        }
+      : {}),
   };
 }
 
@@ -128,8 +138,11 @@ export function commandWarnings(p: FamilyProfile, todayMs: number): ProfileWarni
   return profileWarnings(p, todayMs).filter((w) => w === "photo_old");
 }
 
-const changedKeys = (before: object, after: object): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(after).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify((before as Record<string, unknown>)[k])));
+// A key present before and absent after (an optional field set back to unknown) counts as changed, to undefined.
+const changedKeys = (before: object, after: object): Record<string, unknown> => ({
+  ...Object.fromEntries(Object.keys(before).filter((k) => !(k in after)).map((k) => [k, undefined])),
+  ...Object.fromEntries(Object.entries(after).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify((before as Record<string, unknown>)[k]))),
+});
 
 /**
  * What a save changes, per document: only the fields that differ from the profile as it was when the form
@@ -161,9 +174,12 @@ export function mergeProfileSave(
   if (!changesShared && !changesCommand) return { shared: null, command: null };
   const now = profileFromDocs(current.shared ? sharedFromDoc(current.shared) : undefined, current.command ? commandFromDoc(current.command) : undefined);
   const merged: Record<string, unknown> = { ...now };
-  for (const k of Object.keys(edited) as (keyof FamilyProfile)[]) {
+  for (const k of new Set([...Object.keys(edited), ...Object.keys(opened)]) as Set<keyof FamilyProfile>) {
     if (k === "flags") continue;
-    if (JSON.stringify(edited[k]) !== JSON.stringify(opened[k])) merged[k] = edited[k];
+    if (JSON.stringify(edited[k]) === JSON.stringify(opened[k])) continue;
+    // An optional field command removed (set back to unknown) is removed from the merged profile too.
+    if (k in edited) merged[k] = edited[k];
+    else delete merged[k];
   }
   const flags: Record<string, boolean> = { ...now.flags };
   const openedFlags = opened.flags as unknown as Record<string, boolean>;
