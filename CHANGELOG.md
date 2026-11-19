@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/evidence/model-latency.md` records why live cloud paths use the flash-lite family: one sample of
+  `gemini-3.8-flash` took 116,071 ms (333 thinking tokens) on 2026-11-17, against a flash-lite median of 839 ms
+  (925 ms with cloudGuard) over 10 warm calls on 2026-11-18. It says plainly that the slow figure is one sample and
+  that its raw record is local evidence, not in the repo.
+  Source: review (the film fact-sheet audit: a code comment cited "116 s" with no evidence file).
+  Verified: the figures copied from the 2026-11-17 test notes and the 2026-11-18 live check output;
+  `bash scripts/ci-local.sh` exit 0.
 - `shared/constants/models.json` names the speech model's caller as the server prompt template `pls-voice-v1`;
   the retired Remote Config key `tts_model_ios` is gone from it.
   Source: review (the film fact-sheet audit).
