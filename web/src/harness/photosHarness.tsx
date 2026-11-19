@@ -5,13 +5,16 @@
 
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { PHOTO_DELETED, PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { PHOTO_DELETED, PHOTO_UNCHECKED } from "../data/photos";
+import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import "../theme/fonts.css";
 import "../theme/base.css";
 
 const q = new URLSearchParams(location.search);
 const save = q.get("save");
 const deleted = q.get("deleted") === "1";
+// ?unchecked=1: the Storage check cannot run, so a save refuses with that sentence.
+const unchecked = q.get("unchecked") === "1";
 
 async function syntheticJpeg(label: string): Promise<Uint8Array> {
   const c = new OffscreenCanvas(160, 100);
@@ -42,7 +45,7 @@ function Harness() {
         onAddFiles={async () => {}}
         readOnLaptop={async () => ({ refused: "no-on-device-model" })}
         readInCloud={async () => ({ refused: deleted ? "deleted" : "not-in-cloud" })}
-        onDecide={() => deleted ? Promise.reject(new Error(PHOTO_DELETED)) : (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
+        onDecide={() => deleted ? Promise.reject(new Error(PHOTO_DELETED)) : unchecked ? Promise.reject(new Error(PHOTO_UNCHECKED)) : (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
       />
     </main>
   );

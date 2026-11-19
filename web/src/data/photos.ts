@@ -59,6 +59,26 @@ export async function stillStored(metadata: () => Promise<unknown>): Promise<boo
   }
 }
 
+/** Said when command deleted the search's photos after this seat loaded them. */
+export const PHOTO_DELETED = "This photo was deleted.";
+/** Said when the Storage check could not run (the link is down, say): nothing was saved. */
+export const PHOTO_UNCHECKED = "Could not check this photo. The answer was not saved. Try again.";
+
+/**
+ * Saves a family answer only after Storage confirms the photo is still there. A check that cannot run refuses
+ * too: a queued answer could land after another seat deleted the photo and bring its reading back.
+ */
+export async function saveIfStillStored(stillThere: () => Promise<boolean>, save: () => Promise<void>): Promise<void> {
+  let there: boolean;
+  try {
+    there = await stillThere();
+  } catch {
+    throw new Error(PHOTO_UNCHECKED);
+  }
+  if (!there) throw new Error(PHOTO_DELETED);
+  await save();
+}
+
 /** Is this incident's photo still in Storage? */
 export function photoStillStored(storage: FirebaseStorage, incidentId: string, sha256: string): Promise<boolean> {
   return stillStored(() => getMetadata(ref(storage, photoPath(incidentId, sha256))));

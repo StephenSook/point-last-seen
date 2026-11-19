@@ -33,3 +33,11 @@ test("a family answer for a photo that was deleted is not saved, and says why", 
   await row.getByRole("button", { name: "No", exact: true }).click();
   await expect(row.getByRole("alert")).toHaveText("This photo was deleted.");
 });
+
+test("a family answer is not saved when the photo cannot be checked, and says so", async ({ page }) => {
+  await page.goto("/harness/photos.html?unchecked=1");
+  const row = page.locator(".photo").nth(0);
+  await row.getByRole("button", { name: "No", exact: true }).click();
+  await expect(row.getByRole("alert")).toHaveText("Could not check this photo. The answer was not saved. Try again.");
+  await expect(row.getByRole("button", { name: "No", exact: true })).toBeEnabled();
+});

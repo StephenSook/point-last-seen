@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type For
 import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
@@ -18,7 +18,7 @@ import { FRAME_OPTS } from "../ai/frameCheck";
 import { jpegAt, sampleFrames } from "../camera/frames";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
-import { PHOTO_DELETED, PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -728,13 +728,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             onAddFiles={addPhotoFiles}
             readOnLaptop={readPhotoHere}
             readInCloud={readPhotoCloud}
-            onDecide={async (p, cues, route, d) => {
-              // A reading is not saved for a photo command deleted. When the check cannot run (the link is
-              // down) the save is queued as before, so an offline answer is not lost.
-              const stored = await photoStillStored(pls.storage, incidentId, p.sha256).catch(() => true);
-              if (!stored) throw new Error(PHOTO_DELETED);
-              await savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now()));
-            }}
+            onDecide={(p, cues, route, d) =>
+              // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
+              saveIfStillStored(
+                () => photoStillStored(pls.storage, incidentId, p.sha256),
+                () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
+              )
+            }
           />
           <MergeLanes lanes={lanes} />
         </aside>

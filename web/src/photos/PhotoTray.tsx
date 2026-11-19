@@ -6,7 +6,7 @@ import type { PhotoCues, RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useState } from "react";
 import type { DeviceState } from "../ai/deviceModel";
 import { RouteGlyph } from "../command/RouteGlyph";
-import type { FamilyDecision } from "../data/photos";
+import { PHOTO_DELETED, PHOTO_UNCHECKED, type FamilyDecision } from "../data/photos";
 
 export type TrayPhoto = { sha256: string; bytes: Uint8Array };
 type Read = { cues: PhotoCues; route: RouteRecord } | { couldNot: string } | { noModel: true } | { consent: true };
@@ -29,8 +29,7 @@ const STATE_LINE: Record<DeviceState, string> = {
   text: "This browser's model cannot read images. Photos stayed on this laptop.",
   image: "This laptop can read photos here.",
 };
-/** Said when command deleted the search's photos after this tray loaded them. */
-export const PHOTO_DELETED = "This photo was deleted.";
+export { PHOTO_DELETED };
 
 const COULD_NOT: Record<string, string> = {
   deleted: PHOTO_DELETED,
@@ -80,8 +79,8 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
         if (next[p.sha256] === d) delete next[p.sha256];
         return next;
       });
-      const deleted = e instanceof Error && e.message === PHOTO_DELETED;
-      setSaveError((x) => ({ ...x, [p.sha256]: deleted ? PHOTO_DELETED : "Not saved. Try again." }));
+      const known = e instanceof Error && (e.message === PHOTO_DELETED || e.message === PHOTO_UNCHECKED);
+      setSaveError((x) => ({ ...x, [p.sha256]: known ? (e as Error).message : "Not saved. Try again." }));
     });
   }
 

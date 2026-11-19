@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, sha256Hex, stillStored } from "./photos";
+import { bytesToBase64, loadPhotosOrError, photoPath, photoReadingDoc, PHOTO_DELETED, PHOTO_UNCHECKED, saveIfStillStored, sha256Hex, stillStored } from "./photos";
 
 const cues = { placeType: "store" as const, placeName: "", signText: "OPEN", landmarks: [], outdoors: "yes" as const, evidence: "a shop" };
 const route = { platform: "web" as const, path: "on_device" as const, stage: "sdk" as const, model: "chrome-built-in", reason: "sdk_only_on_device" as const, latencyMs: 1200, sdkReported: true, blocked: null, decidedAtMs: 1 };
@@ -63,5 +63,24 @@ describe("stillStored", () => {
   });
   it("throws for anything else, so a check that could not run never counts as present or absent", async () => {
     await expect(stillStored(async () => { throw Object.assign(new Error("offline"), { code: "storage/retry-limit-exceeded" }); })).rejects.toThrow("offline");
+  });
+});
+
+describe("saveIfStillStored", () => {
+  it("saves while the photo is stored", async () => {
+    let saved = 0;
+    await saveIfStillStored(async () => true, async () => { saved += 1; });
+    expect(saved).toBe(1);
+  });
+  it("refuses, saving nothing, when the photo is gone", async () => {
+    let saved = 0;
+    await expect(saveIfStillStored(async () => false, async () => { saved += 1; })).rejects.toThrow(PHOTO_DELETED);
+    expect(saved).toBe(0);
+  });
+  it("refuses, saving nothing, when the check cannot run: an answer is never queued unchecked", async () => {
+    let saved = 0;
+    await expect(saveIfStillStored(async () => { throw new Error("offline"); }, async () => { saved += 1; })).rejects.toThrow(PHOTO_UNCHECKED);
+    expect(saved).toBe(0);
+    expect(PHOTO_UNCHECKED).toBe("Could not check this photo. The answer was not saved. Try again.");
   });
 });
