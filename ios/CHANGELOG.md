@@ -3,6 +3,18 @@
 Lane B owns `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-19
+
+### fix(ios): a slow earlier mission load never replaces a newer join
+- What: a load started at launch for the token's team could finish after a join for another team
+  and replace that mission, so reports would go out under the old team. Every join and load now
+  takes a generation number; a load installs its mission only if no newer join or load started
+  while it read, and a superseded launch load leaves the join's words alone.
+- Source: review.
+- Verified: a test holds the launch load for T1 open, joins T2, then lets the T1 read finish; T1
+  replaced T2 on the old code (failed), T2 stays now (passes); 89 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ## 2026-11-18
 
 ### feat(ios): a plan command approves after the mission loads reaches the phone

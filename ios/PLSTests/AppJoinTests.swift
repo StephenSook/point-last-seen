@@ -3,6 +3,24 @@ import PLSCore
 import Testing
 @testable import PLS
 
+/// Holds a read open until the test lets it finish.
+final class ReadGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var waiter: CheckedContinuation<Void, Never>?
+    private var open = false
+    var isWaiting: Bool { lock.withLock { waiter != nil } }
+    func wait() async {
+        await withCheckedContinuation { c in
+            lock.lock()
+            if open { lock.unlock(); c.resume() } else { waiter = c; lock.unlock() }
+        }
+    }
+    func release() {
+        let c = lock.withLock { () -> CheckedContinuation<Void, Never>? in open = true; defer { waiter = nil }; return waiter }
+        c?.resume()
+    }
+}
+
 /// Serves the drill incident's documents, or fails as the network does.
 final class FakeMissionReader: MissionReader, @unchecked Sendable {
     var docs: MissionDocs?
@@ -17,8 +35,15 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         return { [weak self] in self?.stops += 1 }
     }
     init(docs: MissionDocs?) { self.docs = docs }
+    /// The next read waits here (one read only).
+    var holdNextRead: ReadGate?
+
     func read(incidentId: String) async throws -> MissionDocs {
         reads.append(incidentId)
+        if let gate = holdNextRead {
+            holdNextRead = nil
+            await gate.wait()
+        }
         guard let docs else { throw URLError(.notConnectedToInternet) }
         return docs
     }
@@ -62,6 +87,24 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         // A plan for another incident is not this mission's.
         await m.planArrived(newer, incidentId: "other", teamId: "T1")
         #expect(m.mission?.assignment == nil)
+    }
+
+    /// A slow load from before (launch) never replaces a join that finished after it started.
+    @Test func aSlowEarlierLoadNeverReplacesANewerJoin() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let gate = ReadGate()
+        reader.holdNextRead = gate
+        let m = model(backend, reader)
+        let resume = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims["team"] = .string("T2")
+        await m.join(code: "ABCDEFGH", teamId: "T2", incidentId: "")
+        #expect(m.mission?.teamId == "T2")
+        gate.release()
+        await resume.value
+        #expect(m.mission?.teamId == "T2")
     }
 
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {

@@ -37,6 +37,8 @@ final class AppModel {
     private(set) var joining = false
     /// Stops listening for the loaded mission's plans.
     @ObservationIgnored private var stopPlanWatch: (@Sendable () -> Void)?
+    /// Counts mission loads and joins; only the newest installs a mission.
+    @ObservationIgnored private var missionGeneration = 0
     static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
 
     init(signIn: SignIn = .firebase(),
@@ -186,6 +188,8 @@ final class AppModel {
     func join(code: String, teamId: String, incidentId: String) async {
         joining = true
         defer { joining = false }
+        // A join is the newest wish: any load still running from before must not replace it.
+        missionGeneration += 1
         let request: SearcherJoin
         do {
             request = try SearcherJoin.make(code: code, teamId: teamId, incidentId: incidentId)
@@ -202,10 +206,14 @@ final class AppModel {
     /// Reads the team's mission and loads it; says why not, or nil when it loaded.
     @discardableResult
     func loadMission(incidentId: String, teamId: String) async -> String? {
+        missionGeneration += 1
+        let generation = missionGeneration
         do {
             let docs = try await missionReader.read(incidentId: incidentId)
             let mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
                                                    bundledParams: try BundledConstants.engineParams())
+            // A newer join or load started while this one read: it has the say.
+            guard generation == missionGeneration else { return nil }
             await load(mission)
             watchPlans(incidentId: incidentId, teamId: teamId)
             return nil
@@ -241,7 +249,10 @@ final class AppModel {
     private func resumeMission() async {
         guard mission == nil, let claims = await joinBackend.currentClaims(), claims["role"] == .string("searcher"),
               case let .string(incidentId)? = claims["inc"], case let .string(teamId)? = claims["team"] else { return }
-        joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
+        let before = missionGeneration
+        let message = await loadMission(incidentId: incidentId, teamId: teamId)
+        // Superseded by a join meanwhile: that join's words stay.
+        if missionGeneration == before + 1 { joinMessage = message }
     }
 
     /// Back in the foreground: the same check, in case the reconnect happened while suspended.
