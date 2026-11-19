@@ -5,7 +5,7 @@ test("with the link down, Approve shows the plan at once and sends it when the l
   test.setTimeout(120_000);
   await withDebugToken(page);
   await joinCommand(page);
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await context.setOffline(true);
   try {
     await page.getByRole("button", { name: "Suggest plan" }).click();

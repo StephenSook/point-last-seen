@@ -1445,3 +1445,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the first view now fits the grid with 64 px of room at the bottom (40 px on the other sides), so the percent plates and codes of the lowest row sit above the OpenStreetMap credit instead of under it.
 - Source: live judge walk, item 7 (phone).
 - Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: no visible plate or code overlaps the credit) failed on the deployed site at aaae392; it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
+
+### fix(map): place cell labels by collision instead of a width threshold
+- What: the 8-cell rule still let the kept labels collide on a phone, because the most likely cells sit side by side. Labels are now placed in POA order, most likely first; a cell whose code or percent would cover a label already placed hides its own labels (its dot and fill stay). The labels a person sees never overlap, at any zoom, and zooming in brings hidden ones back. Hidden labels stay in the page for anything that reads the plates.
+- Source: live check of the deployed map at 390 px after the previous change.
+- Verified: unit tests for the placing (collision, a cell's code and percent as one unit, nothing hidden when nothing touches, POA order with ties by id) failed first, then passed; harness tests (at 300 px no two visible labels overlap, AB keeps its labels and all 24 codes stay in the page; at full size all 24 codes and 23 percents show) pass, and the overlap test fails with the hiding rule removed; 87 harness and 42 extras browser tests pass. scripts/ci-local.sh exit 0.
+
+### test(e2e): wait for the first visible plate, not the first plate in the page
+- What: the deployed specs that wait for the map (a11y, approve-offline, beat, change, judge, offline, phone, smoke) now wait for `.plate:visible`. A cell whose labels give way to a more likely cell's keeps its plate in the page but hidden, so the first plate in page order can be a hidden one, which made the two phone tests time out on the live site.
+- Source: the live run of `e2e/phone.spec.ts` on 5f2b594.
+- Verified: against the deployed site (5f2b594), phone, change and beat specs 5 of 5 pass (the phone tests had failed at their first wait). scripts/ci-local.sh exit 0.
