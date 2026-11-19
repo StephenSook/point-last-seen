@@ -101,8 +101,9 @@ describe("task lines come from code, the model writes only reasons", () => {
 
 describe("wordPlan", () => {
   it("records the SDK's route", async () => {
-    expect((await wordPlan(draft, deps({}))).route).toMatchObject({ platform: "web", path: "cloud", sdkReported: true, reason: "sdk_prefer_in_cloud", stage: "sdk" });
-    expect((await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: "on_device" }) }))).route).toMatchObject({ path: "on_device", reason: "link_down_fallback", sdkReported: true });
+    // On this laptop first: the cloud answers only when there is no local model, and the route says which ran.
+    expect((await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: "on_device" }) }))).route).toMatchObject({ platform: "web", path: "on_device", sdkReported: true, reason: "sdk_prefer_on_device", stage: "sdk" });
+    expect((await wordPlan(draft, deps({}))).route).toMatchObject({ path: "cloud", sdkReported: true, reason: "on_device_unavailable" });
   });
 
   it("with no inferenceSource records path unknown and says the route was not reported", async () => {
@@ -168,8 +169,8 @@ describe("wordPlan", () => {
 describe("wordingParams", () => {
   const p = wordingParams("gemini-3.5-flash-lite");
 
-  it("is the SDK's hybrid mode with the cloud first", () => {
-    expect(p.mode).toBe(InferenceMode.PREFER_IN_CLOUD);
+  it("is the SDK's hybrid mode with this laptop first", () => {
+    expect(p.mode).toBe(InferenceMode.PREFER_ON_DEVICE);
     expect(p.inCloudParams).toMatchObject({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON } });
   });
 

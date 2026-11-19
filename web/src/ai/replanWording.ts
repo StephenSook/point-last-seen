@@ -1,4 +1,5 @@
-// Plan wording on the SDK's own hybrid mode, cloud first. The plan itself is
+// Plan wording on the SDK's own hybrid mode, this laptop first: the cloud answers only when the browser has no
+// local model, and the route records which one ran (the SDK's inferenceSource), never the mode asked for. The plan itself is
 // drafted by code, and so is each team's task line ("Search segment AA."): a
 // model writes only each team's reason and the summary, in a closed schema.
 // Code rejects wording whose teams differ from the draft, or whose reason names
@@ -43,7 +44,7 @@ const SYSTEM = [
 
 export function wordingParams(model: string): HybridParams {
   return {
-    mode: InferenceMode.PREFER_IN_CLOUD,
+    mode: InferenceMode.PREFER_ON_DEVICE,
     inCloudParams: {
       model,
       systemInstruction: SYSTEM,
@@ -166,9 +167,9 @@ export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<Wor
       }),
       summary: modelWording.summary,
     };
-    if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "sdk_prefer_in_cloud", deps.model, t1 - t0, true, t1), notice: null };
-    if (reply.inferenceSource === "on_device") return { wording, route: route("on_device", "link_down_fallback", "chrome-built-in", t1 - t0, true, t1), notice: null };
-    return { wording, route: route("unknown", "sdk_prefer_in_cloud", deps.model, t1 - t0, false, t1), notice: null };
+    if (reply.inferenceSource === "on_device") return { wording, route: route("on_device", "sdk_prefer_on_device", "chrome-built-in", t1 - t0, true, t1), notice: null };
+    if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "on_device_unavailable", deps.model, t1 - t0, true, t1), notice: null };
+    return { wording, route: route("unknown", "sdk_prefer_on_device", deps.model, t1 - t0, false, t1), notice: null };
   } catch (e) {
     return template(noticeFor(e));
   } finally {

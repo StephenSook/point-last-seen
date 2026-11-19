@@ -16,6 +16,8 @@ const DRAFT: PlanDraft = { eventSetHash: "a".repeat(64), priorVersion: 1, rank: 
 // segments before the incident.
 // ?slow=1: the model answers only when "Model answers" is pressed, so the draft can change first.
 const slow = new URLSearchParams(location.search).get("slow") === "1";
+// ?route=cloud|on_device: the route the wording reports (default: the fixed template).
+const routePath = (new URLSearchParams(location.search).get("route") ?? "rules") as "cloud" | "on_device" | "rules";
 
 function Harness() {
   const [draft, setDraft] = useState<PlanDraft>(DRAFT);
@@ -31,7 +33,9 @@ function Harness() {
           if (slow) await new Promise<void>((resolve) => (answer.current = resolve));
           return {
           wording: { assignments: [{ teamId: "T1", taskText: "Search AA.", reason: "Highest." }, { teamId: "T2", taskText: "Search AB.", reason: "Next." }], summary: "s" },
-          route: { platform: "web", path: "rules", stage: "sdk", model: "template", reason: "template_fallback", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs: 0 },
+          route: routePath === "rules"
+            ? { platform: "web", path: "rules", stage: "sdk", model: "template", reason: "template_fallback", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs: 0 }
+            : { platform: "web", path: routePath, stage: "sdk", model: routePath === "cloud" ? "gemini-3.5-flash-lite" : "chrome-built-in", reason: routePath === "cloud" ? "on_device_unavailable" : "sdk_prefer_on_device", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0 },
           notice: null,
           };
         }}
