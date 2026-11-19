@@ -1664,3 +1664,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the clip and frame harness tests make their synthetic test clip (a grey frame with a moving red square, no person) with ffmpeg, which GitHub's Ubuntu runner does not ship, so two harness tests failed on the first real CI run while passing locally. The web job now installs ffmpeg (`sudo apt-get install -y --no-install-recommends ffmpeg`) before the harness step, and the workflow-mirror check lists that install as runner setup, like the Playwright browser install.
 - Source: the web job on pull request CI ("ffmpeg: not found").
 - Verified: the workflow file parses; `scripts/test_ci_local.py` (every workflow command mirrored, setup excepted) and `scripts/test_workflow_paths.py` pass; the next CI run on the pull request is the check.
+
+### feat(command): show the note's own words a read was taken from
+- What: when a note read fills the fields, the form now shows `From the note: "<quote>"`, the evidence quote the read returned, so command sees which words the suggestion rests on. With no quote it shows nothing. The read already refuses a reply whose quote is not in the note; the form also shows a quote only while the note still holds those exact words.
+- Source: review (the checked evidence quote was never shown).
+- Verified: three new sighting harness tests (a quote shows; no quote shows no line; a quote that is not in the note is never shown) were written first; the first failed (no line), the other two held, then all passed; 7 sighting harness tests pass, and the existing read test that drops a reply whose quote is not in the note still passes; typecheck clean. The full local run of every workflow command happens on the pull request head.

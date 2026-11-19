@@ -18,6 +18,8 @@ function Harness() {
   const [saved, setSaved] = useState<SightingInput | null>(null);
   const answer = useRef<(() => void) | null>(null);
   const slow = new URLSearchParams(location.search).get("read") === "slow";
+  // ?quote=...: the evidence quote the slow read answers with (default none).
+  const quote = new URLSearchParams(location.search).get("quote") ?? "";
   // ?read=cloud: no laptop model; after the consent tap the cloud answers (top red) with its route and size.
   const cloud = new URLSearchParams(location.search).get("read") === "cloud";
   return (
@@ -33,7 +35,7 @@ function Harness() {
           slow
             ? () =>
                 new Promise<SightingRead>((resolve) => {
-                  answer.current = () => resolve({ reading: { direction: "unknown", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "" } });
+                  answer.current = () => resolve({ reading: { direction: "unknown", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: quote } });
                 })
             : async () => ({ refused: "no-on-device-model" })
         }
