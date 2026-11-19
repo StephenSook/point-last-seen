@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): load the team's mission after a join, and again after sign-in for a searcher who joined before
+- What: `AppModel.join(code:teamId:incidentId:)` checks the request, joins through the callable
+  and then reads the team's mission: `FirestoreMissionReader` reads the incident, its segments, the
+  latest approved plan (by version) and `profile/shared` as a member (offline, from Firestore's
+  cache), `MissionBuilder` builds it and `load` takes it, so the assignment is spoken once. After
+  every sign-in (at launch, and when signal returns) a token whose claims name a searcher's
+  incident and team loads that mission when none is loaded. Each failure is the join screen's
+  words: the input, the callable's refusal, the incident not open, or "Joined, but the mission
+  could not be read. Check the connection and try again."
+- Source: plan task, loading a mission on the iPhone (AppModel.load had no caller outside tests).
+- Verified: four tests (a join loads the drill mission with its assignment; a bad code calls
+  nothing and a refused join loads nothing; a closed incident and an unreadable mission say why;
+  a searcher's token loads the mission after sign-in once, a family token loads nothing) failed to
+  compile, then passed; the CI mirror `bash scripts/ci-local.sh` exit 0; 84 app tests pass.
+
 ### feat(ios): build the team's mission from the incident, its segments, the plan and the shared profile
 - What: `MissionBuilder` turns the member-readable documents a joined searcher can read into the
   phone's `Mission`, with the parsers the pack uses: the segments (ROW included) give the grid,

@@ -19,6 +19,7 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
         return try reply.get()
     }
     func refreshClaims() async throws -> [String: JSONValue] { steps.append("refresh"); return claims }
+    func currentClaims() async -> [String: JSONValue]? { claims }
 }
 
 /// A searcher joins with the code and team command gave: the callable sets the claims, the phone

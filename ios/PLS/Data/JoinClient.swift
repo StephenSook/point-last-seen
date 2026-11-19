@@ -34,6 +34,8 @@ protocol JoinBackend: Sendable {
     func callJoin(_ payload: [String: String]) async throws -> JSONValue
     /// The ID token's claims after a forced refresh, so the claims the callable just set are in it.
     func refreshClaims() async throws -> [String: JSONValue]
+    /// The claims the token already has (at launch), or nil when there is no signed-in user.
+    func currentClaims() async -> [String: JSONValue]?
 }
 
 enum JoinOutcome: Equatable, Sendable {
@@ -86,7 +88,7 @@ struct FirebaseJoinBackend: JoinBackend {
     static let region = "us-central1"
     static let options = HTTPSCallableOptions(requireLimitedUseAppCheckTokens: true)
 
-    let signIn: @Sendable () async -> Bool
+    let signIn: @MainActor () async -> Bool
 
     func ensureSignedIn() async -> Bool { await signIn() }
 
@@ -102,5 +104,10 @@ struct FirebaseJoinBackend: JoinBackend {
     func refreshClaims() async throws -> [String: JSONValue] {
         guard let user = Auth.auth().currentUser else { throw JoinCallError.other }
         return try await user.getIDTokenResult(forcingRefresh: true).claims.mapValues(FirestoreJSON.value)
+    }
+
+    func currentClaims() async -> [String: JSONValue]? {
+        guard let user = Auth.auth().currentUser, let token = try? await user.getIDTokenResult() else { return nil }
+        return token.claims.mapValues(FirestoreJSON.value)
     }
 }

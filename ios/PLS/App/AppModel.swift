@@ -29,14 +29,26 @@ final class AppModel {
     typealias ReadReport = @MainActor (String, ReportSituation, RemoteConfigValues, EvidenceScreen) async -> ReadOutcome
     private let readReport: ReadReport
 
+    /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
+    private let joinBackend: JoinBackend
+    private let missionReader: MissionReader
+    /// The join screen's words after a try; nil while there is nothing to say.
+    private(set) var joinMessage: String?
+    private(set) var joining = false
+    static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
+
     init(signIn: SignIn = .firebase(),
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
          speaker: AssignmentSpeaker? = nil,
          uid: @escaping () -> String? = { Auth.auth().currentUser?.uid },
          nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
          measurements: MeasurementWriter? = nil,
-         readReport: ReadReport? = nil) {
+         readReport: ReadReport? = nil,
+         joinBackend: JoinBackend? = nil,
+         missionReader: MissionReader? = nil) {
         self.signIn = signIn
+        self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
+        self.missionReader = missionReader ?? FirestoreMissionReader()
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -165,6 +177,48 @@ final class AppModel {
 
     func trySignIn() async {
         signedIn = await signIn.ensure()
+        if signedIn { await resumeMission() }
+    }
+
+    /// Joins as a searcher with the code and team command gave, then loads the team's mission.
+    func join(code: String, teamId: String, incidentId: String) async {
+        joining = true
+        defer { joining = false }
+        let request: SearcherJoin
+        do {
+            request = try SearcherJoin.make(code: code, teamId: teamId, incidentId: incidentId)
+        } catch {
+            joinMessage = (error as? SearcherJoin.InputError)?.message ?? Joiner.other
+            return
+        }
+        switch await Joiner(backend: joinBackend).join(request) {
+        case let .failed(message): joinMessage = message
+        case let .joined(incidentId, teamId): joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
+        }
+    }
+
+    /// Reads the team's mission and loads it; says why not, or nil when it loaded.
+    @discardableResult
+    func loadMission(incidentId: String, teamId: String) async -> String? {
+        do {
+            let docs = try await missionReader.read(incidentId: incidentId)
+            let mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
+                                                   bundledParams: try BundledConstants.engineParams())
+            await load(mission)
+            return nil
+        } catch let failure as MissionBuilder.Failure {
+            return failure.message
+        } catch {
+            return Self.missionUnread
+        }
+    }
+
+    /// A searcher who joined before (the token names an incident and a team) gets the mission back
+    /// after sign-in, at launch or when signal returns.
+    private func resumeMission() async {
+        guard mission == nil, let claims = await joinBackend.currentClaims(), claims["role"] == .string("searcher"),
+              case let .string(incidentId)? = claims["inc"], case let .string(teamId)? = claims["team"] else { return }
+        joinMessage = await loadMission(incidentId: incidentId, teamId: teamId)
     }
 
     /// Back in the foreground: the same check, in case the reconnect happened while suspended.
