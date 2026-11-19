@@ -91,7 +91,10 @@ extension ReadOutcome {
 /// Reads one report: evidence screen, route decision, then the stages, never throwing.
 /// The route record is our own; on iOS it is never SDK-reported.
 public enum ReadOrchestrator {
-    public static func read(text: String, context: ReadContext, runner: ReadModelRunner, clock: ReadClock) async -> ReadOutcome {
+    public static func read(text spoken: String, context: ReadContext, runner: ReadModelRunner, clock: ReadClock) async -> ReadOutcome {
+        // A phone number never reaches a model, on the phone or in the cloud (spec section 12.2):
+        // it is removed here, before the first call, as well as before the report is stored.
+        let text = PhoneNumbers.scrub(spoken)
         let start = clock.nowMs()
         var input = RouterInput(taskClass: .fieldReport, networkOnline: context.networkOnline,
                                 onDeviceAvailable: context.onDevice.available, localeSupported: context.onDevice.localeSupported,

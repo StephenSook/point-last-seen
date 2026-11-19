@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### fix(ios): remove phone numbers before a report reaches any model, not only before it is stored
+- What: the iPhone removed phone numbers only from what it stored, so the on-device model, the
+  cloud model and the token count (also a call into Apple's model) were handed the report with
+  the number in it, while SECURITY.md and LIMITS.md say numbers are removed before any prompt.
+  `ReadOrchestrator.read` now removes them first, before its first model call on either path, and
+  the report reader counts tokens on the scrubbed text.
+- Source: the film fact-sheet audit (docs say "before any prompt").
+- Verified: two tests (the text every model call receives carries "[number removed]" and no digits
+  of the number; the token counter sees the scrubbed text) failed on the old code, then passed;
+  274 core tests and 86 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### feat(ios): a join section on the Ready check while no mission is loaded
 - What: until a mission is loaded, the Ready check opens with "Join your team": the join code,
   the team (for example T1), the incident id folded away for when command gives one, a Join

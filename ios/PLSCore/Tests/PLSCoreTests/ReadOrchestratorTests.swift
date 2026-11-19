@@ -10,9 +10,12 @@ final class FakeRunner: ReadModelRunner, @unchecked Sendable {
     var permissiveResults: [Result<String, ReadFailure>] = []
     var duringOnDeviceCall: (() -> Void)?
     private(set) var calls: [Call] = []
+    /// The text each call was handed, as a model would receive it.
+    private(set) var texts: [String] = []
 
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
         calls.append(.guided(path))
+        texts.append(text)
         if path == .onDevice { duringOnDeviceCall?() }
         guard var list = guidedResults[path], !list.isEmpty else { return .failure(.other) }
         let r = list.removeFirst(); guidedResults[path] = list; return r
@@ -20,6 +23,7 @@ final class FakeRunner: ReadModelRunner, @unchecked Sendable {
 
     func permissive(_ text: String) async -> Result<String, ReadFailure> {
         calls.append(.permissive)
+        texts.append(text)
         guard !permissiveResults.isEmpty else { return .failure(.other) }
         return permissiveResults.removeFirst()
     }
@@ -38,6 +42,18 @@ private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = tr
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
 
 @Suite struct ReadOrchestratorTests {
+    /// A phone number is removed before the report reaches any model, on the phone or in the
+    /// cloud, not only before it is stored.
+    @Test func aPhoneNumberNeverReachesAModel() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.other)]
+        r.permissiveResults = [.failure(.other)]
+        let text = "Team two cleared segment AC, caller is at 404-555-0123, nothing found"
+        _ = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: r, clock: clock)
+        #expect(!r.texts.isEmpty)
+        #expect(r.texts.allSatisfy { !$0.contains("555") && $0.contains(PhoneNumbers.replacement) })
+    }
+
     @Test func onDeviceGuidedReadingIsUsedWhenValid() async {
         let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
