@@ -117,8 +117,23 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(topics.ops == ["+pls-drill-dev-1-T1"])
     }
 
-    /// FCM holds a subscription until the phone has its token, which can be never (no APNs key or
-    /// no permission yet): the join, the mission and the alerts question never wait for it.
+    /// On a fresh install FCM refuses a subscription made before the APNs token arrives, and does
+    /// not retry it: when Messaging reports its token, the team's topic is followed again.
+    @Test func theTopicIsFollowedWhenThePushTokenArrives() async throws {
+        let topics = FakePushTopics()
+        topics.fails = true
+        let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops.isEmpty && m.mission != nil)
+        topics.fails = false
+        m.pushTokenArrived()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+    }
+
+    /// A subscription can be slow to answer (no signal): the join, the mission and the alerts
+    /// question never wait for it.
     @Test(.timeLimit(.minutes(1))) func aSubscriptionThatNeverAnswersNeverHoldsTheJoin() async throws {
         let topics = FakePushTopics()
         let gate = ReadGate()

@@ -1,3 +1,4 @@
+import FirebaseCore
 import FirebaseMessaging
 import PLSCore
 import UIKit
@@ -20,14 +21,39 @@ final class PushInbox {
         pending = []
         waiting.forEach(handler)
     }
+
+    private var tokenHandler: (() -> Void)?
+    private var tokenWaiting = false
+
+    /// Messaging has its registration token: subscriptions refused before it can now go through.
+    func tokenArrived() {
+        if let tokenHandler { tokenHandler() } else { tokenWaiting = true }
+    }
+
+    func attachToken(_ handler: @escaping () -> Void) {
+        tokenHandler = handler
+        if tokenWaiting {
+            tokenWaiting = false
+            handler()
+        }
+    }
 }
 
-/// Hands the APNs token to Firebase Messaging and routes a tapped new-assignment push, by its ids
-/// only, to the app.
-final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+/// Hands the APNs token to Firebase Messaging, passes on Messaging's own token, and routes a tapped
+/// new-assignment push, by its ids only, to the app.
+final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        // Only when Firebase is configured (a build without its settings file starts no Firebase).
+        if FirebaseApp.app() != nil { Messaging.messaging().delegate = self }
         return true
+    }
+
+    /// FCM refuses a topic subscription made before the phone has its token and does not retry it,
+    /// so the app follows its team's topic again once the token is here.
+    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard fcmToken != nil else { return }
+        Task { @MainActor in PushInbox.shared.tokenArrived() }
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

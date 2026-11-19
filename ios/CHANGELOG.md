@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the team's push topic is followed again once Messaging has its token
+- What: on a fresh install the topic subscription runs right after the mission loads, before the
+  APNs and FCM tokens exist. Firebase 13.2.0 refuses it at once ("No APNS token specified before
+  fetching FCM Token") and does not retry, so a new phone could stay off its team's topic until the
+  next sign-in. The app now listens for Messaging's registration token and follows the topic
+  again when it arrives (a token that comes before the app is ready waits in the inbox). This also
+  corrects two comments that said FCM holds such a subscription until a token exists.
+- Source: review (finding 1).
+- Verified: tests for a refused subscription that goes through when the token arrives, and for a
+  token that arrives before the app is ready; they failed to compile before the change and pass
+  after; the push and join app tests pass.
+
 ### docs(ios): plain words for the source of the push entries
 - What: four push entries named a work stream as their source; they now say "the server half of
   new-assignment pushes (P-06)". The facts are unchanged.

@@ -35,8 +35,9 @@ final class AppModel {
     /// The team's push topic this phone follows; nil until a subscription has gone through.
     private let pushTopics: PushTopics
     @ObservationIgnored private var subscribedTopic: String?
-    /// The latest topic change in flight. FCM holds a subscription until the phone has its token,
-    /// which may never come (no APNs key, no permission), so nothing else ever waits for it.
+    /// The latest topic change in flight. FCM refuses a subscription made before the phone has its
+    /// token (it is tried again when the token arrives), and a subscription can be slow with no
+    /// signal, so nothing else ever waits for it.
     @ObservationIgnored private(set) var topicFollow: Task<Void, Never>?
     /// The assignment voice in flight. Speaking takes seconds (longer on the cloud voice), so the plan
     /// listener, the topic and the alerts question never wait for it; voices keep their order.
@@ -346,6 +347,9 @@ final class AppModel {
         offersAlerts = false
         if allow, await alerts.request() { await alerts.registerForPushes() }
     }
+
+    /// Messaging has its token: a subscription it refused before can go through now.
+    func pushTokenArrived() { followTopicSoon() }
 
     /// Starts following the topic after any change still in flight, so changes keep their order.
     private func followTopicSoon() {

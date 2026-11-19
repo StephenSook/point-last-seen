@@ -37,6 +37,7 @@ struct RootView: View {
         .task {
             model.start()
             PushInbox.shared.attach { payload in Task { await model.openedPush(payload) } }
+            PushInbox.shared.attachToken { model.pushTokenArrived() }
         }
         // A tapped push opens the task, from wherever the searcher was.
         .onChange(of: model.openTaskRequests) { _, _ in path = NavigationPath() }
