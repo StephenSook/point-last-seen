@@ -406,18 +406,23 @@ final class AppModel {
     }
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
-    /// The voice runs after any voice still speaking, and loading does not wait for it.
+    /// The voice runs after any voice still speaking, and loading does not wait for it. When its turn
+    /// comes it checks the mission again: an assignment a newer plan, a team change or a drop
+    /// replaced meanwhile is not spoken.
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
         let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
+        let incidentId = mission.incidentId, teamId = mission.teamId
         let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
         speech = Task { [weak self] in
             await previous?.value
-            await self?.speaker.update(assignment, voiceTemplate: template, online: online,
-                                       killCloud: killCloud, signedIn: signedIn)
+            guard let self, let current = self.mission, current.incidentId == incidentId, current.teamId == teamId,
+                  current.assignment == assignment else { return }
+            await self.speaker.update(assignment, voiceTemplate: template, online: online,
+                                      killCloud: killCloud, signedIn: signedIn)
         }
     }
 

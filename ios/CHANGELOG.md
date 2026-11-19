@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): queued speech never speaks an assignment that was replaced while it waited
+- What: a voice waiting behind a slow one spoke the assignment it was given, even when a newer
+  plan or a team change had replaced it meanwhile, so an old team's instruction could be spoken
+  after the new team's mission was showing. When its turn comes, queued speech now checks the
+  loaded mission (incident, team and assignment) and skips anything that was replaced or dropped.
+- Source: review (finding 10).
+- Verified: a test holds the first spoken line, then delivers a newer plan and moves the searcher to
+  T2. Before the change the replaced line ("Search the north field.") was spoken; after it, only
+  the first line and T2's assignment are. 112 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): the alerts question goes with a dropped mission
 - What: the question is drawn outside the mission check, and dropping a mission left it set, so it
   could stay on screen with no mission. A permission status read still running at the drop could

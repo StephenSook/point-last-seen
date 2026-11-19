@@ -271,6 +271,45 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         await m.speech?.value
     }
 
+    /// Speech waiting behind a slow voice checks the mission again before it starts: an assignment
+    /// that a newer plan or a team change replaced meanwhile is never spoken.
+    @Test(.timeLimit(.minutes(1))) func queuedSpeechNeverSpeaksASupersededAssignment() async throws {
+        final class FirstHeldVoice: AssignmentVoice, @unchecked Sendable {
+            let gate = ReadGate()
+            private(set) var spoken: [String] = []
+            func speak(_ text: String) async -> Double? {
+                spoken.append(text)
+                if spoken.count == 1 { await gate.wait() }
+                return 1
+            }
+        }
+        let voice = FirstHeldVoice()
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "speech-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        for _ in 0..<1000 where !voice.gate.isWaiting { await Task.yield() }
+        #expect(voice.gate.isWaiting)
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        // Command moves the searcher to T2 while the first line is still being spoken.
+        backend.claims["team"] = .string("T2")
+        reader.docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments(),
+                                  plan: DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Check the parking deck.", version: 4, team: "T2"),
+                                  sharedProfile: DrillDocs.shared)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T2")
+        voice.gate.release()
+        await m.speech?.value
+        #expect(voice.spoken.count == 2)
+        #expect(voice.spoken.first?.contains("Walk the creek bank.") == true && voice.spoken.last?.contains("Check the parking deck.") == true)
+        #expect(!voice.spoken.contains { $0.contains("north field") })
+    }
+
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(FakeJoinBackend(), reader)
