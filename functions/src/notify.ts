@@ -5,7 +5,11 @@ import type { Message } from "firebase-admin/messaging";
 const TTL_S = 7200;
 /** The most pushes one plan sends: a plan is written by command, so its team list is bounded here. */
 export const MAX_PUSHES_PER_PLAN = 20;
-const TEAM_ID = /^[A-Za-z0-9_-]{1,32}$/;
+/**
+ * A team id with no "-": incident ids hold "-", so the last "-" in a topic is the separator and no team can name
+ * another incident's topic (pls-I1-dev-1-T1 would read as incident I1-dev-1, team T1).
+ */
+const TEAM_ID = /^[A-Za-z0-9_]{1,32}$/;
 /** A plan doc id as the web writes it: the version, zero-padded to at least 4 digits (web/src/data/plans.ts). */
 export const planDocId = (version: number): string => String(version).padStart(4, "0");
 

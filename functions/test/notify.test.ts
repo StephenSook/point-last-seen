@@ -55,7 +55,10 @@ describe("handlePlanCreated", () => {
     expect(sent).toHaveLength(0);
   });
   it("pushes only to teams the incident has, with plain ids, at most 20 a plan, and never in a practice search (review)", async () => {
-    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T2", ["AA"]), a("T9", ["AB"]), a("x/../y", ["AC"])] });
+    await admin.db.doc("incidents/I1/teams/dev-1-T1").set({ teamId: "dev-1-T1" });
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1,
+      assignments: [a("T2", ["AA"]), a("T9", ["AB"]), a("x/../y", ["AC"]), a("dev-1-T1", ["AD"])] });
+    // "dev-1-T1" would build another incident's topic (pls-I1-dev-1-T1 = incident "I1-dev-1", team "T1"): refused.
     expect((await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW)).teams).toEqual(["T2"]);
     sent.length = 0;
     const many = Array.from({ length: 30 }, (_, i) => `T${i + 10}`);
