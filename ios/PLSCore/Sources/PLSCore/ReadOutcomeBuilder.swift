@@ -163,19 +163,55 @@ public enum ReadOutcomeBuilder {
     }
 }
 
-/// A caller's or searcher's phone number is never stored (spec section 12.2). Any run of 7
-/// or more digits (any script, with short separators or an optional +country code) and any
-/// run of 7 or more spoken digit words is replaced. Report numbers (coverage, minutes,
-/// searchers) are far shorter, so they stay.
+/// A caller's or searcher's phone number never reaches a model and is never stored (spec section
+/// 12.2). Seven or more digits in a row are a number: written digits (any script, full-width
+/// folded) and spoken digit words count alike, joined only by short separators (spaces, - . , ( ))
+/// and with an optional leading + or (. Report numbers (coverage, minutes, searchers) are far
+/// shorter, so they stay.
 public enum PhoneNumbers {
     public static let replacement = "[number removed]"
-    static let digitRun = try! NSRegularExpression(pattern: #"\+?\(?\d(?:[\s.\-()]{0,2}\d){6,}"#)
     static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
     public static func scrub(_ text: String) -> String {
         let folded = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
-        let range = NSRange(folded.startIndex..., in: folded)
-        return scrubSpoken(digitRun.stringByReplacingMatches(in: folded, range: range, withTemplate: replacement))
+        // Units: a run of digits counts its digits, a spoken digit word counts one, any other word counts none.
+        var units: [(range: Range<String.Index>, digits: Int)] = []
+        var i = folded.startIndex
+        while i < folded.endIndex {
+            if folded[i].isWholeNumber {
+                var j = i
+                while j < folded.endIndex, folded[j].isWholeNumber { j = folded.index(after: j) }
+                units.append((i..<j, folded.distance(from: i, to: j)))
+                i = j
+            } else if folded[i].isLetter {
+                var j = i
+                while j < folded.endIndex, folded[j].isLetter { j = folded.index(after: j) }
+                units.append((i..<j, digitWords.contains(folded[i..<j].lowercased()) ? 1 : 0))
+                i = j
+            } else {
+                i = folded.index(after: i)
+            }
+        }
+        // Walk back from the end, so replacing one number never moves the ones before it.
+        var out = folded
+        var k = units.count - 1
+        while k >= 0 {
+            guard units[k].digits > 0 else { k -= 1; continue }
+            var start = k
+            var total = units[k].digits
+            while start > 0, units[start - 1].digits > 0,
+                  onlySeparators(folded[units[start - 1].range.upperBound..<units[start].range.lowerBound]) {
+                start -= 1
+                total += units[start].digits
+            }
+            if total >= 7 {
+                var lower = units[start].range.lowerBound
+                while lower > folded.startIndex, "+(".contains(folded[folded.index(before: lower)]) { lower = folded.index(before: lower) }
+                out.replaceSubrange(lower..<units[k].range.upperBound, with: replacement)
+            }
+            k = start - 1
+        }
+        return out
     }
 
     /// Scrubs every string in a JSON tree, so new reading fields are covered without edits.
@@ -188,33 +224,9 @@ public enum PhoneNumbers {
         }
     }
 
-    static func scrubSpoken(_ text: String) -> String {
-        // Walk words with their ranges; replace any run of 7+ digit words with one marker.
-        var ranges: [(Range<String.Index>, Bool)] = []
-        var i = text.startIndex
-        while i < text.endIndex {
-            if text[i].isLetter {
-                var j = i
-                while j < text.endIndex, text[j].isLetter { j = text.index(after: j) }
-                ranges.append((i..<j, digitWords.contains(text[i..<j].lowercased())))
-                i = j
-            } else {
-                i = text.index(after: i)
-            }
-        }
-        var out = text
-        var k = ranges.count - 1
-        while k >= 0 {
-            guard ranges[k].1 else { k -= 1; continue }
-            var start = k
-            while start > 0, ranges[start - 1].1, onlySeparators(text[ranges[start - 1].0.upperBound..<ranges[start].0.lowerBound]) { start -= 1 }
-            if k - start + 1 >= 7 { out.replaceSubrange(ranges[start].0.lowerBound..<ranges[k].0.upperBound, with: replacement) }
-            k = start - 1
-        }
-        return out
-    }
-
+    /// What may sit between the parts of one number: at most three spaces or - . , ( ).
     static func onlySeparators(_ s: Substring) -> Bool {
-        s.allSatisfy { $0 == " " || $0 == "-" || $0 == "," || $0 == "." }
+        s.count <= 3 && s.allSatisfy { $0.isWhitespace || "-.,()".contains($0) }
     }
 }
+
