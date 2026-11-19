@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { MapView, type MapLibreMap } from "../laneC";
 import type { ExtrasMapLike } from "../types";
+import { framePlates } from "./framePlates";
 import { pendingLine, type ReplayData } from "./replayData";
 import { clockLabel, markTimes, nextMarkTime } from "./ruler";
 import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
@@ -63,7 +64,8 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   return (
     <div className="extras-replay" data-phase={frame.phase}>
       {data.drillLabel && <p className="drill extras-drill-line">{data.drillLabel}</p>}
-      <div className="extras-replay-map">
+      {/* data-frame: each segment's percent and place as handed to the map, so a check can pair them. */}
+      <div className="extras-replay-map" data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}>
         <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
       </div>
       <div className="extras-replay-facts" role={playing ? undefined : "status"}>

@@ -6,6 +6,16 @@ async function replayPlates(page: Page): Promise<string[]> {
   return (await page.getByRole("region", { name: "Watch the run over time" }).locator(".plate").allTextContents()).sort();
 }
 
+/** Each segment's percent and place as the replay's last frame hands them to the map, and as the live map has them. */
+async function frames(page: Page): Promise<{ replay: unknown; live: unknown }> {
+  const map = page.getByRole("region", { name: "Watch the run over time" }).locator(".extras-replay-map");
+  const replay = await map.getAttribute("data-frame");
+  const live = await page.getByTestId("expected-code").getAttribute("data-expected-frame");
+  expect(replay, "the replay publishes its frame").not.toBeNull();
+  expect(live, "the harness publishes the live frame").not.toBeNull();
+  return { replay: JSON.parse(replay!), live: JSON.parse(live!) };
+}
+
 async function expectedPlates(page: Page): Promise<string[]> {
   return JSON.parse((await page.getByTestId("expected-code").getAttribute("data-expected-plates"))!) as string[];
 }
@@ -26,6 +36,9 @@ test("the published run replays on the judge page and its last frame matches the
   // The code hashes the prior version and report ids only; the plates show the map itself.
   await expect(section.locator(".plate").first()).toBeVisible();
   expect(await replayPlates(page)).toEqual(await expectedPlates(page));
+  // And pair by pair: each segment's percent at that segment's place.
+  const f = await frames(page);
+  expect(f.replay).toEqual(f.live);
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
   await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
   expect(errors).toEqual([]);
@@ -50,4 +63,14 @@ test("a run with other prior weights keeps the match code but not the map, and t
   await expect(section.getByTestId("replay-code")).toHaveText((await page.getByTestId("expected-code").textContent())!);
   await expect(section.locator(".plate").first()).toBeVisible();
   expect(await replayPlates(page)).not.toEqual(await expectedPlates(page));
+});
+
+test("a run whose shapes trade places keeps the code and the plates' text but not the map, and the pair check sees it", async ({ page }) => {
+  await page.goto(`${harness}?run=swap`);
+  const section = page.getByRole("region", { name: "Watch the run over time" });
+  await expect(section.getByTestId("replay-code")).toHaveText((await page.getByTestId("expected-code").textContent())!);
+  await expect(section.locator(".plate").first()).toBeVisible();
+  expect(await replayPlates(page)).toEqual(await expectedPlates(page));
+  const f = await frames(page);
+  expect(f.replay).not.toEqual(f.live);
 });
