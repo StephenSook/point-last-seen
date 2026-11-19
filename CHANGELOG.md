@@ -5,6 +5,56 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
+  project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
+  Source: review (seen after the merge point's Android build).
+  Verified: `git check-ignore android/.kotlin` matches and `git status` no longer lists it.
+- The Android unit-test floor is the real count, 274, in both `android.yml` and `scripts/ci-local.sh` (it was 150), so
+  losing even one test class fails CI and the local mirror instead of passing quietly.
+  Source: review (a floor far below the count would not notice a dropped class).
+  Verified: the merge point's full local mirror counted 274 Android unit tests, 0 failures, 0 skipped; `count-tests.py
+  --min 274` passes on those results and `--min 275` fails; the ci-local mirror test still finds the two commands equal.
+- `scripts/heavy.sh <command...>` runs any heavy command (a full vitest or Playwright suite, a Gradle or Xcode test
+  run) in one of the machine's two heavy-suite slots, with the same rules `ci-local.sh` follows: take a free slot at
+  once, or wait on slot 1 naming the process that holds it every 5 minutes, give up after 90 minutes, and never wait
+  on itself (a caller already in a slot, or a run started under lockf on a heavy-suite lock, runs directly). The
+  command's exit code comes back. `ci-local.sh` now re-runs itself through it, so there is one implementation.
+  Source: review (direct heavy runs still took the old single lock, which did not count against the two slots).
+  Verified: the new test (a command runs in a slot with `PLS_HEAVY_LOCK` set and its exit 3 comes back; with both
+  slots held it names the holder and runs when one frees; a hand-wrapped nested run does not wait; no command is
+  refused) and the ci-local slot tests pass, 10 in all, on a temporary lock folder; `bash -n`, rules_gate and
+  hygiene_guard pass.
+- A plan's doc id must be its version in exactly one form: four digits, zero-padded (`0016`), or the plain number
+  from 10000 up, so `00016` or `016` can no longer stand beside `0016` as a second plan of the same version. Each
+  segment id in an assignment must be text: splitting the joined ids must give back the same list, which refuses a
+  number (join() would turn it into text) and an id holding a comma. `docs/LIMITS.md` drops the gap it named and says
+  10 assignments is the most that fits.
+  Source: review (cross-model, round 1, mediums).
+  Verified: the tests (`00016`, `012345` and `016` refused, `0016` and `12345` accepted; a numeric segment id alone or
+  among text ids refused, at the first and the tenth assignment) failed first, now all 136 rules tests pass in the
+  emulator, the heaviest 10-assignment plan with a wording route among them; with room for an 11th, 11 heavy
+  assignments do not fit the expression limit (measured, then the rules file restored).
+- A judge practice search still being set up is closed to its members until the copy finishes: the Firestore rules
+  (`liveFor`), the Storage rules (`notExpired`) and `deleteIncidentMediaNow` refuse a judge incident whose
+  `setupReady` is false, so a returning judge, whose claims still name `judge-{uid}`, cannot read or write a sandbox
+  while it is rebuilt. A sandbox made before setup was tracked has no flag and counts as ready. `setupReady`,
+  `setupId` and `setupStartedAtMs` are server-owned: no client may change them. The media delete now also requires a
+  judge sandbox to carry a timestamp expiry, as the rules do.
+  Source: review (cross-model, round 1, high 1).
+  Verified: the tests (a member with live claims cannot read the incident or a segment or write an event while setup
+  is false, and can once it is true or absent; command cannot write any setup field; a family upload is refused while
+  setup is false; the media delete refuses a sandbox being set up or one with no expiry, and works once ready) failed
+  first, now the 43 roles, storage and media delete tests pass in the emulator; functions typecheck exit 0.
+- `scripts/ci-local.sh` takes one of two heavy-suite slots (`/tmp/heavy-suite-1.lock`, then `-2.lock`) without
+  waiting, and only when both are busy waits on the first, printing which process holds it every 5 minutes and giving
+  up after 90 minutes. It never waits on itself: a run already holding a slot (`PLS_HEAVY_LOCK`) or started by hand
+  under `lockf` on a heavy-suite lock skips the slots. Before, a hand-wrapped run held the one lock while the script's
+  own re-run waited on it forever, which stopped every other suite on the machine for 2.5 hours.
+  Source: review (the single lock deadlocked under a hand wrap; two full suites at once keep the load reasonable).
+  Verified: the tests (a hand-wrapped nested run finishes; with one slot busy the run takes the other at once; with
+  both busy it names the holder's PID while it waits, then runs) failed first, now all 9 ci-local tests pass, using a
+  temporary lock folder so the machine's slots are never touched (skipped where lockf does not exist, as on CI);
+  `bash -n`, rules_gate and hygiene_guard pass.
 - The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
   was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
   engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled
