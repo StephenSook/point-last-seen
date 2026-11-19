@@ -27,7 +27,7 @@ import { onDeviceAvailable } from "../ai/gate";
 import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput } from "../data/sightings";
+import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
@@ -689,6 +689,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             cards={cards}
             segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
             onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
+            onPlace={(c) =>
+              // A family report has no place: command picks it on the map and writes its own placement.
+              setPicker(() => (p: LatLon) => {
+                setPicker(null);
+                write(placeFamilySighting(c.sighting, p, writer()));
+              })
+            }
           />
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} draftSource={draft && serverDraft === draft ? "server" : "local"} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />

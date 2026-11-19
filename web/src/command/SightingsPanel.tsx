@@ -15,10 +15,12 @@ type Props = {
   cards: readonly SightingCard[];
   segmentOf: (c: SightingCard) => string | null;
   onDecide: (c: SightingCard, decision: "confirmed" | "rejected") => Promise<void>;
+  /** Starts a map pick for a report with no place (a family report); command's placement is then confirmed as usual. */
+  onPlace?: (c: SightingCard) => void;
 };
 
 /** Sightings beside the profile: a person at command confirms or rejects each one. */
-export function SightingsPanel({ cards, segmentOf, onDecide }: Props) {
+export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{ id: string; text: string } | null>(null);
 
@@ -53,7 +55,12 @@ export function SightingsPanel({ cards, segmentOf, onDecide }: Props) {
               {c.outside && <p role="status">Sighting outside the search area. Consider moving the start point.</p>}
               {c.status === "awaiting" ? (
                 <div className="row">
-                  <button type="button" className="btn" onClick={() => decide(c, "confirmed")} disabled={busy !== null || c.needsPlace}>
+                  {c.needsPlace && onPlace && (
+                    <button type="button" className="btn" onClick={() => onPlace(c)} disabled={busy !== null}>
+                      Place on map
+                    </button>
+                  )}
+                  <button type="button" className={c.needsPlace ? "btn ghost" : "btn"} onClick={() => decide(c, "confirmed")} disabled={busy !== null || c.needsPlace}>
                     Confirm
                   </button>
                   <button type="button" className="btn ghost" onClick={() => decide(c, "rejected")} disabled={busy !== null}>
