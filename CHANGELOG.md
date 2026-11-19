@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The public-hygiene guard keeps its word list as SHA-256 hashes, so neither `scripts/hygiene_guard.py` nor its test
+  spells a word it protects. It splits the text into lowercased words and checks each word's hash (and the word
+  without a trailing "s"), and the hash of each two- or three-word phrase joined exactly as written by "-", a space
+  or "/". The review rule id, the work-stream-as-role form and the settings path stay as shapes, the author's
+  surname is still allowed after the given name, and the floor, the self-exclusion and the public and private modes
+  are unchanged. The test builds every planted term from parts.
+  Source: review (the repository is public, so the guarded words were readable in the guard itself).
+  Verified: the new tests (the guard holds each term's hash and spells none; a plural such as an upper-case word
+  with a trailing "s" is found; every phrase in any case is found, and its parts alone or with another joiner are
+  not) failed first on the old guard, now all 9 pass; the old and the new guard both walk 938 files with no hits.
 - The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
   frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
   out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
