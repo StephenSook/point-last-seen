@@ -4,7 +4,7 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
-- Merge: main (224b182, with the web lane's fixes for two timing-sensitive browser tests) into the extras branch before PR #35 merges. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: web typecheck exit 0; `bash scripts/ci-local.sh` on the PR head exit CI_EXIT.
+- Merge: main (224b182, with the web lane's fixes for two timing-sensitive browser tests) into the extras branch before PR #35 merges. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: web typecheck exit 0. The full local mirror runs once on the PR head; its exit code is in the PR's comment.
 
 - Merge: main (0cd6a21, which adds the shared heavy-run script) into the extras branch. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: the extras unit tests pass 198; web typecheck exit 0. The full local mirror runs once on the PR head before merge.
 
