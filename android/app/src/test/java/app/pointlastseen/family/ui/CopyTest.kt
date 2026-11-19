@@ -15,7 +15,13 @@ class CopyTest {
     @Test fun callFirstSaysTheDrillCallTakerInADrill() {
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("drill"))
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("judge"))
-        assertEquals("Call 911 first.", Copy.callFirst(null))
+        assertEquals("Look in the immediate area now. If you don't find them within 5 minutes, call 911.", Copy.callFirst(null))
+    }
+
+    /** The first minutes, in her words of advice: look nearby now, call 911 within five minutes. */
+    @Test fun theFirstMinutesGuidanceAndItsSource() {
+        assertEquals("Look in the immediate area now. If you don't find them within 5 minutes, call 911.", Copy.FIRST_MINUTES)
+        assertEquals("Guidance from Kim Franklin, Alzheimer's Association Georgia", Copy.FIRST_MINUTES_SOURCE)
     }
 
     @Test fun theUnjoinedCallFirstScreenNamesTheDrillCallTaker() {

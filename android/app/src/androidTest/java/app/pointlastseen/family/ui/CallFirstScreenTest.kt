@@ -2,6 +2,8 @@ package app.pointlastseen.family.ui
 
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -18,26 +20,36 @@ class CallFirstScreenTest {
     @get:Rule val rule = createComposeRule()
     @Before fun accessibilityChecks() = rule.enableAccessibilityChecks()
 
-    @Test fun aDrillSaysTheDrillCallTakerAndOffersNoDialer() {
+    /** A drill or judge incident keeps its drill line and shows the guidance with the dialer disabled. */
+    @Test fun aDrillShowsTheGuidanceWithTheDialerDisabled() {
         var done = 0
         rule.setContent { PaperTheme { CallFirstScreen(mode = "drill", killCloud = false, onDial = { error("no dialer in a drill") }, onDone = { done++ }) } }
         rule.onNodeWithText("Training drill. Call the drill call-taker, not 911.").assertIsDisplayed()
-        rule.onNodeWithText("Call 911").assertDoesNotExist()
+        rule.onNodeWithText("Look in the immediate area now. If you don't find them within 5 minutes, call 911.").assertIsDisplayed()
+        rule.onNodeWithText("Call 911").assertIsNotEnabled()
         rule.onNodeWithText("I called").performClick()
         assertEquals(1, done)
     }
 
-    @Test fun aRealIncidentSaysCall911FirstAndOffersTheDialer() {
+    @Test fun aJudgeIncidentAlsoDisablesTheDialer() {
+        rule.setContent { PaperTheme { CallFirstScreen(mode = "judge", killCloud = false, onDial = { error("no dialer for judges") }, onDone = {}) } }
+        rule.onNodeWithText("Training drill. Call the drill call-taker, not 911.").assertIsDisplayed()
+        rule.onNodeWithText("Call 911").assertIsNotEnabled()
+    }
+
+    /** A real incident: look nearby now, call 911 within five minutes, with her name on the advice and the dialer on. */
+    @Test fun aRealIncidentGivesTheFirstMinutesGuidanceAndTheDialer() {
         var dialed = 0
         rule.setContent { PaperTheme { CallFirstScreen(mode = null, killCloud = false, onDial = { dialed++ }, onDone = {}) } }
-        rule.onNodeWithText("Call 911 first.").assertIsDisplayed()
-        rule.onNodeWithText("Call 911").performClick()
+        rule.onNodeWithText("Look in the immediate area now. If you don't find them within 5 minutes, call 911.").assertIsDisplayed()
+        rule.onNodeWithText("Guidance from Kim Franklin, Alzheimer's Association Georgia").assertIsDisplayed()
+        rule.onNodeWithText("Call 911").assertIsEnabled().performClick()
         assertEquals(1, dialed)
     }
 
     @Test fun beforeJoiningTheScreenAlsoSaysWhatToDoInADrill() {
         rule.setContent { PaperTheme { CallFirstScreen(mode = null, killCloud = false, onDial = {}, onDone = {}) } }
-        rule.onNodeWithText("Call 911 first.").assertIsDisplayed()
+        rule.onNodeWithText("Look in the immediate area now. If you don't find them within 5 minutes, call 911.").assertIsDisplayed()
         rule.onNodeWithText("In a training drill, call the drill call-taker, not 911.").assertIsDisplayed()
     }
 
