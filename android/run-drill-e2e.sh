@@ -2,7 +2,7 @@
 # Runs live device tests against the deployed project and the drill incident:
 #   ANDROID_SERIAL=emulator-5554 bash android/run-drill-e2e.sh [test classes, comma-separated]
 # Default: DrillE2ETest and ClipRulesLiveTest. The tests write, so they run against the test-only
-# incident drill-test-1, never drill-dev-1, whose shared profile seeds judge searches
+# incident drill-test-1, never the judge seed incident, whose shared profile seeds judge searches
 # (PLS_DRILL_INCIDENT picks another incident's family code). The drill family's join code goes from the macOS
 # Keychain to a file on the device through a pipe, so it is never a command-line argument on this
 # Mac or on the device; only the file's path is passed to the tests. The file is removed afterwards.
