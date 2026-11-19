@@ -138,7 +138,7 @@ export function JudgePage() {
       {run?.state === "run" && (
         <section aria-labelledby="d5-h">
           <h2 id="d5-h" className="label">Numbers</h2>
-          <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>
+          <p>Published run {String(run.run.runId)}.</p>
         </section>
       )}
     </main>

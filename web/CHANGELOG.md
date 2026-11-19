@@ -1380,3 +1380,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the site now serves its drill run (85,288 bytes, sha256 2811a59a89a8cdd3...), labelled "Development drill, Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing." It holds 24 reports, 18 plans and 68 segments, and the replay reader accepts it (no user ids, no stray fields), so the judge page replays it with its match code. The no-model laptop line now points at that replay. The "no published run" test serves a 404 for the file so it keeps testing that state.
 - Source: judge-page review (the replay needs a published run to show).
 - Verified: a new no-backend test (the built site serves the file as JSON with the drill label, and /judge replays it with no refusal) failed first (the preview answered with the app page), then passed; 13 of 13 no-backend browser checks pass against a placeholder build; the reader accepted the file in a one-off check before it was added. scripts/ci-local.sh exit 0.
+
+### fix(judge): say which run is published without promising an unbuilt panel
+- What: for an accepted run the Numbers section reads "Published run drill-dev-1-2026-11-19." (the file's own id); the sentence "The numbers panel is added with the recompute script." is gone, since that panel is not built.
+- Source: review of the judge page copy.
+- Verified: the served-run test now checks the Numbers line names the run and says nothing about a recompute; it failed first (the old sentence was there), then passed; 13 of 13 no-backend browser checks pass against a placeholder build. scripts/ci-local.sh exit 0.
