@@ -35,6 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
+import { PURPOSE_LINE } from "../purpose";
 import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
@@ -145,6 +146,8 @@ type JoinPanelProps = {
 
 function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [incidentId, setIncidentId] = useState(incidentFromUrl() ?? "");
+  // The incident a shared link named, kept as it was when the page opened.
+  const [linked] = useState(() => incidentFromUrl());
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -175,12 +178,17 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   return (
     <main className="panel">
       <p className="wordmark">Point Last Seen</p>
-      <p data-testid="purpose">Plans where to search for a missing person, and updates the map as reports come in.</p>
+      <p data-testid="purpose">{PURPOSE_LINE}</p>
       <p>
         <a href="/judge">Judges: start here</a>
       </p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Open the command post</h1>
+      {linked && (
+        <p className="muted" data-testid="link-note">
+          This link names incident {linked}. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access.
+        </p>
+      )}
       <form onSubmit={submit}>
         <label>
           Incident id

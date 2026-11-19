@@ -62,3 +62,12 @@ test("the site serves its published drill run, and the judge page replays it", {
   await expect(numbers).toContainText(`Published run ${file.runId}.`);
   await expect(numbers).not.toContainText("recompute");
 });
+
+test("the judge page says what the product is in one line and links home", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  await expect(page.getByTestId("judge-purpose")).toHaveText("Plans where to search for a missing person, and updates the map as reports come in.");
+  const home = page.getByRole("link", { name: "Command post" });
+  await expect(home).toHaveAttribute("href", "/");
+  // The repository and the video are linked only once they are public.
+  await expect(page.getByRole("link", { name: /GitHub|video/i })).toHaveCount(0);
+});

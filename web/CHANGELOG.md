@@ -1390,3 +1390,58 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the served-run test now requires the replay's end-frame match code to be T43J, the code of the committed file (24 reports, plan v18), instead of any four characters. A change to the engine or the replay reader that moves the judged map now fails this test; re-exporting the run changes the file and the code in the same commit.
 - Source: review of the judge replay tests.
 - Verified: a copy of the test pinned to T43K failed with "Received: T43J"; the T43J pin passes; 13 of 13 no-backend browser checks pass. scripts/ci-local.sh exit 0.
+
+### test(photos): give the family's consent before the live cloud photo reads
+- What: the deployed privacy positive control and the telemetry check now read the photo's own SHA-256 from the tray (`data-sha256`) and give the family's cloud consent for it the way the family app does (`e2e/familyConsent.ts`): an anonymous sign-in, the registered App Check debug token exchanged for a token, `joinIncident` as family with the drill's family code, then a create-only `photoConsents/{sha256}` record at the server's time. An earlier run's consent for the same photo is kept. The debug token and the code come from the environment and are never logged.
+- Source: the consent gate before any cloud photo read.
+- Verified: against the deployed site (aaae392), `privacy.spec.ts` and `telemetry.spec.ts`: 4 of 4 pass, including the consented cloud read sending exactly one signed AI Logic request with App Check; the run log holds no token. scripts/ci-local.sh exit 0.
+
+### fix(command): point at Confirm when a saved sighting has not moved the map yet
+- What: a likely sighting (high or medium) counts toward the map only once it is confirmed, so after saving one the change line now reads "Sighting saved. Confirm it under Sightings to move the map." instead of "Report logged. Map unchanged. Ask the team." A low-likelihood sighting, which never moves the map, keeps the old line. The judge page's practice text now says "Add a sighting, then confirm it under Sightings, and watch the map and the plan change." The deployed change spec accepts the new line.
+- Source: live judge walk, item 2.
+- Verified: a new changeModel test (a medium sighting with no move gives the Confirm line on screen and for screen readers; a low one keeps "Map unchanged") failed first, then passed; 6 change tests pass. scripts/ci-local.sh exit 0.
+
+### fix(command): one precision for a change, and name confirmations in the change line
+- What: the change line, the screen-reader line and the chip on the map now use the POA table's precision, one decimal (`formatPct`), so one move reads the same everywhere: "AC 1.4% to 1.8%.", "+0.4 pts", "POA 1.8 percent, up 0.4". Before, the line rounded to whole percents and the chip to whole points while the table showed tenths, so one change showed three different numbers. A move under a tenth of a point is no move at that precision. A change caused by a confirmation reads "after report: sighting confirmed" (or "Sighting rejected", or "Report withdrawn" for a retraction) instead of "after report: report".
+- Source: live judge walk, item 3.
+- Verified: changeModel tests changed to the new text and two new tests (a 1.4% to 1.8% move in line, chip and list; confirmation, rejection and withdrawal labels) failed first, then passed; 8 change tests pass; 82 harness browser tests pass with the change patterns updated. scripts/ci-local.sh exit 0.
+
+### feat(map): draw each segment's code beside its dot
+- What: every cell now carries its code (AA, BO, ...) in a small dark tag left of its dot, clear of the largest dot's 14 px radius, so a person can find and name a cell on the map that the table, the plan and the radio talk about. The code is its own marker, never part of the percent plate, so checks that read the plates are unchanged.
+- Source: live judge walk, item 6.
+- Verified: a new map harness test (24 codes for 24 cells, including the one left out of the POA; AB drawn once; the code ends at least 14 px left of its dot; no code inside a plate) failed first (no codes), then passed; 8 map harness tests and 42 extras browser tests pass; a screenshot of the harness grid checked by eye. scripts/ci-local.sh exit 0.
+
+### fix(pwa): move an open page onto a new deploy when its worker takes over
+- What: the service worker already skips waiting and claims open pages, but the page itself kept running the old build until the next visit, so a returning visitor saw a stale build right after a deploy. Now, when a new build's worker takes over a page the old one was serving, the page reloads once into the new build. If a field holds typed words, it shows "A new version of this page is ready." with a Reload button instead, so nothing typed is lost. A first visit (no worker yet) is left alone.
+- Source: live judge walk, item 8.
+- Verified: unit tests (`src/pwa/takeover.test.ts`: one reload on takeover, a question instead while words are typed, nothing on a first visit or without service workers; typed fields only) failed first (module missing), then passed; two no-backend browser tests on the preview build (a worker-controlled /judge reloads on takeover; the join page with a typed incident id shows the Reload line and keeps the text) pass, and both fail on a build with the watch removed. scripts/ci-local.sh exit 0.
+
+### feat(judge): say what the product is in one line and link to the command post
+- What: the judge page now opens with the same one line as the join page, "Plans where to search for a missing person, and updates the map as reports come in." (one shared constant, `PURPOSE_LINE`), and a Links row with "Command post" (home). The repository and the video are added to that row only once they are public, so the page never links to something a judge cannot open.
+- Source: live judge walk, item 9.
+- Verified: a new no-backend test (the purpose line, the home link, no repository or video link yet) failed first (no purpose line), then passed; 16 of 16 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): say why a shared incident link still asks for the join code
+- What: opening `/?incident=<id>` without a seat on that incident shows the join form with the id filled in (as before) and, above it, "This link names incident <id>. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access." With no incident in the link there is no note.
+- Source: live judge walk, item 10.
+- Verified: two new no-backend tests (`e2e/sharedLink.spec.ts`: prefill plus the note; no note without a link) were written first; the prefill already held and the note test failed (no note), then passed; 18 of 18 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): show the top 5 POA rows, with Show all for the rest
+- What: the POA list shows the 5 most likely segments and the row for outside the mapped area, then "Show all 67" (the real count) to open the whole list and "Show top 5" to close it. On a phone the 67-row list had filled the page below the map. A list of 5 or fewer has no button.
+- Source: live judge walk, item 7 (phone).
+- Verified: two new rank harness tests (67 made-up rows show 5 plus the outside row, Show all opens 67, Show top 5 closes; a 4-row list has no button) were written first; the long-list test failed (67 rows shown), then passed; 4 rank harness tests pass, including the reorder slide. scripts/ci-local.sh exit 0.
+
+### feat(map): keep only the most likely cells' labels when the map is crowded
+- What: a cell's code and percent need about 56 px across to be read. When the median cell is narrower on screen (the whole park on a phone, or zoomed out on a laptop), only the 8 most likely cells keep their code and percent; zooming in past that width brings the rest back. The hidden labels stay in the page, so anything that reads the plates still finds every one. On the drill park at its first view the cells are about 30 px across, so before this the percents overlapped each other.
+- Source: live judge walk, item 7 (phone), and the segment codes from item 6.
+- Verified: unit tests (`src/map/labelDensity.test.ts`: dense below a 56 px median, the top cells by POA with ties by id) failed first (module missing), then passed; a map harness test at a 300 px wide viewport shows 8 codes and 8 percents, AB among them, with all 24 codes still in the page, and fails with the hiding rule removed (24 shown); 86 harness and 42 extras browser tests pass. scripts/ci-local.sh exit 0.
+
+### fix(command): fit the post header in two lines on a phone
+- What: under 900 px wide the header wraps: "Training drill. Nobody is missing." takes its own row, and the incident name, the match code and More share the second. At 390 px the drill line had been squeezed into four lines beside the other items (126 px of header).
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: header at most 110 px, the drill line whole) failed on the deployed site at aaae392 (126 px); it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
+
+### fix(map): keep the lowest cells' labels above the map credit
+- What: the first view now fits the grid with 64 px of room at the bottom (40 px on the other sides), so the percent plates and codes of the lowest row sit above the OpenStreetMap credit instead of under it.
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: no visible plate or code overlaps the credit) failed on the deployed site at aaae392; it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
