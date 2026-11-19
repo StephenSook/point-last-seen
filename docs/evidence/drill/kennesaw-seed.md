@@ -60,3 +60,13 @@ Read back: the incident is a drill, open, labelled "Training drill. Nobody is mi
 `kennesaw-mountain-drill`, terrain urban with its note, prior version 1 with `priorBuiltAt` set, teams T1, T2 and
 T3, and 339 segment documents (338 and ROW). `npm run export -w tools/export-run -- --incident drill-kennesaw-1 --out
 <scratch file>` passes every check.
+
+## Re-seeded at prior version 2, 2026-11-19
+
+The first seed's segments had no `priorVersion` or `ringPoa`, which a segment written by the command post's prior
+rebuild carries, so the iPhone could not build its mission ("The search area could not be read"). Steps 2 and 3 were
+run again with the fixed tools, from the same grid, point last seen, terrain and layer, at `--prior-version 2`. The
+seed tool now checks its docs against the apps' segment shape before writing and after:
+`python3 -I tools/seed/segment_contract.py buildhybridai-2026-yg3m drill-kennesaw-1` reports 339 docs at prior
+version 2, readable by the apps. The incident's other fields, its teams, its join codes and its terrain note are
+unchanged.

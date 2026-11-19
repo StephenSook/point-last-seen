@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Kennesaw drill was re-seeded at prior version 2 with the fixed tools (the same grid, point last seen, terrain
+  and layer), so its segments now carry `priorVersion` and `ringPoa` and the iPhone can build its mission.
+  `docs/evidence/drill/kennesaw-seed.md` records the re-seed and the check.
+  Source: the iPhone app could not read the test drill's segments; the Kennesaw drill was seeded the same way.
+  Verified: `segment_contract.py` on the live project: Kennesaw 339 docs at prior version 2, the test drill 68 at
+  version 2 and the development drill 68 at version 5, all readable by the apps.
 - `tools/seed/segment_contract.py` checks an incident's segment docs against the shape the apps decode. The field
   sets come from `shared/test-vectors/pack-segments-sample.json`, the real segment docs the iPhone's own tests
   decode. On top of them it checks segmentId equal to the doc id, finite non-negative `priorPoa` and `ringPoa`, one
