@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/rules_gate.py` and `scripts/hygiene_guard.py` work on a copy with no `.git` (a ZIP download): they say
+  "not a git checkout" and walk the files on disk, skipping dependency, build and cache folders, instead of failing
+  on `git ls-files`. Every check still applies, and the walked-file floors still refuse an empty walk.
+  Source: review (whole repo: a ZIP download could not run the gates).
+  Verified: the tests (with no git, a clean tree passes with the note, a banned import or an internal name fails,
+  and the same in `node_modules` is skipped) failed first, now all 35 gate tests pass; on a `git archive` copy of
+  HEAD with no `.git`, rules_gate walks 865 files with 0 problems and hygiene_guard 846, both exit 0, the same
+  counts as the checkout; `bash scripts/ci-local.sh` exit 0.
 - Rules tests pin two command post writes. A placement of a family sighting: a new command sighting naming the
   family event, in the command post's own builder output, 25 fields, kept as a fixture. And a confirmation of a
   family camera sighting: one batch that moves the prior to the next version with the family clip among its inputs,

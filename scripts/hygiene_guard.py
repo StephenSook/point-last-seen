@@ -12,6 +12,7 @@ github.event.repository.private): exits 1 on any hit.
 
 Usage: python3 -I scripts/hygiene_guard.py [root] [--public] [--floor N]
 """
+import os
 import re
 import subprocess
 import sys
@@ -28,7 +29,34 @@ PATTERN = re.compile(
 )
 
 
+# Folders a walk on disk skips: dependencies, build output and caches (git would ignore them).
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", ".build", ".gradle", "DerivedData", "__pycache__",
+             ".pytest_cache", ".mypy_cache", ".ruff_cache", ".firebase", ".swiftpm", "coverage", ".turbo"}
+
+
+def in_git_checkout(root: Path) -> bool:
+    try:
+        r = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"], capture_output=True)
+    except FileNotFoundError:
+        return False
+    return r.returncode == 0 and r.stdout.strip() == b"true"
+
+
+def disk_files(root: Path, skip: tuple[str, ...]) -> list[str]:
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for f in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, f), root).replace(os.sep, "/")
+            if rel not in skip:
+                out.append(rel)
+    return sorted(out)
+
+
 def files(root: Path) -> list[str]:
+    if not in_git_checkout(root):
+        print("hygiene_guard: not a git checkout (no .git, for example a ZIP download); walking the files on disk instead")
+        return disk_files(root, SELF)
     cmd = ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."]
     cmd += [f":(exclude){p}" for p in SELF]
     out = subprocess.run(cmd, capture_output=True, check=True).stdout.decode()
