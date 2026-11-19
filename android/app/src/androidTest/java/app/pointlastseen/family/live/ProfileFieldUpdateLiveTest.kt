@@ -13,12 +13,15 @@ import app.pointlastseen.family.data.PublishedProfiles
 import app.pointlastseen.family.data.SubjectProfile
 import app.pointlastseen.family.data.TrackingAids
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -26,8 +29,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Against the deployed drill: the profile is written whole once, then a family edit goes as an update of
- * only the changed field, and the deployed rules accept it. PLS-E2E lines carry outcomes only.
+ * Against the deployed drill: a phone's first publish, then family edits as field updates, and the deployed rules
+ * accept them. The drill incident seeds other searches, so each test puts back every profile field it changed, in a
+ * finally (a field that was absent is deleted). PLS-E2E lines carry outcomes only.
  */
 @DrillE2E
 @RunWith(AndroidJUnit4::class)
@@ -46,6 +50,31 @@ class ProfileFieldUpdateLiveTest {
         return withTimeout(30_000) { done.await() }
     }
 
+    private fun profileDoc(incidentId: String, docId: String) =
+        Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document(docId)
+
+    /** Joins the drill, runs [block], and then puts profile/shared and profile/command back as they were. */
+    private fun withRestoredProfile(block: suspend (incidentId: String) -> Unit): Unit = runBlocking {
+        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
+        assertTrue("join: $joined", joined is JoinOutcome.Joined)
+        val incidentId = (joined as JoinOutcome.Joined).incidentId
+        val before = listOf("shared", "command").associateWith { profileDoc(incidentId, it).get(Source.SERVER).await().data }
+        try {
+            block(incidentId)
+        } finally {
+            withContext(NonCancellable) {
+                for ((docId, was) in before) {
+                    val now = profileDoc(incidentId, docId).get(Source.SERVER).await().data ?: continue
+                    if (was == null) { log("restore: profile/$docId did not exist before the test; left as written"); continue }
+                    val back = (now.keys + was.keys).filter { now[it] != was[it] }
+                        .associateWith { k -> if (was.containsKey(k)) was[k] else FieldValue.delete() }
+                    if (back.isNotEmpty()) withTimeout(30_000) { profileDoc(incidentId, docId).update(back).await() }
+                    log("restore: profile/$docId, ${back.size} field(s) put back")
+                }
+            }
+        }
+    }
+
     /** The real sink, logging only which document failed and the server's error code, never the data. */
     private inner class CodeLoggingSink : ProfileSink {
         private val real = FirestoreProfileSink()
@@ -59,10 +88,7 @@ class ProfileFieldUpdateLiveTest {
             }
     }
 
-    @Test fun aFamilyEditIsSentAsAFieldUpdateAndAccepted(): Unit = runBlocking {
-        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
-        assertTrue("join: $joined", joined is JoinOutcome.Joined)
-        val incidentId = (joined as JoinOutcome.Joined).incidentId
+    @Test fun aFamilyEditIsSentAsAFieldUpdateAndAccepted() = withRestoredProfile { incidentId ->
         val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
         val base = SubjectProfile(answersTo = "Drill subject (synthetic)", clothingLastWorn = "green coat", flags = setOf("mayNotRespond"))
 
@@ -82,10 +108,7 @@ class ProfileFieldUpdateLiveTest {
     }
 
     /** An answered tracking question is accepted as a field update and reads back, then changes to none; needs the trackingAids rules live. */
-    @Test fun anAnsweredTrackingQuestionIsAcceptedAndReadsBack(): Unit = runBlocking {
-        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
-        assertTrue("join: $joined", joined is JoinOutcome.Joined)
-        val incidentId = (joined as JoinOutcome.Joined).incidentId
+    @Test fun anAnsweredTrackingQuestionIsAcceptedAndReadsBack() = withRestoredProfile { incidentId ->
         val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
         val unanswered = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"))
         val base = unanswered.copy(trackingAids = TrackingAids(listOf("gps_tracker"), "In his coat pocket"))
@@ -106,10 +129,7 @@ class ProfileFieldUpdateLiveTest {
      * edited name and a tracking answer written on the server survive a profile that differs on the name and never
      * answered the tracking question.
      */
-    @Test fun aFirstPublishKeepsWhatTheDocumentHolds(): Unit = runBlocking {
-        val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
-        assertTrue("join: $joined", joined is JoinOutcome.Joined)
-        val incidentId = (joined as JoinOutcome.Joined).incidentId
+    @Test fun aFirstPublishKeepsWhatTheDocumentHolds() = withRestoredProfile { incidentId ->
         val shared = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document("shared")
         val base = SubjectProfile(answersTo = "Drill subject (synthetic)", flags = setOf("mayNotRespond"))
         assertTrue("the document exists", publish(ProfilePublisher(CodeLoggingSink(), MemoryPublished()), incidentId, base))
@@ -123,6 +143,5 @@ class ProfileFieldUpdateLiveTest {
         assertEquals(edited, doc.getString("answersTo"))
         assertEquals(mapOf("aids" to listOf(aid), "note" to ""), doc.get("trackingAids"))
         log("a first publish kept the edited name and the tracking answer it did not send")
-        withTimeout(30_000) { shared.update("answersTo", base.answersTo).await() }
     }
 }
