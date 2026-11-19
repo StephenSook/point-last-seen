@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `startJudgeSession` grants command only on a sandbox that finished setting up, and setup is safe to fail,
+  retry and race. One transaction decides each start: a live, ready sandbox is handed back; one still being set
+  up answers "unavailable, try again in a moment"; a missing or ended one, or a setup that died (5 minutes with
+  no finish, or released by a failed copy), is claimed by this call, which alone clears what is under it, copies
+  the seed and marks it ready. Only a new sandbox takes a slot of the daily cap, inside that transaction, so two
+  starts at once use one slot. A sandbox made before setup was tracked counts as ready. Before, a sandbox whose
+  copy failed still granted command on the next start, and two starts at once could each take a slot.
+  Source: review (whole repo).
+  Verified: the tests (a failed copy grants nothing and a retry finishes the same sandbox on the same slot; a
+  start during another's setup waits and grants nothing; two starts at once use one slot and end ready with all
+  segments; a legacy live sandbox is handed back without copying) failed first where they test new behaviour, now
+  all 11 judge session tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - The security rules check a plan's shape as it is written (`plan.schema.json`): exactly its eight fields; the doc
   id is the version zero-padded to at least 4 digits; integer versions; the event-set hash's form; the approval time
   is the server's; the wording route is null or a route record; and at most 10 assignments. Each assignment has
