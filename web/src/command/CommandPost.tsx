@@ -146,6 +146,8 @@ type JoinPanelProps = {
 
 function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [incidentId, setIncidentId] = useState(incidentFromUrl() ?? "");
+  // The incident a shared link named, kept as it was when the page opened.
+  const [linked] = useState(() => incidentFromUrl());
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -182,6 +184,11 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
       </p>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Open the command post</h1>
+      {linked && (
+        <p className="muted" data-testid="link-note">
+          This link names incident {linked}. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access.
+        </p>
+      )}
       <form onSubmit={submit}>
         <label>
           Incident id

@@ -1420,3 +1420,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge page now opens with the same one line as the join page, "Plans where to search for a missing person, and updates the map as reports come in." (one shared constant, `PURPOSE_LINE`), and a Links row with "Command post" (home). The repository and the video are added to that row only once they are public, so the page never links to something a judge cannot open.
 - Source: live judge walk, item 9.
 - Verified: a new no-backend test (the purpose line, the home link, no repository or video link yet) failed first (no purpose line), then passed; 16 of 16 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): say why a shared incident link still asks for the join code
+- What: opening `/?incident=<id>` without a seat on that incident shows the join form with the id filled in (as before) and, above it, "This link names incident <id>. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access." With no incident in the link there is no note.
+- Source: live judge walk, item 10.
+- Verified: two new no-backend tests (`e2e/sharedLink.spec.ts`: prefill plus the note; no note without a link) were written first; the prefill already held and the note test failed (no note), then passed; 18 of 18 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
