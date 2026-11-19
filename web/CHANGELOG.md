@@ -1485,3 +1485,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the web job now also runs `npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model"` (map, beat, plan, sightings, family, clips and the rest) and `npx playwright test -c e2e/extras.config.ts`, after the no-backend checks. Both configs use Playwright's own Chromium when `CI` is set (the workflow installs it) and desktop Chrome locally. The tests that need Chrome's built-in model stay out.
 - Source: CI audit (the harness and extras suites ran only on a developer's laptop).
 - Verified: in a fresh worktree with no `.env.local`, after `npm ci`, with `CI=1`: harness 93 of 93 and extras 42 of 42 pass on Playwright's Chromium; the workflow file parses. Actions minutes are used up, so the workflow itself runs when they return. scripts/ci-local.sh exit 0.
+
+### test(e2e): run the page-facts and font checks with the no-backend browser checks
+- What: `e2e/pagefacts.spec.ts` (robots.txt is a real file, each page's description and title, the join page does not shift) and `e2e/fonts.spec.ts` (self-hosted fonts from this origin, tabular digits) are tagged `@no-backend`, so the web workflow and the local mirror run them on every change instead of only against the deployed site.
+- Source: CI audit.
+- Verified: in a fresh worktree with no `.env.local`, against the placeholder build with `CI=1`, the 4 tests pass; with them, 22 of 22 no-backend browser checks pass here. scripts/ci-local.sh exit 0.
