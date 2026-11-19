@@ -72,14 +72,27 @@ test("the judge page says what the product is in one line and links home", { tag
   await expect(page.getByRole("link", { name: /GitHub|video/i })).toHaveCount(0);
 });
 
+// The replay step's target depends on the run file, so each test waits for the file to settle before reading hrefs.
+async function routeLinksLand(page: Page): Promise<string[]> {
+  const steps = page.getByRole("list", { name: "Three minutes, in order" }).getByRole("link");
+  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "Get this laptop ready", "See the cloud model"]);
+  const hrefs = await steps.evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+  for (const href of hrefs) {
+    expect(href).toMatch(/^#[a-z0-9-]+$/);
+    await expect(page.locator(href)).toHaveCount(1);
+  }
+  return hrefs;
+}
+
 test("the judge page opens with a numbered three-minute route, each step linking to its section", { tag: "@no-backend" }, async ({ page }) => {
   await page.goto("/judge");
-  const route = page.getByRole("list", { name: "Three minutes, in order" });
-  const steps = route.getByRole("link");
-  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "Get this laptop ready", "See the cloud model"]);
-  // Every link lands on a heading that is on the page.
-  for (const href of await steps.evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""))) {
-    expect(href).toMatch(/^#[a-z0-9-]+$/);
-    await expect(page.locator(`${href}`)).toHaveCount(1);
-  }
+  await expect(page.getByRole("region", { name: "Watch the run over time" })).toBeVisible();
+  expect((await routeLinksLand(page))[1]).toBe("#extras-replay-h");
+});
+
+test("with no published run the route's replay step goes to the line that says so", { tag: "@no-backend" }, async ({ page }) => {
+  await page.route(RUN_URL, (route) => route.fulfill({ status: 404, body: "" }));
+  await page.goto("/judge");
+  await expect(page.getByText("No published run yet.")).toBeVisible();
+  expect((await routeLinksLand(page))[1]).toBe("#d1-h");
 });

@@ -1545,3 +1545,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the security rules take a new family question only while the incident is open, but the Ask button stayed live after a find, so the write was refused and the card said to try again. The Family section now takes the incident's status: when it is not open, the question box, the templates and Ask are disabled with "Questions close when the search is no longer open.", and the questions already asked, with their answers, stay visible. Nothing in the web reads a question id from the family push.
 - Source: review of the risky-change set (question create allowed only on an open incident).
 - Verified: a new family harness test (`?status=found`: the closed line, Ask, the box and a template disabled, both questions and the answer still shown) failed first, then passed, with a second test that an open search has no closed line; 8 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### test(judge): wait for the run file before checking the route's links
+- What: the route test read the replay step's link right after the page opened, while the published run was still loading; under load the run arrived between reading the link and checking its target, so the target section had already been swapped. The test now waits for the replay section before reading the links, and a second test serves no run file and checks the replay step goes to the "No published run yet." line.
+- Source: a full local mirror run under load (the route test failed once; the page logic was right).
+- Verified: `judgeRun.spec.ts` run 5 times over (35 of 35) against the placeholder build. scripts/ci-local.sh exit 0.
