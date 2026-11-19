@@ -35,6 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
+import { PURPOSE_LINE } from "../purpose";
 import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
@@ -175,7 +176,7 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   return (
     <main className="panel">
       <p className="wordmark">Point Last Seen</p>
-      <p data-testid="purpose">Plans where to search for a missing person, and updates the map as reports come in.</p>
+      <p data-testid="purpose">{PURPOSE_LINE}</p>
       <p>
         <a href="/judge">Judges: start here</a>
       </p>

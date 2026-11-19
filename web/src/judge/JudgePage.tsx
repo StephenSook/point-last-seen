@@ -7,6 +7,7 @@ import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
 import { practiceErrorMessage, practiceSearch } from "../data/practice";
 import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
+import { PURPOSE_LINE } from "../purpose";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
@@ -75,6 +76,11 @@ export function JudgePage() {
   return (
     <main className="judge">
       <p className="wordmark">Point Last Seen</p>
+      <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
+      {/* The repository and the video join these links once they are public. */}
+      <nav aria-label="Links" className="judge-links">
+        <a href="/">Command post</a>
+      </nav>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
       <p className="muted">No login and no key. About three minutes.</p>
