@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `npm audit` reports no high findings: an npm override moves the Firebase web SDK's Firestore from
+  `@grpc/grpc-js` 1.9.16 (two advisories, GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4) to 1.14.7, the version
+  `firebase-admin` already uses, so no new package enters the tree. That gRPC client only runs in Node (the
+  functions' rules tests); the browser bundle has none.
+  Source: review (a fresh clone's `npm ci` reported 4 high findings).
+  Verified: `npm audit` went from 4 high and 4 moderate to 0 high and 4 moderate; `npm ls` shows one
+  `@grpc/grpc-js` at 1.14.7; all 220 functions tests pass, including the rules tests that drive the Firestore
+  Node client over gRPC in the emulator; the placeholder web build has no gRPC code and its 9 browser checks pass;
+  `bash scripts/ci-local.sh` passes every check it runs.
 - The README says up front that the live `/judge` is the way to try it and that running the apps needs your own
   Firebase project. It gives the toolchain with versions (Node 22 with the Firebase SDK's Node 24.12 warning,
   Python 3.12 or later, Java 21 or later, the Firebase CLI 15, gitleaks 8, Xcode 27 with XcodeGen 2.45, the Android
