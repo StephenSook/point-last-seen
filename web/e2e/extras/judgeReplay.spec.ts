@@ -40,7 +40,7 @@ test("the published run replays on the judge page and its last frame matches the
   const f = await frames(page);
   expect(f.replay).toEqual(f.live);
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
-  await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -74,3 +74,14 @@ test("a run whose shapes trade places keeps the code and the plates' text but no
   const f = await frames(page);
   expect(f.replay).not.toEqual(f.live);
 });
+
+test("a run with a label of its own shows it under the replay heading; a label that repeats the drill line is not shown twice", async ({ page }) => {
+  await page.goto(`${harness}?run=labelled`);
+  const section = page.getByRole("region", { name: "Watch the run over time" });
+  await expect(section.getByTestId("run-label")).toHaveText("REAL DRILL, Kennesaw Mountain, 2026-11-22");
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
+  await page.goto(harness);
+  await expect(page.getByRole("region", { name: "Watch the run over time" }).getByTestId("replay-code")).toBeVisible();
+  await expect(page.getByTestId("run-label")).toHaveCount(0);
+});
+
