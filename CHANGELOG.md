@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/judge_seed_check.py` checks that the drill every judge practice search is copied from has not drifted:
+  it reads the seed named by `JUDGE_SEED_INCIDENT` from the live project and compares what a copy takes (every
+  incident field outside `NOT_COPIED`, both read from `functions/src/judgeSession.ts`; the segments, as a count and
+  a hash; the teams; the shared profile) and a count and hash of the seed's events with the committed
+  `scripts/judge_seed_baseline.json`. It names each difference and exits 1 on drift, and 2 when anything cannot be
+  read, never 0. `docs/PRODUCTION-CHECKLIST.md` runs it before every hosting or functions deploy; `--write`
+  refreshes the baseline after a deliberate change. The baseline was written from the live seed after its shared
+  profile was put back (68 segments, 30 events). Its test runs in the gates job.
+  Source: review (live tests had changed the judge seed's shared profile without anything noticing).
+  Verified: the tests (the seed id and the skipped fields come from the function source; values read as plain
+  JSON; the snapshot is the same in any order; a changed profile field, a new event and a changed segment are each
+  named; a match passes, drift fails, and a missing document or baseline is a failed read) failed first with the
+  module missing, now all 6 pass; against the live project the check exits 0.
 - A test-only drill, `drill-test-1`, exists for the apps' live and device tests, so they never write to the drill
   every judge practice search is copied from. It has the development drill's grid, point last seen, terrain and
   near-feature layer, teams T1 and T2, and the same 68 segment ids; its join codes are in the macOS Keychain under
