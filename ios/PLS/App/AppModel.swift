@@ -32,6 +32,9 @@ final class AppModel {
     /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
     private let joinBackend: JoinBackend
     private let missionReader: MissionReader
+    /// The team's push topic this phone follows; nil until a subscription has gone through.
+    private let pushTopics: PushTopics
+    @ObservationIgnored private var subscribedTopic: String?
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
@@ -54,10 +57,12 @@ final class AppModel {
          measurements: MeasurementWriter? = nil,
          readReport: ReadReport? = nil,
          joinBackend: JoinBackend? = nil,
-         missionReader: MissionReader? = nil) {
+         missionReader: MissionReader? = nil,
+         pushTopics: PushTopics? = nil) {
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
+        self.pushTopics = pushTopics ?? FirebasePushTopics()
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -244,6 +249,7 @@ final class AppModel {
             guard generation == missionGeneration else { return nil }
             await load(mission)
             watchPlans(incidentId: incidentId, teamId: teamId)
+            await followTopic()
             return nil
         } catch let failure as MissionBuilder.Failure {
             return failure.message
@@ -253,13 +259,32 @@ final class AppModel {
     }
 
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
-    private func dropMission() {
+    private func dropMission() async {
         missionGeneration += 1
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
         mission = nil
         refreshGate()
+        await followTopic()
+    }
+
+    /// Follows the loaded mission's team topic: subscribes to it, leaves the one before, and leaves
+    /// with no mission. A subscription that fails (no signal) is tried again at the next sign-in.
+    private func followTopic() async {
+        let want = mission.flatMap { PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) }
+        guard want != subscribedTopic else { return }
+        if let old = subscribedTopic {
+            try? await pushTopics.unsubscribe(old)
+            subscribedTopic = nil
+        }
+        guard let want else { return }
+        do {
+            try await pushTopics.subscribe(want)
+            subscribedTopic = want
+        } catch {
+            subscribedTopic = nil
+        }
     }
 
     /// Listens for plans command approves after the mission loaded, so a new assignment reaches
@@ -292,11 +317,14 @@ final class AppModel {
         guard let claims else { return }
         guard claims["role"] == .string("searcher"), case let .string(incidentId)? = claims["inc"],
               case let .string(teamId)? = claims["team"] else {
-            if mission != nil { dropMission() }
+            if mission != nil { await dropMission() }
             return
         }
         membership = (incidentId, teamId)
-        if mission?.incidentId == incidentId, mission?.teamId == teamId { return }
+        if mission?.incidentId == incidentId, mission?.teamId == teamId {
+            await followTopic()
+            return
+        }
         let before = missionGeneration
         let message = await loadMission(incidentId: incidentId, teamId: teamId)
         // Superseded by a join meanwhile: that join's words stay.

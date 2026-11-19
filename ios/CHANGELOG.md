@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): follow the team's push topic while its mission is loaded
+- What: once a mission loads, the phone subscribes to its team's topic (`pls-{incidentId}-{teamId}`)
+  through Firebase Cloud Messaging; when the team changes it leaves the old topic and joins the new
+  one, and when the mission is dropped it leaves. A subscription that fails (no signal) is tried
+  again at the next sign-in. Adds the FirebaseMessaging product. Delivery to iOS still needs the
+  APNs key in FCM and the token hand-off, which come next.
+- Source: lane A's server half of new-assignment pushes (P-06).
+- Verified: two tests (subscribe on load, no repeat, move on a team change, leave on a drop; a
+  failed subscription is retried) failed to compile, then passed; 100 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ### feat(ios-core): name the team's push topic and read a new-assignment push by its ids
 - What: `PushTopic.name` gives the team's topic, `pls-{incidentId}-{teamId}`, only for ids that
   Firestore and FCM both accept. `PushPayload` reads a tapped push's `incidentId`, `teamId` and

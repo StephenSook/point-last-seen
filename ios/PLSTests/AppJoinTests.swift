@@ -21,6 +21,17 @@ final class ReadGate: @unchecked Sendable {
     }
 }
 
+/// Records topic subscriptions instead of calling FCM.
+final class FakePushTopics: PushTopics, @unchecked Sendable {
+    private(set) var ops: [String] = []
+    var fails = false
+    func subscribe(_ topic: String) async throws {
+        if fails { throw URLError(.notConnectedToInternet) }
+        ops.append("+" + topic)
+    }
+    func unsubscribe(_ topic: String) async throws { ops.append("-" + topic) }
+}
+
 /// Serves the drill incident's documents, or fails as the network does.
 final class FakeMissionReader: MissionReader, @unchecked Sendable {
     var docs: MissionDocs?
@@ -60,10 +71,41 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                            plan: DrillDocs.plan(segmentIds: [first]), sharedProfile: DrillDocs.shared)
     }
 
-    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice()) -> AppModel {
+    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice(),
+               topics: FakePushTopics = FakePushTopics()) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
                  speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }),
-                 joinBackend: backend, missionReader: reader)
+                 joinBackend: backend, missionReader: reader, pushTopics: topics)
+    }
+
+    /// The phone follows its team's push topic: it subscribes when the mission loads, moves to the
+    /// new team's topic when the team changes, and leaves when the mission is dropped.
+    @Test func thePhoneFollowsItsTeamsPushTopic() async throws {
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+        await m.trySignIn()
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "-pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(topics.ops.last == "-pls-drill-dev-1-T2")
+    }
+
+    /// A subscription that failed (no signal) is tried again at the next sign-in.
+    @Test func aFailedSubscriptionIsTriedAgain() async throws {
+        let topics = FakePushTopics()
+        topics.fails = true
+        let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        #expect(topics.ops.isEmpty && m.mission != nil)
+        topics.fails = false
+        await m.trySignIn()
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
     }
 
     /// A plan command approves after the mission loaded reaches the phone: the assignment changes
