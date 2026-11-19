@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): remove phone numbers from profile and task text where they reach a model
+- What: a phone number in a profile description field (appearance, clothing) reached the report
+  model through the subject-description tool, and one in an approved task reached the cloud voice.
+  The tool's rendered text and the cloud voice's input are now scrubbed. The approach card and the
+  phone's own voice, which no model hears, keep the words as written.
+- Source: review.
+- Verified: two tests (the tool text keeps the description but not the number; the cloud voice
+  gets "[number removed]" while the phone's own voice reads the task as written) failed on the old
+  code, then passed; 275 core tests and 92 app tests pass; the CI mirror `bash scripts/ci-local.sh`
+  exit 0.
+
 ### fix(ios): after sign-in, the mission follows the token's claims read fresh from the server
 - What: resuming trusted the cached ID token and ran only when no mission was loaded, so a
   searcher command moved from T1 to T2 kept T1's mission and assignment. After every sign-in (at

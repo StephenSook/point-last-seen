@@ -42,7 +42,8 @@ final class AssignmentSpeaker {
         lastSpoken = assignment
         let text = SpokenAssignment.text(assignment)
         if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
-            let start = await makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces)).speak(text)
+            // The cloud voice is a model: it never gets a phone number. The phone's own voice reads the task as written.
+            let start = await makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces)).speak(PhoneNumbers.scrub(text))
             record(SpeechRecord(path: .cloud, outcome: start == nil ? "failed" : "spoken", startMs: start))
             if start != nil { return }
         }

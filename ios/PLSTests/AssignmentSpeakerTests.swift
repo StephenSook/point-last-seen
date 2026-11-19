@@ -43,6 +43,19 @@ final class FakeVoice: AssignmentVoice {
         #expect(log.entries == [SpeechRecord(path: .cloud, outcome: "spoken", startMs: 900)])
     }
 
+    /// The cloud voice is a model: it never gets a phone number from the task text. The phone's own
+    /// voice, which no model hears, reads the task as command wrote it.
+    @Test func theCloudVoiceNeverGetsAPhoneNumber() async {
+        let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
+        let task = Assignment(teamId: "T1", segmentIds: ["AB"], taskText: "Call 404 555 0123 at the gate.", reason: "r")
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(task, voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
+        #expect(cloud.spoken.count == 1 && !cloud.spoken[0].contains("555") && cloud.spoken[0].contains(PhoneNumbers.replacement))
+        cloud.fails = true
+        let other = Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Call 404 555 0123 at the gate.", reason: "r")
+        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(other, voiceTemplate: "voice-model", online: true, killCloud: false, signedIn: true)
+        #expect(onDevice.spoken.last?.contains("404 555 0123") == true)
+    }
+
     @Test func aFailedCloudVoiceFallsBackToTheDevice() async {
         let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
         cloud.fails = true
