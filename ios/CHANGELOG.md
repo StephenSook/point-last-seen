@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): name the team's push topic and read a new-assignment push by its ids
+- What: `PushTopic.name` gives the team's topic, `pls-{incidentId}-{teamId}`, only for ids that
+  Firestore and FCM both accept. `PushPayload` reads a tapped push's `incidentId`, `teamId` and
+  `planVersion` (FCM sends data as text) and nothing else: the words a person reads come from the
+  plan the phone loads, never from the push.
+- Source: lane A's server half of new-assignment pushes (P-06).
+- Verified: two tests (the topic name and refused ids; the ids read from a payload with text or
+  number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
+  tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
+
 ### fix(ios): the cloud switch says what leaves the phone, and when
 - What: the Ready check's cloud switch read "Allow cloud reading when the phone cannot read a
   report" without naming what is sent. It now reads "Allow cloud reading", with the line "Only when
