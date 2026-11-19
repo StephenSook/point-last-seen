@@ -1210,3 +1210,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the dev-page guard (`src/harness/noCloud.test.ts`) also fails when a harness page imports `getGenerativeModel` or `getTemplateGenerativeModel` from `firebase/ai`, which would build a model around the app's builders. Importing `getAI` alone, as the triage page does to hand an instance to the on-device frame check, stays allowed.
 - Source: second-model review of PR #20, round 2 (note: the four-name scan missed a direct SDK import).
 - Verified: a planted page importing `getGenerativeModel` from `firebase/ai` made the guard fail naming it; with the page removed it passes; a first, broader version flagged the triage page's `getAI` import and was narrowed to the model builders. scripts/ci-local.sh exit 0.
+
+### feat(prior): stamp each rebuilt prior with the server's build time
+- What: every prior batch (`priorBatchOps`: ring rebuilds, layer changes, walker runs and camera Confirm) adds `priorBuiltAt: serverTimestamp()` to the incident update that carries the version step. The rules take the field only in a write that raises `priorVersion` by exactly one and only as the server's time; the exporter publishes it as `priorBuiltAtMs` for the replay.
+- Source: shared rules for `priorBuiltAt` (live since ca5b51f).
+- Verified: new `write.test.ts` test (the incident update has the version step and a server-timestamp `priorBuiltAt`) failed first, then passed; 27 prior unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
