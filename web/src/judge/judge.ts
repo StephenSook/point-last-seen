@@ -12,15 +12,16 @@ export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFail
   switch (state) {
     case "no-model":
       return {
-        lines: [opts.replay ? "This browser has no built-in model. Nothing private was sent. Use the replay above, which runs in the cloud." : "This browser has no built-in model. Nothing private was sent."],
+        lines: [opts.replay ? "This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run." : "This browser has no built-in model. Nothing private was sent."],
         photoButton: null,
       };
     case "downloadable":
       return { lines: ["This browser can download its built-in model first. Press Get this laptop ready to start; it can take a few minutes."], photoButton: null };
+    // The check asks Chrome what its model can take and reads nothing, so these say "ready", never "read".
     case "text":
-      return { lines: ["The sighting note is read on this laptop.", "This browser's model cannot read images. Photos stayed on this laptop."], photoButton: null };
+      return { lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so photos stay on this laptop."], photoButton: null };
     case "image":
-      return { lines: ["The sighting note and sample photos are read on this laptop."], photoButton: "Read sample photos on this laptop" };
+      return { lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" };
   }
 }
 

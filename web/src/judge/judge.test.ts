@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
-  it("(a) no built-in model: nothing private was sent, and the cloud replay is named only when it exists", () => {
-    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. Use the replay above, which runs in the cloud."], photoButton: null });
+  it("(a) no built-in model: nothing private was sent, and the replay is named only when it exists", () => {
+    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run."], photoButton: null });
     expect(d2Copy("no-model", { replay: false })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent."], photoButton: null });
   });
 
@@ -11,15 +11,16 @@ describe("d2Copy", () => {
     expect(d2Copy("downloadable", { replay: false, downloadFailed: true }).lines).toEqual(["This browser could not download its built-in model. Nothing private was sent."]);
   });
 
-  it("(b) text only: the note is read here and photos stay unread", () => {
+  // The check only asks Chrome what the model can take; it reads nothing, so the lines say "ready", never "read".
+  it("(b) text only: the model is ready for the note, and photos stay on this laptop", () => {
     expect(d2Copy("text", { replay: false })).toEqual({
-      lines: ["The sighting note is read on this laptop.", "This browser's model cannot read images. Photos stayed on this laptop."],
+      lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so photos stay on this laptop."],
       photoButton: null,
     });
   });
 
-  it("(c) image input: sample photos too", () => {
-    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The sighting note and sample photos are read on this laptop."], photoButton: "Read sample photos on this laptop" });
+  it("(c) image input: ready for sample photos too", () => {
+    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" });
   });
 
   it("downloadable: says the model can be downloaded first", () => {

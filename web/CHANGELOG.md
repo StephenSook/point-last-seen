@@ -1360,3 +1360,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post no longer listens to `planDrafts/{eventSetHash}`; no backend function writes that collection, so the draft always came from `localDraft` (the engine's team assignment on this laptop). The plan card now always reads "Draft from this laptop for the current reports.", and the comments that named a draft function that does not exist are gone.
 - Source: review of the plan path against the deployed functions.
 - Verified: typecheck clean; 21 plan unit tests and 6 plan harness tests pass. scripts/ci-local.sh exit 0.
+
+### fix(judge): say the laptop's model is ready, not that it read anything
+- What: Get this laptop ready only asks Chrome what its built-in model can take; it reads no note and no photo. The lines now say "The built-in model on this laptop is ready for the sighting note." (and "... and sample photos." when it takes images), with "It cannot read images, so photos stay on this laptop." for a text-only model. With no model, the line points at "The replay above shows a recorded drill run." instead of saying the replay runs in the cloud, which it does not.
+- Source: judge-page claims review, item (c).
+- Verified: the three d2Copy tests were changed to the new lines first and failed, then passed; 15 judge tests pass. scripts/ci-local.sh exit 0.
