@@ -8,12 +8,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ## 2026-11-17
 
+### feat(command): show and save segment debriefs on the command post
 - What: the command post subscribes to the incident's debriefs and shows the Debriefs section under the plan: every cleared segment from the event stream (its latest clear) and every segment with a debrief. Command saves through `saveDebrief` (create tied to the clear, or edit). A failure to load says "Debriefs could not be loaded." in its place without stopping the post. A new guard, `src/data/debriefScope.test.ts`, fails if any source file other than the debrief module, its section, the post and the harness names debriefs, so no map, probability or plan code can read one.
 - Source: field-expert input (search and rescue practitioner: debrief after a search).
 - Verified: the guard passes and fails on a file planted in `prior/` (removed); it walks more than 100 files; 119 data unit tests and the 5 debrief harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the debrief section for cleared segments
 - What: `command/DebriefSection.tsx`, "Debriefs": each cleared segment (and any segment that has a debrief) shows its debrief, the time it took, "Worked: ...", "Didn't work: ..." and who wrote it (the clearing team when its own device did, else Command), or "No debrief yet." with "Add debrief". Command adds or edits one: "Time it took (minutes)", "What worked (optional)", "What didn't work (optional)", Save debrief. A bad time or an over-long note is refused with the reason before anything is saved; a refused save says "The debrief was not saved. Try again." and keeps the form. A new debrief is tied to the segment's latest clear. A dev-only harness page (`web/harness/debrief.html`) runs it with fakes. Not on the command post yet.
 - Source: field-expert input (search and rescue practitioner: debrief after a search).
 - Verified: `e2e/harness/debrief.spec.ts` (5 tests: the list with and without a debrief; add, tied to the clear; a bad time refused with no save; edit from what is stored; a refused save) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(data): read, check and write segment debriefs
 - What: `data/debriefs.ts` for `incidents/{id}/debriefs/{segmentId}`: `parseDebriefForm` (whole minutes 0 to 1440; "what worked" and "what didn't work" optional, trimmed, up to 500 characters each), `debriefFromDoc`, `newDebriefDoc` (writer, server time, the cleared event when known), `debriefEdit` (time and notes only; a cleared note is removed), `clearedSegments` (each cleared segment once, its latest clear), `debriefAuthor` (the clearing team when its own device wrote it, else Command), `subscribeDebriefs` and `saveDebrief`. Nothing here feeds the map, the probabilities or the plans.
 - Source: field-expert input (search and rescue practitioner: debrief after a search) and the shared debrief rules.
 - Verified: `src/data/debriefs.test.ts` (8 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
@@ -1684,3 +1689,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a new test walks the shared schema's SharedProfile (`shared/schemas/subject-profile.schema.json`), makes a valid value for each field that differs from an empty profile, stores it, saves a command edit of another field, and checks the stored value is still in the shared document written. A field added to the schema without the web keeping it fails here, because the save writes the document whole. The approach note ids are worked out again on every save and are left out.
 - Source: review (the tracking-aids erase, so the next optional field cannot repeat it).
 - Verified: 21 tests pass (20 fields and the schema walk); with the tracking-aids reader branch removed, "keeps trackingAids" fails, and it passes again with it restored.
+
+### docs(web): restore the headings of the three debrief entries
+- What: the three debrief entries under 2026-11-17 had lost their "### " heading lines when they were carried onto main, so their bullets ran into each other. The headings are back, each before its own "What" line, taken from the original commits.
+- Source: review of the changelog after the debrief merge.
+- Verified: the three headings match the original commit subjects; no other line changed.
