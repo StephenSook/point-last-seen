@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` and `docs/SECURITY.md` say what the family push carries, and why: Firebase Cloud Messaging does not
+  check who subscribes to a topic, so every push holds only fixed wording and ids, never an outcome. They also give
+  the family push's limits (20 a day, once per event, no stale state, no retry once its slot is taken).
+  Source: review (family channel, round 1).
+  Verified: each statement matches `functions/src/notify.ts` and its tests; no dashes or curly quotes.
 - Family pushes go out once per trigger event and only while still true. One transaction reads the incident, claims
   the event (by a hash of its id) and takes the day's budget slot, so a redelivered event sends nothing and uses no
   budget. A question needs an incident that is still open, and a searching or paused push needs the incident to

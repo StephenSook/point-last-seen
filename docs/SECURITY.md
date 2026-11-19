@@ -92,3 +92,10 @@ except the iOS report read, which streams.
 
 The security rules, media retention and other limits are in `docs/LIMITS.md`. The daily probe also reads the
 public `ops/storage` record (`scripts/media_probe.py`) to check that drill media still expires.
+
+## Push notifications
+
+Firebase Cloud Messaging does not check who subscribes to a topic, so anyone who knows an incident id could receive
+its pushes. Every push (`functions/src/notify.ts`) therefore carries only fixed wording and ids: no name, place, task
+or question text, and never an outcome. The tests compare each whole message, so an added field fails them. The
+details are in `docs/LIMITS.md`.
