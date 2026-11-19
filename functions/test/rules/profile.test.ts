@@ -45,11 +45,19 @@ describe("subject profile split (spec section 13.2)", () => {
     const db = dbAs(F, familyClaims);
     const put = (over: Record<string, unknown>) => setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile(over));
     await assertSucceeds(put({}));
-    await assertSucceeds(put({ otherNames: [] }));
+    await assertSucceeds(put({ nickname: "", otherNames: [] }));
     await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "Margaret", "Peggy", "Mrs. Lee", "x".repeat(60)] }));
     for (const otherNames of [["a", "b", "c", "d", "e", "f"], [""], ["x".repeat(61)], ["Peggy", 7], "Peggy", { 0: "Peggy" }, null]) {
       await assertFails(put({ otherNames }));
     }
+  });
+  it("with the list present, nickname mirrors its first name, or is empty for an empty list (review)", async () => {
+    const db = dbAs(F, familyClaims);
+    const put = (over: Record<string, unknown>) => setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile(over));
+    await assertSucceeds(put({ nickname: "Mom", otherNames: ["Mom", "Peggy"] }));
+    await assertFails(put({ nickname: "Peggy", otherNames: ["Mom"] }));
+    await assertFails(put({ nickname: "Peggy", otherNames: [] }));
+    await assertSucceeds(put({ nickname: "Peggy" }));
   });
   it("profile/command takes only the command fields", async () => {
     const db = dbAs(C, commandClaims);

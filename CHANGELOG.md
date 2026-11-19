@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Firestore rules enforce the nickname mirror: when the shared profile carries `otherNames`, `nickname` must be its
+  first name, or "" for an empty list, so every reader shows the same name. A profile saved before the list keeps
+  any nickname.
+  Source: review of PR #21 (finding 5).
+  Verified: the test (nickname "Mom" with ["Mom", "Peggy"] accepted; "Peggy" with ["Mom"] or with [] refused; a
+  profile with no list keeps "Peggy") failed first, now 112 rules tests pass in the emulator.
 - A cleared effect belongs to a cleared event only. The event rules refused nothing on an event's effect kind by
   type, so a family member could write a sighting carrying a cleared effect for a segment and use it to claim
   that segment's debrief. Event creation now ties a cleared effect to the cleared type (the engine counts it on
