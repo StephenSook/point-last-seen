@@ -20,12 +20,13 @@ describe("incident, segments, teams", () => {
     await assertFails(getDoc(doc(dbAs("y", { inc: "I2", role: "command", team: null }), "incidents/I1")));
     await assertFails(getDoc(doc(dbAs(null), "incidents/I1/segments/AC")));
   });
-  it("members read the incident, segments, packs and plan drafts", async () => {
+  it("members read the incident, segments and packs; nothing reads plan drafts, which nothing writes", async () => {
     const db = dbAs(S, searcherClaims);
     await assertSucceeds(getDoc(doc(db, "incidents/I1")));
     await assertSucceeds(getDoc(doc(db, "incidents/I1/segments/AC")));
     await assertSucceeds(getDoc(doc(db, "incidents/I1/packs/T1")));
-    await assertSucceeds(getDoc(doc(db, "incidents/I1/planDrafts/h1")));
+    await assertFails(getDoc(doc(db, "incidents/I1/planDrafts/h1")));
+    await assertFails(getDoc(doc(dbAs(C, commandClaims), "incidents/I1/planDrafts/h1")));
   });
   it("only command writes the incident doc and segments; teams come only from admin tools", async () => {
     await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1/segments/AD"), { segmentId: "AD" }));

@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The security rules drop the `planDrafts` read path: no function writes plan drafts and, since the command post
+  removed its draft listener (now deployed), nothing reads them. Reads and writes there are now refused by default.
+  Source: review (a read-only path to a collection nothing uses).
+  Verified: the test (a searcher and command reading a plan draft are refused) failed first, now all 122 rules tests
+  pass in the emulator; no app code names `planDrafts`; `bash scripts/ci-local.sh` exit 0, including the 13
+  no-backend browser checks.
 - `docs/SECURITY.md` has a Dependencies section: no high or critical `npm audit` findings, why the gRPC override
   is there, and the four moderate findings that remain (`glob` and `minimatch` inside `vite-plugin-pwa`'s
   `workbox-build`), which run only while the service worker is built, on the repository's own patterns, and are
