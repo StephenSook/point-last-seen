@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PlanDraft, WordedPlan } from "../ai/replanWording";
+import { planLimitLine } from "../data/plans";
 import { RouteGlyph } from "./RouteGlyph";
 
 type Props = {
@@ -26,7 +27,9 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
   // probabilities the model reads and the assignments. If any of them changes (for example the plan
   // history arrives, or another seat's rebuild reaches the segments first), it is withdrawn.
   const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments]) : null;
-  const suggested = reply && reply.key === draftKey ? reply.worded : null;
+  // A draft the plans rule cannot hold is said so here, before a suggestion is asked for.
+  const limit = draft ? planLimitLine(draft) : null;
+  const suggested = reply && reply.key === draftKey && !limit ? reply.worded : null;
 
   useEffect(() => {
     setReply(null);
@@ -72,7 +75,12 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
       ) : (
         <>
           <p className="muted">Draft from {draftSource === "server" ? "the server" : "this laptop"} for the current reports.</p>
-          <button type="button" className="btn" onClick={suggest} disabled={busy !== null}>
+          {limit && (
+            <p className="error" role="status">
+              {limit}
+            </p>
+          )}
+          <button type="button" className="btn" onClick={suggest} disabled={busy !== null || limit !== null}>
             {busy === "suggest" ? "Suggesting" : "Suggest plan"}
           </button>
         </>

@@ -8,7 +8,14 @@ import { WhatChanged } from "../command/WhatChanged";
 import "../theme/fonts.css";
 import "../theme/base.css";
 
-const DRAFT: PlanDraft = { eventSetHash: "a".repeat(64), priorVersion: 1, rank: [], assignments: [{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: ["AB"] }] };
+// ?teams=N: a draft with N teams (default 2), to show the limit on how many a plan can name.
+const teamCount = Number(new URLSearchParams(location.search).get("teams") ?? "2");
+const DRAFT: PlanDraft = {
+  eventSetHash: "a".repeat(64),
+  priorVersion: 1,
+  rank: [],
+  assignments: teamCount === 2 ? [{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: ["AB"] }] : Array.from({ length: teamCount }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [`S${i + 1}`] })),
+};
 
 // "Assignments change" swaps T1 to BB under the same event-set hash, as when the plan history
 // arrives after a suggestion was made. "Probabilities change" keeps the hash, the prior version and

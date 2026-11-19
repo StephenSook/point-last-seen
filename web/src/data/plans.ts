@@ -59,6 +59,22 @@ export function planFromDoc(data: unknown): PlanDoc | null {
   };
 }
 
+/** What the plans rule holds: at most 10 teams, at most 6 segments a team, and push-reachable team ids. */
+export const PLAN_MAX_TEAMS = 10;
+export const PLAN_MAX_SEGMENTS = 6;
+const PLAN_TEAM_ID = /^[A-Za-z0-9_]{1,32}$/;
+
+/** Why a draft can't become a plan, said before anyone suggests or approves it, or null when it can. */
+export function planLimitLine(draft: PlanDraft): string | null {
+  const n = draft.assignments.length;
+  if (n > PLAN_MAX_TEAMS) return `A plan can name at most ${PLAN_MAX_TEAMS} teams. This draft has ${n}, so it can't be approved. Search with ${PLAN_MAX_TEAMS} teams or fewer.`;
+  for (const a of draft.assignments) {
+    if (!PLAN_TEAM_ID.test(a.teamId)) return `Team id "${a.teamId}" can't be saved in a plan, so this draft can't be approved.`;
+    if (a.segmentIds.length > PLAN_MAX_SEGMENTS) return `A plan can give one team at most ${PLAN_MAX_SEGMENTS} segments. This draft gives ${a.teamId} ${a.segmentIds.length}, so it can't be approved.`;
+  }
+  return null;
+}
+
 /** Plans read from their records, oldest first, and the ids of records that can't be read. */
 export function readPlans(docs: readonly { id: string; data: unknown }[]): { plans: PlanDoc[]; unreadable: string[] } {
   const plans: PlanDoc[] = [];

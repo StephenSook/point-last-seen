@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc, readPlans, unreadablePlanLine } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc, readPlans, unreadablePlanLine, planLimitLine } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -164,5 +164,20 @@ describe("unreadablePlanLine", () => {
     expect(unreadablePlanLine([])).toBeNull();
     expect(unreadablePlanLine(["0003"])).toBe("This plan record can't be read: plan 3. Teams show the newest plan that can.");
     expect(unreadablePlanLine(["0003", "x9"])).toBe("These plan records can't be read: plan 3, record x9. Teams show the newest plan that can.");
+  });
+});
+
+describe("planLimitLine", () => {
+  const teams = (n: number) => Array.from({ length: n }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [`S${i}`] }));
+  const d = (assignments: PlanDraft["assignments"]): PlanDraft => ({ ...draft, assignments });
+  it("is null for a draft a plan can hold", () => {
+    expect(planLimitLine(d(teams(10)))).toBeNull();
+  });
+  it("says a plan names at most 10 teams before anyone suggests or approves one", () => {
+    expect(planLimitLine(d(teams(11)))).toBe("A plan can name at most 10 teams. This draft has 11, so it can't be approved. Search with 10 teams or fewer.");
+  });
+  it("says so for more than 6 segments for one team, and for a team id a plan can't hold", () => {
+    expect(planLimitLine(d([{ teamId: "T1", segmentIds: ["A", "B", "C", "D", "E", "F", "G"] }]))).toBe("A plan can give one team at most 6 segments. This draft gives T1 7, so it can't be approved.");
+    expect(planLimitLine(d([{ teamId: "team one", segmentIds: ["A"] }]))).toBe("Team id \"team one\" can't be saved in a plan, so this draft can't be approved.");
   });
 });

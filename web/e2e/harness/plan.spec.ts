@@ -47,3 +47,10 @@ test("the suggestion's label is the route that ran: Cloud without a local model,
   await page.getByRole("button", { name: /^Suggest/ }).click();
   await expect(page.getByTestId("suggested-plan").getByTestId("route-glyph")).toHaveText("On this laptop");
 });
+
+test("a draft with more teams than a plan can name says so and cannot be suggested or approved", async ({ page }) => {
+  await page.goto("/harness/plan.html?teams=11");
+  await expect(page.getByRole("status").filter({ hasText: "A plan can name at most 10 teams. This draft has 11" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Suggest plan" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
+});
