@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import PLSCore
 
-/// Lane A's sample of real `pack-segments` documents from the drill incident, kept in Firestore's
+/// A sample of real `pack-segments` documents from the drill incident, kept in Firestore's
 /// typed REST form, read the way the iOS Firestore SDK hands them to the app (every number a
 /// plain number, an empty array an empty array).
 @Suite struct PackSegmentsSampleTests {

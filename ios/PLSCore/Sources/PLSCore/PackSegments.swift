@@ -1,7 +1,7 @@
 import Foundation
 
-/// Turns the pack's `pack-segments` documents into the grid and the prior (lane A's pack
-/// ruling): grid segments in segmentId code-point order, then ROW last, read from its own
+/// Turns the pack's `pack-segments` documents into the grid and the prior (a pack design
+/// decision): grid segments in segmentId code-point order, then ROW last, read from its own
 /// document (never computed as one minus the rest, which would drift between devices).
 public enum PackSegments {
     public enum PackError: Error, Equatable {
