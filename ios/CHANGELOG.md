@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): an incident with no mode, or a mistyped one, keeps the phone on the rules path
+- What: a mission read from an incident with no `mode` (or one that is not text) was treated as a
+  drill, which lets reports reach a model when consent and routing allow it. The mode is now kept
+  as command wrote it, and a missing or non-text mode reads as empty; only an incident marked
+  exactly "drill" or "judge" can reach a model.
+- Source: review.
+- Verified: a test builds missions with "drill" and "judge" (model modes) and with no mode, null,
+  a number, "Drill", "training" and "" (none a model mode); it failed on the old code (3 issues),
+  then passed; 93 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): remove phone numbers from profile and task text where they reach a model
 - What: a phone number in a profile description field (appearance, clothing) reached the report
   model through the subject-description tool, and one in an approved task reached the cloud voice.

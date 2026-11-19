@@ -46,7 +46,9 @@ enum MissionBuilder {
         let plan = try? docs.plan?.decode(PlanDoc.self)
         let assignment = plan?.assignment(for: teamId)
         let shared = docs.sharedProfile
-        let mode: String = { if case let .string(m)? = docs.incident["mode"] { m } else { "drill" } }()
+        // The mode as command wrote it; missing or not text reads as "", which no model mode matches,
+        // so only an incident marked exactly "drill" or "judge" can reach a model.
+        let mode: String = { if case let .string(m)? = docs.incident["mode"] { m } else { "" } }()
         let priorInputs: [String] = {
             guard case let .array(ids)? = docs.incident["priorInputEventIds"] else { return [] }
             return ids.compactMap { if case let .string(s) = $0 { s } else { nil } }

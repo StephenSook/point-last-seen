@@ -87,6 +87,23 @@ enum DrillDocs {
         #expect(m.assignment == nil && m.assignedSegmentIds.isEmpty && m.sharedProfile == nil)
     }
 
+    /// Only an incident marked exactly "drill" or "judge" may use a model: a missing or mistyped
+    /// mode keeps the phone on the rules path.
+    @Test func aMissingOrMistypedModeNeverEnablesAModel() throws {
+        func mode(_ value: JSONValue?) throws -> String {
+            guard case var .object(o) = try DrillDocs.incident() else { throw CocoaError(.coderInvalidValue) }
+            o["mode"] = value
+            return try MissionBuilder.build(incidentId: "d", teamId: "T1", docs: MissionDocs(incident: .object(o), segments: try DrillDocs.segments()),
+                                            bundledParams: params).mode
+        }
+        let drill = try mode(.string("drill")), judge = try mode(.string("judge"))
+        #expect(ReadPlan.modelModes.contains(drill) && ReadPlan.modelModes.contains(judge))
+        for bad: JSONValue? in [nil, .null, .number(1), .string("Drill"), .string("training"), .string("")] {
+            let read = try mode(bad)
+            #expect(!ReadPlan.modelModes.contains(read), "\(String(describing: bad)) read as \(read)")
+        }
+    }
+
     @Test func aMissionThatCannotBeTrustedIsRefusedInWords() throws {
         let segments = try DrillDocs.segments()
         #expect(throws: MissionBuilder.Failure.notOpen) {
