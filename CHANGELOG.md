@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Hosting answers a missing `/tiles/` or `/evidence/` file with a real 404. The app-shell rewrite's source is now
+  `!/@(tiles|evidence)/**` instead of `**`, so a basemap, route graph or published run that a deploy left out can no
+  longer come back as `index.html` with status 200, which read as "no streets", "walkers off" or "no published run"
+  with nothing pointing at the missing file.
+  Source: review (a judge walk of the live site).
+  Verified: the config test (the only `/index.html` rewrite has exactly that source) failed first, now passes; on
+  the Hosting emulator `/`, `/judge` and `/command/x` return the shell with 200, and `/tiles/missing.pmtiles`,
+  `/tiles/a/b.graph.json` and `/evidence/published-run.json` return 404; `bash scripts/ci-local.sh` exit 0.
 - The development site's route graph (`shared/grid/piedmont-park-dev.graph.json`) and basemap tiles
   (`shared/grid/piedmont-park-dev.pmtiles`) are now in the repository beside its grid, so a deploy from a clean
   checkout can carry them to `/tiles/`. Before, they lived only on build machines, and a clean-worktree deploy
