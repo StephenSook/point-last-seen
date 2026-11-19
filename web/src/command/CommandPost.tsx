@@ -63,6 +63,8 @@ import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
 import { FamilyChannel } from "./FamilyChannel";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
+import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
+import { DebriefSection } from "./DebriefSection";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -288,6 +290,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       stopPlans();
       stopProfile();
     };
+  }, [pls, incidentId, denied]);
+
+  // Debriefs: notes after a clear, shown beside it and never read by the map, the probabilities or the plans.
+  // A listen failure is said in the section's place; it does not stop the post.
+  const [debriefs, setDebriefs] = useState<Record<string, Debrief>>({});
+  const [debriefError, setDebriefError] = useState<string | null>(null);
+  useEffect(() => {
+    if (denied) return;
+    return subscribeDebriefs(pls.db, incidentId, (d) => {
+      setDebriefs(d);
+      setDebriefError(null);
+    }, () => setDebriefError("Debriefs could not be loaded."));
   }, [pls, incidentId, denied]);
 
   // Teams in a plan approved while this page is open carry "New" for 10 seconds.
@@ -744,6 +758,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          {debriefError && (
+            <p className="error" role="alert">
+              {debriefError}
+            </p>
+          )}
+          <DebriefSection
+            cleared={clearedSegments(events)}
+            debriefs={debriefs}
+            teams={teams}
+            onSave={(segmentId, input, existing, clearedEventId) =>
+              saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
+            }
+          />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {incident && segments.length > 0 && (
