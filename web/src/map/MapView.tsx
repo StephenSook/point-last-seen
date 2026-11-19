@@ -168,12 +168,20 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       for (const mk of markers.current) mk.remove();
       markers.current = fc.features.flatMap((f, i) => {
         const seg = segments[i];
-        if (!seg || f.properties.label === "") return [];
+        if (!seg) return [];
+        const at: [number, number] = [seg.centroid.lon, seg.centroid.lat];
+        // Every cell's code sits left of its dot (the largest is 14 px), so a person can name the cell on a radio.
+        const code = document.createElement("div");
+        code.className = "seg-code";
+        code.textContent = f.properties.segmentId;
+        const out = [new Marker({ element: code, anchor: "right", offset: [-17, 0] }).setLngLat(at).addTo(m)];
+        if (f.properties.label === "") return out;
         const plate = document.createElement("div");
         plate.className = "plate";
         plate.textContent = f.properties.label;
         // The plate hangs just below the largest dot (14 px), so the number never covers the dot.
-        return [new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+        out.push(new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat(at).addTo(m));
+        return out;
       });
       const b = bounds(segments);
       if (b && !fitted.current) {

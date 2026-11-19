@@ -64,3 +64,17 @@ test("with reduced motion the walkers skip straight to the grid", async ({ page 
   await page.goto("/harness/map.html?walkers");
   await expect(page.getByTestId("walker-canvas")).toHaveAttribute("data-mode", "final-grid", { timeout: 20_000 });
 });
+
+test("every segment's code is drawn beside its dot, so a judge can name the cell", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const codes = page.locator(".seg-code");
+  await expect(codes).toHaveCount(24); // every cell, including the one left out of the POA
+  await expect(codes.filter({ hasText: /^AB$/ })).toHaveCount(1);
+  // The code sits left of the dot and never on the percent plate.
+  const plate = (await page.locator(".plate").first().boundingBox())!;
+  const dotX = plate.x + plate.width / 2;
+  const code = (await codes.first().boundingBox())!;
+  expect(code.x + code.width).toBeLessThanOrEqual(dotX - 14); // clear of the largest dot's radius
+  await expect(page.locator(".plate .seg-code")).toHaveCount(0);
+});
