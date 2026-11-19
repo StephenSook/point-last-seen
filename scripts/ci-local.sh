@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every check the CI workflows run, each on a bare exit path (no pipes), so a local run can stand in for CI.
-# Mirror .github/workflows/*.yml: when a job gains a step, add it here.
+# Mirror .github/workflows/*.yml: when a job gains a step, add it here (scripts/test_ci_local.py fails until you do).
 #
 # Usage: bash scripts/ci-local.sh [--gates] [--ts] [--rules] [--web] [--ios] [--android]
 #   With no flag, every section runs. With flags, only those sections run.
@@ -131,6 +131,10 @@ if want web; then
     if grep -q "PLS_PREVIEW_DIR" web/e2e/ci.config.ts 2>/dev/null; then
       echo "== web: browser checks with no backend"
       (cd web && PLS_PREVIEW_DIR="$WEB_OUT" npx playwright test -c e2e/ci.config.ts)
+      # CI=1 makes both configs use Playwright's Chromium, as on the runner; they start Vite dev servers, no backend.
+      echo "== web: harness and extras browser checks"
+      (cd web && CI=1 npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model")
+      (cd web && CI=1 npx playwright test -c e2e/extras.config.ts)
     else
       echo "== web browser checks: NOT RUN, web/e2e/ci.config.ts cannot preview a temp build (PLS_PREVIEW_DIR)"
       NOT_RUN="$NOT_RUN web-browser-checks (PLS_PREVIEW_DIR)"
