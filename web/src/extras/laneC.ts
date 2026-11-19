@@ -19,12 +19,15 @@ export type { PublishedRun } from "../judge/judge";
 export {
   DEFAULT_PARAMS,
   convergenceCode,
+  isWellFormedEffect,
   type Assignment,
   type CameraSightingReading,
+  type Effect,
   type EngineParams,
   type EventDoc,
   type PlanDoc,
   type RankedSegment,
+  type RouteRecord,
   type SegmentPrior,
 } from "@pls/engine";
 

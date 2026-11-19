@@ -363,6 +363,25 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [{ ...cam, position: null }] })).ok).toBe(true);
   });
 
+  it("refuses an effect or route with any content beyond its exact shape, and an effect about a segment the run lacks", () => {
+    const base = runEvent(eventDoc({ eventId: "e" }), T0);
+    const route = { platform: "web", path: "on_device", stage: "guided", model: "gemini-nano", reason: "on_device_default", latencyMs: 820, sdkReported: true, blocked: null, decidedAtMs: T0 };
+    expect(fromPublishedRun(run({ events: [{ ...base, route } as typeof base] })).ok).toBe(true);
+    const wrong = (field: string) => ({ ok: false, reason: `The run has a field of the wrong type: ${field}.` });
+    const noSegment = { ok: false, reason: "The run has a report about a segment it does not have." };
+    const clue = { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" };
+    const cleared = { kind: "cleared", segmentId: "ZZ", pod: 0.5, inputs: { coverage: 0.7, sweepWidthM: null, trackLengthM: null, areaM2: 10_000, rdBasis: "default" } };
+    const cases: [unknown, unknown][] = [
+      [{ ...base, effect: { ...clue, note: "her daughter says she walks here" } }, wrong("event.effect")],
+      [{ ...base, effect: { ...clue, influences: { AA: "certain" } } }, wrong("event.effect")],
+      [{ ...base, route: { ...route, note: "x" } }, wrong("event.route")],
+      [{ ...base, route: { ...route, path: "satellite" } }, wrong("event.route.path")],
+      [{ ...base, effect: { ...clue, influences: { "the blue house": "for" } } }, noSegment],
+      [{ ...base, effect: cleared }, noSegment],
+    ];
+    for (const [e, want] of cases) expect(fromPublishedRun(run({ events: [e as typeof base] })), JSON.stringify(e)).toEqual(want);
+  });
+
   it("refuses any report placed by a camera pin, whatever its kind", () => {
     const at = { lat: 33.79, lon: -84.37, accuracyM: null };
     const pinned = runEvent(eventDoc({ eventId: "s", type: "sighting", positionSource: "camera_pin", position: at }), T0);

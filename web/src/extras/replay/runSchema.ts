@@ -3,7 +3,8 @@
 // number belongs) refuses the run with the field's name instead of reaching code that would draw it or throw on it.
 // Which fields must be present is decided by the reader, which needs only some of them.
 
-import { RUN_ENUMS } from "./runContract";
+import { isWellFormedEffect } from "../laneC";
+import { ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
 
 /** Returns the path of the first part of `v` that is not of the type, under `at`, or null when it all is. */
 type Check = (v: unknown, at: string) => string | null;
@@ -47,6 +48,19 @@ const cameraReading = shape({
   sighting: shape({ personVisible: yesNo, firstSeen: text, lastSeen: text, keyFrame: shape({ time: text }) }),
 });
 const assignment = shape({ teamId: text, segmentIds: listOf(text), taskText: text, reason: text });
+// The engine's own exact check for an effect: each kind's fields and nothing else.
+const effect: Check = (v, at) => ok(isWellFormedEffect(v), at);
+const route = shape({
+  platform: oneOf(ROUTE_ENUMS.platform),
+  path: oneOf(ROUTE_ENUMS.path),
+  stage: oneOf(ROUTE_ENUMS.stage),
+  model: text,
+  reason: oneOf(ROUTE_ENUMS.reason),
+  latencyMs: number,
+  sdkReported: yesNo,
+  blocked: oneOf(ROUTE_ENUMS.blocked),
+  decidedAtMs: number,
+});
 
 /** The type of each field, per part of the run. Only fields the contract lists appear. */
 export const RUN_TYPES: Record<"run" | "incident" | "segment" | "row" | "team" | "device" | "event" | "plan", Record<string, Check>> = {
@@ -96,8 +110,8 @@ export const RUN_TYPES: Record<"run" | "incident" | "segment" | "row" | "team" |
     inputMethod: oneOf(RUN_ENUMS.inputMethod),
     isTrainingInject: yesNo,
     reading: orNull(cameraReading),
-    effect: plainObject,
-    route: orNull(plainObject),
+    effect,
+    route: orNull(route),
     targetEventId: orNull(text),
     decision: oneOf(RUN_ENUMS.decision),
     planVersion: orNull(number),

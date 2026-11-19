@@ -6,6 +6,7 @@ import {
   DEFAULT_PARAMS,
   type Assignment,
   type CameraSightingReading,
+  type Effect,
   type EngineParams,
   type EventDoc,
   type IncidentView,
@@ -355,6 +356,12 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     }
     const eventType = wrongType(e, RUN_TYPES.event, "event");
     if (eventType) return typeRefusal(eventType);
+    // An effect names segments by id: each must be one of the run's (or the prior outside the map).
+    const eff = e["effect"] as Effect | undefined;
+    const named = eff?.kind === "clue" ? Object.keys(eff.influences) : eff?.kind === "cleared" ? [eff.segmentId] : [];
+    if (named.some((id) => id !== "ROW" && !mapSegments.some((m) => m.segmentId === id))) {
+      return refuse("The run has a report about a segment it does not have.");
+    }
     replayEvents.push(replayEvent(e as unknown as EventDoc, e["serverTimeMs"], offsets));
   }
 

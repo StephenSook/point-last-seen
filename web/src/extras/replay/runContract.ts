@@ -3,7 +3,7 @@
 // /evidence/published-run.json: it carries no uid, no join code, no report text, no profile field, no clip
 // path and no consent record. The reader refuses a run that carries report text.
 
-import type { Assignment, EngineParams, EventDoc } from "../laneC";
+import type { Assignment, EngineParams, EventDoc, RouteRecord } from "../laneC";
 
 export const PUBLISHED_RUN_VERSION = 1;
 
@@ -53,6 +53,20 @@ export const RUN_ENUMS = {
   inputMethod: ["keyboard_dictation", "typed", "picklist", "clip", "photo", "system"],
   decision: ["confirmed", "rejected", null],
 } as const satisfies { [K in keyof Pick<EventDoc, "type" | "role" | "reporter" | "positionSource" | "inputMethod" | "decision">]: readonly EventDoc[K][] };
+
+// The exact values each coded field of a report's route record (which model read it, and where) may hold.
+export const ROUTE_ENUMS = {
+  platform: ["ios", "web", "android"],
+  path: ["on_device", "cloud", "rules", "unknown"],
+  stage: ["guided", "permissive_text", "deterministic_parser", "evidence_protocol", "sdk", "picklist"],
+  reason: [
+    "on_device_default", "no_network", "on_device_unavailable", "locale_unsupported", "over_token_budget",
+    "possible_evidence", "not_drill_mode", "sdk_prefer_in_cloud", "sdk_prefer_on_device", "sdk_only_in_cloud",
+    "sdk_only_on_device", "sdk_fallback", "link_down_fallback", "template_fallback", "consented_cloud_read",
+    "on_device_triage_flagged", "on_device_triage_no_person", "triage_no_motion", "user_override_after_triage",
+  ],
+  blocked: ["guardrail", "refusal", null],
+} as const satisfies { [K in keyof Pick<RouteRecord, "platform" | "path" | "stage" | "reason" | "blocked">]: readonly RouteRecord[K][] };
 
 /** A camera sighting's reading in a public run: only the clock and the times the replay draws. */
 export type RunCameraReading = {
