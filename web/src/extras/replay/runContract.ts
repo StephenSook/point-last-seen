@@ -36,6 +36,17 @@ export const RUN_FIELDS = {
   keyFrame: ["time"],
 } as const;
 
+// The exact values each coded event field may hold, as the engine defines them. A value written any other way (another
+// case, a trailing space, an unknown word) refuses the run, so no rule keyed on a value can be dodged by spelling.
+export const RUN_ENUMS = {
+  type: ["cleared", "clue", "sighting", "camera_sighting", "destination", "confirmation", "retraction", "found", "plan_ack"],
+  role: ["searcher", "command", "family"],
+  reporter: ["searcher", "public_caller", "family", "camera", "system"],
+  positionSource: ["gps", "assigned_segment", "manual", "map_click", "camera_pin", "none"],
+  inputMethod: ["keyboard_dictation", "typed", "picklist", "clip", "photo", "system"],
+  decision: ["confirmed", "rejected", null],
+} as const satisfies { [K in keyof Pick<EventDoc, "type" | "role" | "reporter" | "positionSource" | "inputMethod" | "decision">]: readonly EventDoc[K][] };
+
 /** A camera sighting's reading in a public run: only the clock and the times the replay draws. */
 export type RunCameraReading = {
   clipStartMs: number;

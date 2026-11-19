@@ -296,6 +296,26 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, eventId: "0123456789abcdef0123456789abcdef" }] })).ok).toBe(true);
   });
 
+  it("refuses a report whose kind, role, reporter, place source, input or decision is not an exact known value", () => {
+    const base = runEvent(eventDoc({ eventId: "e" }), T0);
+    const unknownKind = { ok: false, reason: "The run has a report of a kind it does not know." };
+    // A place to check written with a trailing space would dodge the home-position rule if it were read at all.
+    const dodged = { ...base, type: "destination ", position: { lat: 33.79, lon: -84.37, accuracyM: null } };
+    for (const e of [
+      dodged,
+      { ...base, type: "Destination" },
+      { ...base, type: "note" },
+      { ...base, role: "Searcher" },
+      { ...base, reporter: "neighbor" },
+      { ...base, positionSource: "GPS" },
+      { ...base, inputMethod: "voice" },
+      { ...base, decision: "maybe" },
+    ]) {
+      expect(fromPublishedRun(run({ events: [e as typeof base] }))).toEqual(unknownKind);
+    }
+    expect(fromPublishedRun(run({ events: [{ ...base, decision: "confirmed" }] })).ok).toBe(true);
+  });
+
   it("refuses a place to check that keeps its position: it may be a home from the family's profile", () => {
     const place = runEvent(eventDoc({ eventId: "home", type: "destination", role: "command", teamId: null, deviceId: "cmd", position: { lat: 33.79, lon: -84.37, accuracyM: null }, effect: { kind: "none", why: "informational" } }), T0);
     expect(fromPublishedRun(run({ events: [place] }))).toEqual({ ok: false, reason: "The run carries a place from the family's profile. A public run must not." });

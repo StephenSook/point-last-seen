@@ -17,7 +17,7 @@ import {
   type Team,
 } from "../laneC";
 import { DRILL_LABEL } from "../print/printModel";
-import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, RUN_FIELDS } from "./runContract";
+import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, RUN_ENUMS, RUN_FIELDS } from "./runContract";
 import { replayWindow, stateAt } from "./stateAt";
 
 export type ReplayEvent = {
@@ -299,6 +299,9 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     }
     const eventStray = strayField(e, RUN_FIELDS.event, "event");
     if (eventStray) return strayRefusal(eventStray);
+    for (const [field, allowed] of Object.entries(RUN_ENUMS)) {
+      if (!(allowed as readonly unknown[]).includes(e[field])) return refuse("The run has a report of a kind it does not know.");
+    }
     if (!str(e["authorUid"]) || !AUTHOR_PSEUDONYM.test(e["authorUid"])) return refuse(USER_ID);
     if (!DEVICE_PSEUDONYM.test(e["deviceId"])) return refuse(USER_ID);
     if (!num(e["serverTimeMs"])) return refuse("The run has no arrival time for a report.");
