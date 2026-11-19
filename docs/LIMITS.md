@@ -93,6 +93,14 @@ each line says what the limit is and why.
   that completes after the check has answered and before the request reaches the model cannot be stopped from
   the browser, so that one copy can still be read. Its result is then discarded: a clip's reading cannot be
   saved once its record is gone, and a photo tray empties and reloads when the delete is announced.
+- The delete is announced before its files are gone (`mediaRevokedAt` is set first), and each open seat reloads
+  its tray at once, so a photo still being deleted can be listed again for a moment and stay listed until the
+  next reload. Its bytes stay on that laptop only: a cloud read of it needs its family consent record and its
+  Storage file, which the delete removes, and an answer for it needs the file too.
+- A family answer is saved only after Storage confirms the photo, but the save itself is a Firestore write: if
+  Firestore is offline at that moment, the write waits on the laptop and lands when the link returns, even if
+  the search's media was deleted in between. That can bring back the photo's reading (the place cues and the
+  family's answer, never the image) until command deletes the media again.
 - A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
   its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
   carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
