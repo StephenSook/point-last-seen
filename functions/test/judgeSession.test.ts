@@ -251,6 +251,24 @@ describe("startJudgeSession when the pointer names a dead attempt", () => {
   });
 });
 
+describe("startJudgeSession hands out the role only for the visitor's current attempt", () => {
+  it("a start that finds a newer winner by the time it hands out the role leaves that winner's role alone (review round 3)", async () => {
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    const newer = `judge-${uid}-newerattempt`;
+    // While this start pauses before the role, a newer attempt wins and is handed out.
+    const pause = { ...cfg, beforeClaims: async () => {
+      await inc(newer).set({ mode: "judge", status: "open", setupReady: true, createdAt: Timestamp.fromMillis(NOW),
+        expiresAt: Timestamp.fromMillis(NOW + DAY) });
+      await admin.db.doc(`judgeUsers/${uid}`).set({ incidentId: newer, createdAt: Timestamp.fromMillis(NOW) });
+      await admin.auth.setCustomUserClaims(uid, { inc: newer, role: "command", team: null });
+    } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, pause)).rejects.toMatchObject({ code: "unavailable" });
+    expect(await claims(uid)).toEqual({ inc: newer, role: "command", team: null });
+    expect(first).not.toBe(newer);
+  });
+});
+
 describe("startJudgeSession and a sandbox made before setup was tracked", () => {
   const legacy = (uid: string) => admin.db.doc(`incidents/judge-${uid}`);
   async function fullLegacy(uid: string, ids = { segments: ["AA", "AB", "ROW"], teams: ["T1", "T2"] }) {

@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `startJudgeSession` gives the command role only while the practice search is still the visitor's attempt
+  (`judgeUsers/{uid}`), ready and not ended, read right before the role is written. A start that paused and finds a
+  newer winner throws "still being set up" and leaves the winner's role alone, instead of writing its older
+  attempt over it. The check replaces the separate publication read and also refuses an attempt whose window has
+  ended. A whole older sandbox found without a pointer gets one in the same transaction.
+  Source: review (round 3 on the functions: a late request could overwrite the winner's role).
+  Verified: the new test (a start pauses, a newer attempt wins and is given the role, the paused start resumes) failed
+  first with the older attempt written over the winner, now passes; all 22 judge-session tests pass; functions
+  typecheck exits 0.
 - Two tests pin that a visitor whose pointer (`judgeUsers/{uid}`) names a dead attempt gets a fresh practice
   search and never the dead one: an attempt the cleanup job has deleted, and an unfinished attempt whose window has
   ended. Both already held, so the pointer needs no separate pending field.

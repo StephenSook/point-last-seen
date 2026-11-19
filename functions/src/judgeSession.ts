@@ -30,9 +30,22 @@ const STILL_SETTING_UP = "Your practice search is still being set up. Try again 
 /** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */
 type Writer = { set(ref: DocumentReference, data: DocumentData): Promise<unknown>; close(): Promise<void> };
 /** copy: tests wrap the real copy step to delay it or make it fail; writer: tests make single writes fail. */
-type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer };
+type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer;
+  beforeClaims?: () => Promise<void> };
 
-async function giveCommand(auth: Auth, uid: string, incidentId: string): Promise<{ incidentId: string; role: "command" }> {
+/**
+ * Gives the command role on a practice search, but only while it is still the visitor's attempt (judgeUsers/{uid}),
+ * ready and not ended, read right before the role is written. A start that paused and finds a newer winner leaves
+ * that winner's role alone. (A pause between this read and the write itself is the gap left; docs/LIMITS.md.)
+ */
+async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: string, nowMs: number,
+  beforeClaims?: () => Promise<void>): Promise<{ incidentId: string; role: "command" }> {
+  await beforeClaims?.();
+  const [user, sandbox] = await db.getAll(db.doc(`judgeUsers/${uid}`), db.doc(`incidents/${incidentId}`));
+  const exp = sandbox!.get("expiresAt");
+  const current = user!.get("incidentId") === incidentId && sandbox!.get("setupReady") === true
+    && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
+  if (!current) throw new HttpsError("unavailable", STILL_SETTING_UP);
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };
 }
@@ -116,7 +129,10 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     const current = currentId === null ? null : currentId === legacyId ? legacy! : await tx.get(db.doc(`incidents/${currentId}`));
     const exp = current?.get("expiresAt");
     if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs) {
-      if (current.get("setupReady") === true) return { kind: "ready", id: current.id };
+      if (current.get("setupReady") === true) {
+        if (!user!.exists) tx.set(userRef, { incidentId: current.id, createdAt: current.get("createdAt") });
+        return { kind: "ready", id: current.id };
+      }
       // Only a sandbox made before setup was tracked has no flag: checked against the seed below.
       if (current.get("setupReady") === undefined) return { kind: "legacy", id: current.id };
       const started = current.get("setupStartedAtMs");
@@ -141,7 +157,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     return { kind: "build", id: attemptId };
   });
   if (action.kind === "busy") throw new HttpsError("unavailable", STILL_SETTING_UP);
-  if (action.kind === "ready") return giveCommand(auth, uid, action.id);
+  if (action.kind === "ready") return giveCommand(db, auth, uid, action.id, nowMs, cfg.beforeClaims);
 
   let buildId = action.id;
   if (action.kind === "legacy") {
@@ -163,7 +179,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
       return "build" as const;
     });
     if (next === "busy") throw new HttpsError("unavailable", STILL_SETTING_UP);
-    if (next === "ready") return giveCommand(auth, uid, legacyId);
+    if (next === "ready") return giveCommand(db, auth, uid, legacyId, nowMs, cfg.beforeClaims);
     buildId = attemptId;
   }
 
@@ -181,14 +197,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     throw e;
   }
   await settle({ setupReady: true });
-  // Published only while it is still the visitor's attempt and ready.
-  const published = await db.runTransaction(async tx => {
-    const [user, sandbox] = await tx.getAll(userRef, ref);
-    return user!.get("incidentId") === buildId && sandbox!.get("setupReady") === true;
-  });
-  if (!published) throw new HttpsError("unavailable", STILL_SETTING_UP);
   console.log(JSON.stringify({ event: "startJudgeSession", incidentId: buildId, seed: cfg.seedIncidentId }));
-  return giveCommand(auth, uid, buildId);
+  return giveCommand(db, auth, uid, buildId, nowMs, cfg.beforeClaims);
 }
 
 /** Deletes each judge sandbox, with everything under it, once it ended more than a day ago. Returns the ids. */
