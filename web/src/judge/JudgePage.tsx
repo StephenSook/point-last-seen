@@ -81,7 +81,7 @@ export function JudgePage() {
 
       <section aria-labelledby="practice-h">
         <h2 id="practice-h" className="label">Try a practice search</h2>
-        <p>A training incident on a real park map with the real engine. Add one sighting and watch the map and the plan change.</p>
+        <p>A training incident on a real park map with the real engine. Add a sighting, then confirm it under Sightings, and watch the map and the plan change.</p>
         <button type="button" className="btn" onClick={() => void startPractice()} disabled={practice.busy}>
           {practice.busy ? "Starting" : "Try a practice search"}
         </button>

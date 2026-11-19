@@ -38,6 +38,17 @@ describe("changeModel", () => {
     expect(m.banner).toBe("Report logged. Map unchanged. Ask the team.");
   });
 
+  it("points at Confirm for a sighting that moves the map only once confirmed", () => {
+    const sighting = event({ type: "sighting", effect: { kind: "clue", influences: { AC: "strong_for" }, authenticity: "medium" } });
+    const m = changeModel(before, before, sighting);
+    expect(m.changed).toEqual([]);
+    expect(m.banner).toBe("Sighting saved. Confirm it under Sightings to move the map.");
+    expect(m.announce).toBe("Sighting saved. Confirm it under Sightings to move the map.");
+    // A low-likelihood sighting never moves the map, confirmed or not.
+    const low = event({ type: "sighting", effect: { kind: "clue", influences: {}, authenticity: "low" } });
+    expect(changeModel(before, before, low).banner).toBe("Report logged. Map unchanged. Ask the team.");
+  });
+
   it("leaves the rest-of-world mass out of the segment list", () => {
     expect(changeModel(before, after, clueEvent).changed.some((c) => c.segmentId === "ROW")).toBe(false);
   });

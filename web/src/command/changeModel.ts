@@ -41,6 +41,10 @@ function causeLabel(ev: EventDoc): string {
 
 const pct = (v: number | undefined) => Math.round((v ?? 0) * 100);
 
+const CONFIRM_SIGHTING = "Sighting saved. Confirm it under Sightings to move the map.";
+const awaitsConfirm = (ev: EventDoc) =>
+  ev.type === "sighting" && ev.effect.kind === "clue" && (ev.effect.authenticity === "high" || ev.effect.authenticity === "medium");
+
 export function changeModel(before: Readonly<Record<string, number>>, after: Readonly<Record<string, number>>, cause: EventDoc): ChangeResult {
   const ids = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((id) => id !== "ROW");
   const changed = ids
@@ -50,6 +54,8 @@ export function changeModel(before: Readonly<Record<string, number>>, after: Rea
     .sort((a, b) => Math.abs(b.deltaPts) - Math.abs(a.deltaPts) || a.segmentId.localeCompare(b.segmentId));
   const top = changed[0];
   if (!top) {
+    // A likely sighting counts only once confirmed (the engine's rule), so say where the next step is.
+    if (awaitsConfirm(cause)) return { changed: [], banner: CONFIRM_SIGHTING, announce: CONFIRM_SIGHTING };
     return { changed: [], banner: "Report logged. Map unchanged. Ask the team.", announce: "Report logged. Map unchanged." };
   }
   const label = causeLabel(cause);
