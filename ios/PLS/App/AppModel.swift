@@ -284,15 +284,20 @@ final class AppModel {
         stopPlanWatch?()
         stopPlanWatch = nil
         mission = nil
+        offersAlerts = false
         refreshGate()
         followTopicSoon()
     }
 
     /// With a mission loaded: alerts already allowed only register; not yet asked shows the one-time
-    /// question; refused stays quiet.
+    /// question; refused stays quiet. A status read that finishes after the mission was dropped or
+    /// replaced changes nothing.
     private func refreshAlerts() async {
         guard mission != nil else { offersAlerts = false; return }
-        switch await alerts.current() {
+        let generation = missionGeneration
+        let status = await alerts.current()
+        guard generation == missionGeneration, mission != nil else { return }
+        switch status {
         case .allowed:
             offersAlerts = false
             await alerts.registerForPushes()
@@ -311,8 +316,10 @@ final class AppModel {
         openTaskRequests += 1
     }
 
-    /// The searcher's answer to the alerts question; asked once, whatever the answer.
+    /// The searcher's answer to the alerts question; asked once, whatever the answer. With no
+    /// question on screen (the mission was dropped), it asks the system nothing.
     func answerAlerts(_ allow: Bool) async {
+        guard offersAlerts, mission != nil else { offersAlerts = false; return }
         defaults.set(true, forKey: Self.alertsAskedKey)
         offersAlerts = false
         if allow, await alerts.request() { await alerts.registerForPushes() }

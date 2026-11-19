@@ -10,7 +10,12 @@ final class FakeAlerts: AlertPermission, @unchecked Sendable {
     var grants = true
     private(set) var requests = 0
     private(set) var registrations = 0
-    func current() async -> AlertState { state }
+    /// When set, a status read waits here, as the system's settings read can.
+    var hold: ReadGate?
+    func current() async -> AlertState {
+        if let hold { await hold.wait() }
+        return state
+    }
     func request() async -> Bool {
         requests += 1
         state = grants ? .allowed : .refused
@@ -23,13 +28,45 @@ final class FakeAlerts: AlertPermission, @unchecked Sendable {
 /// reach a locked screen; when alerts are already allowed it only registers.
 @MainActor
 @Suite struct AlertOfferTests {
-    func model(_ alerts: FakeAlerts, _ defaults: UserDefaults) throws -> AppModel {
+    func model(_ alerts: FakeAlerts, _ defaults: UserDefaults, backend: FakeJoinBackend = FakeJoinBackend()) throws -> AppModel {
         let segments = try DrillDocs.segments()
         let docs = MissionDocs(incident: try DrillDocs.incident(), segments: segments, plan: nil, sharedProfile: nil)
         return AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
-                        joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: docs), pushTopics: FakePushTopics(),
+                        joinBackend: backend, missionReader: FakeMissionReader(docs: docs), pushTopics: FakePushTopics(),
                         alerts: alerts, defaults: defaults)
+    }
+
+    /// A mission that is dropped takes the question with it: no offer stays on screen, a status read
+    /// still in flight cannot bring it back, and an answer with no offer asks the system nothing.
+    @Test func theOfferGoesWithTheMission() async throws {
+        let alerts = FakeAlerts(), backend = FakeJoinBackend()
+        let m = try model(alerts, freshDefaults(), backend: backend)
+        await m.trySignIn()
+        #expect(m.mission != nil && m.offersAlerts)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(m.mission == nil && !m.offersAlerts)
+        await m.answerAlerts(true)
+        #expect(alerts.requests == 0)
+    }
+
+    /// A status read still running when the mission is dropped cannot bring the question back.
+    @Test func aStatusReadAfterTheDropOffersNothing() async throws {
+        let alerts = FakeAlerts(), backend = FakeJoinBackend()
+        let m = try model(alerts, freshDefaults(), backend: backend)
+        let gate = ReadGate()
+        alerts.hold = gate
+        let loading = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting && m.mission != nil)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        alerts.hold = nil
+        await m.trySignIn()
+        #expect(m.mission == nil)
+        gate.release()
+        await loading.value
+        #expect(m.mission == nil && !m.offersAlerts)
     }
 
     func freshDefaults() -> UserDefaults {

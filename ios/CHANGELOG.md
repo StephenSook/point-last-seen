@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the alerts question goes with a dropped mission
+- What: the question is drawn outside the mission check, and dropping a mission left it set, so it
+  could stay on screen with no mission. A permission status read still running at the drop could
+  also bring it back, and the button could then open the system prompt. Dropping a mission now
+  clears the question. A status read that finishes after the mission was dropped or replaced
+  changes nothing. An answer with no question on screen asks the system nothing.
+- Source: review (finding 7).
+- Verified: tests for a drop with the question showing (gone, and "Turn on alerts" requests
+  nothing) and for a status read held until after a drop (no question); all three expectations
+  failed before the change and pass after; 111 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ### test(ios): the "asked once" test now fails when the saved answer is ignored
 - What: the relaunch check ran after "Turn on alerts", when the system already reported alerts
   allowed, so it passed even with the saved answer removed. The test now relaunches after
