@@ -3,6 +3,7 @@
 // or fails (?save=fail, the server refused). ?deleted=1: the photos were deleted, so a cloud read
 // and a save both refuse with the deleted sentence. No Firebase, no model.
 
+import type { PhotoCues, RouteRecord } from "@pls/engine";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PHOTO_DELETED, PHOTO_UNCHECKED } from "../data/photos";
@@ -17,6 +18,13 @@ const deleted = q.get("deleted") === "1";
 // ?consent=none: the family gave no cloud consent for these photos, so a cloud read refuses.
 const unchecked = q.get("unchecked") === "1";
 const noConsent = q.get("consent") === "none";
+// ?read=laptop|cloud: the read answers with fixed cues and its route, so the receipt can be checked.
+const readAs = q.get("read");
+const cues = (): PhotoCues => ({ placeType: "park", placeName: "", signText: "Synthetic sign A", landmarks: [], outdoors: "yes", evidence: "" });
+const route = (path: "on_device" | "cloud"): RouteRecord => ({
+  platform: "web", path, stage: "sdk", model: path === "on_device" ? "chrome-built-in" : "gemini-3.5-flash-lite",
+  reason: path === "on_device" ? "sdk_only_on_device" : "consented_cloud_read", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0,
+});
 
 async function syntheticJpeg(label: string): Promise<Uint8Array> {
   const c = new OffscreenCanvas(160, 100);
@@ -45,8 +53,12 @@ function Harness() {
         onCheckDevice={async () => {}}
         downloadPct={null}
         onAddFiles={async () => {}}
-        readOnLaptop={async () => ({ refused: "no-on-device-model" })}
-        readInCloud={async () => ({ refused: deleted ? "deleted" : noConsent ? "no-consent" : "not-in-cloud" })}
+        readOnLaptop={async () => (readAs === "laptop" ? { cues: cues(), route: route("on_device"), sentBytes: 0 } : { refused: "no-on-device-model" })}
+        readInCloud={async (p) =>
+          readAs === "cloud"
+            ? { cues: cues(), route: route("cloud"), sentBytes: 4 * Math.ceil(p.bytes.length / 3) }
+            : { refused: deleted ? "deleted" : noConsent ? "no-consent" : "not-in-cloud" }
+        }
         onDecide={() => deleted ? Promise.reject(new Error(PHOTO_DELETED)) : unchecked ? Promise.reject(new Error(PHOTO_UNCHECKED)) : (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
       />
     </main>

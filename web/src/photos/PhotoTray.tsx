@@ -5,11 +5,14 @@
 import type { PhotoCues, RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useState } from "react";
 import type { DeviceState } from "../ai/deviceModel";
+import { receiptLines } from "../ai/receipt";
 import { RouteGlyph } from "../command/RouteGlyph";
 import { PHOTO_DELETED, PHOTO_UNCHECKED, type FamilyDecision } from "../data/photos";
 
 export type TrayPhoto = { sha256: string; bytes: Uint8Array };
-type Read = { cues: PhotoCues; route: RouteRecord } | { couldNot: string } | { noModel: true } | { consent: true };
+/** `sentBytes`: the size of what the read sent (the photo as base64 for a cloud read; 0 on this laptop). */
+type Done = { cues: PhotoCues; route: RouteRecord; sentBytes?: number };
+type Read = Done | { couldNot: string } | { noModel: true } | { consent: true };
 
 type Props = {
   photos: readonly TrayPhoto[];
@@ -18,8 +21,8 @@ type Props = {
   onCheckDevice: () => Promise<void>;
   downloadPct: number | null;
   onAddFiles: (files: File[]) => Promise<void>;
-  readOnLaptop: (p: TrayPhoto) => Promise<{ cues: PhotoCues; route: RouteRecord } | { refused: string }>;
-  readInCloud: (p: TrayPhoto) => Promise<{ cues: PhotoCues; route: RouteRecord } | { refused: string }>;
+  readOnLaptop: (p: TrayPhoto) => Promise<Done | { refused: string }>;
+  readInCloud: (p: TrayPhoto) => Promise<Done | { refused: string }>;
   onDecide: (p: TrayPhoto, cues: PhotoCues | null, route: RouteRecord | null, d: FamilyDecision) => Promise<void>;
 };
 
@@ -147,6 +150,19 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
                   </p>
                   {r.cues.signText && <p className="muted">Sign: "{r.cues.signText}"</p>}
                   {r.cues.landmarks.length > 0 && <p className="muted">Landmarks: {r.cues.landmarks.join(", ")}</p>}
+                  {r.sentBytes !== undefined && (
+                    <details className="receipt">
+                      <summary>What ran</summary>
+                      {receiptLines({
+                        asked: r.route.reason === "consented_cloud_read" ? "the cloud, with the family's consent" : "this laptop only",
+                        route: r.route,
+                        sentBytes: r.sentBytes,
+                        what: "the photo, as base64",
+                      }).map((l) => (
+                        <p key={l} className="small">{l}</p>
+                      ))}
+                    </details>
+                  )}
                 </div>
               )}
               {saveError[p.sha256] && (

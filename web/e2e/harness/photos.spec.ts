@@ -57,3 +57,17 @@ test("each photo row carries its own hash, the name its consent record has", asy
   await expect(page.locator(".photo").nth(0)).toHaveAttribute("data-sha256", "a".repeat(64));
   await expect(page.locator(".photo").nth(1)).toHaveAttribute("data-sha256", "b".repeat(64));
 });
+
+test("a cloud photo read carries a closed What ran receipt with the bytes of the photo sent", async ({ page }) => {
+  await page.goto("/harness/photos.html?read=cloud");
+  const row = page.locator(".photo").first();
+  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await row.getByRole("button", { name: "Read in the cloud" }).click();
+  await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
+  const receipt = row.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
+  await receipt.getByText("What ran", { exact: true }).click();
+  await expect(receipt).toContainText("Asked for: the cloud, with the family's consent.");
+  await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
+  await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
+  await expect(receipt).toContainText(/Sent: [0-9,]+ bytes of the photo, as base64\./);
+});
