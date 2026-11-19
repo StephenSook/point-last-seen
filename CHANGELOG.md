@@ -5,6 +5,31 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/evidence/drill/kennesaw-seed.md` records the Kennesaw drill as seeded: park staff confirmed by email on
+  2026-11-19 that the training exercise needs no Special Use Permit and suggested the trails south of Dallas Highway;
+  the incident `drill-kennesaw-1` (teams T1 to T3, urban terrain marked as the default and not verified for this site,
+  the point last seen on the Kolb Farm Loop Trail) and the exact commands that built and seeded it.
+  Source: the drill's seeding.
+  Verified: every command and value matches the run and its read-back (339 segment documents, prior version 1 with
+  `priorBuiltAt`, the export passes every check); no person or address is named.
+- The Kennesaw Mountain drill grid sits on the trails south of Dallas Highway, as park staff suggested: 338
+  segments, 4.21 km2 over the Kolb's Farm, Cheatham Hill and Old John Ward trails, its northern edge about 100 m below
+  the road. Before, its window was around the Visitor Center and the summits, all north of the road. Its route graph
+  (644 edges) and basemap tiles (Protomaps 2026-11-18) are committed beside it, and `shared/grid/README.md` records
+  how each was made with its sha256.
+  Source: review (park staff's advice for the drill).
+  Verified: the grid tests now cover both sites' graph and tiles (the graph indexes in the engine and is bounded by
+  the grid's box; the tiles are PMTiles v3 covering it) and pin the grid below 33.945 north; they failed first, now
+  all 9 pass; the engine suite passes; rules_gate passes.
+- `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
+  project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
+  Source: review (seen after the merge point's Android build).
+  Verified: `git check-ignore android/.kotlin` matches and `git status` no longer lists it.
+- The Android unit-test floor is the real count, 274, in both `android.yml` and `scripts/ci-local.sh` (it was 150), so
+  losing even one test class fails CI and the local mirror instead of passing quietly.
+  Source: review (a floor far below the count would not notice a dropped class).
+  Verified: the merge point's full local mirror counted 274 Android unit tests, 0 failures, 0 skipped; `count-tests.py
+  --min 274` passes on those results and `--min 275` fails; the ci-local mirror test still finds the two commands equal.
 - `scripts/heavy.sh <command...>` runs any heavy command (a full vitest or Playwright suite, a Gradle or Xcode test
   run) in one of the machine's two heavy-suite slots, with the same rules `ci-local.sh` follows: take a free slot at
   once, or wait on slot 1 naming the process that holds it every 5 minutes, give up after 90 minutes, and never wait

@@ -49,7 +49,7 @@ class ClipReaderTest {
     private fun request(size: Int, consent: ClipConsent? = null, killCloud: Boolean = false) = ClipRequest(
         bytes = bytes(size), mimeType = "video/mp4", durationS = 30,
         clipStartMs = 500L, clockConfirmed = true, cameraFacingDeg = 90, consent = consent ?: consentFor(bytes(size)),
-        killCloud = { killCloud }, modelName = "gemini-3.5-flash-lite", uploaderUid = "u1",
+        killCloud = { killCloud }, templateId = "pls-clip-sighting-v1", uploaderUid = "u1",
     )
 
     @Test fun theReadRunsOnTheGivenWorkerNotTheCallersThread() = runTest {
@@ -187,6 +187,8 @@ class ClipReaderTest {
         assertEquals("cloud", out.route!!.path)
         assertEquals("sdk_only_in_cloud", out.route.reason)
         assertTrue(out.route.sdkReported)
+        // The server template picks the model, so the route names the template that ran.
+        assertEquals("server template pls-clip-sighting-v1", out.route.model)
         assertEquals(Hashes.sha256Hex(request(1000).bytes), record.sha256)
         // The rules accept expiresAt only between server time + 31 days and + 33 days.
         val day = 24L * 3600 * 1000
@@ -323,5 +325,11 @@ class ClipReaderTest {
         val deps = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
         val out = ClipReader(deps).read(request(1000).copy(cameraFacingDeg = null)) as ClipOutcome.Read
         assertNull(out.bearingDeg)
+    }
+
+    /** The route record's model field holds 80 characters at most, so a long template id is cut, never refused. */
+    @Test fun aLongTemplateIdStillFitsTheRouteRecord() {
+        assertEquals(80, ClipReader.templateModel("t".repeat(200)).length)
+        assertEquals("server template pls-clip-sighting-v1", ClipReader.templateModel("pls-clip-sighting-v1"))
     }
 }

@@ -43,6 +43,12 @@ class StatusScreenTest {
         rule.onNodeWithText("I remembered something").assertDoesNotExist()
     }
 
+    /** The fixed line: news about the missing person comes from the search lead by phone, never from the app. */
+    @Test fun theStatusSaysNewsComesFromTheSearchLeadByPhone() {
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, subjectName = "Mae") } }
+        rule.onNodeWithText("News about Mae comes from your search lead by phone, never from this app.").assertIsDisplayed()
+    }
+
     @Test fun unsentItemsAreCounted() {
         rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 2, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
         rule.onNodeWithText("2 items waiting to send.").assertIsDisplayed()
