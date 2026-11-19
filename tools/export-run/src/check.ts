@@ -2,12 +2,12 @@
 // breach, so the reader is a second wall rather than the only one.
 import { DEFAULT_PARAMS } from "@pls/engine";
 import routeSchema from "../../../shared/schemas/route-record.schema.json";
-import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, RUN_FIELDS } from "./contract";
+import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, MAX_RUN_EVENTS, RUN_FIELDS } from "./contract";
 
 const ROUTE_FIELDS = Object.keys(routeSchema.properties);
 const UNSAFE_IDS = new Set(["__proto__", "constructor", "prototype"]);
 const YEAR_2000 = Date.UTC(2000, 0, 1), YEAR_2100 = Date.UTC(2100, 0, 1);
-const MAX_SPAN_MS = 7 * 86_400_000, MAX_EVENTS = 1000;
+const MAX_SPAN_MS = 7 * 86_400_000, MAX_EVENTS = MAX_RUN_EVENTS;
 const CLEARED_INPUTS = ["coverage", "sweepWidthM", "trackLengthM", "areaM2", "rdBasis"];
 
 const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);

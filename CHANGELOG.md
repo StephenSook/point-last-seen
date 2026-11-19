@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The public-run exporter imports the judge replay reader's contract (`web/src/extras/replay/runContract.ts`:
+  fields, pseudonym shapes, the 1,000-event cap) instead of keeping a copy, and a new test runs an exported run
+  through the reader's own full check (`fromPublishedRun`). A negative control proves that check refuses a run with
+  a field the contract lacks. `PLS_RUN_FILE=<file>` runs the same check on a real export before it is published.
+  The exporter's typecheck now has the DOM, JSX and Vite types the reader's modules need.
+  Source: review (exporter and reader must not drift apart).
+  Verified: 22 exporter tests pass, including the reader check on the shared fixture and on a fresh read-only
+  export of drill-dev-1 (68 segments, 24 events, 18 plans); the export command still runs; typecheck exit 0;
+  `bash scripts/ci-local.sh` exit 0.
 - The rules workflow also runs when `shared/constants/**`, `shared/schemas/**`, `shared/templates/**` or
   `storage.lifecycle.json` change, since the functions code and tests read them. A new guard,
   `scripts/test_workflow_paths.py`, finds every such file the functions code and tests name and fails when the
