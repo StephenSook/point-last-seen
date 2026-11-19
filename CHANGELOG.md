@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/LIMITS.md` says what the published drill run leaves out and the one link it keeps: event ids stay as
+  stored, so someone who already holds a participant's uid could check which events are theirs (uids are never
+  published; every published run is a drill on team-owned devices). It also describes the media revoke marker,
+  and no longer says the sandbox media sweep waits for a rules deploy: it has been live since 2026-11-18.
+  Source: review (the exporter's event-id finding, kept and documented; the fact-sheet audit).
+  Verified: the sweep's `ops/storage` heartbeat read green earlier on 2026-11-18; `bash scripts/ci-local.sh`
+  exit 0.
 - `docs/evidence/model-latency.md` records why live cloud paths use the flash-lite family: one sample of
   `gemini-3.8-flash` took 116,071 ms (333 thinking tokens) on 2026-11-17, against a flash-lite median of 839 ms
   (925 ms with cloudGuard) over 10 warm calls on 2026-11-18. It says plainly that the slow figure is one sample and
