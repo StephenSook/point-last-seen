@@ -1215,3 +1215,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: every prior batch (`priorBatchOps`: ring rebuilds, layer changes, walker runs and camera Confirm) adds `priorBuiltAt: serverTimestamp()` to the incident update that carries the version step. The rules take the field only in a write that raises `priorVersion` by exactly one and only as the server's time; the exporter publishes it as `priorBuiltAtMs` for the replay.
 - Source: shared rules for `priorBuiltAt` (live since ca5b51f).
 - Verified: new `write.test.ts` test (the incident update has the version step and a server-timestamp `priorBuiltAt`) failed first, then passed; 27 prior unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(config): cite the one-sample latency record behind the flash-lite rule
+- What: the comment above `LIVE_MODEL` in `config/rc.ts` now says the 116 s figure is one sample (116,071 ms) and points at `docs/evidence/model-latency.md`, where the model and the record are now public. The comment does not name the model id, because the rules gate refuses that id on any live path. No code change.
+- Source: evidence file published on main.
+- Verified: the figures match the evidence table on main (one sample, 116,071 ms, 2026-11-17); a first wording that named the model id failed the rules gate ("banned on any live path") and was reworded. Typecheck clean. scripts/ci-local.sh exit 0.
