@@ -24,7 +24,13 @@ const FIXED: ClipReadOutcome = {
   },
 };
 const params = new URLSearchParams(location.search);
-const answer = params.get("outcome") === "read" ? FIXED : ({ kind: "could-not-read" } as const);
+// ?outcome=failed-early: the read fails before any consent record exists; failed-late: after one was written.
+const outcomes: Record<string, ClipReadOutcome> = {
+  read: FIXED,
+  "failed-early": { kind: "failed", recorded: false },
+  "failed-late": { kind: "failed", recorded: true },
+};
+const answer: ClipReadOutcome = outcomes[params.get("outcome") ?? ""] ?? { kind: "could-not-read" };
 // ?triage=no-model|no-motion|no-person|flagged: a fixed triage answer (no on-device model here).
 const TRIAGE: Record<string, TriageResult> = {
   "no-model": { kind: "no-model" },
@@ -33,12 +39,19 @@ const TRIAGE: Record<string, TriageResult> = {
   flagged: { kind: "flagged", window: { startS: 1, endS: 5 }, windows: [], latencyMs: 5 },
 };
 const triage = params.get("triage");
+// ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
+const slowTriage = params.get("slowtriage") === "1";
+let finishTriage: (() => void) | null = null;
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
   const [asked, setAsked] = useState<ClipIntakeInput | null>(null);
   const [confirmed, setConfirmed] = useState<string>("");
   const [how, setHow] = useState<string>("");
+  // How many reads reached the model fake: a test of a second read waits for it before checking its options.
+  const [calls, setCalls] = useState(0);
+  // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
+  const [revocation, setRevocation] = useState(0);
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
@@ -47,10 +60,14 @@ function Harness() {
         cameraSegmentId={camera ? segmentContaining(camera, HARNESS_SEGMENTS) : null}
         choices={segmentChoices(HARNESS_SEGMENTS)}
         onPlaceCamera={setCamera}
-        onTriage={triage ? async () => TRIAGE[triage]! : undefined}
+        onTriage={triage ? async () => {
+          if (slowTriage) await new Promise<void>((resolve) => (finishTriage = resolve));
+          return TRIAGE[triage]!;
+        } : undefined}
         onRead={async (input, h) => {
           setAsked(input);
           setHow(JSON.stringify(h));
+          setCalls((n) => n + 1);
           return answer;
         }}
         onConfirm={(o, input) => {
@@ -58,9 +75,17 @@ function Harness() {
           return { version: 8, ack: Promise.resolve() };
         }}
         onClose={() => {}}
+        revocation={revocation}
       />
+      <button type="button" onClick={() => setRevocation((n) => n + 1)}>
+        Media deleted
+      </button>
+      <button type="button" onClick={() => finishTriage?.()}>
+        Triage finishes
+      </button>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
+      <pre data-testid="calls">{calls}</pre>
       <pre data-testid="asked">{asked ? JSON.stringify({ ...asked, bytes: asked.bytes.length }) : ""}</pre>
     </main>
   );

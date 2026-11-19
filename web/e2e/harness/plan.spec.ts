@@ -23,7 +23,18 @@ test("a reply that arrives after the assignments changed is dropped, not shown o
   await page.getByRole("button", { name: /^Suggest/ }).click();
   await page.getByRole("button", { name: "Assignments change" }).click();
   await page.getByRole("button", { name: "Model answers" }).click();
-  await page.waitForTimeout(200);
+  // The reply has finished once Suggest plan is enabled again.
+  await expect(page.getByRole("button", { name: "Suggest plan" })).toBeEnabled();
+  await expect(page.getByTestId("suggested-plan")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
+});
+
+test("a reply worded for older probabilities is dropped even when the assignments did not change", async ({ page }) => {
+  await page.goto("/harness/plan.html?slow=1");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  await page.getByRole("button", { name: "Probabilities change" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("button", { name: "Suggest plan" })).toBeEnabled();
   await expect(page.getByTestId("suggested-plan")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
 });

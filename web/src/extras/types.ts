@@ -18,4 +18,6 @@ export type DockProps = {
   map: unknown;
   /** Harness and tests only: where the site's elevation file comes from. Defaults to the app's own origin. */
   loadElevation?: (gridId: string) => Promise<unknown>;
+  /** The command post's delete-media control (counting and the server call); the menu shows it when given. */
+  deleteMedia?: { count: () => Promise<{ clips: number; photos: number; records: number }>; run: () => Promise<number | null> };
 };

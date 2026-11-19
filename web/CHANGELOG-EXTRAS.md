@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
+- Merge: main (f0f8eb8, with the web lane's delete control) into the extras branch. Two files conflicted. In `ExtrasDock.tsx`, this branch's rewritten dock is kept, and "Delete this search's clips and photos" is added as the last menu item, after Terrain. It opens the web lane's `DeleteMedia` in a dialog that returns focus to More, exactly as on main. In `types.ts`, both optional props are kept (`loadElevation` and `deleteMedia`). The web lane's `laneC.ts` export and its dock harness fakes merged without conflict. A new browser check confirms the delete item is last, with the order before it unchanged. Source: merge to main. Verified: the web lane's delete checks pass 2 of 2; the extras browser checks pass 42 of 42; the extras unit tests pass 190; web typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+
 - Docs: correct the verification claim in the placeholder fix below. A plain count of the placeholder's name is not 0, because these entries name it. Source: commit check. Verified: `grep -c 'exit CI_EXIT[.)]' web/CHANGELOG-EXTRAS.md` returns 0 after this commit, so no entry's exit code is still the placeholder; `bash scripts/ci-local.sh` exit 0.
 
 - Merge: main (108281d) into the extras branch again, because main moved after the first merge. No conflicts, no extras file changed, and no lockfile change. Main's run exporter now holds the reader's shape and size rules in its own copy of the contract. Source: merge to main. Verified: `bash scripts/ci-local.sh` exit 0 (it runs the exporter's tests too). Correction: the merge commit b89b3fd recorded this as "exit CI_EXIT", a placeholder the commit step did not replace; the run it stands for exited 0.

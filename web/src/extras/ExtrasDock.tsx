@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
 import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
-import { printableApproachLines, type IncidentView } from "./laneC";
+import { DeleteMedia, printableApproachLines, type IncidentView } from "./laneC";
 import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
 import type { PrintSessionData } from "./print/PrintSession";
 import { buildPrintModel, DRILL_LABEL } from "./print/printModel";
@@ -16,15 +16,16 @@ const replayTitle = "Replay";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
 const checkTitle = "Check a radio code";
+const deleteTitle = "Delete this search's clips and photos";
 
-type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "replay" };
+type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "replay" } | { kind: "delete" };
 
-export function ExtrasDock({ incidentId, state, vs, map, loadElevation = fetchElevation }: DockProps): JSX.Element | null {
+export function ExtrasDock({ incidentId, state, vs, map, loadElevation = fetchElevation, deleteMedia }: DockProps): JSX.Element | null {
   if (state.denied || state.view === null) return null;
-  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} map={map} loadElevation={loadElevation} />;
+  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} map={map} loadElevation={loadElevation} deleteMedia={deleteMedia} />;
 }
 
-function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProps, "state" | "vs" | "map"> & {
+function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: Pick<DockProps, "state" | "vs" | "map" | "deleteMedia"> & {
   view: IncidentView;
   loadElevation: (gridId: string) => Promise<unknown>;
 }) {
@@ -125,6 +126,13 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
               {!terrain.available && <small>Available once the map has loaded.</small>}
             </button>
           )}
+          {/* Last in the menu: the one item that deletes. */}
+          {deleteMedia && (
+            <button type="button" role="menuitem" onClick={() => {
+              setSurface({ kind: "delete" });
+              setOpen(false);
+            }}>{deleteTitle}</button>
+          )}
         </div>
       </div>
       {exportFailed && <p role="alert" className="extras-dock-alert">GeoJSON could not be exported.</p>}
@@ -150,7 +158,12 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation }: Pick<DockProp
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
-      {surface && surface.kind !== "check" && surface.kind !== "replay" && (
+      {surface?.kind === "delete" && deleteMedia && (
+        <ExtrasDialog title={deleteTitle} onClose={closeDialog} returnFocus={more}>
+          <DeleteMedia count={deleteMedia.count} run={deleteMedia.run} onClose={closeDialog} />
+        </ExtrasDialog>
+      )}
+      {surface && surface.kind !== "check" && surface.kind !== "replay" && surface.kind !== "delete" && (
         <ExtrasBoundary fallback={
           <ExtrasDialog title={surface.kind === "cards" ? cardsTitle : assignmentTitle} onClose={closeDialog} returnFocus={more}>
             <p role="alert" className="extras-panel-error">{PANEL_LOAD_FAILED}</p>

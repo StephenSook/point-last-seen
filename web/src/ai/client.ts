@@ -4,7 +4,7 @@
 import type { FirebaseApp } from "firebase/app";
 import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
-import { photoCloudParams, photoParams, type PhotoDeps } from "./photoCues";
+import { photoParams, type PhotoDeps } from "./photoCues";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
@@ -79,9 +79,17 @@ export function photoGenerator(ai: AI): PhotoDeps["generate"] {
   return photoGeneratorFor(getGenerativeModel(ai, photoParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
-/** The consented cloud read of one photo (ONLY_IN_CLOUD). */
-export function photoCloudGenerator(ai: AI, model: string): PhotoDeps["generate"] {
-  return photoGeneratorFor(getGenerativeModel(ai, photoCloudParams(model), { timeout: REPLY_TIMEOUT_MS }));
+/** The consented cloud read of one photo through its server template: only the id and the JPEG leave the laptop. */
+export function photoTemplateGeneratorFor(model: TemplateModel, templateId: string): PhotoDeps["generate"] {
+  return async (jpegBase64) => {
+    const r = await model.generateContent({ templateId, templateVariables: { mimeType: "image/jpeg", imageData: jpegBase64 } });
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/** Remote Config photo_template_id; the template holds the model, the instruction and the output schema. */
+export function photoTemplateGenerator(ai: AI, templateId: string): PhotoDeps["generate"] {
+  return photoTemplateGeneratorFor(getTemplateGenerativeModel(ai, { timeout: REPLY_TIMEOUT_MS }) as unknown as TemplateModel, templateId);
 }
 
 /** A clip of up to 14,000,000 bytes is sent inline and read as video, so it gets longer than a text or photo read. */

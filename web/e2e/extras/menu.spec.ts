@@ -27,3 +27,12 @@ test("with a site elevation file, Terrain is the last item", async ({ page }) =>
   const names = await page.getByRole("menu", { name: "More" }).locator('[role^="menuitem"]').evaluateAll((items) => items.map((i) => i.firstChild?.textContent?.trim() ?? ""));
   expect(names.at(-1)).toBe("Terrain");
 });
+
+test("the delete item, when the command post offers it, is last in the menu", async ({ page }) => {
+  await page.goto("/extras-harness/dock.html");
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  const names = await page.getByRole("menu", { name: "More" }).locator('[role^="menuitem"]').evaluateAll((items) => items.map((i) => i.firstChild?.textContent?.trim() ?? ""));
+  expect(names.at(-1)).toBe("Delete this search's clips and photos");
+  expect(names.slice(0, 4)).toEqual(["Replay", "Print assignment sheet", "Print radio cards", "Check a radio code"]);
+});
+

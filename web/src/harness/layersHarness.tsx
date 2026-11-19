@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { LayerSwitches } from "../command/LayerSwitches";
 import "../theme/fonts.css";
 import "../theme/base.css";
+import { PRIOR_SUPERSEDED } from "../prior/refusal";
 
 function Harness() {
   const [applied, setApplied] = useState("");
@@ -34,6 +35,10 @@ function Harness() {
       </button>
       <button type="button" onClick={() => writes.current.shift()?.reject(Object.assign(new Error("x"), { code: "permission-denied" }))}>
         Server refuses the first
+      </button>
+      {/* What writePrior reports after the server confirms another seat saved a newer prior. */}
+      <button type="button" onClick={() => writes.current.shift()?.reject(Object.assign(new Error("x"), { code: PRIOR_SUPERSEDED }))}>
+        Another seat saved first
       </button>
     </main>
   );

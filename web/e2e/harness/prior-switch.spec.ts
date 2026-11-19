@@ -40,3 +40,29 @@ test("a ghost button's border is fg-4, so the control's edge is visible on dark 
   const border = await page.getByRole("region", { name: "Prior model" }).getByRole("button", { name: "Walkers" }).evaluate((e) => getComputedStyle(e).borderTopColor);
   expect(border).toBe("rgb(137, 133, 131)"); // fg-4 #898583
 });
+
+test("an older write refused while the next run is going leaves no alert beside the newer success", async ({ page }) => {
+  await page.goto("/harness/prior-switch.html?race=1");
+  await page.getByRole("button", { name: "Walkers" }).click();
+  await page.getByRole("button", { name: "Run walkers" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await page.getByRole("button", { name: "Rings" }).click();
+  await page.getByRole("button", { name: "Use rings" }).click();
+  await page.getByRole("button", { name: "Refuse the first write" }).click();
+  await page.getByRole("button", { name: "Second run finishes" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v7.");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("an earlier write refused while the next run fails does not stay on Sending", async ({ page }) => {
+  await page.goto("/harness/prior-switch.html?race=fail");
+  await page.getByRole("button", { name: "Walkers" }).click();
+  await page.getByRole("button", { name: "Run walkers" }).click();
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await page.getByRole("button", { name: "Rings" }).click();
+  await page.getByRole("button", { name: "Use rings" }).click();
+  await page.getByRole("button", { name: "Refuse the first write" }).click();
+  await page.getByRole("button", { name: "Second run finishes" }).click();
+  await expect(page.getByRole("alert")).toHaveText("The walker run failed.");
+  await expect(page.getByText(/Sending/)).toHaveCount(0);
+});
