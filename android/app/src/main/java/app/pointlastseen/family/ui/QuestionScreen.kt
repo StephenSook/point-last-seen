@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.pointlastseen.family.data.FamilyAnswer
+import app.pointlastseen.family.data.QuestionCheck
 
 /** The search lead's question, read from the server; [answer] is set once it has been answered. */
 data class QuestionUi(
@@ -19,6 +20,26 @@ data class QuestionUi(
     val sending: Boolean = false,
     val error: String? = null,
 )
+
+/**
+ * What the app shows once the incident's question list has been read. A push only says that a question
+ * exists; the question and its id come from the server list. At start the app opens a waiting question
+ * only while the family is still on the screen the app opened on.
+ */
+object QuestionOpen {
+    const val NONE_WAITING = "No question is waiting right now."
+    const val READ_FAILED = "The question could not be read. Check the connection and try again."
+
+    /** [questionId] is where an answer goes; [navigate] opens the question screen. */
+    data class Shown(val questionId: String?, val ui: QuestionUi, val navigate: Boolean)
+
+    fun decide(check: QuestionCheck, fromPush: Boolean, screenUnchanged: Boolean): Shown? = when (check) {
+        is QuestionCheck.Waiting ->
+            if (fromPush || screenUnchanged) Shown(check.id, QuestionUi(text = check.text), navigate = screenUnchanged) else null
+        QuestionCheck.NoneWaiting -> if (fromPush) Shown(null, QuestionUi(error = NONE_WAITING), navigate = screenUnchanged) else null
+        QuestionCheck.Failed -> if (fromPush) Shown(null, QuestionUi(error = READ_FAILED), navigate = screenUnchanged) else null
+    }
+}
 
 /** The search lead asks one question; the family answers it once. */
 @Composable

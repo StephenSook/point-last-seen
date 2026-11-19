@@ -37,7 +37,9 @@ import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
 import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
+import app.pointlastseen.family.ui.QuestionOpen
 import app.pointlastseen.family.ui.QuestionUi
 import app.pointlastseen.family.data.FirebasePhotoBucket
 import app.pointlastseen.family.data.FirestorePhotoConsentSink
@@ -69,6 +71,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -118,10 +121,18 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
     private var lastClipStartMs: Long = 0L
 
+    // The search lead's question: listed from the server, opened by the id from that list, answered once.
+    // Declared before init, which runs the first check.
+    var questionUi by mutableStateOf(QuestionUi())
+        private set
+    private var openQuestion: Pair<String, String>? = null
+    private val questions: FamilyQuestionStore = FirestoreFamilyQuestions()
+    private var questionCheck: Job? = null
+
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it) }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
         // After a restart in the gone-and-joined state, write the profile again (idempotent).
         publishIfGone()
@@ -163,6 +174,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
     fun leaveSearch() {
+        questionCheck?.cancel()
+        openQuestion = null
         watch.stop()
         session.incidentId()?.let { familyTopic.left(it) }
         session.leave()
@@ -186,6 +199,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     watch.watch(out.incidentId)
                     familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
+                    // A question asked before this phone joined had its push before the topic was subscribed.
+                    checkQuestions(out.incidentId, fromPush = false)
                 }
                 is JoinOutcome.Failed -> joinError = out.message
             }
@@ -365,18 +380,31 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // The search lead's question: read from the server when opened, answered once.
-    var questionUi by mutableStateOf(QuestionUi())
-        private set
-    private var openQuestion: Pair<String, String>? = null
-    private val questions: FamilyQuestionStore = FirestoreFamilyQuestions()
-
-    fun openQuestion(incidentId: String, questionId: String) {
+    /** A tapped "The search lead has a question" opens the newest unanswered question listed on the server. */
+    fun questionPushOpened(incidentId: String) {
         if (session.incidentId() != incidentId) return
-        openQuestion = incidentId to questionId
+        openQuestion = null
         questionUi = QuestionUi(loading = true)
         open(Screen.QUESTION)
-        viewModelScope.launch { loadQuestion(incidentId, questionId) }
+        checkQuestions(incidentId, fromPush = true)
+    }
+
+    /**
+     * Lists the incident's questions from the server and opens the newest unanswered one. A push check
+     * replaces a check in progress; a start or join check is skipped while one runs.
+     */
+    private fun checkQuestions(incidentId: String, fromPush: Boolean) {
+        if (!fromPush && questionCheck?.isActive == true) return
+        questionCheck?.cancel()
+        val shownAt = nav.screen
+        questionCheck = viewModelScope.launch {
+            val check = FamilyQuestions.check(questions, incidentId)
+            if (session.incidentId() != incidentId) return@launch
+            val shown = QuestionOpen.decide(check, fromPush, screenUnchanged = nav.screen == shownAt) ?: return@launch
+            openQuestion = shown.questionId?.let { incidentId to it }
+            questionUi = shown.ui
+            if (shown.navigate) open(Screen.QUESTION)
+        }
     }
 
     private suspend fun loadQuestion(incidentId: String, questionId: String, error: String? = null) {
@@ -385,7 +413,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             if (q == null) QuestionUi(error = "The question could not be found.") else QuestionUi(text = q.text, answer = q.answer, error = error)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            QuestionUi(error = "The question could not be read. Check the connection and try again.")
+            QuestionUi(error = QuestionOpen.READ_FAILED)
         }
     }
 

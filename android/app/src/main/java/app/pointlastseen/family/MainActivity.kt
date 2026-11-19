@@ -72,12 +72,14 @@ class MainActivity : ComponentActivity() {
         handleFamilyQuestion(intent)
     }
 
-    /** A tapped "The search lead has a question" opens that question; the text is read from the server. */
+    /**
+     * A tapped "The search lead has a question" opens the newest unanswered question listed on the server.
+     * No question id is ever taken from the push: any installation can subscribe to a topic.
+     */
     private fun handleFamilyQuestion(intent: Intent?) {
         if (intent?.getStringExtra("kind") != "question") return
         val incident = intent.getStringExtra("incidentId") ?: return
-        val question = intent.getStringExtra("questionId") ?: return
-        vm.openQuestion(incident, question)
+        vm.questionPushOpened(incident)
     }
 
     /** A clip shared from a camera or gallery app opens the clip screen; file:// and this app's own URIs are refused. */
