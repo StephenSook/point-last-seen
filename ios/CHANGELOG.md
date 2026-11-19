@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): read the shared profile's tracking aids
+- What: profile/shared gains `trackingAids` ({ aids, note }), the tracking aids the family named.
+  The iPhone now reads it: absent means unknown, missing parts read as empty, and it is written
+  back only when present. It is for the search cards only; the profile text a model may see is
+  unchanged by it. Unknown aid values are kept here and skipped where the card lines are built.
+- Source: shared profile schema change (tracking aids).
+- Verified: a test for a profile with aids and a note, one without the field, one with only aids,
+  the written form, and the model-facing text being the same with or without the aids. It failed
+  to compile before the change and passes after; 270 PLSCore tests pass. The schema parity check
+  passes only together with the schema change that adds the field (checked on a dry merge).
+
 ### docs(ios): plain engineering words in the changelog and two comments
 - What: earlier entries and two comments named work streams and private review notes. They now say
   what the source was in plain words ("the security rules contract", "a pack design decision",
