@@ -361,6 +361,13 @@ final class AppModel {
         }
         if mission?.incidentId == incidentId, mission?.teamId == teamId {
             membership = (incidentId, teamId)
+            // The claims are unchanged, but command may have closed the incident: when its status
+            // can be read and is no longer open, the mission goes. With no signal it stays.
+            let generation = missionGeneration
+            guard let status = try? await missionReader.incidentStatus(incidentId: incidentId),
+                  check == accessCheck, generation == missionGeneration, status != "open" else { return }
+            dropMission()
+            joinMessage = MissionBuilder.Failure.notOpen.message
             return
         }
         // Another incident or team now: the old mission, its plan listener and its spoken updates

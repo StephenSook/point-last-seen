@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a closed incident drops its mission even when the claims are unchanged
+- What: the sign-in check returned early when the claims still named the loaded mission's
+  incident and team, so an incident command had closed kept its mission (and its listener and
+  reports) through every sign-in and reconnect. That check now also reads the incident's status.
+  If it can be read and is no longer open, the mission is dropped and the join screen says "This
+  incident is not open for searching." With no signal the mission stays, as before.
+- Source: review (finding 4, second round).
+- Verified: a test closes the incident with unchanged claims: no signal keeps the mission, then a
+  readable closed status drops it (listener stopped, the message shown). It failed before the
+  change and passes after; 112 app tests pass.
+
 ### fix(ios): a plan counts only when its stored version is a whole number
 - What: the phone turns a Firestore Timestamp into epoch milliseconds, so a plan whose `version`
   was stored as a Timestamp read as a huge version, and every later plan would have been ignored as

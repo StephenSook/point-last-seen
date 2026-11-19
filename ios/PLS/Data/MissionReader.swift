@@ -8,6 +8,9 @@ protocol MissionReader: Sendable {
     /// Calls `onPlan` with the latest approved plan now and whenever command approves a newer one;
     /// the result stops listening.
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void
+    /// The incident's `status` ("open" while searching); nil when it has none. Throws when it
+    /// cannot be read.
+    func incidentStatus(incidentId: String) async throws -> String?
 }
 
 /// From Firestore, as a member of the incident (the rules let every member read these): the
@@ -26,6 +29,10 @@ struct FirestoreMissionReader: MissionReader {
                            segments: try await segments.documents.map { FirestoreJSON.value($0.data()) },
                            plan: try await plans.documents.first.flatMap { FirestoreJSON.plan($0.data()) },
                            sharedProfile: profileData.map(FirestoreJSON.value))
+    }
+
+    func incidentStatus(incidentId: String) async throws -> String? {
+        try await Firestore.firestore().collection("incidents").document(incidentId).getDocument().data()?["status"] as? String
     }
 
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void {

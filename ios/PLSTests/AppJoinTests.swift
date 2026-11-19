@@ -47,6 +47,14 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         guard let docs else { throw URLError(.notConnectedToInternet) }
         return docs
     }
+
+    private(set) var statusReads = 0
+    func incidentStatus(incidentId: String) async throws -> String? {
+        statusReads += 1
+        guard let docs else { throw URLError(.notConnectedToInternet) }
+        if case let .string(s)? = docs.incident["status"] { return s }
+        return nil
+    }
 }
 
 /// After a join the phone reads its team's mission and loads it; at launch, a searcher who joined
@@ -217,6 +225,21 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         gate.release()
         await resuming.value
         #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
+    }
+
+    /// An incident command closed, with the claims unchanged: the next sign-in check reads its status
+    /// and drops the mission with the closure message. With no signal the mission stays.
+    @Test func aClosedIncidentIsDroppedEvenWithUnchangedClaims() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        reader.docs = nil
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        reader.docs = try drillDocs(status: "closed")
+        await m.trySignIn()
+        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == "This incident is not open for searching.")
     }
 
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
