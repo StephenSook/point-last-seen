@@ -1385,3 +1385,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: for an accepted run the Numbers section reads "Published run drill-dev-1-2026-11-19." (the file's own id); the sentence "The numbers panel is added with the recompute script." is gone, since that panel is not built.
 - Source: review of the judge page copy.
 - Verified: the served-run test now checks the Numbers line names the run and says nothing about a recompute; it failed first (the old sentence was there), then passed; 13 of 13 no-backend browser checks pass against a placeholder build. scripts/ci-local.sh exit 0.
+
+### test(judge): pin the published run's match code at T43J
+- What: the served-run test now requires the replay's end-frame match code to be T43J, the code of the committed file (24 reports, plan v18), instead of any four characters. A change to the engine or the replay reader that moves the judged map now fails this test; re-exporting the run changes the file and the code in the same commit.
+- Source: review of the judge replay tests.
+- Verified: a copy of the test pinned to T43K failed with "Received: T43J"; the T43J pin passes; 13 of 13 no-backend browser checks pass. scripts/ci-local.sh exit 0.

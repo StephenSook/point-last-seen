@@ -52,7 +52,9 @@ test("the site serves its published drill run, and the judge page replays it", {
   expect(file.label).toContain("Training drill. Nobody is missing.");
   await page.goto("/judge");
   const section = page.getByRole("region", { name: "Watch the run over time" });
-  await expect(section.getByTestId("replay-code")).toHaveText(/^[0-9A-Z]{4}$/);
+  // The end frame of this exact file: a change to the engine or the reader that moves the judged map fails here.
+  // Re-exporting the run changes the file and this code in the same commit.
+  await expect(section.getByTestId("replay-code")).toHaveText("T43J");
   await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
   await expect(page.getByTestId("replay-refused")).toHaveCount(0);
   // The Numbers section says what is there and promises nothing that is not built.
