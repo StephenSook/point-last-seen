@@ -8,11 +8,13 @@ import Foundation
 final class SignIn {
     private let isSignedIn: () -> Bool
     private let attempt: () async -> Bool
+    private let signOutAction: () -> Void
     private var inFlight = false
 
-    init(isSignedIn: @escaping () -> Bool, attempt: @escaping () async -> Bool) {
+    init(isSignedIn: @escaping () -> Bool, attempt: @escaping () async -> Bool, signOut: @escaping () -> Void = {}) {
         self.isSignedIn = isSignedIn
         self.attempt = attempt
+        self.signOutAction = signOut
     }
 
     /// Firebase Auth: anonymous sign-in.
@@ -24,10 +26,13 @@ final class SignIn {
             } catch {
                 return false
             }
-        })
+        }, signOut: { try? Auth.auth().signOut() })
     }
 
     var signedIn: Bool { isSignedIn() }
+
+    /// Leaves the anonymous account: the next sign-in is a new user with no claims.
+    func signOut() { signOutAction() }
 
     /// True when signed in, after trying once more if needed.
     func ensure() async -> Bool {

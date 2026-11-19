@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): a searcher can leave the search from the Ready check
+- What: the iPhone had no way to leave a search: the join form shows only with no mission
+  loaded, so a phone stayed on its incident until command changed its claims. The Ready check now
+  has "Leave this search", with a confirm. Leaving stops speech, leaves the team's push topic,
+  drops the mission and signs the anonymous account out, so the next join is a new user and the
+  join form shows again. While any report is not yet settled with the server, leaving is refused
+  with the reason, since signing out would strand that report's write.
+- Source: drill planning (one phone joins several searches; volunteers leave at the end).
+- Verified: tests that leaving shows the join form (mission gone, topic left, signed out, speech
+  stopped), that a push for the old team afterwards opens nothing (with no user and with a new
+  user), and that an unsettled report blocks leaving. They failed to compile before the change
+  and pass after; 155 app tests pass.
+
 ### docs: iOS shows a background push as sent, with no service extension
 - What: LIMITS.md now says that on iPhone a push arriving while the app is in the background or
   closed is shown by iOS from its payload as sent, since there is no notification service
