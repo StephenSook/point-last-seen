@@ -1475,3 +1475,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `askFamily` now writes with `addDoc`, so Firestore's own auto-id (20 letters and digits) names the question, which is exactly what the familyQuestions rule requires, instead of an id made in this file. The hand-made id and its test are gone.
 - Source: the familyQuestions create rule (auto-id only).
 - Verified: 6 family question tests pass; typecheck clean; the rules tests in scripts/ci-local.sh cover a command create at an auto-id. scripts/ci-local.sh exit 0.
+
+### feat(command): put the family channel on the command post
+- What: the post's right rail now has the Family section: Searching or Paused for the family (from `incident.searchState`, sent with `tellFamily`), the three question templates, Ask (`askFamily`, auto-id), and the family's answers as they arrive (`subscribeQuestions`). If the questions cannot be read (for example before the channel's rules are deployed), the section is not drawn and the rest of the post keeps working; that refusal never counts as the post losing access.
+- Source: Ask the family (coordinator queue), with the family-channel rules.
+- Verified: a new read-only deployed test (`e2e/family.spec.ts`: the Family region, Searching and Paused, a template) failed on the live site at 784f5e2 (no section); it passes once this deploy and the channel's rules are both live. The 6 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
