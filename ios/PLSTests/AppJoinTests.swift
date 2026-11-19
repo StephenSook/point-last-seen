@@ -316,6 +316,60 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.missionEntries.map(\.doc.incidentId) == ["drill-dev-1"] && store.entries.count == 2)
     }
 
+    /// A load that is still speaking when a newer load takes over never installs its listener
+    /// afterwards: the newer team's listener stays, and its plans keep arriving.
+    @Test(.timeLimit(.minutes(1))) func anOldLoadNeverReplacesTheNewTeamsListener() async throws {
+        final class HeldVoice: AssignmentVoice {
+            let gate = ReadGate()
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                await gate.wait()
+                return stillWanted() ? 1 : nil
+            }
+            func stop() {}
+        }
+        let voice = HeldVoice()
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         joinBackend: backend, missionReader: reader)
+        let firstLoad = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !voice.gate.isWaiting { await Task.yield() }
+        #expect(voice.gate.isWaiting && m.mission?.teamId == "T1")
+        backend.claims["team"] = .string("T2")
+        reader.docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments(),
+                                  plan: DrillDocs.plan(segmentIds: [], task: "No task yet.", version: 2, team: "T9"),
+                                  sharedProfile: DrillDocs.shared)
+        await m.trySignIn()
+        // The T1 load is still speaking, so only T2's listener exists.
+        #expect(m.mission?.teamId == "T2" && reader.watching.count == 1)
+        voice.gate.release()
+        await firstLoad.value
+        #expect(reader.watching.count == 1 && reader.stops == 0 && m.mission?.teamId == "T2")
+        // The listener in place is T2's: its plan reaches the mission.
+        reader.onPlan?(DrillDocs.plan(segmentIds: ["X"], task: "T2's new task.", version: 3, team: "T2"))
+        for _ in 0..<200 where m.mission?.assignment == nil { await Task.yield() }
+        #expect(m.mission?.assignment?.taskText == "T2's new task.")
+    }
+
+    /// A callback from a retired listener is ignored, also after a move away and back to the same
+    /// team (where the incident and team checks alone would pass).
+    @Test func aRetiredListenersPlanIsIgnored() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        await m.trySignIn()
+        let retired = try #require(reader.onPlan)
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        backend.claims["team"] = .string("T1")
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && reader.watching.count == 3)
+        retired(DrillDocs.plan(segmentIds: ["X"], task: "From the retired listener.", version: 9))
+        for _ in 0..<200 { await Task.yield() }
+        #expect(m.mission?.assignment?.taskText == "Walk the creek bank.")
+    }
+
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(FakeJoinBackend(), reader)

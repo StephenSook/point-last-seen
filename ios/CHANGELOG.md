@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): an old load never replaces the new team's plan listener, and retired listeners are ignored
+- What: a load re-checked that it was still the newest only before it installed the mission. Its
+  speaking takes time, and a newer load (a team change) could take over meanwhile; when the old
+  load went on, it stopped the new team's listener and installed its own. A callback queued by a
+  retired listener could also pass the incident and team checks after a move away and back. A load
+  now checks again before it installs its listener. Each listener has a number, and a callback
+  from any listener but the one in place is ignored (a drop retires it too).
+- Source: review (finding 3, second round).
+- Verified: tests for an old load still speaking when T2 loads (T2's listener stays and its plan
+  arrives) and for a retired listener's plan after T1 to T2 to T1 (ignored). They failed before the
+  change and pass after; 109 app tests pass.
+
 ### fix(ios): a dropped assignment is never played, and the next membership starts fresh
 - What: a drop cleared the mission and its plan listener, but the voice kept going. A cloud voice
   still fetching could play the old instruction or fall back to the phone's own voice, a queued

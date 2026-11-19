@@ -37,6 +37,9 @@ final class AppModel {
     private(set) var joining = false
     /// Stops listening for the loaded mission's plans.
     @ObservationIgnored private var stopPlanWatch: (@Sendable () -> Void)?
+    /// Names the plan listener in place: a callback from a retired one (queued before it stopped)
+    /// is ignored, also after a move away and back to the same team.
+    @ObservationIgnored private var planWatchId = 0
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
     /// The incident and team the server's claims grant this phone, kept when the mission could not
@@ -284,6 +287,8 @@ final class AppModel {
             // A newer join or load started while this one read: it has the say.
             guard generation == missionGeneration else { return nil }
             await load(mission)
+            // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
+            guard generation == missionGeneration else { return nil }
             watchPlans(incidentId: incidentId, teamId: teamId)
             return nil
         } catch let failure as MissionBuilder.Failure {
@@ -299,6 +304,7 @@ final class AppModel {
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
+        planWatchId += 1
         mission = nil
         // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
         speaker.stop()
@@ -309,8 +315,13 @@ final class AppModel {
     /// this phone (and is spoken once) without a new join.
     private func watchPlans(incidentId: String, teamId: String) {
         stopPlanWatch?()
+        planWatchId += 1
+        let id = planWatchId
         stopPlanWatch = missionReader.watchLatestPlan(incidentId: incidentId) { [weak self] plan in
-            Task { await self?.planArrived(plan, incidentId: incidentId, teamId: teamId) }
+            Task {
+                guard let self, self.planWatchId == id else { return }
+                await self.planArrived(plan, incidentId: incidentId, teamId: teamId)
+            }
         }
     }
 
