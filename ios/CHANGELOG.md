@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the approach card names every name she answers to
+- What: the iPhone's approach card had no names line, while the web's card says who to call,
+  for example "Answers to Roberta (also Bea, Mom, Miss Bea)". The card now has the same line,
+  built the way the web builds it: the main name, then every other name she answers to (the
+  family's list, else the nickname), each once; no line when no name was given. It is the first
+  line of the card.
+- Source: review (approach card wording on the iPhone).
+- Verified: a test runs the web's six answersToLine cases and checks the card carries the line; it
+  failed to compile before the change and passes after; 277 PLSCore tests pass; the app tests pass.
+
 ### fix(ios): a closed incident drops its mission even when the claims are unchanged
 - What: the sign-in check returned early when the claims still named the loaded mission's
   incident and team, so an incident command had closed kept its mission (and its listener and

@@ -9,6 +9,9 @@ struct ApproachCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let names = card.names {
+                Text(names).accessibilityIdentifier("approach-names")
+            }
             ForEach(card.first, id: \.id) { line in
                 Text(line.text)
             }
