@@ -197,8 +197,16 @@ function geometryOf(s: Record<string, unknown>): MapSegment["geometry"] | null {
     }
   }
   if (!isObj(g)) return null;
-  // Every ring is a closed list of at least four [longitude, latitude] pairs; the map and the cube walk them all.
-  const ring = (r: unknown) => Array.isArray(r) && r.length >= 4 && r.every((p) => Array.isArray(p) && p.length >= 2 && num(p[0]) && num(p[1]));
+  // Every ring is a closed list of at least four [longitude, latitude] pairs on the earth (longitude -180 to 180,
+  // latitude -90 to 90): the map and the cube walk them all, and a position off the earth draws nowhere.
+  const onEarth = (p: unknown): p is [number, number] =>
+    Array.isArray(p) && p.length >= 2 && num(p[0]) && num(p[1]) && p[0] >= -180 && p[0] <= 180 && p[1] >= -90 && p[1] <= 90;
+  const ring = (r: unknown) => {
+    if (!Array.isArray(r) || r.length < 4 || !r.every(onEarth)) return false;
+    const first = r[0] as [number, number];
+    const last = r[r.length - 1] as [number, number];
+    return first[0] === last[0] && first[1] === last[1];
+  };
   const polygon = (rings: unknown) => Array.isArray(rings) && rings.length >= 1 && rings.every(ring);
   const c = g["coordinates"];
   if (g["type"] === "Polygon" && polygon(c)) return g as MapSegment["geometry"];

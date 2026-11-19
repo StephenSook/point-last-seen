@@ -375,6 +375,30 @@ describe("fromPublishedRun", () => {
     }
   });
 
+  it("refuses a ring that is not closed or leaves the earth's ranges, in a Polygon or a MultiPolygon, and a centroid off the earth", () => {
+    const base = runV1();
+    const seg = base.segments[0] as RunSegment;
+    const noShape = { ok: false, reason: "The run has a map segment without a shape." };
+    const sq = (w: number, s0: number) => [[w, s0], [w + 0.001, s0], [w + 0.001, s0 + 0.001], [w, s0 + 0.001], [w, s0]];
+    const open = sq(-84.37, 33.78).slice(0, 4).concat([[-84.3695, 33.78]]);
+    const farNorth = sq(-84.37, 33.78).map(([x, y], i) => (i === 2 ? [x!, 91] : [x!, y!]));
+    const farEast = sq(-84.37, 33.78).map(([x, y], i) => (i === 1 ? [181, y!] : [x!, y!]));
+    for (const geometry of [
+      { type: "Polygon", coordinates: [open] },
+      { type: "Polygon", coordinates: [farNorth] },
+      { type: "Polygon", coordinates: [farEast] },
+      { type: "MultiPolygon", coordinates: [[sq(-84.37, 33.78)], [farNorth]] },
+      { type: "MultiPolygon", coordinates: [[sq(-84.37, 33.78)], [open]] },
+    ]) {
+      const broken = { ...seg, geometryJson: JSON.stringify(geometry) };
+      expect(fromPublishedRun(run({ segments: [broken, ...base.segments.slice(1)] })), JSON.stringify(geometry)).toEqual(noShape);
+    }
+    const good = { ...seg, geometryJson: JSON.stringify({ type: "MultiPolygon", coordinates: [[sq(-84.37, 33.78)], [sq(-84.36, 33.78)]] }) };
+    expect(fromPublishedRun(run({ segments: [good, ...base.segments.slice(1)] })).ok).toBe(true);
+    const offEarth = { ...seg, centroid: { lat: 91, lon: -84.37 } };
+    expect(fromPublishedRun(run({ segments: [offEarth, ...base.segments.slice(1)] }))).toEqual({ ok: false, reason: "The run has a field of the wrong type: segment.centroid.lat." });
+  });
+
   it("refuses a run whose engine settings fail on any frame, not only the last", () => {
     // The clue is retracted later, so the last frame never touches the missing table; the frame before it does.
     const { iocBase: _missing, ...broken } = DEFAULT_PARAMS;
