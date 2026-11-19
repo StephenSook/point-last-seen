@@ -82,7 +82,11 @@ class DrillE2ETest {
 
         // 3. Profile: shared and command documents.
         val published = CompletableDeferred<Boolean>()
-        ProfilePublisher(FirestoreProfileSink()).publish(
+        ProfilePublisher(FirestoreProfileSink(), object : app.pointlastseen.family.data.PublishedProfiles {
+            private val m = mutableMapOf<String, String>()
+            override fun get(key: String) = m[key]
+            override fun put(key: String, json: String) { m[key] = json }
+        }).publish(
             incidentId,
             SubjectProfile(answersTo = "Drill subject (synthetic)", clothingLastWorn = "blue coat", flags = setOf("mayNotRespond", "likelyToHide")),
         ) { published.complete(it) }

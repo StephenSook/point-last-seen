@@ -49,6 +49,7 @@ import app.pointlastseen.family.data.PhotoOutcome
 import app.pointlastseen.family.data.PhotoUpload
 import app.pointlastseen.family.data.PrefsStore
 import app.pointlastseen.family.data.ProfilePublisher
+import app.pointlastseen.family.data.PrefsPublishedProfiles
 import app.pointlastseen.family.data.ProfileStore
 import app.pointlastseen.family.data.Profiles
 import app.pointlastseen.family.data.Session
@@ -84,7 +85,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val writer = EventWriter(FirestoreEventStore())
     private val watch = IncidentWatch()
     private val evidence = EvidenceTerms.screen(app)
-    private val publisher = ProfilePublisher(FirestoreProfileSink())
+    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
