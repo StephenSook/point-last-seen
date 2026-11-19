@@ -19,9 +19,10 @@ afterAll(closeClients);
 describe("the family push", () => {
   it("goes to the incident's family topic with ids only and fixed wording, never the question's text", () => {
     expect(familyTopic("drill-dev-1")).toBe("pls-drill-dev-1-family");
-    const q = familyMessage({ incidentId: "drill-dev-1", kind: "question", questionId: "Ab3dEf6hIj9kLm2nOp5q", drill: true, nowMs: NOW });
+    const q = familyMessage({ incidentId: "drill-dev-1", kind: "question", drill: true, nowMs: NOW });
     // The whole message, exactly: an added key (the question's text, a name) fails here.
-    expect(q).toEqual({ topic: "pls-drill-dev-1-family", data: { kind: "question", incidentId: "drill-dev-1", questionId: "Ab3dEf6hIj9kLm2nOp5q" },
+    // No question id either: the family app lists unanswered questions from Firestore when it opens (privacy by default).
+    expect(q).toEqual({ topic: "pls-drill-dev-1-family", data: { kind: "question", incidentId: "drill-dev-1" },
       notification: { title: "Training drill", body: "The search lead has a question." },
       android: { collapseKey: "drill-dev-1-family", ttl: 7_200_000, priority: "high" },
       apns: { headers: { "apns-collapse-id": "drill-dev-1-family", "apns-expiration": String(Math.floor(NOW / 1000) + 7200) } } });
@@ -56,7 +57,7 @@ describe("handleFamilyQuestion and handleSearchState", () => {
     expect(await moveTo("paused", undefined)).toBe(true);
     expect(await moveTo("searching", "paused")).toBe(true);
     expect(sent).toEqual([
-      { ...shell, data: { kind: "question", incidentId: "I1", questionId: QID }, notification: { title: "Training drill", body: "The search lead has a question." } },
+      { ...shell, data: { kind: "question", incidentId: "I1" }, notification: { title: "Training drill", body: "The search lead has a question." } },
       { ...shell, data: { kind: "paused", incidentId: "I1" }, notification: { title: "Training drill", body: "The search is paused. The search lead will call you." } },
       { ...shell, data: { kind: "searching", incidentId: "I1" }, notification: { title: "Training drill", body: "Teams are searching now." } },
     ]);
@@ -97,6 +98,14 @@ describe("handleFamilyQuestion and handleSearchState", () => {
     }
     for (const inc of ["I 1", "I1/x", "x".repeat(129), ""]) {
       expect(await handleFamilyQuestion(admin.db, messaging, inc, QID, ev(), NOW)).toBe(false);
+    }
+    expect(sent).toHaveLength(0);
+    expect((await admin.db.collection("incidents/I1/pushBudget").get()).size).toBe(0);
+  });
+  it("sends no searching or paused notice for an incident that is found, closed or past its end", async () => {
+    for (const over of [{ status: "found" }, { status: "closed" }, { expiresAt: new Date(NOW - 60_000) }]) {
+      await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open", ...over });
+      expect(await moveTo("paused", "searching"), JSON.stringify(over)).toBe(false);
     }
     expect(sent).toHaveLength(0);
     expect((await admin.db.collection("incidents/I1/pushBudget").get()).size).toBe(0);

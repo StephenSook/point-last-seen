@@ -41,7 +41,7 @@ it("lists a team with no assignment and leaves its task empty", () => {
   });
 });
 
-it("carries the drill label in drill mode and none in judge mode", () => {
+it("carries a training label in every mode: the incident's own, or the default", () => {
   const drillLabel = "Training drill. Nobody is missing.";
   expect(buildPrintModel(input)).toMatchObject({ mode: "drill", drillLabel });
 
@@ -49,8 +49,12 @@ it("carries the drill label in drill mode and none in judge mode", () => {
   const drillWithoutLabel = { ...drillView, incident: { ...incident, mode: "drill" as const } };
   expect(buildPrintModel({ ...input, view: drillWithoutLabel }).drillLabel).toBe(drillLabel);
 
-  const judgeView = { ...drillView, incident: { ...incident, mode: "judge" as const, drillLabel } };
-  expect(buildPrintModel({ ...input, view: judgeView })).toMatchObject({ mode: "judge", drillLabel: null });
+  // A practice search (mode "judge") is training too, with its own label; paper must never read as a real search.
+  const practice = "Training drill. Practice search; nobody is missing.";
+  const judgeView = { ...drillView, incident: { ...incident, mode: "judge" as const, drillLabel: practice } };
+  expect(buildPrintModel({ ...input, view: judgeView })).toMatchObject({ mode: "judge", drillLabel: practice });
+  const judgeWithoutLabel = { ...drillView, incident: { ...incident, mode: "judge" as const } };
+  expect(buildPrintModel({ ...input, view: judgeWithoutLabel }).drillLabel).toBe(drillLabel);
 });
 
 it("with no approved plan the model has planVersion null and no task text", () => {

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Auth } from "firebase-admin/auth";
-import { Timestamp, type DocumentReference, type Firestore } from "firebase-admin/firestore";
+import { Timestamp, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 
 /** The label every practice incident carries, shown wherever the drill label is shown. */
@@ -20,24 +20,50 @@ const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabe
 /** A setup that has not finished in this long is taken to have died, and the next start redoes it. */
 export const SETUP_STALE_MS = 5 * 60_000;
 
-/** copy: tests wrap the real copy step to delay it or make it fail. */
-type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void> };
+/** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */
+type Writer = { set(ref: DocumentReference, data: DocumentData): Promise<unknown>; close(): Promise<void> };
+/** copy: tests wrap the real copy step to delay it or make it fail; writer: tests make single writes fail. */
+type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer };
 
 async function giveCommand(auth: Auth, uid: string, incidentId: string): Promise<{ incidentId: string; role: "command" }> {
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };
 }
 
-/** Clears whatever an earlier sandbox or a failed setup left under it, then copies the seed's subcollections in. */
-async function copyFrom(db: Firestore, seed: DocumentReference, to: DocumentReference): Promise<void> {
+/**
+ * Clears whatever an earlier sandbox or a failed setup left under it, then copies the seed's subcollections in. Each
+ * phase first checks that this build still owns the setup, so a builder that stalled while another took over never
+ * clears or writes the newer sandbox; and every write's own result is checked, since BulkWriter.close() resolves
+ * even when a write failed.
+ */
+async function copyFrom(db: Firestore, seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
+  stillOwner: () => Promise<boolean>): Promise<void> {
+  const owned = async () => {
+    if (!(await stillOwner())) throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
+  };
+  await owned();
   for (const c of await to.listCollections()) await db.recursiveDelete(c);
-  const writer = db.bulkWriter();
+  await owned();
+  const writer = makeWriter();
+  // Each write's failure is caught as it happens (never left unhandled) and the first one is thrown after close().
+  const writes: Promise<unknown>[] = [];
+  const set = (ref: DocumentReference, data: DocumentData) => writes.push(writer.set(ref, data).then(() => null, (e: unknown) => e ?? "write failed"));
   for (const sub of ["segments", "teams"]) {
-    for (const d of (await seed.collection(sub).get()).docs) writer.set(to.collection(sub).doc(d.id), d.data());
+    for (const d of (await seed.collection(sub).get()).docs) set(to.collection(sub).doc(d.id), d.data());
   }
   const shared = await seed.collection("profile").doc("shared").get();
-  if (shared.exists) writer.set(to.collection("profile").doc("shared"), shared.data()!);
+  if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
   await writer.close();
+  const failed = (await Promise.all(writes)).find(e => e !== null);
+  if (failed !== undefined) throw failed;
+}
+
+/** Whether a sandbox holds the seed's whole copy: as many segments and teams, and the shared profile if the seed has one. */
+async function copyIsComplete(seed: DocumentReference, to: DocumentReference): Promise<boolean> {
+  const count = async (ref: DocumentReference, sub: string) => (await ref.collection(sub).count().get()).data().count;
+  for (const sub of ["segments", "teams"]) if ((await count(seed, sub)) !== (await count(to, sub))) return false;
+  const [a, b] = await Promise.all([seed.collection("profile").doc("shared").get(), to.collection("profile").doc("shared").get()]);
+  return a.exists === b.exists;
 }
 
 /**
@@ -63,8 +89,9 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     const exp = existing!.get("expiresAt"), created = existing!.get("createdAt");
     const live = existing!.exists && exp instanceof Timestamp && exp.toMillis() > nowMs;
     if (live) {
-      // A sandbox made before setup was tracked has no setupReady and was built in full.
-      if (existing!.get("setupReady") !== false) return "ready";
+      if (existing!.get("setupReady") === true) return "ready";
+      // A sandbox made before setup was tracked has no flag: checked against the seed below.
+      if (existing!.get("setupReady") === undefined) return "legacy";
       const started = existing!.get("setupStartedAtMs");
       if (typeof started === "number" && nowMs - started < SETUP_STALE_MS) return "busy";
       tx.update(ref, { setupId, setupStartedAtMs: nowMs });
@@ -84,8 +111,23 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     return "build";
   });
   if (action === "busy") throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
-  if (action === "build") {
-    const copy = () => copyFrom(db, seedRef, ref);
+  let next: "ready" | "build" = action === "legacy" ? "ready" : action;
+  if (action === "legacy") {
+    // A complete legacy copy gets its flag; a short one is claimed and rebuilt, on the slot it already used.
+    const complete = await copyIsComplete(seedRef, ref);
+    next = await db.runTransaction(async tx => {
+      const fresh = await tx.get(ref);
+      if (fresh.get("setupReady") !== undefined) return fresh.get("setupReady") === true ? "ready" : "build";
+      tx.update(ref, complete ? { setupReady: true } : { setupReady: false, setupId, setupStartedAtMs: nowMs });
+      return complete ? "ready" : "build";
+    });
+    if (next === "build" && (await ref.get()).get("setupId") !== setupId) {
+      throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
+    }
+  }
+  if (next === "build") {
+    const stillOwner = async () => (await ref.get()).get("setupId") === setupId;
+    const copy = () => copyFrom(db, seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner);
     // Finishes or releases the claim, but only while this call still owns it (a later start may have taken over).
     const settle = (fields: Record<string, unknown>) => db.runTransaction(async tx => {
       if ((await tx.get(ref)).get("setupId") === setupId) tx.update(ref, fields);

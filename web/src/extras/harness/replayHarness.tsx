@@ -5,8 +5,14 @@ import { fromLive } from "../replay/replayData";
 import { harnessIncident } from "../testdata/replayIncident";
 
 // Made-up harness data for the replay e2e. Dev server only; never in the production build.
-// ?pending=1 adds a command write still on its way to the server.
-const { view, events, plans } = harnessIncident({ pending: new URLSearchParams(location.search).get("pending") === "1" });
+// ?pending=1 adds a command write still on its way to the server; ?reports=none keeps the built prior and drops every
+// report and plan, as a new practice search has.
+const params = new URLSearchParams(location.search);
+const incident = harnessIncident({ pending: params.get("pending") === "1" });
+const empty = params.get("reports") === "none";
+const { view } = incident;
+const events = empty ? [] : incident.events;
+const plans = empty ? [] : incident.plans;
 const state: PostState = { view, events, plans, profile: null, denied: false, offline: false };
 
 // The live header computes the map exactly as the command post does.

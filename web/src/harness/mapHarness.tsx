@@ -46,7 +46,19 @@ function Harness() {
       <MapView
         segments={HARNESS_SEGMENTS}
         poa={HARNESS_POA}
-        onReady={(m) => (document.body.dataset["mapReady"] = m ? "map" : "none")}
+        onReady={(m) => {
+          document.body.dataset["mapReady"] = m ? "map" : "none";
+          // ?ripple: record every dot's grow value in order, so a test reads the ripple's own state, not the clock.
+          if (m && new URLSearchParams(location.search).has("ripple")) {
+            const log: { id: number; grow: number }[] = [];
+            (window as unknown as { growLog: typeof log }).growLog = log;
+            const set = m.setFeatureState.bind(m);
+            m.setFeatureState = ((f: { id?: string | number }, st: { grow?: number }) => {
+              if (typeof st.grow === "number") log.push({ id: Number(f.id), grow: st.grow });
+              return set(f as never, st);
+            }) as typeof m.setFeatureState;
+          }
+        }}
         ripple={new URLSearchParams(location.search).has("ripple") ? { key: "prior-1", origin: HARNESS_SEGMENTS[1]!.centroid } : null}
         walkers={new URLSearchParams(location.search).has("walkers") ? { key: "walkers-1", tracks: HARNESS_TRACKS } : null}
       />

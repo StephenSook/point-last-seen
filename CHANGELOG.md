@@ -5,6 +5,88 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
+  characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
+  approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
+  beside the rest. The text limits and choices are read from the schema and the approach-notes constants, so the
+  test follows them.
+  Source: review (the rules' 1,000-expression limit; the plans worst case had no room).
+  Verified: all 16 profile rules tests pass in the emulator.
+- The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
+  `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
+  note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
+  choice it does not know is skipped), then the family's note; nothing when the family has not said; and "No tracker
+  or medical ID, as the family said." when it said none. `SharedProfile` gains the optional `trackingAids`, and
+  `profileForSearchers` carries it into profile/shared; `profileForModel` never includes it.
+  Source: expert input, with the card wording agreed with the web, iPhone and Android apps.
+  Verified: the tests (absent gives nothing; empty gives the none line; the order, the skipped unknown choice and the
+  trimmed note; profile/shared carries it only when given; the model profile never does; the constants' choices and
+  note limit equal the schema's) failed first, now all 248 engine tests pass; typecheck and lint exit 0; TypeScript
+  schema parity holds (Swift and Kotlin follow in their apps).
+- The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
+  of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
+  digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
+  the family said none. It is for the search cards only and is never sent to a model. The schema gives the shape and
+  the generated rule checks it; the profile rule adds each choice once and no digit of any script in the note
+  (`\P{Nd}`, so fullwidth digits are refused too).
+  Source: expert input (a state Alzheimer's association: Project Lifesaver runs in some Georgia counties, families
+  use other trackers, and a medical ID matters when the person cannot say who they are).
+  Verified: the rules test (a profile without the field, an empty one, all four, a note and an 80-character note are
+  accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
+  a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
+  Schema parity waits for the TypeScript, Swift and Kotlin types.
+- A rules test pins that the command post's photo tray can list a search's photos: command and family list
+  `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
+  list clips. A review had read the tray's list as having no matching rule.
+  Source: review (cross-model, rules range, a finding to verify).
+  Verified: the test lists a stored photo as command and as family and is refused for a searcher; all 14 storage
+  rules tests pass in the emulator.
+- A plan holds at most 8 assignments and a drill at most 8 teams (both were 10), and each assignment's segment ids
+  must be a list, so an empty string or a map no longer passes for one. The list check costs one more rules
+  expression per assignment; with it, the heaviest plan no longer fit 10 even on a drill, and the worst case (a judge
+  incident, whose expiry and setup are checked, with a blocked wording route) fits 9 and not 10. So 8 keeps one
+  assignment of room. `tools/seed/seed_drill.py` refuses more than 8 teams to match, and `docs/LIMITS.md` says why.
+  Source: review (cross-model, rules range: segment ids not checked as a list; the expression budget's worst case).
+  Verified: the tests (an empty-string and a map segment id refused; the heaviest 8 on a drill and on a judge incident
+  with a blocked route accepted; 9 assignments refused; 9 teams refused by the seed tool) failed first where they
+  test new refusals, now all 138 rules tests and 23 seed tests pass; measured in the emulator, the worst case fits 9
+  assignments and not 10; rules_gate passes.
+- The family push carries only the kind and the incident id: the question's id no longer leaves Firestore, and the
+  family app lists unanswered questions from Firestore when it opens. A searching or paused notice now also needs the
+  incident to be open and not past its end, so a late event after the search ends spends no budget and sends
+  nothing. `docs/LIMITS.md` says both.
+  Source: review (cross-model, round 1, mediums; privacy by default).
+  Verified: the tests (every kind's whole message without a question id; no searching or paused notice for a found,
+  closed or expired incident, and no budget doc written) failed first, now all 17 push tests pass; functions
+  typecheck exit 0.
+- `startJudgeSession`'s copy is checked write by write and by owner. Every write's own result is collected (a failure
+  is caught as it happens and thrown after the writer closes, since `BulkWriter.close()` resolves even when a write
+  failed), so a short copy is never marked ready. Before clearing and before copying, the build checks that it still
+  owns the setup, so a builder that stalled while another took over never clears or writes the newer sandbox. A live
+  sandbox made before setup was tracked is checked against the seed (as many segments and teams, and the shared
+  profile if the seed has one): a complete copy gets its flag and keeps its judge's work, a short one is rebuilt on
+  the slot it already used.
+  Source: review (cross-model, round 1, high 2 and a medium).
+  Verified: the tests (a write that fails leaves the sandbox not ready and grants nothing, and a retry finishes it; a
+  stalled builder resuming after a takeover leaves the newer sandbox and its judge's event alone; a legacy sandbox
+  with nothing copied is rebuilt, one with a full copy is handed back with its event) failed first, now all 13 judge
+  session tests pass with no unhandled error; functions typecheck exit 0.
+- `docs/evidence/drill/kennesaw-seed.md` records the Kennesaw drill as seeded: park staff confirmed by email on
+  2026-11-19 that the training exercise needs no Special Use Permit and suggested the trails south of Dallas Highway;
+  the incident `drill-kennesaw-1` (teams T1 to T3, urban terrain marked as the default and not verified for this site,
+  the point last seen on the Kolb Farm Loop Trail) and the exact commands that built and seeded it.
+  Source: the drill's seeding.
+  Verified: every command and value matches the run and its read-back (339 segment documents, prior version 1 with
+  `priorBuiltAt`, the export passes every check); no person or address is named.
+- The Kennesaw Mountain drill grid sits on the trails south of Dallas Highway, as park staff suggested: 338
+  segments, 4.21 km2 over the Kolb's Farm, Cheatham Hill and Old John Ward trails, its northern edge about 100 m below
+  the road. Before, its window was around the Visitor Center and the summits, all north of the road. Its route graph
+  (644 edges) and basemap tiles (Protomaps 2026-11-18) are committed beside it, and `shared/grid/README.md` records
+  how each was made with its sha256.
+  Source: review (park staff's advice for the drill).
+  Verified: the grid tests now cover both sites' graph and tiles (the graph indexes in the engine and is bounded by
+  the grid's box; the tiles are PMTiles v3 covering it) and pin the grid below 33.945 north; they failed first, now
+  all 9 pass; the engine suite passes; rules_gate passes.
 - `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
   project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
   Source: review (seen after the merge point's Android build).

@@ -31,11 +31,11 @@ describe.each(["piedmont-park-dev", "kennesaw-mountain-drill"])("shared/grid/%s.
   });
 });
 
-// The deployed grid ships with its route graph (walkers) and its basemap tiles, kept beside it here so a deploy from a
-// clean checkout carries them; the web build copies both to /tiles/.
-describe("shared/grid/piedmont-park-dev: the route graph and the basemap tiles", () => {
-  const grid = read("piedmont-park-dev");
-  const file = (ext: string) => new URL(`../../grid/piedmont-park-dev.${ext}`, import.meta.url);
+// Each deployed grid ships with its route graph (walkers) and its basemap tiles, kept beside it here so a deploy from
+// a clean checkout carries them; the web build copies both to /tiles/.
+describe.each(["piedmont-park-dev", "kennesaw-mountain-drill"])("shared/grid/%s: the route graph and the basemap tiles", (gridId) => {
+  const grid = read(gridId);
+  const file = (ext: string) => new URL(`../../grid/${gridId}.${ext}`, import.meta.url);
   it("has a route graph for the same grid, bounded by the grid's box, that the engine indexes", () => {
     const graph = JSON.parse(readFileSync(file("graph.json"), "utf8")) as RouteGraph;
     expect([graph.graphId, graph.gridId]).toEqual([grid.gridId, grid.gridId]);
@@ -52,5 +52,14 @@ describe("shared/grid/piedmont-park-dev: the route graph and the basemap tiles",
     const w = deg(102), s = deg(106), e = deg(110), n = deg(114);
     const [minLon, minLat, maxLon, maxLat] = grid.bbox;
     expect(w <= minLon && s <= minLat && e >= maxLon && n >= maxLat).toBe(true);
+  });
+});
+
+// The Kennesaw drill runs on the trails south of Dallas Highway (park staff's advice), so its grid stays below the road.
+describe("shared/grid/kennesaw-mountain-drill: south of Dallas Highway", () => {
+  it("has its northern edge below the road, which crosses the park at about 33.945 north", () => {
+    const grid = read("kennesaw-mountain-drill");
+    expect(grid.bbox[3]).toBeLessThan(33.945);
+    for (const s of grid.segments) expect(s.centroid.lat).toBeLessThan(33.945);
   });
 });

@@ -273,6 +273,36 @@
             "type": "string",
             "maxLength": 40
           }
+        },
+        "trackingAids": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "aids",
+            "note"
+          ],
+          "description": "What the family said about tracking aids, for the search cards only and never sent to a model. Absent: unknown. An empty list with an empty note: the family said none.",
+          "properties": {
+            "aids": {
+              "type": "array",
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "project_lifesaver",
+                  "medicalert_id",
+                  "gps_tracker",
+                  "phone_location"
+                ]
+              }
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[^0-9]{0,80}$",
+              "description": "Anything else about the device, with no digits, so no serial or phone number reaches a card."
+            }
+          }
         }
       },
       "description": "profile/shared: readable by every member and carried in the pack. dementiaType is null unless the family switched sharing on."

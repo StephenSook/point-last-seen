@@ -5,7 +5,7 @@ import { radioCards } from "../radio/radioCard";
 import { RadioCards } from "../radio/RadioCards";
 import { Ics204 } from "./Ics204View";
 import { defaultTyped, ics204Sheets } from "./ics204";
-import { DRILL_LABEL, isStale, type PrintModel } from "./printModel";
+import { isStale, type PrintModel } from "./printModel";
 import { PrintRoot } from "./PrintRoot";
 
 export const assignmentTitle = "Print assignment sheet";
@@ -30,7 +30,7 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [typed, setTyped] = useState(() => defaultTyped(model, timeZone));
   const [printedAtMs, setPrintedAtMs] = useState(model.printedAtMs);
-  const drillLine = model.mode === "drill" ? DRILL_LABEL : null;
+  const drillLine = model.drillLabel;
   useEffect(() => {
     const stamp = () => flushSync(() => setPrintedAtMs(Date.now()));
     window.addEventListener("beforeprint", stamp);
