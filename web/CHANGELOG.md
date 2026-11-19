@@ -1625,3 +1625,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when an incident carries `terrainNote` (written by the seed, for example "Default terrain column (urban), not verified for this site." on the Kennesaw drill), the Prior section shows it under the ring source line, so command knows the distance table is a default. A missing or non-text note shows nothing; text is capped at 200 characters. Command cannot change it here.
 - Source: the Kennesaw drill seed's terrain note.
 - Verified: a new layers harness test (the note under the source line; none without it) failed first, then passed; 11 layers harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### fix(plans): cap a plan at 8 teams, as the plans rule now does
+- What: the plans rule now takes at most 8 assignments (the worst case fits 9 under the rules' expression limit, so 8 keeps a margin), and the seed refuses more than 8 teams. The plan card's limit follows: "A plan can name at most 8 teams. This draft has 9, so it can't be approved. Search with 8 teams or fewer." and Suggest plan stays disabled past it.
+- Source: the plans rule change (at most 8 assignments).
+- Verified: the plan unit test and the plan harness test were changed to 8 first and failed, then passed (21 plan tests, 8 plan harness tests); typecheck clean. The full local mirror runs on the pull request head.
