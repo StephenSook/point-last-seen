@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/evidence/isrid-dementia-p164.md` keeps the source table behind the prior's rings: the ISRID dementia
+  distances from the IPP (all five columns, km and the urban miles) and the find-location shares, copied as
+  printed on Lost Person Behavior p. 164 (the publisher's public sample). The urban find-location shares
+  (structure 35%, road 36%) are kept for a later layer; no engine code reads them.
+  Source: review (keep the unused urban shares in a note).
+  Verified: values re-read from the `pdftotext -layout` extraction of the PDF; `bash scripts/ci-local.sh` exit 0.
 - cloudGuard's trigger tests build their template call from the published sighting template's own config in
   `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
   cap; a template that loses its limit now fails here as well as in the template tests.
