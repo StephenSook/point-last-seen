@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A team's new-assignment notice goes once per plan version, and never for a plan that has already been replaced.
+  `notifyPlanApproved` claims each team's notice (`pushBudget/plan-{version}-{team}`, which no client can read or
+  write) before sending, so a redelivered event sends nothing twice; a send that fails gives its claim back, so the
+  next delivery sends it. A plan whose next version already exists announces nothing, so a late event cannot send
+  work a newer plan has replaced.
+  Source: review (round 2 on the functions: a redelivery repeated the sends, and a late older plan could still
+  announce).
+  Verified: the tests (a second delivery sends nothing; plan 1 after plan 2 exists sends nothing while plan 2
+  sends; a failed send is sent on the next delivery) failed first for the first two, the third passed before and
+  after as the guard that a claim never blocks a retry; all 9 plan-notice tests pass; functions typecheck exits 0.
 - The daily cap on new practice searches counts on one document per UTC day, `ops/judgeSessions-{YYYY-MM-DD}`.
   With one shared counter, a start that read the counter before midnight and committed after a start of the new day
   wrote yesterday's date back, and the new day's count began again from zero. Nothing else reads the counter.

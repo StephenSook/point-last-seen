@@ -18,6 +18,8 @@ const pushableTeam = (t: string) => TEAM_ID.test(t) && t.toLowerCase() !== FAMIL
 export const planDocId = (version: number): string => String(version).padStart(4, "0");
 
 interface Assignment { teamId: string; segmentIds: string[]; taskText: string }
+/** Firestore's ALREADY_EXISTS status code, which create() reports for a document that is already there. */
+const ALREADY_EXISTS = 6;
 
 /** The teams whose assignment is new, changed or dropped since the previous plan, sorted. */
 export function changedTeams(prev: Assignment[] | null, next: Assignment[]): string[] {
@@ -49,7 +51,9 @@ export function planMessage(o: { incidentId: string; teamId: string; version: nu
 
 /**
  * notifyPlanApproved's work for one new plans/{0001...} doc: compares it with the previous version's doc and sends one push
- * per changed team. Returns the teams it sent to.
+ * per changed team. Returns the teams it sent to. A plan a newer version has already replaced announces nothing, and
+ * each team's notice for a version is claimed before it is sent (pushBudget/plan-{version}-{team}), so a redelivered
+ * event sends nothing twice; a send that fails gives its claim back, so the next delivery can send it.
  */
 export async function handlePlanCreated(db: Firestore, messaging: { send(m: Message): Promise<string> },
   incidentId: string, versionId: string, nowMs: number): Promise<{ teams: string[] }> {
@@ -59,17 +63,38 @@ export async function handlePlanCreated(db: Firestore, messaging: { send(m: Mess
   const inc = await base.get();
   // A practice search is a judge's own sandbox, with no phone on its teams: no push.
   if (inc.get("mode") === "judge") return { teams: [] };
-  const [plan, prev, teamDocs] = await Promise.all([base.collection("plans").doc(versionId).get(),
-    version > 1 ? base.collection("plans").doc(planDocId(version - 1)).get() : Promise.resolve(null), base.collection("teams").listDocuments()]);
+  const [plan, prev, newer, teamDocs] = await Promise.all([base.collection("plans").doc(versionId).get(),
+    version > 1 ? base.collection("plans").doc(planDocId(version - 1)).get() : Promise.resolve(null),
+    base.collection("plans").doc(planDocId(version + 1)).get(), base.collection("teams").listDocuments()]);
+  if (newer.exists) {
+    console.log(JSON.stringify({ event: "notifyPlanApproved", incidentId, version, teams: [], reason: "superseded" }));
+    return { teams: [] };
+  }
   const next = (plan.get("assignments") ?? []) as Assignment[];
   const before = prev?.exists ? ((prev.get("assignments") ?? []) as Assignment[]) : null;
   // Only teams the incident has, with plain ids, and a bounded number per plan.
   const known = new Set(teamDocs.map(d => d.id));
   const teams = changedTeams(before, next).filter(t => pushableTeam(t) && known.has(t)).slice(0, MAX_PUSHES_PER_PLAN);
   const drill = inc.get("mode") === "drill";
-  for (const teamId of teams) await messaging.send(planMessage({ incidentId, teamId, version, drill, nowMs }));
-  console.log(JSON.stringify({ event: "notifyPlanApproved", incidentId, version, teams }));
-  return { teams };
+  const sentTo: string[] = [];
+  for (const teamId of teams) {
+    const claim = base.collection("pushBudget").doc(`plan-${planDocId(version)}-${teamId}`);
+    try {
+      await claim.create({ atMs: nowMs });
+    } catch (e) {
+      if ((e as { code?: unknown }).code === ALREADY_EXISTS) continue;
+      throw e;
+    }
+    try {
+      await messaging.send(planMessage({ incidentId, teamId, version, drill, nowMs }));
+    } catch (e) {
+      await claim.delete();
+      throw e;
+    }
+    sentTo.push(teamId);
+  }
+  console.log(JSON.stringify({ event: "notifyPlanApproved", incidentId, version, teams: sentTo }));
+  return { teams: sentTo };
 }
 
 /** The most family pushes one incident sends in a UTC day, questions and search-state changes together. */
