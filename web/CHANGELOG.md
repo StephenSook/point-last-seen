@@ -1460,3 +1460,33 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: on the phone header, a long incident name now shrinks with an ellipsis (full name still in the page), so the incident, the match code and More always share the second row. With "Development drill (synthetic)" More had wrapped to a third row (118 px of header).
 - Source: live run of `e2e/phone.spec.ts` on 8e57c12 (118 px against the 110 px limit) and a screenshot.
 - Verified: the deployed phone header test failed on 8e57c12; it is re-run on the deploy that carries this change. scripts/ci-local.sh exit 0.
+
+### feat(data): ask the family a question and tell them searching or paused
+- What: `data/familyQuestions.ts` for the command post's channel to the family. `askFamily` writes `incidents/{id}/familyQuestions/{id}` (a random 20-character id; the text, 1 to 280 characters, trimmed; the writer; the server's time) and `subscribeQuestions` reads them newest first with the family's answer once added (`questionFromDoc`). `tellFamily` sets `searchState` to "searching" or "paused" only; `searchStateOf` reads only those two. Three templates: "Did they ever go by another name?", "Places they used to walk or live?", "What were they wearing when you last saw them?". Nothing about whether the person was found, or their condition, goes through this channel.
+- Source: field-expert input (search and rescue practitioner) and the shared family-channel rules.
+- Verified: `src/data/familyQuestions.test.ts` (7 tests: templates, question length, ids the rules accept, the exact keys written, questions with and without an answer, only the two states) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the family section to ask questions and give the search state
+- What: `command/FamilyChannel.tsx`, "Family": command tells the family the search is Searching or Paused (it asks first: "Tell the family the search is paused? They get a notice with no details.", then shows "The family was told: paused."), asks a question (typed, or from the three templates; "Type a question first." when empty), and sees each question with the family's answer or "No answer yet.". It carries no control for a find or the person's condition and says "News of a find or their condition goes from the search lead in person, not here." A refused send says so and keeps the text. A dev-only harness page (`web/harness/family.html`) runs it with fakes. Not on the command post yet.
+- Source: field-expert input (search and rescue practitioner) and the shared family-channel rules.
+- Verified: `e2e/harness/family.spec.ts` (6 tests: answers and open questions; a template then Ask; an empty question refused; paused asks first then shows; no found or condition control; a refused ask keeps the text) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### refactor(data): let Firestore pick the id of a question to the family
+- What: `askFamily` now writes with `addDoc`, so Firestore's own auto-id (20 letters and digits) names the question, which is exactly what the familyQuestions rule requires, instead of an id made in this file. The hand-made id and its test are gone.
+- Source: the familyQuestions create rule (auto-id only).
+- Verified: 6 family question tests pass; typecheck clean; the rules tests in scripts/ci-local.sh cover a command create at an auto-id. scripts/ci-local.sh exit 0.
+
+### feat(command): put the family channel on the command post
+- What: the post's right rail now has the Family section: Searching or Paused for the family (from `incident.searchState`, sent with `tellFamily`), the three question templates, Ask (`askFamily`, auto-id), and the family's answers as they arrive (`subscribeQuestions`). If the questions cannot be read (for example before the channel's rules are deployed), the section is not drawn and the rest of the post keeps working; that refusal never counts as the post losing access.
+- Source: Ask the family (coordinator queue), with the family-channel rules.
+- Verified: a new read-only deployed test (`e2e/family.spec.ts`: the Family region, Searching and Paused, a template) failed on the live site at 784f5e2 (no section); it passes once this deploy and the channel's rules are both live. The 6 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### ci(web): run the component harness and extras browser suites in the web workflow
+- What: the web job now also runs `npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model"` (map, beat, plan, sightings, family, clips and the rest) and `npx playwright test -c e2e/extras.config.ts`, after the no-backend checks. Both configs use Playwright's own Chromium when `CI` is set (the workflow installs it) and desktop Chrome locally. The tests that need Chrome's built-in model stay out.
+- Source: CI audit (the harness and extras suites ran only on a developer's laptop).
+- Verified: in a fresh worktree with no `.env.local`, after `npm ci`, with `CI=1`: harness 93 of 93 and extras 42 of 42 pass on Playwright's Chromium; the workflow file parses. Actions minutes are used up, so the workflow itself runs when they return. scripts/ci-local.sh exit 0.
+
+### test(e2e): run the page-facts and font checks with the no-backend browser checks
+- What: `e2e/pagefacts.spec.ts` (robots.txt is a real file, each page's description and title, the join page does not shift) and `e2e/fonts.spec.ts` (self-hosted fonts from this origin, tabular digits) are tagged `@no-backend`, so the web workflow and the local mirror run them on every change instead of only against the deployed site.
+- Source: CI audit.
+- Verified: in a fresh worktree with no `.env.local`, against the placeholder build with `CI=1`, the 4 tests pass; with them, 22 of 22 no-backend browser checks pass here. scripts/ci-local.sh exit 0.
