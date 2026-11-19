@@ -33,6 +33,8 @@ import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
 import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
+import app.pointlastseen.family.data.ConsentedPhotos
+import app.pointlastseen.family.data.PhotoConsentWithdrawal
 import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FamilyQuestionStore
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
@@ -129,6 +131,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun open(target: Screen) {
         nav = Nav.open(nav, target)
+        // The photos this phone allowed earlier (also before a restart) can be withdrawn from the photos screen.
+        if (nav.screen == Screen.PHOTOS) session.incidentId()?.let { photosUi = photosUi.copy(consented = consentedPhotos.list(it).size, withdrawNote = null) }
     }
 
     fun systemBack() {
@@ -345,10 +349,14 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     continue
                 }
                 when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent)) {
-                    is PhotoOutcome.Uploaded -> photosUi = photosUi.copy(
-                        uploaded = photosUi.uploaded + 1,
-                        notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
-                    )
+                    is PhotoOutcome.Uploaded -> {
+                        if (out.cloudRead == CloudRead.ALLOWED) consentedPhotos.add(incidentId, out.path.substringAfterLast('/').removeSuffix(".jpg"))
+                        photosUi = photosUi.copy(
+                            uploaded = photosUi.uploaded + 1,
+                            notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                            consented = consentedPhotos.list(incidentId).size,
+                        )
+                    }
                     is PhotoOutcome.Refused -> photosUi = photosUi.copy(error = out.message)
                     is PhotoOutcome.Failed -> photosUi = photosUi.copy(error = out.message)
                 }
@@ -389,6 +397,26 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             val sent = runCatching { questions.answer(incidentId, questionId, text, uid) }
             // Read it back either way: a refused answer usually means it was already answered.
             loadQuestion(incidentId, questionId, error = if (sent.isFailure) "The answer was not sent. Check the connection and try again." else null)
+        }
+    }
+
+    private val consentedPhotos by lazy { ConsentedPhotos(PrefsStore(getApplication(), "pls-consented")) }
+
+    /** Deletes the consent records this phone made, so command can no longer read those photos in the cloud. */
+    fun withdrawCloudRead() {
+        val incidentId = session.incidentId() ?: return
+        photosUi = photosUi.copy(busy = true, withdrawNote = null)
+        viewModelScope.launch {
+            val r = PhotoConsentWithdrawal(consentedPhotos) { inc, sha -> FirestorePhotoConsentSink().delete(inc, sha) }.withdrawAll(incidentId)
+            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
+            photosUi = photosUi.copy(
+                busy = false,
+                consented = consentedPhotos.list(incidentId).size,
+                withdrawNote = when {
+                    r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
+                    else -> "The cloud read is off for ${photos(r.withdrawn)}."
+                },
+            )
         }
     }
 

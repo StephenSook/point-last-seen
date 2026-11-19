@@ -89,6 +89,12 @@ class PhotoUpload(
 }
 
 class FirestorePhotoConsentSink : PhotoConsentSink {
+    /** Withdraws one record; the rules let only its creator delete it. */
+    suspend fun delete(incidentId: String, sha256: String) {
+        com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("incidents").document(incidentId)
+            .collection("photoConsents").document(sha256).delete().await()
+    }
+
     override suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord) {
         com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("incidents").document(incidentId)
             .collection("photoConsents").document(sha256)

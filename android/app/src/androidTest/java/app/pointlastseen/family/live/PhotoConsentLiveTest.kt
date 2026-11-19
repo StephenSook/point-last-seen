@@ -80,6 +80,11 @@ class PhotoConsentLiveTest {
         assertTrue("re-create must be refused", again.isFailure)
         log("re-create refused: ${again.exceptionOrNull()?.javaClass?.simpleName}")
 
+        // 2b. Withdrawal: the creator deletes the record, and it is gone from the server.
+        withTimeout(30_000) { FirestorePhotoConsentSink().delete(incidentId, tickedSha) }
+        assertFalse(consents.document(tickedSha).get(Source.SERVER).await().exists())
+        log("withdrawn: the creator deleted the record")
+
         // 3. Without the tick: uploaded, and no record exists for it.
         val plain = photo("plain.jpg")
         val plainSha = Hashes.sha256Hex(plain)
