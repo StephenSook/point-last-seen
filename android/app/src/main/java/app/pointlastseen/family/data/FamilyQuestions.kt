@@ -45,21 +45,28 @@ object FamilyQuestions {
 }
 
 class FirestoreFamilyQuestions : FamilyQuestionStore {
+    /** The question document fields this app reads, named once. */
+    private companion object {
+        const val TEXT = "text"
+        const val ANSWER = "answer"
+        const val CREATED_AT = "createdAt"
+    }
+
     private fun questions(incidentId: String) =
         FirebaseFirestore.getInstance().collection("incidents").document(incidentId).collection("familyQuestions")
 
     private fun doc(incidentId: String, questionId: String) = questions(incidentId).document(questionId)
 
     override suspend fun list(incidentId: String): List<ListedQuestion> =
-        questions(incidentId).orderBy("createdAt", Query.Direction.DESCENDING).get(Source.SERVER).await().documents.mapNotNull { d ->
-            val text = d.getString("text") ?: return@mapNotNull null
-            ListedQuestion(d.id, text, d.getString("answer"), d.getTimestamp("createdAt")?.toDate()?.time)
+        questions(incidentId).orderBy(CREATED_AT, Query.Direction.DESCENDING).get(Source.SERVER).await().documents.mapNotNull { d ->
+            val text = d.getString(TEXT) ?: return@mapNotNull null
+            ListedQuestion(d.id, text, d.getString(ANSWER), d.getTimestamp(CREATED_AT)?.toDate()?.time)
         }
 
     override suspend fun read(incidentId: String, questionId: String): FamilyQuestion? {
         val d = doc(incidentId, questionId).get(Source.SERVER).await()
-        val text = d.getString("text") ?: return null
-        return FamilyQuestion(text, d.getString("answer"))
+        val text = d.getString(TEXT) ?: return null
+        return FamilyQuestion(text, d.getString(ANSWER))
     }
 
     /** The one update a family member makes; the server refuses a second answer by anyone. */
