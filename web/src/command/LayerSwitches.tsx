@@ -5,6 +5,7 @@
 import type { PriorLayers, Terrain } from "@pls/engine";
 import { useEffect, useRef, useState } from "react";
 import { priorRefusalMessage } from "./postAccess";
+import { ringSourceLine, TERRAINS } from "./terrains";
 
 type Props = {
   layers: PriorLayers;
@@ -17,11 +18,6 @@ type Props = {
   /** Starts the rebuild and returns at once; `ack` settles when the server has it. */
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
-
-const TERRAINS: [Terrain, string][] = [
-  ["temperate_flat", "Temperate flat (default, not verified for this site)"],
-  ["temperate_mountain", "Temperate mountain"],
-];
 
 export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
   const [draft, setDraft] = useState({ layers, terrain });
@@ -60,7 +56,7 @@ export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, mo
       <h2 id="prior-h" className="label">Prior</h2>
       <div className="layer">
         <p>Rings, always on</p>
-        <p className="muted small">ISRID dementia distances, n = 175, measured in a straight line.</p>
+        <p className="muted small">{ringSourceLine(terrain)}</p>
         <label>
           Distance table
           <select value={draft.terrain} onChange={(e) => setDraft((d) => ({ ...d, terrain: e.target.value as Terrain }))}>

@@ -3,14 +3,23 @@ import { expect, test } from "@playwright/test";
 test("each prior layer shows its source and n, and the wedge says what it needs", async ({ page }) => {
   await page.goto("/harness/layers.html");
   const s = page.getByRole("region", { name: "Prior" });
-  await expect(s).toContainText("n = 175");
+  await expect(s).toContainText("Temperate flat rings, ISRID dementia (n = 175), measured in a straight line.");
   await expect(s).toContainText("71 m");
   await expect(s).toContainText("our rule, not ISRID's");
   await expect(s.getByRole("switch", { name: "Direction of travel" })).toBeDisabled();
   await expect(s).toContainText("Needs a confirmed direction of travel.");
   await expect(s).toContainText("Vehicle involved: these distances assume travel on foot.");
   await expect(s.getByRole("combobox", { name: "Distance table" })).toHaveValue("temperate_flat");
-  await expect(s.getByRole("option", { name: /Temperate flat \(default, not verified for this site\)/ })).toBeAttached();
+  await expect(s.getByRole("option", { name: "Temperate flat" })).toBeAttached();
+});
+
+test("an urban incident shows Urban first and chosen, and names the urban column and its n", async ({ page }) => {
+  await page.goto("/harness/layers.html?terrain=urban");
+  const s = page.getByRole("region", { name: "Prior" });
+  const table = s.getByRole("combobox", { name: "Distance table" });
+  await expect(table).toHaveValue("urban");
+  await expect(table.locator("option")).toHaveText(["Urban (suburb, town, big park)", "Temperate flat", "Temperate mountain"]);
+  await expect(s).toContainText("Urban rings, ISRID dementia (n = 336), measured in a straight line.");
 });
 
 test("a switch asks before it rebuilds the prior, and Cancel puts it back", async ({ page }) => {

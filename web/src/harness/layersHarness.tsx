@@ -18,7 +18,7 @@ function Harness() {
       <p className="drill">Synthetic settings, not drill data.</p>
       <LayerSwitches
         layers={{ linear: true, wedge: false }}
-        terrain="temperate_flat"
+        terrain={new URLSearchParams(location.search).get("terrain") === "urban" ? "urban" : "temperate_flat"}
         hasBearing={false}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
