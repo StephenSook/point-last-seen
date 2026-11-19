@@ -66,7 +66,9 @@ def to_value(v):
     raise TypeError(f"cannot encode {type(v).__name__}")
 
 
-def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str], prior_version: int) -> list[dict]:
+def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str], prior_version: int,
+                 stored_rings: list | None = None) -> list[dict]:
+    """stored_rings: the incident's own engineParams.rings[<terrain>], or None when it has none."""
     base = f"projects/{project}/databases/(default)/documents/incidents/{incident_id}"
     writes = [{"update": {"name": f"{base}/segments/{d['segmentId']}", "fields": to_value(d)["mapValue"]["fields"]}}
               for d in p["docs"]]
@@ -75,14 +77,21 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     inc = {"gridId": p["gridId"], "ipp": {"lat": float(p["ipp"]["lat"]), "lon": float(p["ipp"]["lon"])},
            "terrain": p["terrain"], "priorLayers": p["layers"], "gridAttribution": p["attribution"],
            "priorVersion": int(prior_version)}
-    # The ring column for this terrain, by field path, so an incident created before the terrain existed can build
-    # its prior and every other stored engine value stays as it was.
+    # The prior was built from the sourced ring column for this terrain. An incident that has none gets it (by field
+    # path, so every other stored engine value stays); one that holds the same radii is left alone; one whose own
+    # radii differ would show a prior built from other radii, so the seed is refused.
     terrain = p["terrain"]
     column = [float(r) for r in json.loads(ENGINE_PARAMS.read_text())["params"]["rings"][terrain]]
     fields = to_value(inc)["mapValue"]["fields"]
-    fields["engineParams"] = to_value({"rings": {terrain: column}})
+    mask = sorted(inc)
+    if stored_rings is None:
+        fields["engineParams"] = to_value({"rings": {terrain: column}})
+        mask.append(f"engineParams.rings.{terrain}")
+    elif [float(r) for r in stored_rings] != column:
+        raise ValueError(f"incident {incident_id} overrides the {terrain} rings ({stored_rings}); this prior was built from "
+                         f"the sourced {column}, so it is not seeded")
     writes.append({"update": {"name": base, "fields": fields},
-                   "updateMask": {"fieldPaths": sorted(inc) + [f"engineParams.rings.{terrain}"]},
+                   "updateMask": {"fieldPaths": mask},
                    "updateTransforms": [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}],
                    "currentDocument": {"exists": True}})
     return writes
@@ -114,6 +123,17 @@ def segment_ids(project: str, incident_id: str, token: str) -> set[str]:
             return ids
 
 
+def stored_ring_column(project: str, incident_id: str, token: str, terrain: str) -> list | None:
+    """The incident's own engineParams.rings[terrain] as numbers, or None when it holds no such column."""
+    url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/incidents/{incident_id}"
+    f = _request("GET", url, token, project).get("fields", {})
+    col = (f.get("engineParams", {}).get("mapValue", {}).get("fields", {}).get("rings", {}).get("mapValue", {})
+           .get("fields", {}).get(terrain))
+    if col is None:
+        return None
+    return [float(v.get("doubleValue", v.get("integerValue", "nan"))) for v in col.get("arrayValue", {}).get("values", [])]
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 5 or argv[3] != "--prior-version":
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
@@ -123,7 +143,12 @@ def main(argv: list[str]) -> int:
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
     existing = segment_ids(project, incident_id, token)
-    writes = build_writes(project, incident_id, p, existing, int(version))
+    stored = stored_ring_column(project, incident_id, token, p["terrain"])
+    try:
+        writes = build_writes(project, incident_id, p, existing, int(version), stored)
+    except ValueError as e:
+        print(f"seed_segments: REFUSED: {e}", file=sys.stderr)
+        return 1
     commit = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents:commit"
     for b in batches(writes):
         _request("POST", commit, token, project, {"writes": b})

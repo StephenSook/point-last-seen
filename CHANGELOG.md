@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `tools/seed/seed_segments.py` keeps an incident's own ring column: it writes `engineParams.rings.<terrain>` only
+  when the incident has none, leaves a column that already holds the sourced radii alone, and refuses to seed an
+  incident whose own radii differ, because the prior it would install was built from the sourced radii.
+  Source: review of PR #21 round 2 (finding 2: reseeding overwrote a stored override).
+  Verified: the test (the same radii: nothing written to engineParams; different radii: refused naming the
+  terrain) failed first, now 21 seed tests pass; a read-only check of drill-dev-1 found no urban column and a
+  temperate flat column equal to the constants; `bash scripts/ci-local.sh` exit 0.
 - The engine builds a ring prior only from a usable ring column: one radius per ring mass, each finite, positive
   and larger than the last. An empty stored column (for example `urban: []`) used to pass and put all the mass
   outside the map; it, a short or long column, a zero, a negative, a repeat, a decrease, NaN or infinity now each

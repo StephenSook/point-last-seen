@@ -83,3 +83,16 @@ def test_the_incident_records_when_its_prior_was_built_at_server_time():
     inc = seed.build_writes("proj", "drill-dev-1", payload(), existing_ids=set(), prior_version=2)[-1]
     assert inc["updateTransforms"] == [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}]
     assert "priorBuiltAt" not in inc["update"]["fields"]
+
+
+def test_a_stored_ring_column_is_kept_and_a_different_one_refuses_the_seed():
+    # Review round 2: reseeding must not overwrite an incident's own radii, and the seeded prior was built from the
+    # sourced radii, so an incident that overrides them cannot take it.
+    rings = json.loads((Path(__file__).resolve().parents[2] / "shared/constants/engine-params.json").read_text())["params"]["rings"]
+    same = seed.build_writes("proj", "drill-dev-1", {**payload(), "terrain": "urban"}, existing_ids=set(), prior_version=2,
+                             stored_rings=rings["urban"])[-1]
+    assert not any(f.startswith("engineParams") for f in same["updateMask"]["fieldPaths"])
+    assert "engineParams" not in same["update"]["fields"]
+    with pytest.raises(ValueError, match="urban"):
+        seed.build_writes("proj", "drill-dev-1", {**payload(), "terrain": "urban"}, existing_ids=set(), prior_version=2,
+                          stored_rings=[0.3, 1.0, 3.0, 12.0])
