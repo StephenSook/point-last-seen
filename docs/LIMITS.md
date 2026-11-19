@@ -34,10 +34,11 @@ each line says what the limit is and why.
 - A plan holds at most 10 team assignments, and an incident has at most 10 teams: teams come only from the seed
   tool, which refuses more, and the practice search's copy of it; no app can create one. The security rules check every assignment's shape as the plan is
   written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
-  so each assignment is checked by its index; 10 is what fits the rules' 1,000-expression limit with room to spare.
-  The one thing the rules cannot see is a segment id written as a number instead of text. Only a command seat can
-  write a plan, the command post always writes ids as text, and it reads each stored plan field by field
-  (`planFromDoc`), setting aside, and naming on the post, any record that is not a plan.
+  so each assignment is checked by its index; 10 is the most that fits the rules' 1,000-expression limit (the
+  heaviest 10-assignment plan passes in the emulator, an 11th heavy assignment does not). Segment ids must be text
+  with no comma, and a plan's doc id is its version in exactly one form ("0016", never "00016"). The command post
+  also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
+  is not a plan.
 
 ## On-device safety (Android)
 
