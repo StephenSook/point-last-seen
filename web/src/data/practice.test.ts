@@ -29,6 +29,8 @@ describe("practiceErrorMessage", () => {
   });
   it("names a lost connection and a failed sign-in, and says something plain otherwise", () => {
     expect(practiceErrorMessage(fbErr("functions/unavailable", "x"))).toBe("No connection. Try again when the link is back.");
+    // The server's own "still being set up" answer (a second start during setup, or a released copy) is retryable at once.
+    expect(practiceErrorMessage(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment."))).toBe("Your practice search is still being set up. Try again in a moment.");
     expect(practiceErrorMessage(fbErr("functions/unauthenticated", "x"))).toBe("This browser could not be checked. Reload and try again.");
     expect(practiceErrorMessage(new Error("boom"))).toBe("The practice search could not start. Try again.");
   });

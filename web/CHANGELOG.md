@@ -1345,3 +1345,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `planLimitLine` holds the plans rule's limits (at most 10 teams, at most 6 segments for one team, team ids of letters, digits and underscores up to 32). For a draft past them the plan card shows, for example, "A plan can name at most 10 teams. This draft has 11, so it can't be approved. Search with 10 teams or fewer." and Suggest plan is disabled, so no model call is spent on a plan the server would refuse and the refusal is never reported as "another plan was approved first". The plan harness takes `?teams=N`.
 - Source: plans rule limits (at most 10 assignments), whole-repository review follow-up.
 - Verified: three unit tests (10 teams pass; 11 teams, 7 segments for one team and an id with a space each give their line) and a plan harness test (11 teams: the line shows, Suggest plan is disabled, no Approve) failed first, then passed; 21 plan tests and 6 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): show the server's still-being-set-up answer for a practice search
+- What: when startJudgeSession answers `unavailable` with "Your practice search is still being set up. Try again in a moment." (a second start during another's setup, or a failed copy that was released), the judge's door shows that sentence instead of "No connection", and the Try a practice search button is enabled again so the retry resumes the same daily slot. Any other `unavailable` still reads as a lost connection.
+- Source: new error from the practice-search callable.
+- Verified: a new case in `src/data/practice.test.ts` failed first ("No connection" received), then passed; 5 practice tests pass. scripts/ci-local.sh exit 0.
