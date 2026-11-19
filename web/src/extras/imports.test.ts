@@ -29,8 +29,8 @@ it("only laneC.ts imports from outside the extras folder", () => {
   expect(violations).toEqual([]);
 });
 
-it("the guard walked at least 5 files", () => {
-  expect(sources.length).toBeGreaterThanOrEqual(5);
+it("the guard walked at least 40 files", () => {
+  expect(sources.length).toBeGreaterThanOrEqual(40);
 });
 
 const animationPackage = "anime" + "js";

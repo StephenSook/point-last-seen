@@ -11,6 +11,10 @@ on:
       - "firestore.indexes.json"
       - "firebase.json"
       - "functions/**"
+      - "shared/constants/**"
+      - "shared/schemas/**"
+      - "shared/templates/**"
+      - "storage.lifecycle.json"
       - "package-lock.json"
       - ".github/workflows/rules.yml"
   pull_request:
@@ -21,6 +25,10 @@ on:
       - "firestore.indexes.json"
       - "firebase.json"
       - "functions/**"
+      - "shared/constants/**"
+      - "shared/schemas/**"
+      - "shared/templates/**"
+      - "storage.lifecycle.json"
       - "package-lock.json"
       - ".github/workflows/rules.yml"
   workflow_dispatch:

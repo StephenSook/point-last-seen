@@ -22,7 +22,7 @@ python3 -I scripts/check_rc_keys.py .
 python3 -I scripts/hygiene_guard.py .
 
 echo "== gates: schema parity and vector generator tests"
-"$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
+"$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py scripts/test_workflow_paths.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
 
 echo "== gates: secret scan (full history)"
 gitleaks git --redact --no-banner --log-opts="--all" .

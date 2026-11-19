@@ -17,8 +17,23 @@ segment's area, centroid, neighbours, stream links and its share near roads, tra
   big park inside suburban Cobb County); temperate mountain is the other column that fits, and command can switch
   it in the terrain picker.
 
+## The development site's route graph and basemap tiles
+
+The deployed grid has two more files beside it, which the web build copies to `/tiles/`:
+
+- `piedmont-park-dev.graph.json`: the route graph the walkers model moves on (1,549 edges, 1,203 nodes), bounded
+  by the grid's box. It rebuilds byte for byte from the grid and the same OpenStreetMap extract with
+  `build-grid --graph shared/grid/piedmont-park-dev.grid.json --osm <extract> --out <file>`
+  (sha256 `64e6bd89b0f7750c6013b85f18edbd8e7dfb6bd187480aa24f7ff4ba83c7ccc1`).
+- `piedmont-park-dev.pmtiles`: the basemap, cut with `pmtiles extract` from a Protomaps Basemap daily build
+  (basemap 4.15.2, OpenStreetMap data as of 2026-11-18 04:00 UTC, zoom 0 to 15, bounds west -84.3821, south
+  33.7792, east -84.3645, north 33.7989). Daily builds expire, so this file is kept rather than rebuilt
+  (sha256 `ea2a879d9e6d2298905a00254eeb55e8bf7b0e93d406d30d3636d5fc1f2b71c5`).
+
 ## Credit and licence
 
 Map data © OpenStreetMap contributors, available under the Open Database License (ODbL) 1.0:
 https://www.openstreetmap.org/copyright. These grids are derived from OpenStreetMap data and are offered under
-the same licence. Each file also carries this credit in its `attribution` field, which the map shows.
+the same licence. Each file also carries this credit in its `attribution` field, which the map shows. The basemap
+tiles are Protomaps Basemap layers (https://protomaps.com) derived from OpenStreetMap, under the same ODbL terms,
+and from Natural Earth, which is in the public domain.

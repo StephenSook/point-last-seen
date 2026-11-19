@@ -5,6 +5,37 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules workflow also runs when `shared/constants/**`, `shared/schemas/**`, `shared/templates/**` or
+  `storage.lifecycle.json` change, since the functions code and tests read them. A new guard,
+  `scripts/test_workflow_paths.py`, finds every such file the functions code and tests name and fails when the
+  workflow's filter misses one, or when its push and pull-request filters differ. ci-local and CI both run it.
+  Source: review (a models.json or template change skipped the functions tests).
+  Verified: the guard failed first, listing 6 files outside the filter (models.json, three schemas, a template,
+  the lifecycle file), now passes; `bash scripts/ci-local.sh` exit 0.
+- The plan and family push tests compare the whole message with `toEqual`, so a name, a place, a task or a
+  question's text added to a push fails them. Before, `toMatchObject` let any extra field through.
+  Source: review (a privacy assertion must fail on extra fields).
+  Verified: with a `place` field added to the plan push's data and a `name` field to the family push's, both
+  tests failed; with notify.ts restored, all 13 push tests pass.
+- Hosting answers a missing `/tiles/` or `/evidence/` file with a real 404. The app-shell rewrite's source is now
+  `!/@(tiles|evidence)/**` instead of `**`, so a basemap, route graph or published run that a deploy left out can no
+  longer come back as `index.html` with status 200, which read as "no streets", "walkers off" or "no published run"
+  with nothing pointing at the missing file.
+  Source: review (a judge walk of the live site).
+  Verified: the config test (the only `/index.html` rewrite has exactly that source) failed first, now passes; on
+  the Hosting emulator `/`, `/judge` and `/command/x` return the shell with 200, and `/tiles/missing.pmtiles`,
+  `/tiles/a/b.graph.json` and `/evidence/published-run.json` return 404; `bash scripts/ci-local.sh` exit 0.
+- The development site's route graph (`shared/grid/piedmont-park-dev.graph.json`) and basemap tiles
+  (`shared/grid/piedmont-park-dev.pmtiles`) are now in the repository beside its grid, so a deploy from a clean
+  checkout can carry them to `/tiles/`. Before, they lived only on build machines, and a clean-worktree deploy
+  served the app shell at both paths: no streets on the map and no walkers. The graph rebuilds byte for byte from
+  the committed grid and its OpenStreetMap extract; the tiles are a Protomaps Basemap extract (basemap 4.15.2,
+  OpenStreetMap data as of 2026-11-18 04:00 UTC), kept because daily builds expire. `shared/grid/README.md` records
+  how each was made with its sha256, and `NOTICE` names them under ODbL, with the Protomaps and Natural Earth credit.
+  Source: review (a judge walk of the live site found both files missing).
+  Verified: the tests (the graph names the same grid, is bounded by its box, has over 100 edges, credits
+  OpenStreetMap and indexes in the engine; the tiles are PMTiles v3 whose bounds cover the grid's box) failed
+  first, now pass; the rebuilt graph is identical to the committed one; `bash scripts/ci-local.sh` exit 0.
 - A searcher's join names a team a push can reach: letters, digits or `_`, at most 32 characters, and never
   `family` (any case), whose topic is the family's. Before, any id up to 128 characters joined, including ones with
   `-`, which no plan push reaches.

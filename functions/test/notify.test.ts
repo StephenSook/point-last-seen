@@ -22,10 +22,11 @@ describe("the push", () => {
   it("goes to the team's topic, collapses per incident, lives 2 hours and carries no person or place", () => {
     const m = planMessage({ incidentId: "drill-dev-1", teamId: "T2", version: 4, drill: true, nowMs: NOW });
     expect(teamTopic("drill-dev-1", "T2")).toBe("pls-drill-dev-1-T2");
-    expect(m).toMatchObject({ topic: "pls-drill-dev-1-T2", data: { incidentId: "drill-dev-1", teamId: "T2", planVersion: "4" },
+    // The whole message, exactly: an added key (a name, a place, the task text) fails here.
+    expect(m).toEqual({ topic: "pls-drill-dev-1-T2", data: { incidentId: "drill-dev-1", teamId: "T2", planVersion: "4" },
+      notification: { title: "Training drill: new assignment", body: "Your team has a new task. Open Point Last Seen to see it." },
       android: { collapseKey: "drill-dev-1", ttl: 7_200_000, priority: "high" },
       apns: { headers: { "apns-collapse-id": "drill-dev-1", "apns-expiration": String(Math.floor(NOW / 1000) + 7200) } } });
-    expect(m.notification).toEqual({ title: "Training drill: new assignment", body: "Your team has a new task. Open Point Last Seen to see it." });
     expect(planMessage({ incidentId: "i", teamId: "T1", version: 1, drill: false, nowMs: NOW }).notification?.title).toBe("New assignment");
   });
 });

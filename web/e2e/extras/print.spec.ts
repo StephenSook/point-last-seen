@@ -46,6 +46,9 @@ test("the print view is usable by keyboard", async ({ page }) => {
   const more = page.getByRole("button", { name: "More", exact: true });
   await more.focus();
   await page.keyboard.press("Enter");
+  // "Replay" is the first item; the arrow keys move down the menu.
+  await expect(page.getByRole("menuitem", { name: "Replay" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("menuitem", { name: "Print assignment sheet" })).toBeFocused();
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
