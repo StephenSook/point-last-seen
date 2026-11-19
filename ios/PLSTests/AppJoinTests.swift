@@ -7,6 +7,15 @@ import Testing
 final class FakeMissionReader: MissionReader, @unchecked Sendable {
     var docs: MissionDocs?
     private(set) var reads: [String] = []
+    private(set) var watching: [String] = []
+    private(set) var stops = 0
+    var onPlan: (@MainActor (JSONValue) -> Void)?
+
+    func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void {
+        watching.append(incidentId)
+        self.onPlan = onPlan
+        return { [weak self] in self?.stops += 1 }
+    }
     init(docs: MissionDocs?) { self.docs = docs }
     func read(incidentId: String) async throws -> MissionDocs {
         reads.append(incidentId)
@@ -26,10 +35,41 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                            plan: DrillDocs.plan(segmentIds: [first]), sharedProfile: DrillDocs.shared)
     }
 
-    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader) -> AppModel {
+    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice()) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                 speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                 speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }),
                  joinBackend: backend, missionReader: reader)
+    }
+
+    /// A plan command approves after the mission loaded reaches the phone: the assignment changes
+    /// and is spoken once; the same plan again says nothing; a plan with no task for this team
+    /// clears it without speaking.
+    @Test func aNewerPlanReachesTheLoadedMission() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let voice = FakeVoice()
+        let m = model(FakeJoinBackend(), reader, voice: voice)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(reader.watching == ["drill-dev-1"] && voice.spoken.count == 1)
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        let newer = DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3)
+        await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment?.taskText == "Search the north field." && m.mission?.assignedSegmentIds == [segments.last ?? ""])
+        #expect(voice.spoken.count == 2)
+        await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.spoken.count == 2)
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 4, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment == nil && m.mission?.assignedSegmentIds.isEmpty == true && voice.spoken.count == 2)
+        // A plan for another incident is not this mission's.
+        await m.planArrived(newer, incidentId: "other", teamId: "T1")
+        #expect(m.mission?.assignment == nil)
+    }
+
+    @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
+        await m.loadMission(incidentId: "drill-dev-2", teamId: "T1")
+        #expect(reader.watching == ["drill-dev-1", "drill-dev-2"] && reader.stops == 1)
     }
 
     @Test func joiningLoadsTheTeamsMission() async throws {

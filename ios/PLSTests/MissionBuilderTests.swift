@@ -45,10 +45,10 @@ enum DrillDocs {
         ])
     }
 
-    static func plan(segmentIds: [String]) -> JSONValue {
-        .object(["version": .number(2), "basedOnEventSetHash": .string("h"), "priorVersion": .number(5),
-                 "assignments": .array([.object(["teamId": .string("T1"), "segmentIds": .array(segmentIds.map(JSONValue.string)),
-                                                 "taskText": .string("Walk the creek bank."), "reason": .string("r")])]),
+    static func plan(segmentIds: [String], task: String = "Walk the creek bank.", version: Double = 2, team: String = "T1") -> JSONValue {
+        .object(["version": .number(version), "basedOnEventSetHash": .string("h"), "priorVersion": .number(5),
+                 "assignments": .array([.object(["teamId": .string(team), "segmentIds": .array(segmentIds.map(JSONValue.string)),
+                                                 "taskText": .string(task), "reason": .string("r")])]),
                  "approvedByUid": .string("cmd"), "approvedAt": .number(2000), "createdClientTimeMs": .number(1500)])
     }
 

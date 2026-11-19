@@ -35,6 +35,8 @@ final class AppModel {
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
+    /// Stops listening for the loaded mission's plans.
+    @ObservationIgnored private var stopPlanWatch: (@Sendable () -> Void)?
     static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
 
     init(signIn: SignIn = .firebase(),
@@ -205,12 +207,33 @@ final class AppModel {
             let mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
                                                    bundledParams: try BundledConstants.engineParams())
             await load(mission)
+            watchPlans(incidentId: incidentId, teamId: teamId)
             return nil
         } catch let failure as MissionBuilder.Failure {
             return failure.message
         } catch {
             return Self.missionUnread
         }
+    }
+
+    /// Listens for plans command approves after the mission loaded, so a new assignment reaches
+    /// this phone (and is spoken once) without a new join.
+    private func watchPlans(incidentId: String, teamId: String) {
+        stopPlanWatch?()
+        stopPlanWatch = missionReader.watchLatestPlan(incidentId: incidentId) { [weak self] plan in
+            Task { await self?.planArrived(plan, incidentId: incidentId, teamId: teamId) }
+        }
+    }
+
+    /// A plan for the loaded mission: the team's assignment and segments follow it.
+    func planArrived(_ planDoc: JSONValue, incidentId: String, teamId: String) async {
+        guard var mission, mission.incidentId == incidentId, mission.teamId == teamId,
+              let plan = try? planDoc.decode(PlanDoc.self) else { return }
+        let assignment = plan.assignment(for: teamId)
+        guard assignment != mission.assignment else { return }
+        mission.assignment = assignment
+        mission.assignedSegmentIds = assignment?.segmentIds ?? []
+        await load(mission)
     }
 
     /// A searcher who joined before (the token names an incident and a team) gets the mission back

@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): a plan command approves after the mission loads reaches the phone
+- What: once a mission loads, the phone listens for the incident's latest approved plan (highest
+  version). A plan that changes this team's assignment updates the task and its segments and goes
+  through `load`, so the new assignment is spoken once; the same plan again says nothing, and a plan
+  with no task for this team clears it without speaking. Loading another mission stops the old
+  listener.
+- Source: plan task, loading a mission on the iPhone (an approved plan did not reach a loaded phone).
+- Verified: two tests (a newer plan changes and speaks the assignment once, a repeat is silent, a
+  plan for another team clears it, a plan for another incident is ignored; a second mission stops
+  the first listener) failed to compile, then passed; the CI mirror `bash scripts/ci-local.sh`
+  exit 0; 88 app tests pass.
+
 ### fix(ios): remove phone numbers before a report reaches any model, not only before it is stored
 - What: the iPhone removed phone numbers only from what it stored, so the on-device model, the
   cloud model and the token count (also a call into Apple's model) were handed the report with
