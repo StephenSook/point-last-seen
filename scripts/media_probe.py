@@ -1,17 +1,20 @@
-"""Daily, credential-free check that drill media still expires: reads ops/storage (written on every run of
-deleteIncidentMedia, every 5 minutes) through Firestore REST with the site's public API key, and exits 1 if
-the bucket lifecycle rule is missing, the sweep has failed twice in a row, or its heartbeat is over 20 minutes
-old. Retires itself after 2026-12-17 (judging ends Dec 16).
+"""Daily check that drill media still expires: reads ops/storage (written on every run of deleteIncidentMedia,
+every 5 minutes) through Firestore REST with the site's public API key, and exits 1 if the bucket lifecycle rule
+is missing, the sweep has failed twice in a row, or its heartbeat is over 20 minutes old. With the CI debug token
+(APPCHECK_DEBUG_TOKEN_CI) it sends an App Check token too, so the read keeps working once App Check is enforced on
+Firestore; the token is never printed. Retires itself after 2026-12-17 (judging ends Dec 16).
 
 Usage: python3 -I scripts/media_probe.py
 """
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timezone
 
 SITE = "https://buildhybridai-2026-yg3m.web.app"
+WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
 STALE_MIN = 20  # four missed 5-minute runs
 RETIRE_AFTER = date(2026, 12, 17)
 
@@ -37,10 +40,27 @@ def evaluate(d, now: datetime) -> list[str]:
     return problems
 
 
-def ops_storage_request(cfg: dict) -> urllib.request.Request:
+def ci_debug_token(env) -> str | None:
+    """The CI App Check debug token from the environment, or None when it is not set."""
+    return env.get("APPCHECK_DEBUG_TOKEN_CI") or None
+
+
+def app_check_token(cfg: dict, debug: str) -> str:
+    """Exchanges the debug token for an App Check token for the web app, from the hosting origin."""
+    url = f"https://content-firebaseappcheck.googleapis.com/v1/projects/{cfg['projectId']}/apps/{WEB_APP_ID}:exchangeDebugToken?key={cfg['apiKey']}"
+    req = urllib.request.Request(url, data=json.dumps({"debugToken": debug}).encode(), method="POST",
+                                 headers={"Content-Type": "application/json", "Referer": SITE + "/"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())["token"]
+
+
+def ops_storage_request(cfg: dict, app_check: str | None = None) -> urllib.request.Request:
     """The public ops/storage read, sent from the hosting origin: the browser API key accepts only its referrers."""
     url = f"https://firestore.googleapis.com/v1/projects/{cfg['projectId']}/databases/(default)/documents/ops/storage?key={cfg['apiKey']}"
-    return urllib.request.Request(url, headers={"Referer": SITE + "/"})
+    headers = {"Referer": SITE + "/"}
+    if app_check:
+        headers["X-Firebase-AppCheck"] = app_check
+    return urllib.request.Request(url, headers=headers)
 
 
 def main() -> int:
@@ -50,8 +70,11 @@ def main() -> int:
         return 0
     with urllib.request.urlopen(SITE + "/__/firebase/init.json", timeout=30) as r:
         cfg = json.loads(r.read())
+    debug = ci_debug_token(os.environ)
+    token = app_check_token(cfg, debug) if debug else None
+    print(f"media_probe: reading ops/storage {'with' if token else 'without'} an App Check token")
     try:
-        with urllib.request.urlopen(ops_storage_request(cfg), timeout=30) as r:
+        with urllib.request.urlopen(ops_storage_request(cfg, token), timeout=30) as r:
             d = json.loads(r.read())
     except urllib.error.HTTPError as e:
         d = None if e.code == 404 else {"fields": {}}

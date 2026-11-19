@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The media probe sends an App Check token with its `ops/storage` read when it has the CI debug token
+  (`APPCHECK_DEBUG_TOKEN_CI`), exchanged for the web app from the hosting origin, so the daily check keeps working
+  once App Check is enforced on Firestore. The token is never printed; the probe says whether it read with one.
+  Source: review (enforcing App Check on Firestore would have broken the probe's token-less read).
+  Verified: the tests (the read carries the token when given and no header otherwise; the debug token comes from
+  the environment) failed first, now 8 probe tests pass; run locally, the probe passed with a token and without
+  one; `bash scripts/ci-local.sh` exit 0.
 - The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
   allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
   (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
