@@ -27,9 +27,31 @@ public struct ApproachNotes: Sendable, Equatable {
 /// own words, shows the first few and puts the rest under More.
 public struct ApproachCard: Sendable, Equatable {
     public struct Line: Sendable, Equatable { public var id: String; public var text: String; public var sourceRole: String }
+    /// "Answers to …": every name they answer to; nil when no name was given.
+    public var names: String? = nil
     public var first: [Line]
     public var more: [Line]
     public var footer: String
+
+    public init(names: String? = nil, first: [Line], more: [Line], footer: String) {
+        self.names = names
+        self.first = first
+        self.more = more
+        self.footer = footer
+    }
+
+    /// The card's names line, as the web's answersToLine: the main name, then every other name they
+    /// answer to (the family's list, else the nickname), each once. Nil when no name was given.
+    public static func answersToLine(_ profile: SharedProfile) -> String? {
+        let main = profile.answersTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        var others: [String] = []
+        for name in profile.namesToCall.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+        where !name.isEmpty && name != main && !others.contains(name) {
+            others.append(name)
+        }
+        if !main.isEmpty { return others.isEmpty ? "Answers to \(main)" : "Answers to \(main) (also \(others.joined(separator: ", ")))" }
+        return others.isEmpty ? nil : "Answers to \(others.joined(separator: ", "))"
+    }
 
     public static func build(profile: SharedProfile, notes: ApproachNotes) -> ApproachCard {
         let chosen = Set(profile.approachNoteIds)
@@ -43,7 +65,8 @@ public struct ApproachCard: Sendable, Equatable {
             lines.append(Line(id: id, text: text, sourceRole: note.sourceRole))
         }
         let cut = max(0, notes.firstScreenMax)
-        return ApproachCard(first: Array(lines.prefix(cut)), more: Array(lines.dropFirst(cut)), footer: notes.footer)
+        return ApproachCard(names: answersToLine(profile), first: Array(lines.prefix(cut)), more: Array(lines.dropFirst(cut)),
+                            footer: notes.footer)
     }
 
     /// Fills `{field}` placeholders; a note whose field is empty is left out.
