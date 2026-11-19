@@ -1,4 +1,5 @@
 import notesFile from "../../constants/approach-notes.json";
+import aidsFile from "../../constants/tracking-aids.json";
 import { eventId } from "./ids";
 import type { CommandProfile, EventDoc, Place, ProfileFlags, SharedProfile } from "./types";
 
@@ -83,6 +84,20 @@ export function namesToCall(p: Pick<SharedProfile, "nickname" | "otherNames">): 
 }
 
 /**
+ * The search card's tracking-aid lines, from shared/constants/tracking-aids.json: one per aid the family named, in the
+ * constants' order (a choice this build does not know is skipped), then the family's note. Nothing when the family has
+ * not said; the "none" line when it said there are none. Card only: never part of what a model is sent.
+ */
+export function trackingAidLines(p: Pick<SharedProfile, "trackingAids">): string[] {
+  if (p.trackingAids === undefined) return [];
+  const named = new Set<string>(p.trackingAids.aids);
+  const lines = aidsFile.aids.filter(a => named.has(a.id)).map(a => a.line);
+  const note = p.trackingAids.note.trim();
+  if (note !== "") lines.push(note);
+  return lines.length > 0 ? lines : [aidsFile.noneLine];
+}
+
+/**
  * The profile/shared document: the 20 shared fields, plus otherNames when the family has the list (nickname then
  * mirrors its first entry); dementiaType only with the family's consent (else null).
  */
@@ -93,6 +108,7 @@ export function profileForSearchers(profile: FamilyProfile): SharedProfile {
     out.otherNames = [...profile.otherNames];
     out.nickname = profile.otherNames[0] ?? "";
   }
+  if (profile.trackingAids !== undefined) out.trackingAids = { aids: [...profile.trackingAids.aids], note: profile.trackingAids.note };
   out.dementiaType = profile.shareDementiaType ? profile.dementiaType : null;
   out.approachNoteIds = approachNoteIds(profile);
   return out as unknown as SharedProfile;

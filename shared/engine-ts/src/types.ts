@@ -209,12 +209,22 @@ export interface ProfileFlags {
   medicationTimingMatters: boolean;
 }
 
+/** shared/schemas/subject-profile.schema.json: the tracking aids the family can name (shared/constants/tracking-aids.json). */
+export type TrackingAid = "project_lifesaver" | "medicalert_id" | "gps_tracker" | "phone_location";
+/** Up to 4 distinct aids and a note of up to 80 characters with no digits; an empty list and note mean "none". */
+export interface TrackingAids {
+  aids: TrackingAid[];
+  note: string;
+}
+
 export interface SharedProfile {
   answersTo: string;
   /** Mirrors otherNames[0] when otherNames is present ("" for an empty list), so older readers still show one. */
   nickname: string;
   /** Other names she may answer to, 0 to 5, each 1 to 60 characters. Absent on profiles saved before the list. */
   otherNames?: string[];
+  /** What the family said about tracking aids, for the cards only (never sent to a model). Absent: unknown. */
+  trackingAids?: TrackingAids;
   ageYears: number | null;
   gender: string;
   appearance: string;

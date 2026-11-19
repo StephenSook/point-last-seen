@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
+  `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
+  note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
+  choice it does not know is skipped), then the family's note; nothing when the family has not said; and "No tracker
+  or medical ID, as the family said." when it said none. `SharedProfile` gains the optional `trackingAids`, and
+  `profileForSearchers` carries it into profile/shared; `profileForModel` never includes it.
+  Source: expert input, with the card wording agreed with the web, iPhone and Android apps.
+  Verified: the tests (absent gives nothing; empty gives the none line; the order, the skipped unknown choice and the
+  trimmed note; profile/shared carries it only when given; the model profile never does; the constants' choices and
+  note limit equal the schema's) failed first, now all 248 engine tests pass; typecheck and lint exit 0; TypeScript
+  schema parity holds (Swift and Kotlin follow in their apps).
 - The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
   of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
   digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
