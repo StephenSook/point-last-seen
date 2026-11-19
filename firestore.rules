@@ -16,11 +16,13 @@ service cloud.firestore {
     function incidentData(incidentId) {
       return get(/databases/$(database)/documents/incidents/$(incidentId)).data;
     }
-    // A judge sandbox must carry a timestamp expiry in the future; any other incident may have none.
+    // A judge sandbox must carry a timestamp expiry in the future and have finished its setup (a returning judge's
+    // claims still name the sandbox while it is rebuilt; a sandbox made before setup was tracked has no flag and
+    // counts as ready). Any other incident may have no expiry.
     function liveFor(i) {
       let exp = i.get('expiresAt', null);
       return i.get('mode', '') == 'judge'
-        ? (exp is timestamp && request.time < exp)
+        ? (exp is timestamp && request.time < exp && i.get('setupReady', true) == true)
         : (exp == null || (exp is timestamp && request.time < exp));
     }
     function notExpired(incidentId) {
@@ -71,7 +73,8 @@ service cloud.firestore {
         && (!('searchState' in request.resource.data) || request.resource.data.searchState in ['searching', 'paused'])
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt'])
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt',
+                'setupReady', 'setupId', 'setupStartedAtMs'])
         // The prior moves one version at a time, and its inputs change only with that step, so two seats
         // rebuilding from the same version cannot both land.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',

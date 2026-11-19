@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A judge practice search still being set up is closed to its members until the copy finishes: the Firestore rules
+  (`liveFor`), the Storage rules (`notExpired`) and `deleteIncidentMediaNow` refuse a judge incident whose
+  `setupReady` is false, so a returning judge, whose claims still name `judge-{uid}`, cannot read or write a sandbox
+  while it is rebuilt. A sandbox made before setup was tracked has no flag and counts as ready. `setupReady`,
+  `setupId` and `setupStartedAtMs` are server-owned: no client may change them. The media delete now also requires a
+  judge sandbox to carry a timestamp expiry, as the rules do.
+  Source: review (cross-model, round 1, high 1).
+  Verified: the tests (a member with live claims cannot read the incident or a segment or write an event while setup
+  is false, and can once it is true or absent; command cannot write any setup field; a family upload is refused while
+  setup is false; the media delete refuses a sandbox being set up or one with no expiry, and works once ready) failed
+  first, now the 43 roles, storage and media delete tests pass in the emulator; functions typecheck exit 0.
 - `scripts/ci-local.sh` takes one of two heavy-suite slots (`/tmp/heavy-suite-1.lock`, then `-2.lock`) without
   waiting, and only when both are busy waits on the first, printing which process holds it every 5 minutes and giving
   up after 90 minutes. It never waits on itself: a run already holding a slot (`PLS_HEAVY_LOCK`) or started by hand
