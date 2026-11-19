@@ -9,8 +9,16 @@ build/
 GoogleService-Info.plist
 *.appcheck-debug-token
 
-# XcodeGen output (project.yml is the source)
-PLS.xcodeproj/
+# XcodeGen output (project.yml is the source). The one file kept is the app's package pins, which
+# XcodeGen leaves in place and Xcode reads, so a fresh clone builds against the same versions.
+PLS.xcodeproj/*
+!PLS.xcodeproj/project.xcworkspace/
+PLS.xcodeproj/project.xcworkspace/*
+!PLS.xcodeproj/project.xcworkspace/xcshareddata/
+PLS.xcodeproj/project.xcworkspace/xcshareddata/*
+!PLS.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+PLS.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!PLS.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 PLS/Info.plist
 PLS/PLS.entitlements
 PLSWidgets/Info.plist
