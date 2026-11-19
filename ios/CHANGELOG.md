@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### test(ios): the "asked once" test now fails when the saved answer is ignored
+- What: the relaunch check ran after "Turn on alerts", when the system already reported alerts
+  allowed, so it passed even with the saved answer removed. The test now relaunches after
+  "Not now", with the system still at "not asked", so only the saved answer keeps the question away.
+  The allowed relaunch checks that the phone only registers again.
+- Source: review (finding 9).
+- Verified: with the saved-answer check replaced by `offersAlerts = true`, the new test fails
+  (AlertOfferTests.swift:73); restored, it passes; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios-core): team ids follow the server's rule, so no two teams can share a push topic
 - What: the phone accepted any id of letters, digits, "-" and "_" up to 128 for a team. Then
   ("north-east", "T1") and ("north", "east-T1") both named the topic pls-north-east-T1. The server

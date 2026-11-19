@@ -54,18 +54,23 @@ final class FakeAlerts: AlertPermission, @unchecked Sendable {
         #expect(m.offersAlerts && AlertOffer.sentence == "Turn on alerts so a new assignment reaches you on a locked screen.")
         await m.answerAlerts(true)
         #expect(alerts.requests == 1 && alerts.registrations == 1 && !m.offersAlerts)
-        // Asked once, also after a relaunch.
+        // After a relaunch with alerts allowed, the phone only registers again.
         let again = try model(alerts, defaults)
         await again.trySignIn()
-        #expect(!again.offersAlerts)
+        #expect(!again.offersAlerts && alerts.registrations == 2)
     }
 
-    @Test func notNowAsksNothing() async throws {
-        let alerts = FakeAlerts()
-        let m = try model(alerts, freshDefaults())
+    /// "Not now" asks nothing, and the question is not asked again after a relaunch, although the
+    /// system still says alerts were never asked: the saved answer is what keeps it away.
+    @Test func notNowAsksNothingAndIsRemembered() async throws {
+        let alerts = FakeAlerts(), defaults = freshDefaults()
+        let m = try model(alerts, defaults)
         await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
         await m.answerAlerts(false)
         #expect(alerts.requests == 0 && alerts.registrations == 0 && !m.offersAlerts)
+        let again = try model(alerts, defaults)
+        await again.trySignIn()
+        #expect(alerts.state == .notAsked && again.mission != nil && !again.offersAlerts)
     }
 
     @Test func alertsAlreadyAllowedOnlyRegister() async throws {
