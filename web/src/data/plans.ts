@@ -59,6 +59,31 @@ export function planFromDoc(data: unknown): PlanDoc | null {
   };
 }
 
+/** Plans read from their records, oldest first, and the ids of records that can't be read. */
+export function readPlans(docs: readonly { id: string; data: unknown }[]): { plans: PlanDoc[]; unreadable: string[] } {
+  const plans: PlanDoc[] = [];
+  const unreadable: string[] = [];
+  for (const d of docs) {
+    const p = planFromDoc(d.data);
+    if (p) plans.push(p);
+    else unreadable.push(d.id);
+  }
+  return { plans: plans.sort((a, b) => a.version - b.version), unreadable };
+}
+
+/** The versions held by plan records that can't be read (their record id is the padded version). */
+function heldVersions(unreadable: readonly string[]): number[] {
+  return unreadable.filter((id) => /^[0-9]+$/.test(id)).map(Number);
+}
+
+/** The line the post shows for plan records that can't be read, or null when every record reads. */
+export function unreadablePlanLine(unreadable: readonly string[]): string | null {
+  if (unreadable.length === 0) return null;
+  const names = unreadable.map((id) => (/^[0-9]+$/.test(id) ? `plan ${Number(id)}` : `record ${id}`)).join(", ");
+  const head = unreadable.length === 1 ? "This plan record can't be read" : "These plan records can't be read";
+  return `${head}: ${names}. Teams show the newest plan that can.`;
+}
+
 export function nextPlanVersion(existing: readonly number[]): number {
   return existing.reduce((m, v) => Math.max(m, v), 0) + 1;
 }
@@ -83,6 +108,8 @@ export const PLANS_LOADING = "The plan history is still loading. Approve again i
 
 export function approveNow(args: {
   plans: readonly PlanDoc[];
+  /** Ids of plan records that can't be read: their versions are taken all the same. */
+  unreadable?: readonly string[];
   /** The first plans snapshot has arrived; before it, the next version is not known. */
   plansLoaded: boolean;
   draft: PlanDraft;
@@ -94,7 +121,7 @@ export function approveNow(args: {
 }): { version: number; ack: Promise<void> } {
   // An empty list before the first snapshot is not "no plans yet": approving then could reuse v1.
   if (!args.plansLoaded) throw new Error(PLANS_LOADING);
-  const version = nextPlanVersion(args.plans.map((p) => p.version));
+  const version = nextPlanVersion([...args.plans.map((p) => p.version), ...heldVersions(args.unreadable ?? [])]);
   const ack = args.write(planDocFor(args.draft, args.wording, args.route, version, args.uid, args.nowMs));
   return { version, ack };
 }
@@ -114,19 +141,17 @@ export function planSendState(version: number, plans: readonly PlanDoc[], pendin
 export function subscribePlans(
   db: Firestore,
   incidentId: string,
-  /** fromServer: false for a snapshot served from this laptop's cache. */
-  cb: (plans: PlanDoc[], pendingVersions: number[], fromServer: boolean) => void,
+  /** fromServer: false for a snapshot served from this laptop's cache. unreadable: ids of records that are not plans. */
+  cb: (plans: PlanDoc[], pendingVersions: number[], fromServer: boolean, unreadable: string[]) => void,
   onError: (e: unknown) => void,
 ): Unsubscribe {
   return onSnapshot(
     collection(db, "incidents", incidentId, "plans"),
     { includeMetadataChanges: true },
-    (snap) =>
-      cb(
-        snap.docs.map((d) => d.data() as PlanDoc).sort((a, b) => a.version - b.version),
-        snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => Number(d.data()["version"])),
-        !snap.metadata.fromCache,
-      ),
+    (snap) => {
+      const { plans, unreadable } = readPlans(snap.docs.map((d) => ({ id: d.id, data: d.data() })));
+      cb(plans, snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => Number(d.data()["version"])), !snap.metadata.fromCache, unreadable);
+    },
     onError,
   );
 }

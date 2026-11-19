@@ -35,7 +35,7 @@ import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards } from "./sightingCards";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribeDraft, subscribePlans, writePlan } from "../data/plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribeDraft, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
@@ -264,7 +264,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
       failed,
     );
-    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending, fromServer) => dispatch({ type: "plans", plans: p, pending, fromServer }), failed);
+    const stopPlans = subscribePlans(pls.db, incidentId, (p, pending, fromServer, unreadable) => dispatch({ type: "plans", plans: p, pending, fromServer, unreadable }), failed);
     const stopProfile = subscribeProfile(pls.db, incidentId, (docs) => dispatch({ type: "profile", profile: docs }), failed);
     return () => {
       stopIncident();
@@ -568,7 +568,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const approve = (worded: WordedPlan): { version: number; ack: Promise<void> } => {
     const uid = pls.auth.currentUser?.uid;
     if (!draft || !uid) throw new Error("not ready");
-    return approveNow({ plans: state.plans, plansLoaded: state.plansLoaded === true, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
+    return approveNow({ plans: state.plans, unreadable: state.unreadablePlans ?? [], plansLoaded: state.plansLoaded === true, draft, wording: worded.wording, route: worded.route, uid, nowMs: Date.now(), write: (plan) => writePlan(pls.db, incidentId, plan) });
   };
 
   if (denied) {
@@ -615,6 +615,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       {offline && (
         <p className="error" role="status">
           No connection. Showing the last data received.
+        </p>
+      )}
+      {unreadablePlanLine(state.unreadablePlans ?? []) && (
+        <p className="error" role="status" data-testid="unreadable-plans">
+          {unreadablePlanLine(state.unreadablePlans ?? [])}
         </p>
       )}
       <div className="post-body">

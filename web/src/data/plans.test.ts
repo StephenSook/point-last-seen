@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc, readPlans, unreadablePlanLine } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -132,5 +132,37 @@ describe("planFromDoc", () => {
     expect(planFromDoc({ ...good, assignments: [{ teamId: "T1" }] })).toBeNull();
     expect(planFromDoc({ ...good, version: "3" })).toBeNull();
     expect(planFromDoc(null)).toBeNull();
+  });
+});
+
+describe("plan records that can't be read", () => {
+  const good = (version: number) => ({
+    version, basedOnEventSetHash: "a".repeat(64), priorVersion: 1,
+    assignments: [{ teamId: "T1", segmentIds: ["AA"], taskText: "Search segment AA.", reason: "Highest." }],
+    wordingRoute: null, approvedByUid: "u1", approvedAt: null, createdClientTimeMs: 5,
+  });
+  it("are left out of the plans and named by their record id, oldest plan first", () => {
+    const r = readPlans([
+      { id: "0002", data: good(2) },
+      { id: "0003", data: { ...good(3), assignments: [{ teamId: "T1", segmentIds: [7], taskText: "x", reason: "y" }] } },
+      { id: "0001", data: good(1) },
+    ]);
+    expect(r.plans.map((p) => p.version)).toEqual([1, 2]);
+    expect(r.unreadable).toEqual(["0003"]);
+  });
+  it("still hold their version, so the next approval does not reuse it", () => {
+    const plans = readPlans([{ id: "0001", data: good(1) }]).plans;
+    let written = 0;
+    const r = approveNow({ plans, unreadable: ["0002", "not-a-version"], plansLoaded: true, draft, wording, route, uid: "u1", nowMs: 9, write: (p) => { written = p.version; return Promise.resolve(); } });
+    expect(r.version).toBe(3);
+    expect(written).toBe(3);
+  });
+});
+
+describe("unreadablePlanLine", () => {
+  it("names each record that can't be read, by plan number when the id is one", () => {
+    expect(unreadablePlanLine([])).toBeNull();
+    expect(unreadablePlanLine(["0003"])).toBe("This plan record can't be read: plan 3. Teams show the newest plan that can.");
+    expect(unreadablePlanLine(["0003", "x9"])).toBe("These plan records can't be read: plan 3, record x9. Teams show the newest plan that can.");
   });
 });

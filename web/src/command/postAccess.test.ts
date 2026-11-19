@@ -64,6 +64,15 @@ describe("postReducer with plans", () => {
   });
 });
 
+describe("postReducer with plan records that can't be read", () => {
+  it("keeps their ids beside the plans, and clears them on a denial", () => {
+    const withBad = postReducer(loaded, { type: "plans", plans: [], unreadable: ["0002"] });
+    expect(withBad.unreadablePlans).toEqual(["0002"]);
+    expect(postReducer(withBad, { type: "plans", plans: [] }).unreadablePlans).toEqual([]);
+    expect(postReducer(withBad, { type: "failed", error: { code: "permission-denied" } }).unreadablePlans).toEqual([]);
+  });
+});
+
 describe("postReducer with the profile", () => {
   const profile = { shared: undefined, command: { previousAddresses: [], placesFrequented: [], pastWandering: [], nearbyWater: "creek", vehicle: null } };
   it("keeps the profile documents and clears them on a denial", () => {

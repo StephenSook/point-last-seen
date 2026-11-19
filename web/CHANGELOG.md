@@ -1335,3 +1335,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `planFromDoc` checks every field a plan holds (integer version, text hash and approver, numeric prior version and time, a list of assignments each with a text team id, task, reason and a list of text segment ids, a route that is an object or null) and returns null when any is not what a plan holds, instead of handing an unchecked record to the plan panel.
 - Source: whole-repository review, item 4 (medium).
 - Verified: two new tests (a stored plan reads back; a numeric segment id, assignments that are not a list, an assignment with missing fields, a text version and a null record each give null) failed first (function missing), then passed; 15 plan tests pass. scripts/ci-local.sh exit 0.
+
+### feat(command): say which plan records can't be read and keep their versions taken
+- What: the plans listener reads each record through `planFromDoc` (`readPlans`), so a record that is not a plan never reaches the team list, the change marks, the draft or the extras views. The post shows "This plan record can't be read: plan 3. Teams show the newest plan that can." (one line naming every such record), and Approve counts those records' versions as taken, so the next plan does not collide with one the create-only rule already holds.
+- Source: whole-repository review, item 4 (medium).
+- Verified: new tests (records left out and named by id, plans oldest first; approval after unreadable 0002 writes version 3; the reducer keeps the ids and clears them on a denial; the line for one record, for two, and none) failed first (functions and field missing), then passed; 18 plan tests and the reducer tests pass; typecheck clean. scripts/ci-local.sh exit 0.
