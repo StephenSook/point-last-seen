@@ -9,6 +9,7 @@
   "workspaces": [
     "shared/engine-ts",
     "tools/grid-builder",
+    "tools/export-run",
     "functions",
     "web"
   ],

@@ -3,8 +3,304 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- A searcher's join names a team a push can reach: letters, digits or `_`, at most 32 characters, and never
+  `family` (any case), whose topic is the family's. Before, any id up to 128 characters joined, including ones with
+  `-`, which no plan push reaches.
+  Source: review (the family topic `pls-{incident}-family` and the team topic share a form).
+  Verified: the test (`dev-1`, a 33-character id, `family` and `Family` are each refused as invalid-argument, even
+  when the team exists) failed first, now 21 join tests pass; every team id in the live project (20 teams, T1 and
+  T2) still passes; `bash scripts/ci-local.sh` exit 0.
+- Family pushes. `notifyFamilyQuestion` (on `familyQuestions/{questionId}` create) and `notifyFamilySearchState`
+  (on incident update, when `searchState` becomes `searching` or `paused`) send one push to the topic
+  `pls-{incidentId}-family`, with fixed wording and ids only: `{kind, incidentId}` plus `questionId` for a question.
+  The question's text never travels in the push; the phone reads it from Firestore. No kind for an outcome exists,
+  and no other incident change (its status included) sends anything. At most 20 family pushes per incident per UTC
+  day, counted in a server-only `pushBudget` doc; none in a judge practice search. A team named `family` never gets
+  a plan push, since its topic would be the family's.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (topic, wording and payload, with no question text; one push per new question; pushes only
+  on a change to searching or paused, not on a repeat, a status change or "found"; the daily cap across both kinds
+  and a new day; none in a judge sandbox; a "family" team skipped; both triggers registered; no member reads or
+  writes the budget) failed first where they test new behaviour, now pass; `bash scripts/ci-local.sh` exit 0
+  (218 tests).
+- Firestore rules for the family channel. `incidents/{id}/familyQuestions/{questionId}`: command asks, while the
+  incident is open, with exactly `text` (1 to 280 characters), `createdByUid` (itself) and `createdAt` (server time);
+  a family member answers once with `answer` (1 to 500 characters), `answeredByUid` (itself) and `answeredAt`
+  (server time), changing nothing else; every member reads; nobody deletes. The incident's new `searchState`, which
+  command sets, may only be `searching` or `paused`: what the family may be told about the search, never an
+  outcome.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (command asks and every member reads; family and searchers cannot ask; an empty, 281-character
+  or numeric text, someone else as asker, a client time, an extra field and malformed ids are refused; only
+  family answers, once, as itself, at server time, within 500 characters and without touching the question;
+  nobody deletes; searchState takes searching or paused only, from command only) failed first, now all 112 rules
+  tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter holds the judge replay reader's shape and size rules too: `engineParams` is written in
+  exactly the engine's shape (an incident created before a field existed gets the constants' value; a stored value
+  is kept; nothing the constants lack), a route is an exact route record or null, an effect has the engine's exact
+  shape and names only segments the run exports, no id is `__proto__`, `constructor` or `prototype`, every server
+  time lies between 2000 and 2100 and within 7 days of the rest, and a run has at most 1,000 events. A breach of
+  any refuses the write.
+  Source: review (the extras reader's rules at aa5bbf7).
+  Verified: the tests (the filled params match the engine's keys and keep the stored sweep width; a partial params
+  object, a route with an extra or a missing field, an effect with an extra field, a missing `why` or a segment
+  the run lacks, the three unsafe ids, times in 1999 or 2100 or 8 days apart, and 1,001 events are each refused)
+  failed first, now 19 exporter tests pass; typecheck exit 0; a read-only export of drill-dev-1 still passes every
+  check (68 segments, 24 events, 17 plans); `bash scripts/ci-local.sh` exit 0.
+- The README is written for judges first: the judge page's link at the top and what it offers today (a practice
+  search, and which models the command post uses; the replay after the drill), what ships on each platform and how
+  to try it (the command post's URL, TestFlight once the public build exists, a signed APK as a GitHub release
+  asset), and a setup from a clean checkout. It now says how the models are called: cloud reads through Firebase
+  AI Logic, on-device reads on the web and Android through AI Logic's hybrid inference, and on iPhone through Apple
+  Foundation Models (`SystemLanguageModel`). It no longer claims that every model call goes through Firebase AI
+  Logic, which the iPhone's on-device reads do not.
+  Source: review (the backlog audit: an untrue line, and a README that was not written for a judge).
+  Verified: the live site and `/judge` answer HTTP 200; the judge page's replay flag is off on main
+  (`REPLAY_LIVE`); the model paths match `ios/PLS/AI/ModelSessionFactory.swift`,
+  `android/.../ai/AiClient.kt` and `web/src/ai/client.ts`; `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
+  is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
+  and that its check compares each segment's percent and centroid, not its polygon. A new section on push
+  notifications says FCM topics are open, so a push carries no private content, and that iPhone delivery waits on an
+  APNs key.
+  Source: review (the extras lane's reader limits; the push security review).
+  Verified: each line matches the shipped code (`tools/export-run`, `functions/src/notify.ts`) or the reader's
+  stated checks; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` pushes only to team ids made of letters, digits and `_` (no `-`). Incident ids hold `-`, so
+  a team id with `-` could build another incident's topic: in incident `I1`, team `dev-1-T1` gives
+  `pls-I1-dev-1-T1`, which is incident `I1-dev-1`'s team `T1`. With no `-` in team ids, the last `-` in a topic is the
+  separator, and the topic format the apps subscribe to is unchanged.
+  Source: automated security review of 8083aa3 (topic collision across incidents).
+  Verified: the test (a team `dev-1-T1` that exists in the incident is refused) failed first, now 190 functions
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` reads plan doc ids as the web writes them, zero-padded (`plans/0015`), and finds the previous
+  plan at the padded id too. It had accepted only unpadded ids, so it would have sent no push for any real plan.
+  Source: found before the first live push test (the drill's plan ids are `0001` to `0015`).
+  Verified: the tests now use padded ids (and `0000`, `-1` and `draft` send nothing), failed first, now 6 notify
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 ## 2026-11-18
 
+- `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice
+  search), so it pushes only to team ids the incident has under `teams`, with plain ids (letters, digits, `_` and
+  `-`, at most 32), at most 20 a plan, and never in a judge practice search, where no phone is on a team.
+  Source: automated security review of 6f2b7fc (unbounded push fan-out from plan content).
+  Verified: the test (a plan naming a real team, a missing team and a path-like id pushes to the real team only;
+  30 changed teams give 20 pushes; a practice search sends none) failed first, now 190 functions tests pass in the
+  emulators; `bash scripts/ci-local.sh` exit 0.
+- A photo's cloud-read consent lives no longer than the photo: `deletePhotoConsentOnPhotoDelete` (Storage trigger on
+  object deletion, retry on) deletes `incidents/{id}/photoConsents/{sha256}` when `photos/{id}/{sha256}.jpg` is
+  deleted, whether by command, by the media delete or by the 30-day lifecycle. Photos are create-only, so a
+  re-upload of the same bytes follows a delete and needs the family's consent again. A consent written just after a
+  re-upload can be removed by the old object's delete event; the read then waits for a new consent, which fails
+  closed.
+  Source: review of PR #20 (a re-uploaded photo passed with the old consent; the media delete already removed
+  consents since 54d6323, but a single photo deleted by command or by the lifecycle did not).
+  Verified: the tests (the deleted photo's consent goes and another incident's stays; clips, packs, a PNG, a
+  non-hash name, a nested path and a path without an incident are ignored; the trigger registers on object
+  deletion) failed first, now 189 functions tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` (Firestore trigger on `incidents/{id}/plans/{version}` create) sends one push per team whose
+  assignment is new, changed or dropped since the previous plan, on the team's topic `pls-{incident}-{team}`. The
+  push names no person, place or task ("Your team has a new task. Open Point Last Seen to see it.", titled
+  "Training drill: new assignment" on a drill or practice search), collapses per incident and lives 2 hours
+  (Android collapse key and TTL; APNs collapse id and expiration). No model is involved. A plan id that is not a
+  positive integer sends nothing. iOS delivery waits for an APNs key in Firebase Cloud Messaging.
+  Source: plan task 32 item 2 (P-06).
+  Verified: the tests (new, changed and dropped assignments count and identical ones do not; the topic, collapse
+  key, TTL and wording; one push per changed team against the previous plan; the first plan notifies every team;
+  a non-version id sends nothing; the trigger registers on create) failed first, now pass in the emulators;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `docs/PRODUCTION-CHECKLIST.md` lists the steps before and after enforcing App Check on Firestore and Storage:
+  the 24-hour verdict read, the probe with its token, an App Check debug token for every local dev session (the
+  reCAPTCHA Enterprise key allows only the two hosting origins), the checks within 15 minutes of each flip and the
+  rollback.
+  Source: review (the enforcement plan; the web lane's read of the site key's allowed domains).
+  Verified: the domains are as read with `gcloud recaptcha keys describe` by the web lane on 2026-11-19;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/drill/kennesaw-seed.md`: how to rebuild the Kennesaw grid and seed its drill incident, step by
+  step, marked NOT RUN until the park gives written permission (the Piedmont drill is the fallback). It states the
+  urban terrain, with temperate mountain as the alternative command can pick.
+  Source: review (keep the second drill ready, not live).
+  Verified: the commands match the tools' usage (`build-grid --site-from-osm`, `--query`, `--prior`, `--graph`;
+  `seed_drill.py`, `seed_segments.py`); `bash scripts/ci-local.sh` exit 0.
+- `shared/grid/kennesaw-mountain-drill.grid.json`: a second drill grid, ready but not used: Kennesaw Mountain
+  National Battlefield Park (OpenStreetMap relation 143353) inside a 2.4 km window around the Visitor Center and
+  the two summits, 285 segments and 3.76 km2, the park's inholdings kept out as holes. Built from an OpenStreetMap
+  extract read on 2026-11-19 (data as of 02:06 UTC). `shared/grid/README.md` gives its source, window and credit
+  (ODbL). The grid test now checks both grids, including that each fits one prior batch (480 segments).
+  Source: review (a second drill site in case the park permits it).
+  Verified: the grid test failed first (file missing) and now passes for both grids; the build printed 285
+  segments and a route graph of 549 edges; `bash scripts/ci-local.sh` exit 0.
+- `build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>`
+  builds a drill site from an OpenStreetMap park relation: its outer ways stitched into rings, its inner rings
+  (private inholdings) kept as holes, clipped to a window, with the relation and window recorded. Grid building
+  refuses a site of more than 480 cells, because the web writes a rebuilt prior in one Firestore batch (every
+  segment, ROW, the incident and up to two events) and a batch holds at most 500 writes.
+  Source: review (a drill grid for a second, larger park).
+  Verified: the tests (two outer ways stitched with a hole kept and the source recorded; a window clip with its
+  window recorded; a missing relation, an open ring and a window outside the park refused; a 3 km square refused
+  at 480 cells; the CLI writes the site and refuses a missing relation or a malformed window) failed first, now 30
+  grid-builder tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` also deletes the incident's photo consent records, with the photos and their
+  readings.
+  Source: the photo consent rules (consents are deleted with the media).
+  Verified: the delete test (the consent goes, another incident's stays; the counts include it) failed first,
+  now 181 functions tests pass in the emulators.
+- Firestore rules for a photo's cloud-read consent, `incidents/{id}/photoConsents/{sha256}`: created only by a
+  family member, for themselves, with exactly `storagePath` (this photo's `photos/{incident}/{sha256}.jpg`),
+  `cloudProcessing` (`byUid` the writer, `atMs` a number, as in the clip consent), `createdByUid` (the writer) and
+  `createdAt` (server time). Command and family read it, so command can check it from the server before any cloud
+  read of the photo; nobody changes it; only its creator deletes it, which withdraws the consent.
+  Source: review of PR #20 (the command post's cloud photo read needs a server-side consent per photo).
+  Verified: the tests (the family member records it; command and family read it and a searcher cannot; command
+  and searchers cannot create one; another incident's path, another photo's, a clip path, someone else's consent,
+  a non-numeric or missing time, someone else as creator, a client time, an extra field and a non-hash id are
+  refused; no update or overwrite; only the creator deletes) failed first, now pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` row 14: App Check on Firestore and Storage is UNENFORCED (monitoring only, nothing refused)
+  since 2026-11-19 01:33 UTC, read back by GET; enforcement follows a 24-hour read of verified against unverified
+  requests per app; the rollback is to set the mode back.
+  Source: the approved monitoring step before enforcement.
+  Verified: both services' GET returned UNENFORCED at 01:33:35 and 01:33:36 UTC; a token-less ops/storage read
+  still passed afterwards; `bash scripts/ci-local.sh` exit 0.
+- The live probe workflow gives the media check the CI App Check debug token, so its `ops/storage` read carries a
+  token.
+  Source: the media probe fix.
+  Verified: the workflow change only adds the step's environment; `bash scripts/ci-local.sh` exit 0. The first run
+  after this push is checked below in the probe's run log.
+- The media probe sends an App Check token with its `ops/storage` read when it has the CI debug token
+  (`APPCHECK_DEBUG_TOKEN_CI`), exchanged for the web app from the hosting origin, so the daily check keeps working
+  once App Check is enforced on Firestore. The token is never printed; the probe says whether it read with one.
+  Source: review (enforcing App Check on Firestore would have broken the probe's token-less read).
+  Verified: the tests (the read carries the token when given and no header otherwise; the debug token comes from
+  the environment) failed first, now 8 probe tests pass; run locally, the probe passed with a token and without
+  one; `bash scripts/ci-local.sh` exit 0.
+- The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
+  allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
+  (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
+  it as `priorBuiltAtMs`.
+  Source: review (the replay needs to place the prior exactly).
+  Verified: the tests (refused without a version step and with a client-chosen time; accepted with the next
+  version and the server's time, alone or in a full prior batch) failed first, now 104 rules tests pass in the
+  emulator; `bash scripts/ci-local.sh` exit 0.
+- `docs/LIMITS.md` says what the published drill run leaves out and the one link it keeps: event ids stay as
+  stored, so someone who already holds a participant's uid could check which events are theirs (uids are never
+  published; every published run is a drill on team-owned devices). It also describes the media revoke marker,
+  and no longer says the sandbox media sweep waits for a rules deploy: it has been live since 2026-11-18.
+  Source: review (the exporter's event-id finding, kept and documented; the fact-sheet audit).
+  Verified: the sweep's `ops/storage` heartbeat read green earlier on 2026-11-18; `bash scripts/ci-local.sh`
+  exit 0.
+- `docs/evidence/model-latency.md` records why live cloud paths use the flash-lite family: one sample of
+  `gemini-3.8-flash` took 116,071 ms (333 thinking tokens) on 2026-11-17, against a flash-lite median of 839 ms
+  (925 ms with cloudGuard) over 10 warm calls on 2026-11-18. It says plainly that the slow figure is one sample and
+  that its raw record is local evidence, not in the repo.
+  Source: review (the film fact-sheet audit: a code comment cited "116 s" with no evidence file).
+  Verified: the figures copied from the 2026-11-17 test notes and the 2026-11-18 live check output;
+  `bash scripts/ci-local.sh` exit 0.
+- `shared/constants/models.json` names the speech model's caller as the server prompt template `pls-voice-v1`;
+  the retired Remote Config key `tts_model_ios` is gone from it.
+  Source: review (the film fact-sheet audit).
+  Verified: no other shipped file names `tts_model_ios` (`git grep`); `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md`'s table of cloud calls now lists all eight, with whether each is a server prompt template or a
+  direct call: it adds the web clip read (direct, because a template cannot pass the clip window) and the iOS
+  spoken assignment change (template `pls-voice-v1`), and replaces "None is templated today" with which three are.
+  Source: review (the film fact-sheet audit: the table contradicted row 6 and left two calls out).
+  Verified: each row checked against the calling code (`web/src/ai/clipRead.ts` cloud only;
+  `ios/PLS/AI/AssignmentSpeaker.swift`; the template ids in `shared/templates/`); `bash scripts/ci-local.sh` exit 0.
+- The gates job runs `scripts/test_firebase_config.py`, and `scripts/ci-local.sh` mirrors it.
+  Source: the hosting fix.
+  Verified: `bash scripts/ci-local.sh` exit 0.
+- Hosting no longer routes `/pack/**` to a `pack` function that was never built; packs come through Storage. A
+  test fails if any hosting rewrite names a function that `functions/src/index.ts` does not export.
+  Source: review (the film fact-sheet audit).
+  Verified: the test failed first on the `pack` rewrite and passes without it; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` marks the incident revoked before it removes any file: it writes
+  `incidents/{id}.mediaRevokedAt` (server time, a new value on every call), so every open command seat can clear
+  its photos and clip results and ignore a reload that started earlier. The rules make `mediaRevokedAt`
+  server-owned (a client update that changes it is refused), and a judge practice search does not copy it from its
+  seed. It is separate from `mediaDeletedAt`, which the ended-sandbox sweep stamps once.
+  Source: review (a delete on one command seat left the media readable on another).
+  Verified: the tests (the incident is marked before the first file is listed, with a later time on a second
+  delete and nothing on another incident; a refused caller marks nothing; command cannot write it; a practice
+  search does not inherit it) failed first, now 176 functions tests pass in the emulators;
+  `bash scripts/ci-local.sh` exit 0.
+- The search math constants cite their public sources. `docs/evidence/search-math-sources.md` gives the reference
+  and a verbatim quote for the sweep and hasty speeds (Hashimoto, Aung, Koester and Abaid, PLoS One 21(6):
+  e0339541, 2026: "Median speeds were 0.53 m/s (IQR 0.26 − 0.87) for hasty searches and 0.39 m/s (IQR 0.20 −
+  0.63) for sweep searches") and for the sweep width factor (Koester et al. 2014, as reproduced in Koester's 2018
+  thesis: "It was found on average W ≈ 1.645 × Rd with a strong correlation (R2 = .827)."). The constants' source
+  lines name these works instead of a private notes file.
+  Source: review (the film fact-sheet audit: a citation with no copy in the repository).
+  Verified: both quotes re-read at the source on 2026-11-18 (the PLoS One article page and the thesis PDF); the
+  vectors are current; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter never places a camera: a camera sighting's position (`positionSource: "camera_pin"`)
+  is usually the family's own camera, at home, so it is written as null like a destination's, and the checks
+  refuse a run that places one.
+  Source: automated security review of 6c90281 (a camera pin published a likely home position).
+  Verified: the tests (a camera sighting is written with no position while a GPS position stays; a planted camera
+  position is refused) failed first, now 14 exporter tests pass; typecheck exit 0; `bash scripts/ci-local.sh`
+  exit 0.
+- CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
+  `scripts/ci-local.sh` mirrors it.
+  Source: the exporter commit.
+  Verified: `bash scripts/ci-local.sh` exit 0, with the exporter's typecheck and 12 tests in its log.
+- `tools/export-run` exports a drill incident as the public run the judge replay reads:
+  `npm run export -w tools/export-run -- --incident <id> --out <file>`. It reads the incident, segments, teams,
+  devices and their read timings, events and plans through the Firestore REST API, writes only the contract's
+  fields (`src/contract.ts`, a copy of the reader's `RUN_FIELDS` until that file is on main), and refuses to
+  write unless every check passes. Every author and device becomes a pseudonym (`author-N`, `device-N`, one alias
+  per device everywhere); report text is null on every event; a reading survives only on a camera sighting, cut
+  to its clip start, clock check, presence, first and last seen and key-frame time; a destination never has a
+  position (it can be a previous home); server time, plan approval and the prior's build time are numbers. No
+  string anywhere may hold a uid-shaped token.
+  Source: review (the extras contract, and the reader's two privacy findings: no uid, no home position).
+  Verified: the tests (a run from drill docs on the real Piedmont Park grid passes the checks; only contract
+  fields; no uid with aliases matching between events and devices; text dropped, camera reading cut, destination
+  unplaced; times as numbers; a planted uid in a team name, a measurement, the run id or an author, a planted home
+  position, report text, a full camera reading, an extra incident field and a raw device id are each refused;
+  REST values decode, timestamps to milliseconds) failed first, now 12 pass; typecheck exit 0. A live read-only
+  export of drill-dev-1 to a scratch file wrote 68 segments, 24 events and 15 plans with every check passed; an
+  independent scan of that file found no uid-shaped token, no text and no destination position.
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/isrid-dementia-p164.md` keeps the source table behind the prior's rings: the ISRID dementia
+  distances from the IPP (all five columns, km and the urban miles) and the find-location shares, copied as
+  printed on Lost Person Behavior p. 164 (the publisher's public sample). The urban find-location shares
+  (structure 35%, road 36%) are kept for a later layer; no engine code reads them.
+  Source: review (keep the unused urban shares in a note).
+  Verified: values re-read from the `pdftotext -layout` extraction of the PDF; `bash scripts/ci-local.sh` exit 0.
+- cloudGuard's trigger tests build their template call from the published sighting template's own config in
+  `shared/templates/`, instead of a copied token limit, and check that the template sets a limit within the text
+  cap; a template that loses its limit now fails here as well as in the template tests.
+  Source: review of 5e1d56d..ebd96a9 (the test hardcoded the template's cap).
+  Verified: with `maxOutputTokens` removed from the sighting template, the new test fails; restored, 21
+  cloudGuard tests pass; `bash scripts/ci-local.sh` exit 0.
+- Firestore rules accept a command camera sighting only when the prior's input ids are a list that contains it.
+  `in` also matches the keys of a map, so a map keyed by the sighting's id could have stood in for the list.
+  Source: review of d5d6176.
+  Verified: the test (a Confirm batch whose incident carries the ids as a map keyed by the sighting's id is
+  refused) failed first, now all 102 rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` records the probe's positive read and its control (run 44420234691 on the real site passed
+  both App Check steps; run 44420309943 against a wrong site failed both), a table of the secrets the checks use
+  (names and places only, revoke by 2026-12-17), and rows 6 and 6a as they now stand: three calls use server
+  prompt templates (web sighting note, Android clip read, iOS voice), the photo template is published but not yet
+  called, and AI Logic enforces each template's declared inputs.
+  Source: review (record the CI token and both run ids; row 6 still said no templates were used).
+  Verified: live on 2026-11-18 a 2,001-character note, an empty note, a PNG sent to the JPEG-only photo template
+  and a call with no inputs were each refused with HTTP 400 and a 2,000-character note was answered; the two runs
+  read back with `gh run view`; `bash scripts/ci-local.sh` exit 0.
+- The live probe's positive read fails, instead of skipping, when the CI App Check token is missing: the
+  repository secret `APPCHECK_DEBUG_TOKEN_CI` exists since 2026-11-18, so a missing one means it was lost or
+  renamed, and a skip would report green with nothing checked.
+  Source: review (a guard under CI must fail, not skip).
+  Verified: the test (no token: exit 1, no network call) failed first, now 13 probe tests pass;
+  `bash scripts/ci-local.sh` exit 0.
+- The live probe takes a `site` input on a manual run: the wrong-URL control. Pointed at a wrong site, both App
+  Check steps must fail, which proves they can fail. Scheduled runs pass the empty input and keep the real site.
+  Source: review (each monitor needs a control that proves it can fail).
+  Verified: the test (a set `PLS_SITE` replaces the site; empty or unset keeps the real one) failed first, with
+  the constant restored to a fixed site it fails again, now 13 probe tests pass; locally the no-token step exits
+  1 against `https://wrong-site.invalid` and 0 against the real site; `bash scripts/ci-local.sh` exit 0.
 - Firestore rules close the duplicate camera Confirm. An incident update that changes any prior input (the
   input event ids, the start point and its source, the prior's layers, terrain, model, seed or engine
   settings) must raise `priorVersion` by exactly 1 in the same write. A camera sighting created by command must

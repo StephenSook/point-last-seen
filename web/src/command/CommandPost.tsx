@@ -5,8 +5,8 @@ import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint,
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoInCloud, readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { readPhotoOnDevice } from "../ai/photoCues";
+import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
@@ -20,6 +20,7 @@ import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
+import { readStoredPhotoInCloud } from "../photos/cloudRead";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -403,12 +404,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return { cues: r.cues, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
-    // Command may have deleted this search's media from any seat: nothing leaves this laptop unless the photo
-    // is still stored. A check that cannot run throws, and the tray says the photo was not read.
-    if (!(await photoStillStored(pls.storage, incidentId, p.sha256))) return { refused: "deleted" as const };
+    // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
+    // still stored) lives in readStoredPhotoInCloud; without all three the photo stays on this laptop.
     const t0 = Date.now();
-    const uid = pls.auth.currentUser?.uid ?? "";
-    const r = await readPhotoInCloud(bytesToBase64(p.bytes), uid ? { byUid: uid, atMs: Date.now() } : null, {
+    const r = await readStoredPhotoInCloud(p, {
+      confirmConsent: (sha) => confirmPhotoConsent(pls.db, incidentId, sha),
+      stillStored: (sha) => photoStillStored(pls.storage, incidentId, sha),
       generateCloud: (b) => photoTemplateGenerator(ai(), rc.photoTemplateId)(b),
       killCloud: rc.killCloud,
     });
@@ -509,7 +510,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
         clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
-        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason, retry: how.retry,
+        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason, retry: how.retry, stillCurrent: how.stillCurrent,
       },
       clipReadDeps(firestoreClipIo(pls.db, pls.storage, incidentId), clipCloudGenerator(ai(), rc.cloudModelWeb)),
     );
@@ -666,6 +667,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           )}
           {clipping ? (
             <CameraClipPanel
+              revocation={tray.epoch}
               camera={pin}
               cameraSegmentId={pin ? segmentContaining(pin, segments) : null}
               choices={segmentChoices(segments)}

@@ -51,6 +51,10 @@ jobs:
         run: |
           npm run typecheck -w tools/grid-builder
           npm test -w tools/grid-builder
+      - name: Public-run exporter typecheck and tests
+        run: |
+          npm run typecheck -w tools/export-run
+          npm test -w tools/export-run
 
   vectors-parity:
     name: vectors-parity

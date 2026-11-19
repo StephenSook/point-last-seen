@@ -4,7 +4,7 @@
 // days.
 
 import type { PhotoCues, RouteRecord } from "@pls/engine";
-import { doc, setDoc, type Firestore } from "firebase/firestore";
+import { getDocFromServer, doc, setDoc, type Firestore } from "firebase/firestore";
 import { getBytes, getMetadata, listAll, ref, uploadBytes, type FirebaseStorage } from "firebase/storage";
 
 const HASH = /^[0-9a-f]{64}$/;
@@ -77,6 +77,30 @@ export async function saveIfStillStored(stillThere: () => Promise<boolean>, save
   }
   if (!there) throw new Error(PHOTO_DELETED);
   await save();
+}
+
+/** The family's cloud consent for one photo: who agreed, and when (their own tap in the family app). */
+export type PhotoConsent = { byUid: string; atMs: number };
+
+/**
+ * The cloud consent in a photoConsents record, or null. Only the family member who shared the photo writes the
+ * record (incidents/{id}/photoConsents/{sha256}); it counts only for this photo's own Storage path and only
+ * when the consent mark is that sharer's.
+ */
+export function photoConsentFromDoc(incidentId: string, sha256: string, data: unknown): PhotoConsent | null {
+  if (typeof data !== "object" || data === null) return null;
+  const d = data as Record<string, unknown>;
+  const c = d["cloudProcessing"] as Record<string, unknown> | undefined;
+  if (d["storagePath"] !== photoPath(incidentId, sha256)) return null;
+  if (typeof d["createdByUid"] !== "string" || !c || typeof c !== "object") return null;
+  if (c["byUid"] !== d["createdByUid"] || typeof c["atMs"] !== "number" || !Number.isFinite(c["atMs"])) return null;
+  return { byUid: c["byUid"] as string, atMs: c["atMs"] as number };
+}
+
+/** The family's consent for a cloud read of this photo, read from the server only; rejects when unreachable. */
+export async function confirmPhotoConsent(db: Firestore, incidentId: string, sha256: string): Promise<PhotoConsent | null> {
+  const snap = await getDocFromServer(doc(db, "incidents", incidentId, "photoConsents", sha256));
+  return snap.exists() ? photoConsentFromDoc(incidentId, sha256, snap.data()) : null;
 }
 
 /** Is this incident's photo still in Storage? */

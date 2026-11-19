@@ -1,6 +1,6 @@
 // Family photos at the command post. Each photo is read on this laptop when
-// the gate allows; otherwise nothing is sent, and a cloud read needs a
-// consent tap for that one photo. A person answers yes, no or not sure.
+// the gate allows; otherwise nothing is sent, and a cloud read needs the family's
+// own consent for that photo, recorded when they shared it. A person answers yes, no or not sure.
 
 import type { PhotoCues, RouteRecord } from "@pls/engine";
 import { useEffect, useMemo, useState } from "react";
@@ -33,6 +33,9 @@ export { PHOTO_DELETED };
 
 const COULD_NOT: Record<string, string> = {
   deleted: PHOTO_DELETED,
+  "no-consent": "The family has not agreed to a cloud reading of this photo. It stays on this laptop.",
+  mismatch: "This photo's file does not match its name, so it was not sent.",
+  "consent-unchecked": "Could not check the family's consent with the server. Nothing was sent.",
   "not-on-device": "Couldn't read on this laptop. The result was discarded.",
   timeout: "Couldn't read in time.",
   invalid: "Couldn't read this photo.",
@@ -125,9 +128,9 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
               )}
               {r && "consent" in r && (
                 <div role="status" className="note-state">
-                  <p>This photo goes to Gemini in the cloud.</p>
+                  <p>This photo goes to Gemini in the cloud. Sent only if the family agreed to a cloud reading when they shared it.</p>
                   <button type="button" className="btn ghost" onClick={() => run(p, "cloud")} disabled={busy !== null}>
-                    I consent for this photo
+                    Send this photo to the cloud
                   </button>
                 </div>
               )}

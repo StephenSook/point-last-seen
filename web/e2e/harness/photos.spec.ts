@@ -23,7 +23,7 @@ test("a cloud read of a photo that was deleted is refused with that reason", asy
   const row = page.locator(".photo").nth(0);
   await row.getByRole("button", { name: "Read on this laptop" }).click();
   await row.getByRole("button", { name: "Read in the cloud" }).click();
-  await row.getByRole("button", { name: "I consent for this photo" }).click();
+  await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
   await expect(row.getByText("This photo was deleted.")).toBeVisible();
 });
 
@@ -40,4 +40,14 @@ test("a family answer is not saved when the photo cannot be checked, and says so
   await row.getByRole("button", { name: "No", exact: true }).click();
   await expect(row.getByRole("alert")).toHaveText("Could not check this photo. The answer was not saved. Try again.");
   await expect(row.getByRole("button", { name: "No", exact: true })).toBeEnabled();
+});
+
+test("a photo the family did not agree to read in the cloud stays on this laptop", async ({ page }) => {
+  await page.goto("/harness/photos.html?consent=none");
+  const row = page.locator(".photo").nth(0);
+  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await row.getByRole("button", { name: "Read in the cloud" }).click();
+  await expect(row.getByText("Sent only if the family agreed to a cloud reading when they shared it.")).toBeVisible();
+  await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
+  await expect(row.getByText("The family has not agreed to a cloud reading of this photo. It stays on this laptop.")).toBeVisible();
 });

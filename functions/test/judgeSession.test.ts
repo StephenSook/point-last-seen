@@ -18,7 +18,7 @@ async function freshUid(): Promise<string> {
 beforeEach(async () => {
   await clearFirestore();
   await admin.db.doc("incidents/SEED").set({ name: "Development drill (synthetic)", mode: "drill", drillLabel: "Training drill. Nobody is missing.",
-    status: "open", gridId: "piedmont-park-dev", ipp: { lat: 33.78, lon: -84.37 }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings",
+    status: "open", mediaRevokedAt: new Date(2026, 10, 1), gridId: "piedmont-park-dev", ipp: { lat: 33.78, lon: -84.37 }, terrain: "temperate_flat", priorVersion: 5, priorModel: "rings",
     priorSeed: 20261122, priorInputEventIds: ["e1"], priorLayers: { linear: true, wedge: false }, engineParams: { sweepWidthFactor: 1.6 } });
   for (const s of ["AA", "AB", "ROW"]) await admin.db.doc(`incidents/SEED/segments/${s}`).set({ segmentId: s, priorPoa: 0.3, priorVersion: 5 });
   for (const t of ["T1", "T2"]) await admin.db.doc(`incidents/SEED/teams/${t}`).set({ teamId: t, name: `Team ${t}`, colorSlot: 1 });
@@ -39,6 +39,7 @@ describe("startJudgeSession", () => {
     expect((inc.expiresAt as Timestamp).toMillis()).toBe(NOW + DAY);
     expect(inc.gridId).toBe("piedmont-park-dev");
     expect(inc.priorInputEventIds).toEqual([]);
+    expect(inc).not.toHaveProperty("mediaRevokedAt");
     expect((await admin.db.collection(`incidents/judge-${uid}/segments`).get()).size).toBe(3);
     expect((await admin.db.collection(`incidents/judge-${uid}/teams`).get()).size).toBe(2);
     expect((await admin.db.doc(`incidents/judge-${uid}/profile/shared`).get()).get("nickname")).toBe("Practice person");

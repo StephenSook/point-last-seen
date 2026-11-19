@@ -79,6 +79,7 @@ export const NEEDS_CONSENT = "Three consents are needed for this clip: the perso
 export const PAUSED = "Clip reading is paused right now.";
 export const CONSENT_GONE = "The consent record for this clip was deleted. Nothing was sent.";
 export const CONSENT_UNCONFIRMED = "Could not confirm this clip's consent with the server. Nothing was sent.";
+export const MEDIA_DELETED = "This search's clips and photos were deleted. Nothing was sent.";
 export const NO_LENGTH = "The clip's length could not be read. Try another copy of the clip.";
 
 const EDGES: readonly string[] = P.exitEdge.enum;
@@ -135,7 +136,19 @@ export type ClipReadRequest = {
    * consents again.
    */
   retry?: boolean;
+  /**
+   * False once this search's media was deleted after the read began (the form's delete epoch moved). Read at
+   * every step, with the cloud pause; a reply that arrives after it turns false is discarded.
+   */
+  stillCurrent?: () => boolean;
 };
+
+/** Why the read must stop now, if it must: a delete since it began, or the cloud pause. */
+function halted(r: Pick<ClipReadRequest, "stillCurrent" | "killCloud">): ClipReadOutcome | null {
+  if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
+  if (r.killCloud()) return { kind: "refused", message: PAUSED };
+  return null;
+}
 
 export type ClipReadDeps = {
   findReading: (sha256: string) => Promise<StoredClipReading | null>;
@@ -163,7 +176,8 @@ export function clipReadDeps(io: ClipIo, generate: ClipReadDeps["generate"], now
 export type ClipReadOutcome =
   | { kind: "refused"; message: string }
   | { kind: "could-not-read" }
-  | { kind: "failed" }
+  /** `recorded`: a consent record for these bytes existed or was written before the failure (so a retry can use it). */
+  | { kind: "failed"; recorded?: boolean }
   | {
       kind: "read";
       sha256: string;
@@ -185,13 +199,15 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
   if (!(r.durationS > 0)) return { kind: "refused", message: NO_LENGTH };
   const sha = await sha256Hex(r.bytes);
   if (!consentComplete(r.consent, sha)) return { kind: "refused", message: NEEDS_CONSENT };
-  if (r.killCloud()) return { kind: "refused", message: PAUSED };
+  if (halted(r)) return halted(r)!;
   // The consent covers these exact bytes: check them again at each boundary they cross.
   const unchanged = async () => (await sha256Hex(r.bytes)) === sha;
   const { clipSha256: _sha, ...consent } = r.consent;
 
+  let recorded = false;
   try {
     const found = await deps.findReading(sha);
+    recorded = found !== null;
     const storedMiss = !!found?.reading && (found.reading as { status?: unknown }).status === "no_sighting";
     // Older code also stored a miss from a flagged window. That says nothing about the rest of the clip,
     // and a completed record is read-only, so such a clip is read again on the stored record's consent
@@ -209,7 +225,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     }
     if (r.retry && !found) return { kind: "refused", message: CONSENT_GONE };
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
-    if (r.killCloud()) return { kind: "refused", message: PAUSED };
+    if (halted(r)) return halted(r)!;
     const started = deps.nowMs();
     if (!oldWindowedMiss && !r.retry) {
       await deps.writeConsent(
@@ -217,20 +233,22 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
           ? takeOverConsent(found, consent, started, r.uid)
           : consentRecord({ incidentId: r.incidentId, sha256: sha, durationS: r.durationS, clipStartMs: r.clipStartMs, clockConfirmed: r.clockConfirmed, cameraFacingDeg: r.cameraFacingDeg, consent, uid: r.uid, nowMs: started }),
       );
+      recorded = true;
     }
     // The pause is read live again here: it may have arrived while the consent record was saving.
-    if (r.killCloud()) return { kind: "refused", message: PAUSED };
+    if (halted(r)) return halted(r)!;
     // A retry may find the clip already stored; clips are create-only, so a second upload is refused.
-    // An old windowed miss is read again from these bytes inline and stores nothing, the clip included.
-    const stored = oldWindowedMiss || (found ? await deps.clipExists(sha) : false);
+    // An old windowed miss is read again from these bytes inline and uploads nothing, but its clip must still
+    // be stored: a delete removes it, and a gone clip means its consent was withdrawn.
+    const stored = found ? await deps.clipExists(sha) : false;
     if (!stored) {
-      if (r.retry) return { kind: "refused", message: CONSENT_GONE };
+      if (r.retry || oldWindowedMiss) return { kind: "refused", message: CONSENT_GONE };
       // And once more after that lookup, right before the clip leaves the laptop.
-      if (r.killCloud()) return { kind: "refused", message: PAUSED };
+      if (halted(r)) return halted(r)!;
       await deps.upload(sha, r.bytes, r.mimeType);
     }
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
-    if (r.killCloud()) return { kind: "refused", message: PAUSED };
+    if (halted(r)) return halted(r)!;
     // Command can delete the consent record (and the clip with it) at any time, from any seat. Read it again
     // from the server, never a cache, right before the bytes leave this laptop: unreachable, missing, expired
     // or missing one of the three consents means nothing is sent. Only synchronous checks follow before the
@@ -245,9 +263,11 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) {
       return { kind: "refused", message: CONSENT_GONE };
     }
-    if (r.killCloud()) return { kind: "refused", message: PAUSED };
+    if (halted(r)) return halted(r)!;
     const t0 = deps.nowMs();
     const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType, r.window);
+    // A delete while the model was reading: the reply is discarded, nothing is saved.
+    if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
     const t1 = deps.nowMs();
     const route: RouteRecord = {
       platform: "web", path: reply.inferenceSource === "on_device" ? "on_device" : "cloud", stage: "sdk", model: r.model,
@@ -273,6 +293,6 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!oldWindowedMiss) await deps.complete(sha, check.cleaned, route);
     return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false };
   } catch {
-    return { kind: "failed" };
+    return { kind: "failed", recorded };
   }
 }

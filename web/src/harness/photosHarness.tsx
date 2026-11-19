@@ -14,7 +14,9 @@ const q = new URLSearchParams(location.search);
 const save = q.get("save");
 const deleted = q.get("deleted") === "1";
 // ?unchecked=1: the Storage check cannot run, so a save refuses with that sentence.
+// ?consent=none: the family gave no cloud consent for these photos, so a cloud read refuses.
 const unchecked = q.get("unchecked") === "1";
+const noConsent = q.get("consent") === "none";
 
 async function syntheticJpeg(label: string): Promise<Uint8Array> {
   const c = new OffscreenCanvas(160, 100);
@@ -44,7 +46,7 @@ function Harness() {
         downloadPct={null}
         onAddFiles={async () => {}}
         readOnLaptop={async () => ({ refused: "no-on-device-model" })}
-        readInCloud={async () => ({ refused: deleted ? "deleted" : "not-in-cloud" })}
+        readInCloud={async () => ({ refused: deleted ? "deleted" : noConsent ? "no-consent" : "not-in-cloud" })}
         onDecide={() => deleted ? Promise.reject(new Error(PHOTO_DELETED)) : unchecked ? Promise.reject(new Error(PHOTO_UNCHECKED)) : (save === "fail" ? new Promise<void>((_, reject) => setTimeout(() => reject(new Error("refused")), 100)) : new Promise<void>(() => {}))}
       />
     </main>

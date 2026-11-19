@@ -73,9 +73,15 @@ async function throughTrigger(data: Record<string, unknown>): Promise<{ status: 
 
 describe("cloudGuard through the exported trigger", () => {
   const model = path("gemini-3.5-flash-lite");
-  // A template call's request carries the template's own config, including settings direct calls never send.
-  const templateConfig = { temperature: 0, maxOutputTokens: 2048, responseMimeType: "application/json",
+  // A template call's request carries the template's own config (read from shared/templates, so a template that
+  // loses its token limit fails here), plus settings direct calls never send.
+  const published = JSON.parse(readFileSync(new URL("../../shared/templates/pls-sighting-note-v1.json", import.meta.url), "utf8")).config;
+  const templateConfig = { ...published, responseMimeType: "application/json",
     responseJsonSchema: { type: "object", properties: { direction: { type: "string" } } }, thinkingConfig: { thinkingBudget: 0 } };
+  it("reads a published template that sets its own token limit within the text cap", () => {
+    expect(published.maxOutputTokens).toBeGreaterThan(0);
+    expect(published.maxOutputTokens).toBeLessThanOrEqual(MAX_OUTPUT_TOKENS);
+  });
   it("answers a template call with no request, so the template's own config stands (live 2026-11-18)", async () => {
     const { status, body } = await throughTrigger({ model, template: { templateName: "projects/p/locations/global/templates/pls-sighting-note-v1" },
       request: { contents: [{ role: "user", parts: [{ text: "note" }] }], generationConfig: templateConfig } });

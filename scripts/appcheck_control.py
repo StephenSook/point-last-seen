@@ -10,8 +10,8 @@ Writes status codes and reasons (never a key or token) to docs/evidence/appcheck
 the deployed site's /__/firebase/init.json. Exits 1 loudly if the call is not refused for App Check.
 
 --ci (the daily probe's positive read): the full control with the debug token from the environment variable
-APPCHECK_DEBUG_TOKEN_CI instead of the Keychain; no evidence file. Without that variable it skips with a clear
-message and makes no call. Model calls sign in anonymously first (AI Logic's authenticated-users mode needs a
+APPCHECK_DEBUG_TOKEN_CI instead of the Keychain; no evidence file. Without that variable it fails with a clear
+message and makes no call (the repository secret exists since 2026-11-18, so a missing one is a fault). Model calls sign in anonymously first (AI Logic's authenticated-users mode needs a
 Firebase ID token) and the throwaway user deletes itself afterwards. No token or key is ever printed.
 
 Usage: python3 -I scripts/appcheck_control.py [--no-token-only | --ci]
@@ -25,7 +25,8 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-SITE = "https://buildhybridai-2026-yg3m.web.app"
+# PLS_SITE is the wrong-URL control: a manual run pointed at another site must fail. Empty means the real site.
+SITE = os.environ.get("PLS_SITE") or "https://buildhybridai-2026-yg3m.web.app"
 MODEL = "gemini-3.5-flash-lite"
 REFUSAL = "Firebase App Check token is invalid."
 WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
@@ -114,8 +115,8 @@ def main(argv: list[str]) -> int:
         print(f"appcheck_control: retired after {RETIRE_AFTER} (judging over); nothing checked")
         return 0
     if ci and debug_token(argv, os.environ) is None:
-        print("appcheck_control: no CI token (APPCHECK_DEBUG_TOKEN_CI is not set); the positive read is skipped")
-        return 0
+        print("appcheck_control: FAIL, no CI token (APPCHECK_DEBUG_TOKEN_CI is not set); the positive read cannot run")
+        return 1
     with urllib.request.urlopen(SITE + "/__/firebase/init.json", timeout=30) as r:
         cfg = config_from_init(json.loads(r.read()))
     gen = f"https://firebasevertexai.googleapis.com/v1beta/projects/{cfg['projectId']}/models/{MODEL}:generateContent"
