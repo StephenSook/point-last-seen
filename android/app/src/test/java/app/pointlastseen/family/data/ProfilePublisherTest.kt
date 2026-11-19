@@ -35,6 +35,17 @@ class ProfilePublisherTest {
         for (v in listOf("donepezil", "falls", "1944")) assertFalse(v, all.contains(v))
     }
 
+    /** Every publish is the whole shared document, so an edit to another field still carries every other name. */
+    @Test fun anUnrelatedEditStillPublishesEveryOtherName() {
+        val sink = FakeSink()
+        val named = p.copy(otherNames = listOf("Mama Mae", "Margaret"))
+        ProfilePublisher(sink).publish("inc-1", named.copy(clothingLastWorn = "blue coat")) {}
+        val shared = sink.writes.single { it.second == "shared" }.third
+        assertEquals(listOf("Mama Mae", "Margaret"), shared["otherNames"])
+        assertEquals("Mama Mae", shared["nickname"])
+        assertEquals("blue coat", shared["clothingLastWorn"])
+    }
+
     @Test fun theCallbackReportsBothWrites() {
         var done: Boolean? = null
         ProfilePublisher(FakeSink()).publish("inc-1", p) { ok -> done = ok }
