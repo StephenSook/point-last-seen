@@ -78,6 +78,7 @@ export function clipParts(base64: string, mimeType: string, window?: ClipWindow)
 export const NEEDS_CONSENT = "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing.";
 export const PAUSED = "Clip reading is paused right now.";
 export const CONSENT_GONE = "The consent record for this clip was deleted. Nothing was sent.";
+export const CONSENT_UNCONFIRMED = "Could not confirm this clip's consent with the server. Nothing was sent.";
 export const NO_LENGTH = "The clip's length could not be read. Try another copy of the clip.";
 
 const EDGES: readonly string[] = P.exitEdge.enum;
@@ -132,6 +133,8 @@ export type ClipReadRequest = {
 
 export type ClipReadDeps = {
   findReading: (sha256: string) => Promise<StoredClipReading | null>;
+  /** The record read from the server only (never a cache); throws when the server cannot be reached. */
+  confirmReading: (sha256: string) => Promise<StoredClipReading | null>;
   writeConsent: (record: ClipRecordDoc) => Promise<void>;
   clipExists: (sha256: string) => Promise<boolean>;
   upload: (sha256: string, bytes: Uint8Array, mimeType: string) => Promise<void>;
@@ -221,9 +224,19 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     // Command can delete the consent record (and the clip with it) at any time, from any seat. Read it again
-    // right before the bytes leave this laptop: no record, or an expired one, means nothing is sent.
-    const record = await deps.findReading(sha);
-    if (!record || !(record.expiresAtMs > deps.nowMs())) return { kind: "refused", message: CONSENT_GONE };
+    // from the server, never a cache, right before the bytes leave this laptop: unreachable, missing, expired
+    // or missing one of the three consents means nothing is sent. Only synchronous checks follow before the
+    // call; a delete landing in that moment is a stated limit (docs/LIMITS.md).
+    let record: StoredClipReading | null;
+    try {
+      record = await deps.confirmReading(sha);
+    } catch {
+      return { kind: "refused", message: CONSENT_UNCONFIRMED };
+    }
+    const c = record?.consent;
+    if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) {
+      return { kind: "refused", message: CONSENT_GONE };
+    }
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const t0 = deps.nowMs();
     const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType, r.window);
