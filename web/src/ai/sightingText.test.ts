@@ -61,6 +61,12 @@ describe("readSightingText", () => {
     expect(await readSightingText(text, deps({ generate: async () => ({ text: bad, inferenceSource: "on_device" }) }))).toEqual({ refused: "invalid" });
   });
 
+  it("leaves footwear and carried empty when the model answers unknown, so the word never fills a field", async () => {
+    const reply = JSON.stringify({ direction: "n", topColor: "blue", bottomColor: "unknown", footwear: "unknown", carried: " Unknown ", evidenceQuote: "a woman in a blue coat walking north" });
+    const out = await readSightingText(text, deps({ generate: async () => ({ text: reply, inferenceSource: "on_device" }) }));
+    expect(out).toMatchObject({ reading: { footwear: "", carried: "" } });
+  });
+
   it("fills the sighting fields from a valid on-device reading", async () => {
     const out = await readSightingText(text, deps({}));
     expect(out).toEqual({ reading: { direction: "n", topColor: "blue", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" } });

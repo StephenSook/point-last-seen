@@ -1,117 +1,56 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
-import { flushSync } from "react-dom";
+import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
-import { printableApproachLines, type IncidentView, type PlanDoc } from "./laneC";
-import { Ics204 } from "./print/Ics204View";
-import { defaultTyped, ics204Sheets } from "./print/ics204";
-import { buildPrintModel, DRILL_LABEL, isStale, type PrintModel } from "./print/printModel";
-import { ExtrasDialog, PrintRoot } from "./print/PrintRoot";
-import { radioCards } from "./radio/radioCard";
-import { RadioCards } from "./radio/RadioCards";
-import { RadioCodeCheck } from "./radio/RadioCodeCheck";
+import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
+import { DeleteMedia, printableApproachLines, type IncidentView } from "./hostApp";
+import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
+import { reportsIn } from "./reports";
+import type { PrintSessionData } from "./print/PrintSession";
+import { buildPrintModel, DRILL_LABEL } from "./print/printModel";
+import { ExtrasDialog } from "./print/PrintRoot";
+import { fromLive } from "./replay/replayData";
+import { TerrainLegend } from "./terrain/TerrainLegend";
+import { fetchElevation, useTerrain } from "./terrain/useTerrain";
 import type { DockProps } from "./types";
 import "./extras.css";
 
+const replayTitle = "Replay";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
 const checkTitle = "Check a radio code";
-const editFields = [
-  ["dateFrom", "Date From", "mm/dd/yyyy"], ["dateTo", "Date To", "mm/dd/yyyy"],
-  ["timeFrom", "Time From", "hh:mm"], ["timeTo", "Time To", "hh:mm"],
-  ["branch", "Branch"], ["division", "Division"], ["group", "Group"], ["stagingArea", "Staging Area"],
-] as const;
+const deleteTitle = "Delete this search's clips and photos";
 
-type PrintSessionData = { kind: "assignment" | "cards"; model: PrintModel; approachLines: string[] };
-type Surface = PrintSessionData | { kind: "check"; planVersion: number | null };
+type Surface = PrintSessionData | { kind: "check"; planVersion: number | null } | { kind: "replay" } | { kind: "delete" };
 
-function PrintSession({ session, plans, matchCode, reportCount, onClose, returnFocus }: {
-  session: PrintSessionData;
-  plans: readonly PlanDoc[];
-  matchCode: string | null;
-  reportCount: number;
-  onClose: () => void;
-  returnFocus: RefObject<HTMLButtonElement | null>;
-}) {
-  const { model, approachLines, kind } = session;
-  const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [typed, setTyped] = useState(() => defaultTyped(model, timeZone));
-  const [printedAtMs, setPrintedAtMs] = useState(model.printedAtMs);
-  const drillLine = model.mode === "drill" ? DRILL_LABEL : null;
-  useEffect(() => {
-    const stamp = () => flushSync(() => setPrintedAtMs(Date.now()));
-    window.addEventListener("beforeprint", stamp);
-    return () => window.removeEventListener("beforeprint", stamp);
-  }, []);
-
-  let staleMessage: string | null = null;
-  if (isStale(model, plans)) {
-    const latest = Math.max(...plans.map(({ version }) => version).filter(Number.isInteger));
-    staleMessage = `A newer plan (v${latest}) was approved. Print again.`;
-  }
-  if (kind === "cards") {
-    // Q2 is open until the command report flow is available.
-    const cards = radioCards(model, { sayLines: false });
-    return (
-      <PrintRoot title={cardsTitle} onClose={onClose} returnFocus={returnFocus} staleMessage={staleMessage} drillLine={drillLine}
-        emptyMessage={cards.length === 0 ? "No teams to print." : undefined}>
-        <RadioCards cards={cards} matchCode={matchCode} />
-      </PrintRoot>
-    );
-  }
-
-  const sheets = ics204Sheets({ ...model, matchCode, reportCount, printedAtMs }, typed, approachLines, timeZone);
-  const controls = sheets.length === 0 ? undefined : (
-    <>
-      <div className="extras-edit-fields">
-        {editFields.map(([key, label, placeholder]) => (
-          <label key={key}>
-            {label}
-            <input value={typed[key]} placeholder={placeholder} onChange={(event) => {
-              const value = event.target.value;
-              setTyped((current) => ({ ...current, [key]: value }));
-            }} />
-          </label>
-        ))}
-      </div>
-      <label className="extras-note-option">
-        <input type="checkbox" checked={typed.includeApproachNotes} onChange={(event) => {
-          const includeApproachNotes = event.target.checked;
-          setTyped((current) => ({ ...current, includeApproachNotes }));
-        }} />
-        Include the approach notes
-      </label>
-    </>
-  );
-
-  return (
-    <PrintRoot title={assignmentTitle} onClose={onClose} returnFocus={returnFocus} controls={controls} staleMessage={staleMessage} drillLine={drillLine}
-      emptyMessage={sheets.length === 0 ? "No approved plan to print." : undefined}>
-      {sheets.map((sheet) => <Ics204 key={sheet.page} sheet={sheet} />)}
-    </PrintRoot>
-  );
-}
-
-export function ExtrasDock({ incidentId, state, vs }: DockProps): JSX.Element | null {
+export function ExtrasDock({ incidentId, state, vs, map, loadElevation = fetchElevation, deleteMedia }: DockProps): JSX.Element | null {
   if (state.denied || state.view === null) return null;
-  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} />;
+  return <ActiveExtrasDock key={incidentId} view={state.view} state={state} vs={vs} map={map} loadElevation={loadElevation} deleteMedia={deleteMedia} />;
 }
 
-function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> & { view: IncidentView }) {
+function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: Pick<DockProps, "state" | "vs" | "map" | "deleteMedia"> & {
+  view: IncidentView;
+  loadElevation: (gridId: string) => Promise<unknown>;
+}) {
   const [open, setOpen] = useState(false);
   const [surface, setSurface] = useState<Surface | null>(null);
+  const [exportFailed, setExportFailed] = useState(false);
   const menuId = useId();
   const more = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const matchCode = vs?.code ?? null;
-  const reportCount = new Set(state.events.map(({ eventId }) => eventId)).size;
+  // Reports a person would count (the match code itself covers every event, confirmations and retractions too).
+  const reportCount = reportsIn(state.events);
+  // The replay follows the live state while it is open: a report that lands extends the window.
+  const replayData = useMemo(() => fromLive(view, state.events, state.plans), [view, state.events, state.plans]);
+  const terrain = useTerrain(view, map, loadElevation);
+  useEffect(() => prefetchDockPanels(), []);
   const snapshot = () => buildPrintModel({ view, plans: state.plans, code: matchCode, eventCount: reportCount, nowMs: Date.now() });
 
   function menuItems() {
-    return Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not([disabled])') ?? []);
+    return Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button[role^="menuitem"]:not([disabled])') ?? []);
   }
 
   useLayoutEffect(() => {
-    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]')?.focus();
+    if (open) menu.current?.querySelector<HTMLButtonElement>('button[role^="menuitem"]:not([disabled])')?.focus();
   }, [open]);
 
   function openPrint(kind: PrintSessionData["kind"]) {
@@ -152,7 +91,10 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
         }}
       >
         <button ref={more} className="btn ghost" type="button" aria-haspopup="menu" aria-expanded={open}
-          aria-controls={menuId} onClick={() => setOpen(!open)}
+          aria-controls={menuId} onClick={() => {
+            setExportFailed(false);
+            setOpen(!open);
+          }}
           onKeyDown={(event) => {
             if (!open && event.key === "ArrowDown") {
               event.preventDefault();
@@ -162,24 +104,78 @@ function ActiveExtrasDock({ view, state, vs }: Pick<DockProps, "state" | "vs"> &
           More
         </button>
         <div id={menuId} ref={menu} className="extras-menu" role="menu" aria-label="More" hidden={!open}>
+          <button type="button" role="menuitem" disabled={replayData === null} onClick={() => {
+            setSurface({ kind: "replay" });
+            setOpen(false);
+          }}>
+            {replayTitle}
+            {replayData === null && <small>Available once the prior is built.</small>}
+          </button>
           <button type="button" role="menuitem" onClick={() => openPrint("assignment")}>{assignmentTitle}</button>
           <button type="button" role="menuitem" onClick={() => openPrint("cards")}>{cardsTitle}</button>
           <button type="button" role="menuitem" onClick={() => {
             setSurface({ kind: "check", planVersion: snapshot().planVersion });
             setOpen(false);
           }}>{checkTitle}</button>
-          {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} />}
+          {open && <ExportButton view={view} plans={state.plans} vs={vs} reportCount={reportCount} onExported={closeMenu} onError={() => setExportFailed(true)} />}
+          {/* Offered only where this site's elevation file shipped (it passed its stream gate). */}
+          {terrain.file && (
+            <button type="button" role="menuitemcheckbox" aria-checked={terrain.on} disabled={!terrain.available} onClick={() => {
+              terrain.toggle();
+              setOpen(false);
+            }}>
+              Terrain
+              {!terrain.available && <small>Available once the map has loaded.</small>}
+            </button>
+          )}
+          {/* Last in the menu: the one item that deletes. */}
+          {deleteMedia && (
+            <button type="button" role="menuitem" onClick={() => {
+              setSurface({ kind: "delete" });
+              setOpen(false);
+            }}>{deleteTitle}</button>
+          )}
         </div>
       </div>
+      {exportFailed && <p role="alert" className="extras-dock-alert">GeoJSON could not be exported.</p>}
+      {terrain.on && terrain.file && <TerrainLegend classes={terrain.classes} file={terrain.file} hasStart={terrain.hasStart} />}
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
           {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}
-          <RadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
+          <ExtrasBoundary>
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />
+            </Suspense>
+          </ExtrasBoundary>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
         </ExtrasDialog>
       )}
-      {surface && surface.kind !== "check" && (
-        <PrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
+      {surface?.kind === "replay" && replayData && (
+        <ExtrasDialog title={replayTitle} onClose={closeDialog} returnFocus={more} className="extras-replay-dialog">
+          <ExtrasBoundary>
+            <Suspense fallback={<p>Loading.</p>}>
+              <LazyReplayPanel data={replayData} />
+            </Suspense>
+          </ExtrasBoundary>
+          <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
+        </ExtrasDialog>
+      )}
+      {surface?.kind === "delete" && deleteMedia && (
+        <ExtrasDialog title={deleteTitle} onClose={closeDialog} returnFocus={more}>
+          <DeleteMedia count={deleteMedia.count} run={deleteMedia.run} onClose={closeDialog} />
+        </ExtrasDialog>
+      )}
+      {surface && surface.kind !== "check" && surface.kind !== "replay" && surface.kind !== "delete" && (
+        <ExtrasBoundary fallback={
+          <ExtrasDialog title={surface.kind === "cards" ? cardsTitle : assignmentTitle} onClose={closeDialog} returnFocus={more}>
+            <p role="alert" className="extras-panel-error">{PANEL_LOAD_FAILED}</p>
+            <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
+          </ExtrasDialog>
+        }>
+          <Suspense fallback={null}>
+            <LazyPrintSession session={surface} plans={state.plans} matchCode={matchCode} reportCount={reportCount} onClose={closeDialog} returnFocus={more} />
+          </Suspense>
+        </ExtrasBoundary>
       )}
     </>
   );

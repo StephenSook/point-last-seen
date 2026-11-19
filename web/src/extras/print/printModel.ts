@@ -1,4 +1,4 @@
-import type { IncidentView, PlanDoc } from "../laneC";
+import type { IncidentView, PlanDoc } from "../hostApp";
 
 export const DRILL_LABEL = "Training drill. Nobody is missing.";
 

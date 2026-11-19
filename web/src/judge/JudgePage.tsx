@@ -7,11 +7,10 @@ import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
 import { practiceErrorMessage, practiceSearch } from "../data/practice";
 import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
+import { PURPOSE_LINE } from "../purpose";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
-// The replay (D1) needs startJudgeSession; until it is built the page never points at it.
-const REPLAY_LIVE = false;
 
 export function JudgePage() {
   const [run, setRun] = useState<Awaited<ReturnType<typeof loadPublishedRun>> | null>(null);
@@ -65,7 +64,11 @@ export function JudgePage() {
     }
   }
 
-  const copy = device ? d2Copy(device, { replay: REPLAY_LIVE && run?.state === "run", downloadFailed }) : null;
+  // The laptop line names the replay only when the replay reader accepted the published run.
+  const copy = device ? d2Copy(device, { replay: run?.state === "run", downloadFailed }) : null;
+  // A run file that exists (read or refused) gets the replay section from JudgeExtras; this page's own section says
+  // why there is nothing to replay, so the page has one replay section either way.
+  const runFile = run?.state === "run" || run?.state === "refused" ? run.run : null;
   // Before Remote Config starts (or if it cannot), the pinned default is still named.
   const [modelLine, sourceLine, ...more] = rc
     ? modelLines({ cloudModelWeb: rc.cloudModelWeb, cloudModelSource: rc.cloudModelSource ?? "default", fetchedAt: rc.fetchedAtMs ? fetchedTime(rc.fetchedAtMs) : null, killCloud: rc.killCloud })
@@ -73,13 +76,25 @@ export function JudgePage() {
   return (
     <main className="judge">
       <p className="wordmark">Point Last Seen</p>
+      <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
+      {/* The repository and the video join these links once they are public. */}
+      <nav aria-label="Links" className="judge-links">
+        <a href="/">Command post</a>
+      </nav>
+      {/* The three-minute route, in order; each step jumps to its section on this page. */}
+      <ol aria-label="Three minutes, in order" className="judge-route">
+        <li><a href="#practice-h">Try a practice search</a></li>
+        <li><a href={runFile ? "#extras-replay-h" : "#d1-h"}>Watch the drill replay</a></li>
+        <li><a href="#d2-h">Get this laptop ready</a></li>
+        <li><a href="#model-h">See the cloud model</a></li>
+      </ol>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
       <p className="muted">No login and no key. About three minutes.</p>
 
       <section aria-labelledby="practice-h">
         <h2 id="practice-h" className="label">Try a practice search</h2>
-        <p>A training incident on a real park map with the real engine. Add one sighting and watch the map and the plan change.</p>
+        <p>A training incident on a real park map with the real engine. Add a sighting, then confirm it under Sightings, and watch the map and the plan change.</p>
         <button type="button" className="btn" onClick={() => void startPractice()} disabled={practice.busy}>
           {practice.busy ? "Starting" : "Try a practice search"}
         </button>
@@ -90,16 +105,18 @@ export function JudgePage() {
         )}
       </section>
 
-      <section aria-labelledby="d1-h">
-        <h2 id="d1-h" className="label">Replay the training drill</h2>
-        {run?.state === "run" ? (
-          <p>The replay of the published drill opens here once the sandbox is live.</p>
-        ) : (
-          <p>No published run yet.</p>
-        )}
-      </section>
+      {!runFile && (
+        <section aria-labelledby="d1-h">
+          <h2 id="d1-h" className="label">Replay the training drill</h2>
+          {run === null && <p className="muted">Loading.</p>}
+          {run?.state === "none" && <p>No published run yet.</p>}
+          {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
+          {run?.state === "invalid" && <p>The published run file can't be read, so nothing is replayed and no numbers are shown.</p>}
+        </section>
+      )}
 
-      <JudgeExtras run={run?.state === "run" ? run.run : null} />
+      {/* A run the reader refuses still reaches the replay section, which says why in plain words. */}
+      <JudgeExtras run={runFile} />
 
       <section aria-labelledby="model-h">
         <h2 id="model-h" className="label">Cloud model</h2>
@@ -130,14 +147,11 @@ export function JudgePage() {
         <p className="muted small">Measured on Chrome 157 stable, a fresh profile: before the download the model is downloadable; after a 77 s download, text and image input are available.</p>
       </details>
 
-      {/* Said once: with no published run the Replay section already says so. */}
-      {run?.state !== "none" && (
+      {/* Only for a run the reader accepted: the replay section already speaks for every other state. */}
+      {run?.state === "run" && (
         <section aria-labelledby="d5-h">
           <h2 id="d5-h" className="label">Numbers</h2>
-          {run === null && <p className="muted">Loading.</p>}
-          {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
-          {run?.state === "invalid" && <p>The published run file is incomplete, so no numbers are shown.</p>}
-          {run?.state === "run" && <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>}
+          <p>Published run {String(run.run.runId)}.</p>
         </section>
       )}
     </main>

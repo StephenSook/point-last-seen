@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { PlanDraft, WordedPlan } from "../ai/replanWording";
+import { planLimitLine } from "../data/plans";
+import { receiptLines } from "../ai/receipt";
 import { RouteGlyph } from "./RouteGlyph";
 
 type Props = {
   draft: PlanDraft | null;
-  draftSource: "server" | "local";
   onSuggest: () => Promise<WordedPlan>;
   /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
   onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
@@ -13,8 +14,22 @@ type Props = {
   teams?: readonly { teamId: string; name: string }[];
 };
 
+const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
+  error: "the model call failed",
+  timeout: "the model took too long",
+  unreadable: "its answer could not be read",
+  rejected: "its wording failed the checks",
+};
+
+/** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
+export function whatRan(w: WordedPlan): string[] {
+  const base = { asked: "this laptop first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
+  if (w.attempt) return [...receiptLines({ ...base, route: w.attempt.route }), `Not used: ${WHY[w.attempt.failure]}. The plan uses fixed wording from code.`];
+  return receiptLines({ ...base, route: w.route });
+}
+
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStatus, teams = [] }: Props) {
+export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [] }: Props) {
   const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
   // The reply is kept with the draft it was asked for; it shows (and can be approved) only while
   // that draft is still current, so a reply that lands after the draft changed is never used.
@@ -22,10 +37,13 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
-  // A suggestion belongs to the draft it was worded for: the event set, the prior and the
-  // assignments. If any of them changes (for example the plan history arrives), it is withdrawn.
-  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.assignments]) : null;
-  const suggested = reply && reply.key === draftKey ? reply.worded : null;
+  // A suggestion belongs to the draft it was worded for: the event set, the prior, the ranked
+  // probabilities the model reads and the assignments. If any of them changes (for example the plan
+  // history arrives, or another seat's rebuild reaches the segments first), it is withdrawn.
+  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments]) : null;
+  // A draft the plans rule cannot hold is said so here, before a suggestion is asked for.
+  const limit = draft ? planLimitLine(draft) : null;
+  const suggested = reply && reply.key === draftKey && !limit ? reply.worded : null;
 
   useEffect(() => {
     setReply(null);
@@ -70,8 +88,13 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
         <p>No draft yet.</p>
       ) : (
         <>
-          <p className="muted">Draft from {draftSource === "server" ? "the server" : "this laptop"} for the current reports.</p>
-          <button type="button" className="btn" onClick={suggest} disabled={busy !== null}>
+          <p className="muted">Draft from this laptop for the current reports.</p>
+          {limit && (
+            <p className="error" role="status">
+              {limit}
+            </p>
+          )}
+          <button type="button" className="btn" onClick={suggest} disabled={busy !== null || limit !== null}>
             {busy === "suggest" ? "Suggesting" : "Suggest plan"}
           </button>
         </>
@@ -90,6 +113,14 @@ export function WhatChanged({ draft, draftSource, onSuggest, onApprove, planStat
               </li>
             ))}
           </ul>
+          {suggested.promptBytes !== undefined && (
+            <details className="receipt">
+              <summary>What ran</summary>
+              {whatRan(suggested).map((l) => (
+                <p key={l} className="small">{l}</p>
+              ))}
+            </details>
+          )}
           <button type="button" className="btn" onClick={approve} disabled={busy !== null}>
             Approve
           </button>

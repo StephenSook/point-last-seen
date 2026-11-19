@@ -50,9 +50,23 @@ test.describe("fresh browser", () => {
     // The drill incident has a grid: its segments must draw, with one printed percent each, and the
     // credit must be the line the grid builder stamped on the incident (no credit only on an empty map).
     await expect(page.locator(".map-empty")).toHaveCount(0, { timeout: 15_000 });
-    await expect(page.locator(".plate").first()).toBeVisible();
+    await expect(page.locator(".plate:visible").first()).toBeVisible();
     await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap contributors (ODbL)");
     await expect(page.getByText(DRILL)).toBeVisible();
     expect(consoleErrors).toEqual([]);
   });
+});
+
+// Deployed-only: the map's basemap and the walker model's route graph are files the build copies from
+// shared/grid. A missing one is a 404 (not the app shell), and each must come back as its own type.
+test("the deployed site serves the grid's basemap tiles and route graph", async ({ request }) => {
+  deployedOnly();
+  const tiles = await request.get("/tiles/piedmont-park-dev.pmtiles", { headers: { range: "bytes=0-15" } });
+  expect([200, 206]).toContain(tiles.status());
+  expect(tiles.headers()["content-type"] ?? "").not.toContain("text/html");
+  expect((await tiles.body()).subarray(0, 7).toString("latin1")).toBe("PMTiles");
+  const graph = await request.get("/tiles/piedmont-park-dev.graph.json");
+  expect(graph.status()).toBe(200);
+  expect(graph.headers()["content-type"] ?? "").toContain("application/json");
+  expect(Object.keys((await graph.json()) as object).length).toBeGreaterThan(0);
 });

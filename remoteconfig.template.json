@@ -28,6 +28,13 @@
       "valueType": "STRING",
       "description": "Server prompt template for the web command post's consented cloud read of a sighting note (shared/templates)."
     },
+    "photo_template_id": {
+      "defaultValue": {
+        "value": "pls-photo-cues-v1"
+      },
+      "valueType": "STRING",
+      "description": "Server prompt template for the web command post's consented cloud read of a family photo (shared/templates)."
+    },
     "cloud_model_ios": {
       "defaultValue": {
         "value": "gemini-3.5-flash-lite"

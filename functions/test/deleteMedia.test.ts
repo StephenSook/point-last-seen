@@ -23,13 +23,16 @@ beforeEach(async () => {
     await put(`photos/${inc}/${PHOTO}.jpg`);
     await admin.db.doc(`incidents/${inc}/clipReadings/${CLIP}`).set({ sha256: CLIP });
     await admin.db.doc(`incidents/${inc}/photoReadings/${PHOTO}`).set({ sha256: PHOTO });
+    await admin.db.doc(`incidents/${inc}/photoConsents/${PHOTO}`).set({ storagePath: `photos/${inc}/${PHOTO}.jpg` });
   }
 });
 afterAll(closeClients);
 
 describe("deleteIncidentMediaNow", () => {
   it("command removes its incident's clips, photos and their readings, and nothing of another incident", async () => {
-    expect(await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 4 });
+    expect(await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 5 });
+    expect((await admin.db.doc(`incidents/I1/photoConsents/${PHOTO}`).get()).exists).toBe(false);
+    expect((await admin.db.doc(`incidents/I2/photoConsents/${PHOTO}`).get()).exists).toBe(true);
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(false);
     expect(await exists(`photos/I1/${PHOTO}.jpg`)).toBe(false);
     expect((await admin.db.doc(`incidents/I1/clipReadings/${CLIP}`).get()).exists).toBe(false);
@@ -70,7 +73,8 @@ describe("deleteIncidentMediaNow", () => {
     await expect(handleDeleteMedia(admin.db, bucket, command("I7"), { incidentId: "I7" })).rejects.toMatchObject({ code: "permission-denied" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
     await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) });
-    expect((await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).deleted).toBe(4);
+    // Two files, two readings and the photo's consent record.
+    expect((await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).deleted).toBe(5);
   });
   it("a malformed incident id is refused before anything is listed", async () => {
     for (const data of [{ incidentId: "../I1" }, { incidentId: "" }, {}, null]) {

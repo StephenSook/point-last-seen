@@ -1,4 +1,4 @@
-// The person-in-view band (P-40, hand-off H4): an SVG strip over the clip's length. The cloud
+// The person-in-view band: an SVG strip over the clip's length. The cloud
 // reading's span is solid; on-device checks, if a caller ever passes them, are hatched, so the
 // sources differ by pattern, not by hue. A click shows the frame at that second; Enter shows
 // the first second the person is in view.

@@ -1,6 +1,7 @@
 // The command post map: segments filled by POA lightness, a printed percent
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
+import { labelOrder, overlapping } from "./labelDensity";
 import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { loadBasemap } from "../basemap/load";
@@ -166,23 +167,50 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       (m.getSource("segments") as GeoJSONSource | undefined)?.setData(fc as never);
       (m.getSource("centres") as GeoJSONSource | undefined)?.setData(centreFeatures(segments, poa) as never);
       for (const mk of markers.current) mk.remove();
+      labels.clear();
       markers.current = fc.features.flatMap((f, i) => {
         const seg = segments[i];
-        if (!seg || f.properties.label === "") return [];
+        if (!seg) return [];
+        const at: [number, number] = [seg.centroid.lon, seg.centroid.lat];
+        const own: HTMLElement[] = [];
+        labels.set(seg.segmentId, own);
+        // Every cell's code sits left of its dot (the largest is 14 px), so a person can name the cell on a radio.
+        const code = document.createElement("div");
+        code.className = "seg-code";
+        code.textContent = f.properties.segmentId;
+        own.push(code);
+        const out = [new Marker({ element: code, anchor: "right", offset: [-17, 0] }).setLngLat(at).addTo(m)];
+        if (f.properties.label === "") return out;
         const plate = document.createElement("div");
         plate.className = "plate";
         plate.textContent = f.properties.label;
+        own.push(plate);
         // The plate hangs just below the largest dot (14 px), so the number never covers the dot.
-        return [new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+        out.push(new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat(at).addTo(m));
+        return out;
       });
       const b = bounds(segments);
       if (b && !fitted.current) {
-        m.fitBounds(b, { padding: 40, duration: 0 });
+        // The extra room at the bottom keeps the lowest cells' labels above the map credit.
+        m.fitBounds(b, { padding: { top: 40, right: 40, bottom: 64, left: 40 }, duration: 0 });
         fitted.current = true;
       }
+      place();
     };
+    // Each cell's labels, by segment id, for placing.
+    const labels = new Map<string, HTMLElement[]>();
+    // Place labels in POA order; a cell whose labels would cover one already placed hides its own (labelDensity.ts).
+    const place = () => {
+      const units = labelOrder(poa, segments.map((s) => s.segmentId)).map((id) => labels.get(id) ?? []);
+      for (const el of units.flat()) el.classList.remove("crowded");
+      for (const i of overlapping(units.map((els) => els.map((el) => el.getBoundingClientRect())))) for (const el of units[i]!) el.classList.add("crowded");
+    };
+    m.on("zoomend", place);
     if (ready.current) draw();
     else m.once("load", draw);
+    return () => {
+      m.off("zoomend", place);
+    };
   }, [segments, poa, beat?.before]);
 
   useEffect(() => {

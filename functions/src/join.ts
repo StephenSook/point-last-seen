@@ -17,6 +17,12 @@ export interface JoinResponse {
 
 const ROLES: readonly JoinRole[] = ["command", "searcher", "family"];
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
+/**
+ * A searcher's team id is one a push can reach (notify.ts): no "-" (the topic separator), at most 32, and never
+ * "family", whose topic is the family's.
+ */
+const TEAM_ID = /^[A-Za-z0-9_]{1,32}$/;
+const teamIdOk = (t: unknown): t is string => typeof t === "string" && TEAM_ID.test(t) && t.toLowerCase() !== "family";
 
 /** Codes are 8 characters from a 32-symbol alphabet; case, spaces and hyphens are ignored. */
 export function normalizeJoinCode(code: string): string {
@@ -82,7 +88,7 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   if (typeof joinCode !== "string" || normalizeJoinCode(joinCode).length === 0) bad("joinCode must be text.");
   if (!ROLES.includes(role)) bad("role must be command, searcher or family.");
   if (incidentId !== undefined && (typeof incidentId !== "string" || !ID.test(incidentId))) bad("incidentId is malformed.");
-  if (role === "searcher" && (typeof teamId !== "string" || !ID.test(teamId))) bad("A searcher must name a team.");
+  if (role === "searcher" && !teamIdOk(teamId)) bad("A searcher must name a team.");
 
   if (!CODE_FORMAT.test(normalizeJoinCode(joinCode))) denied();
   const db = getFirestore();

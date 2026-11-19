@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, templateGeneratorFor } from "./client";
+import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, photoTemplateGeneratorFor, templateGeneratorFor } from "./client";
 import { clipParts } from "./clipRead";
 
 describe("generatorFor", () => {
@@ -59,10 +59,10 @@ describe("clipGeneratorFor", () => {
 });
 
 describe("frameGeneratorFor", () => {
-  it("sends one short instruction and one inline JPEG frame, and returns the text", async () => {
+  it("sends one short instruction and one inline JPEG frame, and returns the text with where it ran", async () => {
     let sent: unknown;
     const gen = frameGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => '{"personVisible":false}', inferenceSource: "on_device" } }; }) as never });
-    expect(await gen("QUJD")).toEqual({ text: '{"personVisible":false}' });
+    expect(await gen("QUJD")).toEqual({ text: '{"personVisible":false}', inferenceSource: "on_device" });
     expect(sent).toEqual([{ type: "text", text: "Check this frame." }, { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: "QUJD" } }]);
   });
 });
@@ -73,5 +73,14 @@ describe("templateGeneratorFor", () => {
     const gen = templateGeneratorFor({ generateContent: (async (r: unknown) => { sent = r; return { response: { text: () => "{}", inferenceSource: "in_cloud" } }; }) as never }, "pls-sighting-note-v1");
     expect(await gen("seen by the mill gate")).toEqual({ text: "{}", inferenceSource: "in_cloud" });
     expect(sent).toEqual({ templateId: "pls-sighting-note-v1", templateVariables: { note: "seen by the mill gate" } });
+  });
+});
+
+describe("photoTemplateGeneratorFor", () => {
+  it("sends only the template id and the photo as base64 JPEG; the server holds the model, instruction and schema", async () => {
+    let sent: unknown;
+    const gen = photoTemplateGeneratorFor({ generateContent: (async (r: unknown) => { sent = r; return { response: { text: () => "{}", inferenceSource: "in_cloud" } }; }) as never }, "pls-photo-cues-v1");
+    expect(await gen("QUJD")).toEqual({ text: "{}", inferenceSource: "in_cloud" });
+    expect(sent).toEqual({ templateId: "pls-photo-cues-v1", templateVariables: { mimeType: "image/jpeg", imageData: "QUJD" } });
   });
 });

@@ -46,6 +46,12 @@ jobs:
         run: npm run typecheck -w web
       - name: Web unit tests
         run: npm test -w web
+      # The public-run exporter's output must pass the judge replay reader, which lives here (web/src/extras/replay):
+      # a reader change re-runs that cross-check, not only the reader's own tests.
+      - name: Exported run passes the replay reader
+        run: |
+          npm run typecheck -w tools/export-run
+          npm test -w tools/export-run
       - name: Web build (placeholder config; proves it compiles, never deployed)
         env:
           VITE_FIREBASE_API_KEY: ci-build-check
@@ -64,3 +70,15 @@ jobs:
       - name: Browser checks with no backend
         working-directory: web
         run: npx playwright test -c e2e/ci.config.ts
+      # Component harnesses (map, beat, plan, sightings, family, clips, ...) and the extras lane's pages, on the
+      # Vite dev server with Playwright's Chromium. The few tests that need Chrome's built-in model are left out.
+      - name: Component harness checks
+        working-directory: web
+        env:
+          CI: "true"
+        run: npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model"
+      - name: Extras harness checks
+        working-directory: web
+        env:
+          CI: "true"
+        run: npx playwright test -c e2e/extras.config.ts

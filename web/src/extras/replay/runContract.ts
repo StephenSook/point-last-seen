@@ -1,0 +1,172 @@
+// The published drill run, as the judge replay reads it. The exporter writes this shape, so the reader and the
+// writer agree on one typed contract instead of each guessing the other. The file is served publicly at
+// /evidence/published-run.json: it carries no uid, no join code, no report text, no profile field, no clip
+// path and no consent record. The reader refuses a run that carries report text.
+//
+// The exporter (tools/export-run) is what keeps private data out of this file: it writes only these fields, from
+// records whose source it knows. The reader (replay/replayData.ts) is a second check and a guard against crashes,
+// not a parser for hostile files. Three of its limits:
+// - Its user id scan is best effort. It finds a 28-letter-and-digit id standing alone, in a key or in decoded shape
+//   text, but not one split across two fields or joined to other letters and digits. Pseudonymizing in the exporter
+//   is the guarantee.
+// - It parses the whole file before its size checks run (the report cap, the 7-day span), so a very large file still
+//   costs its parse.
+// - The judge check compares each segment's percent and centroid with the live map, not its polygon: a change to a
+//   polygon alone does not show in it.
+
+import type { Assignment, EngineParams, EventDoc, RouteRecord } from "../hostApp";
+
+export const PUBLISHED_RUN_VERSION = 1;
+
+/**
+ * The most reports a public run may carry. The reader computes every frame once to check the run, and that work
+ * grows with the square of the reports (measured: 1,000 reports about 0.6 s, 5,000 about 15 s). A real drill run
+ * has about 24.
+ */
+export const MAX_RUN_EVENTS = 1_000;
+
+/** A run author's pseudonym: "author-" and a number, stable within one run. Never the real uid. */
+export const AUTHOR_PSEUDONYM = /^author-[0-9]+$/;
+/**
+ * A run device's pseudonym: "device-" and a number, the same in the events and the device table. The security rules
+ * make a device id its author's auth uid, so a raw device id is a user id.
+ */
+export const DEVICE_PSEUDONYM = /^device-[0-9]+$/;
+/** The shape of a Firebase Auth user id (28 letters and digits). No string anywhere in a public run may have it. */
+export const FIREBASE_UID_SHAPE = /^[A-Za-z0-9]{28}$/;
+
+// The fields each part may carry. The reader refuses any other field, so nothing private can ride along unnoticed.
+export const RUN_FIELDS = {
+  run: ["runId", "label", "exportedAt", "incident", "segments", "teams", "devices", "events", "plans", "measurements"],
+  incident: ["name", "mode", "drillLabel", "priorVersion", "priorInputEventIds", "engineParams", "priorBuiltAtMs", "gridId", "gridAttribution"],
+  segment: ["segmentId", "priorPoa", "geometryJson", "centroid", "areaM2", "neighbors", "upstream", "downstream", "nearFrac", "featureClasses"],
+  row: ["segmentId", "priorPoa"],
+  team: ["teamId", "name"],
+  device: ["deviceId", "teamId", "clockOffsetMs"],
+  event: [
+    "eventId", "schemaVersion", "incidentId", "teamId", "deviceId", "seq", "authorUid", "role", "type", "reporter", "clientTimeMs",
+    "observedAtMs", "position", "positionSource", "rawText", "inputMethod", "isTrainingInject", "reading", "effect", "route",
+    "targetEventId", "decision", "planVersion", "priorVersion", "serverTimeMs",
+  ],
+  plan: ["version", "approvedAtMs", "priorVersion", "basedOnEventSetHash", "assignments"],
+  cameraReading: ["clipStartMs", "clockConfirmed", "sighting"],
+  cameraSighting: ["personVisible", "firstSeen", "lastSeen", "keyFrame"],
+  keyFrame: ["time"],
+} as const;
+
+// The exact values each coded event field may hold, as the engine defines them. A value written any other way (another
+// case, a trailing space, an unknown word) refuses the run, so no rule keyed on a value can be dodged by spelling.
+export const RUN_ENUMS = {
+  type: ["cleared", "clue", "sighting", "camera_sighting", "destination", "confirmation", "retraction", "found", "plan_ack"],
+  role: ["searcher", "command", "family"],
+  reporter: ["searcher", "public_caller", "family", "camera", "system"],
+  positionSource: ["gps", "assigned_segment", "manual", "map_click", "camera_pin", "none"],
+  inputMethod: ["keyboard_dictation", "typed", "picklist", "clip", "photo", "system"],
+  decision: ["confirmed", "rejected", null],
+} as const satisfies { [K in keyof Pick<EventDoc, "type" | "role" | "reporter" | "positionSource" | "inputMethod" | "decision">]: readonly EventDoc[K][] };
+
+// The exact values each coded field of a report's route record (which model read it, and where) may hold.
+export const ROUTE_ENUMS = {
+  platform: ["ios", "web", "android"],
+  path: ["on_device", "cloud", "rules", "unknown"],
+  stage: ["guided", "permissive_text", "deterministic_parser", "evidence_protocol", "sdk", "picklist"],
+  reason: [
+    "on_device_default", "no_network", "on_device_unavailable", "locale_unsupported", "over_token_budget",
+    "possible_evidence", "not_drill_mode", "sdk_prefer_in_cloud", "sdk_prefer_on_device", "sdk_only_in_cloud",
+    "sdk_only_on_device", "sdk_fallback", "link_down_fallback", "template_fallback", "consented_cloud_read",
+    "on_device_triage_flagged", "on_device_triage_no_person", "triage_no_motion", "user_override_after_triage",
+  ],
+  blocked: ["guardrail", "refusal", null],
+} as const satisfies { [K in keyof Pick<RouteRecord, "platform" | "path" | "stage" | "reason" | "blocked">]: readonly RouteRecord[K][] };
+
+/** A camera sighting's reading in a public run: only the clock and the times the replay draws. */
+export type RunCameraReading = {
+  clipStartMs: number;
+  clockConfirmed: boolean;
+  sighting: { personVisible: boolean; firstSeen: string; lastSeen: string; keyFrame: { time: string } };
+};
+
+/** published-run.json, version 1. */
+export type PublishedRunV1 = {
+  runId: string;
+  /** The drill line shown with the run. */
+  label: string;
+  /** ISO 8601, UTC. */
+  exportedAt: string;
+  incident: {
+    name: string;
+    mode: "drill" | "judge";
+    drillLabel?: string;
+    priorVersion: number;
+    priorInputEventIds: string[];
+    /** As stored on the incident. Absent: the shared engine constants, which the live command post also uses. */
+    engineParams?: EngineParams;
+    /**
+     * When the current prior came into use. Absent or null: the replay shows a map only from the first server time
+     * stamped with the current prior version, so writing this makes the replay cover more of the run.
+     */
+    priorBuiltAtMs?: number | null;
+    gridId?: string;
+    gridAttribution?: string;
+  };
+  /** Every segment doc as stored, plus the reserved ROW doc that holds the prior mass outside the map. */
+  segments: (RunSegment | { segmentId: "ROW"; priorPoa: number })[];
+  teams: { teamId: string; name: string }[];
+  /**
+   * One row per device doc, keyed by its DEVICE_PSEUDONYM. clockOffsetMs: server time minus the device clock, measured
+   * at pack time; null when never measured.
+   */
+  devices: { deviceId: string; teamId: string; clockOffsetMs: number | null }[];
+  events: RunEvent[];
+  plans: RunPlan[];
+  /** The numbers block: one row per measured report. The replay does not read it. */
+  measurements: RunMeasurement[];
+};
+
+/** One measured report: when it was sent, read and redrawn, by a device pseudonym. */
+export type RunMeasurement = {
+  eventId: string;
+  deviceId: string;
+  teamId?: string | null;
+  submittedAtMs?: number | null;
+  readDoneAtMs?: number | null;
+  redrawnAtMs?: number | null;
+};
+
+export type RunSegment = {
+  segmentId: string;
+  nearFrac?: number;
+  featureClasses?: string[];
+  priorPoa: number;
+  /** The stored GeoJSON Polygon or MultiPolygon, as a string, as Firestore holds it. */
+  geometryJson: string;
+  centroid: { lat: number; lon: number };
+  areaM2: number;
+  neighbors: string[];
+  upstream: string[];
+  downstream: string[];
+};
+
+/**
+ * One stored event with its server time as a number (milliseconds). `authorUid` is a stable pseudonym per
+ * author for this run (AUTHOR_PSEUDONYM), never the real uid: the engine compares authors only to decide who may
+ * retract what.
+ * `rawText` is always null. `reading` is kept only for a camera sighting, cut to RunCameraReading; a report's
+ * reading quotes the report's words, so it is null. A place to check (`type: "destination"`) has `position: null`:
+ * it can be a home from the family's profile. A camera sighting, and any report placed by a camera pin
+ * (`positionSource: "camera_pin"`), has `position: null` too: the camera is usually at the family's home.
+ */
+export type RunEvent = Omit<EventDoc, "serverTime" | "rawText" | "reading"> & {
+  serverTimeMs: number;
+  rawText: null;
+  reading: RunCameraReading | null;
+};
+
+/** One approved plan. approvedAtMs: the server's approval time in milliseconds. */
+export type RunPlan = {
+  version: number;
+  approvedAtMs: number;
+  priorVersion: number;
+  basedOnEventSetHash: string;
+  assignments: Assignment[];
+};

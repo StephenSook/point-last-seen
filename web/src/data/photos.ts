@@ -4,7 +4,7 @@
 // days.
 
 import type { PhotoCues, RouteRecord } from "@pls/engine";
-import { doc, setDoc, type Firestore } from "firebase/firestore";
+import { getDocFromServer, doc, setDoc, type Firestore } from "firebase/firestore";
 import { getBytes, getMetadata, listAll, ref, uploadBytes, type FirebaseStorage } from "firebase/storage";
 
 const HASH = /^[0-9a-f]{64}$/;
@@ -42,6 +42,70 @@ export async function loadPhotos(storage: FirebaseStorage, incidentId: string): 
     out.push({ sha256: sha, bytes: new Uint8Array(await getBytes(item, 2 * 1024 * 1024)) });
   }
   return out;
+}
+
+/**
+ * Whether a stored object is still there. Command can delete a search's media at any time, from any seat, so a
+ * photo held in a tray is checked again right before its bytes go to the cloud or a reading is saved for it.
+ * Any failure other than "not found" is thrown: a check that could not run proves neither.
+ */
+export async function stillStored(metadata: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await metadata();
+    return true;
+  } catch (e) {
+    if ((e as { code?: string }).code === "storage/object-not-found") return false;
+    throw e;
+  }
+}
+
+/** Said when command deleted the search's photos after this seat loaded them. */
+export const PHOTO_DELETED = "This photo was deleted.";
+/** Said when the Storage check could not run (the link is down, say): nothing was saved. */
+export const PHOTO_UNCHECKED = "Could not check this photo. The answer was not saved. Try again.";
+
+/**
+ * Saves a family answer only after Storage confirms the photo is still there. A check that cannot run refuses
+ * too: a queued answer could land after another seat deleted the photo and bring its reading back.
+ */
+export async function saveIfStillStored(stillThere: () => Promise<boolean>, save: () => Promise<void>): Promise<void> {
+  let there: boolean;
+  try {
+    there = await stillThere();
+  } catch {
+    throw new Error(PHOTO_UNCHECKED);
+  }
+  if (!there) throw new Error(PHOTO_DELETED);
+  await save();
+}
+
+/** The family's cloud consent for one photo: who agreed, and when (their own tap in the family app). */
+export type PhotoConsent = { byUid: string; atMs: number };
+
+/**
+ * The cloud consent in a photoConsents record, or null. Only the family member who shared the photo writes the
+ * record (incidents/{id}/photoConsents/{sha256}); it counts only for this photo's own Storage path and only
+ * when the consent mark is that sharer's.
+ */
+export function photoConsentFromDoc(incidentId: string, sha256: string, data: unknown): PhotoConsent | null {
+  if (typeof data !== "object" || data === null) return null;
+  const d = data as Record<string, unknown>;
+  const c = d["cloudProcessing"] as Record<string, unknown> | undefined;
+  if (d["storagePath"] !== photoPath(incidentId, sha256)) return null;
+  if (typeof d["createdByUid"] !== "string" || !c || typeof c !== "object") return null;
+  if (c["byUid"] !== d["createdByUid"] || typeof c["atMs"] !== "number" || !Number.isFinite(c["atMs"])) return null;
+  return { byUid: c["byUid"] as string, atMs: c["atMs"] as number };
+}
+
+/** The family's consent for a cloud read of this photo, read from the server only; rejects when unreachable. */
+export async function confirmPhotoConsent(db: Firestore, incidentId: string, sha256: string): Promise<PhotoConsent | null> {
+  const snap = await getDocFromServer(doc(db, "incidents", incidentId, "photoConsents", sha256));
+  return snap.exists() ? photoConsentFromDoc(incidentId, sha256, snap.data()) : null;
+}
+
+/** Is this incident's photo still in Storage? */
+export function photoStillStored(storage: FirebaseStorage, incidentId: string, sha256: string): Promise<boolean> {
+  return stillStored(() => getMetadata(ref(storage, photoPath(incidentId, sha256))));
 }
 
 /** Photos are create-only and named by content, so an existing object is the same photo: skip it. */

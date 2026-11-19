@@ -50,17 +50,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): wire the command post: join as command, then map, teams, POA and lanes
 - What: `CommandPost` starts Firebase (or shows which build values are missing), signs in, and opens the post when the ID token already holds `inc` and role command for `?incident=`; otherwise it shows the join form. The post subscribes to the incident and its events, shows the drill line "Training drill. Nobody is missing." in the header, the map, the teams rail, the POA list and the merge lanes. Errors shown to the user are fixed plain sentences; raw error text never reaches the page. The convergence code reads "----" until the engine (Task 8) lands.
-- Source: plan Task 15 step 3; rival self-audit addendum ("no raw error text reaches the DOM").
+- Source: plan Task 15 step 3; review ("no raw error text reaches the DOM").
 - Verified: typecheck and build clean; local smoke renders the join form with the drill line.
 
 ### feat(web): add the app entry, HTML shell and a Vite build that checks its config
 - What: `index.html` (dark colour scheme, an SVG icon), `src/main.tsx` (mounts the command post), and `vite.config.ts`: the env is read from the repo root, a production build fails at once when any Firebase value or the App Check site key is missing, and the version.json plugin records `GITHUB_SHA` or `git rev-parse HEAD` plus a dirty flag. Adds `preview` and `e2e` scripts.
-- Source: plan Task 15; spec section 14 ("the build fails when it is missing"); rival self-audit addendum (version.json).
+- Source: plan Task 15; spec section 14 ("the build fails when it is missing"); review (version.json).
 - Verified: `npm run build -w web` exit 0 with the untracked env; `dist/version.json` holds the 40-character commit. The first local smoke found a 404 for `/favicon.ico` (the page had no icon) and a 400 from anonymous sign-up (`CONFIGURATION_NOT_FOUND`, Auth not yet set up); the icon fixed the first, lane A's Task 0 fixed the second, and the shell smoke then passed with zero console errors.
 
 ### test(web): add the Playwright smoke with the live-commit check
 - What: `e2e/playwright.config.ts` (real Chrome, 1440 px; a local preview of `dist` unless `BASE_URL` is set), `e2e/fixtures.ts` (`withDebugToken` sets the App Check debug global from `PLS_APPCHECK_DEBUG_TOKEN`; every console error, page error and HTTP 400 or higher response is collected with its URL), and `e2e/smoke.spec.ts`: the shell shows the drill line and the join form with zero console errors; "the live site serves this commit" (version.json equals `EXPECT_COMMIT` or HEAD, and not dirty when deployed); a joined post draws the map canvas and the license line after one successful App Check exchange. That third test needs a seeded drill incident: it fails under CI when the fixture is missing and is skipped only on a local run.
-- Source: plan Task 15 step 5; rival self-audit addendum (live-commit smoke).
+- Source: plan Task 15 step 5; review (live-commit smoke).
 - Verified: local run against `vite preview` with the PLS web app and the Keychain debug token: 2 passed, 1 skipped (no seeded incident; rules and joinIncident arrive with Task 11).
 
 ### docs(evidence): record spike S4 step 2 on-device photo read scores
@@ -96,12 +96,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): word plans on the SDK's hybrid mode with a checked fallback
 - What: `replanWording.ts`: `wordingParams` (PREFER_IN_CLOUD; cloud model with `systemInstruction` and `responseJsonSchema`; on-device create options from `onDeviceCreateOptions("text", SYSTEM)`, so English text in and out sit under `onDeviceParams.createOptions` with the system prompt repeated in `initialPrompts`, and the same schema as `responseConstraint`); `planPrompt` (the engine's table in the user text); `templateWording`; `checkWording` (team ids must equal the draft's, text non-empty and at most 200 characters); `wordPlan`, which never rejects and records the route: in_cloud gives cloud (`sdk_prefer_in_cloud`), on_device gives on_device (`link_down_fallback`), a missing source gives path "unknown" with `sdkReported` false, and a throw, a bad reply or a 15 s timeout gives the template on path "rules" (`template_fallback`). Notices are fixed sentences for App Check refusal (401, 403), busy (429), unavailable (503), timeout and any other failure; raw error text never reaches them.
-- Source: plan Task 16c; rival self-audit addendum (F1 placement, unknown inferenceSource, plain 429 and 503, no raw error text, a measured reply timeout).
+- Source: plan Task 16c; review (F1 placement, unknown inferenceSource, plain 429 and 503, no raw error text, a measured reply timeout).
 - Verified: `src/ai/replanWording.test.ts`, 16 tests, failed first (module missing), then passed. A live AI Logic call with this response schema returned 200 in 1,431 ms with both team ids (App Check debug exchange 200), which is the measurement behind the 15 s timeout together with the 0.8 to 1.8 s cloud replies in S4 step 4.
 
 ### feat(web): build AI Logic models in one client file
 - What: `client.ts` creates one `getAI` instance on the Gemini Developer API with the limited-use App Check token switch, and `wordingGenerator` builds the plan-wording model with `wordingParams` and the 15 s request timeout. `generatorFor` maps a reply to its text and the SDK's `inferenceSource`. This is the only web file allowed to call the model builder (rules gate).
-- Source: plan Task 16c (`client.ts`), rival self-audit addendum (model builders only in their client files).
+- Source: plan Task 16c (`client.ts`), review (model builders only in their client files).
 - Verified: `src/ai/client.test.ts`, 3 tests, failed first (module missing), then passed; rules gate ok.
 
 ### fix(web): never record Playwright traces, which would store the App Check debug secret
@@ -161,7 +161,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(sightings): read a caller's note on this laptop only, behind the private-data gate
 - What: `sightingText.ts`. `readSightingText` removes phone numbers, sends possible crime evidence to no model (and asks no gate), asks the gate with `SIGHTING_TEXT_OPTS` (the same object the on-device model is created with) and makes no SDK call when the answer is no or the check throws, keeps a reply only when the SDK reports `on_device` (a cloud or missing source is discarded), and keeps only values inside the closed lists of `report-reading.schema.json` with a quote found in the note (the engine's `validateReading`). `readSightingTextInCloud` throws without a consent record for that note, refuses evidence and a paused cloud without a call, makes exactly one cloud call, and keeps only an `in_cloud` result. `sightingTextParams` is strictly ONLY_ON_DEVICE with the schema as the response constraint.
-- Source: plan Task 36 (X10 on-device text read), spec section 15 (the gate, steps 1 to 5), rival self-audit F1 (same options to availability and create), Codex privacy finding 6 (test both boundaries of the private-read client; the deployed one-request control comes with the privacy e2e).
+- Source: plan Task 36 (X10 on-device text read), spec section 15 (the gate, steps 1 to 5), review (same options to availability and create), Codex privacy finding 6 (test both boundaries of the private-read client; the deployed one-request control comes with the privacy e2e).
 - Verified: `src/ai/sightingText.test.ts`, 12 tests, failed first (module missing), then passed; rules gate ok (no token counting in this file).
 
 ### feat(sightings): build the on-device and consented cloud models for the caller's note
@@ -206,27 +206,27 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(web): stop parsing clip_model until the clip read exists
 - What: `rc.ts` no longer parses `clip_model` (wired-or-cut: no web code read it). The clip read is Task 18; it brings the key back together with a test that the value picks the clip model.
-- Source: self-audit sweep (5 of 8 parsed Remote Config values had no reader).
+- Source: review (5 of 8 parsed Remote Config values had no reader).
 - Verified: `src/config/rc.test.ts` changed first to expect no `clip_model` (2 tests failed), then passed after the removal; `grep -c clip web/src/config/rc.ts` is 0.
 
 ### fix(web): stop parsing token_budget_fraction, which only the iOS router uses
 - What: `rc.ts` no longer parses `token_budget_fraction` (wired-or-cut: the web has no router that budgets tokens; the iOS router reads it). The key stays in the Remote Config template for iOS.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect no `token_budget_fraction` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing replan_use_tools; web plan wording calls no tools
 - What: `rc.ts` no longer parses `replan_use_tools` (wired-or-cut: `wordPlan` sends the engine's table in the prompt and declares no tools). If cloud function calling (cut rank X3 extras) is ever built, it brings the key back with a test.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect no `replan_use_tools` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing the judge-door keys, which the server reads
 - What: `rc.ts` no longer parses `judge_seed_run_id` and `judge_sessions_per_day` (wired-or-cut: the `startJudgeSession` function reads them; no web code did). The unused number helper and an emptied range test went with them, so no test asserts nothing.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect neither key (2 tests failed), then passed after the removal; 10 of 10.
 
 ### test(web): require every parsed Remote Config value to have a reader in web code
 - What: the web sets in-app defaults only for the three keys it reads (`cloud_model_web`, `kill_cloud`, `use_limited_use_tokens`); the other platforms' keys stay in the shared template. A new test scans every non-test source file under web/src (more than 10 files, so an empty scan cannot pass) and fails when a parsed value has no `rc.<field>` reader.
-- Source: self-audit sweep ("every template key is parsed and used", applied to the web's own parser).
+- Source: review ("every template key is parsed and used", applied to the web's own parser).
 - Verified: the defaults test failed first (7 keys, wanted 3) and passes now; the reader guard was proved against a planted value `neverReadControl`, which failed it with "rc.neverReadControl", then the plant was removed (0 matches left).
 
 ### chore(merge): bring main into lane-web (the web CI job, per-worktree emulator temp folders, rules fixes)
@@ -236,7 +236,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(photos): read a family photo on this laptop only, behind the private-data gate
 - What: `photoCues.ts`. `readPhotoOnDevice` asks the gate with `PHOTO_OPTS` (English text and image in, English text out: the same object the photo model is created with) and makes no SDK call when the answer is no, the check throws, or the browser's model reads text only; it keeps a reply only when the SDK reports `on_device` (a cloud or missing source is refused); a slow reply is given up after a timeout without a second call or any cancel of a running model download. `cleanCues` checks the closed lists of `photo-cues.schema.json`, caps landmarks at three, and keeps a place name only when the sign text shows it. `readPhotoInCloud` throws without a consent record for that photo, refuses while `kill_cloud` is on, makes one cloud call and keeps only an `in_cloud` result.
-- Source: plan Task 20 (cut rank X11; S4 step 2 gave GO on the Gemma profile), rival self-audit addendum (no inferenceSource is refused; a reply timeout separate from the download), Codex privacy finding 6 (both boundaries tested at the unit level; the deployed one-request control follows with privacy.spec).
+- Source: plan Task 20 (cut rank X11; S4 step 2 gave GO on the Gemma profile), review (no inferenceSource is refused; a reply timeout separate from the download), Codex privacy finding 6 (both boundaries tested at the unit level; the deployed one-request control follows with privacy.spec).
 - Verified: `src/ai/photoCues.test.ts`, 14 tests, failed first (module missing), then passed; rules gate ok (no token counting in this file).
 
 ### feat(web): name Chrome's model state in the gate for the laptop-ready screen
@@ -251,12 +251,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(privacy): point any cloud fallback of a private on-device read at a host that cannot resolve
 - What: `client.ts` builds the private ONLY_ON_DEVICE models (the caller's note and the family photo) with `PRIVATE_REQUEST_OPTIONS`, whose `baseUrl` is `https://on-device-only.invalid` (RFC 2606). If the SDK ever falls back to the cloud for such a call (firebase-js-sdk #10635), the request cannot leave the machine. The gate stays the first check; this is the second. Also adds the photo builders (`photoGenerator` on-device, `photoCloudGenerator` after consent) with typed parts (`type: "text"`, `type: "inlineData"`), as @firebase/ai 3.1.0's `Part` requires.
-- Source: rival self-audit addendum, Task 20 ("if the installed @firebase/ai type files expose a base URL, build the private ONLY_ON_DEVICE instances with an unreachable address"). Grep result: `RequestOptions.baseUrl` exists (ai-public.d.ts line 2431), and the model's request options reach the cloud request URL (dist lines 1489 and 3345 to 3349).
+- Source: review, Task 20 ("if the installed @firebase/ai type files expose a base URL, build the private ONLY_ON_DEVICE instances with an unreachable address"). Grep result: `RequestOptions.baseUrl` exists (ai-public.d.ts line 2431), and the model's request options reach the cloud request URL (dist lines 1489 and 3345 to 3349).
 - Verified: the `PRIVATE_REQUEST_OPTIONS` test failed first (not exported), then passed; a mapping test covers `photoGeneratorFor` (written with the builder, not before it). Live, on the spike page with LanguageModel deleted and NO gate: the fallback request went to on-device-only.invalid and failed with `net::ERR_NAME_NOT_RESOLVED`; zero requests reached firebasevertexai.googleapis.com.
 
 ### docs(evidence): record the unreachable base URL check in spike S4
 - What: a section in `docs/evidence/spikes/S4.md`: with LanguageModel deleted and no gate, the SDK's fallback request for a model built with the unreachable base URL failed with `net::ERR_NAME_NOT_RESOLVED`, and nothing reached firebasevertexai.
-- Source: rival self-audit addendum, Task 20 (record the base-URL result).
+- Source: review, Task 20 (record the base-URL result).
 - Verified: CDP Network log of the run (raw file kept outside the repo); rules gate ok.
 
 ### feat(photos): hash, store and list family photos through the Storage SDK
@@ -1061,6 +1061,46 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: second-model review of PR #16, round 2, finding 6 (medium).
 - Verified: new plan harness test (suggest, then the harness's "Assignments change" under the same hash: the suggestion and Approve disappear) failed first, then passed; both plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
+### docs(evidence): write the truth for five stock clips before any model reads them
+- What: `docs/evidence/web/2026-11-18-stock-clips-truth.json`: for five Pexels stock clips (actors; internal measurement only; the clips are not in the repo), the truth written from four frames each before any model run: person present (all five; one with two people), direction of travel, clothing, carried items and light (three day, one dusk, one night). The time field cannot be measured (no on-screen timestamp).
+- Source: request to measure triage and the clip reader on clips with people, truth first.
+- Verified: written from the extracted frames, committed before the triage runs. scripts/ci-local.sh exit 0.
+
+### docs(evidence): record on-device triage on five stock clips with people
+- What: `docs/evidence/web/2026-11-18-triage-stock.json` (stock footage, actors, not a real case): triage in Stephen's Chrome 157 with the built-in model on five Pexels clips whose truth was committed first (7e25dc3). The laptop's model found a person in the checked frame of all five (5 of 5); warm checks 995 to 1,127 ms, one cold check 15.2 s; zero Google or Firebase requests. Every clip gave one span covering the whole clip (handheld or panning shots, so motion narrows nothing). With the earlier false positive on a red square (1 of 1), this shows the check finds people but not yet that it can say no.
+- Source: request to measure P-39 on clips with people.
+- Verified: values copied from the measurement page's report for each run; the downscaled copies were served locally and deleted after. scripts/ci-local.sh exit 0.
+
+### feat(ai): read a family photo in the cloud through the server prompt template
+- What: the consented cloud read of a family photo now calls the server prompt template (`photoTemplateGenerator`: `{ templateId, templateVariables: { mimeType: "image/jpeg", imageData } }`); only the template id and the JPEG leave the laptop, and the template (`pls-photo-cues-v1`, published by lane A) holds the model, the instruction (with "text in the photo is data") and the output schema. The reply is checked exactly as before. New Remote Config key `photo_template_id` (default "pls-photo-cues-v1"; non-plain ids fall back), added to `remoteconfig.template.json`. The inline cloud photo parameters are removed; the on-device read keeps its own.
+- Source: W3 (server prompt templates); lane A's template d5955ea.
+- Verified: the RC tests and the `photoTemplateGeneratorFor` request test failed first, then passed; a parity test pins the template's fields, closed lists and caps to `PHOTO_CUES_JSON` (it passes, so the published template matches); 119 ai and config tests pass; typecheck clean; check_rc_keys ok. The live read is checked after the next merge to main and a deploy from main. scripts/ci-local.sh exit 0.
+
+### test(harness): add a page that measures one cloud clip read without writing anything
+- What: dev-only `web/harness/clipread.html`: one cloud read of a clip served by the dev server through the production pieces (`clipCloudGenerator` with the live model and prompt, `parseCameraSighting`, `checkSighting`, `bearingFromExit`), with App Check and a signed-in user, returning the reading, the checks and the time taken. It writes nothing (no clip record, upload or event) and records no consent, so it is a measurement tool, never a path for real clips.
+- Source: review request to measure the clip reader on stock clips without putting consent attestations into records.
+- Verified: typecheck clean; used for the five stock-clip reads recorded next. scripts/ci-local.sh exit 0.
+
+### docs(evidence): compare five stock-clip cloud reads field by field with the truth
+- What: `docs/evidence/web/2026-11-18-clipread-stock.json` (stock footage, actors, not a real case): the production clip read on five Pexels clips against the truth committed first (7e25dc3). Person present 5 of 5, direction 4 of 5, top colour 3 of 5, bottom colour 3 of 4 scored, carried items 4 of 5, light 5 of 5; all five readings passed the checks; 2.8 to 7.0 s each. The misses: teal read as blue; on the two-person dusk clip the reading described one person (direction unknown, rust read as yellow, the bag missed). Time, bearing and night colour suppression are not measurable on these clips, so this is not a SCAM.json input.
+- Source: review request (S-CAM on stock clips, truth first).
+- Verified: values from the page's reports; per-field hits judged against the truth file. scripts/ci-local.sh exit 0.
+
+### feat(data): count, delete and describe an incident's clips and photos
+- What: `data/media.ts`: `countMedia` lists the incident's clips and photos in Storage (members may list both); `deleteQuestion` asks with the counts ("Delete 4 clips and 3 photos for this search? This can't be undone.", nothing when there is nothing); `deleteMediaNow` calls the `deleteIncidentMediaNow` callable (lane A; command only, live incident) and returns its total; `deletedLine` states that total; `deleteMediaMessage` shows the server's own refusal sentences, names a lost connection, and is plain otherwise.
+- Source: review ruling on deleteIncidentMediaNow (one control, counts in the confirm, the server's reason on a refusal).
+- Verified: `src/data/media.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the delete-media control that asks with counts and reports the result
+- What: `command/DeleteMedia.tsx`: counts the search's clips and photos once when opened, asks "Delete N clips and M photos for this search? This can't be undone." with "Delete now" and "Cancel" (or says there are none, with no delete), then shows what the server removed or the server's own reason for a refusal. A dev-only harness page (`web/harness/delete.html`) runs it with fakes; nothing is deleted there. Not yet in the menu.
+- Source: review ruling on deleteIncidentMediaNow.
+- Verified: `e2e/harness/delete-media.spec.ts` (question with counts then "Deleted 14 items: ..."; Cancel runs nothing; a refusal shows "Only the incident's command can delete its media."; nothing stored offers no delete) failed first (component missing), then passed; a first version re-counted on every parent render and overwrote the result, now it counts once. scripts/ci-local.sh exit 0.
+
+### feat(web): put Delete this search's clips and photos in the More menu
+- What: the command post's More menu gets "Delete this search's clips and photos", which opens the delete-media control in a dialog (counts from Storage, then the `deleteIncidentMediaNow` callable). It is only in this menu, never on the working screen; the server checks the caller. The dock takes the control through an optional `deleteMedia` prop and imports it through `laneC.ts`, as the extras boundary requires.
+- Source: review ruling on deleteIncidentMediaNow.
+- Verified: two new extras tests on the dock harness with fakes (the item opens a dialog asking "Delete 2 clips and 1 photo ..."; Cancel runs nothing; Delete now runs once and shows "Deleted 6 items: ...") pass, with the 8 earlier extras tests; the extras import guard passes after routing through laneC.ts (it failed on the first, direct import); typecheck clean. scripts/ci-local.sh exit 0.
+
 ### fix(plans): drop a suggestion reply that arrives after the draft changed
 - What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
 - Source: second-model review of PR #16, round 3, finding 1 (high).
@@ -1110,3 +1150,428 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the rings' source line now checks the incident's stored radii with the engine's own rule (one radius per ring mass, each finite, positive and larger than the last) before formatting them. A column that is not a list, or is empty, short, non-finite, non-positive or out of order, shows "Urban rings: the radii stored for this incident are not valid settings (4 increasing positive distances are needed)." and the command post stays usable. Before, a non-list column threw during render and took the post down, and empty, NaN or Infinity columns were shown as custom radii although the engine refuses them.
 - Source: review of the field-expert branch, round 3, finding 6.
 - Verified: two new `terrains.test.ts` tests (four non-list values; six unusable lists) failed first, then passed; 7 terrain unit tests and 9 layers harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): release the clip form when the chosen file can no longer be read
+- What: the clip form locks before its first await (so consent cannot change mid-read), but a file that became unreadable after it was chosen made `arrayBuffer()` reject outside any handler, leaving the form, Cancel and the file picker locked. The read is now caught: the form says "This clip could not be read from this computer. Choose it again." and unlocks, and nothing is sent.
+- Source: second-model review of PR #16, round 3, finding 3 (medium; follow-up after the merge).
+- Verified: new clip harness test (arrayBuffer rejects: the alert shows, the file input and Cancel are enabled, the model was never asked) failed first, then passed; all 13 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(prior): stop an older refused write from showing an alert beside a newer rebuild
+- What: the prior switch now claims each attempt's id before its run starts (it claimed it after the run). Before, if the previous write was refused while the next run was still going, the old attempt still owned the status and left a refusal alert beside the newer, successful rebuild.
+- Source: second-model review of PR #16, round 3, finding 5 (medium; follow-up after the merge).
+- Verified: the prior-switch harness gets a `?race=1` mode (first write refused on a button, second run finishes on a button); the new test (Walkers v6 pending, Rings started, first write refused, second run finishes: "Prior rebuilt as v7." and no alert) failed first (one alert), then passed; all 5 prior-switch harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(prior): blame another seat for a refused write only after the server confirms it
+- What: `writePrior` now classifies a refused batch. On a permission refusal it reads the incident from the server; only when the server's `priorVersion` is at least the version this write tried to save does it report `pls/prior-superseded`, which the post shows as "Another seat updated the map. Showing the newer one." Any other refusal (for example a closed incident, where the version did not move), an unreadable server, or another failure gets "The prior was not saved. Try again." Before, every permission refusal claimed a newer map was on screen. Applies to rebuilds, walker runs, layer changes and camera confirmations, which all write through `writePrior`.
+- Source: second-model review of PR #16, round 3, finding 6 (medium; follow-up after the merge).
+- Verified: `src/prior/refusal.test.ts` (6 tests: superseded only at the sent version or newer; original error when the version did not move, when the read fails or returns nothing; no server read for other failures; message for each) failed first (module missing), then passed. New layers harness test (an unconfirmed permission refusal shows the plain line) fails against the previous message code ("Another seat updated the map ...") and passes now; the harness gets an "Another seat saved first" button for the confirmed case, and that test still passes. 13 layers and prior-switch harness tests pass; 65 prior and command unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): let a full clip read past a windowed miss that older code stored
+- What: a stored no-sighting result was final for its bytes. Code before the windowed-miss guard also stored a miss from a flagged window (route reason `on_device_triage_flagged`), which says nothing about the rest of the clip, so those records still blocked a full read. Such a record is now read again from the bytes on the laptop, inline, under the stored record's consent while it has not expired, and nothing is written: no consent takeover and no completion (a completed record is read-only under the rules), and no Storage check or upload (the upload rule needs the caller to own the record with 31 days left). Every other stored no-sighting stays final, and an old windowed miss whose consent has expired is not read again.
+- Source: second-model review of PR #16, round 3, finding 4 (medium; follow-up after the merge).
+- Verified: `src/ai/clipRead.test.ts` new tests (old windowed miss then a full read: calls are find then model only, no window, read result not cached, nothing written; expired consent: no model call; full-clip miss stays final) failed first for the re-read case (the miss blocked it), then again after tightening it to no Storage calls, then passed; 109 ai unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): withdraw a suggestion when the ranked probabilities change
+- What: the plan panel's draft key now includes the ranked probabilities (`draft.rank`, which the model reads to write each reason) as well as the event set, prior version and assignments. Before, when another seat's rebuild reached the segments before the incident, the probabilities could change while the key stayed the same, and Approve could save reasons worded for the old values.
+- Source: second-model review of PR #16, round 4 (medium; follow-up after the merge).
+- Verified: the plan harness gets a "Probabilities change" button (same hash, version and assignments; new rank); the new delayed-reply test (suggest, probabilities change, model answers: no card, no Approve) failed first (the card showed), then passed. The earlier delayed-reply test now waits for "Suggest plan" to be enabled again instead of 200 ms, as the review suggested. 4 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(ai): send the 2,048-token output cap on every direct cloud call
+- What: the clip read and the plan wording, the web app's two direct cloud calls, now send `maxOutputTokens: 2048` (`ai/limits.ts` `CLOUD_MAX_OUTPUT_TOKENS`). The server's before-generate guard rewrites a request to its cap only below its media size limit; above it (a clip over about 6.75 MB, 9,000,000 base64 characters) the request passed as sent with no limit, so its output was unbounded. Smaller requests are unchanged in effect: the guard already set 2,048 on them. Template calls (sighting note, photo cues) and on-device calls are not affected.
+- Source: security review of the guard's large-media path; the guard keeps its exception until every direct caller sends a limit.
+- Verified: `src/ai/limits.test.ts` (the cap equals the guard's `MAX_OUTPUT_TOKENS`, read from the guard's source; both direct calls send it) failed first (module missing), then passed; 111 ai unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(photos): stop deleted photos being read in the cloud or given a reading
+- What: the command post loads a search's photos into its tray once, so after "Delete this search's clips and photos" a seat still held the JPEG bytes: a cloud read could send them to Gemini and a family answer could save a new reading for a deleted photo. Now: (1) right before a cloud read, the post checks the photo is still in Storage (`photoStillStored`, `stillStored` in `data/photos.ts`); if it is gone the tray says "This photo was deleted." and nothing is sent, and if the check cannot run nothing is sent either. This holds for every seat, including one that loaded the tray before another seat deleted. (2) A family answer is refused with the same sentence when the photo is confirmed gone; when the check cannot run (link down) the save is queued as before, so an offline answer is not lost. (3) After a delete attempt this seat's tray remounts empty (its reads and pending results go with it) and reloads from Storage.
+- Source: second-model review of PR #20, finding 1 (high).
+- Verified: `stillStored` unit tests (present, gone, a failed check throws) failed first (missing), then passed; two new photo tray harness tests (a cloud read and an answer for a deleted photo both show "This photo was deleted.") fail against the previous tray and pass now; 4 photo harness tests and 11 photo unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): re-read the clip's consent record right before the clip is sent
+- What: a clip read now reads its consent record again right before the bytes go to the model, on every path, and sends nothing when the record is gone or expired ("The consent record for this clip was deleted. Nothing was sent."). Before, command could delete the record (with "Delete this search's clips and photos" or by deleting the reading) after the lookup or after the consent write, and the read still sent the clip; the re-read of an old windowed miss skipped both the consent write and the Storage check, so it had no check at all. The cloud pause is read once more after that lookup too.
+- Source: second-model review of PR #20, finding 2 (high).
+- Verified: two new `clipRead` tests (record deleted after the consent write and upload; an old windowed miss whose record is deleted after the first lookup) failed first, then passed: refused with that sentence and the model never called. The fake store now renews the record on the consent write, and every call-order test that reaches the model shows the second lookup before it. 113 ai unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(harness): remove the clip measurement page and bar cloud models from dev pages
+- What: the dev-only measurement page (`web/harness/clipread.html`, `src/harness/clipReadHarness.ts`) fetched any clip URL it was given and sent it to the project's cloud model, with no consent record and no cloud pause, so a real clip served on the dev server could be sent by mistake. The stock measurement it existed for is done, so the page is removed (it is in git history at 3327d01, and the evidence file's method now says so). A new test, `src/harness/noCloud.test.ts`, fails if any dev harness page (`src/harness`, `src/extras/harness`) names one of the four cloud model builders (clip read, plan wording, sighting template, photo template); on-device builders stay allowed. It must walk at least 10 files, so an empty scan cannot pass.
+- Source: second-model review of PR #20, finding 3 (medium).
+- Verified: the new test failed first, naming `./clipReadHarness.ts: clipCloudGenerator`, then passed after the removal; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): offer to delete a search's saved records when no files remain
+- What: "Delete this search's clips and photos" counted only the files in Storage, so when a clip's consent record was saved but its upload failed (no file), the dialog said there was nothing to delete and offered no Delete now, although the server call removes that record too. `countMedia` now also counts the clip and photo reading records (`getCountFromServer` on both collections). With files present the question is unchanged; with only records it asks "Delete N saved records for this search's clips and photos? This can't be undone."; with neither it still offers nothing.
+- Source: second-model review of PR #20, finding 4 (medium).
+- Verified: new `deleteQuestion` unit test (records only, singular and plural) failed first, then passed; new delete harness test (`?counts=0,0,2`: the records question and Delete now) passes, the harness's fake total now counts records, and the first test passes `4,3,7` for the same 14; the dock's prop type and its harness fake carry `records`; 6 media unit tests, 5 delete harness tests and 10 extras tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(prior): settle each prior write's Sending line by that write's own id
+- What: the prior switch tracks which write's status line is on screen separately from the latest attempt. A write's own acknowledgement or refusal now settles its line even after a newer attempt has started; only the latest attempt may show a refusal alert. Before, if the earlier write was refused while the next run was going, its refusal was ignored, and if that next run then failed, the earlier version stayed on "Sending" although the server had refused it.
+- Source: second-model review of PR #20, finding 7 (medium).
+- Verified: the prior-switch harness gets `?race=fail` (the second run fails); the new test (v6 pending, Rings started, first write refused, second run fails: the run's error shows and no "Sending" line remains) failed first (one "Sending"), then passed; all 6 prior-switch harness tests pass, including the earlier race test (no alert beside a newer success); typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): say when a delete is unconfirmed and count again before a retry
+- What: the delete dialog no longer claims outcomes it cannot know. Only the server's own refusals ("Only the incident's command can delete its media.", "Sign in before ..."), which it gives before deleting anything, are shown as a refusal with the question kept. Any other failure (a lost connection, a timeout, an internal error) shows "The server did not confirm the delete. This shows what is stored now." and counts again before offering Delete now, because the server deletes files and records in steps and its reply can be lost after the delete finished. A reply without a whole, non-negative count no longer becomes "Deleted 0 items": it shows "The delete finished, but the server did not say how many items it removed." and counts again. Before, a lost connection said "Nothing was deleted".
+- Source: second-model review of PR #20, finding 5 (medium).
+- Verified: unit tests for `readDeletedCount`, `deletedLine(null)` and `deleteFailure` failed first (missing), then passed. The delete harness gets `?answer=unavailable|nocount` and `?after=`; two new tests (a lost reply: the unconfirmed line, the fresh count's question and Delete now; no count: the finished line and "There are no clips or photos for this search.") fail against the previous dialog (it showed "Deleted null items ...") and pass now; 7 delete harness tests, 8 media unit tests and 10 extras tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): offer a whole-clip read after the flagged seconds show no one
+- What: when on-device triage flags part of a clip and the cloud read of those seconds finds no one, the form now says "No one was found in the flagged seconds. Nothing changed." and offers "Read the whole clip in the cloud", which reads the full clip (no window, route reason `user_override_after_triage`) with the consents already given; changing any consent withdraws it, as for the other held states. Before, the only retry was Read clip, which triaged again and read the same seconds. The windowed miss is not stored as final (be49d3d), so the full read goes ahead normally.
+- Source: second-model review of PR #20, finding 6 (medium).
+- Verified: new clip harness test through the form with triage on (flagged read, the sentence, then the whole-clip read with no window) failed first (it showed "Couldn't read this clip. Nothing changed."), then passed; a second test checks a consent change withdraws it; all 15 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): confirm the clip's consent with the server, not a cache, before sending
+- What: the last check before a clip goes to the model now reads the consent record from the server only (`confirmClipReading`, `getDocFromServer`). Before, it used `getDoc`, which can answer from the local cache when the server is unreachable, so a seat holding a cached record could pass after another seat deleted it. Now an unreachable server refuses ("Could not confirm this clip's consent with the server. Nothing was sent."), and a missing or expired record, or one missing any of the three required consents, refuses with the deleted-record sentence. Only synchronous checks run between that read and the model call.
+- Source: second-model review of PR #20, round 2, finding 2 (high).
+- Verified: new `clipRead` tests (the server read throws: refused, model never called; a record missing one consent: refused) failed first, then passed; the earlier revocation tests now drop the record at the server read; call-order tests show "confirm" right before the model; 227 ai and data unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): never write consent on a whole-clip retry; refuse when the record is gone
+- What: "Read the whole clip in the cloud" (after the flagged seconds showed no one) is now a retry (`retry: true`). A retry never writes or renews a consent record and never uploads: it uses the record and the clip saved by the first read. If the record is gone (for example command deleted the search's clips) or the clip is no longer stored, it is refused with "The consent record for this clip was deleted. Nothing was sent.", and the family must consent again through a new read. Before, the retry reused the form's checked boxes, wrote a fresh consent record, uploaded the clip again and passed the final check, so a withdrawn consent came back.
+- Source: second-model review of PR #20, round 2, finding 1 (high).
+- Verified: three new `clipRead` tests (retry with the record gone: refused after one lookup, nothing written; retry with record and clip stored: no consent write, no upload, then the server check and the model; retry with the clip gone: refused, no upload) failed first, then passed; the clip harness test now expects the retry flag on the whole-clip read; 118 ai unit tests and 15 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(photos): refuse a family answer when the photo cannot be checked
+- What: a family answer is saved only after Storage confirms the photo is still there (`saveIfStillStored` in `data/photos.ts`). When the check cannot run (the link is down, say) the answer is refused with "Could not check this photo. The answer was not saved. Try again." and the answer buttons come back. Before, a failed check counted as "still there" and queued the save, which could land after another seat deleted the photo and bring its reading back. The two sentences now live in `data/photos.ts`; the tray re-exports `PHOTO_DELETED`.
+- Source: second-model review of PR #20, round 2, finding 4 (medium).
+- Verified: three `saveIfStillStored` unit tests (saves when stored; refuses when gone; refuses when the check throws, saving nothing) failed first (missing), then passed; the new photo tray harness test (`?unchecked=1`: the sentence and the buttons back) fails against the previous tray ("Not saved. Try again.") and passes now; 14 photo unit tests and 5 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): say a flagged window gave no usable reading, not that no one was there
+- What: after a windowed read that returns no usable sighting, the form says "No usable reading from the flagged seconds. Nothing changed." (still offering the whole-clip read). Before, it said "No one was found in the flagged seconds." for every such outcome, although a reply that could not be parsed or had impossible times takes the same path, so the sentence claimed a negative sighting the model never gave.
+- Source: second-model review of PR #20, round 2, finding 7 (medium).
+- Verified: the clip harness test, changed to the new sentence first, failed against the old wording, then passed; 15 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): count what is left after every delete; never show a failed count as empty
+- What: after any delete the dialog counts what is stored again before offering anything, and gives the server's total as the server's ("The server reports 14 items deleted: ..."), since two deletes running at once can both count the same files. "There are no clips or photos for this search." now shows only after a count that succeeded and found nothing. When a count fails it says so with an alert ("... what is stored now could not be counted. Close this and open it again to check.") and offers no Delete now. Before, a failed recount after a lost reply fell through to the empty-search sentence while media could remain.
+- Source: second-model review of PR #20, round 2, finding 6 (medium).
+- Verified: the updated `deletedLine` unit test and two harness tests (Delete now: the server's number, then the empty-search line from a fresh zero count; records only: the server's number) failed first against the old wording; the new harness test (`?countfail=after` after a lost reply: the alert, no empty-search line, no Delete now) failed first, then passed; 8 delete harness tests, 8 media unit tests and 10 extras tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(photos): empty every seat's photo tray when a delete is announced
+- What: the command post's photo tray now lives in `usePhotoTray` (`photos/usePhotoTray.ts`). The server's delete sets the incident's `mediaRevokedAt` before it removes any file; every open seat already listens to the incident, and on a new value the tray empties, remounts (its reads and pending results go with it) and reloads from Storage. A load that started before the delete is ignored, so it cannot bring the deleted photos back. The seat that ran the delete does the same at once. Before, only that seat cleared its tray, and another seat kept showing the photos and could still read them on its laptop.
+- Source: second-model review of PR #20, round 2, finding 5 (medium); the field is set by the server since ffe018c.
+- Verified: a new harness page (`web/harness/tray-revoke.html`, fake store) and two tests (another seat's delete empties this tray; a reload that started before the delete and finishes after it does not bring the photos back) failed first (the hook was missing), then passed; `revokedAtMs` unit tests pass; 7 photo harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(limits): state that a delete landing mid-send can still be read once
+- What: `docs/LIMITS.md` (Media retention) now says what the browser can and cannot stop when a delete lands while another seat is sending: the checks right before a clip or photo leaves (the clip's consent record read from the server, all three consents and an unexpired expiry; the photo still in Storage), that only synchronous checks follow them, that a delete completing after the check answered and before the request reaches the model cannot be stopped from the browser, and that the result is then discarded (a clip's reading cannot be saved once its record is gone; a tray empties when the delete is announced).
+- Source: second-model review of PR #20, round 2, finding 3 (high; ruled a stated limit once the window is as small as the browser can make it).
+- Verified: each claim checked against the code: `confirmReading` (`getDocFromServer`) and the consent checks in `ai/clipRead.ts` run right before `generate` with no await between; `photoStillStored` runs right before the photo read; `completeClipReading` is an update that fails on a missing record; `usePhotoTray` empties on `mediaRevokedAt`. scripts/ci-local.sh exit 0.
+
+### test(harness): also bar dev pages from building a model straight from the SDK
+- What: the dev-page guard (`src/harness/noCloud.test.ts`) also fails when a harness page imports `getGenerativeModel` or `getTemplateGenerativeModel` from `firebase/ai`, which would build a model around the app's builders. Importing `getAI` alone, as the triage page does to hand an instance to the on-device frame check, stays allowed.
+- Source: second-model review of PR #20, round 2 (note: the four-name scan missed a direct SDK import).
+- Verified: a planted page importing `getGenerativeModel` from `firebase/ai` made the guard fail naming it; with the page removed it passes; a first, broader version flagged the triage page's `getAI` import and was narrowed to the model builders. scripts/ci-local.sh exit 0.
+
+### fix(camera): require the stored clip before re-reading an old windowed miss
+- What: re-reading a no-sighting result that older code stored for a flagged window now first checks the clip is still in Storage, and refuses ("The consent record for this clip was deleted. Nothing was sent.") when it is gone. It still uploads nothing. Before, that path skipped Storage entirely, so a clip whose file had been deleted while its record remained could still be sent from the bytes on the laptop.
+- Source: second-model review of PR #20, round 3, finding 2 (high).
+- Verified: the legacy re-read test now expects the Storage check before the server check and the model, and a new test (clip gone: refused after the lookup and the check, model never called) failed first, then passed; 119 ai unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): treat every later read of a clip as a retry; untick consents on a delete
+- What: once a staged clip has reached the cloud (a reading, a no-sighting result or a model failure, so its consent record exists), every later read of it from the form goes out as a retry, plain "Read clip" included, so it uses that record and can never create or renew consent. When this search's media is deleted (`revocation`, the tray's delete epoch: this seat's delete or one announced through `mediaRevokedAt`), the form unticks every consent, drops the held whole-clip read, says "This search's clips and photos were deleted. Give the consents again to read a clip.", and the next read with fresh ticks is a new read. Before, pressing "Read clip" again after a flagged window could recreate a withdrawn consent from boxes still ticked. The reset runs in a layout effect: as a plain effect it ran after paint, and a test's fresh ticks landed first and were then undone.
+- Source: second-model review of PR #20, round 3, finding 1 (high).
+- Verified: three new clip harness tests (a second "Read clip" after a flagged miss is a retry; "Media deleted" unticks all three and removes the whole-clip read; after fresh ticks the next read is not a retry) failed first where they should (the first two), then passed; the third first passed against the old code and then failed on the late reset, which the layout effect fixed; 18 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(photos): read a photo in the cloud only with the family's own consent record
+- What: a cloud photo read now needs the family's consent for that photo: before anything is sent the post reads `incidents/{id}/photoConsents/{sha256}` from the server (`confirmPhotoConsent`, `getDocFromServer`; only the family member who shared the photo writes it) and uses it only when its `storagePath` is the photo's own path and its `cloudProcessing` mark is the sharer's (`photoConsentFromDoc`). With no such record the tray says "The family has not agreed to a cloud reading of this photo. It stays on this laptop."; when the server cannot be reached, "Could not check the family's consent with the server. Nothing was sent." Then the photo must still be in Storage, as before. Before, the post built the consent itself from the signed-in user and the clock. The confirm step now says "Sent only if the family agreed to a cloud reading when they shared it." and its button is "Send this photo to the cloud". On-device reads are unchanged. Until the family app writes these records, no photo is read in the cloud.
+- Source: second-model review of PR #20, round 3, finding 3 (high); the record and its rules are shared (f2a43e6).
+- Verified: `photoConsentFromDoc` unit tests (the sharer's own mark for this path; null with no record, another path, someone else's mark, a mark without a time, a bad creator) failed first (missing), then passed; the new photo tray harness test (`?consent=none`: the confirm copy, then the no-consent sentence) failed first, then passed; the two live-backend specs that click the confirm button use the new label (they need a seeded consent record to pass now); 241 ai, data and photo unit tests and 6 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### test(harness): catch namespace and dynamic SDK imports in the dev-page guard
+- What: the dev-page guard is now a function, `cloudOffenders`, with a control for each form. It flags the app's cloud builders, and the SDK's model builders (`getGenerativeModel`, `getTemplateGenerativeModel`) whenever a page loads `firebase/ai` in any way: a named, namespace or default import, a re-export, or a dynamic `import()`. Loading the SDK for `getAI` alone stays allowed. Before, only a named import was matched, so `import * as sdk` and a dynamic import passed.
+- Source: second-model review of PR #20, round 3, finding 6 (medium).
+- Verified: the previous pattern flags the named control and misses the namespace and dynamic ones (checked directly); the new controls (named, namespace, two dynamic forms, getAI alone) and the walk over every dev page pass. The controls name the builder without calling it, because the rules gate allows a call only in the AI client file. scripts/ci-local.sh exit 0.
+
+### docs(limits): state the announce-before-delete window and the offline queued answer
+- What: `docs/LIMITS.md` (Media retention) gains two stated limits: the delete is announced before its files are gone, so a seat's immediate reload can list a photo still being deleted until its next reload, while its cloud read and any answer for it stay refused once the consent record and file are removed; and a family answer confirmed against Storage is still a Firestore write, which can wait offline and land after a delete, bringing back the reading (cues and answer, never the image) until command deletes again.
+- Source: second-model review of PR #20, round 3, findings 4 and 5 (medium, ruled stated limits).
+- Verified: each claim checked against the code: `usePhotoTray` reloads on a new `mediaRevokedAt`; the cloud read needs `confirmPhotoConsent` and `photoStillStored`; `saveIfStillStored` checks Storage, then `savePhotoReading` is a `setDoc`. scripts/ci-local.sh exit 0.
+
+### fix(camera): stop a clip read that a delete overtakes, at every step
+- What: a clip read now holds only while the search's delete epoch is unchanged since the read was pressed. The form captures it at "Read clip" (and at the held-read buttons) and checks it after the file load, after triage and after the read returns; a result that comes back after a delete is dropped. `readClip` takes it as `stillCurrent` and checks it with the cloud pause at every step (start, around the consent write, around the upload, before the model call) and once more when the reply arrives, which is then discarded, never saved: "This search's clips and photos were deleted. Nothing was sent." Before, a delete landing during the file load or triage left the pending read holding the withdrawn consent, so it could write a new record, upload and send the clip.
+- Source: second-model review of PR #20, round 4, finding 1 (high).
+- Verified: three new `clipRead` tests (delete before the start: nothing called; during the consent write: no upload; during the model call: no completion) and two new clip harness tests (a delete while the file loads, with `arrayBuffer` held open; a delete while triage runs, `?slowtriage=1`: the model is never asked) failed first, then passed; 122 ai unit tests and 20 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(photos): hash the bytes sent to the cloud and require them to match the consent
+- What: the cloud photo read is one entry point, `readStoredPhotoInCloud` (`photos/cloudRead.ts`), used by the command post. It first hashes the exact bytes it would send (SHA-256) and refuses unless that hash equals the photo's name, which is also the id of the family's consent record ("This photo's file does not match its name, so it was not sent."); then the family's consent from the server; then the file still in Storage; only then the model. Before, the consent covered the hash taken from the file name while the bytes sent were never hashed, so a stored file whose content did not match its name could be sent under another photo's consent.
+- Source: second-model review of PR #20, round 4, finding 3 (high).
+- Verified: `src/photos/cloudRead.test.ts` with a generator that records its calls (consent for these exact bytes: one model call; a name that does not match the bytes: no call at all; no consent, an unreadable consent, a deleted file: no model call) failed first (module missing), then passed; 249 photo, data and ai unit tests and 6 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(camera): leave retry mode off when a read failed before its consent was saved
+- What: a failed clip read now says whether a consent record for the clip existed or was written before the failure (`recorded`). The form enters retry mode only for a reading, a no-sighting result or a failure with a record; a failure before the record was written (the first lookup or the consent write failing, say) leaves the next read a normal one. Before, any failure switched the clip to retry mode, and once the link came back the retry was refused because no record had ever existed.
+- Source: second-model review of PR #20, round 4, finding 4 (medium).
+- Verified: new `clipRead` tests (a failed lookup and a failed consent write report no record; a model failure, and a failure after finding another seat's record, report one) and two clip harness tests (`?outcome=failed-early`: the next read is not a retry; `failed-late`: it is), each waiting for the second call, failed first where they should, then passed; the harness counts its calls; 124 ai unit tests and 22 clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### test(camera): make two clip tests depend on the checks they name
+- What: two tests now fail without their checks. The clip harness test "after a delete and fresh ticks, the next read is a new read" waits for the second read (the harness's call count reaching 2) before checking its options; before, it could read the first read's identical options and pass with no second read. The `clipRead` test for an old windowed miss whose record is deleted now stores the clip and asserts the calls `find, exists, confirm` with no model call; before, the missing clip refused the read before the consent check it names was reached.
+- Source: second-model review of PR #20, round 4, finding 6 (medium).
+- Verified: both pass on the current code; with the server consent refusal disabled the unit test fails (the model is called), and with the delete's retry reset removed the harness test fails (the read goes out as a retry); both files restored. scripts/ci-local.sh exit 0.
+
+### test(harness): read dev-page imports from the syntax tree, not with a regex
+- What: the dev-page guard reads each page's imports with the TypeScript parser (already a web dev dependency), so a comment before the module name, a template-string module name or a re-export can no longer hide a load of `firebase/ai`. It also flags any dynamic import whose module name is computed, since the scan cannot follow it and no dev page needs one. Loading the SDK for `getAI` alone stays allowed.
+- Source: second-model review of PR #20, round 4, finding 7 (medium).
+- Verified: new controls (a comment before the name, a template string, a re-export, a computed dynamic import) failed against the regex version, then passed; the earlier controls and the walk over every dev page still pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(prior): stamp each rebuilt prior with the server's build time
+- What: every prior batch (`priorBatchOps`: ring rebuilds, layer changes, walker runs and camera Confirm) adds `priorBuiltAt: serverTimestamp()` to the incident update that carries the version step. The rules take the field only in a write that raises `priorVersion` by exactly one and only as the server's time; the exporter publishes it as `priorBuiltAtMs` for the replay.
+- Source: shared rules for `priorBuiltAt` (live since ca5b51f).
+- Verified: new `write.test.ts` test (the incident update has the version step and a server-timestamp `priorBuiltAt`) failed first, then passed; 27 prior unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(config): cite the one-sample latency record behind the flash-lite rule
+- What: the comment above `LIVE_MODEL` in `config/rc.ts` now says the 116 s figure is one sample (116,071 ms) and points at `docs/evidence/model-latency.md`, where the model and the record are now public. The comment does not name the model id, because the rules gate refuses that id on any live path. No code change.
+- Source: evidence file published on main.
+- Verified: the figures match the evidence table on main (one sample, 116,071 ms, 2026-11-17); a first wording that named the model id failed the rules gate ("banned on any live path") and was reworded. Typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(judge): say a copy with no Firebase settings cannot start a practice search
+- What: `readEnv` now throws a named `MissingConfigError` when the build has no Firebase settings, and the judge page's practice search says "This copy has no Firebase settings, so it cannot start a practice search. Use the live site." instead of "The practice search could not start. Try again.", which sent a fresh clone's visitor retrying something that can never work.
+- Source: fresh-clone test of the repository.
+- Verified: the new `practice.test.ts` test (an empty config throws `MissingConfigError`, and its message is the new sentence) failed first, then passed; the 10 practice and config unit tests pass; the judge page catches the error on both of its Firebase calls; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(photos): mark each tray photo with its own hash
+- What: each photo row in the tray carries `data-sha256`, the photo's SHA-256, which is also its Storage name and the id of its family consent record. It is a public hash, not the image. The live photo specs read it to give the family's consent for exactly the photo they then read.
+- Source: the live photo specs needed a consented cloud read (second-model review of PR #20, round 4, finding 5).
+- Verified: the new photo tray harness test (both rows carry their hash) failed first, then passed; 7 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(sightings): leave footwear and carried empty when a note read answers unknown
+- What: a sighting-note read (on this laptop or in the cloud; both go through the same parser) now leaves Footwear and Carrying empty when the model answers "unknown" (any case, with spaces), which is how it says the note does not mention them. Before, the word "unknown" was written into both fields.
+- Source: live judge walk of the command post.
+- Verified: the new `sightingText` test (footwear "unknown" and carried " Unknown " read as empty) failed first, then passed; 14 sighting text unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### build(web): copy each grid's tiles and route graph from shared/grid into the build
+- What: a build plugin (`src/buildinfo/gridFiles.ts`, `gridFilesPlugin`) copies `shared/grid/piedmont-park-dev.pmtiles` and `.graph.json`, where the grid builder commits them with their provenance and licence, into the build at `tiles/`, and serves the same files in dev. A missing file fails the build. Before, the files lived only in the gitignored `web/public/tiles/`, so a build from a clean checkout had no basemap and no route graph: the deploy of eff2db1 went out that way.
+- Source: live judge walk (the map had no streets and Walkers was off) and the grid files committed to shared/grid.
+- Verified: `src/buildinfo/gridFiles.test.ts` (both files under tiles/; a missing file fails the build) failed first (module missing), then passed; a real build with no `web/public/tiles/` emits both files byte-identical to shared/grid; and before shared/grid was merged in, the same build failed with "shared/grid/piedmont-park-dev.pmtiles is missing". scripts/ci-local.sh exit 0.
+
+### test(smoke): check the deployed site serves the grid's tiles and route graph
+- What: a deployed-only smoke test fetches `/tiles/piedmont-park-dev.pmtiles` (a range of its first bytes) and `/tiles/piedmont-park-dev.graph.json` and requires a real file each time: status 200 or 206, not `text/html`, the "PMTiles" magic bytes, and a non-empty JSON graph with `application/json`. Hosting now answers a missing tile with 404, never the app shell, so a deploy without its map fails here.
+- Source: live judge walk (the tiles came back as the app shell).
+- Verified: against the deployed eff2db1 site it failed ("text/html; charset=utf-8"); after the deploy of 00dccae it passes. scripts/ci-local.sh exit 0.
+
+### fix(plans): build each team's task line from the plan; the model writes reasons only
+- What: plan wording asks the model only for each team's reason and the summary (`PLAN_WORDING_JSON` no longer has a task line); each team's task line ("Search segment AC.") is built from the plan's own assignment (`taskTextFor`), and a task line the model sends anyway is ignored. `checkWording` also refuses a reason that names a segment the team was not given, and the fixed template is used instead. Before, only team ids were checked, so the model could tell a team to search one segment while the saved plan assigned another. The approval card shows the team, the code-built task line and the reason.
+- Source: whole-repository review (Codex, Gemini), item 3 (high).
+- Verified: three new tests (the model is asked for no task line; a task line naming another segment is replaced by the plan's; a reason naming another team's segment falls to the template, and with the segment check disabled that test fails) failed first where they should, then passed; 21 wording tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(plans): word plans on this laptop first, labelled by the route that ran
+- What: plan wording now uses the SDK's PREFER_ON_DEVICE: Chrome's built-in model words the plan when the browser has it, and the cloud model only when it does not. The route records which one ran from the SDK's `inferenceSource`, never the mode asked for: on this laptop is `sdk_prefer_on_device`; the cloud is `on_device_unavailable`. The route glyph reads "On this laptop" (it read "This laptop") or "Cloud". The model now writes only reasons and the summary, so the smaller local model cannot misassign a segment.
+- Source: whole-repository review, item 6 (decision: this laptop first); live judge walk, item 4 (the plan was labelled Cloud beside "Draft from this laptop").
+- Verified: the updated `replanWording` tests (this-laptop-first mode; each route's reason) and a new plan harness test (`?route=cloud`: "Cloud"; `?route=on_device`: "On this laptop") failed first, then passed; 128 ai unit tests and all 79 harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(sightings): let command place a family sighting so it can move the map
+- What: `placeFamilySighting` builds command's placement of a family sighting. The family app sends a sighting with no position and no effect ("needs command"), so it could never move the map. Events are create-only, so command writes its own sighting at the picked point: the family's time, words and reading, reported by the family, `positionSource: "map_click"`, linked to the original by `targetEventId`, and with the effect the engine derives for that point. Confirming it then moves the map like any command sighting. The review list (`sightingCards`) shows the placement in place of the family's unplaced report.
+- Source: whole-repository review, item 1 (high).
+- Verified: new tests (the placement keeps the family's report and links to it, and is strong evidence for the picked segment; an Android-shaped family sighting, placed and confirmed, raises segment AA's probability through the engine's `posterior`; the review list shows only the placement, ready to confirm) failed first (missing), then passed; 22 sighting and card unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add Place on map for family sightings that have no place
+- What: a sighting with no place (a family report) offers "Place on map" in the review list; it starts the map pick ("Click the map to place it."), and the click writes command's placement (`placeFamilySighting`) through the post's event writer. The placement then appears in the list with Confirm ready. Before, such a report showed "No place yet." with Confirm disabled and no way to place it.
+- Source: whole-repository review, item 1 (high).
+- Verified: a new harness page (`web/harness/sightings.html`) and two tests (an unplaced family report offers Place on map, Confirm waits, and pressing it hands over that report; a placed report offers no Place on map) failed first where they should, then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(prior): confirm a family camera clip as command and rebuild the prior from it
+- What: `familyCameraConfirmWrites` builds what command writes to apply a camera clip the family app read: command's confirmation of the family's `camera_sighting` and the camera prior, for one batch. The start point is the clip's camera place, or the place command picked when the family gave none ("Place the camera on the map first." otherwise); the direction comes from the clip's camera facing and the side the person left by (`bearingFromExit`). The family's event is not changed; its id joins the prior's inputs. `cameraReading` is now exported for it.
+- Source: whole-repository review, item 2 (high).
+- Verified: three new tests (a family clip with no camera pin, confirmed from the picked place: one command confirmation, the family event in the prior's inputs, the start point and the next version; the clip's own camera place is used when given; no place throws before anything is built) failed first (missing), then passed; 8 camera prior tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(sightings): list camera clips the family app read for command to apply
+- What: the review list (`sightingCards`) now includes the family app's `camera_sighting` events as camera cards (`camera: true`). The family's own confirmation of its clip does not count as applied, since only command can rebuild the prior; a card is confirmed once command confirms it. Command's own camera clips stay out: they are applied when confirmed. Before, a family camera clip never reached the review list.
+- Source: whole-repository review, item 2 (high).
+- Verified: four new card tests (a family clip with the family's confirmation is awaiting and needs a place; command's confirmation makes it confirmed; command's own clips are left out; ordinary reports are not camera cards) failed first, then passed; 10 card tests pass; the sightings harness carries a family camera card for the panel; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): review and apply camera clips the family app read
+- What: a camera clip from the family app shows in the review list as "Camera clip from the family, last seen HH:MM.", with what the clip saw (colours, footwear, carried items) and "Confirming rebuilds the map from the camera's place." With no camera place it offers "Place camera" (the map pick), kept on this post until Confirm since the family's event never changes, and Confirm waits for it. Confirm writes command's confirmation and the camera prior in one batch (`familyCameraConfirmWrites`, then `writePrior`); Reject is a plain rejection. A refused write shows "Not saved. Try again." beside the card.
+- Source: whole-repository review, item 2 (high).
+- Verified: a new sightings harness test (the family clip's line, what it saw, the rebuild sentence, Confirm disabled until placed, Place camera handing over the clip) failed first, then passed; 3 sightings harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(plans): read stored plans field by field instead of casting them
+- What: `planFromDoc` checks every field a plan holds (integer version, text hash and approver, numeric prior version and time, a list of assignments each with a text team id, task, reason and a list of text segment ids, a route that is an object or null) and returns null when any is not what a plan holds, instead of handing an unchecked record to the plan panel.
+- Source: whole-repository review, item 4 (medium).
+- Verified: two new tests (a stored plan reads back; a numeric segment id, assignments that are not a list, an assignment with missing fields, a text version and a null record each give null) failed first (function missing), then passed; 15 plan tests pass. scripts/ci-local.sh exit 0.
+
+### feat(command): say which plan records can't be read and keep their versions taken
+- What: the plans listener reads each record through `planFromDoc` (`readPlans`), so a record that is not a plan never reaches the team list, the change marks, the draft or the extras views. The post shows "This plan record can't be read: plan 3. Teams show the newest plan that can." (one line naming every such record), and Approve counts those records' versions as taken, so the next plan does not collide with one the create-only rule already holds.
+- Source: whole-repository review, item 4 (medium).
+- Verified: new tests (records left out and named by id, plans oldest first; approval after unreadable 0002 writes version 3; the reducer keeps the ids and clears them on a denial; the line for one record, for two, and none) failed first (functions and field missing), then passed; 18 plan tests and the reducer tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): say a draft is past the plan limits before it can be suggested
+- What: `planLimitLine` holds the plans rule's limits (at most 10 teams, at most 6 segments for one team, team ids of letters, digits and underscores up to 32). For a draft past them the plan card shows, for example, "A plan can name at most 10 teams. This draft has 11, so it can't be approved. Search with 10 teams or fewer." and Suggest plan is disabled, so no model call is spent on a plan the server would refuse and the refusal is never reported as "another plan was approved first". The plan harness takes `?teams=N`.
+- Source: plans rule limits (at most 10 assignments), whole-repository review follow-up.
+- Verified: three unit tests (10 teams pass; 11 teams, 7 segments for one team and an id with a space each give their line) and a plan harness test (11 teams: the line shows, Suggest plan is disabled, no Approve) failed first, then passed; 21 plan tests and 6 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): show the server's still-being-set-up answer for a practice search
+- What: when startJudgeSession answers `unavailable` with "Your practice search is still being set up. Try again in a moment." (a second start during another's setup, or a failed copy that was released), the judge's door shows that sentence instead of "No connection", and the Try a practice search button is enabled again so the retry resumes the same daily slot. Any other `unavailable` still reads as a lost connection.
+- Source: new error from the practice-search callable.
+- Verified: a new case in `src/data/practice.test.ts` failed first ("No connection" received), then passed; 5 practice tests pass. scripts/ci-local.sh exit 0.
+
+### ci(web): let the no-backend browser checks preview a build kept elsewhere
+- What: `web/e2e/ci.config.ts` previews `PLS_PREVIEW_DIR` when it is set (`vite preview --outDir`), so the local CI mirror can build the placeholder web into a temporary folder and never overwrite a real `web/dist`. Unset, as in the workflow, it previews `web/dist` as before.
+- Source: local CI mirror request.
+- Verified: a placeholder build in a temporary folder with a marker file only there; `vite preview --outDir` on that folder served the marker; `PLS_PREVIEW_DIR=<folder> npx playwright test -c e2e/ci.config.ts` ran 9 checks, 9 passed. scripts/ci-local.sh exit 0.
+
+### refactor(command): drop the listener for a server plan draft that is never written
+- What: the post no longer listens to `planDrafts/{eventSetHash}`; no backend function writes that collection, so the draft always came from `localDraft` (the engine's team assignment on this laptop). The plan card now always reads "Draft from this laptop for the current reports.", and the comments that named a draft function that does not exist are gone.
+- Source: review of the plan path against the deployed functions.
+- Verified: typecheck clean; 21 plan unit tests and 6 plan harness tests pass. scripts/ci-local.sh exit 0.
+
+### fix(judge): say the laptop's model is ready, not that it read anything
+- What: Get this laptop ready only asks Chrome what its built-in model can take; it reads no note and no photo. The lines now say "The built-in model on this laptop is ready for the sighting note." (and "... and sample photos." when it takes images), with "It cannot read images, so photos stay on this laptop." for a text-only model. With no model, the line points at "The replay above shows a recorded drill run." instead of saying the replay runs in the cloud, which it does not.
+- Source: judge-page claims review, item (c).
+- Verified: the three d2Copy tests were changed to the new lines first and failed, then passed; 15 judge tests pass. scripts/ci-local.sh exit 0.
+
+### feat(judge): check the published run with the replay's own reader
+- What: `loadPublishedRun` no longer checks for ten field names; it runs the file through `fromPublishedRun`, the reader the replay uses. A file the reader accepts is a run; one it refuses comes back as `refused` with the reader's reason (for example "The run has no arrival time for a report."), and still reaches the replay section, which shows that reason. A file that is not a JSON object is `invalid`.
+- Source: judge-page review, item (b).
+- Verified: new loader tests (the harness run is accepted; one with a report missing its arrival time is refused with that reason; one with no reports is refused; a JSON array is invalid) failed first (a refused file read as a run, a run with no reports as invalid), then passed; 16 judge tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): replay the published run in one section, or say why there is none
+- What: the judge page no longer holds the replay behind a switch. A run the replay reader accepts plays in the replay section ("Watch the run over time", with its match code, map plates, time slider and the "Training drill. Nobody is missing." label); a run it refuses shows the reason there; with no file the page's own section says "No published run yet."; a file that is not JSON says "The published run file can't be read, so nothing is replayed and no numbers are shown."; a failed load says to reload. The page has one replay section in every state, the old "opens here once the sandbox is live" line is gone, the laptop line names the replay only when it plays, and the Numbers section shows only for an accepted run.
+- Source: judge-page review, items (a) and (d).
+- Verified: `e2e/judgeRun.spec.ts` (three no-backend tests serving the replay harness's made-up run, a copy with a report missing its arrival time, and a non-JSON file) failed first (the placeholder section was still drawn beside the replay; no unreadable line), then passed; against a placeholder build all 12 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): publish the development drill run at /evidence/published-run.json
+- What: the site now serves its drill run (85,288 bytes, sha256 2811a59a89a8cdd3...), labelled "Development drill, Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing." It holds 24 reports, 18 plans and 68 segments, and the replay reader accepts it (no user ids, no stray fields), so the judge page replays it with its match code. The no-model laptop line now points at that replay. The "no published run" test serves a 404 for the file so it keeps testing that state.
+- Source: judge-page review (the replay needs a published run to show).
+- Verified: a new no-backend test (the built site serves the file as JSON with the drill label, and /judge replays it with no refusal) failed first (the preview answered with the app page), then passed; 13 of 13 no-backend browser checks pass against a placeholder build; the reader accepted the file in a one-off check before it was added. scripts/ci-local.sh exit 0.
+
+### fix(judge): say which run is published without promising an unbuilt panel
+- What: for an accepted run the Numbers section reads "Published run drill-dev-1-2026-11-19." (the file's own id); the sentence "The numbers panel is added with the recompute script." is gone, since that panel is not built.
+- Source: review of the judge page copy.
+- Verified: the served-run test now checks the Numbers line names the run and says nothing about a recompute; it failed first (the old sentence was there), then passed; 13 of 13 no-backend browser checks pass against a placeholder build. scripts/ci-local.sh exit 0.
+
+### test(judge): pin the published run's match code at T43J
+- What: the served-run test now requires the replay's end-frame match code to be T43J, the code of the committed file (24 reports, plan v18), instead of any four characters. A change to the engine or the replay reader that moves the judged map now fails this test; re-exporting the run changes the file and the code in the same commit.
+- Source: review of the judge replay tests.
+- Verified: a copy of the test pinned to T43K failed with "Received: T43J"; the T43J pin passes; 13 of 13 no-backend browser checks pass. scripts/ci-local.sh exit 0.
+
+### test(photos): give the family's consent before the live cloud photo reads
+- What: the deployed privacy positive control and the telemetry check now read the photo's own SHA-256 from the tray (`data-sha256`) and give the family's cloud consent for it the way the family app does (`e2e/familyConsent.ts`): an anonymous sign-in, the registered App Check debug token exchanged for a token, `joinIncident` as family with the drill's family code, then a create-only `photoConsents/{sha256}` record at the server's time. An earlier run's consent for the same photo is kept. The debug token and the code come from the environment and are never logged.
+- Source: the consent gate before any cloud photo read.
+- Verified: against the deployed site (aaae392), `privacy.spec.ts` and `telemetry.spec.ts`: 4 of 4 pass, including the consented cloud read sending exactly one signed AI Logic request with App Check; the run log holds no token. scripts/ci-local.sh exit 0.
+
+### fix(command): point at Confirm when a saved sighting has not moved the map yet
+- What: a likely sighting (high or medium) counts toward the map only once it is confirmed, so after saving one the change line now reads "Sighting saved. Confirm it under Sightings to move the map." instead of "Report logged. Map unchanged. Ask the team." A low-likelihood sighting, which never moves the map, keeps the old line. The judge page's practice text now says "Add a sighting, then confirm it under Sightings, and watch the map and the plan change." The deployed change spec accepts the new line.
+- Source: live judge walk, item 2.
+- Verified: a new changeModel test (a medium sighting with no move gives the Confirm line on screen and for screen readers; a low one keeps "Map unchanged") failed first, then passed; 6 change tests pass. scripts/ci-local.sh exit 0.
+
+### fix(command): one precision for a change, and name confirmations in the change line
+- What: the change line, the screen-reader line and the chip on the map now use the POA table's precision, one decimal (`formatPct`), so one move reads the same everywhere: "AC 1.4% to 1.8%.", "+0.4 pts", "POA 1.8 percent, up 0.4". Before, the line rounded to whole percents and the chip to whole points while the table showed tenths, so one change showed three different numbers. A move under a tenth of a point is no move at that precision. A change caused by a confirmation reads "after report: sighting confirmed" (or "Sighting rejected", or "Report withdrawn" for a retraction) instead of "after report: report".
+- Source: live judge walk, item 3.
+- Verified: changeModel tests changed to the new text and two new tests (a 1.4% to 1.8% move in line, chip and list; confirmation, rejection and withdrawal labels) failed first, then passed; 8 change tests pass; 82 harness browser tests pass with the change patterns updated. scripts/ci-local.sh exit 0.
+
+### feat(map): draw each segment's code beside its dot
+- What: every cell now carries its code (AA, BO, ...) in a small dark tag left of its dot, clear of the largest dot's 14 px radius, so a person can find and name a cell on the map that the table, the plan and the radio talk about. The code is its own marker, never part of the percent plate, so checks that read the plates are unchanged.
+- Source: live judge walk, item 6.
+- Verified: a new map harness test (24 codes for 24 cells, including the one left out of the POA; AB drawn once; the code ends at least 14 px left of its dot; no code inside a plate) failed first (no codes), then passed; 8 map harness tests and 42 extras browser tests pass; a screenshot of the harness grid checked by eye. scripts/ci-local.sh exit 0.
+
+### fix(pwa): move an open page onto a new deploy when its worker takes over
+- What: the service worker already skips waiting and claims open pages, but the page itself kept running the old build until the next visit, so a returning visitor saw a stale build right after a deploy. Now, when a new build's worker takes over a page the old one was serving, the page reloads once into the new build. If a field holds typed words, it shows "A new version of this page is ready." with a Reload button instead, so nothing typed is lost. A first visit (no worker yet) is left alone.
+- Source: live judge walk, item 8.
+- Verified: unit tests (`src/pwa/takeover.test.ts`: one reload on takeover, a question instead while words are typed, nothing on a first visit or without service workers; typed fields only) failed first (module missing), then passed; two no-backend browser tests on the preview build (a worker-controlled /judge reloads on takeover; the join page with a typed incident id shows the Reload line and keeps the text) pass, and both fail on a build with the watch removed. scripts/ci-local.sh exit 0.
+
+### feat(judge): say what the product is in one line and link to the command post
+- What: the judge page now opens with the same one line as the join page, "Plans where to search for a missing person, and updates the map as reports come in." (one shared constant, `PURPOSE_LINE`), and a Links row with "Command post" (home). The repository and the video are added to that row only once they are public, so the page never links to something a judge cannot open.
+- Source: live judge walk, item 9.
+- Verified: a new no-backend test (the purpose line, the home link, no repository or video link yet) failed first (no purpose line), then passed; 16 of 16 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): say why a shared incident link still asks for the join code
+- What: opening `/?incident=<id>` without a seat on that incident shows the join form with the id filled in (as before) and, above it, "This link names incident <id>. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access." With no incident in the link there is no note.
+- Source: live judge walk, item 10.
+- Verified: two new no-backend tests (`e2e/sharedLink.spec.ts`: prefill plus the note; no note without a link) were written first; the prefill already held and the note test failed (no note), then passed; 18 of 18 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): show the top 5 POA rows, with Show all for the rest
+- What: the POA list shows the 5 most likely segments and the row for outside the mapped area, then "Show all 67" (the real count) to open the whole list and "Show top 5" to close it. On a phone the 67-row list had filled the page below the map. A list of 5 or fewer has no button.
+- Source: live judge walk, item 7 (phone).
+- Verified: two new rank harness tests (67 made-up rows show 5 plus the outside row, Show all opens 67, Show top 5 closes; a 4-row list has no button) were written first; the long-list test failed (67 rows shown), then passed; 4 rank harness tests pass, including the reorder slide. scripts/ci-local.sh exit 0.
+
+### feat(map): keep only the most likely cells' labels when the map is crowded
+- What: a cell's code and percent need about 56 px across to be read. When the median cell is narrower on screen (the whole park on a phone, or zoomed out on a laptop), only the 8 most likely cells keep their code and percent; zooming in past that width brings the rest back. The hidden labels stay in the page, so anything that reads the plates still finds every one. On the drill park at its first view the cells are about 30 px across, so before this the percents overlapped each other.
+- Source: live judge walk, item 7 (phone), and the segment codes from item 6.
+- Verified: unit tests (`src/map/labelDensity.test.ts`: dense below a 56 px median, the top cells by POA with ties by id) failed first (module missing), then passed; a map harness test at a 300 px wide viewport shows 8 codes and 8 percents, AB among them, with all 24 codes still in the page, and fails with the hiding rule removed (24 shown); 86 harness and 42 extras browser tests pass. scripts/ci-local.sh exit 0.
+
+### fix(command): fit the post header in two lines on a phone
+- What: under 900 px wide the header wraps: "Training drill. Nobody is missing." takes its own row, and the incident name, the match code and More share the second. At 390 px the drill line had been squeezed into four lines beside the other items (126 px of header).
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: header at most 110 px, the drill line whole) failed on the deployed site at aaae392 (126 px); it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
+
+### fix(map): keep the lowest cells' labels above the map credit
+- What: the first view now fits the grid with 64 px of room at the bottom (40 px on the other sides), so the percent plates and codes of the lowest row sit above the OpenStreetMap credit instead of under it.
+- Source: live judge walk, item 7 (phone).
+- Verified: a new deployed test (`e2e/phone.spec.ts`, 390 px: no visible plate or code overlaps the credit) failed on the deployed site at aaae392; it is re-run on the deploy that carries this change. Harness map, beat, change and walker tests pass. scripts/ci-local.sh exit 0.
+
+### fix(map): place cell labels by collision instead of a width threshold
+- What: the 8-cell rule still let the kept labels collide on a phone, because the most likely cells sit side by side. Labels are now placed in POA order, most likely first; a cell whose code or percent would cover a label already placed hides its own labels (its dot and fill stay). The labels a person sees never overlap, at any zoom, and zooming in brings hidden ones back. Hidden labels stay in the page for anything that reads the plates.
+- Source: live check of the deployed map at 390 px after the previous change.
+- Verified: unit tests for the placing (collision, a cell's code and percent as one unit, nothing hidden when nothing touches, POA order with ties by id) failed first, then passed; harness tests (at 300 px no two visible labels overlap, AB keeps its labels and all 24 codes stay in the page; at full size all 24 codes and 23 percents show) pass, and the overlap test fails with the hiding rule removed; 87 harness and 42 extras browser tests pass. scripts/ci-local.sh exit 0.
+
+### test(e2e): wait for the first visible plate, not the first plate in the page
+- What: the deployed specs that wait for the map (a11y, approve-offline, beat, change, judge, offline, phone, smoke) now wait for `.plate:visible`. A cell whose labels give way to a more likely cell's keeps its plate in the page but hidden, so the first plate in page order can be a hidden one, which made the two phone tests time out on the live site.
+- Source: the live run of `e2e/phone.spec.ts` on 5f2b594.
+- Verified: against the deployed site (5f2b594), phone, change and beat specs 5 of 5 pass (the phone tests had failed at their first wait). scripts/ci-local.sh exit 0.
+
+### fix(command): keep More on the second header row on a phone
+- What: on the phone header, a long incident name now shrinks with an ellipsis (full name still in the page), so the incident, the match code and More always share the second row. With "Development drill (synthetic)" More had wrapped to a third row (118 px of header).
+- Source: live run of `e2e/phone.spec.ts` on 8e57c12 (118 px against the 110 px limit) and a screenshot.
+- Verified: the deployed phone header test failed on 8e57c12; it is re-run on the deploy that carries this change. scripts/ci-local.sh exit 0.
+
+### feat(data): ask the family a question and tell them searching or paused
+- What: `data/familyQuestions.ts` for the command post's channel to the family. `askFamily` writes `incidents/{id}/familyQuestions/{id}` (a random 20-character id; the text, 1 to 280 characters, trimmed; the writer; the server's time) and `subscribeQuestions` reads them newest first with the family's answer once added (`questionFromDoc`). `tellFamily` sets `searchState` to "searching" or "paused" only; `searchStateOf` reads only those two. Three templates: "Did they ever go by another name?", "Places they used to walk or live?", "What were they wearing when you last saw them?". Nothing about whether the person was found, or their condition, goes through this channel.
+- Source: field-expert input (search and rescue practitioner) and the shared family-channel rules.
+- Verified: `src/data/familyQuestions.test.ts` (7 tests: templates, question length, ids the rules accept, the exact keys written, questions with and without an answer, only the two states) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the family section to ask questions and give the search state
+- What: `command/FamilyChannel.tsx`, "Family": command tells the family the search is Searching or Paused (it asks first: "Tell the family the search is paused? They get a notice with no details.", then shows "The family was told: paused."), asks a question (typed, or from the three templates; "Type a question first." when empty), and sees each question with the family's answer or "No answer yet.". It carries no control for a find or the person's condition and says "News of a find or their condition goes from the search lead in person, not here." A refused send says so and keeps the text. A dev-only harness page (`web/harness/family.html`) runs it with fakes. Not on the command post yet.
+- Source: field-expert input (search and rescue practitioner) and the shared family-channel rules.
+- Verified: `e2e/harness/family.spec.ts` (6 tests: answers and open questions; a template then Ask; an empty question refused; paused asks first then shows; no found or condition control; a refused ask keeps the text) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### refactor(data): let Firestore pick the id of a question to the family
+- What: `askFamily` now writes with `addDoc`, so Firestore's own auto-id (20 letters and digits) names the question, which is exactly what the familyQuestions rule requires, instead of an id made in this file. The hand-made id and its test are gone.
+- Source: the familyQuestions create rule (auto-id only).
+- Verified: 6 family question tests pass; typecheck clean; the rules tests in scripts/ci-local.sh cover a command create at an auto-id. scripts/ci-local.sh exit 0.
+
+### feat(command): put the family channel on the command post
+- What: the post's right rail now has the Family section: Searching or Paused for the family (from `incident.searchState`, sent with `tellFamily`), the three question templates, Ask (`askFamily`, auto-id), and the family's answers as they arrive (`subscribeQuestions`). If the questions cannot be read (for example before the channel's rules are deployed), the section is not drawn and the rest of the post keeps working; that refusal never counts as the post losing access.
+- Source: Ask the family, with the family-channel rules.
+- Verified: a new read-only deployed test (`e2e/family.spec.ts`: the Family region, Searching and Paused, a template) failed on the live site at 784f5e2 (no section); it passes once this deploy and the channel's rules are both live. The 6 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### ci(web): run the component harness and extras browser suites in the web workflow
+- What: the web job now also runs `npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model"` (map, beat, plan, sightings, family, clips and the rest) and `npx playwright test -c e2e/extras.config.ts`, after the no-backend checks. Both configs use Playwright's own Chromium when `CI` is set (the workflow installs it) and desktop Chrome locally. The tests that need Chrome's built-in model stay out.
+- Source: CI audit (the harness and extras suites ran only on a developer's laptop).
+- Verified: in a fresh worktree with no `.env.local`, after `npm ci`, with `CI=1`: harness 93 of 93 and extras 42 of 42 pass on Playwright's Chromium; the workflow file parses. Actions minutes are used up, so the workflow itself runs when they return. scripts/ci-local.sh exit 0.
+
+### test(e2e): run the page-facts and font checks with the no-backend browser checks
+- What: `e2e/pagefacts.spec.ts` (robots.txt is a real file, each page's description and title, the join page does not shift) and `e2e/fonts.spec.ts` (self-hosted fonts from this origin, tabular digits) are tagged `@no-backend`, so the web workflow and the local mirror run them on every change instead of only against the deployed site.
+- Source: CI audit.
+- Verified: in a fresh worktree with no `.env.local`, against the placeholder build with `CI=1`, the 4 tests pass; with them, 22 of 22 no-backend browser checks pass here. scripts/ci-local.sh exit 0.
+
+### docs(web): drop an internal planning name from a changelog source line
+- What: the family channel entry's source line named an internal planning queue; it now names the feature and its rules only.
+- Source: public-repository hygiene review.
+- Verified: a scan of web/CHANGELOG.md and web/CHANGELOG-EXTRAS.md for internal names and private paths finds none. scripts/ci-local.sh exit 0.
+
+### docs(web): name review sources plainly in this changelog
+- What: 14 source lines that named an internal audit of other projects now say "review", keeping each line's engineering reason (for example "review (version.json)"). No entry's facts change.
+- Source: public-repository hygiene review.
+- Verified: a case-insensitive search of this file for the audit's two names finds nothing (the word "arrival" aside). scripts/ci-local.sh exit 0.
+
+### docs(web): keep the audit's names out of the entry that removed them
+- What: the previous entry's Verified line quoted the search it ran, which put the two names back into this file; it now describes the search instead.
+- Source: the committed-tree check after that commit (want-0 found 1).
+- Verified: the same case-insensitive search of the committed file finds nothing. scripts/ci-local.sh exit 0.
+
+### fix(camera): trace clip triage on this laptop only when the SDK says it ran there
+- What: the on-device frame check now passes the SDK's `inferenceSource` through, and triage keeps it. A clip with no person is traced as `on_device` with `sdkReported: true` only when every frame check reported on-device; if any check reported the cloud the path is `cloud`; with no report the path is `unknown` and `sdkReported` is false, so it never counts toward the on-device share. Before, every no-person result was stamped on-device and SDK-reported.
+- Source: review (clip triage stamped on_device without an SDK-reported source).
+- Verified: new tests (`src/camera/triage.test.ts`: every check on-device gives on_device; no report, or a mix, gives unknown; the route for unknown is path unknown with sdkReported false) failed first, then passed; the frame generator test now also expects the SDK's source back; 14 triage tests and 23 clip and triage harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): keep a failed model attempt apart from the fixed wording that replaced it
+- What: when the plan wording asked a model and its answer was not used (an error, a timeout, text that is not the wording's JSON, or wording that fails the checks), `wordPlan` now returns that attempt beside the fixed-wording route: where it ran as the SDK reported it (`on_device`, `cloud`, or `unknown` with `sdkReported` false) and why it failed. The post traces the attempt on its own, so an attempt that may have sent the draft is never hidden behind the "rules" route of the fixed wording. Unusable model text now says "The model's wording could not be used. The plan below uses fixed wording." No attempt is recorded when the model's wording was used or when no model was asked.
+- Source: review (a failed plan-wording cloud attempt was recorded as the rules route).
+- Verified: two new tests (`src/ai/replanWording.test.ts`: error, unreadable, rejected and timeout attempts with their routes and the plan still worded by rules; none for a used answer or a paused cloud) failed first, then passed; 23 wording tests and 6 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): drop a note read that answers after the note changed
+- What: the sighting note stays editable while it is read, on this laptop or in the cloud. A reply that arrives after the note was changed is now dropped instead of filled into the fields, and the form says "The note changed while it was being read. Read it again." A reply for the unchanged note fills the fields as before.
+- Source: review (a late reply could fill fields from an older note).
+- Verified: two new sighting harness tests (`?read=slow`: change the note, then the model answers, and the fields stay as they were with the line shown; the unchanged note fills Top) were written first and the dropped-reply test failed, then both passed; 3 sighting harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): open the judge page with a numbered three-minute route
+- What: under the one-line purpose, an ordered list "Three minutes, in order": Try a practice search, Watch the drill replay, Get this laptop ready, See the cloud model. Each step links to its section on the page (the replay step goes to the replay when a run is published, otherwise to the line saying there is none). Rows are 28 px tall so each link is an easy target.
+- Source: judge-page review (a judge needs the route before the details).
+- Verified: a new no-backend test (the four steps in order; every link lands on one heading on the page) failed first (no list), then passed; the axe check caught link targets that were too close and passes after the row height; 23 of 23 no-backend browser checks pass. scripts/ci-local.sh exit 0.
+
+### feat(plans): a closed What ran receipt on each plan suggestion
+- What: under the suggested plan, a closed "What ran" line opens to: what was asked for ("this laptop first"), where it ran as the SDK reported it (or "not reported by the SDK"), the model, and what left this laptop ("nothing left this laptop", or the UTF-8 size of the plan text sent, or "up to" that size when the source was not reported). For fixed wording it says no model was asked and nothing was sent; when a model was asked but its answer was not used, it describes that attempt and why fixed wording won. It never shows the prompt. `wordPlan` now reports the plan text's size (`promptBytes`), measured from the exact prompt.
+- Source: review (a compact receipt on each AI result).
+- Verified: `src/ai/receipt.test.ts` (4 tests) and the `promptBytes` test failed first, then passed; two plan harness tests (cloud: the four lines with "1,234 bytes of plan text"; on this laptop: "nothing left this laptop") failed first, then passed; `src/command/whatRan.test.ts` (attempt and paused-cloud branches) was written after the code and passes; 8 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.

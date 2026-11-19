@@ -26,6 +26,11 @@ describe("priorBatchOps", () => {
     const data = ops[3]!.data as { serverTime: unknown };
     expect((data.serverTime as ReturnType<typeof serverTimestamp>).isEqual(serverTimestamp())).toBe(true);
   });
+  it("stamps the incident with the server's time of this build, in the same update as the version step", () => {
+    const inc = priorBatchOps("i", prior)[2]!.data as { priorVersion: number; priorBuiltAt: unknown };
+    expect(inc.priorVersion).toBe(8);
+    expect((inc.priorBuiltAt as ReturnType<typeof serverTimestamp>).isEqual(serverTimestamp())).toBe(true);
+  });
   it("without events it is the plain prior batch", () => {
     expect(priorBatchOps("i", prior).map((o) => o.kind)).toEqual(["set", "set", "update"]);
   });

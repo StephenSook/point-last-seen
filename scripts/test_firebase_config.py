@@ -11,6 +11,11 @@ def exported_functions(index_ts: str) -> set[str]:
     return set(re.findall(r"^export const (\w+)\s*=", index_ts, re.MULTILINE))
 
 
+def hosting_sites() -> list[dict]:
+    hosting = json.loads((ROOT / "firebase.json").read_text())["hosting"]
+    return hosting if isinstance(hosting, list) else [hosting]
+
+
 def test_every_hosting_rewrite_to_a_function_names_an_exported_function():
     hosting = json.loads((ROOT / "firebase.json").read_text())["hosting"]
     sites = hosting if isinstance(hosting, list) else [hosting]
@@ -22,3 +27,10 @@ def test_every_hosting_rewrite_to_a_function_names_an_exported_function():
             if fn is not None:
                 name = fn if isinstance(fn, str) else fn.get("functionId")
                 assert name in exported, f"{rewrite['source']} routes to {name}, which functions/src/index.ts does not export"
+
+
+def test_the_app_shell_rewrite_never_answers_for_tiles_or_evidence():
+    # A missing /tiles/ or /evidence/ file must be a real 404, not the app shell served as a map or a run.
+    for site in hosting_sites():
+        shell = [r for r in site.get("rewrites", []) if r.get("destination") == "/index.html"]
+        assert [r.get("source") for r in shell] == ["!/@(tiles|evidence)/**"], shell

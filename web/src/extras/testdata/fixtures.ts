@@ -1,4 +1,4 @@
-import type { IncidentView, PlanDoc } from "../laneC";
+import type { IncidentView, PlanDoc } from "../hostApp";
 
 // Made-up data for tests and dev harnesses.
 export const drillView: IncidentView = {
