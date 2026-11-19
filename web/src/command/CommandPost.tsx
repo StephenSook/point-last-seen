@@ -19,6 +19,7 @@ import { jpegAt, sampleFrames } from "../camera/frames";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
+import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
@@ -227,7 +228,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [clipping, setClipping] = useState(false);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
-  const [photos, setPhotos] = useState<TrayPhoto[]>([]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
   const [eventsSynced, setEventsSynced] = useState(false);
@@ -237,19 +237,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
 
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  // Bumped after "Delete this search's clips and photos": the tray remounts empty (its reads and pending
-  // results go with it) and reloads from Storage.
-  const [mediaEpoch, setMediaEpoch] = useState(0);
-  const reloadPhotos = async () => {
-    const r = await loadPhotosOrError(() => loadPhotos(pls.storage, incidentId));
-    setPhotos(r.photos);
-    setPhotoError(r.error);
-  };
-  useEffect(() => {
-    if (!denied) void reloadPhotos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pls, incidentId, denied]);
+  // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
+  // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
+  const loadTray = useCallback(() => loadPhotosOrError(() => loadPhotos(pls.storage, incidentId)), [pls, incidentId]);
+  const tray = usePhotoTray(loadTray, revokedAtMs((view?.incident as { mediaRevokedAt?: unknown } | null)?.mediaRevokedAt), !denied);
+  const photos = tray.photos;
+  const reloadPhotos = tray.reload;
+  const setPhotoError = tray.setError;
 
   useEffect(() => startRemoteConfig(pls.app, setRc), [pls]);
 
@@ -609,9 +603,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 return await deleteMediaNow(pls.functions, incidentId);
               } finally {
                 // Whatever the server answered, drop this seat's copies and read what is stored now.
-                setMediaEpoch((n) => n + 1);
-                setPhotos([]);
-                void reloadPhotos();
+                tray.revoke();
               }
             },
           }}
@@ -719,9 +711,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             />
           )}
           <PhotoTray
-            key={mediaEpoch}
+            key={tray.epoch}
             photos={photos}
-            loadError={photoError}
+            loadError={tray.error}
             deviceState={device}
             onCheckDevice={checkDevice}
             downloadPct={downloadPct}
