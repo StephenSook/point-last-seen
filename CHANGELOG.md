@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- Two shared-profile rules tests now fail only on the rule they target: the searcher's write uses a complete valid
+  profile, so only the role gate can refuse it, and each bad other-names list keeps a valid first name the
+  nickname mirrors, so only the list rule can refuse it (with valid controls for the five-name and 60-character
+  limits).
+  Source: review of PR #21 round 2 (finding 6: both passed for the wrong reason).
+  Verified: with the profile write opened to any member, and with the list cap raised to six, each test fails;
+  restored, 14 profile tests pass in the emulator.
 - `tools/seed/seed_segments.py` records when it installs a prior: the incident update sets `priorBuiltAt` to the
   server's time (a REQUEST_TIME transform), so a seeded drill's replay can place its prior.
   Source: review (the replay needs the prior's build time).
