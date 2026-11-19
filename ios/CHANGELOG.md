@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): a join section on the Ready check while no mission is loaded
+- What: until a mission is loaded, the Ready check opens with "Join your team": the join code,
+  the team (for example T1), the incident id folded away for when command gives one, a Join
+  button and the result in words. The task screen's empty state now says "No mission loaded" and
+  "Join your team at the Ready check before you leave signal.", which is what the app can now do.
+- Source: plan task, joining an incident on the iPhone.
+- Verified: a test pins the empty state's hint and the join section's labels; it failed to
+  compile, then passed. On the simulator the section showed on the Ready check, and a three-letter
+  code answered "The join code has 8 letters and numbers." with no call made. Every line is
+  Title 3 or larger (the field text size check caught the first draft's body-size message). The CI mirror
+  `bash scripts/ci-local.sh` exit 0; 85 app tests pass.
+
 ### feat(ios): load the team's mission after a join, and again after sign-in for a searcher who joined before
 - What: `AppModel.join(code:teamId:incidentId:)` checks the request, joins through the callable
   and then reads the team's mission: `FirestoreMissionReader` reads the incident, its segments, the

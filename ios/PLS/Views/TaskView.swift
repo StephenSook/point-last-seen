@@ -5,6 +5,7 @@ import SwiftUI
 /// Tapping the bar focuses the field with the system keyboard, whose microphone key is in view;
 /// the app itself calls no speech API.
 struct TaskView: View {
+    static let noMissionHint = "Join your team at the Ready check before you leave signal."
     @Bindable var model: AppModel
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -71,8 +72,7 @@ struct TaskView: View {
                     .scrollContentBackground(.hidden)
                 }
             } else {
-                ContentUnavailableView("No pack loaded", systemImage: "shippingbox",
-                                       description: Text("Load your team's pack at the Ready check before you leave signal."))
+                ContentUnavailableView("No mission loaded", systemImage: "shippingbox", description: Text(Self.noMissionHint))
             }
         }
         .padding()

@@ -13,6 +13,9 @@ struct ReadyCheckView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
+                if model.mission == nil {
+                    section(JoinView.title) { JoinView(model: model) }
+                }
                 if model.urgency != .none || model.mission?.sharedProfile != nil {
                     section("How to approach them") {
                         if let text = model.urgency.chipText, let rule = try? BundledConstants.urgencyRule() {
