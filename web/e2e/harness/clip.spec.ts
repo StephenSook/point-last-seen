@@ -198,3 +198,26 @@ test("triage: changing a consent withdraws the whole-clip read", async ({ page }
   await page.getByLabel("Public use").check();
   await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
 });
+
+test("after a flagged window's cloud read, reading the same clip again goes out as a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toBeVisible();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect.poll(() => how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged", retry: true });
+});
+
+test("a delete of the search's media unticks every consent, so a new read needs fresh ticks", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await expect(page.getByLabel(c)).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Read clip" })).toBeDisabled();
+});
+
+test("after a delete and fresh ticks, the next read is a new read, not a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?triage=flagged");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect.poll(() => how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+});

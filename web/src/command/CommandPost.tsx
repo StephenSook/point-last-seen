@@ -666,6 +666,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           )}
           {clipping ? (
             <CameraClipPanel
+              revocation={tray.epoch}
               camera={pin}
               cameraSegmentId={pin ? segmentContaining(pin, segments) : null}
               choices={segmentChoices(segments)}

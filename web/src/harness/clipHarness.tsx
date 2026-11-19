@@ -39,6 +39,8 @@ function Harness() {
   const [asked, setAsked] = useState<ClipIntakeInput | null>(null);
   const [confirmed, setConfirmed] = useState<string>("");
   const [how, setHow] = useState<string>("");
+  // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
+  const [revocation, setRevocation] = useState(0);
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
@@ -58,7 +60,11 @@ function Harness() {
           return { version: 8, ack: Promise.resolve() };
         }}
         onClose={() => {}}
+        revocation={revocation}
       />
+      <button type="button" onClick={() => setRevocation((n) => n + 1)}>
+        Media deleted
+      </button>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
       <pre data-testid="asked">{asked ? JSON.stringify({ ...asked, bytes: asked.bytes.length }) : ""}</pre>
