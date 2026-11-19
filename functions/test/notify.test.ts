@@ -1,0 +1,61 @@
+// notifyPlanApproved: when command approves a plan, each team whose assignment changed gets one push on its own
+// topic. The push names no person and no place; it says to open the app. Collapse key = incident, TTL 2 hours.
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { changedTeams, handlePlanCreated, planMessage, teamTopic } from "../src/notify";
+import { admin, clearFirestore, closeClients } from "./helpers";
+
+const a = (teamId: string, segmentIds: string[], taskText = "Sweep it.") => ({ teamId, segmentIds, taskText, reason: "why" });
+const NOW = Date.UTC(2026, 10, 22, 15, 0);
+
+describe("which teams changed", () => {
+  it("a new, changed or dropped assignment counts; an identical one does not", () => {
+    const prev = [a("T1", ["AA"]), a("T2", ["AB"]), a("T3", ["AC"])];
+    const next = [a("T1", ["AA"]), a("T2", ["AB", "AD"]), a("T4", ["AE"])];
+    expect(changedTeams(prev, next)).toEqual(["T2", "T3", "T4"]);
+    expect(changedTeams(prev, [a("T1", ["AA"], "Hasty search."), a("T2", ["AB"]), a("T3", ["AC"])])).toEqual(["T1"]);
+    expect(changedTeams(null, next)).toEqual(["T1", "T2", "T4"]);
+    expect(changedTeams(next, next)).toEqual([]);
+  });
+});
+
+describe("the push", () => {
+  it("goes to the team's topic, collapses per incident, lives 2 hours and carries no person or place", () => {
+    const m = planMessage({ incidentId: "drill-dev-1", teamId: "T2", version: 4, drill: true, nowMs: NOW });
+    expect(teamTopic("drill-dev-1", "T2")).toBe("pls-drill-dev-1-T2");
+    expect(m).toMatchObject({ topic: "pls-drill-dev-1-T2", data: { incidentId: "drill-dev-1", teamId: "T2", planVersion: "4" },
+      android: { collapseKey: "drill-dev-1", ttl: 7_200_000, priority: "high" },
+      apns: { headers: { "apns-collapse-id": "drill-dev-1", "apns-expiration": String(Math.floor(NOW / 1000) + 7200) } } });
+    expect(m.notification).toEqual({ title: "Training drill: new assignment", body: "Your team has a new task. Open Point Last Seen to see it." });
+    expect(planMessage({ incidentId: "i", teamId: "T1", version: 1, drill: false, nowMs: NOW }).notification?.title).toBe("New assignment");
+  });
+});
+
+describe("handlePlanCreated", () => {
+  const sent: unknown[] = [];
+  const messaging = { send: async (m: unknown) => { sent.push(m); return "id"; } };
+  beforeEach(async () => {
+    sent.length = 0;
+    await clearFirestore();
+    await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+  });
+  afterAll(closeClients);
+  it("sends one push per changed team against the previous plan", async () => {
+    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    await admin.db.doc("incidents/I1/plans/2").set({ version: 2, assignments: [a("T1", ["AA"]), a("T2", ["AC"])] });
+    expect(await handlePlanCreated(admin.db, messaging, "I1", "2", NOW)).toEqual({ teams: ["T2"] });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ topic: "pls-I1-T2" });
+  });
+  it("the first plan notifies every team in it; a plan doc that is not a positive integer version sends nothing", async () => {
+    await admin.db.doc("incidents/I1/plans/1").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "1", NOW)).teams).toEqual(["T1", "T2"]);
+    sent.length = 0;
+    expect(await handlePlanCreated(admin.db, messaging, "I1", "draft", NOW)).toEqual({ teams: [] });
+    expect(sent).toHaveLength(0);
+  });
+  it("is registered on plan creation", async () => {
+    const { notifyPlanApproved } = await import("../src/index");
+    const ep = (notifyPlanApproved as unknown as { __endpoint: { eventTrigger?: { eventType: string; eventFilters?: unknown } } }).__endpoint;
+    expect(ep.eventTrigger?.eventType).toBe("google.cloud.firestore.document.v1.created");
+  });
+});

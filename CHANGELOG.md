@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `notifyPlanApproved` (Firestore trigger on `incidents/{id}/plans/{version}` create) sends one push per team whose
+  assignment is new, changed or dropped since the previous plan, on the team's topic `pls-{incident}-{team}`. The
+  push names no person, place or task ("Your team has a new task. Open Point Last Seen to see it.", titled
+  "Training drill: new assignment" on a drill or practice search), collapses per incident and lives 2 hours
+  (Android collapse key and TTL; APNs collapse id and expiration). No model is involved. A plan id that is not a
+  positive integer sends nothing. iOS delivery waits for an APNs key in Firebase Cloud Messaging.
+  Source: plan task 32 item 2 (P-06).
+  Verified: the tests (new, changed and dropped assignments count and identical ones do not; the topic, collapse
+  key, TTL and wording; one push per changed team against the previous plan; the first plan notifies every team;
+  a non-version id sends nothing; the trigger registers on create) failed first, now pass in the emulators;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - `docs/PRODUCTION-CHECKLIST.md` lists the steps before and after enforcing App Check on Firestore and Storage:
   the 24-hour verdict read, the probe with its token, an App Check debug token for every local dev session (the
   reCAPTCHA Enterprise key allows only the two hosting origins), the checks within 15 minutes of each flip and the
