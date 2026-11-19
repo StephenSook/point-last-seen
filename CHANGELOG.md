@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The root CHANGELOG, a test comment and an evidence note are reworded where the public-repository guard found
+  build-process words (four review sources, a work stream named as a role).
+  Source: review (public-repository hygiene).
+  Verified: `python3 -I scripts/hygiene_guard.py . --public` reports no hit in CHANGELOG.md, scripts/, docs/ or any
+  other folder this file covers.
 - `scripts/hygiene_guard.py` also refuses, in a public repository, more words of the build process and of private
   notes, and a build work stream named as a role; its `PATTERN` lists them. Git branch names such as lane-web and
   lane-android do not match.
@@ -611,7 +616,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   localhost:11434), Hume, Mistral, Cohere, Hugging Face inference, Replicate, Groq and other vendors' SDKs. A direct call
   would skip App Check, authenticated-users mode, the per-user limit and cloudGuard. Docs and tests may name
   them; AI Logic's own host does not match.
-  Source: review (a rival lost a stage for calling model hosts directly).
+  Source: review (calling a model host directly is outside the hackathon's rules).
   Verified: the test (six planted hits across the four trees each fail; a clean tree with AI Logic's host, a
   doc and a test mention passes) failed first, now 28 gate tests pass; the repo walks with 0 problems;
   `bash scripts/ci-local.sh` exit 0.
@@ -1318,7 +1323,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   daily half (config from the site's /__/firebase/init.json, no model call) and retires itself after
   2026-12-17. Firebase's documented automatic App Check enforcement for AI Logic did not happen on a project
   created 2026-11-17, so this control proves the manual enforcement is still on.
-  Source: review (BYT upstream finding; self-audit gap SA:86).
+  Source: review (a finding upstream, gap SA:86).
   Verified: 5 tests failed first (no module), now pass; the live run gave 401 then 200 (evidence
   2026-11-18T08-55-34+00-00.json, 0 key matches in it and in the logs); the App Check API reads
   firebaseml ENFORCED since 2026-11-17T18:32Z; `bash scripts/ci-local.sh` exit 0.
@@ -1662,7 +1667,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   folder into the per-worktree temp dir and passed 69; ci-local exits 0.
 - README and NOTICE no longer name `shared/grid/`, which does not exist yet: they say the drill-site map
   data, when added with the site grid, is ODbL with its own README. Task 10's data commit adds the folder.
-  Source: self-audit sweep (a README path that does not exist is a checkable claim).
+  Source: review sweep (a README path that does not exist is a checkable claim).
   Verified: `grep -n shared/grid README.md NOTICE` finds nothing; ci-local exits 0.
 - Incident lifecycle is server-owned: no client creates an incident; command may edit an open incident but
   never `mode` or `expiresAt` (a judge sandbox cannot be extended or a drill relabelled), and closing is final
@@ -1769,7 +1774,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Socket scores for the turf modules 84 to 100, `npm audit --omit=dev` finds 0; typecheck and lint exit 0.
 - Add `docs/evidence/name-search.md`: the 2026-11-17 name search (no GitHub project named "Point Last Seen",
   closest an unrelated game; a site-scoped devpost.com search found no project).
-  Source: plan addendum (rival self-audit, name search line); searches run in review.
+  Source: plan addendum (the name search line); searches run in review.
   Verified: text matches the recorded search results; `bash scripts/ci-local.sh` exits 0.
 - Add `docs/LIMITS.md` and `docs/PRODUCTION-CHECKLIST.md`, starting with the Android release rule: only the
   Play Integrity release APK is published, and `android/scan-apk.sh` must report 0 debug-token, token-resource,
