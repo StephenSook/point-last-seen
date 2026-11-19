@@ -1,6 +1,6 @@
 // The family channel: command asks the family a question (familyQuestions/{id}); the family answers it once; every
 // member reads. The search state the family may be told is only "searching" or "paused" (never an outcome).
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
@@ -52,6 +52,14 @@ describe("family questions", () => {
     await assertSucceeds(updateDoc(doc(fam, Q()), answer(F)));
     await assertFails(updateDoc(doc(dbAs(F2, familyClaims), Q()), answer(F2, { answer: "Something else." })));
     await assertFails(updateDoc(doc(fam, Q()), answer(F, { answer: "Changed my mind." })));
+  });
+  it("every member lists the questions newest first, as the command post's listener asks", async () => {
+    await admin.db.doc(Q()).set({ text: "Favourite song?", createdByUid: C, createdAt: new Date() });
+    for (const [uid, claims] of [[C, commandClaims], [F, familyClaims]] as const) {
+      const q = query(collection(dbAs(uid, claims), "incidents/I1/familyQuestions"), orderBy("createdAt", "desc"));
+      await assertSucceeds(getDocs(q));
+    }
+    await assertFails(getDocs(query(collection(dbAs("x", {}), "incidents/I1/familyQuestions"), orderBy("createdAt", "desc"))));
   });
   it("nobody deletes a question", async () => {
     await admin.db.doc(Q()).set({ text: "Favourite song?", createdByUid: C, createdAt: new Date() });
