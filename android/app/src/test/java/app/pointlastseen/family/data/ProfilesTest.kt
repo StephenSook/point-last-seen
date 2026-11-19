@@ -15,7 +15,7 @@ class ProfilesTest {
     private val now = today.atStartOfDay(zone).toInstant().toEpochMilli()
 
     private val full = SubjectProfile(
-        answersTo = "Mae", nickname = "Mama Mae", birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
+        answersTo = "Mae", otherNames = listOf("Mama Mae", "Margaret"), birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
         gender = "female", appearance = "short, grey curls", heightFt = 5, heightIn = 2, weightLb = 130,
         hair = "grey", eyeColor = "brown", primaryLanguage = "English", clothingLastWorn = "blue coat",
         mobilityAids = setOf("cane"), dementiaType = "lewy_body", shareDementiaType = true,
@@ -28,6 +28,29 @@ class ProfilesTest {
         pastWandering = listOf(WanderingEntry("the old mill", null)),
         nearbyWater = "creek behind the house", vehicle = null,
     )
+
+    /** Up to five other names, each trimmed and at most 60 characters, with blanks and repeats dropped. */
+    @Test fun otherNamesAreTrimmedDedupedAndCappedAtFive() {
+        val typed = listOf(" Peggy ", "", "peggy", "Margaret", "a".repeat(70), "B", "C", "D", "E")
+        assertEquals(listOf("Peggy", "Margaret", "a".repeat(60), "B", "C"), Profiles.otherNames(typed))
+    }
+
+    /** The shared packet carries every other name, and its nickname field (kept for older readers) the first. */
+    @Test fun theSharedPacketCarriesEveryOtherName() {
+        val shared = Profiles.forSearchers(full)
+        assertEquals(listOf("Mama Mae", "Margaret"), shared.otherNames)
+        assertEquals(listOf("Mama Mae", "Margaret"), shared.toMap()["otherNames"])
+        val none = Profiles.forSearchers(full.copy(otherNames = listOf(" ", "")))
+        assertEquals(emptyList<String>(), none.toMap()["otherNames"])
+        assertEquals("", none.nickname)
+    }
+
+    /** The shared packet still has one nickname field: it carries the first other name. */
+    @Test fun theSharedNicknameIsTheFirstOtherName() {
+        assertEquals("Mama Mae", Profiles.forSearchers(full).nickname)
+        assertEquals("", Profiles.forSearchers(full.copy(otherNames = emptyList())).nickname)
+        assertEquals("Peggy", Profiles.forSearchers(full.copy(otherNames = listOf("  ", " Peggy "))).nickname)
+    }
 
     @Test fun sharedAndCommandProfilesShareNoKey() {
         val a = Profiles.forSearchers(full).toMap().keys
@@ -78,14 +101,20 @@ class ProfilesTest {
     }
 
     @Test fun defaultProfileShowsMayNotRespondAndApproachCalmFirst() {
-        assertEquals(listOf("may_not_respond", "approach_calm"), Profiles.approachNoteIds(SubjectProfile()))
+        assertEquals(listOf("may_not_respond", "approach_calm", "stop_calling_name"), Profiles.approachNoteIds(SubjectProfile()))
     }
 
     @Test fun mayNotRespondAndApproachCalmComeFirstThenTheTableOrder() {
         assertEquals(
-            listOf("may_not_respond", "approach_calm", "likely_to_hide", "validate_feelings", "language", "triggers", "best_approach", "unique"),
+            listOf("may_not_respond", "approach_calm", "stop_calling_name", "likely_to_hide", "validate_feelings", "language", "triggers", "best_approach", "unique"),
             Profiles.approachNoteIds(full),
         )
+    }
+
+    /** "Stop calling their name" shows exactly when "may not respond" does. */
+    @Test fun stopCallingNameShowsOnlyWithMayNotRespond() {
+        assertFalse("stop_calling_name" in Profiles.approachNoteIds(SubjectProfile(flags = emptySet())))
+        assertTrue("stop_calling_name" in Profiles.approachNoteIds(SubjectProfile(flags = setOf("mayNotRespond"))))
     }
 
     @Test fun flagsAndTextAddTheirNotes() {

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.pointlastseen.family.data.SubjectProfile
 import app.pointlastseen.family.ui.theme.PaperTheme
@@ -54,6 +55,23 @@ class ProfileScreenTest {
         assertEquals("Grace Church", s.placesFrequented.single().label)
         tap("She's gone")
         assertEquals(s, gone)
+    }
+
+    /** Other names go one per line; a saved name shows, and blank lines and repeats are dropped on save. */
+    @Test fun otherNamesAreTypedOnePerLineAndSaved() {
+        var saved: SubjectProfile? = null
+        rule.setContent {
+            PaperTheme {
+                ProfileScreen(SubjectProfile(answersTo = "Mae", otherNames = listOf("Peggy")), warnings = emptyList(), joined = false, mode = null,
+                    onSave = { saved = it }, onGone = {}, onJoin = {}, gone = false, onBack = {})
+            }
+        }
+        rule.onNodeWithText("Peggy").assertIsDisplayed()
+        rule.onNodeWithText("A maiden name, or a childhood or old nickname. Up to 5.").assertIsDisplayed()
+        // Typed text goes in at the cursor, so set the field's whole text as the person would leave it.
+        rule.onNodeWithText("Other names they may answer to (one per line)").performScrollTo().performTextReplacement("Peggy\n Margaret Ellen \n\npeggy")
+        tap("Save")
+        assertEquals(listOf("Peggy", "Margaret Ellen"), saved!!.otherNames)
     }
 
     @Test fun theDementiaTypeIsSharedOnlyWhenSwitchedOn() {

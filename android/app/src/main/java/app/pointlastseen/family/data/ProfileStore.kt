@@ -24,7 +24,7 @@ object ProfileCodec {
 
     fun encode(p: SubjectProfile): String = JsonObject(
         mapOf(
-            "answersTo" to s(p.answersTo), "nickname" to s(p.nickname), "birthdate" to d(p.birthdate),
+            "answersTo" to s(p.answersTo), "otherNames" to strs(p.otherNames), "birthdate" to d(p.birthdate),
             "ageYears" to n(p.ageYears), "gender" to s(p.gender), "appearance" to s(p.appearance),
             "heightFt" to n(p.heightFt), "heightIn" to n(p.heightIn), "weightLb" to n(p.weightLb),
             "hair" to s(p.hair), "eyeColor" to s(p.eyeColor), "primaryLanguage" to s(p.primaryLanguage),
@@ -59,7 +59,9 @@ object ProfileCodec {
         } ?: emptyList()
         val defaults = SubjectProfile()
         return SubjectProfile(
-            answersTo = str("answersTo"), nickname = str("nickname"), birthdate = date("birthdate"),
+            answersTo = str("answersTo"), // A profile saved before the list existed has one "nickname": it becomes the first other name.
+            otherNames = if (o.containsKey("otherNames")) list("otherNames") else listOf(str("nickname").trim()).filter { it.isNotEmpty() },
+            birthdate = date("birthdate"),
             ageYears = int("ageYears"), gender = str("gender"), appearance = str("appearance"),
             heightFt = int("heightFt"), heightIn = int("heightIn"), weightLb = int("weightLb"),
             hair = str("hair"), eyeColor = str("eyeColor"), primaryLanguage = str("primaryLanguage"),
