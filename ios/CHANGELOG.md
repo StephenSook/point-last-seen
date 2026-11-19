@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs(ios): plain words for the source of the push entries
+- What: four push entries named a work stream as their source; they now say "the server half of
+  new-assignment pushes (P-06)". The facts are unchanged.
+- Source: review (public hygiene).
+- Verified: no added line on this branch matches the public hygiene patterns; the hygiene guard
+  exits 0.
+
 ### fix(ios): a push that arrives with the app open shows nothing
 - What: a push that arrived in the foreground went into Notification Center with the push's own
   title and body. The app now shows nothing for it, because the plan listener already shows and
@@ -102,7 +109,7 @@ finding) and how it was verified. Newest first.
   listener already shows and speaks the assignment. The entitlements gain `aps-environment`
   (development; an App Store archive signs it for production), and the Ready check link is value
   based so the task screen can be brought back.
-- Source: lane A's server half of new-assignment pushes (P-06).
+- Source: the server half of new-assignment pushes (P-06).
 - Verified: three tests (a push for the loaded mission opens the task; a push for another team
   follows the claims first; a tap before the app is ready waits in the inbox) failed to compile,
   then passed; 106 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0. Live delivery
@@ -114,7 +121,7 @@ finding) and how it was verified. Newest first.
   "Not now". "Turn on alerts" shows iOS's question and, when allowed, registers for pushes; either
   answer is remembered, so it is asked once. When alerts are already allowed, the phone only
   registers; when refused, it stays quiet.
-- Source: lane A's server half of new-assignment pushes (P-06).
+- Source: the server half of new-assignment pushes (P-06).
 - Verified: three tests (the offer shows after a join, registers when allowed and stays answered
   after a relaunch; "Not now" asks nothing; already allowed only registers) failed to compile, then
   passed; the text is Title 3; 103 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
@@ -125,7 +132,7 @@ finding) and how it was verified. Newest first.
   one, and when the mission is dropped it leaves. A subscription that fails (no signal) is tried
   again at the next sign-in. Adds the FirebaseMessaging product. Delivery to iOS still needs the
   APNs key in FCM and the token hand-off, which come next.
-- Source: lane A's server half of new-assignment pushes (P-06).
+- Source: the server half of new-assignment pushes (P-06).
 - Verified: two tests (subscribe on load, no repeat, move on a team change, leave on a drop; a
   failed subscription is retried) failed to compile, then passed; 100 app tests pass; the CI mirror
   `bash scripts/ci-local.sh` exit 0.
@@ -135,7 +142,7 @@ finding) and how it was verified. Newest first.
   Firestore and FCM both accept. `PushPayload` reads a tapped push's `incidentId`, `teamId` and
   `planVersion` (FCM sends data as text) and nothing else: the words a person reads come from the
   plan the phone loads, never from the push.
-- Source: lane A's server half of new-assignment pushes (P-06).
+- Source: the server half of new-assignment pushes (P-06).
 - Verified: two tests (the topic name and refused ids; the ids read from a payload with text or
   number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
   tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
