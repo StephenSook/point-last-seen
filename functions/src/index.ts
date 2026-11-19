@@ -7,10 +7,11 @@ import { beforeGenerateContent } from "firebase-functions/v2/ai";
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onObjectDeleted } from "firebase-functions/v2/storage";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
-import { deleteClipForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
+import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handlePlanCreated } from "./notify.js";
 
 if (getApps().length === 0) initializeApp();
@@ -96,3 +97,10 @@ export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInst
  */
 export const notifyPlanApproved = onDocumentCreated({ document: "incidents/{incidentId}/plans/{version}", region: "us-central1" },
   event => handlePlanCreated(getFirestore(), getMessaging(), event.params.incidentId, event.params.version, Date.now()).then(() => undefined));
+
+/**
+ * deletePhotoConsentOnPhotoDelete (Storage trigger): when a photo object is deleted, by command, by the media delete
+ * or by the 30-day lifecycle, its cloud-read consent goes too, so a re-upload of the same bytes needs a new consent.
+ */
+export const deletePhotoConsentOnPhotoDelete = onObjectDeleted({ region: "us-central1", retry: true },
+  event => deletePhotoConsentForObject(getFirestore(), event.data.name).then(() => undefined));

@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- A photo's cloud-read consent lives no longer than the photo: `deletePhotoConsentOnPhotoDelete` (Storage trigger on
+  object deletion, retry on) deletes `incidents/{id}/photoConsents/{sha256}` when `photos/{id}/{sha256}.jpg` is
+  deleted, whether by command, by the media delete or by the 30-day lifecycle. Photos are create-only, so a
+  re-upload of the same bytes follows a delete and needs the family's consent again. A consent written just after a
+  re-upload can be removed by the old object's delete event; the read then waits for a new consent, which fails
+  closed.
+  Source: review of PR #20 (a re-uploaded photo passed with the old consent; the media delete already removed
+  consents since 54d6323, but a single photo deleted by command or by the lifecycle did not).
+  Verified: the tests (the deleted photo's consent goes and another incident's stays; clips, packs, a PNG, a
+  non-hash name, a nested path and a path without an incident are ignored; the trigger registers on object
+  deletion) failed first, now 189 functions tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 - `notifyPlanApproved` (Firestore trigger on `incidents/{id}/plans/{version}` create) sends one push per team whose
   assignment is new, changed or dropped since the previous plan, on the team's topic `pls-{incident}-{team}`. The
   push names no person, place or task ("Your team has a new task. Open Point Last Seen to see it.", titled
