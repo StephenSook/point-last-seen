@@ -57,10 +57,19 @@ describe("profileFromDocs", () => {
 });
 
 describe("approachLines", () => {
-  it("default profile shows may_not_respond and approach_calm first, in the notes' own words", () => {
+  it("default profile shows may_not_respond, approach_calm and stop_calling_name first, in the notes' own words", () => {
     const { first } = approachLines(profileDocs(emptyProfile()).shared);
-    expect(first.map((l) => l.id)).toEqual(["may_not_respond", "approach_calm"]);
+    expect(first.map((l) => l.id)).toEqual(["may_not_respond", "approach_calm", "stop_calling_name"]);
     expect(first[0]!.text).toBe(notesFile.notes.may_not_respond.text);
+    expect(first[2]!.text).toBe("If they may not come when called, stop calling their name.");
+  });
+
+  it("drops both name-calling notes when the family says they answer when called", () => {
+    const p = emptyProfile();
+    const lines = approachLines(profileDocs({ ...p, flags: { ...p.flags, mayNotRespond: false } }).shared);
+    const ids = [...lines.first, ...lines.more].map((l) => l.id);
+    expect(ids).not.toContain("may_not_respond");
+    expect(ids).not.toContain("stop_calling_name");
   });
 
   it("fills the family's words and the language into their templates", () => {

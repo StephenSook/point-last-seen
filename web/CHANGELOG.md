@@ -1065,3 +1065,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
 - Source: second-model review of PR #16, round 3, finding 1 (high).
 - Verified: new plan harness test (with the model answering only on a button: suggest, change the assignments, then the model answers: no suggestion and no Approve) failed first, then passed; all three plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### test(profile): expect stop_calling_name as the third default approach note
+- What: the shared approach notes now carry `stop_calling_name` ("If they may not come when called, stop calling their name.", shown when `may_not_respond` is), third in their order. The web card and the printed sheets render notes by id, so it shows with no code change; the default-notes test pinned exactly two and now expects the three, and a new test checks that a family answer of "answers when called" (`mayNotRespond: false`) removes both name-calling notes.
+- Source: field-expert input (search and rescue practitioner), with the shared note from the field-expert branch.
+- Verified: the old pin failed on the new shared notes (three, not two); the updated test and the new one pass; 12 profile unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
