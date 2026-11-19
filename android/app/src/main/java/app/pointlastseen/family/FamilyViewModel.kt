@@ -32,7 +32,9 @@ import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
 import app.pointlastseen.family.data.FirebaseJoinBackend
+import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.data.FirebasePhotoBucket
+import app.pointlastseen.family.data.FirestorePhotoConsentSink
 import app.pointlastseen.family.data.FirestoreEventStore
 import app.pointlastseen.family.data.FirestoreProfileSink
 import app.pointlastseen.family.data.Hashes
@@ -324,6 +326,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
+        // The tick, as it stands when the photos are chosen, is the consent for each of them.
+        val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
         viewModelScope.launch {
             val resolver = getApplication<Application>().contentResolver
             for (uri in uris) {
@@ -332,14 +336,21 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     photosUi = photosUi.copy(error = "One photo could not be read.")
                     continue
                 }
-                when (val out = PhotoUpload(FirebasePhotoBucket()).upload(incidentId, jpeg)) {
-                    is PhotoOutcome.Uploaded -> photosUi = photosUi.copy(uploaded = photosUi.uploaded + 1)
+                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent)) {
+                    is PhotoOutcome.Uploaded -> photosUi = photosUi.copy(
+                        uploaded = photosUi.uploaded + 1,
+                        notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                    )
                     is PhotoOutcome.Refused -> photosUi = photosUi.copy(error = out.message)
                     is PhotoOutcome.Failed -> photosUi = photosUi.copy(error = out.message)
                 }
             }
             photosUi = photosUi.copy(busy = false)
         }
+    }
+
+    fun cloudRead(on: Boolean) {
+        photosUi = photosUi.copy(cloudRead = on)
     }
 
     private fun displayName(uri: Uri): String? = runCatching {
