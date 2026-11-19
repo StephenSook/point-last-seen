@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Rules tests pin two command post writes. A placement of a family sighting: a new command sighting naming the
+  family event, in the command post's own builder output, 25 fields, kept as a fixture. And a confirmation of a
+  family camera sighting: one batch that moves the prior to the next version with the family clip among its inputs,
+  whose only event is command's confirmation. Both are accepted as the rules stand; a family or searcher seat cannot
+  write the placement.
+  Source: review (the command post's new "Place on map" and family clip confirm).
+  Verified: all 43 event and prior rules tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
 - `startJudgeSession` grants command only on a sandbox that finished setting up, and setup is safe to fail,
   retry and race. One transaction decides each start: a live, ready sandbox is handed back; one still being set
   up answers "unavailable, try again in a moment"; a missing or ended one, or a setup that died (5 minutes with

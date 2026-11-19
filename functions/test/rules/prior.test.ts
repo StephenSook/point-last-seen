@@ -147,3 +147,21 @@ describe("when the current prior was built (priorBuiltAt, for the replay)", () =
     await assertSucceeds(b.commit());
   });
 });
+
+// A family camera clip confirmed at the command post: the family's camera_sighting already exists; command's batch
+// moves the prior to the next version with the family clip among the inputs and the camera place as the start, and
+// its only event is command's confirmation of the family event. No command camera_sighting is written.
+describe("command confirms a family camera sighting", () => {
+  it("lands as one batch whose only event is the confirmation", async () => {
+    const fam = camEvent("family-uid", 3, "family");
+    await admin.db.doc(`incidents/I1/events/${fam.eventId}`).set({ ...fam, serverTime: new Date(1795860000000) });
+    const db = dbAs("seat-a", commandClaims);
+    const conf = commandEvent("seat-a", { seq: 1, type: "confirmation", targetEventId: fam.eventId, decision: "confirmed" });
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.4, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorModel: "rings", ipp: { lat: 33.79, lon: -84.36 }, priorInputEventIds: [fam.eventId as string], priorVersion: 6 });
+    b.set(doc(db, `incidents/I1/events/${conf.eventId}`), conf);
+    await assertSucceeds(b.commit());
+    expect((await admin.db.doc("incidents/I1").get()).get("priorVersion")).toBe(6);
+  });
+});
