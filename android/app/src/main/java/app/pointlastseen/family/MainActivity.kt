@@ -1,6 +1,9 @@
 package app.pointlastseen.family
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,7 +13,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.IntentCompat
+import app.pointlastseen.family.push.NotificationAsk
 import app.pointlastseen.family.ui.Copy
 import app.pointlastseen.family.ui.FamilyRoot
 import app.pointlastseen.family.ui.Screen
@@ -25,6 +30,16 @@ class MainActivity : ComponentActivity() {
     private val pickPhotos = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         vm.pickedPhotos(uris)
     }
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    /** Once, after joining a search: the search lead's question and the search notices need this permission. */
+    private fun askForNotificationsIfDue(joined: Boolean) {
+        val prefs = getSharedPreferences("pls-notifications", MODE_PRIVATE)
+        val granted = Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (!NotificationAsk.shouldAsk(Build.VERSION.SDK_INT, granted, joined, prefs.getBoolean("asked", false))) return
+        prefs.edit().putBoolean("asked", true).apply()
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Dark system icons on the light paper background.
@@ -38,6 +53,7 @@ class MainActivity : ComponentActivity() {
             handleFamilyQuestion(intent)
         }
         setContent {
+            LaunchedEffect(vm.nav.joined) { askForNotificationsIfDue(vm.nav.joined) }
             PaperTheme {
                 FamilyRoot(
                     vm,
