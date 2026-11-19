@@ -15,7 +15,7 @@ test("a consented cloud photo read is traced as hybrid-inference with its route"
   await page.locator('input[type="file"]').setInputFiles({ name: "sign.jpg", mimeType: "image/jpeg", buffer: await syntheticSignJpeg(page) });
   await page.getByRole("button", { name: "Read on this laptop" }).first().click();
   await page.getByRole("button", { name: "Read in the cloud" }).first().click();
-  await page.getByRole("button", { name: "I consent for this photo" }).first().click();
+  await page.getByRole("button", { name: "Send this photo to the cloud" }).first().click();
   await expect(page.getByTestId("photo-cues").first()).toBeVisible();
   await expect.poll(() => uploads.some((b) => b.includes("hybrid-inference")), { timeout: 60_000 }).toBe(true);
   const body = uploads.find((b) => b.includes("hybrid-inference"))!;
