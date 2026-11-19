@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `seed_segments.py` binds its commit to the incident version it validated. The same read that checks the
+  incident's stored ring column returns its `updateTime`. The incident write is now the first write, with that
+  `updateTime` as its precondition, so if anyone changed the incident between the read and the commit, the first
+  commit fails and no segment is written. Before, it wrote segments first and the incident last, with only
+  "exists" as the condition.
+  Source: review (round 3).
+  Verified: the tests (the incident write is first and carries the read's updateTime; no other write has a
+  precondition; a call without the updateTime is a TypeError; the existing order, mask, ring column and batch
+  tests updated to match) failed first, now 22 seed tests pass; `bash scripts/ci-local.sh` exit 0.
 - The ISRID ring prior refuses ring masses that are empty, negative, not finite, or add up to 0 or more than 1,
   naming the masses. Before, an empty radii column with empty masses passed the length check and built a prior
   with all the mass outside the rings.

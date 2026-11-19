@@ -67,8 +67,9 @@ def to_value(v):
 
 
 def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str], prior_version: int,
-                 stored_rings: list | None = None) -> list[dict]:
-    """stored_rings: the incident's own engineParams.rings[<terrain>], or None when it has none."""
+                 stored_rings: list | None = None, *, incident_update_time: str) -> list[dict]:
+    """stored_rings: the incident's own engineParams.rings[<terrain>], or None when it has none.
+    incident_update_time: the incident's updateTime from the same read, so the commit lands only on that version."""
     base = f"projects/{project}/databases/(default)/documents/incidents/{incident_id}"
     writes = [{"update": {"name": f"{base}/segments/{d['segmentId']}", "fields": to_value(d)["mapValue"]["fields"]}}
               for d in p["docs"]]
@@ -90,10 +91,12 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     elif [float(r) for r in stored_rings] != column:
         raise ValueError(f"incident {incident_id} overrides the {terrain} rings ({stored_rings}); this prior was built from "
                          f"the sourced {column}, so it is not seeded")
-    writes.append({"update": {"name": base, "fields": fields},
-                   "updateMask": {"fieldPaths": mask},
-                   "updateTransforms": [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}],
-                   "currentDocument": {"exists": True}})
+    # First, and only onto the version that was read: if the incident changed since, the first commit fails and no
+    # segment is written.
+    writes.insert(0, {"update": {"name": base, "fields": fields},
+                      "updateMask": {"fieldPaths": mask},
+                      "updateTransforms": [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}],
+                      "currentDocument": {"updateTime": incident_update_time}})
     return writes
 
 
@@ -123,15 +126,17 @@ def segment_ids(project: str, incident_id: str, token: str) -> set[str]:
             return ids
 
 
-def stored_ring_column(project: str, incident_id: str, token: str, terrain: str) -> list | None:
-    """The incident's own engineParams.rings[terrain] as numbers, or None when it holds no such column."""
+def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str]:
+    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), and the
+    updateTime of the version read, which the commit is bound to."""
     url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/incidents/{incident_id}"
-    f = _request("GET", url, token, project).get("fields", {})
+    doc = _request("GET", url, token, project)
+    f = doc.get("fields", {})
     col = (f.get("engineParams", {}).get("mapValue", {}).get("fields", {}).get("rings", {}).get("mapValue", {})
            .get("fields", {}).get(terrain))
-    if col is None:
-        return None
-    return [float(v.get("doubleValue", v.get("integerValue", "nan"))) for v in col.get("arrayValue", {}).get("values", [])]
+    rings = None if col is None else [float(v.get("doubleValue", v.get("integerValue", "nan")))
+                                      for v in col.get("arrayValue", {}).get("values", [])]
+    return rings, doc["updateTime"]
 
 
 def main(argv: list[str]) -> int:
@@ -143,9 +148,9 @@ def main(argv: list[str]) -> int:
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
     existing = segment_ids(project, incident_id, token)
-    stored = stored_ring_column(project, incident_id, token, p["terrain"])
+    stored, update_time = read_incident(project, incident_id, token, p["terrain"])
     try:
-        writes = build_writes(project, incident_id, p, existing, int(version), stored)
+        writes = build_writes(project, incident_id, p, existing, int(version), stored, incident_update_time=update_time)
     except ValueError as e:
         print(f"seed_segments: REFUSED: {e}", file=sys.stderr)
         return 1
