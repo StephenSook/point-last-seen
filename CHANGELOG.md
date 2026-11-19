@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A Node 24 job (`.github/workflows/node24.yml`) runs the engine, the grid builder, the public-run exporter and the
+  web app (typecheck, tests and the placeholder build) and the functions typecheck on Node 24, beside the Node 22
+  jobs, on pull requests to main and on main. The Firebase web SDK asks for Node 24.12; the root package's engines
+  field stays at Node 22 until this job is green, and Cloud Functions keep the nodejs22 runtime. The check that every
+  workflow command also runs in `scripts/ci-local.sh` covers the new workflow.
+  Source: review (the web SDK's Node requirement; a fresh clone on Node 24).
+  Verified: the ci-local and workflow-path tests pass (14); rules_gate and the public hygiene guard exit 0. The job's
+  own result is on its pull request.
 - CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
   work): the new check that every Python test file is in a pytest list found it on its first run after that work
   merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.
