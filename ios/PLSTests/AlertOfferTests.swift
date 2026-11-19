@@ -1,5 +1,6 @@
 import Foundation
 import PLSCore
+import SwiftUI
 import Testing
 @testable import PLS
 
@@ -34,6 +35,15 @@ final class FakeAlerts: AlertPermission, @unchecked Sendable {
     func freshDefaults() -> UserDefaults {
         let name = "alerts-\(UUID().uuidString)"
         return UserDefaults(suiteName: name)!
+    }
+
+    /// On a task screen short of height the offer keeps every word: it takes its full height
+    /// instead of being cut to one line ("... a new assignment re...").
+    @Test func theOfferIsNeverCutShort() throws {
+        let host = UIHostingController(rootView: AlertOfferView(model: try model(FakeAlerts(), freshDefaults())))
+        let full = host.sizeThatFits(in: CGSize(width: 370, height: CGFloat.greatestFiniteMagnitude))
+        let squeezed = host.sizeThatFits(in: CGSize(width: 370, height: 40))
+        #expect(full.height > 40 && squeezed.height >= full.height)
     }
 
     @Test func theOfferShowsOnceAfterAJoinAndRegistersWhenAllowed() async throws {

@@ -24,5 +24,7 @@ struct AlertOfferView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // A task screen short of height must not cut the sentence or the buttons to one line.
+        .fixedSize(horizontal: false, vertical: true)
     }
 }

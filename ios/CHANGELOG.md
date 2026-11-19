@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the alerts question keeps every word on a task screen short of height
+- What: on the simulator the task screen cut the alerts sentence to one line ("... a new assignment
+  re..."), because the screen had less height than its content and SwiftUI squeezed that text. The
+  offer now always takes its full height, so the sentence and both buttons stay whole.
+- Source: a simulator check of the push work.
+- Verified: a layout test measures the offer at phone width, unconstrained and squeezed to 40
+  points: it failed before the change and passes after; 109 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): the assignment voice no longer holds up the plan listener, the topic or the alerts question
 - What: loading a mission waited for the assignment to finish speaking before it started the plan
   listener, followed the team's push topic or asked about alerts. The cloud voice takes seconds, so
