@@ -1679,3 +1679,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a command save writes the shared profile document whole, built from what the post read, and the reader kept only fields it knew, so saving any shared field (gender, say) would have erased the tracking aids the family app writes. The reader now keeps `trackingAids` when it is stored (known aid ids only, the note as text) and leaves it absent when it is not, the same way it keeps the family's names list.
 - Source: review while adding tracking aids to the approach card.
 - Verified: two new tests (the stored aids read back and an absent field stays absent; a command save of another shared field keeps them) failed first (the field was dropped), then passed; 29 profile tests pass; typecheck clean.
+
+### test(profile): every shared-profile field in the schema survives a command save
+- What: a new test walks the shared schema's SharedProfile (`shared/schemas/subject-profile.schema.json`), makes a valid value for each field that differs from an empty profile, stores it, saves a command edit of another field, and checks the stored value is still in the shared document written. A field added to the schema without the web keeping it fails here, because the save writes the document whole. The approach note ids are worked out again on every save and are left out.
+- Source: review (the tracking-aids erase, so the next optional field cannot repeat it).
+- Verified: 21 tests pass (20 fields and the schema walk); with the tracking-aids reader branch removed, "keeps trackingAids" fails, and it passes again with it restored.
