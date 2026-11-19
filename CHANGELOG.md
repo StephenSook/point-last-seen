@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The root package accepts Node 22 or 24 (`"engines": { "node": ">=22 <25" }` in `package.json` and its lockfile
+  entry), now that the Node 24 job runs the engine, the tools, the web app and the functions typecheck green on Node
+  24. The functions package stays at Node 22, the Cloud Functions runtime. The README's requirements say the same.
+  Source: review (the Firebase web SDK asks for Node 24.12; engines widen only once the Node 24 job is green).
+  Verified: the Node 24 job passed on its pull request and on main; `npm ci` exits 0 with the new lockfile.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
