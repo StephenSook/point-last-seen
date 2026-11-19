@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios-core): team ids follow the server's rule, so no two teams can share a push topic
+- What: the phone accepted any id of letters, digits, "-" and "_" up to 128 for a team. Then
+  ("north-east", "T1") and ("north", "east-T1") both named the topic pls-north-east-T1. The server
+  (functions join.ts and notify.ts) allows a team id of letters, digits and "_" only, at most 32,
+  never "family". The phone now checks the same rule for the join, the topic and a tapped push.
+  With no "-" in a team id, the last "-" in a topic always separates incident from team.
+- Source: review (finding 6).
+- Verified: tests for the hyphen case, 32 and 33 characters, "family" in any case, and a push
+  naming such a team; they failed to compile before the change and pass after; 279 PLSCore tests
+  pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): the alerts question keeps every word on a task screen short of height
 - What: on the simulator the task screen cut the alerts sentence to one line ("... a new assignment
   re..."), because the screen had less height than its content and SwiftUI squeezed that text. The

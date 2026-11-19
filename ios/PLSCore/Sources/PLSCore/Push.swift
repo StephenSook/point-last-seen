@@ -1,12 +1,21 @@
 import Foundation
 
+/// A team id as the server accepts it (functions join.ts and notify.ts): letters, digits and _ only,
+/// at most 32, and never "family" (the family's topic ends in "-family").
+public enum TeamId {
+    public static func isValid(_ s: String) -> Bool {
+        s.range(of: "^[A-Za-z0-9_]{1,32}$", options: .regularExpression) != nil && s.lowercased() != "family"
+    }
+}
+
 /// The team's push topic: command's new-assignment push goes to `pls-{incidentId}-{teamId}`.
 public enum PushTopic {
-    static func isId(_ s: String) -> Bool { s.range(of: "^[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil }
+    static func isIncidentId(_ s: String) -> Bool { s.range(of: "^[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil }
 
-    /// Nil unless both ids are ones Firestore and FCM topics both accept.
+    /// Nil unless both ids are the server's. A team id has no "-", so the last "-" separates the two
+    /// and no other incident and team can name the same topic.
     public static func name(incidentId: String, teamId: String) -> String? {
-        guard isId(incidentId), isId(teamId) else { return nil }
+        guard isIncidentId(incidentId), TeamId.isValid(teamId) else { return nil }
         return "pls-\(incidentId)-\(teamId)"
     }
 }
@@ -27,7 +36,7 @@ public struct PushPayload: Equatable, Sendable {
     /// Reads the ids from a notification's userInfo (FCM sends data values as text); nil when any is missing or malformed.
     public init?(userInfo: [AnyHashable: Any]) {
         guard let incident = userInfo["incidentId"] as? String, let team = userInfo["teamId"] as? String,
-              PushTopic.isId(incident), PushTopic.isId(team) else { return nil }
+              PushTopic.isIncidentId(incident), TeamId.isValid(team) else { return nil }
         let version: Int? = {
             if let s = userInfo["planVersion"] as? String { return Int(s) }
             if let n = userInfo["planVersion"] as? Int { return n }
