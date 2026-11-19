@@ -111,7 +111,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
         {photos.map((p) => {
           const r = reads[p.sha256];
           return (
-            <li key={p.sha256} className="photo">
+            <li key={p.sha256} className="photo" data-sha256={p.sha256}>
               <Thumb bytes={p.bytes} />
               <div className="row">
                 <button type="button" className="btn ghost" onClick={() => run(p, "laptop")} disabled={busy !== null}>

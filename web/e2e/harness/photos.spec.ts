@@ -51,3 +51,9 @@ test("a photo the family did not agree to read in the cloud stays on this laptop
   await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
   await expect(row.getByText("The family has not agreed to a cloud reading of this photo. It stays on this laptop.")).toBeVisible();
 });
+
+test("each photo row carries its own hash, the name its consent record has", async ({ page }) => {
+  await page.goto("/harness/photos.html?save=never");
+  await expect(page.locator(".photo").nth(0)).toHaveAttribute("data-sha256", "a".repeat(64));
+  await expect(page.locator(".photo").nth(1)).toHaveAttribute("data-sha256", "b".repeat(64));
+});

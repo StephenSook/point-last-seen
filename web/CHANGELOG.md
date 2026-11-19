@@ -1275,3 +1275,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readEnv` now throws a named `MissingConfigError` when the build has no Firebase settings, and the judge page's practice search says "This copy has no Firebase settings, so it cannot start a practice search. Use the live site." instead of "The practice search could not start. Try again.", which sent a fresh clone's visitor retrying something that can never work.
 - Source: fresh-clone test of the repository.
 - Verified: the new `practice.test.ts` test (an empty config throws `MissingConfigError`, and its message is the new sentence) failed first, then passed; the 10 practice and config unit tests pass; the judge page catches the error on both of its Firebase calls; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(photos): mark each tray photo with its own hash
+- What: each photo row in the tray carries `data-sha256`, the photo's SHA-256, which is also its Storage name and the id of its family consent record. It is a public hash, not the image. The live photo specs read it to give the family's consent for exactly the photo they then read.
+- Source: the live photo specs needed a consented cloud read (second-model review of PR #20, round 4, finding 5).
+- Verified: the new photo tray harness test (both rows carry their hash) failed first, then passed; 7 tray harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
