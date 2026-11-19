@@ -116,12 +116,40 @@ export function commandWarnings(p: FamilyProfile, todayMs: number): ProfileWarni
   return profileWarnings(p, todayMs).filter((w) => w === "photo_old");
 }
 
-export async function writeProfile(db: Firestore, incidentId: string, p: FamilyProfile): Promise<void> {
-  const { shared, command } = profileDocs(p);
-  await Promise.all([
-    setDoc(doc(db, "incidents", incidentId, "profile", "shared"), shared),
-    setDoc(doc(db, "incidents", incidentId, "profile", "command"), command),
-  ]);
+const changedKeys = (before: object, after: object): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(after).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify((before as Record<string, unknown>)[k])));
+
+/**
+ * What a save changes, per document: only the fields that differ from the profile as it was when the form
+ * opened. The family app edits the same documents, so writing a whole snapshot would erase what they changed
+ * meanwhile (a name added, say). The names travel together: nickname mirrors otherNames' first entry.
+ */
+export function profilePatch(before: FamilyProfile, after: FamilyProfile): { shared: Record<string, unknown>; command: Record<string, unknown> } {
+  const a = profileDocs(before);
+  const b = profileDocs(after);
+  return { shared: changedKeys(a.shared, b.shared), command: changedKeys(a.command, b.command) };
+}
+
+/**
+ * Saves the form. A document that already exists gets only the changed fields (merged); one that does not exist
+ * yet is written whole, since the rules check the complete document.
+ */
+export async function writeProfile(
+  db: Firestore,
+  incidentId: string,
+  before: FamilyProfile,
+  after: FamilyProfile,
+  stored: { shared: boolean; command: boolean },
+): Promise<void> {
+  const full = profileDocs(after);
+  const patch = profilePatch(before, after);
+  const writes: Promise<void>[] = [];
+  for (const k of ["shared", "command"] as const) {
+    const ref = doc(db, "incidents", incidentId, "profile", k);
+    if (!stored[k]) writes.push(setDoc(ref, full[k]));
+    else if (Object.keys(patch[k]).length > 0) writes.push(setDoc(ref, patch[k], { merge: true }));
+  }
+  await Promise.all(writes);
 }
 
 export function subscribeProfile(
