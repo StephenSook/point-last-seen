@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The public-run exporter holds the judge replay reader's shape and size rules too: `engineParams` is written in
+  exactly the engine's shape (an incident created before a field existed gets the constants' value; a stored value
+  is kept; nothing the constants lack), a route is an exact route record or null, an effect has the engine's exact
+  shape and names only segments the run exports, no id is `__proto__`, `constructor` or `prototype`, every server
+  time lies between 2000 and 2100 and within 7 days of the rest, and a run has at most 1,000 events. A breach of
+  any refuses the write.
+  Source: review (the extras reader's rules at aa5bbf7).
+  Verified: the tests (the filled params match the engine's keys and keep the stored sweep width; a partial params
+  object, a route with an extra or a missing field, an effect with an extra field, a missing `why` or a segment
+  the run lacks, the three unsafe ids, times in 1999 or 2100 or 8 days apart, and 1,001 events are each refused)
+  failed first, now 19 exporter tests pass; typecheck exit 0; a read-only export of drill-dev-1 still passes every
+  check (68 segments, 24 events, 17 plans); `bash scripts/ci-local.sh` exit 0.
 - The README is written for judges first: the judge page's link at the top and what it offers today (a practice
   search, and which models the command post uses; the replay after the drill), what ships on each platform and how
   to try it (the command post's URL, TestFlight once the public build exists, a signed APK as a GitHub release
