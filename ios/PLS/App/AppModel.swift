@@ -293,12 +293,19 @@ final class AppModel {
         }
     }
 
-    /// A plan for the loaded mission: the team's assignment and segments follow it.
+    /// A plan for the loaded mission: the team's assignment and segments follow it. Only a plan newer
+    /// than the loaded one counts, so a cache snapshot or an update handled out of order never
+    /// replaces a newer assignment or speaks an old one.
     func planArrived(_ planDoc: JSONValue, incidentId: String, teamId: String) async {
         guard var mission, mission.incidentId == incidentId, mission.teamId == teamId,
-              let plan = try? planDoc.decode(PlanDoc.self) else { return }
+              let plan = try? planDoc.decode(PlanDoc.self), plan.version > (mission.planVersion ?? Int.min) else { return }
+        mission.planVersion = plan.version
         let assignment = plan.assignment(for: teamId)
-        guard assignment != mission.assignment else { return }
+        guard assignment != mission.assignment else {
+            // Newer, with the same task for this team: remember the version, say nothing.
+            self.mission = mission
+            return
+        }
         mission.assignment = assignment
         mission.assignedSegmentIds = assignment?.segmentIds ?? []
         await load(mission)

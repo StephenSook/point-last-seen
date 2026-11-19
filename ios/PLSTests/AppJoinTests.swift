@@ -89,6 +89,32 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.assignment == nil)
     }
 
+    /// Plans apply in version order only: an older plan (a cache snapshot, or an update handled out
+    /// of order) or another copy of the loaded version never replaces the newer assignment and is
+    /// never spoken.
+    @Test func anOlderPlanNeverReplacesANewerOne() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let voice = FakeVoice()
+        let m = model(FakeJoinBackend(), reader, voice: voice)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        // The loaded mission came from version 2: another copy of version 2 is not newer.
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Version two, other words.", version: 2),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment?.taskText == "Walk the creek bank." && voice.spoken.count == 1)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Old plan.", version: 2),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Same version, other words.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Check the parking deck.", version: 4),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission?.assignment?.taskText == "Check the parking deck." && voice.spoken.count == 3)
+    }
+
     /// After sign-in the claims are read fresh from the server, so a team change command made
     /// since the last token reaches the phone; with no signal, the cached token answers.
     @Test func afterSignInTheClaimsAreReadFresh() async throws {

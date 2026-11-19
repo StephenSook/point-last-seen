@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): plans apply in version order, so an older plan never replaces a newer assignment
+- What: the plan listener compared only assignments, so an older plan (a cache snapshot, or an
+  update handled out of order) could replace the newer assignment and speak it, and the newer one
+  then spoke again. The mission now keeps the version of the plan its assignment came from, set
+  when the mission loads. Only a newer plan counts. A newer plan with the same task for this team
+  updates the version and says nothing.
+- Source: review (finding 3).
+- Verified: a test sends another copy of the loaded version, a newer version, then an older one and
+  a second copy of the newer one, then a newer one again. Before the change the old plans replaced
+  the assignment; after it only the newer ones apply and each is spoken once. 102 app tests pass.
+
 ### fix(ios): a team change retires the old team's mission before the new one is read
 - What: when command moved a searcher to another team, the phone read the new team's mission while
   the old one stayed loaded. If that read failed, the old team's mission, plan listener and spoken
