@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `startJudgeSession`'s timeout is one named constant, `JUDGE_SESSION_TIMEOUT_S` (120 s), used by `index.ts`, and a
+  test pins the setup lease (`SETUP_STALE_MS`, 5 minutes) at more than twice it and reads `index.ts` to check the
+  callable uses it. The lease is a margin, not a guarantee: a 2nd gen function runs on Cloud Run, which closes the
+  request at the timeout but does not stop the code, so a builder can resume later.
+  Source: review (round 2 on the functions: a stalled builder).
+  Verified: all 14 judge-session tests pass in the emulators; functions typecheck exits 0.
 - The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
   frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
   out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the

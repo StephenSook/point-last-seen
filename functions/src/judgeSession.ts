@@ -17,7 +17,9 @@ const DAY_MS = 24 * HOUR_MS;
 const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabel", "status", "priorInputEventIds",
   "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty", "mediaRevokedAt",
   "setupReady", "setupId", "setupStartedAtMs"]);
-/** A setup that has not finished in this long is taken to have died, and the next start redoes it. */
+/** startJudgeSession's timeout (index.ts). A 2nd gen function can keep running after it, so it is not a kill switch. */
+export const JUDGE_SESSION_TIMEOUT_S = 120;
+/** A setup that has not finished in this long is taken to have died, and the next start redoes it: more than twice the timeout. */
 export const SETUP_STALE_MS = 5 * 60_000;
 
 /** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */

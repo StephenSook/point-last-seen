@@ -1,8 +1,9 @@
 // startJudgeSession: a judge's browser gets its own practice incident, copied from the drill seed, with the
 // command role on it, capped per visitor and per day, and deleted a day after it ends.
+import { readFileSync } from "node:fs";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_LABEL, SETUP_STALE_MS } from "../src/judgeSession";
+import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_LABEL, JUDGE_SESSION_TIMEOUT_S, SETUP_STALE_MS } from "../src/judgeSession";
 import { callRaw, emulatorIdToken } from "./callable";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
@@ -87,6 +88,13 @@ describe("startJudgeSession", () => {
       expect(res.status).toBe(401);
     }
     expect((await admin.db.doc(`incidents/judge-${uid}`).get()).exists).toBe(false);
+  });
+  it("the setup lease is more than twice the callable's timeout, and the callable uses that timeout", () => {
+    // A 2nd gen function keeps running after its timeout, so the lease is a margin, not the guarantee.
+    expect(SETUP_STALE_MS).toBeGreaterThan(2 * JUDGE_SESSION_TIMEOUT_S * 1000);
+    const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+    const block = index.slice(index.indexOf("export const startJudgeSession"), index.indexOf("export const deleteEndedSandboxesJob"));
+    expect(block).toContain("timeoutSeconds: JUDGE_SESSION_TIMEOUT_S");
   });
 });
 
