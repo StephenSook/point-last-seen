@@ -18,6 +18,8 @@ function Harness() {
   const [saved, setSaved] = useState<SightingInput | null>(null);
   const answer = useRef<(() => void) | null>(null);
   const slow = new URLSearchParams(location.search).get("read") === "slow";
+  // ?read=cloud: no laptop model; after the consent tap the cloud answers (top red) with its route and size.
+  const cloud = new URLSearchParams(location.search).get("read") === "cloud";
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid, not drill data.</p>
@@ -35,7 +37,15 @@ function Harness() {
                 })
             : async () => ({ refused: "no-on-device-model" })
         }
-        readNoteInCloud={async () => ({ refused: "not-in-cloud" })}
+        readNoteInCloud={async (text) =>
+          cloud
+            ? {
+                reading: { direction: "unknown", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "" },
+                route: { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read", latencyMs: 800, sdkReported: true, blocked: null, decidedAtMs: 0 },
+                sentBytes: new TextEncoder().encode(text).length,
+              }
+            : { refused: "not-in-cloud" }
+        }
         onClose={() => {}}
       />
       {slow && (

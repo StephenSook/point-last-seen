@@ -1639,3 +1639,28 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plans rule now takes at most 8 assignments (the worst case fits 9 under the rules' expression limit, so 8 keeps a margin), and the seed refuses more than 8 teams. The plan card's limit follows: "A plan can name at most 8 teams. This draft has 9, so it can't be approved. Search with 8 teams or fewer." and Suggest plan stays disabled past it.
 - Source: the plans rule change (at most 8 assignments).
 - Verified: the plan unit test and the plan harness test were changed to 8 first and failed, then passed (21 plan tests, 8 plan harness tests); typecheck clean. The full local mirror runs on the pull request head.
+
+### fix(plans): fall back to fixed wording when the model writes a number it was not given
+- What: the wording check looked at team ids, other teams' segment ids and text length, but not numbers, so a figure the model made up in a reason or the summary would reach command as fact. Now every run of digits (with an optional decimal part) in a reason or the summary must appear in the plan text the model was sent; otherwise the plan uses fixed wording, and the "What ran" receipt says "Not used: it used a number that is not in the plan."
+- Source: review (model-invented figures in plan wording).
+- Verified: new tests (numbers from the plan accepted; a number not in the plan refused in a reason and in the summary; "a reason with a number not in the draft falls to the template", with the attempt recorded as "number"; the receipt line) failed first, then passed; 27 wording tests and 3 receipt tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(photos): a closed What ran receipt on each family photo read
+- What: under a photo's suggested cues, a closed "What ran" line opens to what was asked for ("this laptop only" or "the cloud, with the family's consent"), where it ran as the SDK reported it, the model, and what left this laptop: "nothing left this laptop" for a laptop read, or the exact size of the request's photo data for a cloud read ("Sent: N bytes of the photo, as base64.", 4 characters per 3 bytes of the JPEG, measured from the bytes the read encodes). It never shows the photo or the prompt.
+- Source: review (a compact receipt on each AI result, media reads first).
+- Verified: a new photos harness test (`?read=cloud`: the cloud read's four receipt lines) failed first (no receipt), then passed; 8 photos harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(camera): a closed What ran receipt on each camera clip reading
+- What: `readClip` now reports what it sent, measured where the request is built: the length of the clip's base64 string on a fresh read, and 0 when the reading was stored before. The camera sighting card shows a closed "What ran" line: asked for ("the cloud, with the clip's three consents"), where it ran as the SDK reported it, the model, and "Sent: N bytes of the clip, as base64." or, for a stored reading, "Sent: nothing now; this reading came from an earlier read of the same clip." It never shows the clip or the prompt. This entry also turns the photo receipt entry's sample size into a placeholder (it was an illustration, not a measurement).
+- Source: review (a compact receipt on each AI result, media reads first).
+- Verified: a new readClip test (a fresh read's size equals the base64 the model was handed, 4 characters per 3 bytes; a stored reading reports 0) and a new clip harness test (the four receipt lines with "5,000 bytes of the clip") failed first, then passed; 40 clip read tests and 23 clip harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(command): a closed What ran receipt on each sighting-note read
+- What: after a note read fills the fields, a closed "What ran" line opens to what was asked for ("this laptop only", or "the cloud, after the consent tap"), where it ran as the SDK reported it, the model, and what left this laptop: nothing for a laptop read, or the UTF-8 size of the note the template received, measured after phone numbers were removed ("Sent: N bytes of the note, with phone numbers removed."). It never shows the note.
+- Source: review (a compact receipt on each AI result).
+- Verified: a new unit test (the cloud read reports the size of the note it sent, with a phone number removed first) and a new sighting harness test (the cloud path's receipt lines with "22 bytes of the note") failed first, then passed; 15 note read tests and 4 sighting harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### ci(web): install ffmpeg before the component harness checks
+- What: the clip and frame harness tests make their synthetic test clip (a grey frame with a moving red square, no person) with ffmpeg, which GitHub's Ubuntu runner does not ship, so two harness tests failed on the first real CI run while passing locally. The web job now installs ffmpeg (`sudo apt-get install -y --no-install-recommends ffmpeg`) before the harness step, and the workflow-mirror check lists that install as runner setup, like the Playwright browser install.
+- Source: the web job on pull request CI ("ffmpeg: not found").
+- Verified: the workflow file parses; `scripts/test_ci_local.py` (every workflow command mirrored, setup excepted) and `scripts/test_workflow_paths.py` pass; the next CI run on the pull request is the check.

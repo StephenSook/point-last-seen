@@ -398,15 +398,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const readNote = async (text: string) => {
     const t0 = Date.now();
     const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
-    if ("reading" in r) traced(photoRoute("on_device", Date.now() - t0));
-    return r;
+    if (!("reading" in r)) return r;
+    const route = photoRoute("on_device", Date.now() - t0);
+    traced(route);
+    return { ...r, route, sentBytes: 0 };
   };
   const readNoteInCloud = async (text: string) => {
     const t0 = Date.now();
     const uid = pls.auth.currentUser?.uid ?? "";
     const r = await readSightingTextInCloud(text, uid ? { byUid: uid, atMs: Date.now() } : null, { generateCloud: (t) => sightingTemplateGenerator(ai(), rc.sightingTemplateId)(t), killCloud: rc.killCloud });
-    if ("reading" in r) traced(photoRoute("cloud", Date.now() - t0));
-    return r;
+    if (!("reading" in r)) return r;
+    const route = photoRoute("cloud", Date.now() - t0);
+    traced(route);
+    return { ...r, route };
   };
 
   // The route of a photo or sighting-note read (strict on-device, or a consented cloud read).
@@ -427,7 +431,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!("cues" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);
-    return { cues: r.cues, route };
+    return { cues: r.cues, route, sentBytes: 0 };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
     // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
@@ -442,7 +446,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!("cues" in r)) return r;
     const route = photoRoute("cloud", Date.now() - t0);
     traced(route);
-    return { cues: r.cues, route };
+    // The request carries the photo as base64 (bytesToBase64 in readStoredPhotoInCloud): 4 characters per 3 bytes.
+    return { cues: r.cues, route, sentBytes: 4 * Math.ceil(p.bytes.length / 3) };
   };
   const checkDevice = async () => {
     let st = await readDeviceState();
