@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A practice-search copy that throws part way closes its writer before the error leaves, so every write it started
+  has finished before the setup is let go and a retry begins. Before, an error thrown while the copy was still
+  reading the seed skipped `close()`, and its started writes could land after the claim was released.
+  Source: review (round 2 on the functions: drain the writer on error).
+  Verified: the new test (a writer that throws on its second write) failed first with the writer never closed, now
+  passes: the writer is closed, the first write has landed and the setup is let go; all 17 judge-session tests pass.
 - Each practice-search attempt gets its own incident id, so a late builder, the cleanup job and the media sweep can
   only ever act on their own attempt's data. Every build claim makes a fresh incident `judge-{uid}-{12 hex}`, and
   `judgeUsers/{uid}` names the attempt that won; only that one is handed back and given the command role. A setup

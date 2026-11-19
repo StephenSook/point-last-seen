@@ -206,6 +206,22 @@ describe("startJudgeSession setup is safe to fail, retry and race", () => {
     expect(await size(retry, "teams")).toBe(2);
     expect((await inc(retry).get()).get("setupReady")).toBe(true);
   });
+  it("a copy that throws part way waits for its started writes before it lets go of the setup (review)", async () => {
+    const uid = await freshUid();
+    let closed = false, n = 0;
+    const throwing = { ...cfg, writer: () => {
+      const w = admin.db.bulkWriter();
+      return { set: (r: FirebaseFirestore.DocumentReference, d: FirebaseFirestore.DocumentData) => {
+        if (n++ === 1) throw new Error("writer broke");
+        return w.set(r, d);
+      }, close: async () => { await w.close(); closed = true; } };
+    } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW, throwing)).rejects.toThrow("writer broke");
+    expect(closed).toBe(true);
+    const failed = await pointer(uid);
+    expect(await size(failed, "segments")).toBe(1);
+    expect((await inc(failed).get()).get("setupStartedAtMs")).toBe(0);
+  });
 });
 
 describe("startJudgeSession and a sandbox made before setup was tracked", () => {

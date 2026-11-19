@@ -40,7 +40,8 @@ async function giveCommand(auth: Auth, uid: string, incidentId: string): Promise
 /**
  * Copies the seed's segments, teams and shared profile into a new attempt's own, empty incident. Nothing is cleared:
  * no other attempt ever writes under this id, so a builder that stalls and resumes late can touch only its own
- * attempt. Every write's own result is checked: BulkWriter.close() resolves even when a write failed.
+ * attempt. Every write's own result is checked (BulkWriter.close() resolves even when a write failed), and the writer
+ * is closed before any error leaves, so no write is still in flight once the setup is let go.
  */
 async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
   stillOwner: () => Promise<boolean>): Promise<void> {
@@ -48,12 +49,15 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
   const writer = makeWriter();
   const writes: Promise<unknown>[] = [];
   const set = (ref: DocumentReference, data: DocumentData) => writes.push(writer.set(ref, data).then(() => null, (e: unknown) => e ?? "write failed"));
-  for (const sub of ["segments", "teams"]) {
-    for (const d of (await seed.collection(sub).get()).docs) set(to.collection(sub).doc(d.id), d.data());
+  try {
+    for (const sub of ["segments", "teams"]) {
+      for (const d of (await seed.collection(sub).get()).docs) set(to.collection(sub).doc(d.id), d.data());
+    }
+    const shared = await seed.collection("profile").doc("shared").get();
+    if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
+  } finally {
+    await writer.close();
   }
-  const shared = await seed.collection("profile").doc("shared").get();
-  if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
-  await writer.close();
   const failed = (await Promise.all(writes)).find(e => e !== null);
   if (failed !== undefined) throw failed;
 }
