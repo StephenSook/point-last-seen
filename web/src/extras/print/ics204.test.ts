@@ -55,9 +55,10 @@ it("eleven teams make two sheets; both carry the incident name; pages read 1 of 
   expect(pages[1]?.workAssignments).toEqual([expect.stringContaining("Team 11")]);
 });
 
-it("block 7 starts with the drill line in drill mode", () => {
+it("block 7 starts with the incident's training line in every mode", () => {
   expect(sheets()[0]?.specialInstructions[0]).toBe("Training drill. Nobody is missing. Do not dial 911.");
-  expect(sheets({ ...model, mode: "judge" })[0]?.specialInstructions.join(" ")).not.toContain("Training drill");
+  const practice = "Training drill. Practice search; nobody is missing.";
+  expect(sheets({ ...model, mode: "judge", drillLabel: practice })[0]?.specialInstructions[0]).toBe(`${practice} Do not dial 911.`);
 });
 
 it("block 7 carries the match code line", () => {

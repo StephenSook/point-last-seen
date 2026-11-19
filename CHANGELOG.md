@@ -5,6 +5,26 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The family push carries only the kind and the incident id: the question's id no longer leaves Firestore, and the
+  family app lists unanswered questions from Firestore when it opens. A searching or paused notice now also needs the
+  incident to be open and not past its end, so a late event after the search ends spends no budget and sends
+  nothing. `docs/LIMITS.md` says both.
+  Source: review (cross-model, round 1, mediums; privacy by default).
+  Verified: the tests (every kind's whole message without a question id; no searching or paused notice for a found,
+  closed or expired incident, and no budget doc written) failed first, now all 17 push tests pass; functions
+  typecheck exit 0.
+- `startJudgeSession`'s copy is checked write by write and by owner. Every write's own result is collected (a failure
+  is caught as it happens and thrown after the writer closes, since `BulkWriter.close()` resolves even when a write
+  failed), so a short copy is never marked ready. Before clearing and before copying, the build checks that it still
+  owns the setup, so a builder that stalled while another took over never clears or writes the newer sandbox. A live
+  sandbox made before setup was tracked is checked against the seed (as many segments and teams, and the shared
+  profile if the seed has one): a complete copy gets its flag and keeps its judge's work, a short one is rebuilt on
+  the slot it already used.
+  Source: review (cross-model, round 1, high 2 and a medium).
+  Verified: the tests (a write that fails leaves the sandbox not ready and grants nothing, and a retry finishes it; a
+  stalled builder resuming after a takeover leaves the newer sandbox and its judge's event alone; a legacy sandbox
+  with nothing copied is rebuilt, one with a full copy is handed back with its event) failed first, now all 13 judge
+  session tests pass with no unhandled error; functions typecheck exit 0.
 - `docs/evidence/drill/kennesaw-seed.md` records the Kennesaw drill as seeded: park staff confirmed by email on
   2026-11-19 that the training exercise needs no Special Use Permit and suggested the trails south of Dallas Highway;
   the incident `drill-kennesaw-1` (teams T1 to T3, urban terrain marked as the default and not verified for this site,

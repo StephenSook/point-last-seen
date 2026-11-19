@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { FieldValue, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { Message } from "firebase-admin/messaging";
 
 /** How long a push stays worth delivering: an assignment two hours old has usually changed again. */
@@ -92,13 +92,16 @@ export function familyTopic(incidentId: string): string {
   return `pls-${incidentId}-${FAMILY_TOPIC_NAME}`;
 }
 
-/** A family push: fixed wording and ids only. The question's text stays in Firestore, behind the rules. */
-export function familyMessage(o: { incidentId: string; kind: FamilyKind; questionId?: string; drill: boolean; nowMs: number }): Message {
+/**
+ * A family push: fixed wording and the incident id only. Neither the question's text nor its id leaves Firestore; the
+ * family app lists unanswered questions from Firestore, behind the rules, when it opens.
+ */
+export function familyMessage(o: { incidentId: string; kind: FamilyKind; drill: boolean; nowMs: number }): Message {
   const collapse = `${o.incidentId}-${FAMILY_TOPIC_NAME}`;
   return {
     topic: familyTopic(o.incidentId),
     notification: { title: o.drill ? "Training drill" : "Point Last Seen", body: FAMILY_BODY[o.kind] },
-    data: { kind: o.kind, incidentId: o.incidentId, ...(o.kind === "question" && o.questionId ? { questionId: o.questionId } : {}) },
+    data: { kind: o.kind, incidentId: o.incidentId },
     android: { collapseKey: collapse, ttl: TTL_S * 1000, priority: "high" },
     apns: { headers: { "apns-collapse-id": collapse, "apns-expiration": String(Math.floor(o.nowMs / 1000) + TTL_S) } },
   };
@@ -111,7 +114,7 @@ export function familyMessage(o: { incidentId: string; kind: FamilyKind; questio
  * transaction with the incident read, so a redelivered event can neither send twice nor use the budget twice.
  */
 async function sendFamily(db: Firestore, messaging: { send(m: Message): Promise<string> }, incidentId: string,
-  kind: FamilyKind, questionId: string | undefined, eventId: string, nowMs: number): Promise<boolean> {
+  kind: FamilyKind, eventId: string, nowMs: number): Promise<boolean> {
   if (!INCIDENT_ID.test(incidentId) || typeof eventId !== "string" || eventId.length === 0) return false;
   const incRef = db.doc(`incidents/${incidentId}`);
   const day = new Date(nowMs).toISOString().slice(0, 10);
@@ -122,7 +125,10 @@ async function sendFamily(db: Firestore, messaging: { send(m: Message): Promise<
     if (seen!.exists) return { send: false, reason: "already sent" } as const;
     // A practice search is a judge's own sandbox, with no family phone: no push.
     if (!inc!.exists || inc!.get("mode") === "judge") return { send: false, reason: "no family" } as const;
-    const current = kind === "question" ? inc!.get("status") === "open" : inc!.get("searchState") === kind;
+    // Still true: the incident is open and not past its end, and a state notice's state is still the incident's.
+    const exp = inc!.get("expiresAt");
+    const open = inc!.get("status") === "open" && (exp == null || (exp instanceof Timestamp && exp.toMillis() > nowMs));
+    const current = open && (kind === "question" || inc!.get("searchState") === kind);
     if (!current) return { send: false, reason: "stale" } as const;
     if (((used!.get("count") as number | undefined) ?? 0) >= FAMILY_PUSHES_PER_DAY) return { send: false, reason: "daily cap" } as const;
     tx.set(budget, { count: FieldValue.increment(1) }, { merge: true });
@@ -134,7 +140,7 @@ async function sendFamily(db: Firestore, messaging: { send(m: Message): Promise<
     console.log(JSON.stringify({ event: "notifyFamily", incidentId, kind, sent: false, reason: outcome.reason }));
     return false;
   }
-  await messaging.send(familyMessage({ incidentId, kind, questionId, drill: outcome.drill, nowMs }));
+  await messaging.send(familyMessage({ incidentId, kind, drill: outcome.drill, nowMs }));
   console.log(JSON.stringify({ event: "notifyFamily", incidentId, kind, sent: true }));
   return true;
 }
@@ -143,7 +149,7 @@ async function sendFamily(db: Firestore, messaging: { send(m: Message): Promise<
 export async function handleFamilyQuestion(db: Firestore, messaging: { send(m: Message): Promise<string> },
   incidentId: string, questionId: string, eventId: string, nowMs: number): Promise<boolean> {
   if (!QUESTION_ID.test(questionId)) return false;
-  return sendFamily(db, messaging, incidentId, "question", questionId, eventId, nowMs);
+  return sendFamily(db, messaging, incidentId, "question", eventId, nowMs);
 }
 
 /** notifyFamilySearchState's work: one push when the incident's searchState becomes searching or paused. */
@@ -152,5 +158,5 @@ export async function handleSearchState(db: Firestore, messaging: { send(m: Mess
   nowMs: number): Promise<boolean> {
   const next = after?.searchState;
   if (typeof next !== "string" || !(SEARCH_STATES as readonly string[]).includes(next) || before?.searchState === next) return false;
-  return sendFamily(db, messaging, incidentId, next as FamilyKind, undefined, eventId, nowMs);
+  return sendFamily(db, messaging, incidentId, next as FamilyKind, eventId, nowMs);
 }

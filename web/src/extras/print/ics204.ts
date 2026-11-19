@@ -1,4 +1,4 @@
-import { DRILL_LABEL, type PrintModel } from "./printModel";
+import type { PrintModel } from "./printModel";
 
 export const ICS204_EDITION = "v3.1";
 export const ICS204_BLOCK_TITLES = [
@@ -61,7 +61,7 @@ export function ics204Sheets(
   if (model.planVersion === null) return [];
   const { dateFrom, dateTo, timeFrom, timeTo, branch, division, group, stagingArea } = typed;
   const specialInstructions: string[] = [];
-  if (model.mode === "drill") specialInstructions.push(`${DRILL_LABEL} Do not dial 911.`);
+  specialInstructions.push(`${model.drillLabel} Do not dial 911.`);
   const reportLabel = model.reportCount === 1 ? "report" : "reports";
   specialInstructions.push(
     `Map match code at print time: ${model.matchCode ?? "Unavailable"} (plan v${model.planVersion}, ${model.reportCount} ${reportLabel}).`,

@@ -25,6 +25,17 @@ test("the sheet's match code line counts reports, not every event", async ({ pag
   await expect(page.getByText(/Map match code at print time: .* \(plan v\d+, 13 reports\)\./).first()).toBeVisible();
 });
 
+test("in print media the whole page is white, so no dark margin prints around the sheet", async ({ page }) => {
+  await page.goto(harness);
+  await openExtra(page, "Print assignment sheet");
+  // The sheet loads on first use; the page is in its printing state once the sheet is there.
+  await expect(page.locator("[data-block]").first()).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  const white = "rgb(255, 255, 255)";
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe(white);
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(white);
+});
+
 test("in print media the command post is hidden and the sheet is visible", async ({ page }) => {
   await page.goto(harness);
   await openExtra(page, "Print assignment sheet");
