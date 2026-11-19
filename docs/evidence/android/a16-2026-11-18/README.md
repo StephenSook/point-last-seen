@@ -1,6 +1,6 @@
 # Family app on a real phone, 2026-11-18
 
-The release-signed family app on a Samsung Galaxy A16 (SM-A166U, Android 16, API 36), against
+The release-signed family app on a Samsung A16 (SM-A166U, Android 16, API 36), against
 the deployed Firebase project. Build: lane-android at a62f2b0, release type, signed with the
 release key. App Check used Play Integrity (no debug provider). All data on screen is made up
 for the drill ("Mae", "Mama Mae", "Margaret", age 82).
