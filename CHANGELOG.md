@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
+  project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
+  Source: review (seen after the merge point's Android build).
+  Verified: `git check-ignore android/.kotlin` matches and `git status` no longer lists it.
 - The Android unit-test floor is the real count, 274, in both `android.yml` and `scripts/ci-local.sh` (it was 150), so
   losing even one test class fails CI and the local mirror instead of passing quietly.
   Source: review (a floor far below the count would not notice a dropped class).
