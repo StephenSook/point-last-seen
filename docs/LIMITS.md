@@ -23,6 +23,10 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
+- "Leave this search" on the iPhone changes only the phone: it leaves the team's push topic, drops the mission and
+  signs the anonymous account out, so the next join is a new user. The old user's claims stay on the server, and
+  command still lists that member until command removes them. It waits until every report from the phone is
+  settled with the server, since a report still in that user's write queue would otherwise be stranded.
 
 ## Search model
 

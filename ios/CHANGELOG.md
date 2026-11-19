@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: leaving a search on the iPhone changes only the phone
+- What: LIMITS.md says that "Leave this search" leaves the team's topic, drops the mission and
+  signs the anonymous account out, while the old user's claims stay on the server and command
+  still lists that member until command removes them; leaving waits until every report is settled.
+- Source: drill planning (leave action).
+- Verified: read against `AppModel.leaveSearch` and its tests.
+
 ### feat(ios): a searcher can leave the search from the Ready check
 - What: the iPhone had no way to leave a search: the join form shows only with no mission
   loaded, so a phone stayed on its incident until command changed its claims. The Ready check now
