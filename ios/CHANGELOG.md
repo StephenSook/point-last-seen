@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a push topic subscription never holds up the join, the mission or the alerts question
+- What: FCM completes a topic subscription only once the phone has its messaging token, which can
+  be never (no APNs key yet, alerts not yet allowed). The mission load waited for it, so on the
+  simulator the alerts question never came and a join would never have finished with its words.
+  Following the topic now runs as its own task, chained so subscriptions and unsubscriptions keep
+  their order, and nothing else waits for it.
+- Source: a simulator check of the push work.
+- Verified: a test holds the subscription open: the join completes and the mission loads before it
+  answers, and the subscription lands when it does; it failed to compile, then passed; the topic
+  tests now wait for the follow task; 107 app tests pass; the CI mirror `bash scripts/ci-local.sh`
+  exit 0. On the simulator the alerts question then showed after the mission loaded.
+
 ### feat(ios): hand the APNs token to Firebase Messaging and open the task from a tapped push
 - What: an app delegate hands iOS's APNs token to Firebase Messaging, so the team's topic can reach
   this phone once the APNs key is in FCM, and routes a tapped new-assignment push by its ids only.

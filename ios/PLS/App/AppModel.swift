@@ -35,6 +35,9 @@ final class AppModel {
     /// The team's push topic this phone follows; nil until a subscription has gone through.
     private let pushTopics: PushTopics
     @ObservationIgnored private var subscribedTopic: String?
+    /// The latest topic change in flight. FCM holds a subscription until the phone has its token,
+    /// which may never come (no APNs key, no permission), so nothing else ever waits for it.
+    @ObservationIgnored private(set) var topicFollow: Task<Void, Never>?
     /// Notification permission, and where "asked once" is kept.
     private let alerts: AlertPermission
     private let defaults: UserDefaults
@@ -261,7 +264,7 @@ final class AppModel {
             guard generation == missionGeneration else { return nil }
             await load(mission)
             watchPlans(incidentId: incidentId, teamId: teamId)
-            await followTopic()
+            followTopicSoon()
             await refreshAlerts()
             return nil
         } catch let failure as MissionBuilder.Failure {
@@ -279,7 +282,7 @@ final class AppModel {
         stopPlanWatch = nil
         mission = nil
         refreshGate()
-        await followTopic()
+        followTopicSoon()
     }
 
     /// With a mission loaded: alerts already allowed only register; not yet asked shows the one-time
@@ -310,6 +313,15 @@ final class AppModel {
         defaults.set(true, forKey: Self.alertsAskedKey)
         offersAlerts = false
         if allow, await alerts.request() { await alerts.registerForPushes() }
+    }
+
+    /// Starts following the topic after any change still in flight, so changes keep their order.
+    private func followTopicSoon() {
+        let previous = topicFollow
+        topicFollow = Task { [weak self] in
+            await previous?.value
+            await self?.followTopic()
+        }
     }
 
     /// Follows the loaded mission's team topic: subscribes to it, leaves the one before, and leaves
@@ -365,7 +377,7 @@ final class AppModel {
         }
         membership = (incidentId, teamId)
         if mission?.incidentId == incidentId, mission?.teamId == teamId {
-            await followTopic()
+            followTopicSoon()
             return
         }
         let before = missionGeneration

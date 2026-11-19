@@ -25,7 +25,10 @@ final class ReadGate: @unchecked Sendable {
 final class FakePushTopics: PushTopics, @unchecked Sendable {
     private(set) var ops: [String] = []
     var fails = false
+    /// When set, a subscription waits here, as FCM does until the phone has its token.
+    var hold: ReadGate?
     func subscribe(_ topic: String) async throws {
+        if let hold { await hold.wait() }
         if fails { throw URLError(.notConnectedToInternet) }
         ops.append("+" + topic)
     }
@@ -85,14 +88,18 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let topics = FakePushTopics()
         let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics)
         await m.trySignIn()
+        await m.topicFollow?.value
         #expect(topics.ops == ["+pls-drill-dev-1-T1"])
         await m.trySignIn()
+        await m.topicFollow?.value
         #expect(topics.ops == ["+pls-drill-dev-1-T1"])
         backend.claims["team"] = .string("T2")
         await m.trySignIn()
+        await m.topicFollow?.value
         #expect(topics.ops == ["+pls-drill-dev-1-T1", "-pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
         backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
         await m.trySignIn()
+        await m.topicFollow?.value
         #expect(topics.ops.last == "-pls-drill-dev-1-T2")
     }
 
@@ -102,9 +109,25 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         topics.fails = true
         let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()), topics: topics)
         await m.trySignIn()
+        await m.topicFollow?.value
         #expect(topics.ops.isEmpty && m.mission != nil)
         topics.fails = false
         await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+    }
+
+    /// FCM holds a subscription until the phone has its token, which can be never (no APNs key or
+    /// no permission yet): the join, the mission and the alerts question never wait for it.
+    @Test func aSubscriptionThatNeverAnswersNeverHoldsTheJoin() async throws {
+        let topics = FakePushTopics()
+        let gate = ReadGate()
+        topics.hold = gate
+        let m = model(newcomer(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission?.teamId == "T1" && m.joinMessage == nil && topics.ops.isEmpty)
+        gate.release()
+        await m.topicFollow?.value
         #expect(topics.ops == ["+pls-drill-dev-1-T1"])
     }
 
