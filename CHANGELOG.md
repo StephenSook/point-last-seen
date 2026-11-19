@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `deleteIncidentMediaNow` also deletes the incident's photo consent records, with the photos and their
+  readings.
+  Source: the photo consent rules (consents are deleted with the media).
+  Verified: the delete test (the consent goes, another incident's stays; the counts include it) failed first,
+  now 181 functions tests pass in the emulators.
 - Firestore rules for a photo's cloud-read consent, `incidents/{id}/photoConsents/{sha256}`: created only by a
   family member, for themselves, with exactly `storagePath` (this photo's `photos/{incident}/{sha256}.jpg`),
   `cloudProcessing` (`byUid` the writer, `atMs` a number, as in the clip consent), `createdByUid` (the writer) and

@@ -117,7 +117,7 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
     await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
     deleted += found.length;
   }
-  for (const collection of ["clipReadings", "photoReadings"]) {
+  for (const collection of ["clipReadings", "photoReadings", "photoConsents"]) {
     const docs = await db.collection(`incidents/${incidentId}/${collection}`).listDocuments();
     await Promise.all(docs.map(d => d.delete()));
     deleted += docs.length;
