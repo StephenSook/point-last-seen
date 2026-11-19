@@ -7,6 +7,7 @@
 // are never logged. The web config is the public one in the repo's gitignored .env.local.
 
 import { readFileSync } from "node:fs";
+import { refuseJudgeSeed } from "./fixtures";
 
 type WebConfig = { apiKey: string; projectId: string; appId: string; bucket: string };
 
@@ -63,6 +64,7 @@ async function familySession(cfg: WebConfig, incidentId: string): Promise<Family
 /** The family's cloud consent for one photo of the incident, named by its own hash, as the family app gives it. */
 export async function familyConsentToPhoto(incidentId: string, sha: string): Promise<void> {
   if (!/^[0-9a-f]{64}$/.test(sha)) throw new Error("familyConsentToPhoto needs the photo's SHA-256");
+  refuseJudgeSeed(incidentId);
   const cfg = webConfig();
   const s = await familySession(cfg, incidentId);
   const base = `projects/${cfg.projectId}/databases/(default)/documents`;
