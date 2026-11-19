@@ -109,18 +109,18 @@ export function clipCloudGenerator(ai: AI, model: string): ClipGenerate {
   return clipGeneratorFor(getGenerativeModel(ai, clipCloudParams(model), { timeout: CLIP_TIMEOUT_MS }));
 }
 
-export function frameGeneratorFor(model: ImageModel): (jpegBase64: string) => Promise<{ text: string }> {
+export function frameGeneratorFor(model: ImageModel): (jpegBase64: string) => Promise<{ text: string; inferenceSource?: string }> {
   return async (jpegBase64) => {
     const r = await model.generateContent([
       { type: "text", text: "Check this frame." },
       { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: jpegBase64 } },
     ]);
-    return { text: r.response.text() };
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
   };
 }
 
 /** One frame of a clip checked on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
-export function frameCheckGenerator(ai: AI): (jpegBase64: string) => Promise<{ text: string }> {
+export function frameCheckGenerator(ai: AI): (jpegBase64: string) => Promise<{ text: string; inferenceSource?: string }> {
   return frameGeneratorFor(getGenerativeModel(ai, frameCheckParams(), PRIVATE_REQUEST_OPTIONS));
 }
 

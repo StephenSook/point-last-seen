@@ -35,7 +35,7 @@ const answer: ClipReadOutcome = outcomes[params.get("outcome") ?? ""] ?? { kind:
 const TRIAGE: Record<string, TriageResult> = {
   "no-model": { kind: "no-model" },
   "no-motion": { kind: "no-motion", latencyMs: 5 },
-  "no-person": { kind: "no-person", windows: [], latencyMs: 5 },
+  "no-person": { kind: "no-person", windows: [], latencyMs: 5, source: "on_device" },
   flagged: { kind: "flagged", window: { startS: 1, endS: 5 }, windows: [], latencyMs: 5 },
 };
 const triage = params.get("triage");

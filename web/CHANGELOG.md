@@ -1505,3 +1505,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the previous entry's Verified line quoted the search it ran, which put the two names back into this file; it now describes the search instead.
 - Source: the committed-tree check after that commit (want-0 found 1).
 - Verified: the same case-insensitive search of the committed file finds nothing. scripts/ci-local.sh exit 0.
+
+### fix(camera): trace clip triage on this laptop only when the SDK says it ran there
+- What: the on-device frame check now passes the SDK's `inferenceSource` through, and triage keeps it. A clip with no person is traced as `on_device` with `sdkReported: true` only when every frame check reported on-device; if any check reported the cloud the path is `cloud`; with no report the path is `unknown` and `sdkReported` is false, so it never counts toward the on-device share. Before, every no-person result was stamped on-device and SDK-reported.
+- Source: review (clip triage stamped on_device without an SDK-reported source).
+- Verified: new tests (`src/camera/triage.test.ts`: every check on-device gives on_device; no report, or a mix, gives unknown; the route for unknown is path unknown with sdkReported false) failed first, then passed; the frame generator test now also expects the SDK's source back; 14 triage tests and 23 clip and triage harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
