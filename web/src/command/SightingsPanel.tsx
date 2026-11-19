@@ -5,7 +5,10 @@ const hhmm = (ms: number | null) => (ms === null ? "time not given" : new Date(m
 const WHO: Record<string, string> = { public_caller: "a caller", family: "the family", searcher: "a searcher", camera: "a camera", system: "the system" };
 
 function clothing(c: SightingCard): string {
-  const r = c.sighting.reading as { topColor?: string; bottomColor?: string; footwear?: string; carried?: string } | null;
+  // A camera clip's reading holds what the clip saw under `sighting`.
+  const raw = c.sighting.reading as Record<string, unknown> | null;
+  const seen = c.camera && raw && typeof raw["sighting"] === "object" ? (raw["sighting"] as Record<string, unknown>) : raw;
+  const r = seen ? { topColor: seen["topColor"] as string | undefined, bottomColor: seen["bottomColor"] as string | undefined, footwear: seen["footwear"] as string | undefined, carried: (Array.isArray(seen["carriedItems"]) ? (seen["carriedItems"] as string[]).join(", ") : (seen["carried"] as string | undefined)) } : null;
   if (!r) return "";
   const parts = [r.topColor && r.topColor !== "unknown" ? `${r.topColor} top` : "", r.bottomColor && r.bottomColor !== "unknown" ? `${r.bottomColor} bottom` : "", r.footwear ?? "", r.carried ? `carrying ${r.carried}` : ""];
   return parts.filter((p) => p !== "").join(", ");
@@ -47,9 +50,10 @@ export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
           return (
             <li key={id} className="sighting" data-testid={`sighting-${id}`}>
               <p>
-                Seen {hhmm(c.sighting.observedAtMs)}, reported by {WHO[c.sighting.reporter] ?? "someone"}.{" "}
-                {c.needsPlace ? "No place yet." : seg ? `Segment ${seg}.` : ""}
+                {c.camera ? `Camera clip from the family, last seen ${hhmm(c.sighting.observedAtMs)}. ` : `Seen ${hhmm(c.sighting.observedAtMs)}, reported by ${WHO[c.sighting.reporter] ?? "someone"}. `}
+                {c.needsPlace ? (c.camera ? "Camera place not given." : "No place yet.") : seg ? `Segment ${seg}.` : ""}
               </p>
+              {c.camera && c.status === "awaiting" && <p className="muted small">Confirming rebuilds the map from the camera's place.</p>}
               {clothing(c) && <p className="muted">{clothing(c)}</p>}
               {c.sighting.rawText && <p className="muted">"{c.sighting.rawText}"</p>}
               {c.outside && <p role="status">Sighting outside the search area. Consider moving the start point.</p>}
@@ -57,7 +61,7 @@ export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
                 <div className="row">
                   {c.needsPlace && onPlace && (
                     <button type="button" className="btn" onClick={() => onPlace(c)} disabled={busy !== null}>
-                      Place on map
+                      {c.camera ? "Place camera" : "Place on map"}
                     </button>
                   )}
                   <button type="button" className={c.needsPlace ? "btn ghost" : "btn"} onClick={() => decide(c, "confirmed")} disabled={busy !== null || c.needsPlace}>

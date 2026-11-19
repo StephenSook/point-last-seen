@@ -11,7 +11,7 @@ import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
-import { cameraConfirmWrites } from "../prior/cameraPrior";
+import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
@@ -237,6 +237,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [editingProfile, setEditingProfile] = useState(false);
   // One map pick at a time: a profile place, or the sighting pin while the sighting form is open.
   const [picker, setPicker] = useState<((p: LatLon) => void) | null>(null);
+  // Camera places command picked for family camera clips that came without one, until each is confirmed.
+  const [placedCameras, setPlacedCameras] = useState<Record<string, LatLon>>({});
 
   // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
   // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
@@ -686,14 +688,31 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             </button>
           )}
           <SightingsPanel
-            cards={cards}
-            segmentOf={(c) => (c.sighting.position ? segmentContaining(c.sighting.position, segments) : null)}
-            onDecide={async (c, d) => write(buildConfirmation(c.sighting, d, writer()))}
+            cards={cards.map((c) => (c.camera && placedCameras[c.sighting.eventId] ? { ...c, needsPlace: false } : c))}
+            segmentOf={(c) => {
+              const at = c.sighting.position ?? (c.camera ? placedCameras[c.sighting.eventId] : undefined);
+              return at ? segmentContaining(at, segments) : null;
+            }}
+            onDecide={async (c, d) => {
+              if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
+              // A family camera clip: command's confirmation and the camera prior, in one batch.
+              if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+              const { events: built, prior } = familyCameraConfirmWrites(
+                c.sighting,
+                placedCameras[c.sighting.eventId] ?? null,
+                writer(),
+                segments,
+                { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
+              );
+              await writePrior(pls.db, incidentId, prior, built);
+            }}
             onPlace={(c) =>
-              // A family report has no place: command picks it on the map and writes its own placement.
               setPicker(() => (p: LatLon) => {
                 setPicker(null);
-                write(placeFamilySighting(c.sighting, p, writer()));
+                // A family clip's camera place is kept here until Confirm; the family's event is never changed.
+                if (c.camera) setPlacedCameras((m) => ({ ...m, [c.sighting.eventId]: p }));
+                // A family report has no place: command writes its own placement at the picked point.
+                else write(placeFamilySighting(c.sighting, p, writer()));
               })
             }
           />
