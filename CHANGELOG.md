@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/grid/kennesaw-mountain-drill.grid.json`: a second drill grid, ready but not used: Kennesaw Mountain
+  National Battlefield Park (OpenStreetMap relation 143353) inside a 2.4 km window around the Visitor Center and
+  the two summits, 285 segments and 3.76 km2, the park's inholdings kept out as holes. Built from an OpenStreetMap
+  extract read on 2026-11-19 (data as of 02:06 UTC). `shared/grid/README.md` gives its source, window and credit
+  (ODbL). The grid test now checks both grids, including that each fits one prior batch (480 segments).
+  Source: review (a second drill site in case the park permits it).
+  Verified: the grid test failed first (file missing) and now passes for both grids; the build printed 285
+  segments and a route graph of 549 edges; `bash scripts/ci-local.sh` exit 0.
 - `build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>`
   builds a drill site from an OpenStreetMap park relation: its outer ways stitched into rings, its inner rings
   (private inholdings) kept as holes, clipped to a window, with the relation and window recorded. Grid building
