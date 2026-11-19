@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web workflow also typechecks and tests the public-run exporter, since its tests run exports through the
+  replay reader in `web/src/extras/replay`; a change to the reader now re-runs that cross-check.
+  Source: review (a reader change would otherwise skip the exporter's tests).
+  Verified: `bash scripts/ci-local.sh` exit 0; the step runs the same two commands as the engine workflow.
 - The public-run exporter imports the judge replay reader's contract (`web/src/extras/replay/runContract.ts`:
   fields, pseudonym shapes, the 1,000-event cap) instead of keeping a copy, and a new test runs an exported run
   through the reader's own full check (`fromPublishedRun`). A negative control proves that check refuses a run with

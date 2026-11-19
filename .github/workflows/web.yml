@@ -46,6 +46,12 @@ jobs:
         run: npm run typecheck -w web
       - name: Web unit tests
         run: npm test -w web
+      # The public-run exporter's output must pass the judge replay reader, which lives here (web/src/extras/replay):
+      # a reader change re-runs that cross-check, not only the reader's own tests.
+      - name: Exported run passes the replay reader
+        run: |
+          npm run typecheck -w tools/export-run
+          npm test -w tools/export-run
       - name: Web build (placeholder config; proves it compiles, never deployed)
         env:
           VITE_FIREBASE_API_KEY: ci-build-check
