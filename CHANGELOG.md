@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>`
+  builds a drill site from an OpenStreetMap park relation: its outer ways stitched into rings, its inner rings
+  (private inholdings) kept as holes, clipped to a window, with the relation and window recorded. Grid building
+  refuses a site of more than 480 cells, because the web writes a rebuilt prior in one Firestore batch (every
+  segment, ROW, the incident and up to two events) and a batch holds at most 500 writes.
+  Source: review (a drill grid for a second, larger park).
+  Verified: the tests (two outer ways stitched with a hole kept and the source recorded; a window clip with its
+  window recorded; a missing relation, an open ring and a window outside the park refused; a 3 km square refused
+  at 480 cells; the CLI writes the site and refuses a missing relation or a malformed window) failed first, now 30
+  grid-builder tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - `deleteIncidentMediaNow` also deletes the incident's photo consent records, with the photos and their
   readings.
   Source: the photo consent rules (consents are deleted with the media).
