@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/hygiene_guard.py` also refuses, in a public repository, more words of the build process and of private
+  notes, and a build work stream named as a role; its `PATTERN` lists them. Git branch names such as lane-web and
+  lane-android do not match.
+  Source: review (public-repository hygiene: a rule kept as a check, not a memory).
+  Verified: the test (13 planted phrases, one per pattern, each fail with `--public`; branch names in git commands and
+  ordinary uses of "lane" pass) failed first, now all 7 guard tests pass; `--public` on main lists 152 hits, none in
+  this file's folders; `bash scripts/ci-local.sh --gates` exit 0.
 - The root CHANGELOG is reworded for the public repository in plain engineering words: the parts of the product
   (the backend, the command post, the iPhone app, the Android app, the judge extras) instead of the build's internal
   names for its work streams and branches, "adversarial review" and "decision" instead of the build process's words,
