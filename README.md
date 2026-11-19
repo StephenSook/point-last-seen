@@ -55,8 +55,8 @@ your own Firebase project (below). Running the checks needs none.
 
 ### The checks, from a clean checkout
 
-You need Node 22 (CI's version; `npm ci` warns that the Firebase web SDK asks for Node 24.12, and every check passes
-on 22), Python 3.12 or later (CI's version is 3.12), Java 21 or later (Firebase emulators and Android; JDK 25 works), the Firebase CLI 15 and
+You need Node 22 or 24 (CI runs every check on 22, and the engine, the tools, the web app and the functions typecheck
+on 24 too; on 22, `npm ci` warns that the Firebase web SDK asks for Node 24.12), Python 3.12 or later (CI's version is 3.12), Java 21 or later (Firebase emulators and Android; JDK 25 works), the Firebase CLI 15 and
 gitleaks 8. For iOS: Xcode 27 and XcodeGen 2.45. For Android: the Android SDK.
 
 ```bash
