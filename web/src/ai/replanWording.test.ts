@@ -193,3 +193,34 @@ describe("wordPlan with the cloud paused", () => {
     expect(out.notice).toBe("Cloud paused by command. The plan below uses fixed wording.");
   });
 });
+
+describe("a model attempt whose answer was not used", () => {
+  it("is kept apart from the fixed-wording route, so an attempt that may have sent the draft stays visible", async () => {
+    const failed = await wordPlan(draft, deps({ generate: async () => { throw httpError(503, "raw"); } }));
+    expect(failed.route).toMatchObject({ path: "rules", reason: "template_fallback" });
+    expect(failed.attempt).toMatchObject({ failure: "error", route: { path: "unknown", stage: "sdk", sdkReported: false, model: "gemini-3.5-flash-lite" } });
+
+    const unread = await wordPlan(draft, deps({ generate: async () => ({ text: "not json", inferenceSource: "in_cloud" }) }));
+    expect(unread.attempt).toMatchObject({ failure: "unreadable", route: { path: "cloud", sdkReported: true } });
+    expect(unread.notice).toBe("The model's wording could not be used. The plan below uses fixed wording.");
+
+    const rejected = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify({ assignments: [], summary: "" }), inferenceSource: "on_device" }) }));
+    expect(rejected.attempt).toMatchObject({ failure: "rejected", route: { path: "on_device", sdkReported: true, model: "chrome-built-in" } });
+
+    const late = await wordPlan(draft, deps({ timeoutMs: 1, generate: () => new Promise(() => {}) }));
+    expect(late.attempt).toMatchObject({ failure: "timeout", route: { path: "unknown", sdkReported: false } });
+  });
+
+  it("is absent when the model's wording was used, or when no model was asked", async () => {
+    expect((await wordPlan(draft, deps({}))).attempt).toBeUndefined();
+    expect((await wordPlan(draft, deps({ killCloud: true }))).attempt).toBeUndefined();
+  });
+});
+
+describe("the plan text's size", () => {
+  it("is the UTF-8 size of the exact prompt the model is sent, for the receipt", async () => {
+    const out = await wordPlan(draft, deps({}));
+    expect(out.promptBytes).toBe(new TextEncoder().encode(planPrompt(draft)).length);
+    expect(out.promptBytes).toBeGreaterThan(0);
+  });
+});

@@ -81,6 +81,13 @@ export function JudgePage() {
       <nav aria-label="Links" className="judge-links">
         <a href="/">Command post</a>
       </nav>
+      {/* The three-minute route, in order; each step jumps to its section on this page. */}
+      <ol aria-label="Three minutes, in order" className="judge-route">
+        <li><a href="#practice-h">Try a practice search</a></li>
+        <li><a href={runFile ? "#extras-replay-h" : "#d1-h"}>Watch the drill replay</a></li>
+        <li><a href="#d2-h">Get this laptop ready</a></li>
+        <li><a href="#model-h">See the cloud model</a></li>
+      </ol>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
       <p className="muted">No login and no key. About three minutes.</p>

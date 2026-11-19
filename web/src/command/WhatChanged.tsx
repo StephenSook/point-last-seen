@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { PlanDraft, WordedPlan } from "../ai/replanWording";
 import { planLimitLine } from "../data/plans";
+import { receiptLines } from "../ai/receipt";
 import { RouteGlyph } from "./RouteGlyph";
 
 type Props = {
@@ -12,6 +13,20 @@ type Props = {
   /** Team names, so the plan a person approves reads "Team 2", not a document id. */
   teams?: readonly { teamId: string; name: string }[];
 };
+
+const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
+  error: "the model call failed",
+  timeout: "the model took too long",
+  unreadable: "its answer could not be read",
+  rejected: "its wording failed the checks",
+};
+
+/** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
+export function whatRan(w: WordedPlan): string[] {
+  const base = { asked: "this laptop first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
+  if (w.attempt) return [...receiptLines({ ...base, route: w.attempt.route }), `Not used: ${WHY[w.attempt.failure]}. The plan uses fixed wording from code.`];
+  return receiptLines({ ...base, route: w.route });
+}
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
 export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [] }: Props) {
@@ -98,6 +113,14 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
               </li>
             ))}
           </ul>
+          {suggested.promptBytes !== undefined && (
+            <details className="receipt">
+              <summary>What ran</summary>
+              {whatRan(suggested).map((l) => (
+                <p key={l} className="small">{l}</p>
+              ))}
+            </details>
+          )}
           <button type="button" className="btn" onClick={approve} disabled={busy !== null}>
             Approve
           </button>

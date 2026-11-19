@@ -139,6 +139,9 @@ button, input, select { font: inherit; color: inherit; }
 .profile-form .check { display: flex; gap: 6px; align-items: center; }
 .profile-form .place { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; }
 .judge { width: min(720px, calc(100% - 32px)); margin: 6vh auto; display: grid; gap: 20px; }
+.judge-route { padding-left: 24px; }
+.judge-route li { margin: 4px 0; }
+.judge-route a { display: inline-block; min-height: 28px; line-height: 28px; }
 .judge h1 { margin: 0; font-size: 28px; }
 .judge section { display: grid; gap: 8px; background: var(--bg-1); border: 1px solid var(--line); padding: 16px; }
 .judge section p { margin: 0; }
