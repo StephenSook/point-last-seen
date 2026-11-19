@@ -133,6 +133,28 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.teamId == "T2")
     }
 
+    /// The journal keeps every report this phone made, but a mission shows and counts only its own
+    /// incident's: a report from an earlier incident never lists under, or shifts, the new one.
+    @Test func aMissionUsesOnlyItsOwnIncidentsReports() async throws {
+        func event(_ incident: String, _ seq: Int) -> EventDoc {
+            EventDoc(eventId: EventID.make(incidentId: incident, deviceId: "uid-1", seq: seq), schemaVersion: 1, incidentId: incident,
+                     teamId: "T1", deviceId: "uid-1", seq: seq, authorUid: "uid-1", role: .searcher, type: .clue, reporter: .searcher,
+                     clientTimeMs: 1_000, serverTime: nil, observedAtMs: nil, position: nil, positionSource: .none, rawText: "x",
+                     inputMethod: .typed, isTrainingInject: false, reading: nil, effect: .none(why: .needsCommand), route: nil,
+                     targetEventId: nil, decision: nil, planVersion: nil, priorVersion: 1)
+        }
+        let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()))
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("scope-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir))
+        try store.append(event("old-incident", 1))
+        try store.append(event("drill-dev-1", 2))
+        #expect(m.missionEntries.isEmpty)
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.missionEntries.map(\.doc.incidentId) == ["drill-dev-1"] && store.entries.count == 2)
+    }
+
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(FakeJoinBackend(), reader)

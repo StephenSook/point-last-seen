@@ -110,9 +110,16 @@ final class AppModel {
         return LinkState.make(online: connectivity.isOnline, waiting: waiting)
     }
 
+    /// This phone's reports for the loaded mission's incident only; the journal keeps every report
+    /// (an earlier incident's stay there for recovery) but a mission never lists or counts another's.
+    var missionEntries: [OutboxEntry] {
+        guard let incidentId = mission?.incidentId else { return [] }
+        return store?.entries.filter { $0.doc.incidentId == incidentId } ?? []
+    }
+
     /// What the Live Activity shows; nil while no pack is loaded.
     var taskStatus: TaskStatus? {
-        mission.map { TaskStatus.make(assignedSegmentIds: $0.assignedSegmentIds, states: store?.entries.map(\.state) ?? []) }
+        mission.map { TaskStatus.make(assignedSegmentIds: $0.assignedSegmentIds, states: missionEntries.map(\.state)) }
     }
 
     /// Shown when command has raised the minimum version above this build. It asks, it does not
@@ -384,7 +391,7 @@ final class AppModel {
     private func recomputePosterior(_ mission: Mission) {
         // Every member's events from the listener plus this phone's journal, once each.
         var byId: [String: EventDoc] = [:]
-        for doc in (store?.teamEvents ?? []) + (store?.entries.map(\.doc) ?? []) { byId[doc.eventId] = doc }
+        for doc in (store?.teamEvents ?? []) + missionEntries.map(\.doc) where doc.incidentId == mission.incidentId { byId[doc.eventId] = doc }
         let docs = Array(byId.values)
         posterior = Posterior.compute(prior: mission.prior,
                                       events: EventFilter.toEngineEvents(docs, priorInputEventIds: mission.priorInputEventIds),

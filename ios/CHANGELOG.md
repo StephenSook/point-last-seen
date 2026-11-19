@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a mission lists and counts only its own incident's reports
+- What: the task list, the task status and the probability over the team's segments read the
+  whole journal, so after a phone moved to a new incident, an earlier incident's reports showed
+  under the new mission and a clear on a same-named segment shifted its probability. `missionEntries`
+  keeps only the loaded incident's reports, and the probability also takes only that incident's
+  events from the listener. The journal itself keeps every report (an earlier incident's stay for
+  recovery), and the link glyph still counts every report not yet sent.
+- Source: review.
+- Verified: a test puts one report from an earlier incident and one from the mission's incident in
+  the journal; the mission shows only its own while the journal keeps both; it failed to compile,
+  then passed; 94 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): a phone number that mixes written and spoken digits is still removed
 - What: written digit runs and spoken digit words were checked separately, so a dictated
   "404 five five five 0123" passed both checks and reached the model. One scanner now counts

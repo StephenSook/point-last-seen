@@ -63,7 +63,7 @@ struct TaskView: View {
                 }
                 // Re-checked each second so the 5-second Undo goes away on time.
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    List(model.store?.entries.reversed() ?? [], id: \.eventId) { entry in
+                    List(model.missionEntries.reversed(), id: \.eventId) { entry in
                         ReportEchoView(entry: entry, retry: { model.retry(entry.eventId) },
                                        canUndo: model.canUndo(entry.eventId), undo: { model.undo(entry.eventId) })
                             .listRowBackground(theme.backgroundColor)
