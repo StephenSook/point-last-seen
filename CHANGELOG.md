@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/ci-local.sh` takes `--gates`, `--ts`, `--rules`, `--web`, `--ios` and `--android` to run one platform's
+  checks (no flag runs them all), and a missing tool no longer stops the run: its section says "NOT RUN, <tool> is
+  not installed" and the script ends with exit 2 and the list of what did not run, never "all checks passed". Exit
+  0 means every check ran and passed, 1 that a check failed. The web section now also runs web.yml's no-backend
+  browser checks against its placeholder build, once `web/e2e/ci.config.ts` can preview a temp folder
+  (`PLS_PREVIEW_DIR`); until then they are listed as not run.
+  Source: review (a fresh clone stopped at the first missing tool and could not run one platform; the browser
+  checks were not mirrored).
+  Verified: the tests (`--help` names every flag; an unknown flag exits 64; `--ios` with swift hidden exits 2 with
+  the NOT RUN line and no pass line) failed first, now pass; a full run exits 2, listing only the browser checks,
+  with every other check passing; the browser checks pass separately on the placeholder build (9 passed).
 - `scripts/rules_gate.py` and `scripts/hygiene_guard.py` work on a copy with no `.git` (a ZIP download): they say
   "not a git checkout" and walk the files on disk, skipping dependency, build and cache folders, instead of failing
   on `git ls-files`. Every check still applies, and the walked-file floors still refuse an empty walk.
