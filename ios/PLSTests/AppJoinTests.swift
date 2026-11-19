@@ -89,6 +89,32 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.assignment == nil)
     }
 
+    /// After sign-in the claims are read fresh from the server, so a team change command made
+    /// since the last token reaches the phone; with no signal, the cached token answers.
+    @Test func afterSignInTheClaimsAreReadFresh() async throws {
+        let backend = FakeJoinBackend()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()))
+        await m.trySignIn()
+        #expect(backend.claimRefreshes == [true] && m.mission?.teamId == "T1")
+        backend.refreshFails = true
+        await m.trySignIn()
+        #expect(backend.claimRefreshes == [true, true, false] && m.mission?.teamId == "T1")
+    }
+
+    @Test func aTeamChangeFollowsTheClaimsAndALostRoleDropsTheMission() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T2" && reader.stops == 1)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        #expect(m.mission == nil && reader.stops == 2)
+    }
+
     /// A slow load from before (launch) never replaces a join that finished after it started.
     @Test func aSlowEarlierLoadNeverReplacesANewerJoin() async throws {
         let backend = FakeJoinBackend()

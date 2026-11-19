@@ -34,8 +34,9 @@ protocol JoinBackend: Sendable {
     func callJoin(_ payload: [String: String]) async throws -> JSONValue
     /// The ID token's claims after a forced refresh, so the claims the callable just set are in it.
     func refreshClaims() async throws -> [String: JSONValue]
-    /// The claims the token already has (at launch), or nil when there is no signed-in user.
-    func currentClaims() async -> [String: JSONValue]?
+    /// The token's claims, read fresh from the server when `forceRefresh` (so a team change since
+    /// the last token counts), or the cached token's; nil with no signed-in user or when a refresh fails.
+    func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]?
 }
 
 enum JoinOutcome: Equatable, Sendable {
@@ -106,8 +107,8 @@ struct FirebaseJoinBackend: JoinBackend {
         return try await user.getIDTokenResult(forcingRefresh: true).claims.mapValues(FirestoreJSON.value)
     }
 
-    func currentClaims() async -> [String: JSONValue]? {
-        guard let user = Auth.auth().currentUser, let token = try? await user.getIDTokenResult() else { return nil }
+    func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? {
+        guard let user = Auth.auth().currentUser, let token = try? await user.getIDTokenResult(forcingRefresh: forceRefresh) else { return nil }
         return token.claims.mapValues(FirestoreJSON.value)
     }
 }

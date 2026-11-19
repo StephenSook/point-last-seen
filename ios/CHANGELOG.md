@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): after sign-in, the mission follows the token's claims read fresh from the server
+- What: resuming trusted the cached ID token and ran only when no mission was loaded, so a
+  searcher command moved from T1 to T2 kept T1's mission and assignment. After every sign-in (at
+  launch, and when signal returns) the claims are now read with a forced refresh, falling back to
+  the cached token only when the refresh fails (no signal). The mission follows them: unchanged
+  claims change nothing, a new team loads that team's mission, and claims that no longer name a
+  searcher's incident drop the mission and stop its plan listener.
+- Source: review.
+- Verified: two tests (the claims are refreshed after sign-in and the cached token answers when
+  the refresh fails; a team change loads the new team and a lost searcher role drops the mission
+  and its listener) failed to compile, then passed; 91 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): a slow earlier mission load never replaces a newer join
 - What: a load started at launch for the token's team could finish after a join for another team
   and replace that mission, so reports would go out under the old team. Every join and load now

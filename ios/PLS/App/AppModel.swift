@@ -224,6 +224,15 @@ final class AppModel {
         }
     }
 
+    /// The token no longer names this phone's mission: it stops listening and loads nothing.
+    private func dropMission() {
+        missionGeneration += 1
+        stopPlanWatch?()
+        stopPlanWatch = nil
+        mission = nil
+        refreshGate()
+    }
+
     /// Listens for plans command approves after the mission loaded, so a new assignment reaches
     /// this phone (and is spoken once) without a new join.
     private func watchPlans(incidentId: String, teamId: String) {
@@ -244,11 +253,20 @@ final class AppModel {
         await load(mission)
     }
 
-    /// A searcher who joined before (the token names an incident and a team) gets the mission back
-    /// after sign-in, at launch or when signal returns.
+    /// After every sign-in (at launch, and when signal returns) the mission follows the token's
+    /// claims, read fresh from the server: a searcher who joined before gets it back, a team
+    /// command changed gets the new team's mission, and claims that no longer name a searcher's
+    /// incident drop it. With no signal the cached token answers; with no token, nothing changes.
     private func resumeMission() async {
-        guard mission == nil, let claims = await joinBackend.currentClaims(), claims["role"] == .string("searcher"),
-              case let .string(incidentId)? = claims["inc"], case let .string(teamId)? = claims["team"] else { return }
+        var claims = await joinBackend.currentClaims(forceRefresh: true)
+        if claims == nil { claims = await joinBackend.currentClaims(forceRefresh: false) }
+        guard let claims else { return }
+        guard claims["role"] == .string("searcher"), case let .string(incidentId)? = claims["inc"],
+              case let .string(teamId)? = claims["team"] else {
+            if mission != nil { dropMission() }
+            return
+        }
+        if mission?.incidentId == incidentId, mission?.teamId == teamId { return }
         let before = missionGeneration
         let message = await loadMission(incidentId: incidentId, teamId: teamId)
         // Superseded by a join meanwhile: that join's words stay.
