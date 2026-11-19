@@ -253,6 +253,26 @@ describe("startJudgeSession and a sandbox made before setup was tracked", () => 
     expect(((await legacy(uid).get()).get("expiresAt") as Timestamp).toMillis()).toBeLessThanOrEqual(NOW + HOUR);
     expect((await counter.get()).exists).toBe(false);
   });
+  it("the check compares document ids, not counts: the right number of the wrong segments is short (review)", async () => {
+    const uid = await freshUid();
+    await fullLegacy(uid, { segments: ["AA", "AB", "ZZ"], teams: ["T1", "T2"] });
+    expect((await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, cfg)).incidentId).toMatch(attemptId(uid));
+  });
+  it("without the seed a legacy sandbox is never promoted (review)", async () => {
+    const uid = await freshUid();
+    await fullLegacy(uid);
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, { ...cfg, seedIncidentId: "NONE" }))
+      .rejects.toMatchObject({ code: "failed-precondition" });
+    expect((await legacy(uid).get()).get("setupReady")).toBeUndefined();
+    expect(await claims(uid)).not.toHaveProperty("inc");
+    // An empty one matched an absent seed on counts (0 and 0) and was promoted.
+    const uid2 = await freshUid();
+    await legacy(uid2).set({ mode: "judge", status: "open", createdAt: Timestamp.fromMillis(NOW), expiresAt: Timestamp.fromMillis(NOW + DAY) });
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid2, NOW + HOUR, { ...cfg, seedIncidentId: "NONE" }))
+      .rejects.toMatchObject({ code: "failed-precondition" });
+    expect((await legacy(uid2).get()).get("setupReady")).toBeUndefined();
+    expect(await claims(uid2)).not.toHaveProperty("inc");
+  });
 });
 
 describe("deleteEndedSandboxes", () => {

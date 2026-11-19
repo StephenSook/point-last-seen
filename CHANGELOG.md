@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A practice search made before setup was tracked is kept only when it holds every one of the seed's segment and
+  team ids (and the shared profile when the seed has one), and never without the seed. The check used to compare
+  counts, so the right number of the wrong segments passed, and an empty sandbox matched an absent seed (0 and 0)
+  and was promoted.
+  Source: review (round 2 on the functions: check expected document ids, not counts, and require the seed).
+  Verified: the tests (three segments with one wrong id is short; an empty or a whole legacy sandbox with no seed is
+  refused, unflagged and given no role) failed first, now all 19 judge-session tests pass.
 - A practice-search copy that throws part way closes its writer before the error leaves, so every write it started
   has finished before the setup is let go and a retry begins. Before, an error thrown while the copy was still
   reading the seed skipped `close()`, and its started writes could land after the claim was released.

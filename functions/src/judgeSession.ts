@@ -62,12 +62,18 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
   if (failed !== undefined) throw failed;
 }
 
-/** Whether a sandbox holds the seed's whole copy: as many segments and teams, and the shared profile if the seed has one. */
+/**
+ * Whether a sandbox holds the seed's whole copy: every one of the seed's segment and team ids, and the shared profile
+ * if the seed has one. With no seed there is nothing to check against, so nothing is promoted.
+ */
 async function copyIsComplete(seed: DocumentReference, to: DocumentReference): Promise<boolean> {
-  const count = async (ref: DocumentReference, sub: string) => (await ref.collection(sub).count().get()).data().count;
-  for (const sub of ["segments", "teams"]) if ((await count(seed, sub)) !== (await count(to, sub))) return false;
+  if (!(await seed.get()).exists) throw new HttpsError("failed-precondition", NO_SEED);
+  for (const sub of ["segments", "teams"]) {
+    const have = new Set((await to.collection(sub).listDocuments()).map(d => d.id));
+    if ((await seed.collection(sub).listDocuments()).some(d => !have.has(d.id))) return false;
+  }
   const [a, b] = await Promise.all([seed.collection("profile").doc("shared").get(), to.collection("profile").doc("shared").get()]);
-  return a.exists === b.exists;
+  return !a.exists || b.exists;
 }
 
 /**
