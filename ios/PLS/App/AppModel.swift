@@ -12,6 +12,8 @@ final class AppModel {
     let location = LocationProvider()
     let gate = LiveGateBox(LiveGate(networkOnline: false, cloudConsent: false, killCloud: false, incidentMode: nil))
     let signIn: SignIn
+    /// Loads Apple's on-device model ahead of the first read (a seam for tests).
+    private let prewarm: @MainActor () -> Void
     private(set) var signedIn = false
 
     /// This build's version (CFBundleShortVersionString), compared with `minimum_version_ios`.
@@ -58,7 +60,9 @@ final class AppModel {
          measurements: MeasurementWriter? = nil,
          readReport: ReadReport? = nil,
          joinBackend: JoinBackend? = nil,
-         missionReader: MissionReader? = nil) {
+         missionReader: MissionReader? = nil,
+         prewarm: @escaping @MainActor () -> Void = { ModelSessionFactory.prewarmIfAvailable() }) {
+        self.prewarm = prewarm
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
@@ -401,6 +405,8 @@ final class AppModel {
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
+        // A new mission: Apple's model is loaded now, so the first report is not read cold.
+        if newIncident || newTeam { prewarm() }
         let generation = missionGeneration, assignment = mission.assignment
         let incidentId = mission.incidentId, teamId = mission.teamId
         await speaker.update(assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,

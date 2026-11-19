@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): loading a mission warms the on-device model
+- What: `ModelSessionFactory.prewarm()` existed but nothing called it, so the first report after a
+  mission loaded was read by a cold model. On a real iPhone that first guided read ran into its
+  20-second stage limit and rules stood in. Loading a new mission (a new incident or team) now
+  warms Apple's on-device model when it is available.
+- Source: device run (route record path rules, stage deterministic_parser, latencyMs 21084).
+- Verified: a test counts the warm-up: none before a join, one after the mission loads, none for a
+  newer plan of the same mission. It failed to compile before the change and passes after; 113 app
+  tests pass. The effect on read time is measured on the phone separately.
+
 ### docs(ios): restore the changelog headings a merge dropped
 - What: a merge of main into a profile branch kept one side in the changelog's conflicting part,
   which removed 24 entry headings, their blank lines and 8 "Source: review." lines; entries ran

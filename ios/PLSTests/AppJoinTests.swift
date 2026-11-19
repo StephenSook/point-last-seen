@@ -74,6 +74,22 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                  joinBackend: backend, missionReader: reader)
     }
 
+    /// Loading a mission warms Apple's on-device model, so the first report is not read cold; a
+    /// newer plan for the same mission does not warm it again.
+    @Test func loadingAMissionWarmsTheOnDeviceModel() async throws {
+        final class Count: @unchecked Sendable { var n = 0 }
+        let count = Count()
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: try drillDocs()),
+                         prewarm: { count.n += 1 })
+        #expect(count.n == 0)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission?.teamId == "T1" && count.n == 1)
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 5, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(count.n == 1)
+    }
+
     /// A plan command approves after the mission loaded reaches the phone: the assignment changes
     /// and is spoken once; the same plan again says nothing; a plan with no task for this team
     /// clears it without speaking.
