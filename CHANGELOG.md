@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/SECURITY.md` row 14: App Check on Firestore and Storage is UNENFORCED (monitoring only, nothing refused)
+  since 2026-11-19 01:33 UTC, read back by GET; enforcement follows a 24-hour read of verified against unverified
+  requests per app; the rollback is to set the mode back.
+  Source: the approved monitoring step before enforcement.
+  Verified: both services' GET returned UNENFORCED at 01:33:35 and 01:33:36 UTC; a token-less ops/storage read
+  still passed afterwards; `bash scripts/ci-local.sh` exit 0.
 - The live probe workflow gives the media check the CI App Check debug token, so its `ops/storage` read carries a
   token.
   Source: the media probe fix.
