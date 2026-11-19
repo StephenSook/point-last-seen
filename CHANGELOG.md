@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- CI runs the public-run exporter's typecheck and tests in the engine workflow's `ts` job, and
+  `scripts/ci-local.sh` mirrors it.
+  Source: the exporter commit.
+  Verified: `bash scripts/ci-local.sh` exit 0, with the exporter's typecheck and 12 tests in its log.
 - `tools/export-run` exports a drill incident as the public run the judge replay reads:
   `npm run export -w tools/export-run -- --incident <id> --out <file>`. It reads the incident, segments, teams,
   devices and their read timings, events and plans through the Firestore REST API, writes only the contract's

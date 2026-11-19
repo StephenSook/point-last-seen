@@ -33,6 +33,8 @@ npm run lint -w shared/engine-ts
 npm test -w shared/engine-ts
 npm run typecheck -w tools/grid-builder
 npm test -w tools/grid-builder
+npm run typecheck -w tools/export-run
+npm test -w tools/export-run
 
 echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check
