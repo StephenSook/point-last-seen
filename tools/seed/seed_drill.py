@@ -169,12 +169,12 @@ def keychain_store(service: str, account: str, value: str) -> None:
         raise SystemExit(f"Keychain read-back failed for {service}")
 
 
-MAX_TEAMS = 10  # a plan holds at most 10 assignments (firestore.rules validAssignments), one a team
+MAX_TEAMS = 8  # a plan holds at most 8 assignments (firestore.rules validAssignments), one a team
 TEAM_ID = re.compile(r"[A-Za-z0-9_]{1,32}")
 
 
 def check_teams(teams: list[str]) -> list[str]:
-    """1 to 10 distinct team ids, each one a push can reach (no "-", the topic separator), never "family"."""
+    """1 to 8 distinct team ids, each one a push can reach (no "-", the topic separator), never "family"."""
     if not 1 <= len(teams) <= MAX_TEAMS:
         raise SystemExit(f"a drill needs 1 to {MAX_TEAMS} teams; got {len(teams)}")
     if len(set(teams)) != len(teams):
