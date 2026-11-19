@@ -41,6 +41,8 @@ final class AppModel {
     static let alertsAskedKey = "pls.alertsAsked"
     /// True while the one-time alerts question should show (after a join, before an answer).
     private(set) var offersAlerts = false
+    /// Counts taps on new-assignment pushes; the screen returns to the task on each.
+    private(set) var openTaskRequests = 0
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
@@ -293,6 +295,14 @@ final class AppModel {
         case .notAsked:
             offersAlerts = !defaults.bool(forKey: Self.alertsAskedKey)
         }
+    }
+
+    /// A tapped new-assignment push: when it names another incident or team than the one loaded (a
+    /// team change, or a tap that launched the app), the mission follows the token's claims first;
+    /// then the task screen opens, where the plan listener shows and speaks the assignment.
+    func openedPush(_ payload: PushPayload) async {
+        if mission?.incidentId != payload.incidentId || mission?.teamId != payload.teamId { await trySignIn() }
+        openTaskRequests += 1
     }
 
     /// The searcher's answer to the alerts question; asked once, whatever the answer.

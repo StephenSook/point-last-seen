@@ -58,6 +58,7 @@ targets:
       path: PLS/PLS.entitlements
       properties:
         com.apple.developer.devicecheck.appattest-environment: production
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field

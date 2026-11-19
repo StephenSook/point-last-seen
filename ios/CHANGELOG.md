@@ -5,6 +5,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): hand the APNs token to Firebase Messaging and open the task from a tapped push
+- What: an app delegate hands iOS's APNs token to Firebase Messaging, so the team's topic can reach
+  this phone once the APNs key is in FCM, and routes a tapped new-assignment push by its ids only.
+  A tap that arrives before the app is ready waits in a small inbox. Opening a push brings the task
+  screen back from wherever the searcher was; when the push names another incident or team than
+  the one loaded (a team change, or a tap that launched the app), the mission first follows the
+  token's claims. In the foreground the push only lists in Notification Center, since the plan
+  listener already shows and speaks the assignment. The entitlements gain `aps-environment`
+  (development; an App Store archive signs it for production), and the Ready check link is value
+  based so the task screen can be brought back.
+- Source: lane A's server half of new-assignment pushes (P-06).
+- Verified: three tests (a push for the loaded mission opens the task; a push for another team
+  follows the claims first; a tap before the app is ready waits in the inbox) failed to compile,
+  then passed; 106 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0. Live delivery
+  waits on the APNs key in FCM.
+
 ### feat(ios): ask once, after the join, whether new assignments may reach a locked screen
 - What: once a mission loads and the phone has never asked, the task screen shows one sentence,
   "Turn on alerts so a new assignment reaches you on a locked screen.", with "Turn on alerts" and
