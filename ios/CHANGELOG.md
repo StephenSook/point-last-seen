@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): ask once, after the join, whether new assignments may reach a locked screen
+- What: once a mission loads and the phone has never asked, the task screen shows one sentence,
+  "Turn on alerts so a new assignment reaches you on a locked screen.", with "Turn on alerts" and
+  "Not now". "Turn on alerts" shows iOS's question and, when allowed, registers for pushes; either
+  answer is remembered, so it is asked once. When alerts are already allowed, the phone only
+  registers; when refused, it stays quiet.
+- Source: lane A's server half of new-assignment pushes (P-06).
+- Verified: three tests (the offer shows after a join, registers when allowed and stays answered
+  after a relaunch; "Not now" asks nothing; already allowed only registers) failed to compile, then
+  passed; the text is Title 3; 103 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### feat(ios): follow the team's push topic while its mission is loaded
 - What: once a mission loads, the phone subscribes to its team's topic (`pls-{incidentId}-{teamId}`)
   through Firebase Cloud Messaging; when the team changes it leaves the old topic and joins the new

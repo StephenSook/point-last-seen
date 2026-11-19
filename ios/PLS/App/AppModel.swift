@@ -35,6 +35,12 @@ final class AppModel {
     /// The team's push topic this phone follows; nil until a subscription has gone through.
     private let pushTopics: PushTopics
     @ObservationIgnored private var subscribedTopic: String?
+    /// Notification permission, and where "asked once" is kept.
+    private let alerts: AlertPermission
+    private let defaults: UserDefaults
+    static let alertsAskedKey = "pls.alertsAsked"
+    /// True while the one-time alerts question should show (after a join, before an answer).
+    private(set) var offersAlerts = false
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
@@ -58,11 +64,15 @@ final class AppModel {
          readReport: ReadReport? = nil,
          joinBackend: JoinBackend? = nil,
          missionReader: MissionReader? = nil,
-         pushTopics: PushTopics? = nil) {
+         pushTopics: PushTopics? = nil,
+         alerts: AlertPermission? = nil,
+         defaults: UserDefaults = .standard) {
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
         self.pushTopics = pushTopics ?? FirebasePushTopics()
+        self.alerts = alerts ?? SystemAlerts()
+        self.defaults = defaults
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -250,6 +260,7 @@ final class AppModel {
             await load(mission)
             watchPlans(incidentId: incidentId, teamId: teamId)
             await followTopic()
+            await refreshAlerts()
             return nil
         } catch let failure as MissionBuilder.Failure {
             return failure.message
@@ -267,6 +278,28 @@ final class AppModel {
         mission = nil
         refreshGate()
         await followTopic()
+    }
+
+    /// With a mission loaded: alerts already allowed only register; not yet asked shows the one-time
+    /// question; refused stays quiet.
+    private func refreshAlerts() async {
+        guard mission != nil else { offersAlerts = false; return }
+        switch await alerts.current() {
+        case .allowed:
+            offersAlerts = false
+            await alerts.registerForPushes()
+        case .refused:
+            offersAlerts = false
+        case .notAsked:
+            offersAlerts = !defaults.bool(forKey: Self.alertsAskedKey)
+        }
+    }
+
+    /// The searcher's answer to the alerts question; asked once, whatever the answer.
+    func answerAlerts(_ allow: Bool) async {
+        defaults.set(true, forKey: Self.alertsAskedKey)
+        offersAlerts = false
+        if allow, await alerts.request() { await alerts.registerForPushes() }
     }
 
     /// Follows the loaded mission's team topic: subscribes to it, leaves the one before, and leaves
