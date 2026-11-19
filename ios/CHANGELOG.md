@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): join an incident as a searcher through the joinIncident callable
+- What: `Joiner` signs in, calls joinIncident (us-central1, limited-use App Check tokens, as the
+  callable enforces App Check with replay protection), forces an ID-token refresh, and counts as
+  joined only when the new claims name the incident, the searcher role and the team asked for.
+  Every refusal reads in plain words, by the callable's error code: a wrong code or team, the
+  hour's ten attempts spent ("Too many join attempts. Try again in an hour.", the server's own
+  words), App Check, no connection. Adds the FirebaseFunctions product.
+- Source: plan task, joining an incident on the iPhone; the callable's contract in
+  `functions/src/join.ts`; the Android family app's claims check.
+- Verified: six tests (call order with the forced refresh and the exact request; claims for
+  another team or incident refused; no sign-in calls nothing; every refusal's words; the error
+  codes' mapping; the region and limited-use option) failed to compile, then passed; the CI
+  mirror `bash scripts/ci-local.sh` exit 0; 77 app tests pass.
+
 ### feat(ios-core): check a searcher's join code and team on the phone before calling
 - What: `JoinCode` reads a code the way the joinIncident callable does (case, spaces and hyphens
   ignored; 8 symbols of the Crockford alphabet, no I, L, O or U). `SearcherJoin` builds the
