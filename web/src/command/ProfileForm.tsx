@@ -3,7 +3,7 @@
 // (never packed). Medication details stay on the family phone, so this form
 // has no field for them.
 
-import type { DementiaType, FamilyProfile, Place, ProfileFlags } from "@pls/engine";
+import { namesToCall, type DementiaType, type FamilyProfile, type Place, type ProfileFlags } from "@pls/engine";
 import { useState, type FormEvent, useRef } from "react";
 import type { LatLon } from "../map/geo";
 
@@ -105,7 +105,13 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
     <form className="sighting-form profile-form" onSubmit={save} aria-labelledby="profile-h">
       <h2 id="profile-h" className="label">Who we are looking for</h2>
       {text("answersTo", "Answers to")}
-      {text("nickname", "Nickname")}
+      {p.otherNames !== undefined ? (
+        // The family keeps a list of names in their app; its first entry is the nickname, so a nickname
+        // edited here would be overwritten. The list is shown, not edited, here.
+        <p className="small">{`Names they answer to: ${namesToCall(p).join(", ") || "none given"}. The family keeps this list in their app.`}</p>
+      ) : (
+        text("nickname", "Nickname")
+      )}
       <div className="two">
         <label>
           Age
