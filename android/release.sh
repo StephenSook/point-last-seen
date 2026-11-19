@@ -16,4 +16,6 @@ apk=app/build/outputs/apk/release/app-release.apk
 ./scan-apk.sh "$apk"
 # The offline 911 script screen ships: check the exact signed file says so.
 ./check-release-config.sh "$apk"
+# A newer release must install as an update over an older one: versionCode is the HEAD commit time.
+./check-version-code.sh "$apk"
 echo "release APK: $apk"

@@ -59,7 +59,10 @@ class SchemaShapeTest {
     }
 
     @Test fun sharedAndCommandProfilesMatchTheirSchemas() {
-        assertEquals(props("subject-profile.schema.json", "SharedProfile"), Profiles.forSearchers(SubjectProfile()).toMap().keys)
+        // trackingAids is optional: an answered profile carries every schema key, an unanswered one all but that key.
+        val answered = SubjectProfile(trackingAids = app.pointlastseen.family.data.TrackingAids(listOf(), ""))
+        assertEquals(props("subject-profile.schema.json", "SharedProfile"), Profiles.forSearchers(answered).toMap().keys)
+        assertEquals(props("subject-profile.schema.json", "SharedProfile") - "trackingAids", Profiles.forSearchers(SubjectProfile()).toMap().keys)
         assertEquals(props("subject-profile.schema.json", "CommandProfile"), Profiles.forCommand(SubjectProfile()).toMap().keys)
     }
 }

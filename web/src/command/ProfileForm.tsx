@@ -3,7 +3,8 @@
 // (never packed). Medication details stay on the family phone, so this form
 // has no field for them.
 
-import { namesToCall, type DementiaType, type FamilyProfile, type Place, type ProfileFlags } from "@pls/engine";
+import { namesToCall, type DementiaType, type FamilyProfile, type Place, type ProfileFlags, type TrackingAid } from "@pls/engine";
+import trackingFile from "../../../shared/constants/tracking-aids.json";
 import { useState, type FormEvent, useRef } from "react";
 import type { LatLon } from "../map/geo";
 
@@ -20,6 +21,9 @@ const TYPES: [DementiaType | "", string][] = [
   ["frontotemporal", "Frontotemporal"], ["mixed", "Mixed"], ["other", "Other"], ["unknown", "Not known"],
 ];
 const AIDS = ["cane", "walker", "wheelchair", "other"] as const;
+// The tracking aids in card order, with the form's labels, from the shared list the cards use too.
+const TRACKING = trackingFile.aids as { id: TrackingAid; label: string }[];
+const NOTE_DIGITS = /\p{Nd}/u;
 type PlaceList = "previousAddresses" | "placesFrequented";
 
 type Props = {
@@ -74,6 +78,11 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
   // link down; the profile is already saved on this laptop, so the form closes at once.
   function save(e: FormEvent) {
     e.preventDefault();
+    // The rules refuse digits in the note: serials and phone numbers go to the search lead, not the cards.
+    if (p.trackingAids && NOTE_DIGITS.test(p.trackingAids.note)) {
+      setError("Leave out numbers: give serials and phone numbers to the search lead directly.");
+      return;
+    }
     onSave(p, opened.current);
     onClose();
   }
@@ -146,6 +155,51 @@ export function ProfileForm({ initial, onSave, onPickPlace, onPlaceToCheck, onCl
             {a}
           </label>
         ))}
+      </fieldset>
+      <fieldset>
+        <legend>Tracking or ID aids</legend>
+        <label className="check">
+          <input
+            type="radio"
+            name="tracking-known"
+            checked={p.trackingAids === undefined}
+            onChange={() =>
+              setP((x) => {
+                const { trackingAids: _drop, ...rest } = x;
+                return rest as FamilyProfile;
+              })
+            }
+          />
+          Not known yet
+        </label>
+        <label className="check">
+          <input type="radio" name="tracking-known" checked={p.trackingAids !== undefined} onChange={() => set("trackingAids", p.trackingAids ?? { aids: [], note: "" })} />
+          The family answered
+        </label>
+        {p.trackingAids && (
+          <>
+            {TRACKING.map(({ id, label }) => (
+              <label key={id} className="check">
+                <input
+                  type="checkbox"
+                  checked={p.trackingAids!.aids.includes(id)}
+                  onChange={(e) => {
+                    const want = new Set(p.trackingAids!.aids);
+                    if (e.target.checked) want.add(id);
+                    else want.delete(id);
+                    set("trackingAids", { ...p.trackingAids!, aids: TRACKING.map((t) => t.id).filter((t) => want.has(t)) });
+                  }}
+                />
+                {label}
+              </label>
+            ))}
+            <label>
+              Note for teams (no numbers)
+              <input maxLength={trackingFile.noteMaxChars} value={p.trackingAids.note} onChange={(e) => set("trackingAids", { ...p.trackingAids!, note: e.target.value })} />
+            </label>
+            <p className="muted small">Nothing ticked means the family said none.</p>
+          </>
+        )}
       </fieldset>
       <label>
         Type of dementia

@@ -1,6 +1,8 @@
 import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import type { SharedProfile } from "@pls/engine";
 import approachNotes from "../../../shared/constants/approach-notes.json";
+import { answersToLine } from "../data/profile";
 
 // MapLibre looks for its worker next to its own module; after bundling that file is not there. Point it at
 // the bundled worker, as the web app's own MapView does. Setting the same URL twice is harmless.
@@ -30,12 +32,13 @@ export {
   type RankedSegment,
   type RouteRecord,
   type SegmentPrior,
+  type SharedProfile,
 } from "@pls/engine";
 
 // Paper leaves the app's control. Only how-to-approach guidance may print. A note about health, medication,
 // mobility or risk to searchers is never printed, because which notes appear reveals the person's conditions.
 const PRINTABLE_APPROACH_NOTE_IDS: ReadonlySet<string> = new Set([
-  "may_not_respond", "approach_calm", "likely_to_hide", "afraid_of_uniforms", "validate_feelings",
+  "may_not_respond", "approach_calm", "stop_calling_name", "likely_to_hide", "afraid_of_uniforms", "validate_feelings",
   "looking_for_home", "soft_voice", "sensitive_to_touch", "sensitive_to_light",
 ]);
 
@@ -49,3 +52,22 @@ export function printableApproachLines(ids: readonly string[]): string[] {
     return [note.text];
   });
 }
+
+/**
+ * The person lines paper may carry when command ticks the box: the names they answer to, exactly as the approach card
+ * shows them, directly above the stop-calling note (or first, when that note is not shown), then the printable
+ * approach notes. A person may answer only to an old name, and teams carry paper into the field.
+ */
+export function printablePersonLines(shared: SharedProfile | null): string[] {
+  if (!shared) return [];
+  const ids = Array.isArray(shared.approachNoteIds) ? shared.approachNoteIds : [];
+  const notes = ids.flatMap((id) => printableApproachLines([id]).map((text) => ({ id, text })));
+  const lines = notes.map(({ text }) => text);
+  const names = answersToLine(shared);
+  if (names) {
+    const stop = notes.findIndex(({ id }) => id === "stop_calling_name");
+    lines.splice(stop === -1 ? 0 : stop, 0, names);
+  }
+  return lines;
+}
+
