@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import notesFile from "../../../shared/constants/approach-notes.json";
-import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, profileDocs, profileFromDocs, profilePatch, sharedFromDoc } from "./profile";
+import { APPROACH_FOOTER, answersToLine, approachLines, commandWarnings, emptyProfile, profileDocs, profileFromDocs, profilePatch, sharedFromDoc } from "./profile";
 
 const full = {
   ...emptyProfile(),
@@ -143,5 +143,21 @@ describe("profilePatch", () => {
     const patch = profilePatch(opened, { ...opened, nearbyWater: "Clear Creek" });
     expect(patch.shared).toEqual({});
     expect(patch.command).toEqual({ nearbyWater: "Clear Creek" });
+  });
+});
+
+describe("answersToLine", () => {
+  const base = profileDocs(emptyProfile()).shared;
+  it("names every name they answer to: the main one, then the others", () => {
+    expect(answersToLine({ ...base, answersTo: "Roberta", otherNames: ["Bea", "Mom", "Miss Bea"], nickname: "Bea" })).toBe("Answers to Roberta (also Bea, Mom, Miss Bea)");
+  });
+  it("does not repeat the main name, and falls back to the nickname without a list", () => {
+    expect(answersToLine({ ...base, answersTo: "Bea", otherNames: ["Bea", "Mom"], nickname: "Bea" })).toBe("Answers to Bea (also Mom)");
+    expect(answersToLine({ ...base, answersTo: "Roberta", nickname: "Bea" })).toBe("Answers to Roberta (also Bea)");
+    expect(answersToLine({ ...base, answersTo: "Roberta", nickname: "" })).toBe("Answers to Roberta");
+  });
+  it("uses the names alone when no main name was given, and says nothing with none", () => {
+    expect(answersToLine({ ...base, answersTo: "", otherNames: ["Bea", "Mom"], nickname: "Bea" })).toBe("Answers to Bea, Mom");
+    expect(answersToLine({ ...base, answersTo: "", nickname: "" })).toBeNull();
   });
 });

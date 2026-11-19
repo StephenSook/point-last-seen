@@ -1115,3 +1115,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post subscribes to the incident's debriefs and shows the Debriefs section under the plan: every cleared segment from the event stream (its latest clear) and every segment with a debrief. Command saves through `saveDebrief` (create tied to the clear, or edit). A failure to load says "Debriefs could not be loaded." in its place without stopping the post. A new guard, `src/data/debriefScope.test.ts`, fails if any source file other than the debrief module, its section, the post and the harness names debriefs, so no map, probability or plan code can read one.
 - Source: field-expert input (search and rescue practitioner: debrief after a search).
 - Verified: the guard passes and fails on a file planted in `prior/` (removed); it walks more than 100 files; 119 data unit tests and the 5 debrief harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): list every name they answer to on the approach card
+- What: the approach card's names line (`answersToLine`) now gives the main name and then every other name they answer to, from the family's list through `namesToCall` (or the nickname when there is no list), each once: "Answers to Roberta (also Bea, Mom, Miss Bea)". With no main name it lists the others; with no names at all the line is left out. Before, it showed only the nickname.
+- Source: field-expert input (search and rescue practitioner: the names she may answer to).
+- Verified: three new `answersToLine` tests (main plus the list; no repeat of the main name and the nickname fallback; names alone, and none) failed first (missing), then passed; 20 profile unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
