@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
+- Feature: the judge replay shows the run file's own label under its heading (a real drill's export says which drill and when, such as "REAL DRILL, Kennesaw Mountain, 2026-11-22"). A label that only repeats the replay's drill line is not shown twice. The judge harness gains `?run=labelled`. The web lane's judge-page tests now match the drill line exactly (`{ exact: true }`), agreed with the web lane: the served run's label contains the drill sentence, so a substring match would find two elements. Source: drill-day preparation (the Kennesaw Mountain drill). Verified: the new browser check failed first (no label line), then passes; the extras judge checks pass 6 of 6; the web lane's judge-run checks pass 7 of 7 against a built preview; web typecheck exit 0. The full local mirror runs once on the PR head before merge.
+
 - Merge: main (224b182, with the web lane's fixes for two timing-sensitive browser tests) into the extras branch before PR #35 merges. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: web typecheck exit 0. The full local mirror runs once on the PR head; its exit code is in the PR's comment.
 
 - Merge: main (0cd6a21, which adds the shared heavy-run script) into the extras branch. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: the extras unit tests pass 198; web typecheck exit 0. The full local mirror runs once on the PR head before merge.
