@@ -302,10 +302,21 @@ describe("readClip", () => {
     expect(r).toMatchObject({ kind: "read", route: { reason: "on_device_triage_flagged" } });
   });
 
-  it("a model failure keeps only the consent record", async () => {
+  it("a model failure keeps only the consent record, and says a record exists", async () => {
     const t = await setup({ modelThrows: true });
-    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed" });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed", recorded: true });
     expect(t.calls).toEqual(["find", "consent", "upload", "confirm", "model"]);
+  });
+
+  it("a failure before any consent record exists says so, so the next read is not a retry", async () => {
+    const t = await setup();
+    expect(await readClip(t.req, { ...t.deps, findReading: async () => { throw new Error("offline"); } })).toEqual({ kind: "failed", recorded: false });
+    expect(await readClip(t.req, { ...t.deps, writeConsent: async () => { throw new Error("offline"); } })).toEqual({ kind: "failed", recorded: false });
+  });
+
+  it("a failure after finding another seat's record says a record exists", async () => {
+    const t = await setup({ stored: { createdByUid: "someone-else" }, exists: true, modelThrows: true });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed", recorded: true });
   });
 });
 

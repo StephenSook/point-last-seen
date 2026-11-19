@@ -247,3 +247,19 @@ test("a delete while triage runs stops the read: nothing reaches the model", asy
   await expect(page.getByTestId("asked")).toHaveText("");
   await expect(page.getByRole("button", { name: "Read the whole clip in the cloud" })).toHaveCount(0);
 });
+
+test("a read that failed before any consent record existed is not followed by a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=failed-early");
+  await expect(page.getByTestId("calls")).toHaveText("1");
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({});
+});
+
+test("a read that failed after its consent record was written is followed by a retry", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=failed-late");
+  await expect(page.getByTestId("calls")).toHaveText("1");
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({ retry: true });
+});

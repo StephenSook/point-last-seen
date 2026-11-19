@@ -147,8 +147,9 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       const outcome = await onRead(input, how);
       // A delete landed while this read ran: its result belongs to a withdrawn consent and is dropped.
       if (!current()) return;
-      // A reading, a no-sighting result or a model failure all mean the consent record was written.
-      if (outcome.kind !== "refused") reachedCloud.current = true;
+      // A reading or a no-sighting result means the consent record exists; a failure only when it says so (a
+      // failure before the record was written leaves nothing a retry could use).
+      if (outcome.kind === "read" || outcome.kind === "could-not-read" || (outcome.kind === "failed" && outcome.recorded)) reachedCloud.current = true;
       if (outcome.kind === "could-not-read" && how.window) {
         // Offer the rest of the clip, with the consents given for this read.
         setHeld({ input, kind: "window-miss" });

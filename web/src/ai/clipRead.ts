@@ -176,7 +176,8 @@ export function clipReadDeps(io: ClipIo, generate: ClipReadDeps["generate"], now
 export type ClipReadOutcome =
   | { kind: "refused"; message: string }
   | { kind: "could-not-read" }
-  | { kind: "failed" }
+  /** `recorded`: a consent record for these bytes existed or was written before the failure (so a retry can use it). */
+  | { kind: "failed"; recorded?: boolean }
   | {
       kind: "read";
       sha256: string;
@@ -203,8 +204,10 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
   const unchanged = async () => (await sha256Hex(r.bytes)) === sha;
   const { clipSha256: _sha, ...consent } = r.consent;
 
+  let recorded = false;
   try {
     const found = await deps.findReading(sha);
+    recorded = found !== null;
     const storedMiss = !!found?.reading && (found.reading as { status?: unknown }).status === "no_sighting";
     // Older code also stored a miss from a flagged window. That says nothing about the rest of the clip,
     // and a completed record is read-only, so such a clip is read again on the stored record's consent
@@ -230,6 +233,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
           ? takeOverConsent(found, consent, started, r.uid)
           : consentRecord({ incidentId: r.incidentId, sha256: sha, durationS: r.durationS, clipStartMs: r.clipStartMs, clockConfirmed: r.clockConfirmed, cameraFacingDeg: r.cameraFacingDeg, consent, uid: r.uid, nowMs: started }),
       );
+      recorded = true;
     }
     // The pause is read live again here: it may have arrived while the consent record was saving.
     if (halted(r)) return halted(r)!;
@@ -289,6 +293,6 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     if (!oldWindowedMiss) await deps.complete(sha, check.cleaned, route);
     return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false };
   } catch {
-    return { kind: "failed" };
+    return { kind: "failed", recorded };
   }
 }

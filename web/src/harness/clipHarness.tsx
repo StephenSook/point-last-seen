@@ -24,7 +24,13 @@ const FIXED: ClipReadOutcome = {
   },
 };
 const params = new URLSearchParams(location.search);
-const answer = params.get("outcome") === "read" ? FIXED : ({ kind: "could-not-read" } as const);
+// ?outcome=failed-early: the read fails before any consent record exists; failed-late: after one was written.
+const outcomes: Record<string, ClipReadOutcome> = {
+  read: FIXED,
+  "failed-early": { kind: "failed", recorded: false },
+  "failed-late": { kind: "failed", recorded: true },
+};
+const answer: ClipReadOutcome = outcomes[params.get("outcome") ?? ""] ?? { kind: "could-not-read" };
 // ?triage=no-model|no-motion|no-person|flagged: a fixed triage answer (no on-device model here).
 const TRIAGE: Record<string, TriageResult> = {
   "no-model": { kind: "no-model" },
@@ -42,6 +48,8 @@ function Harness() {
   const [asked, setAsked] = useState<ClipIntakeInput | null>(null);
   const [confirmed, setConfirmed] = useState<string>("");
   const [how, setHow] = useState<string>("");
+  // How many reads reached the model fake: a test of a second read waits for it before checking its options.
+  const [calls, setCalls] = useState(0);
   // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
   const [revocation, setRevocation] = useState(0);
   return (
@@ -59,6 +67,7 @@ function Harness() {
         onRead={async (input, h) => {
           setAsked(input);
           setHow(JSON.stringify(h));
+          setCalls((n) => n + 1);
           return answer;
         }}
         onConfirm={(o, input) => {
@@ -76,6 +85,7 @@ function Harness() {
       </button>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
+      <pre data-testid="calls">{calls}</pre>
       <pre data-testid="asked">{asked ? JSON.stringify({ ...asked, bytes: asked.bytes.length }) : ""}</pre>
     </main>
   );
