@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The README says what is true now rather than what is planned: the judge page replays a published drill run and
+  says "No published run yet." until one exists; the iPhone app's public TestFlight link and the Android app's
+  release asset are named as not published yet; and the status line says the project was built for #BuildHybridAI
+  2026 with made-up drill data.
+  Source: review (README tense).
+  Verified: the judge page's wording matches `web/src/judge/JudgePage.tsx`; `gh release list` shows no release;
+  rules_gate and the public hygiene guard exit 0.
 - A rules test pins that the command post's photo tray can list a search's photos: command and family list
   `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
   list clips. A review had read the tray's list as having no matching rule.

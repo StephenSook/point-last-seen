@@ -4,8 +4,8 @@ A search-planning aid for search and rescue training drills, for a person with d
 
 **Judges: open https://buildhybridai-2026-yg3m.web.app/judge.** It needs no account and no key. From there you can
 start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours) and
-check which on-device and cloud models the command post is using. The replay of the published drill run appears there
-after the drill.
+check which on-device and cloud models the command post is using. When a drill run is published, the page replays it;
+until then it says "No published run yet."
 
 ## What it does
 
@@ -19,8 +19,8 @@ profile, notes, photos and camera clips from their own app, and decides which of
 | Platform | Who uses it | How a judge tries it |
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
-| iPhone searcher app | Searchers in the field | TestFlight, once the public build exists |
-| Android family app | The missing person's family | Signed APK as a GitHub release asset |
+| iPhone searcher app | Searchers in the field | TestFlight (the public link is not published yet) |
+| Android family app | The missing person's family | A signed APK as a GitHub release asset (no release is published yet) |
 
 ## How the models are called
 
@@ -31,7 +31,8 @@ profile, notes, photos and camera clips from their own app, and decides which of
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
 
-Status: in development for #BuildHybridAI 2026. Training drill use only: nobody in any drill is missing.
+Status: built for #BuildHybridAI 2026. Training drill use only: every drill uses made-up data, and nobody in any drill
+is missing.
 
 ## Layout
 
