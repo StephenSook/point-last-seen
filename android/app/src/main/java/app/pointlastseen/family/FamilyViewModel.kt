@@ -33,6 +33,7 @@ import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
 import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
+import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FirebasePhotoBucket
 import app.pointlastseen.family.data.FirestorePhotoConsentSink
 import app.pointlastseen.family.data.FirestoreEventStore
@@ -72,6 +73,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = PrefsStore(app, "pls")
     private val session = Session(prefs)
     private val profileStore = ProfileStore(PrefsStore(app, "pls-profile"))
+    private val familyTopic = FamilyTopic.firebase()
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     val rc = RcStore(FirebaseRcSource(Firebase.remoteConfig))
@@ -113,7 +115,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it) }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
         // After a restart in the gone-and-joined state, write the profile again (idempotent).
         publishIfGone()
@@ -154,6 +156,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
     fun leaveSearch() {
         watch.stop()
+        session.incidentId()?.let { familyTopic.left(it) }
         session.leave()
         prefs.remove(GONE)
         nav = Nav.leave(nav)
@@ -173,6 +176,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 is JoinOutcome.Joined -> {
                     session.joined(out.incidentId)
                     watch.watch(out.incidentId)
+                    familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
                 }
                 is JoinOutcome.Failed -> joinError = out.message

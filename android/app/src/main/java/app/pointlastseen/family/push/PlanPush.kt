@@ -19,6 +19,9 @@ object PlanPush {
     fun topic(incidentId: String, teamId: String): String? =
         if (INCIDENT_PART.matches(incidentId) && TEAM_PART.matches(teamId)) "pls-$incidentId-$teamId" else null
 
+    /** The family's topic for an incident: neutral notices and the search lead's questions, never outcomes. */
+    fun familyTopic(incidentId: String): String? = topic(incidentId, "family")
+
     /** A plan push, or null when any of its three fields is missing or empty. */
     fun parse(data: Map<String, String>): PlanPushData? {
         val incident = data["incidentId"]?.takeIf { it.isNotEmpty() } ?: return null
