@@ -73,8 +73,11 @@ service cloud.firestore {
         // The prior moves one version at a time, and its inputs change only with that step, so two seats
         // rebuilding from the same version cannot both land.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',
-              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams'])
-            || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1);
+              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams', 'priorBuiltAt'])
+            || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1)
+        // When the current prior was built, for the replay: the server's time of the write that built it.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorBuiltAt'])
+            || request.resource.data.priorBuiltAt == request.time);
       allow delete: if false;
 
       match /segments/{segmentId} {

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The incident may record when its current prior was built, `priorBuiltAt`, for the drill replay: the rules
+  allow it only in a write that moves `priorVersion` up by exactly 1, and only as the server's time of that write
+  (`request.time`). It is optional, so writers that do not send it are unaffected. The public-run exporter emits
+  it as `priorBuiltAtMs`.
+  Source: review (the replay needs to place the prior exactly).
+  Verified: the tests (refused without a version step and with a client-chosen time; accepted with the next
+  version and the server's time, alone or in a full prior batch) failed first, now 104 rules tests pass in the
+  emulator; `bash scripts/ci-local.sh` exit 0.
 - `docs/LIMITS.md` says what the published drill run leaves out and the one link it keeps: event ids stay as
   stored, so someone who already holds a participant's uid could check which events are theirs (uids are never
   published; every published run is a drill on team-owned devices). It also describes the media revoke marker,
