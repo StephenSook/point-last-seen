@@ -68,7 +68,7 @@ if want gates; then
   python3 -I scripts/hygiene_guard.py .
 
   echo "== gates: schema parity and vector generator tests"
-  "$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py scripts/test_workflow_paths.py scripts/test_ci_local.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
+  "$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py scripts/test_workflow_paths.py scripts/test_ci_local.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py tools/extras/test_build_elevation.py tools/extras/test_publish_scam.py -q
 
   if have gitleaks; then
     echo "== gates: secret scan (full history)"

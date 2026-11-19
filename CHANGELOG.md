@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- CI now runs the two test files under `tools/extras` (the elevation build and the scam-panel publisher, 32 tests),
+  which were named in no pytest list and so had only run by hand. They are added to the gates job's pytest line in
+  `.github/workflows/ci.yml` and to the same line in `scripts/ci-local.sh`, and a new test in
+  `scripts/test_ci_local.py` fails when any Python test file git would ship is named in no workflow's pytest command
+  (by its path or a parent folder), so a new test file cannot be missed again.
+  Source: review (a test file outside every CI list).
+  Verified: the new test failed first naming the two files, now passes, with a companion test that it finds an
+  unlisted file; the gates job's whole pytest line passes locally (185 tests).
 - The rules gate now refuses speech recognition on every platform and says why, and keeps the system voice allowed.
   It already refused Apple's Speech framework and the webkit-prefixed browser recognizer; it now also refuses
   Android's speech recognizer, Android's recognize-speech intent (by class name and by its action string) and the
