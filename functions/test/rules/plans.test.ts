@@ -28,7 +28,12 @@ describe("plan shape", () => {
   });
   it("refuses a doc id that is not the plan's padded version", async () => {
     const db = dbAs(C, commandClaims);
-    for (const [id, v] of [["0005", 4], ["5", 5], ["00x5", 5], ["0000", 0]] as const) await assertFails(setDoc(doc(db, P(id)), plan(v)));
+    // One doc id per version: the exact zero-padded form, so "00016" cannot sit beside "0016" (review).
+    for (const [id, v] of [["0005", 4], ["5", 5], ["00x5", 5], ["0000", 0], ["00016", 16], ["012345", 12345], ["016", 16]] as const) {
+      await assertFails(setDoc(doc(db, P(id)), plan(v)));
+    }
+    await assertSucceeds(setDoc(doc(db, P("0016")), plan(16)));
+    await assertSucceeds(setDoc(doc(db, P("12345")), plan(12345)));
   });
   it("refuses extra or missing fields, a bad hash, a client approval time and non-integer versions", async () => {
     const db = dbAs(C, commandClaims);
@@ -43,7 +48,7 @@ describe("plan shape", () => {
     const db = dbAs(C, commandClaims);
     const bads: Record<string, unknown>[] = [{ extra: true }, { teamId: "T-1" }, { teamId: "x".repeat(33) }, { teamId: 7 },
       { segmentIds: ["AA", "AB", "AC", "AD", "AE", "AF", "AG"] }, { segmentIds: ["x".repeat(17)] }, { segmentIds: ["AA,AB"] },
-      { segmentIds: "AA" }, { segmentIds: [""] }, { taskText: "x".repeat(201) }, { reason: null }];
+      { segmentIds: "AA" }, { segmentIds: [""] }, { segmentIds: [3] }, { segmentIds: ["AA", 3] }, { taskText: "x".repeat(201) }, { reason: null }];
     const { reason: _r, ...noReason } = a(0);
     await assertFails(setDoc(doc(db, P("0001")), plan(1, { assignments: [noReason] })));
     for (const over of bads) {
