@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { practiceErrorMessage, startPracticeSearch } from "./practice";
+import { MissingConfigError, readEnv } from "../firebaseConfig";
 
 const fbErr = (code: string, message: string) => Object.assign(new Error(message), { code });
 
@@ -30,5 +31,18 @@ describe("practiceErrorMessage", () => {
     expect(practiceErrorMessage(fbErr("functions/unavailable", "x"))).toBe("No connection. Try again when the link is back.");
     expect(practiceErrorMessage(fbErr("functions/unauthenticated", "x"))).toBe("This browser could not be checked. Reload and try again.");
     expect(practiceErrorMessage(new Error("boom"))).toBe("The practice search could not start. Try again.");
+  });
+});
+
+describe("practice search on a copy with no Firebase settings", () => {
+  it("names the cause instead of asking to try again", () => {
+    let thrown: unknown;
+    try {
+      readEnv({});
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(MissingConfigError);
+    expect(practiceErrorMessage(thrown)).toBe("This copy has no Firebase settings, so it cannot start a practice search. Use the live site.");
   });
 });

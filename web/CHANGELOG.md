@@ -1270,3 +1270,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the comment above `LIVE_MODEL` in `config/rc.ts` now says the 116 s figure is one sample (116,071 ms) and points at `docs/evidence/model-latency.md`, where the model and the record are now public. The comment does not name the model id, because the rules gate refuses that id on any live path. No code change.
 - Source: evidence file published on main.
 - Verified: the figures match the evidence table on main (one sample, 116,071 ms, 2026-11-17); a first wording that named the model id failed the rules gate ("banned on any live path") and was reworded. Typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(judge): say a copy with no Firebase settings cannot start a practice search
+- What: `readEnv` now throws a named `MissingConfigError` when the build has no Firebase settings, and the judge page's practice search says "This copy has no Firebase settings, so it cannot start a practice search. Use the live site." instead of "The practice search could not start. Try again.", which sent a fresh clone's visitor retrying something that can never work.
+- Source: fresh-clone test of the repository.
+- Verified: the new `practice.test.ts` test (an empty config throws `MissingConfigError`, and its message is the new sentence) failed first, then passed; the 10 practice and config unit tests pass; the judge page catches the error on both of its Firebase calls; typecheck clean. scripts/ci-local.sh exit 0.

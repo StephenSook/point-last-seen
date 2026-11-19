@@ -4,6 +4,7 @@
 
 import { httpsCallable, type Functions } from "firebase/functions";
 import type { Auth } from "firebase/auth";
+import { MissingConfigError } from "../firebaseConfig";
 
 type Deps = { call: () => Promise<{ data: unknown }>; refresh: () => Promise<unknown> };
 
@@ -32,6 +33,8 @@ const SERVER_SENTENCES = new Set([
 ]);
 
 export function practiceErrorMessage(e: unknown): string {
+  // A copy built with no Firebase settings (a fresh clone with no .env) cannot reach the backend at all.
+  if (e instanceof MissingConfigError) return "This copy has no Firebase settings, so it cannot start a practice search. Use the live site.";
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
   const message = e instanceof Error ? e.message : "";
   if ((code.endsWith("resource-exhausted") || code.endsWith("failed-precondition")) && SERVER_SENTENCES.has(message)) return message;
