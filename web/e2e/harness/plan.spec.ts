@@ -54,3 +54,23 @@ test("a draft with more teams than a plan can name says so and cannot be suggest
   await expect(page.getByRole("button", { name: "Suggest plan" })).toBeDisabled();
   await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
 });
+
+test("each suggestion carries a closed What ran receipt: asked for, where it ran, the model, what left the laptop", async ({ page }) => {
+  await page.goto("/harness/plan.html?route=cloud");
+  await page.getByRole("button", { name: "Suggest plan" }).click();
+  const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
+  await expect(receipt.getByText("Ran: in the cloud (reported by the SDK).")).toBeHidden();
+  await receipt.getByText("What ran", { exact: true }).click();
+  await expect(receipt).toContainText("Asked for: this laptop first.");
+  await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
+  await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
+  await expect(receipt).toContainText("Sent: 1,234 bytes of plan text.");
+});
+
+test("the receipt for a plan worded on this laptop says nothing left it", async ({ page }) => {
+  await page.goto("/harness/plan.html?route=on_device");
+  await page.getByRole("button", { name: "Suggest plan" }).click();
+  const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
+  await receipt.getByText("What ran", { exact: true }).click();
+  await expect(receipt).toContainText("Sent: nothing left this laptop.");
+});

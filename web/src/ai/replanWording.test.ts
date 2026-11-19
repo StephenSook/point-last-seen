@@ -216,3 +216,11 @@ describe("a model attempt whose answer was not used", () => {
     expect((await wordPlan(draft, deps({ killCloud: true }))).attempt).toBeUndefined();
   });
 });
+
+describe("the plan text's size", () => {
+  it("is the UTF-8 size of the exact prompt the model is sent, for the receipt", async () => {
+    const out = await wordPlan(draft, deps({}));
+    expect(out.promptBytes).toBe(new TextEncoder().encode(planPrompt(draft)).length);
+    expect(out.promptBytes).toBeGreaterThan(0);
+  });
+});
