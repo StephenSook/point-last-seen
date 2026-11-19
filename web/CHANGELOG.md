@@ -1290,3 +1290,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a build plugin (`src/buildinfo/gridFiles.ts`, `gridFilesPlugin`) copies `shared/grid/piedmont-park-dev.pmtiles` and `.graph.json`, where the grid builder commits them with their provenance and licence, into the build at `tiles/`, and serves the same files in dev. A missing file fails the build. Before, the files lived only in the gitignored `web/public/tiles/`, so a build from a clean checkout had no basemap and no route graph: the deploy of eff2db1 went out that way.
 - Source: live judge walk (the map had no streets and Walkers was off) and the grid files committed to shared/grid.
 - Verified: `src/buildinfo/gridFiles.test.ts` (both files under tiles/; a missing file fails the build) failed first (module missing), then passed; a real build with no `web/public/tiles/` emits both files byte-identical to shared/grid; and before shared/grid was merged in, the same build failed with "shared/grid/piedmont-park-dev.pmtiles is missing". scripts/ci-local.sh exit 0.
+
+### test(smoke): check the deployed site serves the grid's tiles and route graph
+- What: a deployed-only smoke test fetches `/tiles/piedmont-park-dev.pmtiles` (a range of its first bytes) and `/tiles/piedmont-park-dev.graph.json` and requires a real file each time: status 200 or 206, not `text/html`, the "PMTiles" magic bytes, and a non-empty JSON graph with `application/json`. Hosting now answers a missing tile with 404, never the app shell, so a deploy without its map fails here.
+- Source: live judge walk (the tiles came back as the app shell).
+- Verified: against the deployed eff2db1 site it failed ("text/html; charset=utf-8"); after the deploy of 00dccae it passes. scripts/ci-local.sh exit 0.
