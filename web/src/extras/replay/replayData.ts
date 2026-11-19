@@ -296,6 +296,10 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
         ?? (isObj(keyFrame) ? strayField(keyFrame, RUN_FIELDS.keyFrame, "event.reading.sighting.keyFrame") : null);
       if (readingStray) return strayRefusal(readingStray);
     }
+    // A camera sighting's place is the camera's, which is usually at the family's home: it never ships.
+    if (e["type"] === "camera_sighting" && e["position"] !== null && e["position"] !== undefined) {
+      return refuse("The run carries a camera's place. A public run must not.");
+    }
     // A place to check can be a home or a previous address from the family's profile: its position never ships.
     if (e["type"] === "destination" && e["position"] !== null && e["position"] !== undefined) {
       return refuse("The run carries a place from the family's profile. A public run must not.");

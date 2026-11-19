@@ -100,7 +100,8 @@ export type RunSegment = {
  * retract what.
  * `rawText` is always null. `reading` is kept only for a camera sighting, cut to RunCameraReading; a report's
  * reading quotes the report's words, so it is null. A place to check (`type: "destination"`) has `position: null`:
- * it can be a home from the family's profile.
+ * it can be a home from the family's profile. A camera sighting has `position: null` too: the camera is usually at
+ * the family's home.
  */
 export type RunEvent = Omit<EventDoc, "serverTime" | "rawText" | "reading"> & {
   serverTimeMs: number;

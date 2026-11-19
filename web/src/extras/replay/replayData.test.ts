@@ -284,6 +284,12 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [{ ...place, position: null }] })).ok).toBe(true);
   });
 
+  it("refuses a camera sighting that keeps its place: the camera is usually at the family's home", () => {
+    const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", positionSource: "camera_pin", position: { lat: 33.79, lon: -84.37, accuracyM: null }, reading: cameraReading() }), T0);
+    expect(fromPublishedRun(run({ events: [cam] }))).toEqual({ ok: false, reason: "The run carries a camera's place. A public run must not." });
+    expect(fromPublishedRun(run({ events: [{ ...cam, position: null }] })).ok).toBe(true);
+  });
+
   it("refuses a camera reading with any field beyond the times the replay uses", () => {
     const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
     expect(fromPublishedRun(run({ events: [cam] })).ok).toBe(true);
