@@ -49,6 +49,28 @@ func sharedProfileJSON(ids: [String], language: String = "Spanish", unique: Stri
         #expect(written["otherNames"] == .array([.string("Mom"), .string("Peggy")]) && writtenOlder["otherNames"] == nil)
     }
 
+    /// Tracking aids the family named: absent on documents saved before the field (nil, unknown),
+    /// read when present (missing parts read as empty), and written back only when there are some.
+    /// They are for the cards only: the profile a model may see is the same with or without them.
+    @Test func trackingAidsAreReadWhenPresentAndKeptFromTheModel() throws {
+        func profile(_ extra: [String: JSONValue]) throws -> SharedProfile {
+            guard case var .object(o) = sharedProfileJSON(ids: []) else { throw CocoaError(.coderInvalidValue) }
+            for (k, v) in extra { o[k] = v }
+            return try JSONValue.object(o).decode(SharedProfile.self)
+        }
+        let aids: JSONValue = .object(["aids": .array([.string("medicalert_id"), .string("gps_tracker")]), "note": .string("Watch on left wrist")])
+        let named = try profile(["trackingAids": aids])
+        #expect(named.trackingAids == TrackingAids(aids: ["medicalert_id", "gps_tracker"], note: "Watch on left wrist"))
+        let older = try profile([:])
+        #expect(older.trackingAids == nil)
+        #expect(try profile(["trackingAids": .object(["aids": .array([])])]).trackingAids == TrackingAids(aids: [], note: ""))
+        guard case let .object(written) = try JSONValue(encoding: named), case let .object(writtenOlder) = try JSONValue(encoding: older) else {
+            Issue.record("encode"); return
+        }
+        #expect(written["trackingAids"] == aids && writtenOlder["trackingAids"] == nil)
+        #expect(ModelProfile(shared: .object(written)).toolText == ModelProfile(shared: .object(writtenOlder)).toolText)
+    }
+
     /// The rules let command write profile/shared in parts, so a nickname alone is a legal document.
     @Test func aNicknameOnlyDocumentDecodesWithEverythingElseEmpty() throws {
         let p = try JSONDecoder().decode(SharedProfile.self, from: Data(#"{"nickname":"Dottie"}"#.utf8))
