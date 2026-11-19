@@ -154,4 +154,8 @@ each line says what the limit is and why.
   leave that fails is tried again at the next sign-in or push token). Because the push text is fixed, a former member
   learns only that a team in that incident got a new task. Sending to device tokens chosen from current membership on
   the server would close this window; it is not built.
+- On iPhone, a push that arrives while the app is in the background or closed is shown by iOS from its payload as
+  sent: there is no notification service extension, so the app cannot hide or reword it. That is one more reason the
+  server text stays fixed and generic. In the foreground the app shows no banner at all; its plan listener shows and
+  speaks the new task instead.
 - iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

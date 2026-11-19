@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: iOS shows a background push as sent, with no service extension
+- What: LIMITS.md now says that on iPhone a push arriving while the app is in the background or
+  closed is shown by iOS from its payload as sent, since there is no notification service
+  extension to hide or reword it; that is one more reason the server text stays fixed and generic.
+  In the foreground the app shows no banner and its plan listener shows and speaks the new task.
+- Source: review (background push exposure, third round): no extension is added.
+- Verified: read against `PushAppDelegate.foregroundPresentation` (empty, covered by a test) and
+  the project, which has no notification service extension target.
+
 ### docs: a moved or removed searcher's iPhone keeps its old team's topic until the app runs
 - What: LIMITS.md now says that an iPhone leaves its old team's push topic only when the app runs,
   so a searcher command moved or removed while the app was suspended still gets that team's pushes
