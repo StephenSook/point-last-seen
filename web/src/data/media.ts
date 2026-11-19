@@ -33,7 +33,9 @@ export function deleteQuestion(c: MediaCounts): string | null {
 
 export function deletedLine(deleted: number | null): string {
   if (deleted === null) return "The delete finished, but the server did not say how many items it removed.";
-  return `Deleted ${plural(deleted, "item", "items")}: clips, photos and their readings.`;
+  // The server's own number: two deletes running at once can both count the same files, so the dialog
+  // reports it as the server's and then counts what is left.
+  return `The server reports ${plural(deleted, "item", "items")} deleted: clips, photos and their readings.`;
 }
 
 /** The server's count, or null when the reply does not carry a whole, non-negative one. */

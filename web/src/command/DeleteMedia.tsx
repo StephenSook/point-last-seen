@@ -16,10 +16,10 @@ type State =
   | { kind: "counting"; notice: string | null }
   | { kind: "ask"; question: string | null; notice: string | null }
   | { kind: "deleting" }
-  | { kind: "done"; line: string }
   | { kind: "error"; message: string; question: string | null };
 
 const COUNT_FAILED = "The clips and photos could not be counted. Try again.";
+const RECOUNT_FAILED = "what is stored now could not be counted. Close this and open it again to check.";
 
 export function DeleteMedia({ count, run, onClose }: Props) {
   const [state, setState] = useState<State>({ kind: "counting", notice: null });
@@ -27,18 +27,19 @@ export function DeleteMedia({ count, run, onClose }: Props) {
   const countOnce = useRef(count);
   const live = useRef(true);
 
-  // Counts what is stored and asks again; `notice` says why it is counting again, when it is.
-  function recount(notice: string | null) {
+  // Counts what is stored and asks again; `notice` says why it is counting again. A failed count is never
+  // shown as an empty search: it says the count failed and offers no delete.
+  function recount(notice: string | null, failed: string) {
     setState({ kind: "counting", notice });
     countOnce.current().then(
       (c) => live.current && setState({ kind: "ask", question: deleteQuestion(c), notice }),
-      () => live.current && setState({ kind: "error", message: notice ? `${notice} ${COUNT_FAILED}` : COUNT_FAILED, question: null }),
+      () => live.current && setState({ kind: "error", message: failed, question: null }),
     );
   }
 
   useEffect(() => {
     live.current = true;
-    recount(null);
+    recount(null, COUNT_FAILED);
     return () => {
       live.current = false;
     };
@@ -52,12 +53,13 @@ export function DeleteMedia({ count, run, onClose }: Props) {
     } catch (e) {
       const f = deleteFailure(e);
       // A refusal comes before anything is deleted; any other failure leaves the outcome unknown, so count again.
-      if (f.unconfirmed) recount(f.text);
+      if (f.unconfirmed) recount(f.text, `The server did not confirm the delete, and ${RECOUNT_FAILED}`);
       else setState({ kind: "error", message: f.text, question });
       return;
     }
-    if (deleted === null) recount(deletedLine(null));
-    else setState({ kind: "done", line: deletedLine(deleted) });
+    // Whatever the server reports, what is left is counted before anything else is offered.
+    if (deleted === null) recount(deletedLine(null), `The delete finished, but ${RECOUNT_FAILED}`);
+    else recount(deletedLine(deleted), `${deletedLine(deleted)} But ${RECOUNT_FAILED}`);
   }
 
   const question = state.kind === "ask" || state.kind === "error" ? state.question : null;
@@ -66,9 +68,9 @@ export function DeleteMedia({ count, run, onClose }: Props) {
     <div className="delete-media">
       {notice && <p role="status">{notice}</p>}
       {state.kind === "counting" && <p className="muted">Counting this search's clips and photos.</p>}
-      {(state.kind === "ask" || state.kind === "error") && <p>{question ?? "There are no clips or photos for this search."}</p>}
+      {state.kind === "ask" && <p>{question ?? "There are no clips or photos for this search."}</p>}
+      {state.kind === "error" && question && <p>{question}</p>}
       {state.kind === "deleting" && <p className="muted">Deleting.</p>}
-      {state.kind === "done" && <p role="status">{state.line}</p>}
       {state.kind === "error" && (
         <p className="error" role="alert">
           {state.message}
@@ -81,7 +83,7 @@ export function DeleteMedia({ count, run, onClose }: Props) {
           </button>
         )}
         <button type="button" className="btn ghost" onClick={onClose} disabled={state.kind === "deleting"}>
-          {state.kind === "done" ? "Close" : "Cancel"}
+          {question ? "Cancel" : "Close"}
         </button>
       </div>
     </div>

@@ -19,9 +19,9 @@ describe("deleteQuestion", () => {
 });
 
 describe("deletedLine", () => {
-  it("states what the server removed", () => {
-    expect(deletedLine(7)).toBe("Deleted 7 items: clips, photos and their readings.");
-    expect(deletedLine(1)).toBe("Deleted 1 item: clips, photos and their readings.");
+  it("gives the server's number as the server's: two deletes at once can both count the same files", () => {
+    expect(deletedLine(7)).toBe("The server reports 7 items deleted: clips, photos and their readings.");
+    expect(deletedLine(1)).toBe("The server reports 1 item deleted: clips, photos and their readings.");
   });
   it("does not invent a count the server did not send", () => {
     expect(deletedLine(null)).toBe("The delete finished, but the server did not say how many items it removed.");

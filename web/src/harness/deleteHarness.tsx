@@ -12,6 +12,8 @@ const q = new URLSearchParams(location.search);
 const [clips = 0, photos = 0, records = 0] = (q.get("counts") ?? "0,0,0").split(",").map(Number);
 // ?after=clips,photos,records: what a count finds once "Delete now" has run (default: the same as before).
 const after = q.get("after")?.split(",").map(Number);
+// ?countfail=after: counting fails once "Delete now" has run.
+const countFailsAfter = q.get("countfail") === "after";
 
 function Harness() {
   const [runs, setRuns] = useState(0);
@@ -20,7 +22,7 @@ function Harness() {
     <main style={{ width: 360, padding: 16 }}>
       <p className="drill">Fakes only, nothing is deleted.</p>
       <DeleteMedia
-        count={async () => (ran.current && after ? { clips: after[0] ?? 0, photos: after[1] ?? 0, records: after[2] ?? 0 } : { clips, photos, records })}
+        count={async () => (ran.current && countFailsAfter ? Promise.reject(new Error("offline")) : ran.current && after ? { clips: after[0] ?? 0, photos: after[1] ?? 0, records: after[2] ?? 0 } : { clips, photos, records })}
         run={async () => {
           setRuns((n) => n + 1);
           ran.current = true;

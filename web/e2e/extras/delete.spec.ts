@@ -20,6 +20,6 @@ test("Delete now runs once and shows what was removed", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Delete this search's clips and photos" }).click();
   const dialog = page.getByRole("dialog", { name: "Delete this search's clips and photos" });
   await dialog.getByRole("button", { name: "Delete now" }).click();
-  await expect(dialog.getByRole("status")).toHaveText("Deleted 6 items: clips, photos and their readings.");
+  await expect(dialog.getByRole("status")).toHaveText("The server reports 6 items deleted: clips, photos and their readings.");
   expect(await page.evaluate(() => document.body.dataset["deleteRuns"])).toBe("1");
 });
