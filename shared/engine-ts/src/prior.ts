@@ -59,8 +59,12 @@ export function buildPrior(
   params: EngineParams = DEFAULT_PARAMS,
 ): PriorResult {
   const radiiKm = params.rings[terrain];
-  if (!Array.isArray(radiiKm)) throw new Error(`No distance rings for terrain "${terrain}" in these engine params`);
   const masses = params.rings.masses;
+  if (!Array.isArray(radiiKm)) throw new Error(`No distance rings for terrain "${terrain}" in these engine params`);
+  // One radius per ring mass, each finite, positive and larger than the last, or the prior would be meaningless.
+  const usable = radiiKm.length === masses.length
+    && radiiKm.every((r, i) => Number.isFinite(r) && r > 0 && (i === 0 || r > radiiKm[i - 1]!));
+  if (!usable) throw new Error(`The distance rings for terrain "${terrain}" are not ${masses.length} increasing positive radii`);
   const center = point([ipp.lon, ipp.lat]);
   const circles = radiiKm.map(r => circle(center, r, { steps: RING_STEPS, units: "kilometers" }));
   const annuli: (Feature<Polygon | MultiPolygon> | null)[] = circles.map((c, k) =>

@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The engine builds a ring prior only from a usable ring column: one radius per ring mass, each finite, positive
+  and larger than the last. An empty stored column (for example `urban: []`) used to pass and put all the mass
+  outside the map; it, a short or long column, a zero, a negative, a repeat, a decrease, NaN or infinity now each
+  refuse by name.
+  Source: review of PR #21 round 2 (finding 4).
+  Verified: the test (nine bad columns refused naming the terrain; the sourced column builds) failed first, now 234
+  engine tests pass; engine typecheck and lint exit 0.
 - Two shared-profile rules tests now fail only on the rule they target: the searcher's write uses a complete valid
   profile, so only the role gate can refuse it, and each bad other-names list keeps a valid first name the
   nickname mirrors, so only the list rule can refuse it (with valid controls for the five-name and 60-character

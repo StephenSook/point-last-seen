@@ -103,3 +103,15 @@ describe("stored engine params from before a terrain existed (review)", () => {
     expect(() => buildPrior(ringGrid, ipp, "urban", off, null, filled)).not.toThrow();
   });
 });
+
+describe("a ring column must be usable before a prior is built from it (review round 2)", () => {
+  it("refuses an empty, short, non-positive or non-increasing column by name", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    for (const urban of [[], [0.3, 1.1, 3.2], [0.3, 1.1, 3.2, 12.6, 20], [0, 1.1, 3.2, 12.6], [0.3, -1, 3.2, 12.6], [0.3, 3.2, 1.1, 12.6],
+      [0.3, 1.1, 1.1, 12.6], [0.3, 1.1, Number.NaN, 12.6], [0.3, 1.1, Number.POSITIVE_INFINITY, 12.6]]) {
+      const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban } };
+      expect(() => buildPrior(ringGrid, ipp, "urban", off, null, params), JSON.stringify(urban)).toThrow(/urban/);
+    }
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, DEFAULT_PARAMS)).not.toThrow();
+  });
+});
