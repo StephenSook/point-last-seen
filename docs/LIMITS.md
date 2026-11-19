@@ -120,9 +120,14 @@ each line says what the limit is and why.
   gen function can keep running after its timeout), the cleanup job and the media sweep each touch only their own
   attempt. An older practice search at `judge-{uid}` is kept only if it holds every one of the drill's segment and
   team ids.
-- A start that runs at the moment a visitor's practice search ends can give the command role on the one that just
-  ended, after a second start has made the next one. The security rules refuse an ended practice search's data
-  from its end, so the visitor sees nothing there and starts again, which gives the role on the new one.
+- The command role is written only while the practice search is still the visitor's attempt, ready and not ended,
+  read right before the write. A start that pauses between that read and the write itself can still put an older
+  attempt's role over a newer winner's. The security rules refuse an ended practice search's data, so the visitor
+  sees nothing there and starts again, which gives the role on the current one.
+- A setup that resumes after the cleanup job has deleted its retired attempt can write that attempt's segments,
+  teams or profile again, under an incident that no longer exists. The cleanup job reads incidents, so it does not
+  find them. They are the drill's copy, never a judge's own work, no client can read them, and nothing links to
+  them.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
   minutes and retries a sandbox until a sweep finds nothing left. Both are live (deployed 2026-11-18); the daily

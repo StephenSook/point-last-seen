@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` states the two practice-search gaps left after the round-3 fixes: a start that pauses between its
+  last read and the role write can still put an older attempt's role over a newer winner's (the rules refuse the
+  ended one's data and the next start fixes it), and a setup that resumes after its retired attempt was deleted can
+  write the drill's copy again under an incident that no longer exists (no judge work, no reader, nothing links to
+  it). It drops the line those fixes replaced.
+  Source: review (round 3 on the functions: the two remaining mediums kept as stated limits).
+  Verified: each line matches `functions/src/judgeSession.ts` as changed here; the public hygiene guard exits 0.
 - `startJudgeSession` gives the command role only while the practice search is still the visitor's attempt
   (`judgeUsers/{uid}`), ready and not ended, read right before the role is written. A start that paused and finds a
   newer winner throws "still being set up" and leaves the winner's role alone, instead of writing its older
