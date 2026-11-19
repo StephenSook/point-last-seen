@@ -9,12 +9,48 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhotoUploadTest {
-    private class FakeBucket : PhotoBucket {
+    /** Storage at photos/...: [stored] paths already exist (photos are create-only); [order] records each step. */
+    private class FakeBucket(
+        val stored: MutableSet<String> = mutableSetOf(),
+        private val order: MutableList<String> = mutableListOf(),
+        private val putFails: Boolean = false,
+        private val checkFails: Boolean = false,
+    ) : PhotoBucket {
         val puts = mutableListOf<Pair<String, String>>()
-        override suspend fun put(path: String, bytes: ByteArray, contentType: String) { puts += path to contentType }
+        var putThread: String? = null
+        override suspend fun exists(path: String): Boolean {
+            order += "check $path"
+            if (checkFails) throw IllegalStateException("503 raw")
+            return path in stored
+        }
+        override suspend fun put(path: String, bytes: ByteArray, contentType: String) {
+            putThread = Thread.currentThread().name
+            if (putFails) throw IllegalStateException("403 raw")
+            order += "upload $path"
+            puts += path to contentType
+            stored += path
+        }
+    }
+
+    /** photoConsents/{sha256}: [creators] maps a hash to the uid that created its record. */
+    private class FakeSink(
+        val creators: MutableMap<String, String> = mutableMapOf(),
+        private val order: MutableList<String> = mutableListOf(),
+        private val createFails: Boolean = false,
+    ) : PhotoConsentSink {
+        val created = mutableListOf<String>()
+        override suspend fun creatorOf(incidentId: String, sha256: String): String? = creators[sha256]
+        override suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord) {
+            if (createFails) throw RuntimeException("PERMISSION_DENIED")
+            order += "record $incidentId $sha256 ${record.cloudProcessing.byUid}"
+            created += sha256
+            creators[sha256] = record.createdByUid
+        }
     }
 
     private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1, 2)
+    private val sha = Hashes.sha256Hex(jpeg)
+    private val path = "photos/inc-1/$sha.jpg"
     private val tick = ConsentMark("uid-1", 1795000000123L)
 
     /** incidents/{id}/photoConsents/{sha256}: exactly these four fields. */
@@ -34,31 +70,28 @@ class PhotoUploadTest {
 
     @Test fun withTheTickTheConsentRecordIsWrittenAfterTheUpload() = runTest {
         val order = mutableListOf<String>()
-        val bucket = PhotoBucket { path, _, _ -> order += "upload $path" }
-        val consents = PhotoConsentSink { incident, sha, record -> order += "record $incident $sha ${record.cloudProcessing.byUid}" }
-        val out = PhotoUpload(bucket, consents).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
-        val sha = Hashes.sha256Hex(jpeg)
-        assertEquals(listOf("upload photos/inc-1/$sha.jpg", "record inc-1 $sha uid-1"), order)
+        val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order)).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(listOf("check $path", "upload $path", "record inc-1 $sha uid-1"), order)
         assertEquals(CloudRead.ALLOWED, out.cloudRead)
     }
 
     @Test fun withoutTheTickNoConsentRecordIsWritten() = runTest {
-        val records = mutableListOf<String>()
-        val out = PhotoUpload(FakeBucket(), { _, sha, _ -> records += sha }).upload("inc-1", jpeg, consent = null) as PhotoOutcome.Uploaded
-        assertEquals(emptyList<String>(), records)
+        val sink = FakeSink()
+        val out = PhotoUpload(FakeBucket(), sink).upload("inc-1", jpeg, consent = null) as PhotoOutcome.Uploaded
+        assertEquals(emptyList<String>(), sink.created)
         assertEquals(CloudRead.NOT_ASKED, out.cloudRead)
     }
 
     @Test fun aFailedUploadWritesNoConsentRecord() = runTest {
-        val records = mutableListOf<String>()
-        val out = PhotoUpload({ _, _, _ -> throw RuntimeException("storage down") }, { _, sha, _ -> records += sha }).upload("inc-1", jpeg, tick)
+        val sink = FakeSink()
+        val out = PhotoUpload(FakeBucket(putFails = true), sink).upload("inc-1", jpeg, tick)
         assertTrue(out is PhotoOutcome.Failed)
-        assertEquals(emptyList<String>(), records)
+        assertEquals(emptyList<String>(), sink.created)
     }
 
     /** A record the server refuses leaves the photo uploaded but not readable in the cloud, and says so. */
     @Test fun aConsentRecordThatCannotBeSavedLeavesThePhotoUnreadableInTheCloud() = runTest {
-        val out = PhotoUpload(FakeBucket(), { _, _, _ -> throw RuntimeException("PERMISSION_DENIED") }).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        val out = PhotoUpload(FakeBucket(), FakeSink(createFails = true)).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
         assertEquals(CloudRead.NOT_SAVED, out.cloudRead)
     }
 
@@ -73,10 +106,9 @@ class PhotoUploadTest {
     @Test fun hashingAndUploadRunOnTheGivenWorker() = runTest {
         val pool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "pls-test-worker") }
         try {
-            var seen: String? = null
-            val bucket = PhotoBucket { _, _, _ -> seen = Thread.currentThread().name }
+            val bucket = FakeBucket()
             PhotoUpload(bucket, worker = pool.asCoroutineDispatcher()).upload("inc-1", byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1))
-            assertEquals("pls-test-worker", seen)
+            assertEquals("pls-test-worker", bucket.putThread)
         } finally {
             pool.shutdown()
         }
@@ -96,10 +128,42 @@ class PhotoUploadTest {
     }
 
     @Test fun aStorageErrorIsAPlainFailure() = runTest {
-        val bucket = object : PhotoBucket {
-            override suspend fun put(path: String, bytes: ByteArray, contentType: String) = throw IllegalStateException("403 raw")
-        }
-        val out = PhotoUpload(bucket).upload("inc-1", byteArrayOf(0xFF.toByte(), 0xD8.toByte())) as PhotoOutcome.Failed
+        val out = PhotoUpload(FakeBucket(putFails = true)).upload("inc-1", byteArrayOf(0xFF.toByte(), 0xD8.toByte())) as PhotoOutcome.Failed
         assertTrue(!out.message.contains("403"))
+    }
+
+    /** Photos are create-only, so sharing the same photo again finds it stored and uploads nothing. */
+    @Test fun aPhotoAlreadyStoredIsNotUploadedAgain() = runTest {
+        val bucket = FakeBucket(stored = mutableSetOf(path))
+        val out = PhotoUpload(bucket, FakeSink()).upload("inc-1", jpeg) as PhotoOutcome.Uploaded
+        assertEquals(path, out.path)
+        assertEquals(CloudRead.NOT_ASKED, out.cloudRead)
+        assertTrue(bucket.puts.isEmpty())
+    }
+
+    /** Sharing it again with the tick finds this sharer's own record (create-only too) and writes none. */
+    @Test fun aReshareWithTheTickFindsItsOwnRecord() = runTest {
+        val sink = FakeSink(creators = mutableMapOf(sha to "uid-1"))
+        val out = PhotoUpload(FakeBucket(stored = mutableSetOf(path)), sink).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.ALLOWED, out.cloudRead)
+        assertEquals(emptyList<String>(), sink.created)
+    }
+
+    /** Another family member's record already allows the cloud read; it is not rewritten, and only they can withdraw it. */
+    @Test fun anotherMembersRecordIsNeitherRewrittenNorClaimed() = runTest {
+        val sink = FakeSink(creators = mutableMapOf(sha to "uid-2"))
+        val out = PhotoUpload(FakeBucket(stored = mutableSetOf(path)), sink).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.ALLOWED_BY_ANOTHER, out.cloudRead)
+        assertEquals(emptyList<String>(), sink.created)
+    }
+
+    /** A Storage check that cannot run proves neither, so nothing is uploaded or recorded, and no raw text shows. */
+    @Test fun aStorageCheckThatCannotRunIsAPlainFailure() = runTest {
+        val bucket = FakeBucket(checkFails = true)
+        val sink = FakeSink()
+        val out = PhotoUpload(bucket, sink).upload("inc-1", jpeg, tick) as PhotoOutcome.Failed
+        assertTrue(!out.message.contains("503"))
+        assertTrue(bucket.puts.isEmpty())
+        assertEquals(emptyList<String>(), sink.created)
     }
 }
