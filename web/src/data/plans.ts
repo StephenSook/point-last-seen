@@ -25,6 +25,40 @@ export function planDocFor(draft: PlanDraft, wording: PlanWording, route: RouteR
   };
 }
 
+const isStr = (v: unknown): v is string => typeof v === "string";
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * A stored plan, read field by field, or null when the record does not hold what a plan holds
+ * (a segment id that is not text, assignments that are not a list). The panel then says the record
+ * can't be read instead of drawing from it.
+ */
+export function planFromDoc(data: unknown): PlanDoc | null {
+  if (typeof data !== "object" || data === null) return null;
+  const d = data as Record<string, unknown>;
+  const { version, basedOnEventSetHash, priorVersion, assignments, wordingRoute, approvedByUid, createdClientTimeMs } = d;
+  if (!Number.isInteger(version) || !isStr(basedOnEventSetHash) || !isNum(priorVersion) || !isStr(approvedByUid) || !isNum(createdClientTimeMs)) return null;
+  if (wordingRoute !== null && (typeof wordingRoute !== "object" || Array.isArray(wordingRoute))) return null;
+  if (!Array.isArray(assignments)) return null;
+  const read: PlanDoc["assignments"] = [];
+  for (const a of assignments as unknown[]) {
+    if (typeof a !== "object" || a === null) return null;
+    const { teamId, segmentIds, taskText, reason } = a as Record<string, unknown>;
+    if (!isStr(teamId) || !isStr(taskText) || !isStr(reason) || !Array.isArray(segmentIds) || !segmentIds.every(isStr)) return null;
+    read.push({ teamId, segmentIds: [...segmentIds], taskText, reason });
+  }
+  return {
+    version: version as number,
+    basedOnEventSetHash,
+    priorVersion,
+    assignments: read,
+    wordingRoute: wordingRoute as PlanDoc["wordingRoute"],
+    approvedByUid,
+    approvedAt: d["approvedAt"] ?? null,
+    createdClientTimeMs,
+  };
+}
+
 export function nextPlanVersion(existing: readonly number[]): number {
   return existing.reduce((m, v) => Math.max(m, v), 0) + 1;
 }

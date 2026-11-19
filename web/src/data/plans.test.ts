@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -114,5 +114,23 @@ describe("approving with the link down", () => {
     const withNew = [...existing, planDocFor(draft, wording, route, 3, "uid-1", 3)];
     expect(planSendState(3, withNew, [3])).toBe("sending");
     expect(planSendState(3, withNew, [])).toBe("sent");
+  });
+});
+
+describe("planFromDoc", () => {
+  const good = {
+    version: 3, basedOnEventSetHash: "a".repeat(64), priorVersion: 2,
+    assignments: [{ teamId: "T1", segmentIds: ["AA"], taskText: "Search segment AA.", reason: "Highest." }],
+    wordingRoute: null, approvedByUid: "u1", approvedAt: null, createdClientTimeMs: 5,
+  };
+  it("reads a stored plan", () => {
+    expect(planFromDoc(good)).toMatchObject({ version: 3, assignments: [{ teamId: "T1", segmentIds: ["AA"] }] });
+  });
+  it("is null for a record whose fields are not what a plan holds, instead of passing it on", () => {
+    expect(planFromDoc({ ...good, assignments: [{ ...good.assignments[0], segmentIds: [7] }] })).toBeNull();
+    expect(planFromDoc({ ...good, assignments: "AA" })).toBeNull();
+    expect(planFromDoc({ ...good, assignments: [{ teamId: "T1" }] })).toBeNull();
+    expect(planFromDoc({ ...good, version: "3" })).toBeNull();
+    expect(planFromDoc(null)).toBeNull();
   });
 });
