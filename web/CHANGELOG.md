@@ -1595,3 +1595,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the route test read the replay step's link right after the page opened, while the published run was still loading; under load the run arrived between reading the link and checking its target, so the target section had already been swapped. The test now waits for the replay section before reading the links, and a second test serves no run file and checks the replay step goes to the "No published run yet." line.
 - Source: a full local mirror run under load (the route test failed once; the page logic was right).
 - Verified: `judgeRun.spec.ts` run 5 times over (35 of 35) against the placeholder build. scripts/ci-local.sh exit 0.
+
+### feat(command): list every name they answer to on the approach card
+- What: `answersToLine` (web/src/data/profile.ts) builds the card's names line from the shared profile: the main name, then every other name they answer to (the family's list through the engine's `namesToCall`, else the nickname), each once, for example "Answers to Roberta (also Bea, Mom, Miss Bea)". With no main name it lists the others; with no names it shows nothing. The approach card uses it, so the print sheet and radio cards can import the same builder instead of a copy.
+- Source: field input on approach (people answer to more than one name), with the shared otherNames list now on main.
+- Verified: three new tests (all names in order; no repeat of the main name and the nickname fallback; names alone and none) failed first (builder missing), then passed; 27 profile tests pass; typecheck clean. scripts/ci-local.sh exit 0.
