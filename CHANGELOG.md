@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The gates job runs `scripts/test_firebase_config.py`, and `scripts/ci-local.sh` mirrors it.
+  Source: the hosting fix.
+  Verified: `bash scripts/ci-local.sh` exit 0.
 - Hosting no longer routes `/pack/**` to a `pack` function that was never built; packs come through Storage. A
   test fails if any hosting rewrite names a function that `functions/src/index.ts` does not export.
   Source: review (the film fact-sheet audit).
