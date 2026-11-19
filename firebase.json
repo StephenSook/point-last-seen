@@ -20,8 +20,7 @@
     "public": "web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      { "source": "/pack/**", "function": { "functionId": "pack", "region": "us-central1" } },
-      { "source": "**", "destination": "/index.html" }
+      { "source": "!/@(tiles|evidence)/**", "destination": "/index.html" }
     ]
   },
   "auth": {

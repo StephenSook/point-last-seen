@@ -5,11 +5,11 @@ import { hex, near, pixelAt } from "./pixel";
 test("a report's change shows a banner, cyan outlines, three chips, and Space shows the map before it", async ({ page }) => {
   await page.goto("/harness/change.html");
   await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
-  await expect(page.getByTestId("change-banner")).toHaveText(/^Slipper in water \(training inject\)\. CD \d+% to \d+%\.$/);
+  await expect(page.getByTestId("change-banner")).toHaveText(/^Slipper in water \(training inject\)\. CD \d+\.\d% to \d+\.\d%\.$/);
   await expect(page.getByRole("status")).toContainText("Segment CD. POA");
   const chips = page.getByTestId("delta-chip");
   await expect(chips).toHaveCount(3);
-  await expect(chips.first()).toHaveText(/^\+\d+ pts?$/);
+  await expect(chips.first()).toHaveText(/^\+\d+\.\d pts?$/);
 
   // The cyan edge: half a cell to the right of CD's dot (cells are square; plates are one cell apart).
   const plates = page.locator(".plate");

@@ -31,6 +31,13 @@ each line says what the limit is and why.
   rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the
   mass onto the small area far from every feature, the opposite of what the layer is for. The command post's
   source line for the layer says so.
+- A plan holds at most 10 team assignments, and an incident has at most 10 teams: teams come only from the seed
+  tool, which refuses more, and the practice search's copy of it; no app can create one. The security rules check every assignment's shape as the plan is
+  written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
+  so each assignment is checked by its index; 10 is what fits the rules' 1,000-expression limit with room to spare.
+  The one thing the rules cannot see is a segment id written as a number instead of text. Only a command seat can
+  write a plan, the command post always writes ids as text, and it reads each stored plan field by field
+  (`planFromDoc`), setting aside, and naming on the post, any record that is not a plan.
 
 ## On-device safety (Android)
 
@@ -82,8 +89,25 @@ each line says what the limit is and why.
   the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. When
   command deletes a record, its clip goes with it.
 - An incident's command can delete all its clips, photos and their readings at once with
-  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
-  are not included; they are rebuilt from the incident and expire with the lifecycle rule.
+  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. It first
+  marks the incident (`mediaRevokedAt`, a new server time on each call), so every open command seat drops the
+  media at once, then deletes the files and readings. Packs are not included; they are rebuilt from the incident
+  and expire with the lifecycle rule.
+- A delete can land while another seat is already sending. The command post checks, right before a clip or
+  photo leaves the browser, that it is still allowed: a clip's consent record is read from the server (never a
+  cache; unreachable means nothing is sent) and must hold all three consents and an unexpired expiry, and a
+  photo must still be in Storage. Only synchronous checks run between that answer and the model call. A delete
+  that completes after the check has answered and before the request reaches the model cannot be stopped from
+  the browser, so that one copy can still be read. Its result is then discarded: a clip's reading cannot be
+  saved once its record is gone, and a photo tray empties and reloads when the delete is announced.
+- The delete is announced before its files are gone (`mediaRevokedAt` is set first), and each open seat reloads
+  its tray at once, so a photo still being deleted can be listed again for a moment and stay listed until the
+  next reload. Its bytes stay on that laptop only: a cloud read of it needs its family consent record and its
+  Storage file, which the delete removes, and an answer for it needs the file too.
+- A family answer is saved only after Storage confirms the photo, but the save itself is a Firestore write: if
+  Firestore is offline at that moment, the write waits on the laptop and lands when the link returns, even if
+  the search's media was deleted in between. That can bring back the photo's reading (the place cues and the
+  family's answer, never the image) until command deletes the media again.
 - A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
   its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
   carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
@@ -91,6 +115,38 @@ each line says what the limit is and why.
   is deleted, with everything in it, a day after it ends.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
-  minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next
-  security rules deploy; until then a sandbox's media lasts up to 30 days, and so does any link made during
-  the sandbox.
+  minutes and retries a sandbox until a sweep finds nothing left. Both are live (deployed 2026-11-18); the daily
+  probe checks the sweep's `ops/storage` heartbeat. A link made during the sandbox stops working when its file
+  is deleted.
+
+## The published drill run
+
+- `tools/export-run` writes the public run (`web/public/evidence/published-run.json`) with no Firebase uid:
+  authors and devices are pseudonyms (`author-N`, `device-N`), report text is null, a reading survives only on a
+  camera sighting (its clock and times), and a place to check or a camera pin has no position. It refuses to
+  write a run that breaks any of these.
+- Event ids stay as stored, because plans and the prior name events by id. An event id is a hash of the incident,
+  the writing device's auth uid and a counter, so someone who already holds a participant's uid could check which
+  events are theirs. Uids are never published, and every published run is a drill on team-owned devices.
+- The judge replay's reader is a second check, not the privacy boundary. Its scan for user ids is best effort; the
+  exporter's pseudonyms are the guarantee.
+- The reader parses the whole file before its size checks (at most 1,000 reports, over at most 7 days), so an
+  oversized file costs the browser a parse before it is refused.
+- The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
+
+## Push notifications
+
+- When command approves a plan, `notifyPlanApproved` pushes each team whose assignment changed, on the topic
+  `pls-{incident}-{team}`. Firebase Cloud Messaging topics are open: any install of an app can subscribe to any topic
+  name. So a push carries nothing private: a fixed line ("Your team has a new task. Open Point Last Seen to see
+  it."), the incident and team ids, and the plan version. The task itself is read in the app, behind the security
+  rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
+- The family gets a push on its own topic, `pls-{incident}-family`, when command asks it a question or sets the
+  search to searching or paused. The push says only that ("The search lead has a question.", "Teams are searching
+  now.", "The search is paused. The search lead will call you.") with the incident id and, for a question, its
+  Firestore auto-id; the question is read in the app. No push ever carries an outcome. At most 20 a day per incident,
+  one per trigger event (a redelivered event sends nothing), none for a state the incident has since left, and none
+  in a judge practice search. A push that fails to send after its slot is taken is not retried.
+- Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
+  every push carries only fixed wording and ids, never a name, a place, a task or a question's text.
+- iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

@@ -3,8 +3,8 @@
 Input is the JSON that `build-grid --prior` writes: { gridId, ipp, terrain, layers, travelBearingDeg,
 attribution, docs }. Every doc is set under incidents/{id}/segments/{segmentId} (ROW last), segment docs
 the new grid no longer has are deleted, and only the named incident fields change (gridId, ipp, terrain,
-priorLayers, gridAttribution, priorVersion, and engineParams.rings.<terrain> from the constants, so an incident
-created before its terrain existed can build that prior). The incident update is the last write, so the incident never
+priorLayers, gridAttribution, priorVersion, engineParams.rings.<terrain> from the constants, so an incident
+created before its terrain existed can build that prior, and priorBuiltAt at the server's time). The incident update is the last write, so the incident never
 points at a grid whose segments are not there yet. Then it reads the segments back and checks the count.
 
 Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N
@@ -66,7 +66,10 @@ def to_value(v):
     raise TypeError(f"cannot encode {type(v).__name__}")
 
 
-def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str], prior_version: int) -> list[dict]:
+def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str], prior_version: int,
+                 stored_rings: list | None = None, *, incident_update_time: str) -> list[dict]:
+    """stored_rings: the incident's own engineParams.rings[<terrain>], or None when it has none.
+    incident_update_time: the incident's updateTime from the same read, so the commit lands only on that version."""
     base = f"projects/{project}/databases/(default)/documents/incidents/{incident_id}"
     writes = [{"update": {"name": f"{base}/segments/{d['segmentId']}", "fields": to_value(d)["mapValue"]["fields"]}}
               for d in p["docs"]]
@@ -75,14 +78,25 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     inc = {"gridId": p["gridId"], "ipp": {"lat": float(p["ipp"]["lat"]), "lon": float(p["ipp"]["lon"])},
            "terrain": p["terrain"], "priorLayers": p["layers"], "gridAttribution": p["attribution"],
            "priorVersion": int(prior_version)}
-    # The ring column for this terrain, by field path, so an incident created before the terrain existed can build
-    # its prior and every other stored engine value stays as it was.
+    # The prior was built from the sourced ring column for this terrain. An incident that has none gets it (by field
+    # path, so every other stored engine value stays); one that holds the same radii is left alone; one whose own
+    # radii differ would show a prior built from other radii, so the seed is refused.
     terrain = p["terrain"]
     column = [float(r) for r in json.loads(ENGINE_PARAMS.read_text())["params"]["rings"][terrain]]
     fields = to_value(inc)["mapValue"]["fields"]
-    fields["engineParams"] = to_value({"rings": {terrain: column}})
-    writes.append({"update": {"name": base, "fields": fields},
-                   "updateMask": {"fieldPaths": sorted(inc) + [f"engineParams.rings.{terrain}"]}, "currentDocument": {"exists": True}})
+    mask = sorted(inc)
+    if stored_rings is None:
+        fields["engineParams"] = to_value({"rings": {terrain: column}})
+        mask.append(f"engineParams.rings.{terrain}")
+    elif [float(r) for r in stored_rings] != column:
+        raise ValueError(f"incident {incident_id} overrides the {terrain} rings ({stored_rings}); this prior was built from "
+                         f"the sourced {column}, so it is not seeded")
+    # First, and only onto the version that was read: if the incident changed since, the first commit fails and no
+    # segment is written.
+    writes.insert(0, {"update": {"name": base, "fields": fields},
+                      "updateMask": {"fieldPaths": mask},
+                      "updateTransforms": [{"fieldPath": "priorBuiltAt", "setToServerValue": "REQUEST_TIME"}],
+                      "currentDocument": {"updateTime": incident_update_time}})
     return writes
 
 
@@ -112,6 +126,19 @@ def segment_ids(project: str, incident_id: str, token: str) -> set[str]:
             return ids
 
 
+def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str]:
+    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), and the
+    updateTime of the version read, which the commit is bound to."""
+    url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/incidents/{incident_id}"
+    doc = _request("GET", url, token, project)
+    f = doc.get("fields", {})
+    col = (f.get("engineParams", {}).get("mapValue", {}).get("fields", {}).get("rings", {}).get("mapValue", {})
+           .get("fields", {}).get(terrain))
+    rings = None if col is None else [float(v.get("doubleValue", v.get("integerValue", "nan")))
+                                      for v in col.get("arrayValue", {}).get("values", [])]
+    return rings, doc["updateTime"]
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 5 or argv[3] != "--prior-version":
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
@@ -121,7 +148,12 @@ def main(argv: list[str]) -> int:
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
     existing = segment_ids(project, incident_id, token)
-    writes = build_writes(project, incident_id, p, existing, int(version))
+    stored, update_time = read_incident(project, incident_id, token, p["terrain"])
+    try:
+        writes = build_writes(project, incident_id, p, existing, int(version), stored, incident_update_time=update_time)
+    except ValueError as e:
+        print(f"seed_segments: REFUSED: {e}", file=sys.stderr)
+        return 1
     commit = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents:commit"
     for b in batches(writes):
         _request("POST", commit, token, project, {"writes": b})

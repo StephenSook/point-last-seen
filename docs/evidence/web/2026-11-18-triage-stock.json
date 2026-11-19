@@ -1,0 +1,99 @@
+{
+  "label": "STOCK FOOTAGE, ACTORS, NOT A REAL CASE. Internal measurement only.",
+  "what": "P-39 on-device triage on five Pexels stock clips with people (truth in 2026-11-18-stock-clips-truth.json, committed before these runs)",
+  "date": "2026-11-18",
+  "browser": "Stephen's Google Chrome 157 stable on this Mac, built-in model available (image + text)",
+  "page": "web/harness/triage.html at http://127.0.0.1:5175; clips downscaled to 1280 px on the long side, H.264, 0.45 to 3.7 MB, served locally and deleted after",
+  "runs": [
+    {
+      "pexelsId": 29055706,
+      "truth": "1 person, day, walking away",
+      "samples": 40,
+      "sampleMs": 933,
+      "spans": 1,
+      "span": "0 to 19.7 s (whole clip)",
+      "changedCells": 1893,
+      "check": {
+        "atS": 1.5,
+        "ms": 15246,
+        "answer": "personVisible true"
+      },
+      "result": "flagged",
+      "hit": true,
+      "note": "first check after the model sat idle (cold)"
+    },
+    {
+      "pexelsId": 14289740,
+      "truth": "1 person, overcast day, walking away",
+      "samples": 29,
+      "sampleMs": 1333,
+      "spans": 1,
+      "span": "0 to 14.3 s (whole clip)",
+      "changedCells": 1344,
+      "check": {
+        "atS": 11,
+        "ms": 1066,
+        "answer": "personVisible true"
+      },
+      "result": "flagged",
+      "hit": true
+    },
+    {
+      "pexelsId": 9424222,
+      "truth": "1 person close and in part, indoor day, leaves by the left edge",
+      "samples": 11,
+      "sampleMs": 335,
+      "spans": 1,
+      "span": "0 to 5.1 s (whole clip)",
+      "changedCells": 2075,
+      "check": {
+        "atS": 4,
+        "ms": 1050,
+        "answer": "personVisible true"
+      },
+      "result": "flagged",
+      "hit": true
+    },
+    {
+      "pexelsId": 35705187,
+      "truth": "2 people, dusk with snow, walking away",
+      "samples": 25,
+      "sampleMs": 808,
+      "spans": 1,
+      "span": "0 to 12.0 s (whole clip)",
+      "changedCells": 848,
+      "check": {
+        "atS": 7,
+        "ms": 995,
+        "answer": "personVisible true"
+      },
+      "result": "flagged",
+      "hit": true
+    },
+    {
+      "pexelsId": 4121893,
+      "truth": "1 person, night street, walking away",
+      "samples": 24,
+      "sampleMs": 743,
+      "spans": 1,
+      "span": "0 to 11.6 s (whole clip)",
+      "changedCells": 690,
+      "check": {
+        "atS": 11,
+        "ms": 1127,
+        "answer": "personVisible true"
+      },
+      "result": "flagged",
+      "hit": true
+    }
+  ],
+  "summary": {
+    "personPresentHits": "5 of 5 (the laptop's model said a person is visible in the checked frame of every clip)",
+    "falsePositives": "1 of 1 earlier (a red square with no person, 2026-11-18-triage-chrome.json); so this measures sensitivity only, not whether the check can say no",
+    "googleRequests": 0,
+    "warmCheckMs": "995 to 1,127",
+    "coldCheckMs": 15246,
+    "spans": "every clip gave one span covering the whole clip: these are handheld or panning shots, so the motion step narrows nothing; a fixed home camera is the case it is built for"
+  },
+  "n": "5 clips, one run each; single observations, not distributions"
+}

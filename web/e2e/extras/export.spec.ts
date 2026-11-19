@@ -21,3 +21,19 @@ test("the exported text loads into a MapLibre GeoJSON source and every segment i
   }, text);
   expect(ids).toEqual(["AA", "BB"]);
 });
+
+test("an export that fails after the menu has closed still says so", async ({ page }) => {
+  // The writer loads on first use; hold its request, then fail it, so the menu is closed by the time it fails.
+  await page.route("**/src/extras/export/geojsonExport.ts*", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.abort();
+  });
+  await page.goto("/extras-harness/print.html");
+  await expect(page.getByText("Made-up harness data")).toBeVisible();
+  const more = page.getByRole("button", { name: "More", exact: true });
+  await more.click();
+  await page.getByRole("menuitem", { name: "Export GeoJSON" }).click();
+  await page.keyboard.press("Escape");
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("alert").filter({ hasText: "GeoJSON could not be exported." })).toBeVisible();
+});

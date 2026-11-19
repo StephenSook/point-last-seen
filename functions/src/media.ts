@@ -108,13 +108,16 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   if (!incident.exists || !(exp == null || (exp instanceof Timestamp && exp.toMillis() > Date.now()))) {
     throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
   }
+  // Mark the media revoked before any file goes, so every open command seat clears it and ignores a reload that
+  // started earlier. A new time on every call.
+  await incident.ref.update({ mediaRevokedAt: FieldValue.serverTimestamp() });
   let deleted = 0;
   for (const prefix of ["clips", "photos"]) {
     const [found] = await bucket.getFiles({ prefix: `${prefix}/${incidentId}/` });
     await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
     deleted += found.length;
   }
-  for (const collection of ["clipReadings", "photoReadings"]) {
+  for (const collection of ["clipReadings", "photoReadings", "photoConsents"]) {
     const docs = await db.collection(`incidents/${incidentId}/${collection}`).listDocuments();
     await Promise.all(docs.map(d => d.delete()));
     deleted += docs.length;
@@ -168,4 +171,18 @@ export async function recordStorageHealth(db: Firestore, bucket: Pick<Bucket, "g
   const sweepFailureStreak = sweepFailures > 0 ? (typeof previous === "number" ? previous : 0) + 1 : 0;
   // Public doc: counts only; the failed incident ids go to the function log. The probe fails on a streak of 2.
   await ref.set({ lifecycleOk: lc.ok, lifecycleAgeDays: lc.ageDays, sweepFailures, sweepFailureStreak, checkedAt: FieldValue.serverTimestamp() });
+}
+
+/**
+ * A photo's cloud-read consent lives no longer than the photo. For a deleted Storage object at
+ * photos/{incidentId}/{sha256}.jpg, deletes incidents/{incidentId}/photoConsents/{sha256} and returns its path;
+ * any other object returns null. A re-upload of the same bytes then needs the family's consent again.
+ */
+export async function deletePhotoConsentForObject(db: Firestore, objectName: string): Promise<string | null> {
+  const m = /^photos\/([A-Za-z0-9_-]{1,128})\/([0-9a-f]{64})\.jpg$/.exec(objectName);
+  if (!m) return null;
+  const path = `incidents/${m[1]}/photoConsents/${m[2]}`;
+  await db.doc(path).delete();
+  console.log(JSON.stringify({ event: "deletePhotoConsentOnPhotoDelete", path }));
+  return path;
 }

@@ -33,8 +33,9 @@ export function commandEvent(uid: string, over: Record<string, unknown> = {}): R
   return validEvent(uid, { role: "command", teamId: null, reporter: "system", ...over });
 }
 
-export const validPlan = (uid: string) => ({
-  version: 1, basedOnEventSetHash: "0".repeat(64), priorVersion: 1,
+/** A plan as the command post writes it, at plans/{version zero-padded to 4}. */
+export const validPlan = (uid: string, version = 1) => ({
+  version, basedOnEventSetHash: "0".repeat(64), priorVersion: 1,
   assignments: [{ teamId: "T1", segmentIds: ["AC"], taskText: "Sweep AC", reason: "Highest POA" }],
   wordingRoute: null, approvedByUid: uid, approvedAt: serverTimestamp(), createdClientTimeMs: 1795860000000,
 });

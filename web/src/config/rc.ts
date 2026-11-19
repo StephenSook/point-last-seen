@@ -10,6 +10,8 @@ export const RC_DEFAULTS = {
   use_limited_use_tokens: true,
   /** The server prompt template for the consented cloud read of a sighting note. */
   sighting_template_id: "pls-sighting-note-v1",
+  /** The server prompt template for the consented cloud read of a family photo. */
+  photo_template_id: "pls-photo-cues-v1",
 } as const;
 
 export type WebRc = {
@@ -17,14 +19,16 @@ export type WebRc = {
   killCloud: boolean;
   useLimitedUseTokens: boolean;
   sightingTemplateId: string;
+  photoTemplateId: string;
   /** Where cloud_model_web came from: the fetched config ("remote") or the in-app default. */
   cloudModelSource?: "remote" | "default" | "static";
   /** When Remote Config last answered a fetch (ms since 1970), or null when it never has. */
   fetchedAtMs?: number | null;
 };
 
-// Live paths use the flash-lite family only. A larger flash model took 116 s
-// on one call (measured), so any other id falls back to the default.
+// Live paths use the flash-lite family only. A larger flash model took 116 s on one call
+// (one sample, 116,071 ms; the model and the record are in docs/evidence/model-latency.md), so any other id
+// falls back to the default.
 const LIVE_MODEL = /^gemini-[0-9]+(\.[0-9]+)*-flash-lite$/;
 
 function model(v: string | undefined, fallback: string): string {
@@ -53,6 +57,7 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
     killCloud: bool(values.kill_cloud, d.kill_cloud),
     useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
     sightingTemplateId: templateId(values.sighting_template_id, d.sighting_template_id),
+    photoTemplateId: templateId(values.photo_template_id, d.photo_template_id),
   };
 }
 

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { printableApproachLines } from "../laneC";
+import { printableApproachLines } from "../hostApp";
 import { drillView, planFixture } from "../testdata/fixtures";
 import { buildPrintModel, type PrintModel } from "./printModel";
 import { defaultTyped, ics204Sheets, ICS204_BLOCK_TITLES, ICS204_RESOURCE_COLUMNS } from "./ics204";

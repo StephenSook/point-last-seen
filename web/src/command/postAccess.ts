@@ -6,6 +6,7 @@
 import type { CommandProfile, PlanDoc, SharedProfile } from "@pls/engine";
 import type { StreamedEvent } from "../data/events";
 import type { IncidentView } from "../data/incident";
+import { PRIOR_SUPERSEDED } from "../prior/refusal";
 
 export type ProfileDocs = { shared: SharedProfile | undefined; command: CommandProfile | undefined };
 export type PostState = {
@@ -16,17 +17,19 @@ export type PostState = {
   plansLoaded?: boolean;
   /** Plan versions written on this laptop that the server has not acknowledged yet (absent: none). */
   pendingPlans?: number[];
+  /** Ids of plan records whose fields are not what a plan holds (absent: none). */
+  unreadablePlans?: string[];
   profile: ProfileDocs | null;
   denied: boolean;
   offline: boolean;
 };
 
-export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], profile: null, denied: false, offline: false };
+export const initialPostState: PostState = { view: null, events: [], plans: [], plansLoaded: false, pendingPlans: [], unreadablePlans: [], profile: null, denied: false, offline: false };
 
 export type PostAction =
   | { type: "view"; view: IncidentView }
   | { type: "events"; events: StreamedEvent[] }
-  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean }
+  | { type: "plans"; plans: PlanDoc[]; pending?: number[]; fromServer?: boolean; unreadable?: string[] }
   | { type: "profile"; profile: ProfileDocs }
   | { type: "failed"; error: unknown };
 
@@ -43,22 +46,22 @@ export function postReducer(state: PostState, action: PostAction): PostState {
     case "events":
       return { ...state, events: action.events, offline: false };
     case "plans":
-      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], offline: false };
+      return { ...state, plans: action.plans, plansLoaded: state.plansLoaded === true || action.fromServer !== false, pendingPlans: action.pending ?? [], unreadablePlans: action.unreadable ?? [], offline: false };
     case "profile":
       return { ...state, profile: action.profile, offline: false };
     case "failed":
       return listenerFailure(action.error) === "denied"
-        ? { view: null, events: [], plans: [], pendingPlans: [], profile: null, denied: true, offline: false }
+        ? { view: null, events: [], plans: [], pendingPlans: [], unreadablePlans: [], profile: null, denied: true, offline: false }
         : { ...state, offline: true };
   }
 }
 
 /**
- * The line for a refused prior write. The rules refuse a batch that does not raise the prior
- * version by exactly one (permission-denied), which means another seat rebuilt first; its
- * newer prior is already on screen.
+ * The line for a refused prior write. "Another seat updated the map" only when the refusal was
+ * confirmed against the server (PRIOR_SUPERSEDED, see prior/refusal.ts); any other refusal,
+ * including an unconfirmed permission refusal, gets the plain failure line.
  */
 export function priorRefusalMessage(e: unknown): string {
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  return code.endsWith("permission-denied") ? "Another seat updated the map. Showing the newer one." : "The prior was not saved. Try again.";
+  return code === PRIOR_SUPERSEDED ? "Another seat updated the map. Showing the newer one." : "The prior was not saved. Try again.";
 }

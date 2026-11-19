@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteRecord } from "@pls/engine";
-import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState } from "./plans";
+import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planDocId, PLANS_LOADING, planSendState, planFromDoc, readPlans, unreadablePlanLine, planLimitLine } from "./plans";
 import type { PlanDraft } from "../ai/replanWording";
 
 const draft: PlanDraft = {
@@ -57,7 +57,7 @@ describe("plan versions", () => {
 });
 
 describe("localDraft", () => {
-  it("computes the same assignments the server draft would, from the rank and the teams", () => {
+  it("computes the engine's assignments from the rank and the teams", () => {
     const d = localDraft("b".repeat(64), 3, draft.rank, ["T1", "T2"], []);
     expect(d.assignments).toEqual(draft.assignments);
     expect(d.eventSetHash).toBe(draft.eventSetHash);
@@ -114,5 +114,70 @@ describe("approving with the link down", () => {
     const withNew = [...existing, planDocFor(draft, wording, route, 3, "uid-1", 3)];
     expect(planSendState(3, withNew, [3])).toBe("sending");
     expect(planSendState(3, withNew, [])).toBe("sent");
+  });
+});
+
+describe("planFromDoc", () => {
+  const good = {
+    version: 3, basedOnEventSetHash: "a".repeat(64), priorVersion: 2,
+    assignments: [{ teamId: "T1", segmentIds: ["AA"], taskText: "Search segment AA.", reason: "Highest." }],
+    wordingRoute: null, approvedByUid: "u1", approvedAt: null, createdClientTimeMs: 5,
+  };
+  it("reads a stored plan", () => {
+    expect(planFromDoc(good)).toMatchObject({ version: 3, assignments: [{ teamId: "T1", segmentIds: ["AA"] }] });
+  });
+  it("is null for a record whose fields are not what a plan holds, instead of passing it on", () => {
+    expect(planFromDoc({ ...good, assignments: [{ ...good.assignments[0], segmentIds: [7] }] })).toBeNull();
+    expect(planFromDoc({ ...good, assignments: "AA" })).toBeNull();
+    expect(planFromDoc({ ...good, assignments: [{ teamId: "T1" }] })).toBeNull();
+    expect(planFromDoc({ ...good, version: "3" })).toBeNull();
+    expect(planFromDoc(null)).toBeNull();
+  });
+});
+
+describe("plan records that can't be read", () => {
+  const good = (version: number) => ({
+    version, basedOnEventSetHash: "a".repeat(64), priorVersion: 1,
+    assignments: [{ teamId: "T1", segmentIds: ["AA"], taskText: "Search segment AA.", reason: "Highest." }],
+    wordingRoute: null, approvedByUid: "u1", approvedAt: null, createdClientTimeMs: 5,
+  });
+  it("are left out of the plans and named by their record id, oldest plan first", () => {
+    const r = readPlans([
+      { id: "0002", data: good(2) },
+      { id: "0003", data: { ...good(3), assignments: [{ teamId: "T1", segmentIds: [7], taskText: "x", reason: "y" }] } },
+      { id: "0001", data: good(1) },
+    ]);
+    expect(r.plans.map((p) => p.version)).toEqual([1, 2]);
+    expect(r.unreadable).toEqual(["0003"]);
+  });
+  it("still hold their version, so the next approval does not reuse it", () => {
+    const plans = readPlans([{ id: "0001", data: good(1) }]).plans;
+    let written = 0;
+    const r = approveNow({ plans, unreadable: ["0002", "not-a-version"], plansLoaded: true, draft, wording, route, uid: "u1", nowMs: 9, write: (p) => { written = p.version; return Promise.resolve(); } });
+    expect(r.version).toBe(3);
+    expect(written).toBe(3);
+  });
+});
+
+describe("unreadablePlanLine", () => {
+  it("names each record that can't be read, by plan number when the id is one", () => {
+    expect(unreadablePlanLine([])).toBeNull();
+    expect(unreadablePlanLine(["0003"])).toBe("This plan record can't be read: plan 3. Teams show the newest plan that can.");
+    expect(unreadablePlanLine(["0003", "x9"])).toBe("These plan records can't be read: plan 3, record x9. Teams show the newest plan that can.");
+  });
+});
+
+describe("planLimitLine", () => {
+  const teams = (n: number) => Array.from({ length: n }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [`S${i}`] }));
+  const d = (assignments: PlanDraft["assignments"]): PlanDraft => ({ ...draft, assignments });
+  it("is null for a draft a plan can hold", () => {
+    expect(planLimitLine(d(teams(10)))).toBeNull();
+  });
+  it("says a plan names at most 10 teams before anyone suggests or approves one", () => {
+    expect(planLimitLine(d(teams(11)))).toBe("A plan can name at most 10 teams. This draft has 11, so it can't be approved. Search with 10 teams or fewer.");
+  });
+  it("says so for more than 6 segments for one team, and for a team id a plan can't hold", () => {
+    expect(planLimitLine(d([{ teamId: "T1", segmentIds: ["A", "B", "C", "D", "E", "F", "G"] }]))).toBe("A plan can give one team at most 6 segments. This draft gives T1 7, so it can't be approved.");
+    expect(planLimitLine(d([{ teamId: "team one", segmentIds: ["A"] }]))).toBe("Team id \"team one\" can't be saved in a plan, so this draft can't be approved.");
   });
 });

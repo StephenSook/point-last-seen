@@ -184,6 +184,8 @@ describe("clip readings expire within 31 days; the incident status stays in its 
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mediaDeletedAt: new Date() }, { merge: true }));
     // Nor mediaSweepEmpty, which would hide a sandbox from the sweep.
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mediaSweepEmpty: true }, { merge: true }));
+    // Nor mediaRevokedAt, which only deleteIncidentMediaNow sets (every command seat clears its media on it).
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mediaRevokedAt: new Date() }, { merge: true }));
   });
 });
 

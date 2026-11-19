@@ -1,4 +1,4 @@
-import type { PostState, ViewState } from "./laneC";
+import type { PostState, ViewState } from "./hostApp";
 
 export type ExtrasMapLike = {
   addSource(id: string, source: unknown): unknown;
@@ -11,4 +11,13 @@ export type ExtrasMapLike = {
   addImage(id: string, image: ImageData): unknown;
 };
 
-export type DockProps = { incidentId: string; state: PostState; vs: ViewState | null; map: unknown };
+export type DockProps = {
+  incidentId: string;
+  state: PostState;
+  vs: ViewState | null;
+  map: unknown;
+  /** Harness and tests only: where the site's elevation file comes from. Defaults to the app's own origin. */
+  loadElevation?: (gridId: string) => Promise<unknown>;
+  /** The command post's delete-media control (counting and the server call); the menu shows it when given. */
+  deleteMedia?: { count: () => Promise<{ clips: number; photos: number; records: number }>; run: () => Promise<number | null> };
+};

@@ -72,6 +72,14 @@ describe("triageClip", () => {
     expect(d.asked[1]).toBeGreaterThanOrEqual(12);
   });
 
+  it("keeps where the frame checks ran: on this laptop only when the SDK reported it for every frame", async () => {
+    expect(await triageClip(deps({ checkFrame: async () => ({ text: JSON.stringify({ personVisible: false }), inferenceSource: "on_device" }) }))).toMatchObject({ kind: "no-person", source: "on_device" });
+    expect(await triageClip(deps())).toMatchObject({ kind: "no-person", source: "unknown" });
+    let n = 0;
+    const mixed = deps({ checkFrame: async () => ({ text: JSON.stringify({ personVisible: false }), ...(n++ === 0 ? { inferenceSource: "on_device" } : {}) }) });
+    expect(await triageClip(mixed)).toMatchObject({ kind: "no-person", source: "unknown" });
+  });
+
   it("flags only the span where the laptop's model saw a person", async () => {
     const r = await triageClip(deps({ answers: [JSON.stringify({ personVisible: false }), JSON.stringify({ personVisible: true })] }));
     expect(r).toMatchObject({ kind: "flagged", window: { startS: 10.5, endS: 15.5 } });
@@ -99,8 +107,11 @@ describe("triageRoute", () => {
       platform: "web", path: "rules", stage: "deterministic_parser", model: "motion-check", reason: "triage_no_motion", latencyMs: 40, sdkReported: false, blocked: null, decidedAtMs: 1000,
     });
   });
-  it("records no person as this laptop's model deciding", () => {
-    expect(triageRoute({ kind: "no-person", windows: [], latencyMs: 900 }, 1000)).toMatchObject({ path: "on_device", stage: "sdk", model: "chrome-built-in", reason: "on_device_triage_no_person", latencyMs: 900 });
+  it("records no person as this laptop's model deciding when the SDK said so for every frame", () => {
+    expect(triageRoute({ kind: "no-person", windows: [], latencyMs: 900, source: "on_device" }, 1000)).toMatchObject({ path: "on_device", stage: "sdk", model: "chrome-built-in", reason: "on_device_triage_no_person", latencyMs: 900, sdkReported: true });
+  });
+  it("records an unreported source as unknown, so it never counts as this laptop", () => {
+    expect(triageRoute({ kind: "no-person", windows: [], latencyMs: 900, source: "unknown" }, 1000)).toMatchObject({ path: "unknown", sdkReported: false, reason: "on_device_triage_no_person" });
   });
   it("records nothing for the other results (the cloud read traces itself)", () => {
     expect(triageRoute({ kind: "no-model" }, 1)).toBeNull();

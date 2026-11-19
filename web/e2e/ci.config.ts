@@ -12,5 +12,12 @@ export default defineConfig({
   reporter: "line",
   use: { baseURL: "http://127.0.0.1:4173", trace: "off", video: "off", screenshot: "off" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
-  webServer: { command: "npx vite preview --host 127.0.0.1 --port 4173 --strictPort", cwd: "..", url: "http://127.0.0.1:4173", reuseExistingServer: false },
+  // PLS_PREVIEW_DIR: preview a build kept elsewhere (the local mirror builds the placeholder web into a
+  // temporary folder so a real web/dist is never overwritten). Unset in CI: the job previews web/dist.
+  webServer: {
+    command: `npx vite preview --host 127.0.0.1 --port 4173 --strictPort${process.env["PLS_PREVIEW_DIR"] ? ` --outDir ${JSON.stringify(process.env["PLS_PREVIEW_DIR"])}` : ""}`,
+    cwd: "..",
+    url: "http://127.0.0.1:4173",
+    reuseExistingServer: false,
+  },
 });

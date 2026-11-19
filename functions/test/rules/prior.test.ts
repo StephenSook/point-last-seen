@@ -1,7 +1,7 @@
 // The prior is rewritten in one batch (every segment, ROW and the incident) at the next priorVersion. Two command
 // seats that rebuild from the same version must not both land: the second batch would overwrite the newer prior
 // with probabilities from older inputs.
-import { doc, setDoc, writeBatch, updateDoc, type Firestore } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, Timestamp, writeBatch, updateDoc, type Firestore } from "firebase/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { commandEvent, validEvent } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims } from "../helpers";
@@ -128,5 +128,40 @@ describe("the prior's inputs change only with the next version", () => {
       await assertFails(updateDoc(doc(db, "incidents/I1"), { [k]: v, priorVersion: 7 }));
     }
     await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { ipp: inputs.ipp, ippSource: "sighting", priorInputEventIds: inputs.priorInputEventIds, priorVersion: 6 }));
+  });
+});
+
+describe("when the current prior was built (priorBuiltAt, for the replay)", () => {
+  it("is set only with the next version, and only to the server's time", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { priorBuiltAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { priorVersion: 6, priorBuiltAt: Timestamp.fromMillis(Date.UTC(2026, 0, 1)) }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { priorVersion: 6, priorBuiltAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { priorVersion: 7 }));
+  });
+  it("rides in a full prior batch", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.3, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorModel: "walkers", priorVersion: 6, priorBuiltAt: serverTimestamp() });
+    await assertSucceeds(b.commit());
+  });
+});
+
+// A family camera clip confirmed at the command post: the family's camera_sighting already exists; command's batch
+// moves the prior to the next version with the family clip among the inputs and the camera place as the start, and
+// its only event is command's confirmation of the family event. No command camera_sighting is written.
+describe("command confirms a family camera sighting", () => {
+  it("lands as one batch whose only event is the confirmation", async () => {
+    const fam = camEvent("family-uid", 3, "family");
+    await admin.db.doc(`incidents/I1/events/${fam.eventId}`).set({ ...fam, serverTime: new Date(1795860000000) });
+    const db = dbAs("seat-a", commandClaims);
+    const conf = commandEvent("seat-a", { seq: 1, type: "confirmation", targetEventId: fam.eventId, decision: "confirmed" });
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.4, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorModel: "rings", ipp: { lat: 33.79, lon: -84.36 }, priorInputEventIds: [fam.eventId as string], priorVersion: 6 });
+    b.set(doc(db, `incidents/I1/events/${conf.eventId}`), conf);
+    await assertSucceeds(b.commit());
+    expect((await admin.db.doc("incidents/I1").get()).get("priorVersion")).toBe(6);
   });
 });
