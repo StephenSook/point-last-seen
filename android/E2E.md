@@ -15,8 +15,10 @@ test classes, comma-separated, to run others.
 
 ## The join code
 
-The drill family's join code lives in the macOS Keychain (service `pls-drill-family-code`,
-account `drill-dev-1`). The script pipes it into a file on the device and passes the tests only
+The live tests write, so they run against the test-only incident `drill-test-1` (same grid, teams
+and segments as `drill-dev-1`), never `drill-dev-1`, whose shared profile seeds judge searches.
+The family's join code lives in the macOS Keychain (service `pls-drill-family-code`, account
+`drill-test-1`; `PLS_DRILL_INCIDENT` picks another account). The script pipes it into a file on the device and passes the tests only
 that file's path, so the code is never a command-line argument, on the Mac or on the device. The
 tests read it through the device shell and never log it. The script removes the file when it ends.
 

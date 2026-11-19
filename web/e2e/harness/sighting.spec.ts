@@ -35,3 +35,43 @@ test("a read of the unchanged note fills the fields", async ({ page }) => {
   await page.getByRole("button", { name: "Model answers" }).click();
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
 });
+
+test("a cloud note read carries a closed What ran receipt with the bytes of the note sent", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  const receipt = page.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
+  await receipt.getByText("What ran", { exact: true }).click();
+  await expect(receipt).toContainText("Asked for: the cloud, after the consent tap.");
+  await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
+  await expect(receipt).toContainText("Sent: 22 bytes of the note, with phone numbers removed.");
+});
+
+test("a filled read shows the words it came from, quoted from the note", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("red jacket")}`);
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByText('From the note: "red jacket"', { exact: true })).toBeVisible();
+});
+
+test("a read with no quote shows no From the note line", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await expect(page.getByText(/^From the note:/)).toHaveCount(0);
+});
+
+test("a quote that is not in the note is never shown", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("blue coat")}`);
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await expect(page.getByText(/blue coat/)).toHaveCount(0);
+});

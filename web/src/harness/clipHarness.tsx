@@ -15,7 +15,8 @@ import { HARNESS_SEGMENTS } from "./mapHarness";
 
 // ?outcome=read answers with a fixed reading that fits the 6 s test clip, to show the card.
 const FIXED: ClipReadOutcome = {
-  kind: "read", sha256: "0".repeat(64), cached: false, colorSuppressed: false, bearingDeg: 0, route: null,
+  kind: "read", sha256: "0".repeat(64), cached: false, colorSuppressed: false, bearingDeg: 0, sentBytes: 5000,
+  route: { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "sdk_only_in_cloud", latencyMs: 4100, sdkReported: true, blocked: null, decidedAtMs: 0 },
   reading: {
     personVisible: true, firstSeen: "00:01", lastSeen: "00:05", entryEdge: "right", exitEdge: "left",
     topColor: "blue", bottomColor: "black", topType: "rain jacket", footwear: "boots", headwear: "",

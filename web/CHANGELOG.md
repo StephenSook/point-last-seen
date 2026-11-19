@@ -8,6 +8,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ## 2026-11-17
 
+### feat(command): show and save segment debriefs on the command post
+- What: the command post subscribes to the incident's debriefs and shows the Debriefs section under the plan: every cleared segment from the event stream (its latest clear) and every segment with a debrief. Command saves through `saveDebrief` (create tied to the clear, or edit). A failure to load says "Debriefs could not be loaded." in its place without stopping the post. A new guard, `src/data/debriefScope.test.ts`, fails if any source file other than the debrief module, its section, the post and the harness names debriefs, so no map, probability or plan code can read one.
+- Source: field-expert input (search and rescue practitioner: debrief after a search).
+- Verified: the guard passes and fails on a file planted in `prior/` (removed); it walks more than 100 files; 119 data unit tests and the 5 debrief harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the debrief section for cleared segments
+- What: `command/DebriefSection.tsx`, "Debriefs": each cleared segment (and any segment that has a debrief) shows its debrief, the time it took, "Worked: ...", "Didn't work: ..." and who wrote it (the clearing team when its own device did, else Command), or "No debrief yet." with "Add debrief". Command adds or edits one: "Time it took (minutes)", "What worked (optional)", "What didn't work (optional)", Save debrief. A bad time or an over-long note is refused with the reason before anything is saved; a refused save says "The debrief was not saved. Try again." and keeps the form. A new debrief is tied to the segment's latest clear. A dev-only harness page (`web/harness/debrief.html`) runs it with fakes. Not on the command post yet.
+- Source: field-expert input (search and rescue practitioner: debrief after a search).
+- Verified: `e2e/harness/debrief.spec.ts` (5 tests: the list with and without a debrief; add, tied to the clear; a bad time refused with no save; edit from what is stored; a refused save) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(data): read, check and write segment debriefs
+- What: `data/debriefs.ts` for `incidents/{id}/debriefs/{segmentId}`: `parseDebriefForm` (whole minutes 0 to 1440; "what worked" and "what didn't work" optional, trimmed, up to 500 characters each), `debriefFromDoc`, `newDebriefDoc` (writer, server time, the cleared event when known), `debriefEdit` (time and notes only; a cleared note is removed), `clearedSegments` (each cleared segment once, its latest clear), `debriefAuthor` (the clearing team when its own device wrote it, else Command), `subscribeDebriefs` and `saveDebrief`. Nothing here feeds the map, the probabilities or the plans.
+- Source: field-expert input (search and rescue practitioner: debrief after a search) and the shared debrief rules.
+- Verified: `src/data/debriefs.test.ts` (8 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
 ### feat(web): validate join requests and call joinIncident
 - What: `joinRequest` cleans the join code (trim, upper case, no spaces or hyphens), requires 8 characters and an incident id, and sends a team only for the searcher role. `joinIncident` calls the callable and refreshes the ID token so new claims reach the rules at once.
 - Source: plan Task 15 (`web/src/data/join.ts`), callable contract from Task 11.
@@ -1630,3 +1644,68 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the plans rule now takes at most 8 assignments (the worst case fits 9 under the rules' expression limit, so 8 keeps a margin), and the seed refuses more than 8 teams. The plan card's limit follows: "A plan can name at most 8 teams. This draft has 9, so it can't be approved. Search with 8 teams or fewer." and Suggest plan stays disabled past it.
 - Source: the plans rule change (at most 8 assignments).
 - Verified: the plan unit test and the plan harness test were changed to 8 first and failed, then passed (21 plan tests, 8 plan harness tests); typecheck clean. The full local mirror runs on the pull request head.
+
+### fix(plans): fall back to fixed wording when the model writes a number it was not given
+- What: the wording check looked at team ids, other teams' segment ids and text length, but not numbers, so a figure the model made up in a reason or the summary would reach command as fact. Now every run of digits (with an optional decimal part) in a reason or the summary must appear in the plan text the model was sent; otherwise the plan uses fixed wording, and the "What ran" receipt says "Not used: it used a number that is not in the plan."
+- Source: review (model-invented figures in plan wording).
+- Verified: new tests (numbers from the plan accepted; a number not in the plan refused in a reason and in the summary; "a reason with a number not in the draft falls to the template", with the attempt recorded as "number"; the receipt line) failed first, then passed; 27 wording tests and 3 receipt tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(photos): a closed What ran receipt on each family photo read
+- What: under a photo's suggested cues, a closed "What ran" line opens to what was asked for ("this laptop only" or "the cloud, with the family's consent"), where it ran as the SDK reported it, the model, and what left this laptop: "nothing left this laptop" for a laptop read, or the exact size of the request's photo data for a cloud read ("Sent: N bytes of the photo, as base64.", 4 characters per 3 bytes of the JPEG, measured from the bytes the read encodes). It never shows the photo or the prompt.
+- Source: review (a compact receipt on each AI result, media reads first).
+- Verified: a new photos harness test (`?read=cloud`: the cloud read's four receipt lines) failed first (no receipt), then passed; 8 photos harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(camera): a closed What ran receipt on each camera clip reading
+- What: `readClip` now reports what it sent, measured where the request is built: the length of the clip's base64 string on a fresh read, and 0 when the reading was stored before. The camera sighting card shows a closed "What ran" line: asked for ("the cloud, with the clip's three consents"), where it ran as the SDK reported it, the model, and "Sent: N bytes of the clip, as base64." or, for a stored reading, "Sent: nothing now; this reading came from an earlier read of the same clip." It never shows the clip or the prompt. This entry also turns the photo receipt entry's sample size into a placeholder (it was an illustration, not a measurement).
+- Source: review (a compact receipt on each AI result, media reads first).
+- Verified: a new readClip test (a fresh read's size equals the base64 the model was handed, 4 characters per 3 bytes; a stored reading reports 0) and a new clip harness test (the four receipt lines with "5,000 bytes of the clip") failed first, then passed; 40 clip read tests and 23 clip harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### feat(command): a closed What ran receipt on each sighting-note read
+- What: after a note read fills the fields, a closed "What ran" line opens to what was asked for ("this laptop only", or "the cloud, after the consent tap"), where it ran as the SDK reported it, the model, and what left this laptop: nothing for a laptop read, or the UTF-8 size of the note the template received, measured after phone numbers were removed ("Sent: N bytes of the note, with phone numbers removed."). It never shows the note.
+- Source: review (a compact receipt on each AI result).
+- Verified: a new unit test (the cloud read reports the size of the note it sent, with a phone number removed first) and a new sighting harness test (the cloud path's receipt lines with "22 bytes of the note") failed first, then passed; 15 note read tests and 4 sighting harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### ci(web): install ffmpeg before the component harness checks
+- What: the clip and frame harness tests make their synthetic test clip (a grey frame with a moving red square, no person) with ffmpeg, which GitHub's Ubuntu runner does not ship, so two harness tests failed on the first real CI run while passing locally. The web job now installs ffmpeg (`sudo apt-get install -y --no-install-recommends ffmpeg`) before the harness step, and the workflow-mirror check lists that install as runner setup, like the Playwright browser install.
+- Source: the web job on pull request CI ("ffmpeg: not found").
+- Verified: the workflow file parses; `scripts/test_ci_local.py` (every workflow command mirrored, setup excepted) and `scripts/test_workflow_paths.py` pass; the next CI run on the pull request is the check.
+
+### feat(command): show the note's own words a read was taken from
+- What: when a note read fills the fields, the form now shows `From the note: "<quote>"`, the evidence quote the read returned, so command sees which words the suggestion rests on. With no quote it shows nothing. The read already refuses a reply whose quote is not in the note; the form also shows a quote only while the note still holds those exact words.
+- Source: review (the checked evidence quote was never shown).
+- Verified: three new sighting harness tests (a quote shows; no quote shows no line; a quote that is not in the note is never shown) were written first; the first failed (no line), the other two held, then all passed; 7 sighting harness tests pass, and the existing read test that drops a reply whose quote is not in the note still passes; typecheck clean. The full local run of every workflow command happens on the pull request head.
+
+### feat(command): show the family's tracking aids on the approach card
+- What: the approach card lists the engine's line for each tracking aid on the shared profile (`trackingAidLines`), for example "Enrolled in Project Lifesaver: ask the county team to bring receivers.", with the family's note after them. An empty list shows "No tracker or medical ID, as the family said."; a profile without the field shows nothing, since unknown is not none. The card reads only; no model sees this field.
+- Source: field input on approach (tracking and ID aids), with the shared trackingAids field now on main and in the live rules.
+- Verified: a new approach harness (`web/harness/approach.html`) and two tests (two aids and a note in card order; an empty list gives the none line and an absent field shows no list) failed first, then passed; typecheck clean.
+
+### fix(profile): keep the family's tracking aids when command saves the profile
+- What: a command save writes the shared profile document whole, built from what the post read, and the reader kept only fields it knew, so saving any shared field (gender, say) would have erased the tracking aids the family app writes. The reader now keeps `trackingAids` when it is stored (known aid ids only, the note as text) and leaves it absent when it is not, the same way it keeps the family's names list.
+- Source: review while adding tracking aids to the approach card.
+- Verified: two new tests (the stored aids read back and an absent field stays absent; a command save of another shared field keeps them) failed first (the field was dropped), then passed; 29 profile tests pass; typecheck clean.
+
+### test(profile): every shared-profile field in the schema survives a command save
+- What: a new test walks the shared schema's SharedProfile (`shared/schemas/subject-profile.schema.json`), makes a valid value for each field that differs from an empty profile, stores it, saves a command edit of another field, and checks the stored value is still in the shared document written. A field added to the schema without the web keeping it fails here, because the save writes the document whole. The approach note ids are worked out again on every save and are left out.
+- Source: review (the tracking-aids erase, so the next optional field cannot repeat it).
+- Verified: 21 tests pass (20 fields and the schema walk); with the tracking-aids reader branch removed, "keeps trackingAids" fails, and it passes again with it restored.
+
+### docs(web): restore the headings of the three debrief entries
+- What: the three debrief entries under 2026-11-17 had lost their "### " heading lines when they were carried onto main, so their bullets ran into each other. The headings are back, each before its own "What" line, taken from the original commits.
+- Source: review of the changelog after the debrief merge.
+- Verified: the three headings match the original commit subjects; no other line changed.
+
+### fix(profile): a field command sets back to unknown is removed on save
+- What: a save applies only what command changed, and it looked only at fields present in the edited profile, so an optional field set back to unknown (tracking aids, say) was silently kept. Now a field present when the form opened and absent after counts as a change, and the merged document drops it.
+- Source: review while adding the tracking-aids editor.
+- Verified: a new test (tracking aids set back to unknown are not in the shared document written) failed first (they were kept), then passed; 30 profile tests and the 21 schema survival tests pass; typecheck clean.
+
+### feat(command): edit the tracking or ID aids in the profile form
+- What: the profile form has a "Tracking or ID aids" group: "Not known yet" (no field, the default) or "The family answered", which shows a box for each aid with the shared list's labels (in card order) and "Note for teams (no numbers)" (up to 80 characters). Nothing ticked means the family said none. A note with a digit is refused before saving: "Leave out numbers: give serials and phone numbers to the search lead directly.", which matches the security rule. Aids already on the profile show ticked.
+- Source: field input on approach (tracking and ID aids).
+- Verified: five new profile harness tests (unanswered saves no field; named aids saved in card order with the note; answered with none ticked saves an empty list; a note with a number refused and nothing saved; stored aids shown ticked) failed first, then passed; 8 profile harness tests pass; typecheck clean.
+
+### fix(camera): redraw a clip sample that repeats the previous frame before calling it still
+- What: the motion sampler seeks the clip, waits for "seeked", and draws the frame to a canvas. Under load "seeked" can fire before the new frame is decoded, so the canvas reads the previous frame again and a moving span reads as still (on-device triage could then decide "no motion" and skip a clip with a person in it). Now a sample that is byte-identical to the previous one is drawn again after a frame (up to 3 times) before it is accepted. A truly still clip settles on the same frame and costs only those waits. A frame-callback approach was tried first and dropped: a clip element that is not on the page never presents frames, so every sample waited its full bound.
+- Source: an intermittent harness failure on CI (two consecutive samples identical on a moving clip).
+- Verified: three new unit tests for the redraw (a stale draw redrawn until the new frame; a still frame accepted after the retries; one draw when the frame differs) failed first, then passed; the frames harness tests pass at their usual speed (0.5 s moving, 0.7 s still), 30 of 30 over 10 repeats with 7 workers; clip and triage harness tests pass; typecheck clean.

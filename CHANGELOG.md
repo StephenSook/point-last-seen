@@ -5,6 +5,28 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The Android unit-test floor is 293, the suite's real count with the first-publish tests (it was 290), in
+  `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the first-publish fix.
+  Verified: the Android job on this branch runs 293 tests with 0 failures and `count-tests --min 293` passes.
+- The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
+  a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
+  under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
+  gate checked only the availability call. Docs may name them, and the iPhone and Android code is not affected.
+  Source: review (the web's direct built-in model calls were unguarded, unlike the companion guard's).
+  Verified: one test per call (each form fails the gate) failed first, now passes, with a control that a doc
+  mention, a Swift session and the AI Logic builder pass; all 35 gate tests pass; the gate over the repository exits
+  0 with 966 files walked.
+- The public-hygiene guard keeps its word list as SHA-256 hashes, so neither `scripts/hygiene_guard.py` nor its test
+  spells a word it protects. It splits the text into lowercased words and checks each word's hash (and the word
+  without a trailing "s"), and the hash of each two- or three-word phrase joined exactly as written by "-", a space
+  or "/". The review rule id, the work-stream-as-role form and the settings path stay as shapes, the author's
+  surname is still allowed after the given name, and the floor, the self-exclusion and the public and private modes
+  are unchanged. The test builds every planted term from parts.
+  Source: review (the repository is public, so the guarded words were readable in the guard itself).
+  Verified: the new tests (the guard holds each term's hash and spells none; a plural such as an upper-case word
+  with a trailing "s" is found; every phrase in any case is found, and its parts alone or with another joiner are
+  not) failed first on the old guard, now all 9 pass; the old and the new guard both walk 938 files with no hits.
 - The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
   frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
   out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
@@ -12,6 +34,50 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   runner setup, as it does the Playwright browser install.
   Source: CI (the web job's harness step, the first run with Actions minutes available).
   Verified: the ci-local mirror check passes; the web job's result is on this change's pull request.
+- The Android unit-test floor is 290, the suite's real count with the tracking-aids form and profile tests (it was
+  274). `android/count-tests.py --min` fails a run whose results hold fewer tests, so a test class that stops running
+  cannot pass as green. It is set in `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the tracking-aids work.
+  Verified: the Android job on this branch runs 290 tests with 0 failures and `count-tests --min 290` passes; the
+  check that every workflow command runs in ci-local passes.
+- A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
+  characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
+  approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
+  beside the rest. The text limits and choices are read from the schema and the approach-notes constants, so the
+  test follows them.
+  Source: review (the rules' 1,000-expression limit; the plans worst case had no room).
+  Verified: all 16 profile rules tests pass in the emulator.
+- The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
+  `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
+  note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
+  choice it does not know is skipped), then the family's note; nothing when the family has not said; and "No tracker
+  or medical ID, as the family said." when it said none. `SharedProfile` gains the optional `trackingAids`, and
+  `profileForSearchers` carries it into profile/shared; `profileForModel` never includes it.
+  Source: expert input, with the card wording agreed with the web, iPhone and Android apps.
+  Verified: the tests (absent gives nothing; empty gives the none line; the order, the skipped unknown choice and the
+  trimmed note; profile/shared carries it only when given; the model profile never does; the constants' choices and
+  note limit equal the schema's) failed first, now all 248 engine tests pass; typecheck and lint exit 0; TypeScript
+  schema parity holds (Swift and Kotlin follow in their apps).
+- The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
+  of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
+  digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
+  the family said none. It is for the search cards only and is never sent to a model. The schema gives the shape and
+  the generated rule checks it; the profile rule adds each choice once and no digit of any script in the note
+  (`\P{Nd}`, so fullwidth digits are refused too).
+  Source: expert input (a state Alzheimer's association: Project Lifesaver runs in some Georgia counties, families
+  use other trackers, and a medical ID matters when the person cannot say who they are).
+  Verified: the rules test (a profile without the field, an empty one, all four, a note and an 80-character note are
+  accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
+  a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
+  Schema parity waits for the TypeScript, Swift and Kotlin types.
+- A Node 24 job (`.github/workflows/node24.yml`) runs the engine, the grid builder, the public-run exporter and the
+  web app (typecheck, tests and the placeholder build) and the functions typecheck on Node 24, beside the Node 22
+  jobs, on pull requests to main and on main. The Firebase web SDK asks for Node 24.12; the root package's engines
+  field stays at Node 22 until this job is green, and Cloud Functions keep the nodejs22 runtime. The check that every
+  workflow command also runs in `scripts/ci-local.sh` covers the new workflow.
+  Source: review (the web SDK's Node requirement; a fresh clone on Node 24).
+  Verified: the ci-local and workflow-path tests pass (14); rules_gate and the public hygiene guard exit 0. The job's
+  own result is on its pull request.
 - CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
   work): the new check that every Python test file is in a pytest list found it on its first run after that work
   merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.

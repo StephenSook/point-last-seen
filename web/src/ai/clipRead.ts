@@ -186,6 +186,8 @@ export type ClipReadOutcome =
       bearingDeg: number | null;
       route: RouteRecord | null;
       cached: boolean;
+      /** What this read sent: the clip as base64 (characters) on a fresh read, 0 for a stored reading. */
+      sentBytes: number;
     };
 
 /**
@@ -221,7 +223,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
       const check = s ? checkSighting(s, found.durationS) : null;
       if (!s || !check?.ok) return { kind: "could-not-read" };
       // No model call and no write: the facing just given sets the bearing.
-      return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, s.exitEdge), route: found.route, cached: true };
+      return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, s.exitEdge), route: found.route, cached: true, sentBytes: 0 };
     }
     if (r.retry && !found) return { kind: "refused", message: CONSENT_GONE };
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
@@ -265,7 +267,9 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     }
     if (halted(r)) return halted(r)!;
     const t0 = deps.nowMs();
-    const reply = await deps.generate(bytesToBase64(r.bytes), r.mimeType, r.window);
+    // Measured where the request is built: the clip goes as this base64 string.
+    const clipB64 = bytesToBase64(r.bytes);
+    const reply = await deps.generate(clipB64, r.mimeType, r.window);
     // A delete while the model was reading: the reply is discarded, nothing is saved.
     if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
     const t1 = deps.nowMs();
@@ -291,7 +295,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
       return { kind: "could-not-read" };
     }
     if (!oldWindowedMiss) await deps.complete(sha, check.cleaned, route);
-    return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false };
+    return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false, sentBytes: clipB64.length };
   } catch {
     return { kind: "failed", recorded };
   }

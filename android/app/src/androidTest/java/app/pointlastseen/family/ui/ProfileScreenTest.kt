@@ -123,4 +123,43 @@ class ProfileScreenTest {
         tap("Join with a code")
         assertEquals(1, joins)
     }
+
+    private fun screen(onSave: (SubjectProfile) -> Unit) = rule.setContent {
+        PaperTheme {
+            ProfileScreen(SubjectProfile(), warnings = emptyList(), joined = false, mode = null,
+                onSave = onSave, onGone = {}, onJoin = {}, gone = false, onBack = {})
+        }
+    }
+
+    /** A profile saved without touching the tracking question stays unanswered (no trackingAids key is sent). */
+    @Test fun anUntouchedTrackingQuestionStaysUnanswered() {
+        var saved: SubjectProfile? = null
+        screen { saved = it }
+        tap("Save")
+        assertEquals(null, saved!!.trackingAids)
+    }
+
+    @Test fun tickedTrackingAidsAndANoteReachSave() {
+        var saved: SubjectProfile? = null
+        screen { saved = it }
+        tap("Carries a GPS tracker")
+        tap("Enrolled in Project Lifesaver")
+        type("Anything else about the device?", "In his coat pocket")
+        tap("Save")
+        assertEquals(app.pointlastseen.family.data.TrackingAids(listOf("gps_tracker", "project_lifesaver"), "In his coat pocket"), saved!!.trackingAids)
+    }
+
+    @Test fun noneOfTheseSavesAnEmptyAnswer() {
+        var saved: SubjectProfile? = null
+        screen { saved = it }
+        tap("None of these")
+        tap("Save")
+        assertEquals(app.pointlastseen.family.data.TrackingAids(emptyList(), ""), saved!!.trackingAids)
+    }
+
+    @Test fun aNumberInTheTrackingNoteShowsThePlainReason() {
+        screen {}
+        type("Anything else about the device?", "Unit 4")
+        rule.onNodeWithText(TrackingForm.NO_NUMBERS).performScrollTo().assertIsDisplayed()
+    }
 }

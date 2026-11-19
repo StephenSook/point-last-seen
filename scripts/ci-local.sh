@@ -169,7 +169,7 @@ if want android; then
   else
     echo "== android: unit tests and debug build"
     (cd android && ./gradlew --no-daemon testDebugUnitTest assembleDebug compileDebugAndroidTestKotlin)
-    python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 274
+    python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 293
   fi
 fi
 
