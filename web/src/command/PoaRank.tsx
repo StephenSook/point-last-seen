@@ -1,9 +1,12 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatPct } from "../map/poaStyle";
 import { motionScope, playFlip } from "../motion/engine";
 import { flipOffsets } from "../motion/flip";
 
 export type RankRow = { segmentId: string; poa: number };
+
+/** Rows shown before Show all: enough for the next decision, short enough for a phone. */
+const TOP = 5;
 
 /**
  * Segments by POA, highest first, with the mass outside the grid as its own row. When the
@@ -11,6 +14,8 @@ export type RankRow = { segmentId: string; poa: number };
  */
 export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly RankRow[]; row: number | null; reorderDelayMs?: number }) {
   const body = useRef<HTMLTableSectionElement>(null);
+  const [all, setAll] = useState(false);
+  const shown = all ? rows : rows.slice(0, TOP);
   const tops = useRef<Map<string, number>>(new Map());
   const reduced = useRef(false);
   const run = useRef<{ cancel(): void } | null>(null);
@@ -24,7 +29,7 @@ export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly Rank
     };
   }, []);
 
-  const order = rows.map((r) => r.segmentId).join(",");
+  const order = shown.map((r) => r.segmentId).join(",");
   useLayoutEffect(() => {
     const els = new Map<string, HTMLElement>();
     body.current?.querySelectorAll<HTMLElement>("tr[data-seg]").forEach((e) => els.set(e.dataset["seg"]!, e));
@@ -44,7 +49,7 @@ export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly Rank
       ) : (
         <table className="rank" data-testid="poa-rank">
           <tbody ref={body}>
-            {rows.map((r) => (
+            {shown.map((r) => (
               <tr key={r.segmentId} data-seg={r.segmentId}>
                 <td>{r.segmentId}</td>
                 <td className="num">{formatPct(r.poa)}</td>
@@ -58,6 +63,11 @@ export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly Rank
             )}
           </tbody>
         </table>
+      )}
+      {rows.length > TOP && (
+        <button type="button" className="btn ghost" onClick={() => setAll((a) => !a)}>
+          {all ? `Show top ${TOP}` : `Show all ${rows.length}`}
+        </button>
       )}
     </section>
   );

@@ -1425,3 +1425,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: opening `/?incident=<id>` without a seat on that incident shows the join form with the id filled in (as before) and, above it, "This link names incident <id>. Enter its join code to open it: a link alone never opens an incident, so a forwarded link does not give anyone access." With no incident in the link there is no note.
 - Source: live judge walk, item 10.
 - Verified: two new no-backend tests (`e2e/sharedLink.spec.ts`: prefill plus the note; no note without a link) were written first; the prefill already held and the note test failed (no note), then passed; 18 of 18 no-backend browser checks pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): show the top 5 POA rows, with Show all for the rest
+- What: the POA list shows the 5 most likely segments and the row for outside the mapped area, then "Show all 67" (the real count) to open the whole list and "Show top 5" to close it. On a phone the 67-row list had filled the page below the map. A list of 5 or fewer has no button.
+- Source: live judge walk, item 7 (phone).
+- Verified: two new rank harness tests (67 made-up rows show 5 plus the outside row, Show all opens 67, Show top 5 closes; a 4-row list has no button) were written first; the long-list test failed (67 rows shown), then passed; 4 rank harness tests pass, including the reorder slide. scripts/ci-local.sh exit 0.
