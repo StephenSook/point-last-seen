@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a team change retires the old team's mission before the new one is read
+- What: when command moved a searcher to another team, the phone read the new team's mission while
+  the old one stayed loaded. If that read failed, the old team's mission, plan listener and spoken
+  updates stayed alive, reports were stamped with the old team (which the security rules refuse),
+  and no retry was offered. The old mission is now dropped first. A failed read leaves nothing of
+  the old team, and "Read the mission again" is offered for the new team.
+- Source: review (finding 2).
+- Verified: a test moves the searcher from T1 to T2 with the read failing: no mission, the T1
+  listener stopped, the retry offered with the read message, and a late T1 plan neither loads nor
+  speaks. A retry then loads T2. It failed before the change and passes after; 101 app tests pass;
+  the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): a lost searcher role drops the membership too, and a retry checks the claims first
 - What: when claims stopped naming a searcher, the phone dropped only a loaded mission. A membership
   whose first mission read had failed survived, so "Read the mission again" stayed on screen and

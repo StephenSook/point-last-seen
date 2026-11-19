@@ -316,8 +316,15 @@ final class AppModel {
             dropMission()
             return
         }
+        if mission?.incidentId == incidentId, mission?.teamId == teamId {
+            membership = (incidentId, teamId)
+            return
+        }
+        // Another incident or team now: the old mission, its plan listener and its spoken updates
+        // stop before the new one is read, so a failed read leaves nothing of the old team, and
+        // the membership kept below offers reading the new team's mission again.
+        if mission != nil { dropMission() }
         membership = (incidentId, teamId)
-        if mission?.incidentId == incidentId, mission?.teamId == teamId { return }
         let before = missionGeneration
         let message = await loadMission(incidentId: incidentId, teamId: teamId)
         // Superseded by a join meanwhile: that join's words stay.

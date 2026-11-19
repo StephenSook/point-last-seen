@@ -129,6 +129,28 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(backend.steps.filter { $0 == "call" }.count == 1)
     }
 
+    /// A team change retires the old team's mission before the new one is read: if that read fails,
+    /// no T1 mission, listener or spoken update stays, and reading T2's mission again is offered.
+    @Test func aTeamChangeWhoseReadFailsLeavesNothingOfTheOldTeam() async throws {
+        let backend = FakeJoinBackend()
+        let voice = FakeVoice()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader, voice: voice)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && reader.stops == 0)
+        backend.claims["team"] = .string("T2")
+        reader.docs = nil
+        await m.trySignIn()
+        #expect(m.mission == nil && reader.stops == 1 && m.canRetryMission && m.joinMessage == AppModel.missionUnread)
+        // A T1 plan that still arrives changes nothing and is not spoken.
+        let spoken = voice.spoken.count
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], task: "Old team task.", version: 9), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(m.mission == nil && voice.spoken.count == spoken)
+        reader.docs = try drillDocs()
+        await m.retryMission()
+        #expect(m.mission?.teamId == "T2" && !m.canRetryMission)
+    }
+
     /// A role lost while the mission has not loaded yet is dropped at the next sign-in: no
     /// membership is kept and "Read the mission again" is no longer offered.
     @Test func aLostRoleDropsAMembershipWhoseMissionNeverLoaded() async throws {
