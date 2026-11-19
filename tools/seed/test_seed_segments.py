@@ -14,8 +14,8 @@ GEOM = json.dumps({"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [
 
 
 def seg(i, poa):
-    return {"segmentId": i, "priorPoa": poa, "geometryJson": GEOM, "centroid": {"lat": 1.0, "lon": 2.0}, "areaM2": 15625.0,
-            "neighbors": [], "upstream": [], "downstream": [], "nearFrac": 0.5, "featureClasses": ["trail"]}
+    return {"segmentId": i, "priorPoa": poa, "ringPoa": poa, "geometryJson": GEOM, "centroid": {"lat": 1.0, "lon": 2.0},
+            "areaM2": 15625.0, "neighbors": [], "upstream": [], "downstream": [], "nearFrac": 0.5, "featureClasses": ["trail"]}
 
 
 def payload(docs=None):
@@ -51,6 +51,8 @@ def test_valid_payload_passes():
     ([seg("AA", 1.2), {"segmentId": "ROW", "priorPoa": -0.2}], "negative"),
     ([dict(seg("AA", 0.5), geometryJson="{}"), {"segmentId": "ROW", "priorPoa": 0.5}], "geometry"),
     ([seg("a1", 0.5), {"segmentId": "ROW", "priorPoa": 0.5}], "id"),
+    ([{k: v for k, v in seg("AA", 0.5).items() if k != "ringPoa"}, {"segmentId": "ROW", "priorPoa": 0.5}], "keys"),
+    ([dict(seg("AA", 0.5), ringPoa=-0.1), {"segmentId": "ROW", "priorPoa": 0.5}], "ringPoa"),
 ])
 def test_bad_payloads_are_refused(docs, why):
     with pytest.raises(ValueError, match=why):
@@ -72,6 +74,16 @@ def test_writes_set_every_doc_delete_stale_ones_and_update_only_the_named_incide
     aa = writes[1]["update"]["fields"]
     assert aa["geometryJson"] == {"stringValue": GEOM} and aa["priorPoa"] == {"doubleValue": 0.3}
     assert aa["featureClasses"] == {"arrayValue": {"values": [{"stringValue": "trail"}]}}
+
+
+def test_every_segment_and_row_carries_the_prior_version_like_a_rebuild_writes_it():
+    # Review: the iPhone reads priorVersion on every segment (the same across all, ROW included); the seed wrote it
+    # only on the incident, so a seeded mission could not be read.
+    writes = seed.build_writes("proj", "drill-x", payload(), existing_ids=set(), prior_version=4, incident_update_time=UT)
+    segs = [w["update"]["fields"] for w in writes[1:] if "update" in w]
+    assert [f["segmentId"]["stringValue"] for f in segs] == ["AA", "AB", "ROW"]
+    assert all(f["priorVersion"] == {"integerValue": "4"} for f in segs)
+    assert segs[0]["ringPoa"] == {"doubleValue": 0.3} and "ringPoa" not in segs[2]
 
 
 def test_writes_are_split_into_commits_of_at_most_500():

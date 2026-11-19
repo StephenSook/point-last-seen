@@ -22,8 +22,10 @@ ENGINE_PARAMS = Path(__file__).resolve().parents[2] / "shared/constants/engine-p
 
 COMMIT_MAX = 500
 ID = re.compile(r"^[A-Z]{2}$")
-SEGMENT_KEYS = {"segmentId", "priorPoa", "geometryJson", "centroid", "areaM2", "neighbors", "upstream", "downstream",
-                "nearFrac", "featureClasses"}
+# What the grid builder writes for a segment; the seed adds priorVersion to every segment and to ROW, so a seeded
+# segment has the same fields as one the command post's rebuild writes (shared/test-vectors/pack-segments-sample.json).
+SEGMENT_KEYS = {"segmentId", "priorPoa", "ringPoa", "geometryJson", "centroid", "areaM2", "neighbors", "upstream",
+                "downstream", "nearFrac", "featureClasses"}
 
 
 def validate(p: dict) -> None:
@@ -43,6 +45,8 @@ def validate(p: dict) -> None:
             raise ValueError(f"segment {d['segmentId']} geometry is not a Polygon")
     if any(not isinstance(d["priorPoa"], (int, float)) or d["priorPoa"] < 0 for d in docs):
         raise ValueError("negative or non-numeric priorPoa")
+    if any(not isinstance(d["ringPoa"], (int, float)) or not math.isfinite(d["ringPoa"]) or d["ringPoa"] < 0 for d in docs[:-1]):
+        raise ValueError("negative or non-numeric ringPoa")
     total = sum(d["priorPoa"] for d in docs)
     if not math.isclose(total, 1.0, abs_tol=1e-9):
         raise ValueError(f"prior must sum to 1, got {total!r}")
@@ -71,7 +75,8 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     """stored_rings: the incident's own engineParams.rings[<terrain>], or None when it has none.
     incident_update_time: the incident's updateTime from the same read, so the commit lands only on that version."""
     base = f"projects/{project}/databases/(default)/documents/incidents/{incident_id}"
-    writes = [{"update": {"name": f"{base}/segments/{d['segmentId']}", "fields": to_value(d)["mapValue"]["fields"]}}
+    writes = [{"update": {"name": f"{base}/segments/{d['segmentId']}",
+                          "fields": to_value({**d, "priorVersion": int(prior_version)})["mapValue"]["fields"]}}
               for d in p["docs"]]
     new_ids = {d["segmentId"] for d in p["docs"]}
     writes += [{"delete": f"{base}/segments/{s}"} for s in sorted(existing_ids - new_ids)]

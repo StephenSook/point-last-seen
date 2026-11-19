@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A seeded drill's segments now have the same fields as segments the command post's prior rebuild writes, so the
+  iPhone can build its mission from them. The grid builder's `--prior` adds `ringPoa` (the prior with every layer
+  off, which the rebuild keeps beside the layered prior as its baseline) to each segment, and `seed_segments.py`
+  writes `priorVersion` on every segment and on ROW, besides the incident. Before, a seeded segment had neither, and
+  the iPhone refused the first segment ("The search area could not be read").
+  Source: the iPhone app, joining the test drill.
+  Verified: the tests (the builder's segment keys include `ringPoa`, equal to the layers-off prior, and ROW has
+  none; every segment and ROW write carries the prior version; a missing or negative `ringPoa` is refused) failed
+  first, now all 32 grid-builder and 16 seed-segment tests pass.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
