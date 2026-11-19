@@ -10,8 +10,6 @@ import { JudgeExtras } from "../extras/JudgeExtras";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
-// The replay (D1) needs startJudgeSession; until it is built the page never points at it.
-const REPLAY_LIVE = false;
 
 export function JudgePage() {
   const [run, setRun] = useState<Awaited<ReturnType<typeof loadPublishedRun>> | null>(null);
@@ -65,7 +63,11 @@ export function JudgePage() {
     }
   }
 
-  const copy = device ? d2Copy(device, { replay: REPLAY_LIVE && run?.state === "run", downloadFailed }) : null;
+  // The laptop line names the replay only when the replay reader accepted the published run.
+  const copy = device ? d2Copy(device, { replay: run?.state === "run", downloadFailed }) : null;
+  // A run file that exists (read or refused) gets the replay section from JudgeExtras; this page's own section says
+  // why there is nothing to replay, so the page has one replay section either way.
+  const runFile = run?.state === "run" || run?.state === "refused" ? run.run : null;
   // Before Remote Config starts (or if it cannot), the pinned default is still named.
   const [modelLine, sourceLine, ...more] = rc
     ? modelLines({ cloudModelWeb: rc.cloudModelWeb, cloudModelSource: rc.cloudModelSource ?? "default", fetchedAt: rc.fetchedAtMs ? fetchedTime(rc.fetchedAtMs) : null, killCloud: rc.killCloud })
@@ -90,17 +92,18 @@ export function JudgePage() {
         )}
       </section>
 
-      <section aria-labelledby="d1-h">
-        <h2 id="d1-h" className="label">Replay the training drill</h2>
-        {run?.state === "run" ? (
-          <p>The replay of the published drill opens here once the sandbox is live.</p>
-        ) : (
-          <p>No published run yet.</p>
-        )}
-      </section>
+      {!runFile && (
+        <section aria-labelledby="d1-h">
+          <h2 id="d1-h" className="label">Replay the training drill</h2>
+          {run === null && <p className="muted">Loading.</p>}
+          {run?.state === "none" && <p>No published run yet.</p>}
+          {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
+          {run?.state === "invalid" && <p>The published run file can't be read, so nothing is replayed and no numbers are shown.</p>}
+        </section>
+      )}
 
       {/* A run the reader refuses still reaches the replay section, which says why in plain words. */}
-      <JudgeExtras run={run?.state === "run" || run?.state === "refused" ? run.run : null} />
+      <JudgeExtras run={runFile} />
 
       <section aria-labelledby="model-h">
         <h2 id="model-h" className="label">Cloud model</h2>
@@ -131,14 +134,11 @@ export function JudgePage() {
         <p className="muted small">Measured on Chrome 157 stable, a fresh profile: before the download the model is downloadable; after a 77 s download, text and image input are available.</p>
       </details>
 
-      {/* Said once: with no published run the Replay section already says so. */}
-      {run?.state !== "none" && (
+      {/* Only for a run the reader accepted: the replay section already speaks for every other state. */}
+      {run?.state === "run" && (
         <section aria-labelledby="d5-h">
           <h2 id="d5-h" className="label">Numbers</h2>
-          {run === null && <p className="muted">Loading.</p>}
-          {run?.state === "unavailable" && <p>The published run could not be loaded. Reload to try again.</p>}
-          {run?.state === "invalid" && <p>The published run file is incomplete, so no numbers are shown.</p>}
-          {run?.state === "run" && <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>}
+          <p>Published run {String(run.run.runId)}. The numbers panel is added with the recompute script.</p>
         </section>
       )}
     </main>
