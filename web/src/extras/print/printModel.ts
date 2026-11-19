@@ -7,7 +7,8 @@ export type PrintTeam = { teamId: string; name: string; segmentIds: string[]; ta
 export type PrintModel = {
   incidentName: string;
   mode: "drill" | "judge";
-  drillLabel: string | null;
+  /** The training line every printed page carries: the incident's own label, or the default. Every mode is training. */
+  drillLabel: string;
   planVersion: number | null;
   planApprovedAtMs: number | null;
   teams: PrintTeam[];
@@ -48,7 +49,7 @@ export function buildPrintModel({ view, plans, code, eventCount, nowMs }: {
   return {
     incidentName: printText(incident?.name),
     mode,
-    drillLabel: mode === "drill" ? printText(incident?.drillLabel) || DRILL_LABEL : null,
+    drillLabel: printText(incident?.drillLabel) || DRILL_LABEL,
     planVersion: latest?.version ?? null,
     planApprovedAtMs: latest === null ? null : approvalTimeMs(latest),
     teams: view.teams.map(({ teamId, name }) => {

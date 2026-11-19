@@ -78,6 +78,9 @@
 @page { size: letter; margin: 0.5in; }
 
 @media print {
+  /* The page root too: with a transparent root and the app's dark color scheme, the canvas around the sheet prints
+     dark when background graphics are on. */
+  html:has(> body.extras-printing) { background: #fff; color-scheme: light; }
   body.extras-printing { height: auto; margin: 0; padding: 0; background: #fff; color: #000; }
   body.extras-printing #root, .extras-screen-only, .extras-dialog:not(.extras-print-dialog) { display: none !important; }
   .extras-print-dialog { position: static; overflow: visible; padding: 0; background: #fff; }
