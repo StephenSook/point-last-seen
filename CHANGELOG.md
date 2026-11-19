@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/heavy.sh <command...>` runs any heavy command (a full vitest or Playwright suite, a Gradle or Xcode test
+  run) in one of the machine's two heavy-suite slots, with the same rules `ci-local.sh` follows: take a free slot at
+  once, or wait on slot 1 naming the process that holds it every 5 minutes, give up after 90 minutes, and never wait
+  on itself (a caller already in a slot, or a run started under lockf on a heavy-suite lock, runs directly). The
+  command's exit code comes back. `ci-local.sh` now re-runs itself through it, so there is one implementation.
+  Source: review (direct heavy runs still took the old single lock, which did not count against the two slots).
+  Verified: the new test (a command runs in a slot with `PLS_HEAVY_LOCK` set and its exit 3 comes back; with both
+  slots held it names the holder and runs when one frees; a hand-wrapped nested run does not wait; no command is
+  refused) and the ci-local slot tests pass, 10 in all, on a temporary lock folder; `bash -n`, rules_gate and
+  hygiene_guard pass.
 - A plan's doc id must be its version in exactly one form: four digits, zero-padded (`0016`), or the plain number
   from 10000 up, so `00016` or `016` can no longer stand beside `0016` as a second plan of the same version. Each
   segment id in an assignment must be text: splitting the joined ids must give back the same list, which refuses a

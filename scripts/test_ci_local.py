@@ -152,4 +152,25 @@ def test_with_both_slots_busy_it_names_the_holder_while_it_waits_then_runs(tmp_p
 
 def test_the_slots_are_taken_after_the_options_are_read():
     text = SCRIPT.read_text()
-    assert text.index("heavy-suite-$slot.lock") > text.index('*) echo "ci-local: unknown option')
+    assert text.index('heavy.sh" bash "$SELF" "$@"') > text.index('*) echo "ci-local: unknown option')
+
+
+HEAVY = SCRIPT.with_name("heavy.sh")
+
+
+@needs_lockf
+def test_heavy_runs_a_direct_command_in_a_slot_and_passes_its_exit_code_back(tmp_path):
+    env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "PLS_HEAVY_LOCK_DIR": str(tmp_path), "PLS_HEAVY_LOCK_STEP_S": "1"}
+    ok = subprocess.run(["bash", str(HEAVY), "bash", "-c", 'echo "in=$PLS_HEAVY_LOCK"; exit 3'], capture_output=True, text=True, env=env, timeout=30)
+    assert ok.returncode == 3 and "in=1" in ok.stdout
+    first, second = hold(tmp_path / "heavy-suite-1.lock", 3), hold(tmp_path / "heavy-suite-2.lock", 30)
+    try:
+        waited = subprocess.run(["bash", str(HEAVY), "true"], capture_output=True, text=True, env=env, timeout=30)
+        assert waited.returncode == 0 and f"held by PID {first.pid}" in waited.stdout
+    finally:
+        first.kill()
+        second.kill()
+    nested = subprocess.run(["lockf", "-k", str(tmp_path / "heavy-suite-1.lock"), "bash", str(HEAVY), "true"],
+                            capture_output=True, text=True, env=env, timeout=30)
+    assert nested.returncode == 0
+    assert subprocess.run(["bash", str(HEAVY)], capture_output=True, text=True, env=env).returncode == 64
