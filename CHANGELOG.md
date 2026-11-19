@@ -28,6 +28,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Source: review (round 3).
   Verified: the test (an empty pair, a negative mass, a NaN mass, masses adding to 1.2, and a zero sum are each
   refused; masses adding to exactly 1 build) failed first, now all 235 engine tests pass; typecheck exit 0.
+- `scripts/ci-local.sh` takes the machine-wide heavy-suite lock itself: when `PLS_HEAVY_LOCK` is not set and `lockf`
+  is there, it re-runs under `lockf -k /tmp/heavy-suite.lock` and waits its turn, so only one full suite runs on the
+  machine at a time (several worktrees running full suites at once had pushed the load past 170 and made
+  timing-based browser tests flake). `--help` and a bad option never wait; a runner without `lockf` (CI) runs as is.
+  Source: review (a shared rule for every worktree on this machine, kept as a check rather than a habit).
+  Verified: the test (the script re-runs under the lock unless it already holds it, and only after the options are
+  read) failed first, now all 6 ci-local tests pass; a run with the variable unset showed the waiting line and ran
+  under `lockf`; `bash scripts/ci-local.sh --gates` exit 0 through the lock.
 - The root CHANGELOG, a test comment and an evidence note are reworded where the public-repository guard found
   build-process words (four review sources, a work stream named as a role).
   Source: review (public-repository hygiene).
