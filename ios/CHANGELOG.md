@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the phone remembers every push topic it may hold, and a team change always wins
+- What: the followed topic lived only in memory and a failed leave was dropped. Since FCM keeps
+  subscriptions across launches, a team change made while the app was closed could leave the old
+  team's topic active for good. A team change that landed while an old topic was being left could
+  also subscribe to a team no longer wanted. The phone now keeps, across launches, every topic it
+  may hold: listed before the subscription is tried, removed only once FCM confirms the leave.
+  Following leaves every listed topic but the wanted one (all of them with no mission, including
+  at a launch where the role is gone). It reads the wanted topic again after each network call.
+  This change covers review findings 2 and 4, which are the same function.
+- Source: review (findings 2 and 4).
+- Verified: tests for a relaunch after a team change (old topic left), a relaunch after the role is
+  gone (topic left with no mission), a leave that fails and goes through later, and a team change
+  during a leave (ends on the newest team only, and only that topic stays listed). They failed
+  before the change and pass after; 122 app tests pass.
+
 ### fix(ios): the team's push topic is followed again once Messaging has its token
 - What: on a fresh install the topic subscription runs right after the mission loads, before the
   APNs and FCM tokens exist. Firebase 13.2.0 refuses it at once ("No APNS token specified before

@@ -46,6 +46,7 @@ final class AppModel {
     private let alerts: AlertPermission
     private let defaults: UserDefaults
     static let alertsAskedKey = "pls.alertsAsked"
+    static let topicsKey = "pls.pushTopics"
     /// True while the one-time alerts question should show (after a join, before an answer).
     private(set) var offersAlerts = false
     /// Counts taps on new-assignment pushes; the screen returns to the task on each.
@@ -360,22 +361,41 @@ final class AppModel {
         }
     }
 
-    /// Follows the loaded mission's team topic: subscribes to it, leaves the one before, and leaves
-    /// with no mission. A subscription that fails (no signal) is tried again at the next sign-in.
+    /// The topic the loaded mission's team gets pushes on; nil with no mission.
+    private var wantedTopic: String? { mission.flatMap { PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) } }
+
+    /// Every topic this phone may still be subscribed to: a topic is listed before its subscription
+    /// is tried and stays listed until FCM confirms it was left. Kept across launches, because FCM
+    /// keeps subscriptions across them.
+    private var heldTopics: Set<String> {
+        get { Set(defaults.stringArray(forKey: Self.topicsKey) ?? []) }
+        set { defaults.set(newValue.sorted(), forKey: Self.topicsKey) }
+    }
+
+    /// Follows the loaded mission's team topic: leaves every other topic the phone may hold (with no
+    /// mission, all of them), then subscribes to the wanted one. A leave or a subscription that
+    /// fails is tried again at the next sign-in or token arrival. The wanted topic is read again
+    /// after each network call, so a team change made meanwhile always wins.
     private func followTopic() async {
-        let want = mission.flatMap { PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) }
-        guard want != subscribedTopic else { return }
-        if let old = subscribedTopic {
-            try? await pushTopics.unsubscribe(old)
-            subscribedTopic = nil
-        }
-        guard let want else { return }
-        do {
-            try await pushTopics.subscribe(want)
-            subscribedTopic = want
-        } catch {
-            subscribedTopic = nil
-        }
+        var settled: String?
+        repeat {
+            let want = wantedTopic
+            for old in heldTopics.sorted() where old != want {
+                guard (try? await pushTopics.unsubscribe(old)) != nil else { continue }
+                heldTopics.remove(old)
+                if subscribedTopic == old { subscribedTopic = nil }
+            }
+            if let want, wantedTopic == want, subscribedTopic != want {
+                heldTopics.insert(want)
+                do {
+                    try await pushTopics.subscribe(want)
+                    subscribedTopic = want
+                } catch {
+                    return
+                }
+            }
+            settled = want
+        } while wantedTopic != settled
     }
 
     /// Listens for plans command approves after the mission loaded, so a new assignment reaches

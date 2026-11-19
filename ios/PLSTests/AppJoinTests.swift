@@ -25,14 +25,24 @@ final class ReadGate: @unchecked Sendable {
 final class FakePushTopics: PushTopics, @unchecked Sendable {
     private(set) var ops: [String] = []
     var fails = false
-    /// When set, a subscription waits here, as FCM does until the phone has its token.
+    var unsubscribeFails = false
+    /// When set, a subscription waits here, as one can with no signal.
     var hold: ReadGate?
+    /// When set, the next unsubscription waits here (one only).
+    var holdNextUnsubscribe: ReadGate?
     func subscribe(_ topic: String) async throws {
         if let hold { await hold.wait() }
         if fails { throw URLError(.notConnectedToInternet) }
         ops.append("+" + topic)
     }
-    func unsubscribe(_ topic: String) async throws { ops.append("-" + topic) }
+    func unsubscribe(_ topic: String) async throws {
+        if let gate = holdNextUnsubscribe {
+            holdNextUnsubscribe = nil
+            await gate.wait()
+        }
+        if unsubscribeFails { throw URLError(.notConnectedToInternet) }
+        ops.append("-" + topic)
+    }
 }
 
 /// Serves the drill incident's documents, or fails as the network does.
@@ -75,10 +85,78 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     }
 
     func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice(),
-               topics: FakePushTopics = FakePushTopics()) -> AppModel {
+               topics: FakePushTopics = FakePushTopics(),
+               defaults: UserDefaults = UserDefaults(suiteName: "join-\(UUID().uuidString)")!) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
                  speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }),
-                 joinBackend: backend, missionReader: reader, pushTopics: topics)
+                 joinBackend: backend, missionReader: reader, pushTopics: topics, alerts: FakeAlerts(), defaults: defaults)
+    }
+
+    /// FCM keeps a subscription across launches, so the phone remembers every topic it may still
+    /// hold: after a relaunch it leaves the old team's topic, also with no mission loaded.
+    @Test func topicsAreRememberedAcrossLaunches() async throws {
+        let defaults = UserDefaults(suiteName: "topics-\(UUID().uuidString)")!
+        let backend = FakeJoinBackend()
+        let first = FakePushTopics()
+        let m1 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: first, defaults: defaults)
+        await m1.trySignIn()
+        await m1.topicFollow?.value
+        #expect(first.ops == ["+pls-drill-dev-1-T1"])
+        // Command moves the searcher to T2 while the app is closed.
+        backend.claims["team"] = .string("T2")
+        let second = FakePushTopics()
+        let m2 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: second, defaults: defaults)
+        await m2.trySignIn()
+        await m2.topicFollow?.value
+        #expect(second.ops == ["-pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        // The role is gone at the next launch: no mission ever loads, and the topic is still left.
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        let third = FakePushTopics()
+        let m3 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: third, defaults: defaults)
+        await m3.trySignIn()
+        await m3.topicFollow?.value
+        #expect(third.ops == ["-pls-drill-dev-1-T2"] && m3.mission == nil)
+    }
+
+    /// A topic FCM could not leave is kept on the list and left at the next chance.
+    @Test func aTopicThatCouldNotBeLeftIsLeftLater() async throws {
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        backend.claims["team"] = .string("T2")
+        topics.unsubscribeFails = true
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        topics.unsubscribeFails = false
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "+pls-drill-dev-1-T2", "-pls-drill-dev-1-T1"])
+    }
+
+    /// A team change that lands while an old topic is being left wins: the phone ends on the newest
+    /// team's topic only, never on the one that was wanted before.
+    @Test func aTeamChangeDuringALeaveEndsOnTheNewestTeam() async throws {
+        let defaults = UserDefaults(suiteName: "topics-\(UUID().uuidString)")!
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics, defaults: defaults)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        let gate = ReadGate()
+        topics.holdNextUnsubscribe = gate
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims["team"] = .string("T3")
+        await m.trySignIn()
+        gate.release()
+        await m.topicFollow?.value
+        #expect(topics.ops.last == "+pls-drill-dev-1-T3" && !topics.ops.contains("+pls-drill-dev-1-T2"))
+        #expect(defaults.stringArray(forKey: AppModel.topicsKey) == ["pls-drill-dev-1-T3"])
     }
 
     /// The phone follows its team's push topic: it subscribes when the mission loads, moves to the
