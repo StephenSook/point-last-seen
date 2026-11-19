@@ -47,6 +47,7 @@ button, input, select { font: inherit; color: inherit; }
 .map-credit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--fg-3); background: var(--bg-0); padding: 1px 6px; }
 .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-3); pointer-events: none; }
 .plate { background: var(--bg-0); color: var(--fg-1); padding: 1px 4px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
+.new-build { position: fixed; left: 16px; bottom: 16px; z-index: 50; margin: 0; padding: 8px 12px; background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--fg-4); }
 .seg-code { background: var(--bg-0); color: var(--fg-2); padding: 1px 3px; font: 600 10px/1.2 var(--ui); letter-spacing: 0.02em; pointer-events: none; }
 
 .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
