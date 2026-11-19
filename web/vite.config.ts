@@ -20,7 +20,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
       // Each site's basemap tiles and route graph, from shared/grid, at tiles/ (the build fails without them).
       gridFilesPlugin({
-        gridIds: ["piedmont-park-dev"],
+        gridIds: ["piedmont-park-dev", "kennesaw-mountain-drill"],
         read: (name) => {
           try {
             return new Uint8Array(readFileSync(new URL(`../shared/grid/${name}`, import.meta.url)));
