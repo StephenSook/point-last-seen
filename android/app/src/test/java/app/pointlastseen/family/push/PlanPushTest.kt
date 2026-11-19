@@ -16,6 +16,12 @@ class PlanPushTest {
         assertNull(PlanPush.topic("", "T1"))
     }
 
+    /** A "-" in a team id would let pls-a-b-c mean incident a-b team c or incident a team b-c, so it is refused. */
+    @Test fun aTeamIdWithADashHasNoTopic() {
+        assertNull(PlanPush.topic("drill-dev-1", "T-1"))
+        assertEquals("pls-drill-dev-1-T_1", PlanPush.topic("drill-dev-1", "T_1"))
+    }
+
     @Test fun aPlanPushCarriesTheIncidentTheTeamAndTheVersion() {
         assertEquals(
             PlanPushData("drill-dev-1", "T1", "7"),

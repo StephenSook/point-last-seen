@@ -10,11 +10,14 @@ data class PlanPushData(val incidentId: String, val teamId: String, val planVers
 object PlanPush {
     const val CHANNEL_ID = "assignments"
 
-    private val TOPIC_PART = Regex("[A-Za-z0-9._~%-]+")
+    private val INCIDENT_PART = Regex("[A-Za-z0-9._~%-]+")
 
-    /** The team's topic, or null when a part has a character FCM topic names cannot take. */
+    /** No "-" in a team id: pls-a-b-c could otherwise be incident a-b team c or incident a team b-c. */
+    private val TEAM_PART = Regex("[A-Za-z0-9._~%]+")
+
+    /** The team's topic, or null when a part has a character FCM topic names, or a team id, cannot take. */
     fun topic(incidentId: String, teamId: String): String? =
-        if (TOPIC_PART.matches(incidentId) && TOPIC_PART.matches(teamId)) "pls-$incidentId-$teamId" else null
+        if (INCIDENT_PART.matches(incidentId) && TEAM_PART.matches(teamId)) "pls-$incidentId-$teamId" else null
 
     /** A plan push, or null when any of its three fields is missing or empty. */
     fun parse(data: Map<String, String>): PlanPushData? {
