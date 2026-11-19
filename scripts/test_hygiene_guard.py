@@ -77,3 +77,16 @@ def test_without_git_it_walks_the_files_on_disk_and_still_fails_a_hit(tmp_path):
     assert "not a git checkout" in clean.stdout
     (tmp_path / "b.md").write_text("Source: coordinator\n")
     assert run(tmp_path, "--public").returncode == 1
+
+
+def test_build_process_and_private_names_fail_in_public_and_branch_names_pass(tmp_path):
+    # Planted positive controls, one per pattern added for the public flip; git branch names stay allowed.
+    clean = {"a.md": "git checkout lane-web && git merge lane-android\nmerge lane-ios into main\n",
+             "b.md": "a laneway, the second lane of traffic, lanes on a road\n"}
+    assert run(repo(tmp_path, clean), "--public").returncode == 0
+    for i, text in enumerate(["the rival projects", "a Rival entry", "the self-audit list", "lane A ruling 4", "lane C's fix",
+                              "Lane D found it", "per lane-b rule", "import from ./laneC", "the grading kit",
+                              "see STEPHEN-PROMPT.md", "a Codex Cloud slice", "notes in Obsidian", "research/private/x.md"]):
+        root = tmp_path / f"case{i}"
+        root.mkdir()
+        assert run(repo(root, {"c.md": text + "\n"}), "--public").returncode == 1, text

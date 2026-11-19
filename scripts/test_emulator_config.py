@@ -132,7 +132,7 @@ def test_wait_ports_waits_until_the_port_is_released(tmp_path):
 
 
 def test_wait_ports_sees_a_socket_held_on_the_wildcard_address(tmp_path):
-    # Lane B: the Firestore emulator's WebChannel server failed to bind its port right after "ports free";
+    # Seen once: the Firestore emulator's WebChannel server failed to bind its port right after "ports free";
     # Java binds the wildcard, so a socket held there must also count as busy.
     import socket
     root = worktree(tmp_path, "wildcard-block")

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Public-hygiene guard: the repository's text names no internal build process (orchestrator, coordinator), no
-private rule id (HR followed by digits), no private playbook or notes (Galaxy, Sookra, vault) and no private path
-(research/build, ~/.claude, pls-spikes). Write "Source: review" or the public reason instead.
+"""Public-hygiene guard: the repository's text names no internal build process (orchestrator, coordinator, a work
+stream as "lane A" or laneC, self-audit, rivals, a grading kit, a Codex Cloud slice, STEPHEN-PROMPT), no private
+rule id (HR followed by digits), no private playbook or notes (Galaxy, Sookra, vault, Obsidian) and no private path
+(research/build, research/private, ~/.claude, pls-spikes). Write "Source: review" or the public reason instead.
 
 It walks every tracked file plus untracked files that .gitignore does not exclude (so a file about to be added
 is checked too), skips this guard and its test by pathspec, and fails if it walks fewer files than the floor
@@ -21,10 +22,14 @@ from pathlib import Path
 FLOOR = 300  # 620 files were walked on 2026-11-18
 SELF = ("scripts/hygiene_guard.py", "scripts/test_hygiene_guard.py")
 PATTERN = re.compile(
-    r"\b(?:orchestrator|coordinator|galaxy|vault)\b"
+    r"\b(?:orchestrator|coordinator|galaxy|vault|rivals?|self-audit|grading kit|codex cloud slice|obsidian)\b"
     r"|\bHR[0-9]{2,3}\b"
     r"|(?<!stephen )\bsookra\b"
-    r"|research/build|\.claude/|pls-spikes",
+    # A build work stream named as a role ("lane A", "lane C's", "lane-b", laneC); branch names such as lane-web
+    # or lane-android do not match.
+    r"|\blane[ -]?[a-d]\b"
+    r"|stephen-prompt"
+    r"|research/build|research/private|\.claude/|pls-spikes",
     re.IGNORECASE,
 )
 
