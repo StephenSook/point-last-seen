@@ -59,7 +59,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   noteNow.current = note;
   const [error, setError] = useState<string | null>(null);
 
-  function fill(c: { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string }) {
+  // The words of the note the read took its answer from (checked against the note by the read itself).
+  const [quote, setQuote] = useState("");
+  function fill(c: { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote?: string }) {
+    setQuote(c.evidenceQuote?.trim() ?? "");
     setDirection(c.direction);
     setTop(c.topColor);
     setBottom(c.bottomColor);
@@ -224,6 +227,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         </div>
       )}
       {readState === "filled" && <p role="status" className="muted">Suggested from the note. Check every field.</p>}
+      {/* Shown only while the note still holds these exact words. */}
+      {readState === "filled" && quote && note.includes(quote) && <p className="small">From the note: "{quote}"</p>}
       {readState === "filled" && ran && (
         <details className="receipt">
           <summary>What ran</summary>
