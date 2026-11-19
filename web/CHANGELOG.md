@@ -1605,3 +1605,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: three lines said a photo stays on this laptop, which is not true at the command post (photos are stored in Cloud Storage). They now say what does not happen: "The family has not agreed to a cloud reading of this photo, so no AI model in the cloud reads it.", "This browser's model cannot read images, so no model read these photos.", and on the judge page "It cannot read images, so no model reads the sample photos." A code comment in the photo read says the same. This entry also corrects the previous entry's verification line (that commit ran typecheck and its own tests; the full mirror runs on the pull request head).
 - Source: review (a no-consent line claimed the photo stays on this laptop).
 - Verified: the judge test and the photos harness test were changed to the new lines first and failed, then passed (16 judge tests, 7 photos harness tests); a search of web/src for "stays on this laptop" style lines finds none; typecheck clean. The full local mirror runs on the pull request head.
+
+### docs(ai): name the plan wording's mode correctly in its comment
+- What: the comment on `wordingGenerator` said plan wording runs on the SDK's PREFER_IN_CLOUD mode; it runs on PREFER_ON_DEVICE (`wordingParams`), and the comment now says so.
+- Source: review.
+- Verified: typecheck clean; no other comment in web/src names the old mode. The full local mirror runs on the pull request head.
