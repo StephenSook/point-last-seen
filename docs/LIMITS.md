@@ -149,4 +149,9 @@ each line says what the limit is and why.
   in a judge practice search. A push that fails to send after its slot is taken is not retried.
 - Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
   every push carries only fixed wording and ids, never a name, a place, a task or a question's text.
+- An iPhone leaves its old team's topic only when the app runs: when command moves or removes a searcher while the
+  app is suspended, that phone still gets the old team's pushes until the app next opens and leaves the topic (a
+  leave that fails is tried again at the next sign-in or push token). Because the push text is fixed, a former member
+  learns only that a team in that incident got a new task. Sending to device tokens chosen from current membership on
+  the server would close this window; it is not built.
 - iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

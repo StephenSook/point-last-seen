@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: a moved or removed searcher's iPhone keeps its old team's topic until the app runs
+- What: LIMITS.md now says that an iPhone leaves its old team's push topic only when the app runs,
+  so a searcher command moved or removed while the app was suspended still gets that team's pushes
+  until it next opens (a failed leave is tried again at the next sign-in or push token). The push
+  text is fixed, so a former member learns only that a team in that incident got a new task.
+  Server-side sending to current members' device tokens would close the window and is not built.
+- Source: review (finding 4, third round).
+- Verified: read against the topic code (`followTopic` leaves old topics after each sign-in and
+  token arrival) and the server's fixed push text in LIMITS.md.
+
 ### fix(ios): a push tap reads the mission from the server and opens only an open incident's newer plan
 - What: a tapped push read the incident and plan with Firestore's default source, which can answer
   from the cache, and it opened the task whatever plan version it found. The tap now reads only
