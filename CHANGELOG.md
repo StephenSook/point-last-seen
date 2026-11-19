@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules workflow also runs when `shared/constants/**`, `shared/schemas/**`, `shared/templates/**` or
+  `storage.lifecycle.json` change, since the functions code and tests read them. A new guard,
+  `scripts/test_workflow_paths.py`, finds every such file the functions code and tests name and fails when the
+  workflow's filter misses one, or when its push and pull-request filters differ. ci-local and CI both run it.
+  Source: review (a models.json or template change skipped the functions tests).
+  Verified: the guard failed first, listing 6 files outside the filter (models.json, three schemas, a template,
+  the lifecycle file), now passes; `bash scripts/ci-local.sh` exit 0.
 - The plan and family push tests compare the whole message with `toEqual`, so a name, a place, a task or a
   question's text added to a push fails them. Before, `toMatchObject` let any extra field through.
   Source: review (a privacy assertion must fail on extra fields).
