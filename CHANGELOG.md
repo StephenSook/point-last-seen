@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `scripts/ci-local.sh` runs web.yml's harness and extras browser checks too (`CI=1`, so Playwright's Chromium as on
+  the runner), and a new test fails whenever any workflow runs a command ci-local does not: it reads every `run:`
+  step of the six workflows, leaves out runner setup (installs, the gitleaks download), and treats CI's
+  regenerate-and-diff of the test vectors as the generator's `--check`.
+  Source: review (web.yml gained two steps that the local mirror did not run).
+  Verified: the new test failed first, naming exactly the two missing commands, now passes, and a synthetic
+  workflow with an extra step is reported; `bash scripts/ci-local.sh --web` exit 0 (22 no-backend, 93 harness and 42
+  extras browser checks), `--gates` exit 0.
 - A rules test pins the command post's family question listener: command and family list `familyQuestions`
   ordered by `createdAt`, newest first, and a non-member cannot. A command update of `searchState` alone was already
   pinned.
