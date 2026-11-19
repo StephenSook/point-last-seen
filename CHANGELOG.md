@@ -3,8 +3,112 @@
 Lane A: shared/, tools/, functions/, root rules and config, scripts/, .github/, docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
+  is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
+  and that its check compares each segment's percent and centroid, not its polygon. A new section on push
+  notifications says FCM topics are open, so a push carries no private content, and that iPhone delivery waits on an
+  APNs key.
+  Source: review (the extras lane's reader limits; the push security review).
+  Verified: each line matches the shipped code (`tools/export-run`, `functions/src/notify.ts`) or the reader's
+  stated checks; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` pushes only to team ids made of letters, digits and `_` (no `-`). Incident ids hold `-`, so
+  a team id with `-` could build another incident's topic: in incident `I1`, team `dev-1-T1` gives
+  `pls-I1-dev-1-T1`, which is incident `I1-dev-1`'s team `T1`. With no `-` in team ids, the last `-` in a topic is the
+  separator, and the topic format the apps subscribe to is unchanged.
+  Source: automated security review of 8083aa3 (topic collision across incidents).
+  Verified: the test (a team `dev-1-T1` that exists in the incident is refused) failed first, now 190 functions
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` reads plan doc ids as the web writes them, zero-padded (`plans/0015`), and finds the previous
+  plan at the padded id too. It had accepted only unpadded ids, so it would have sent no push for any real plan.
+  Source: found before the first live push test (the drill's plan ids are `0001` to `0015`).
+  Verified: the tests now use padded ids (and `0000`, `-1` and `draft` send nothing), failed first, now 6 notify
+  tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 ## 2026-11-18
 
+- `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice
+  search), so it pushes only to team ids the incident has under `teams`, with plain ids (letters, digits, `_` and
+  `-`, at most 32), at most 20 a plan, and never in a judge practice search, where no phone is on a team.
+  Source: automated security review of 6f2b7fc (unbounded push fan-out from plan content).
+  Verified: the test (a plan naming a real team, a missing team and a path-like id pushes to the real team only;
+  30 changed teams give 20 pushes; a practice search sends none) failed first, now 190 functions tests pass in the
+  emulators; `bash scripts/ci-local.sh` exit 0.
+- A photo's cloud-read consent lives no longer than the photo: `deletePhotoConsentOnPhotoDelete` (Storage trigger on
+  object deletion, retry on) deletes `incidents/{id}/photoConsents/{sha256}` when `photos/{id}/{sha256}.jpg` is
+  deleted, whether by command, by the media delete or by the 30-day lifecycle. Photos are create-only, so a
+  re-upload of the same bytes follows a delete and needs the family's consent again. A consent written just after a
+  re-upload can be removed by the old object's delete event; the read then waits for a new consent, which fails
+  closed.
+  Source: review of PR #20 (a re-uploaded photo passed with the old consent; the media delete already removed
+  consents since 54d6323, but a single photo deleted by command or by the lifecycle did not).
+  Verified: the tests (the deleted photo's consent goes and another incident's stays; clips, packs, a PNG, a
+  non-hash name, a nested path and a path without an incident are ignored; the trigger registers on object
+  deletion) failed first, now 189 functions tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
+- `notifyPlanApproved` (Firestore trigger on `incidents/{id}/plans/{version}` create) sends one push per team whose
+  assignment is new, changed or dropped since the previous plan, on the team's topic `pls-{incident}-{team}`. The
+  push names no person, place or task ("Your team has a new task. Open Point Last Seen to see it.", titled
+  "Training drill: new assignment" on a drill or practice search), collapses per incident and lives 2 hours
+  (Android collapse key and TTL; APNs collapse id and expiration). No model is involved. A plan id that is not a
+  positive integer sends nothing. iOS delivery waits for an APNs key in Firebase Cloud Messaging.
+  Source: plan task 32 item 2 (P-06).
+  Verified: the tests (new, changed and dropped assignments count and identical ones do not; the topic, collapse
+  key, TTL and wording; one push per changed team against the previous plan; the first plan notifies every team;
+  a non-version id sends nothing; the trigger registers on create) failed first, now pass in the emulators;
+  functions typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `docs/PRODUCTION-CHECKLIST.md` lists the steps before and after enforcing App Check on Firestore and Storage:
+  the 24-hour verdict read, the probe with its token, an App Check debug token for every local dev session (the
+  reCAPTCHA Enterprise key allows only the two hosting origins), the checks within 15 minutes of each flip and the
+  rollback.
+  Source: review (the enforcement plan; the web lane's read of the site key's allowed domains).
+  Verified: the domains are as read with `gcloud recaptcha keys describe` by the web lane on 2026-11-19;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/evidence/drill/kennesaw-seed.md`: how to rebuild the Kennesaw grid and seed its drill incident, step by
+  step, marked NOT RUN until the park gives written permission (the Piedmont drill is the fallback). It states the
+  urban terrain, with temperate mountain as the alternative command can pick.
+  Source: review (keep the second drill ready, not live).
+  Verified: the commands match the tools' usage (`build-grid --site-from-osm`, `--query`, `--prior`, `--graph`;
+  `seed_drill.py`, `seed_segments.py`); `bash scripts/ci-local.sh` exit 0.
+- `shared/grid/kennesaw-mountain-drill.grid.json`: a second drill grid, ready but not used: Kennesaw Mountain
+  National Battlefield Park (OpenStreetMap relation 143353) inside a 2.4 km window around the Visitor Center and
+  the two summits, 285 segments and 3.76 km2, the park's inholdings kept out as holes. Built from an OpenStreetMap
+  extract read on 2026-11-19 (data as of 02:06 UTC). `shared/grid/README.md` gives its source, window and credit
+  (ODbL). The grid test now checks both grids, including that each fits one prior batch (480 segments).
+  Source: review (a second drill site in case the park permits it).
+  Verified: the grid test failed first (file missing) and now passes for both grids; the build printed 285
+  segments and a route graph of 549 edges; `bash scripts/ci-local.sh` exit 0.
+- `build-grid --site-from-osm <overpass.json> --relation <id> [--window <south,west,north,east>] --out <site.geojson>`
+  builds a drill site from an OpenStreetMap park relation: its outer ways stitched into rings, its inner rings
+  (private inholdings) kept as holes, clipped to a window, with the relation and window recorded. Grid building
+  refuses a site of more than 480 cells, because the web writes a rebuilt prior in one Firestore batch (every
+  segment, ROW, the incident and up to two events) and a batch holds at most 500 writes.
+  Source: review (a drill grid for a second, larger park).
+  Verified: the tests (two outer ways stitched with a hole kept and the source recorded; a window clip with its
+  window recorded; a missing relation, an open ring and a window outside the park refused; a 3 km square refused
+  at 480 cells; the CLI writes the site and refuses a missing relation or a malformed window) failed first, now 30
+  grid-builder tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
+- `deleteIncidentMediaNow` also deletes the incident's photo consent records, with the photos and their
+  readings.
+  Source: the photo consent rules (consents are deleted with the media).
+  Verified: the delete test (the consent goes, another incident's stays; the counts include it) failed first,
+  now 181 functions tests pass in the emulators.
+- Firestore rules for a photo's cloud-read consent, `incidents/{id}/photoConsents/{sha256}`: created only by a
+  family member, for themselves, with exactly `storagePath` (this photo's `photos/{incident}/{sha256}.jpg`),
+  `cloudProcessing` (`byUid` the writer, `atMs` a number, as in the clip consent), `createdByUid` (the writer) and
+  `createdAt` (server time). Command and family read it, so command can check it from the server before any cloud
+  read of the photo; nobody changes it; only its creator deletes it, which withdraws the consent.
+  Source: review of PR #20 (the command post's cloud photo read needs a server-side consent per photo).
+  Verified: the tests (the family member records it; command and family read it and a searcher cannot; command
+  and searchers cannot create one; another incident's path, another photo's, a clip path, someone else's consent,
+  a non-numeric or missing time, someone else as creator, a client time, an extra field and a non-hash id are
+  refused; no update or overwrite; only the creator deletes) failed first, now pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
+- `docs/SECURITY.md` row 14: App Check on Firestore and Storage is UNENFORCED (monitoring only, nothing refused)
+  since 2026-11-19 01:33 UTC, read back by GET; enforcement follows a 24-hour read of verified against unverified
+  requests per app; the rollback is to set the mode back.
+  Source: the approved monitoring step before enforcement.
+  Verified: both services' GET returned UNENFORCED at 01:33:35 and 01:33:36 UTC; a token-less ops/storage read
+  still passed afterwards; `bash scripts/ci-local.sh` exit 0.
 - The live probe workflow gives the media check the CI App Check debug token, so its `ops/storage` read carries a
   token.
   Source: the media probe fix.

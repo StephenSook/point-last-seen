@@ -121,3 +121,17 @@ each line says what the limit is and why.
 - Event ids stay as stored, because plans and the prior name events by id. An event id is a hash of the incident,
   the writing device's auth uid and a counter, so someone who already holds a participant's uid could check which
   events are theirs. Uids are never published, and every published run is a drill on team-owned devices.
+- The judge replay's reader is a second check, not the privacy boundary. Its scan for user ids is best effort; the
+  exporter's pseudonyms are the guarantee.
+- The reader parses the whole file before its size checks (at most 1,000 reports, over at most 7 days), so an
+  oversized file costs the browser a parse before it is refused.
+- The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
+
+## Push notifications
+
+- When command approves a plan, `notifyPlanApproved` pushes each team whose assignment changed, on the topic
+  `pls-{incident}-{team}`. Firebase Cloud Messaging topics are open: any install of an app can subscribe to any topic
+  name. So a push carries nothing private: a fixed line ("Your team has a new task. Open Point Last Seen to see
+  it."), the incident and team ids, and the plan version. The task itself is read in the app, behind the security
+  rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
+- iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.
