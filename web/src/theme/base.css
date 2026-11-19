@@ -85,6 +85,8 @@ button, input, select { font: inherit; color: inherit; }
   /* The drill line takes its own row; the incident, the match code and More share the second. */
   .post-head { flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
   .post-head .drill { flex: 1 0 100%; }
+  /* A long incident name gives way (ellipsis) so More never wraps to a third row. */
+  .post-head .incident { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; }
   /* Phones: 16 px field text keeps iOS Safari from zooming on focus; 44 px tap targets. */
   input, select, textarea { font-size: 16px; }
