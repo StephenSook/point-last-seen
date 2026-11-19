@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { allFlags, camSighting, clipReadingDoc, routeRecord, sharedProfile } from "../fixtures";
@@ -64,6 +65,36 @@ describe("subject profile split (spec section 13.2)", () => {
     await assertFails(put({ nickname: "Peggy", otherNames: ["Mom"] }));
     await assertFails(put({ nickname: "Peggy", otherNames: [] }));
     await assertSucceeds(put({ nickname: "Peggy" }));
+  });
+  it("profile/shared may carry the family's tracking aids: fixed choices and a short note with no digits (expert input)", async () => {
+    const db = dbAs(C, commandClaims);
+    const put = (trackingAids: unknown) => setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile({ trackingAids }));
+    // Optional: a build that never sends it still saves.
+    await assertSucceeds(setDoc(doc(db, "incidents/I1/profile/shared"), sharedProfile()));
+    for (const ok of [{ aids: [], note: "" }, { aids: ["project_lifesaver", "medicalert_id", "gps_tracker", "phone_location"], note: "" },
+      { aids: ["medicalert_id"], note: "County gave her a wrist unit" }, { aids: [], note: "x".repeat(80) }]) {
+      await assertSucceeds(put(ok));
+    }
+    for (const bad of [{ aids: ["medicalert_id", "medicalert_id"], note: "" }, { aids: ["airtag"], note: "" },
+      { aids: ["project_lifesaver", "medicalert_id", "gps_tracker", "phone_location", "gps_tracker"], note: "" },
+      { aids: [], note: "Serial 55" }, { aids: [], note: "Serial \uFF15\uFF15" }, { aids: [], note: "x".repeat(81) },
+      { aids: [], note: "", extra: 1 }, { aids: [] }, { aids: "medicalert_id", note: "" }, "medicalert_id", { aids: [3], note: "" }]) {
+      await assertFails(put(bad));
+    }
+  });
+  it("the heaviest profile/shared still fits the rules' expression limit, tracking aids and five other names included", async () => {
+    const schema = JSON.parse(readFileSync(new URL("../../../shared/schemas/subject-profile.schema.json", import.meta.url), "utf8"));
+    const props = schema.$defs.SharedProfile.properties;
+    const noteIds = Object.keys(JSON.parse(readFileSync(new URL("../../../shared/constants/approach-notes.json", import.meta.url), "utf8")).notes);
+    const names = Array.from({ length: 5 }, (_, i) => `${"N".repeat(59)}${i}`);
+    const text = (k: string) => "x".repeat(props[k].maxLength);
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/profile/shared"), sharedProfile({
+      answersTo: text("answersTo"), otherNames: names, nickname: names[0], gender: text("gender"), appearance: text("appearance"),
+      hair: text("hair"), eyeColor: text("eyeColor"), primaryLanguage: text("primaryLanguage"), clothingLastWorn: text("clothingLastWorn"),
+      mobilityAids: [...props.mobilityAids.items.enum], flags: allFlags(Object.keys(allFlags())), triggersToAvoid: text("triggersToAvoid"),
+      bestApproach: text("bestApproach"), uniqueDescription: text("uniqueDescription"), approachNoteIds: noteIds,
+      trackingAids: { aids: [...props.trackingAids.properties.aids.items.enum], note: "x".repeat(80) },
+    })));
   });
   it("profile/command takes only the command fields", async () => {
     const db = dbAs(C, commandClaims);

@@ -157,6 +157,17 @@ class FamilyNoteTest {
         assertEquals("sdk_fallback", out.route.reason)
     }
 
+    /**
+     * The on-device model name appears only when the SDK reports ON_DEVICE: a PREFER_ON_DEVICE call that the SDK
+     * answered from the cloud (a phone with a local model that fell back) records the cloud model.
+     */
+    @Test fun aCloudReplyToAPreferOnDeviceCallRecordsTheCloudModel() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
+        assertEquals(listOf(NoteMode.PREFER_ON_DEVICE), model.calls.map { it.first })
+        assertEquals("gemini-3.5-flash-lite", out.route.model)
+    }
+
     @Test fun anOnDeviceAnswerIsTheDefault() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
         val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = false)) as NoteOutcome.Read
