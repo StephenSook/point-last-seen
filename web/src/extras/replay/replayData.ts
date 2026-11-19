@@ -218,11 +218,31 @@ function strayField(o: Record<string, unknown>, allowed: readonly string[], wher
 const strayRefusal = (field: string) => refuse(`The run carries a field a public run must not: ${field}.`);
 const USER_ID = "The run carries a user id. A public run must not.";
 
-/** True when any string anywhere in `v` has the shape of a Firebase Auth user id. */
-function holdsUidShape(v: unknown): boolean {
-  if (typeof v === "string") return FIREBASE_UID_SHAPE.test(v);
-  if (Array.isArray(v)) return v.some(holdsUidShape);
-  if (isObj(v)) return Object.values(v).some(holdsUidShape);
+/** A Firebase Auth uid standing alone inside longer text: 28 letters and digits with no letter or digit beside them. */
+const UID_IN_TEXT = /(?:^|[^A-Za-z0-9])[A-Za-z0-9]{28}(?:$|[^A-Za-z0-9])/;
+
+/**
+ * True when anything in `v` could be a Firebase Auth user id: a string (after folding look-alike characters, and
+ * inside longer text), an object key, a JSON text such as a segment's shape, or an integer of 20 or more digits.
+ */
+function holdsUidShape(v: unknown, depth = 0): boolean {
+  if (depth > 64) return true; // nested past any real run: refuse rather than walk it
+  if (typeof v === "number") return Number.isInteger(v) && Math.abs(v) >= 1e19;
+  if (typeof v === "string") {
+    const folded = v.normalize("NFKC");
+    if (FIREBASE_UID_SHAPE.test(folded) || UID_IN_TEXT.test(folded)) return true;
+    const t = folded.trimStart();
+    if (t.startsWith("{") || t.startsWith("[")) {
+      try {
+        return holdsUidShape(JSON.parse(t) as unknown, depth + 1);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+  if (Array.isArray(v)) return v.some((x) => holdsUidShape(x, depth + 1));
+  if (isObj(v)) return Object.entries(v).some(([k, x]) => holdsUidShape(k, depth + 1) || holdsUidShape(x, depth + 1));
   return false;
 }
 

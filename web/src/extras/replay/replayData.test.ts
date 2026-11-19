@@ -278,6 +278,24 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ teams: base.teams })).ok).toBe(true);
   });
 
+  it("finds a user id in any form: a key, a long integer, a look-alike, inside text or inside a segment's shape", () => {
+    const base = runV1();
+    const uid = "Xq9fZp2uLmN4oPq8RsT1uVw3XyZa";
+    const userId = { ok: false, reason: "The run carries a user id. A public run must not." };
+    const seg = base.segments[0] as { geometryJson: string };
+    const shape = JSON.parse(seg.geometryJson) as Record<string, unknown>;
+    const cases: Partial<Record<keyof PublishedRun, unknown>>[] = [
+      { measurements: { [uid]: 1 } },
+      { measurements: { n: 1234567890123456789012 } },
+      { teams: [{ teamId: "alfa", name: "\uFF38\uFF51\uFF19\uFF46\uFF3A\uFF50\uFF12\uFF55\uFF2C\uFF4D\uFF2E\uFF14\uFF4F\uFF30\uFF51\uFF18\uFF32\uFF53\uFF34\uFF11\uFF55\uFF36\uFF57\uFF13\uFF38\uFF59\uFF3A\uFF41" }] },
+      { teams: [{ teamId: "alfa", name: `Team ${uid} north` }] },
+      { segments: [{ ...seg, geometryJson: JSON.stringify({ ...shape, owner: uid }) }, ...base.segments.slice(1)] },
+    ];
+    for (const over of cases) expect(fromPublishedRun(run(over))).toEqual(userId);
+    // Event ids (32 hex) and hashes (64 hex) are not user ids.
+    expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, eventId: "0123456789abcdef0123456789abcdef" }] })).ok).toBe(true);
+  });
+
   it("refuses a place to check that keeps its position: it may be a home from the family's profile", () => {
     const place = runEvent(eventDoc({ eventId: "home", type: "destination", role: "command", teamId: null, deviceId: "cmd", position: { lat: 33.79, lon: -84.37, accuracyM: null }, effect: { kind: "none", why: "informational" } }), T0);
     expect(fromPublishedRun(run({ events: [place] }))).toEqual({ ok: false, reason: "The run carries a place from the family's profile. A public run must not." });
