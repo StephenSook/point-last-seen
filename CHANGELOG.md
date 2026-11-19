@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
+  frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
+  out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
+  first real CI runs. The check that every workflow command runs in `scripts/ci-local.sh` treats the install as
+  runner setup, as it does the Playwright browser install.
+  Source: CI (the web job's harness step, the first run with Actions minutes available).
+  Verified: the ci-local mirror check passes; the web job's result is on this change's pull request.
 - CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
   work): the new check that every Python test file is in a pytest list found it on its first run after that work
   merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.

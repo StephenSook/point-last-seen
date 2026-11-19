@@ -45,7 +45,8 @@ struct ReportReader {
         var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
             networkOnline: situation.networkOnline, onDevice: ModelSessionFactory.onDeviceStatus(),
-            estimatedTokens: modelAllowed ? await countTokens(text, tools) : 0,
+            // The count is a call into Apple's model too, so it gets the text without phone numbers.
+            estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), tools) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model

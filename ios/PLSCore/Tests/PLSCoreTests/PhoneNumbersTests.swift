@@ -17,6 +17,16 @@ import Testing
         #expect(PhoneNumbers.scrub("his number is four oh four five five five zero one two three ok") == "his number is [number removed] ok")
     }
 
+    /// Dictation mixes written digits and spoken ones; together they are still one number.
+    @Test func mixedWrittenAndSpokenDigitsAreRemoved() {
+        for text in ["404 five five five 0123", "four oh four 555 0123", "4 0 4 five five five zero 1 2 3", "five five five, 0123"] {
+            #expect(PhoneNumbers.scrub("call \(text) now") == "call [number removed] now", "\(text)")
+        }
+        // Short mixed numbers in a report stay.
+        let t = "2 searchers, five minutes, segment 12, one hour"
+        #expect(PhoneNumbers.scrub(t) == t)
+    }
+
     @Test func reportNumbersStay() {
         let t = "cleared AC, coverage 0.8, 45 minutes, 3 searchers, forty five minutes, point eight"
         #expect(PhoneNumbers.scrub(t) == t)
