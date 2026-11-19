@@ -105,6 +105,21 @@ def build_writes(project: str, incident_id: str, p: dict, existing_ids: set[str]
     return writes
 
 
+def _contract():
+    """tools/seed/segment_contract.py, loaded by path (python3 -I leaves this folder off sys.path)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("segment_contract", Path(__file__).with_name("segment_contract.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def prewrite_problems(p: dict, prior_version: int) -> list[str]:
+    """The docs as they will be stored, checked against the shape the apps decode, before anything is written."""
+    docs = {d["segmentId"]: {**d, "priorVersion": int(prior_version)} for d in p["docs"]}
+    return _contract().check(docs, int(prior_version))
+
+
 def batches(writes: list[dict]) -> list[list[dict]]:
     return [writes[i:i + COMMIT_MAX] for i in range(0, len(writes), COMMIT_MAX)]
 
@@ -154,6 +169,10 @@ def main(argv: list[str]) -> int:
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
     existing = segment_ids(project, incident_id, token)
     stored, update_time = read_incident(project, incident_id, token, p["terrain"])
+    problems = prewrite_problems(p, int(version))
+    if problems:
+        print(f"seed_segments: REFUSED, the apps could not read these docs: {problems[:5]}", file=sys.stderr)
+        return 1
     try:
         writes = build_writes(project, incident_id, p, existing, int(version), stored, incident_update_time=update_time)
     except ValueError as e:
@@ -165,7 +184,13 @@ def main(argv: list[str]) -> int:
     after = segment_ids(project, incident_id, token)
     want = {d["segmentId"] for d in p["docs"]}
     print(f"seed_segments: {len(want) - 1} segments plus ROW set, {len(existing - want)} stale deleted; read back {len(after)} docs")
-    return 0 if after == want else 1
+    # The read-back must pass the apps' contract too, against the incident's stored prior version.
+    contract = _contract()
+    stored_version, stored_docs = contract.read_incident(project, incident_id)
+    problems = contract.check(stored_docs, stored_version)
+    for line in problems[:10]:
+        print(f"seed_segments: READ BACK {line}", file=sys.stderr)
+    return 0 if after == want and not problems else 1
 
 
 if __name__ == "__main__":

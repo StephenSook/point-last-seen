@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `tools/seed/segment_contract.py` checks an incident's segment docs against the shape the apps decode. The field
+  sets come from `shared/test-vectors/pack-segments-sample.json`, the real segment docs the iPhone's own tests
+  decode. On top of them it checks segmentId equal to the doc id, finite non-negative `priorPoa` and `ringPoa`, one
+  whole-number `priorVersion` equal to the incident's, area above 0, a numeric centroid, `geometryJson` as a string
+  holding a Polygon or MultiPolygon, string lists, `nearFrac` between 0 and 1, a ROW doc, and a prior summing to 1.
+  As a script it reads one live incident (exit 0 readable, 1 not, 2 cannot read). `seed_segments.py` runs it on
+  the docs before writing anything and on the read-back after, and fails if either check fails.
+  Source: the iPhone app could not read a seeded drill's segments; a seed must never produce one it cannot read.
+  Verified: the contract tests (the sample passes; each unreadable shape is named; a MultiPolygon passes; the
+  incident's version must match; a whole incident must sum to 1) and the seed tool's check pass, 32 seed tests in
+  all; against the live project the development drill passes (68 docs at prior version 5) and the test drill and
+  the Kennesaw drill fail on every segment, missing `priorVersion` and `ringPoa`, which is what the iPhone hit.
 - A seeded drill's segments now have the same fields as segments the command post's prior rebuild writes, so the
   iPhone can build its mission from them. The grid builder's `--prior` adds `ringPoa` (the prior with every layer
   off, which the rebuild keeps beside the layered prior as its baseline) to each segment, and `seed_segments.py`

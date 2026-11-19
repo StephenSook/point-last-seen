@@ -86,6 +86,13 @@ def test_every_segment_and_row_carries_the_prior_version_like_a_rebuild_writes_i
     assert segs[0]["ringPoa"] == {"doubleValue": 0.3} and "ringPoa" not in segs[2]
 
 
+def test_the_docs_to_be_written_pass_the_shape_the_apps_decode_before_anything_is_written():
+    # The contract comes from shared/test-vectors/pack-segments-sample.json; the seed refuses docs that miss it.
+    assert seed.prewrite_problems(payload(), 3) == []
+    bad = payload([{k: v for k, v in seg("AA", 0.5).items() if k != "featureClasses"}, {"segmentId": "ROW", "priorPoa": 0.5}])
+    assert any("featureClasses" in p for p in seed.prewrite_problems(bad, 3))
+
+
 def test_writes_are_split_into_commits_of_at_most_500():
     docs = [seg(f"{chr(65 + i // 26)}{chr(65 + i % 26)}", 0.5 / 600) for i in range(600)] + [{"segmentId": "ROW", "priorPoa": 0.5}]
     writes = seed.build_writes("p", "i", payload(docs), existing_ids=set(), prior_version=2, incident_update_time=UT)
