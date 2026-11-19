@@ -7,9 +7,12 @@ import app.pointlastseen.family.data.FirestoreProfileSink
 import app.pointlastseen.family.data.Join
 import app.pointlastseen.family.data.JoinOutcome
 import app.pointlastseen.family.data.ProfilePublisher
+import app.pointlastseen.family.data.ProfileSink
+import app.pointlastseen.family.data.ProfileWrite
 import app.pointlastseen.family.data.PublishedProfiles
 import app.pointlastseen.family.data.SubjectProfile
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CompletableDeferred
@@ -42,11 +45,24 @@ class ProfileFieldUpdateLiveTest {
         return withTimeout(30_000) { done.await() }
     }
 
+    /** The real sink, logging only which document failed and the server's error code, never the data. */
+    private inner class CodeLoggingSink : ProfileSink {
+        private val real = FirestoreProfileSink()
+        override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) =
+            real.write(incidentId, docId, change) { e ->
+                if (e != null) {
+                    val code = (e as? FirebaseFirestoreException)?.code?.name ?: e.javaClass.simpleName
+                    log("profile write refused doc=$docId kind=${change.javaClass.simpleName} code=$code")
+                }
+                onResult(e)
+            }
+    }
+
     @Test fun aFamilyEditIsSentAsAFieldUpdateAndAccepted(): Unit = runBlocking {
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         val incidentId = (joined as JoinOutcome.Joined).incidentId
-        val publisher = ProfilePublisher(FirestoreProfileSink(), MemoryPublished())
+        val publisher = ProfilePublisher(CodeLoggingSink(), MemoryPublished())
         val base = SubjectProfile(answersTo = "Drill subject (synthetic)", clothingLastWorn = "green coat", flags = setOf("mayNotRespond"))
 
         assertTrue("whole publish", publish(publisher, incidentId, base))
