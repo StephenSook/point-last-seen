@@ -1,6 +1,7 @@
 // The command post map: segments filled by POA lightness, a printed percent
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
+import { keyIds, labelsDense } from "./labelDensity";
 import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { loadBasemap } from "../basemap/load";
@@ -166,18 +167,21 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       (m.getSource("segments") as GeoJSONSource | undefined)?.setData(fc as never);
       (m.getSource("centres") as GeoJSONSource | undefined)?.setData(centreFeatures(segments, poa) as never);
       for (const mk of markers.current) mk.remove();
+      // On a crowded map only these keep their code and percent (see labelDensity.ts).
+      const keys = keyIds(poa, segments.map((s) => s.segmentId));
       markers.current = fc.features.flatMap((f, i) => {
         const seg = segments[i];
         if (!seg) return [];
         const at: [number, number] = [seg.centroid.lon, seg.centroid.lat];
+        const key = keys.has(seg.segmentId);
         // Every cell's code sits left of its dot (the largest is 14 px), so a person can name the cell on a radio.
         const code = document.createElement("div");
-        code.className = "seg-code";
+        code.className = key ? "seg-code key" : "seg-code";
         code.textContent = f.properties.segmentId;
         const out = [new Marker({ element: code, anchor: "right", offset: [-17, 0] }).setLngLat(at).addTo(m)];
         if (f.properties.label === "") return out;
         const plate = document.createElement("div");
-        plate.className = "plate";
+        plate.className = key ? "plate key" : "plate";
         plate.textContent = f.properties.label;
         // The plate hangs just below the largest dot (14 px), so the number never covers the dot.
         out.push(new Marker({ element: plate, anchor: "top", offset: [0, 16] }).setLngLat(at).addTo(m));
@@ -188,9 +192,24 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         m.fitBounds(b, { padding: 40, duration: 0 });
         fitted.current = true;
       }
+      dense();
     };
+    // How wide each cell is on screen now: across its own shape, at its centre's latitude.
+    const dense = () => {
+      const widths = segments.map((s) => {
+        const lons = (s.geometry.type === "Polygon" ? s.geometry.coordinates.flat() : s.geometry.coordinates.flat(2)).map((c) => c[0]!);
+        const a = m.project([Math.min(...lons), s.centroid.lat]);
+        const z = m.project([Math.max(...lons), s.centroid.lat]);
+        return Math.abs(z.x - a.x);
+      });
+      m.getContainer().classList.toggle("labels-dense", labelsDense(widths));
+    };
+    m.on("zoomend", dense);
     if (ready.current) draw();
     else m.once("load", draw);
+    return () => {
+      m.off("zoomend", dense);
+    };
   }, [segments, poa, beat?.before]);
 
   useEffect(() => {

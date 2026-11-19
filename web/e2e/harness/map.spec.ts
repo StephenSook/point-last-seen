@@ -78,3 +78,14 @@ test("every segment's code is drawn beside its dot, so a judge can name the cell
   expect(code.x + code.width).toBeLessThanOrEqual(dotX - 14); // clear of the largest dot's radius
   await expect(page.locator(".plate .seg-code")).toHaveCount(0);
 });
+
+test("on a crowded map only the most likely cells keep their code and percent", async ({ page }) => {
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  await expect(page.locator(".seg-code:visible")).toHaveCount(8);
+  await expect(page.locator(".plate:visible")).toHaveCount(8);
+  // The most likely cell keeps its label; every label is still in the page for anything that reads it.
+  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(1);
+  await expect(page.locator(".seg-code")).toHaveCount(24);
+});
