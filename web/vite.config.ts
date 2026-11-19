@@ -54,6 +54,8 @@ export default defineConfig(({ command, mode }) => {
           navigateFallbackDenylist: [/^\/__\//, /^\/pack\//, /^\/evidence\//],
           clientsClaim: true,
           skipWaiting: true,
+          // On activate, pages still running an older build are moved onto this one (public/sw-takeover.js).
+          importScripts: ["sw-takeover.js"],
           cleanupOutdatedCaches: true,
         },
       }),
