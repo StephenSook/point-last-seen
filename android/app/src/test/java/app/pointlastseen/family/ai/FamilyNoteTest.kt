@@ -183,4 +183,24 @@ class FamilyNoteTest {
         assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn).read("x".repeat(2001), env(DeviceModelStatus.UNAVAILABLE, true)))
         assertTrue(model.calls.isEmpty())
     }
+
+    /**
+     * Without consent, or with the cloud paused, the only route is this phone. A reply the SDK reports from the
+     * cloud is refused: nothing is kept and no route record claims a cloud read. The invariant never rests on the SDK.
+     */
+    @Test fun aDeviceOnlyReadRefusesAReplyFromTheCloud() = runTest {
+        for (e in listOf(env(DeviceModelStatus.AVAILABLE, consent = false), env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))) {
+            val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+            assertEquals(NoteOutcome.Failed, FamilyNote(model, screen, signedIn).read(note, e))
+            assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
+        }
+    }
+
+    /** A failed sign-in that falls back to the device-only route is held to the same rule. */
+    @Test fun aSignInFallbackToDeviceOnlyAlsoRefusesACloudReply() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true)).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        assertEquals(NoteOutcome.Failed, out)
+        assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
+    }
 }

@@ -71,6 +71,8 @@ class FamilyNote(private val model: NoteModel, private val screen: EvidenceScree
             if (e is kotlinx.coroutines.CancellationException) throw e
             return NoteOutcome.Failed
         }
+        // A device-only read never keeps a reply the SDK reports from the cloud: the family did not agree to it.
+        if (mode == NoteMode.ONLY_ON_DEVICE && reply.source != Source.ON_DEVICE) return NoteOutcome.Failed
         val reading = parse(reply.text, cleaned) ?: return NoteOutcome.Invalid
         val path = if (reply.source == Source.ON_DEVICE) "on_device" else "cloud"
         val reason = when {
