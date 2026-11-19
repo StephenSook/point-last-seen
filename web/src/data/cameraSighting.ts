@@ -52,7 +52,7 @@ export function buildCameraSighting(c: ClipFacts, w: CommandWriter): EventDoc {
   };
 }
 
-function cameraReading(e: { type?: unknown; reading?: unknown }): CameraSightingReading | null {
+export function cameraReading(e: { type?: unknown; reading?: unknown }): CameraSightingReading | null {
   return e.type === "camera_sighting" && e.reading && typeof e.reading === "object" && "sighting" in e.reading ? (e.reading as CameraSightingReading) : null;
 }
 
