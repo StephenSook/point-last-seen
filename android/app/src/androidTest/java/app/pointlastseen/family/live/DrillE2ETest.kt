@@ -82,7 +82,11 @@ class DrillE2ETest {
 
         // 3. Profile: shared and command documents.
         val published = CompletableDeferred<Boolean>()
-        ProfilePublisher(FirestoreProfileSink()).publish(
+        ProfilePublisher(FirestoreProfileSink(), object : app.pointlastseen.family.data.PublishedProfiles {
+            private val m = mutableMapOf<String, String>()
+            override fun get(key: String) = m[key]
+            override fun put(key: String, json: String) { m[key] = json }
+        }).publish(
             incidentId,
             SubjectProfile(answersTo = "Drill subject (synthetic)", clothingLastWorn = "blue coat", flags = setOf("mayNotRespond", "likelyToHide")),
         ) { published.complete(it) }
@@ -120,7 +124,7 @@ class DrillE2ETest {
             ClipRequest(
                 bytes = bytes, mimeType = "video/mp4", durationS = 2, clipStartMs = now - 60_000L, clockConfirmed = true,
                 cameraFacingDeg = 90, consent = ClipConsent(sha, mark, mark, mark, null), killCloud = { false },
-                modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+                templateId = RcValues.DEFAULTS.clipTemplateId, uploaderUid = uid,
             ),
         )
         log("clip outcome=${outcome::class.simpleName}")
@@ -148,7 +152,7 @@ class DrillE2ETest {
                 ClipRequest(
                     bytes = bytes, mimeType = "video/mp4", durationS = 2, clipStartMs = now - 60_000L, clockConfirmed = true,
                     cameraFacingDeg = 90, consent = ClipConsent(sha, ConsentMark(uid, later), ConsentMark(uid, later), ConsentMark(uid, later), null),
-                    killCloud = { false }, modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+                    killCloud = { false }, templateId = RcValues.DEFAULTS.clipTemplateId, uploaderUid = uid,
                 ),
             )
             assertEquals(ClipOutcome.CouldNotRead, again)

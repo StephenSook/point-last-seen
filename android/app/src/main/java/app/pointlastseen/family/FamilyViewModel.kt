@@ -32,7 +32,17 @@ import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
 import app.pointlastseen.family.data.FirebaseJoinBackend
+import app.pointlastseen.family.data.CloudRead
+import app.pointlastseen.family.data.ConsentedPhotos
+import app.pointlastseen.family.data.PhotoConsentWithdrawal
+import app.pointlastseen.family.push.FamilyTopic
+import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.FamilyQuestions
+import app.pointlastseen.family.data.FirestoreFamilyQuestions
+import app.pointlastseen.family.ui.QuestionOpen
+import app.pointlastseen.family.ui.QuestionUi
 import app.pointlastseen.family.data.FirebasePhotoBucket
+import app.pointlastseen.family.data.FirestorePhotoConsentSink
 import app.pointlastseen.family.data.FirestoreEventStore
 import app.pointlastseen.family.data.FirestoreProfileSink
 import app.pointlastseen.family.data.Hashes
@@ -43,6 +53,7 @@ import app.pointlastseen.family.data.PhotoOutcome
 import app.pointlastseen.family.data.PhotoUpload
 import app.pointlastseen.family.data.PrefsStore
 import app.pointlastseen.family.data.ProfilePublisher
+import app.pointlastseen.family.data.PrefsPublishedProfiles
 import app.pointlastseen.family.data.ProfileStore
 import app.pointlastseen.family.data.Profiles
 import app.pointlastseen.family.data.Session
@@ -60,6 +71,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -70,6 +82,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = PrefsStore(app, "pls")
     private val session = Session(prefs)
     private val profileStore = ProfileStore(PrefsStore(app, "pls-profile"))
+    private val familyTopic = FamilyTopic.firebase()
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     val rc = RcStore(FirebaseRcSource(Firebase.remoteConfig))
@@ -77,7 +90,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val writer = EventWriter(FirestoreEventStore())
     private val watch = IncidentWatch()
     private val evidence = EvidenceTerms.screen(app)
-    private val publisher = ProfilePublisher(FirestoreProfileSink())
+    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
@@ -108,10 +121,18 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
     private var lastClipStartMs: Long = 0L
 
+    // The search lead's question: listed from the server, opened by the id from that list, answered once.
+    // Declared before init, which runs the first check.
+    var questionUi by mutableStateOf(QuestionUi())
+        private set
+    private var openQuestion: Pair<String, String>? = null
+    private val questions: FamilyQuestionStore = FirestoreFamilyQuestions()
+    private var questionCheck: Job? = null
+
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it) }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
         // After a restart in the gone-and-joined state, write the profile again (idempotent).
         publishIfGone()
@@ -121,6 +142,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun open(target: Screen) {
         nav = Nav.open(nav, target)
+        // The photos this phone allowed earlier (also before a restart) can be withdrawn from the photos screen.
+        if (nav.screen == Screen.PHOTOS) session.incidentId()?.let { photosUi = photosUi.copy(consented = consentedPhotos.list(it).size, withdrawNote = null) }
     }
 
     fun systemBack() {
@@ -151,7 +174,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
     fun leaveSearch() {
+        questionCheck?.cancel()
+        openQuestion = null
         watch.stop()
+        session.incidentId()?.let { familyTopic.left(it) }
         session.leave()
         prefs.remove(GONE)
         nav = Nav.leave(nav)
@@ -171,7 +197,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 is JoinOutcome.Joined -> {
                     session.joined(out.incidentId)
                     watch.watch(out.incidentId)
+                    familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
+                    // A question asked before this phone joined had its push before the topic was subscribed.
+                    checkQuestions(out.incidentId, fromPush = false)
                 }
                 is JoinOutcome.Failed -> joinError = out.message
             }
@@ -283,7 +312,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val request = ClipRequest(
             bytes = bytes, mimeType = runCatching { app.contentResolver.getType(uri) }.getOrNull() ?: "video/mp4",
             durationS = durationS, clipStartMs = startMs, clockConfirmed = form.clockConfirmed, cameraFacingDeg = form.facingDeg,
-            consent = consent, killCloud = { rc.current().killCloud }, modelName = rc.current().clipModel,
+            consent = consent, killCloud = { rc.current().killCloud }, templateId = rc.current().clipTemplateId,
             uploaderUid = uid,
         )
         return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
@@ -324,6 +353,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
+        // The tick, as it stands when the photos are chosen, is the consent for each of them.
+        val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
         viewModelScope.launch {
             val resolver = getApplication<Application>().contentResolver
             for (uri in uris) {
@@ -332,14 +363,93 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     photosUi = photosUi.copy(error = "One photo could not be read.")
                     continue
                 }
-                when (val out = PhotoUpload(FirebasePhotoBucket()).upload(incidentId, jpeg)) {
-                    is PhotoOutcome.Uploaded -> photosUi = photosUi.copy(uploaded = photosUi.uploaded + 1)
+                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent)) {
+                    is PhotoOutcome.Uploaded -> {
+                        if (out.cloudRead == CloudRead.ALLOWED) consentedPhotos.add(incidentId, out.path.substringAfterLast('/').removeSuffix(".jpg"))
+                        photosUi = photosUi.copy(
+                            uploaded = photosUi.uploaded + 1,
+                            notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                            consented = consentedPhotos.list(incidentId).size,
+                        )
+                    }
                     is PhotoOutcome.Refused -> photosUi = photosUi.copy(error = out.message)
                     is PhotoOutcome.Failed -> photosUi = photosUi.copy(error = out.message)
                 }
             }
             photosUi = photosUi.copy(busy = false)
         }
+    }
+
+    /** A tapped "The search lead has a question" opens the newest unanswered question listed on the server. */
+    fun questionPushOpened(incidentId: String) {
+        if (session.incidentId() != incidentId) return
+        openQuestion = null
+        questionUi = QuestionUi(loading = true)
+        open(Screen.QUESTION)
+        checkQuestions(incidentId, fromPush = true)
+    }
+
+    /**
+     * Lists the incident's questions from the server and opens the newest unanswered one. A push check
+     * replaces a check in progress; a start or join check is skipped while one runs.
+     */
+    private fun checkQuestions(incidentId: String, fromPush: Boolean) {
+        if (!fromPush && questionCheck?.isActive == true) return
+        questionCheck?.cancel()
+        val shownAt = nav.screen
+        questionCheck = viewModelScope.launch {
+            val check = FamilyQuestions.check(questions, incidentId)
+            if (session.incidentId() != incidentId) return@launch
+            val shown = QuestionOpen.decide(check, fromPush, screenUnchanged = nav.screen == shownAt) ?: return@launch
+            openQuestion = shown.questionId?.let { incidentId to it }
+            questionUi = shown.ui
+            if (shown.navigate) open(Screen.QUESTION)
+        }
+    }
+
+    private suspend fun loadQuestion(incidentId: String, questionId: String, error: String? = null) {
+        questionUi = try {
+            val q = questions.read(incidentId, questionId)
+            if (q == null) QuestionUi(error = "The question could not be found.") else QuestionUi(text = q.text, answer = q.answer, error = error)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            QuestionUi(error = QuestionOpen.READ_FAILED)
+        }
+    }
+
+    fun sendAnswer(text: String) {
+        val (incidentId, questionId) = openQuestion ?: return
+        val uid = Firebase.auth.currentUser?.uid ?: return
+        questionUi = questionUi.copy(sending = true, error = null)
+        viewModelScope.launch {
+            val sent = runCatching { questions.answer(incidentId, questionId, text, uid) }
+            // Read it back either way: a refused answer usually means it was already answered.
+            loadQuestion(incidentId, questionId, error = if (sent.isFailure) "The answer was not sent. Check the connection and try again." else null)
+        }
+    }
+
+    private val consentedPhotos by lazy { ConsentedPhotos(PrefsStore(getApplication(), "pls-consented")) }
+
+    /** Deletes the consent records this phone made, so command can no longer read those photos in the cloud. */
+    fun withdrawCloudRead() {
+        val incidentId = session.incidentId() ?: return
+        photosUi = photosUi.copy(busy = true, withdrawNote = null)
+        viewModelScope.launch {
+            val r = PhotoConsentWithdrawal(consentedPhotos) { inc, sha -> FirestorePhotoConsentSink().delete(inc, sha) }.withdrawAll(incidentId)
+            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
+            photosUi = photosUi.copy(
+                busy = false,
+                consented = consentedPhotos.list(incidentId).size,
+                withdrawNote = when {
+                    r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
+                    else -> "The cloud read is off for ${photos(r.withdrawn)}."
+                },
+            )
+        }
+    }
+
+    fun cloudRead(on: Boolean) {
+        photosUi = photosUi.copy(cloudRead = on)
     }
 
     private fun displayName(uri: Uri): String? = runCatching {

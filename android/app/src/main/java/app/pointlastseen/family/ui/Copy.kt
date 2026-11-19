@@ -18,6 +18,10 @@ object Copy {
     fun callFirst(mode: String?): String =
         if (isDrill(mode)) "Training drill. Call the drill call-taker, not 911." else "Call 911 first."
 
+    /** The fixed status line: news about the missing person never comes from this app. */
+    fun newsByPhone(name: String): String =
+        "News about ${name.trim().ifEmpty { "them" }} comes from your search lead by phone, never from this app."
+
     fun status(status: String?): String = when (status) {
         "found" -> "Found. Safe."
         "closed" -> "The search is closed."
