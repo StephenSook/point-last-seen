@@ -15,3 +15,23 @@ test("a sighting can be placed and saved from the keyboard alone", async ({ page
   expect(pos.lon).toBeCloseTo(0.003, 9);
   expect(pos.lat).toBeCloseTo(-0.001, 9);
 });
+
+test("a read that answers after the note changed is dropped, not filled into the fields", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await note.fill("blue coat by the gate");
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "The note changed while it was being read. Read it again." })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Top" })).not.toHaveValue("red");
+  await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
+});
+
+test("a read of the unchanged note fills the fields", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+});

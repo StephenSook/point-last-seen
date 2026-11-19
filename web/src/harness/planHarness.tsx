@@ -43,6 +43,7 @@ function Harness() {
             ? { platform: "web", path: "rules", stage: "sdk", model: "template", reason: "template_fallback", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs: 0 }
             : { platform: "web", path: routePath, stage: "sdk", model: routePath === "cloud" ? "gemini-3.5-flash-lite" : "chrome-built-in", reason: routePath === "cloud" ? "on_device_unavailable" : "sdk_prefer_on_device", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0 },
           notice: null,
+          promptBytes: 1234,
           };
         }}
         onApprove={() => ({ version: 1, ack: new Promise<void>(() => {}) })}

@@ -118,7 +118,8 @@ export type WordingDeps = {
 /** A model asked for wording whose answer was not used: where it ran (as far as the SDK said) and why. */
 export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" };
 /** `attempt` is present only when a model was asked and its answer was not used; `route` is what worded the plan. */
-export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt };
+/** `promptBytes`: the UTF-8 size of the plan text a model is sent (for the receipt), when this file built it. */
+export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt; promptBytes?: number };
 
 const UNUSED = "The model's wording could not be used. The plan below uses fixed wording.";
 
@@ -144,6 +145,11 @@ function route(path: RouteRecord["path"], reason: RouteRecord["reason"], model: 
 }
 
 export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<WordedPlan> {
+  const out = await wordPlanInner(draft, deps);
+  return { ...out, promptBytes: new TextEncoder().encode(planPrompt(draft)).length };
+}
+
+async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<WordedPlan> {
   const t0 = deps.now();
   const template = (notice: string | null, attempt?: WordingAttempt): WordedPlan => {
     const t1 = deps.now();
