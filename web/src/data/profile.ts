@@ -46,6 +46,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : n
 const arr = <T,>(v: unknown, keep: (x: unknown) => x is T = (x: unknown): x is T => true): T[] => (Array.isArray(v) ? v.filter(keep) : []);
 const obj = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const AIDS = new Set(["cane", "walker", "wheelchair", "other"]);
+const TRACKING = new Set(["project_lifesaver", "medicalert_id", "gps_tracker", "phone_location"]);
 const isPlace = (x: unknown): x is Place => typeof x === "object" && x !== null && typeof (x as Place).label === "string";
 
 export function sharedFromDoc(data: unknown): SharedProfile {
@@ -66,6 +67,15 @@ export function sharedFromDoc(data: unknown): SharedProfile {
     // Kept when stored (the family app writes the list), so a later save from here writes it back: the shared
     // document is replaced whole, and dropping the list here would erase the names. Absent stays absent.
     ...(Array.isArray(d["otherNames"]) ? { otherNames: arr(d["otherNames"], (x): x is string => typeof x === "string") } : {}),
+    // The same for the tracking aids the family named: kept when stored, so a command save does not erase them.
+    ...(typeof d["trackingAids"] === "object" && d["trackingAids"] !== null
+      ? {
+          trackingAids: {
+            aids: arr(obj(d["trackingAids"])["aids"], (x): x is NonNullable<SharedProfile["trackingAids"]>["aids"][number] => typeof x === "string" && TRACKING.has(x)),
+            note: str(obj(d["trackingAids"])["note"]),
+          },
+        }
+      : {}),
   };
 }
 

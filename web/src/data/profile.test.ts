@@ -214,3 +214,18 @@ describe("answersToLine", () => {
     expect(answersToLine({ ...base, answersTo: "", nickname: "" })).toBeNull();
   });
 });
+
+describe("the family's tracking aids", () => {
+  const aids = { aids: ["project_lifesaver", "gps_tracker"], note: "Tracker is in her coat pocket" };
+  it("are read from the stored document, and absent stays absent", () => {
+    expect(sharedFromDoc({ ...profileDocs(emptyProfile()).shared, trackingAids: aids }).trackingAids).toEqual(aids);
+    expect("trackingAids" in sharedFromDoc(profileDocs(emptyProfile()).shared)).toBe(false);
+  });
+  it("survive a command save of another shared field, since the document is written whole", () => {
+    const opened = emptyProfile();
+    const edited = { ...opened, gender: "female" };
+    const stored = { ...profileDocs(opened).shared, trackingAids: aids };
+    const out = mergeProfileSave(opened, edited, { shared: stored, command: null });
+    expect(out.shared).toMatchObject({ gender: "female", trackingAids: aids });
+  });
+});
