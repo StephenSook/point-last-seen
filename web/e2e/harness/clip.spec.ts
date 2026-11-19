@@ -182,9 +182,10 @@ test("a clip that cannot be read from this computer says so and unlocks the form
   await expect(page.getByTestId("asked")).toHaveText("");
 });
 
-test("triage: when the flagged seconds show no one, the whole clip can be read with the same consents", async ({ page }) => {
+test("triage: when the flagged seconds give no usable reading, the whole clip can be read with the same consents", async ({ page }) => {
   await fillAndRead(page, "/harness/clip.html?triage=flagged");
-  await expect(page.getByRole("status")).toHaveText("No one was found in the flagged seconds. Nothing changed.");
+  // A miss and an unusable reply look the same here, so it never claims no one was there.
+  await expect(page.getByRole("status")).toHaveText("No usable reading from the flagged seconds. Nothing changed.");
   expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
   await page.getByRole("button", { name: "Read the whole clip in the cloud" }).click();
   // A retry: it uses the first read's consent record and writes no new one.

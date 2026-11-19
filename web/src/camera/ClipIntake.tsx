@@ -5,7 +5,7 @@
 // possible only with the three required consents; readClip checks them again.
 // With this laptop's model, the clip is triaged here first: a clip with no motion or no person
 // is not sent (a consented "Read in the cloud anyway" stays open), and a flagged clip is read
-// only for its flagged seconds; if they show no one, "Read the whole clip in the cloud" stays open.
+// only for its flagged seconds; if they give no usable reading, "Read the whole clip in the cloud" stays open.
 
 import { sizeProblem, type RouteReason } from "@pls/engine";
 import { useState, type FormEvent } from "react";
@@ -81,8 +81,9 @@ const NO_CONSENT: ClipConsents = { personInClip: false, footageOwner: false, clo
 const HELD = {
   "no-motion": "Nothing moves in this clip. Nothing was sent.",
   "no-person": "No person found on this laptop. Nothing was sent.",
-  // A flagged window read in the cloud found no one; triaging again would flag the same seconds.
-  "window-miss": "No one was found in the flagged seconds. Nothing changed.",
+  // A flagged window read in the cloud gave no usable sighting (no one, or a reply that could not be used);
+  // triaging again would flag the same seconds.
+  "window-miss": "No usable reading from the flagged seconds. Nothing changed.",
 } as const;
 
 export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onClose }: Props) {
