@@ -127,3 +127,50 @@ describe("checkRun refuses what must never be public", () => {
     expect(checkRun({ ...run, devices: run.devices.map((d, i) => (i === 0 ? { ...d, deviceId: "phone-of-sam" } : d)) })).not.toEqual([]);
   });
 });
+
+describe("checkRun also holds the reader's shape and size rules (extras reader)", () => {
+  const base = () => toPublishedRun(rawDrill(), meta);
+  const withEvent = (run: ReturnType<typeof base>, i: number, over: Record<string, unknown>) =>
+    ({ ...run, events: run.events.map((e, j) => (j === i ? { ...e, ...over } : e)) });
+  it("engineParams in the engine's own shape, filled where the stored copy predates a field, or absent", async () => {
+    const { DEFAULT_PARAMS } = await import("@pls/engine");
+    const run = base();
+    expect(Object.keys(run.incident.engineParams as object).sort()).toEqual(Object.keys(DEFAULT_PARAMS).sort());
+    expect((run.incident.engineParams as { sweepWidthFactor: number }).sweepWidthFactor).toBe(1.645);
+    expect(checkRun({ ...run, incident: { ...run.incident, engineParams: { sweepWidthFactor: 1.645 } } })).not.toEqual([]);
+    const { engineParams: _p, ...noParams } = run.incident;
+    expect(checkRun({ ...run, incident: noParams })).toEqual([]);
+  });
+  it("a route is an exact route record or null", () => {
+    const route = { platform: "web", path: "cloud", stage: "read", model: "gemini-3.5-flash-lite", reason: "consented",
+      latencyMs: 900, sdkReported: "in_cloud", blocked: false, decidedAtMs: T0 };
+    expect(checkRun(withEvent(base(), 0, { route }))).toEqual([]);
+    expect(checkRun(withEvent(base(), 0, { route: { ...route, extra: 1 } }))).not.toEqual([]);
+    expect(checkRun(withEvent(base(), 0, { route: { platform: "web" } }))).not.toEqual([]);
+  });
+  it("an effect has the engine's exact shape and names only exported segments", () => {
+    const run = base(), seg = String(run.segments[0]!.segmentId);
+    const cleared = { kind: "cleared", segmentId: seg, pod: 0.5, inputs: { coverage: 1, sweepWidthM: 20, trackLengthM: 1000, areaM2: 2e4, rdBasis: "measured" } };
+    expect(checkRun(withEvent(run, 0, { effect: cleared }))).toEqual([]);
+    expect(checkRun(withEvent(run, 0, { effect: { ...cleared, segmentId: "ZZ" } }))).not.toEqual([]);
+    expect(checkRun(withEvent(run, 0, { effect: { ...cleared, extra: true } }))).not.toEqual([]);
+    expect(checkRun(withEvent(run, 0, { effect: { kind: "clue", influences: { [seg]: "for" }, authenticity: "high" } }))).toEqual([]);
+    expect(checkRun(withEvent(run, 0, { effect: { kind: "clue", influences: { ZZ: "for" }, authenticity: "high" } }))).not.toEqual([]);
+    expect(checkRun(withEvent(run, 0, { effect: { kind: "none" } }))).not.toEqual([]);
+  });
+  it("no id may be __proto__, constructor or prototype", () => {
+    const run = base();
+    for (const id of ["__proto__", "constructor", "prototype"]) {
+      expect(checkRun(withEvent(run, 0, { eventId: id }))).not.toEqual([]);
+      expect(checkRun({ ...run, teams: [{ teamId: id, name: "Team" }] })).not.toEqual([]);
+    }
+  });
+  it("server times lie between 2000 and 2100, within 7 days of each other, and there are at most 1,000 events", () => {
+    const run = base();
+    expect(checkRun(withEvent(run, 0, { serverTimeMs: Date.UTC(1999, 11, 31) }))).not.toEqual([]);
+    expect(checkRun(withEvent(run, 0, { serverTimeMs: Date.UTC(2100, 0, 2) }))).not.toEqual([]);
+    expect(checkRun(withEvent(run, 0, { serverTimeMs: T0 - 8 * 86_400_000 }))).not.toEqual([]);
+    const many = Array.from({ length: 1001 }, (_, i) => ({ ...run.events[0]!, eventId: i.toString(16).padStart(32, "0") }));
+    expect(checkRun({ ...run, events: many })).not.toEqual([]);
+  });
+});

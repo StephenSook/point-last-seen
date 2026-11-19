@@ -67,6 +67,8 @@ service cloud.firestore {
       allow update: if isCommand(incidentId)
         && resource.data.get('status', 'open') != 'closed'
         && request.resource.data.status in ['open', 'found', 'closed']
+        // What the family may be told about the search: only that teams are searching or that it is paused.
+        && (!('searchState' in request.resource.data) || request.resource.data.searchState in ['searching', 'paused'])
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt'])
@@ -169,6 +171,22 @@ service cloud.firestore {
                   && clipConsentOk(request.resource.data)));
         allow delete: if isCommand(incidentId);
       }
+      // A question from command to the family, answered once by a family member. Every member reads it; nobody
+      // deletes it (incident cleanup does). The push about it carries ids only, never the text.
+      match /familyQuestions/{questionId} {
+        allow read: if isMember(incidentId);
+        allow create: if isCommand(incidentId) && isOpen(incidentId) && questionId.matches('^[A-Za-z0-9_-]{1,40}$')
+          && exactKeys(request.resource.data, ['text', 'createdByUid', 'createdAt'])
+          && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
+          && request.resource.data.createdByUid == request.auth.uid && request.resource.data.createdAt == request.time;
+        allow update: if isFamily(incidentId) && !('answer' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer', 'answeredByUid', 'answeredAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAll(['answer', 'answeredByUid', 'answeredAt'])
+          && request.resource.data.answer is string && request.resource.data.answer.size() >= 1 && request.resource.data.answer.size() <= 500
+          && request.resource.data.answeredByUid == request.auth.uid && request.resource.data.answeredAt == request.time;
+        allow delete: if false;
+      }
+
       match /photoReadings/{sha256} {
         allow read, write: if isCommand(incidentId);
       }

@@ -1,5 +1,6 @@
 // Builds the public run from an incident's stored docs (timestamps already in milliseconds). Only the contract's
 // fields are written; uids become pseudonyms; report text, profile fields and home positions never leave.
+import { DEFAULT_PARAMS } from "@pls/engine";
 import { RUN_FIELDS } from "./contract";
 
 export type Doc = Record<string, unknown>;
@@ -36,6 +37,17 @@ export interface PublishedRun {
   events: RunEvent[];
   plans: Doc[];
   measurements: unknown;
+}
+
+/**
+ * Stored engine params in exactly the engine's shape: every field the constants have, the stored value where there is
+ * one (an incident created before a field existed gets the constants' value), and nothing the constants lack.
+ */
+export function inEngineShape(stored: unknown, defaults: unknown = DEFAULT_PARAMS): unknown {
+  const isMap = (v: unknown): v is Doc => typeof v === "object" && v !== null && !Array.isArray(v);
+  if (!isMap(defaults)) return stored === undefined ? defaults : stored;
+  const s = isMap(stored) ? stored : {};
+  return Object.fromEntries(Object.entries(defaults).map(([k, d]) => [k, isMap(d) ? inEngineShape(s[k], d) : (s[k] ?? d)]));
 }
 
 const pick = (d: Doc, fields: readonly string[]): Doc =>
@@ -79,6 +91,7 @@ export function toPublishedRun(raw: RawRun, meta: { runId: string; label: string
     return out as RunEvent;
   });
   const incident = pick(raw.incident, RUN_FIELDS.incident.filter(k => k !== "priorBuiltAtMs"));
+  if (raw.incident.engineParams !== undefined) incident.engineParams = inEngineShape(raw.incident.engineParams);
   incident.priorBuiltAtMs = typeof raw.incident.priorBuiltAt === "number" ? raw.incident.priorBuiltAt : null;
   return {
     runId: meta.runId,

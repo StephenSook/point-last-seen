@@ -5,6 +5,54 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Family pushes. `notifyFamilyQuestion` (on `familyQuestions/{questionId}` create) and `notifyFamilySearchState`
+  (on incident update, when `searchState` becomes `searching` or `paused`) send one push to the topic
+  `pls-{incidentId}-family`, with fixed wording and ids only: `{kind, incidentId}` plus `questionId` for a question.
+  The question's text never travels in the push; the phone reads it from Firestore. No kind for an outcome exists,
+  and no other incident change (its status included) sends anything. At most 20 family pushes per incident per UTC
+  day, counted in a server-only `pushBudget` doc; none in a judge practice search. A team named `family` never gets
+  a plan push, since its topic would be the family's.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (topic, wording and payload, with no question text; one push per new question; pushes only
+  on a change to searching or paused, not on a repeat, a status change or "found"; the daily cap across both kinds
+  and a new day; none in a judge sandbox; a "family" team skipped; both triggers registered; no member reads or
+  writes the budget) failed first where they test new behaviour, now pass; `bash scripts/ci-local.sh` exit 0
+  (218 tests).
+- Firestore rules for the family channel. `incidents/{id}/familyQuestions/{questionId}`: command asks, while the
+  incident is open, with exactly `text` (1 to 280 characters), `createdByUid` (itself) and `createdAt` (server time);
+  a family member answers once with `answer` (1 to 500 characters), `answeredByUid` (itself) and `answeredAt`
+  (server time), changing nothing else; every member reads; nobody deletes. The incident's new `searchState`, which
+  command sets, may only be `searching` or `paused`: what the family may be told about the search, never an
+  outcome.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (command asks and every member reads; family and searchers cannot ask; an empty, 281-character
+  or numeric text, someone else as asker, a client time, an extra field and malformed ids are refused; only
+  family answers, once, as itself, at server time, within 500 characters and without touching the question;
+  nobody deletes; searchState takes searching or paused only, from command only) failed first, now all 112 rules
+  tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
+- The public-run exporter holds the judge replay reader's shape and size rules too: `engineParams` is written in
+  exactly the engine's shape (an incident created before a field existed gets the constants' value; a stored value
+  is kept; nothing the constants lack), a route is an exact route record or null, an effect has the engine's exact
+  shape and names only segments the run exports, no id is `__proto__`, `constructor` or `prototype`, every server
+  time lies between 2000 and 2100 and within 7 days of the rest, and a run has at most 1,000 events. A breach of
+  any refuses the write.
+  Source: review (the extras reader's rules at aa5bbf7).
+  Verified: the tests (the filled params match the engine's keys and keep the stored sweep width; a partial params
+  object, a route with an extra or a missing field, an effect with an extra field, a missing `why` or a segment
+  the run lacks, the three unsafe ids, times in 1999 or 2100 or 8 days apart, and 1,001 events are each refused)
+  failed first, now 19 exporter tests pass; typecheck exit 0; a read-only export of drill-dev-1 still passes every
+  check (68 segments, 24 events, 17 plans); `bash scripts/ci-local.sh` exit 0.
+- The README is written for judges first: the judge page's link at the top and what it offers today (a practice
+  search, and which models the command post uses; the replay after the drill), what ships on each platform and how
+  to try it (the command post's URL, TestFlight once the public build exists, a signed APK as a GitHub release
+  asset), and a setup from a clean checkout. It now says how the models are called: cloud reads through Firebase
+  AI Logic, on-device reads on the web and Android through AI Logic's hybrid inference, and on iPhone through Apple
+  Foundation Models (`SystemLanguageModel`). It no longer claims that every model call goes through Firebase AI
+  Logic, which the iPhone's on-device reads do not.
+  Source: review (the backlog audit: an untrue line, and a README that was not written for a judge).
+  Verified: the live site and `/judge` answer HTTP 200; the judge page's replay flag is off on main
+  (`REPLAY_LIVE`); the model paths match `ios/PLS/AI/ModelSessionFactory.swift`,
+  `android/.../ai/AiClient.kt` and `web/src/ai/client.ts`; `bash scripts/ci-local.sh` exit 0.
 - `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
   is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
   and that its check compares each segment's percent and centroid, not its polygon. A new section on push
