@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Firestore rules for the family channel. `incidents/{id}/familyQuestions/{questionId}`: command asks, while the
+  incident is open, with exactly `text` (1 to 280 characters), `createdByUid` (itself) and `createdAt` (server time);
+  a family member answers once with `answer` (1 to 500 characters), `answeredByUid` (itself) and `answeredAt`
+  (server time), changing nothing else; every member reads; nobody deletes. The incident's new `searchState`, which
+  command sets, may only be `searching` or `paused`: what the family may be told about the search, never an
+  outcome.
+  Source: review (a family push channel that never carries outcomes).
+  Verified: the tests (command asks and every member reads; family and searchers cannot ask; an empty, 281-character
+  or numeric text, someone else as asker, a client time, an extra field and malformed ids are refused; only
+  family answers, once, as itself, at server time, within 500 characters and without touching the question;
+  nobody deletes; searchState takes searching or paused only, from command only) failed first, now all 112 rules
+  tests pass in the emulator; `bash scripts/ci-local.sh` exit 0.
 - The public-run exporter holds the judge replay reader's shape and size rules too: `engineParams` is written in
   exactly the engine's shape (an incident created before a field existed gets the constants' value; a stored value
   is kept; nothing the constants lack), a route is an exact route record or null, an effect has the engine's exact
