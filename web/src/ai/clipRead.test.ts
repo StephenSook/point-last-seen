@@ -148,6 +148,17 @@ describe("readClip", () => {
     expect(t.written[0]).toMatchObject({ sha256: t.sha, durationS: 20, cameraFacingDeg: 90, createdByUid: "u1", consent: { personInClip: mark, footageOwner: mark, cloudProcessing: mark, publicUse: null } });
   });
 
+  it("reports the size of what it sent: the clip's base64 on a fresh read, nothing on a stored one", async () => {
+    const t = await setup();
+    let sent = -1;
+    const generate = t.deps.generate;
+    const r = await readClip(t.req, { ...t.deps, generate: (b64, mime, w) => { sent = b64.length; return generate(b64, mime, w); } });
+    expect(r).toMatchObject({ kind: "read", cached: false, sentBytes: sent });
+    expect(sent).toBe(4 * Math.ceil(t.req.bytes.length / 3));
+    const stored = await setup({ stored: { reading: goodReply } });
+    expect(await readClip(stored.req, stored.deps)).toMatchObject({ kind: "read", cached: true, sentBytes: 0 });
+  });
+
   it("returns a stored reading with no model call and no write, taking the bearing from the facing just given", async () => {
     const t = await setup({ stored: { reading: goodReply } });
     const r = await readClip(t.req, t.deps);
