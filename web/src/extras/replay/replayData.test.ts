@@ -296,6 +296,14 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [{ ...base.events[0]!, eventId: "0123456789abcdef0123456789abcdef" }] })).ok).toBe(true);
   });
 
+  it("reads a report that leaves out an optional coded field: only a value that is present is checked", () => {
+    const base = runEvent(eventDoc({ eventId: "e" }), T0);
+    for (const field of ["decision", "positionSource", "inputMethod", "reporter"] as const) {
+      const { [field]: _left, ...rest } = base;
+      expect(fromPublishedRun(run({ events: [rest as typeof base] })).ok, field).toBe(true);
+    }
+  });
+
   it("refuses a report whose kind, role, reporter, place source, input or decision is not an exact known value", () => {
     const base = runEvent(eventDoc({ eventId: "e" }), T0);
     const unknownKind = { ok: false, reason: "The run has a report of a kind it does not know." };

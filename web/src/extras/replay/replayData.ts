@@ -323,8 +323,9 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     }
     const eventStray = strayField(e, RUN_FIELDS.event, "event");
     if (eventStray) return strayRefusal(eventStray);
+    // Only a value that is present is checked: which fields must be present is decided above.
     for (const [field, allowed] of Object.entries(RUN_ENUMS)) {
-      if (!(allowed as readonly unknown[]).includes(e[field])) return refuse("The run has a report of a kind it does not know.");
+      if (Object.hasOwn(e, field) && !(allowed as readonly unknown[]).includes(e[field])) return refuse("The run has a report of a kind it does not know.");
     }
     if (!str(e["authorUid"]) || !AUTHOR_PSEUDONYM.test(e["authorUid"])) return refuse(USER_ID);
     if (!DEVICE_PSEUDONYM.test(e["deviceId"])) return refuse(USER_ID);
