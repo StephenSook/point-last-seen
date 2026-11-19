@@ -36,6 +36,8 @@ jobs:
         run: python3 -I scripts/appcheck_control.py --no-token-only
       - name: Drill media still expires (lifecycle rule and a recent sweep)
         if: always()
+        env:
+          APPCHECK_DEBUG_TOKEN_CI: ${{ secrets.APPCHECK_DEBUG_TOKEN_CI }}
         run: python3 -I scripts/media_probe.py
       - name: Every model we name is still listed, with no shutdown before judging ends
         if: always()

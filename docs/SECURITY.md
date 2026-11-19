@@ -63,7 +63,7 @@ Names and places only; no value is in this repository.
 | 11 | Budget alerts and spend cap | Read back 2026-11-18 on the billing account: a $25 Firebase spend cap on 23 services (alerts at 50, 80 and 100%) and a $25 budget on all of this project's services (alerts at 50, 90 and 100%) | Billing console |
 | 12 | Before and after generateContent triggers | ON for before-generate only: function `cloudGuard` (us-central1), deployed 2026-11-18 22:57 UTC from ebd96a9, no minimum instances. Every `generateContent` call through AI Logic, templated or not, must name a model on `shared/constants/models.json`; any other model is refused (the trigger answers permission-denied and the AI Logic proxy returns HTTP 500 to the app). It keeps only the generation settings our apps use and bounds output at 2,048 tokens (4,096 on the speech model). One exception, measured live: the proxy took a rewritten 11.3 MB request (HTTP 200) and failed on a rewritten 15.8 MB one (HTTP 500), so a request with more than 9,000,000 base64 characters of inline media is never rewritten; it passes only if its own settings already comply, with a token limit within the cap or none (template calls arrive with none; each template sets its own, and whether the proxy applies it after the trigger is not verified), and is refused otherwise. Not covered, by Google's design: "Requests to generateContentStream will not trigger these functions." and "Requests to the Gemini Live API will not trigger these functions." (https://firebase.google.com/docs/ai-logic/pre-and-post-request-scripts, Limitations and behaviors). Our iOS report read streams (`streamGenerateContent`), so the allow-list does not apply to it; it stays bounded by App Check, 20 calls a minute per user (row 9) and the $25 cap (row 11). Added latency: median 86 ms over 10 warm calls (925 ms against 839 ms before the trigger). No after-generate trigger. | `firebase functions:list` shows cloudGuard. A call naming `gemini-3.8-flash` is refused. Cloud Logging for the `cloudguard` service has one line per call (path, setting names, media size in MB; never content). Tests: `functions/test/cloudGuard.test.ts` |
 | 13 | Model Armor | DECIDED-NO. Every client uses the Gemini Developer API backend (web `GoogleAIBackend`, iOS `.googleAI()`, Android `GenerativeBackend.googleAI()`); Model Armor applies only to the Vertex AI backend | Code |
-| 14 | App Check on Firestore, Storage and functions | Firestore and Storage: not enforced yet (read back 2026-11-18). PLAN: enforce once the iPhone and Android release builds pass App Check, no later than 2026-11-25. Functions: all three client-callable functions, `joinIncident`, `deleteIncidentMediaNow` and `startJudgeSession`, have `enforceAppCheck: true`; `deleteIncidentMedia` and `deleteEndedSandboxesJob` (scheduled) and `deleteClipOnConsentEnd` (a Firestore trigger) cannot be called by clients | `functions/src/index.ts` |
+| 14 | App Check on Firestore, Storage and functions | Firestore and Storage: UNENFORCED (monitoring only: App Check verdicts are counted and nothing is refused) since 2026-11-19 01:33 UTC, read back by GET the same minute; before that they were off and counted nothing. Enforcement follows a 24-hour read of verified against unverified requests per app (Cloud Monitoring metric `firebaseappcheck.googleapis.com/services/verification_count`). The daily probe already reads `ops/storage` with an App Check token, so it keeps working once Firestore is enforced. PLAN: enforce no later than 2026-11-25. Rollback: set the service's enforcement mode back. Functions: all three client-callable functions, `joinIncident`, `deleteIncidentMediaNow` and `startJudgeSession`, have `enforceAppCheck: true`; `deleteIncidentMedia` and `deleteEndedSandboxesJob` (scheduled) and `deleteClipOnConsentEnd` (a Firestore trigger) cannot be called by clients | `functions/src/index.ts` |
 
 Row 2 note: the Remote Config key `use_limited_use_tokens` (published value `true`) turns limited-use tokens on
 for the web (`aiClient(app, rc.useLimitedUseTokens)`, `web/src/ai/client.ts`), iOS
@@ -73,17 +73,20 @@ protection enforced, setting it to `false` would make every cloud call fail.
 
 ## Every cloud model call
 
-Each call goes through Firebase AI Logic with an App Check token and a Firebase Auth ID token. None is
-templated today (row 6).
+Each call goes through Firebase AI Logic with an App Check token and a Firebase Auth ID token. Three calls use a
+server prompt template (row 6); the rest are direct calls that name their model, which cloudGuard checks (row 12),
+except the iOS report read, which streams.
 
-| Surface | What it reads | Mode | Starts when |
-|---|---|---|---|
-| Web command post | Suggested wording for a changed plan | Prefer cloud, on-device fallback | Command clicks Suggest |
-| Web command post | A typed or pasted sighting note | Cloud only, after the on-device read | Command asks for the cloud read |
-| Web command post | One photo from the tray | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
-| iOS searcher app | A spoken or typed field report | On-device first; cloud by the read router (`ios/PLS/AI/ModelSessionFactory.swift`) | The searcher sends a report |
-| Android family app | A family note | Hybrid, from Remote Config `kill_cloud` and the caller's route | The family sends a note |
-| Android family app | A camera clip | Cloud only, after the consent record is written | The family shares a clip |
+| Surface | What it reads | Template or direct | Mode | Starts when |
+|---|---|---|---|---|
+| Web command post | Suggested wording for a changed plan | Direct | Prefer cloud, on-device fallback | Command clicks Suggest |
+| Web command post | A typed or pasted sighting note | Template `pls-sighting-note-v1` | Cloud only, after the on-device read | Command asks for the cloud read |
+| Web command post | One photo from the tray | Direct (`pls-photo-cues-v1` is published for it) | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
+| Web command post | A camera clip, or the seconds of it that matter | Direct (a template cannot pass the clip window) | Cloud only | Command asks for a clip read |
+| iOS searcher app | A spoken or typed field report | Direct, streaming | On-device first; cloud by the read router (`ios/PLS/AI/ModelSessionFactory.swift`) | The searcher sends a report |
+| iOS searcher app | A spoken assignment change | Template `pls-voice-v1` | Cloud voice, falling back to the phone's voice | Command changes the team's assignment |
+| Android family app | A family note | Direct | Hybrid, from Remote Config `kill_cloud` and the caller's route | The family sends a note |
+| Android family app | A camera clip | Template `pls-clip-read-v1` | Cloud only, after the consent record is written | The family shares a clip |
 
 ## Data and media
 

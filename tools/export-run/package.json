@@ -1,0 +1,22 @@
+{
+  "name": "@pls/export-run",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Exports a drill incident as the public run the judge replay reads (published-run.json), with no uid, report text or home position.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "export": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@pls/engine": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}
