@@ -103,3 +103,18 @@ test("a report still sending is named, and the end frame says why it differs fro
   // The live header counts the pending rejection; the replay cannot, and says so.
   await expect(dialog.getByTestId("replay-code")).not.toHaveText((await page.getByTestId("live-code").textContent())!);
 });
+
+test("with no report yet, the replay says so in a compact dialog", async ({ page }) => {
+  await page.goto(`${harness}?reports=none`);
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Replay" }).click();
+  const dialog = page.getByRole("dialog", { name: "Replay" });
+  await expect(dialog.getByText("No report has arrived yet, so there is nothing to replay.")).toBeVisible();
+  // Nothing stretches to fill the screen: the heading and the Close button keep their own height.
+  const heading = await dialog.getByRole("heading", { name: "Replay" }).boundingBox();
+  const close = await dialog.getByRole("button", { name: "Close" }).boundingBox();
+  expect(heading!.height).toBeLessThan(60);
+  expect(close!.height).toBeLessThan(60);
+  expect(close!.width).toBeGreaterThan(close!.height);
+});
+
