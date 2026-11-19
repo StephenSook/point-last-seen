@@ -5,6 +5,29 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
+  was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
+  engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled
+  with the constants' value, the exporter's own rule for an incident made before a field existed; nothing else in
+  the run changes.
+  Source: the merge of main into the field-expert branch (the web test of the served run failed).
+  Verified: the file differs from main's only by the added column (6 lines; every other value equal when parsed);
+  the web test of the served run (2 tests) and the exporter's reader check on the file pass.
+- `seed_segments.py` binds its commit to the incident version it validated. The same read that checks the
+  incident's stored ring column returns its `updateTime`. The incident write is now the first write, with that
+  `updateTime` as its precondition, so if anyone changed the incident between the read and the commit, the first
+  commit fails and no segment is written. Before, it wrote segments first and the incident last, with only
+  "exists" as the condition.
+  Source: review (round 3).
+  Verified: the tests (the incident write is first and carries the read's updateTime; no other write has a
+  precondition; a call without the updateTime is a TypeError; the existing order, mask, ring column and batch
+  tests updated to match) failed first, now 22 seed tests pass; `bash scripts/ci-local.sh` exit 0.
+- The ISRID ring prior refuses ring masses that are empty, negative, not finite, or add up to 0 or more than 1,
+  naming the masses. Before, an empty radii column with empty masses passed the length check and built a prior
+  with all the mass outside the rings.
+  Source: review (round 3).
+  Verified: the test (an empty pair, a negative mass, a NaN mass, masses adding to 1.2, and a zero sum are each
+  refused; masses adding to exactly 1 build) failed first, now all 235 engine tests pass; typecheck exit 0.
 - `scripts/ci-local.sh` takes the machine-wide heavy-suite lock itself: when `PLS_HEAVY_LOCK` is not set and `lockf`
   is there, it re-runs under `lockf -k /tmp/heavy-suite.lock` and waits its turn, so only one full suite runs on the
   machine at a time (several worktrees running full suites at once had pushed the load past 170 and made
@@ -289,6 +312,120 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   tests pass in the emulators; `bash scripts/ci-local.sh` exit 0.
 ## 2026-11-18
 
+- `tools/seed/seed_segments.py` keeps an incident's own ring column: it writes `engineParams.rings.<terrain>` only
+  when the incident has none, leaves a column that already holds the sourced radii alone, and refuses to seed an
+  incident whose own radii differ, because the prior it would install was built from the sourced radii.
+  Source: review of PR #21 round 2 (finding 2: reseeding overwrote a stored override).
+  Verified: the test (the same radii: nothing written to engineParams; different radii: refused naming the
+  terrain) failed first, now 21 seed tests pass; a read-only check of drill-dev-1 found no urban column and a
+  temperate flat column equal to the constants; `bash scripts/ci-local.sh` exit 0.
+- The engine builds a ring prior only from a usable ring column: one radius per ring mass, each finite, positive
+  and larger than the last. An empty stored column (for example `urban: []`) used to pass and put all the mass
+  outside the map; it, a short or long column, a zero, a negative, a repeat, a decrease, NaN or infinity now each
+  refuse by name.
+  Source: review of PR #21 round 2 (finding 4).
+  Verified: the test (nine bad columns refused naming the terrain; the sourced column builds) failed first, now 234
+  engine tests pass; engine typecheck and lint exit 0.
+- Two shared-profile rules tests now fail only on the rule they target: the searcher's write uses a complete valid
+  profile, so only the role gate can refuse it, and each bad other-names list keeps a valid first name the
+  nickname mirrors, so only the list rule can refuse it (with valid controls for the five-name and 60-character
+  limits).
+  Source: review of PR #21 round 2 (finding 6: both passed for the wrong reason).
+  Verified: with the profile write opened to any member, and with the list cap raised to six, each test fails;
+  restored, 14 profile tests pass in the emulator.
+- `tools/seed/seed_segments.py` records when it installs a prior: the incident update sets `priorBuiltAt` to the
+  server's time (a REQUEST_TIME transform), so a seeded drill's replay can place its prior.
+  Source: review (the replay needs the prior's build time).
+  Verified: the test (the incident write carries the server-time transform and no client value) failed first, now
+  20 seed tests pass; `bash scripts/ci-local.sh` exit 0.
+- `tools/seed/seed_segments.py` writes the ring column for the incident's terrain (`engineParams.rings.<terrain>`
+  from the constants, by field path), so an incident created before that terrain existed can build its prior and
+  its other stored engine values stay as they were.
+  Source: review of PR #21 (finding 2).
+  Verified: the test (an urban seed updates `engineParams.rings.urban` only, not `engineParams`, with the
+  constants' values) failed first, now 19 seed tests pass.
+- The engine refuses, by name, a terrain its params hold no rings for ("No distance rings for terrain
+  "urban" in these engine params"), instead of failing on an undefined ring list. `withEngineDefaults(stored)`
+  fills what an incident's stored params predate (a ring column added later, such as urban) from the sourced
+  constants and keeps every stored value; loaders call it before building a prior.
+  Source: review of PR #21 (finding 2: an urban grid on an incident created before urban existed broke its
+  ring rebuild).
+  Verified: the tests (an urban prior from old params throws naming urban; withEngineDefaults adds the urban
+  column, keeps an overridden flat column and sweep width, and returns the constants for no params; the filled
+  params build) failed first, now 233 engine tests pass; engine typecheck and lint exit 0.
+- Firestore rules enforce the nickname mirror: when the shared profile carries `otherNames`, `nickname` must be its
+  first name, or "" for an empty list, so every reader shows the same name. A profile saved before the list keeps
+  any nickname.
+  Source: review of PR #21 (finding 5).
+  Verified: the test (nickname "Mom" with ["Mom", "Peggy"] accepted; "Peggy" with ["Mom"] or with [] refused; a
+  profile with no list keeps "Peggy") failed first, now 112 rules tests pass in the emulator.
+- A cleared effect belongs to a cleared event only. The event rules refused nothing on an event's effect kind by
+  type, so a family member could write a sighting carrying a cleared effect for a segment and use it to claim
+  that segment's debrief. Event creation now ties a cleared effect to the cleared type (the engine counts it on
+  no other type), and the debrief rule also checks that the event it points at is a cleared event.
+  Source: review of PR #21 (finding 1).
+  Verified: the tests (a searcher's sighting or clue with a cleared effect is refused while a cleared event is
+  accepted; a family member's own sighting with a cleared effect does not qualify a debrief) failed first, now
+  111 rules tests pass in the emulator.
+- New incidents start urban: the drill seed writes `terrain: "urban"`, and `build-grid --prior` accepts
+  `--terrain urban`. Command can still change the terrain (with the next prior version). Judge practice
+  searches copy their seed's terrain, so they follow the seed drill.
+  Source: review (field expert: a suburb or a big park around Atlanta is urban).
+  Verified: the seed test (a new drill is urban) and the CLI test (an urban prior builds and records its terrain)
+  failed first, now 18 seed tests and 26 grid-builder tests pass; grid-builder typecheck exit 0.
+- `shared/test-vectors/search.json` regenerated: each case's embedded engine params gain the urban rings (47
+  blocks; no other change).
+  Source: the urban terrain commit.
+  Verified: `python3 -I tools/vectors/make_vectors.py --check` exit 0; the vector tests pass.
+- An "urban" terrain for the prior: the ISRID dementia urban distances from the IPP, 0.3, 1.1, 3.2 and 12.6 km
+  at 25, 50, 75 and 95% (n = 336), from Lost Person Behavior p. 164 (the publisher's public sample
+  https://www.dbs-sar.com/LPB/Dementia.pdf, read 2026-11-18), in both the ring prior (km) and the walkers (m).
+  The same table holds our temperate columns exactly, and the rings' source line now cites it. A Georgia SAR
+  lead treats a suburb or a big park around Atlanta as urban.
+  Source: review (field expert).
+  Verified: the PDF's distance table read with `pdftotext -layout` (temperate mountain 0.3/0.8/1.9/8.3 km, n = 95;
+  temperate flat 0.3/1.0/2.4/12.8 km, n = 175; urban 0.3/1.1/3.2/12.6 km, n = 336). The engine tests (urban rings
+  equal the table; the source line cites it; every terrain's walker distances equal its rings; urban mass differs
+  from flat) failed first, now 231 engine tests pass; engine typecheck exit 0.
+- Segment debriefs: `incidents/{id}/debriefs/{segmentId}` holds how long the clear took (`tookMinutes`, 0 to
+  1,440) and what worked or did not (`worked`, `didNotWork`, up to 500 characters each), written by `byUid` at
+  server time. Command writes any; a searcher writes only for a segment they cleared, pointing `clearedEventId`
+  at their own cleared event (rules cannot search events, so the pointer is how they check it). Command alone
+  edits, keeping the writer, time and pointer; nobody deletes, so only incident cleanup removes one. Members read
+  them. The engine never reads them, so no coverage claim comes from a debrief. Schema
+  `shared/schemas/debrief.schema.json` with the TS type `Debrief`; the iOS type is pending.
+  Source: review (field expert: a debrief after each segment).
+  Verified: the rules tests (command writes any; the clearing searcher writes theirs; another searcher, the wrong
+  segment, no pointer, a missing event and family are refused; bounds, exact keys, writer and server time
+  enforced; only command edits and keeps the writer, time and pointer; nobody deletes; members read; a second
+  member create is refused) failed first, now 109 rules tests pass; schema parity checks `Debrief` in TS (6
+  fields); engine typecheck exit 0.
+- A new approach note, `stop_calling_name`: "If they may not come when called, stop calling their name." It shows
+  whenever `may_not_respond` shows (the default), third after the two notes the spec puts first, and comes from
+  search teams. The rules' list of note ids is regenerated from the notes file, and the shapes test now derives
+  its too-long list from that file.
+  Source: review (field expert: a person who may not come when called).
+  Verified: the engine test (third by default; hidden with `may_not_respond` when the family says she answers;
+  the exact text, condition and source role) failed first, now 229 engine tests and 103 rules tests pass;
+  engine typecheck exit 0. In `bash scripts/ci-local.sh`, schema parity still waits for the iOS and Android
+  `otherNames` types, and the web test that pins exactly two default notes waits for the web change; both land
+  in this same pull request.
+- The shared profile carries `otherNames`: up to five other names she may answer to, each 1 to 60 characters,
+  optional so profiles saved before it stay valid. Writers mirror the first name into `nickname` ("" for an
+  empty list); readers call her by `namesToCall` (the list, else the nickname). Firestore rules take the new
+  key, regenerated from the schema.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the rules test (none, an empty list and five names accepted; six names, an empty name, 61
+  characters, a number, a string, a map and null refused) and the engine tests (shared as listed with the
+  nickname mirrored; an older profile keeps its nickname and adds no key; readers fall back) failed first, now
+  103 rules tests and 228 engine tests pass; engine typecheck exit 0. `bash scripts/ci-local.sh` fails only on
+  schema parity until the iOS and Android `SharedProfile` types add the field, which lands in this same pull
+  request.
+- The rules validator generator checks lists of up to five items one by one (was four), for the shared
+  profile's list of other names. A longer list is still refused at generation time.
+  Source: review (field expert: get every name the person may answer to).
+  Verified: the generator test (a five-string list is checked item by item; six is refused) failed first, now
+  10 generator tests pass; `bash scripts/ci-local.sh` exit 0.
 - `notifyPlanApproved` bounds its pushes: a plan is written by command (and every judge is command in a practice
   search), so it pushes only to team ids the incident has under `teams`, with plain ids (letters, digits, `_` and
   `-`, at most 32), at most 20 a plan, and never in a judge practice search, where no phone is on a team.
@@ -1934,7 +2071,6 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: `firebase deploy --only auth --project buildhybridai-2026-yg3m` printed
   "Auth providers enabled: anonymous"; the Identity Toolkit admin config read back
   `signIn.anonymous.enabled: true` (HTTP 200).
-
 ## Before this changelog (2026-11-17)
 
 - bf6e729: repo bootstrap (Apache-2.0, first CI job `gates`, rules gate, gitleaks, freeze hooks).

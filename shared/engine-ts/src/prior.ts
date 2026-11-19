@@ -60,6 +60,16 @@ export function buildPrior(
 ): PriorResult {
   const radiiKm = params.rings[terrain];
   const masses = params.rings.masses;
+  // Each ring's share of the mass: at least one, each finite and not negative, adding up to more than 0 and at most 1
+  // (ROW takes the rest). An empty list would put all the mass outside the rings.
+  const massesUsable = Array.isArray(masses) && masses.length > 0 && masses.every(m => Number.isFinite(m) && m >= 0)
+    && (() => { const sum = masses.reduce((a, m) => a + m, 0); return sum > 0 && sum <= 1 + 1e-9; })();
+  if (!massesUsable) throw new Error("The ring masses in these engine params are not shares adding up to more than 0 and at most 1");
+  if (!Array.isArray(radiiKm)) throw new Error(`No distance rings for terrain "${terrain}" in these engine params`);
+  // One radius per ring mass, each finite, positive and larger than the last, or the prior would be meaningless.
+  const usable = radiiKm.length === masses.length
+    && radiiKm.every((r, i) => Number.isFinite(r) && r > 0 && (i === 0 || r > radiiKm[i - 1]!));
+  if (!usable) throw new Error(`The distance rings for terrain "${terrain}" are not ${masses.length} increasing positive radii`);
   const center = point([ipp.lon, ipp.lat]);
   const circles = radiiKm.map(r => circle(center, r, { steps: RING_STEPS, units: "kilometers" }));
   const annuli: (Feature<Polygon | MultiPolygon> | null)[] = circles.map((c, k) =>

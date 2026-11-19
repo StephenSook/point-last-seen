@@ -65,3 +65,66 @@ describe("ISRID ring prior (spec section 10.5)", () => {
     expect(r.row).toBeGreaterThan(0.95);
   });
 });
+
+describe("urban terrain (field expert: a suburb or a big park around Atlanta is urban)", () => {
+  it("uses the ISRID dementia urban distances, Lost Person Behavior p. 164 (n = 336), in both constants files", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const engine = (await import("../../constants/engine-params.json")).default;
+    const walker = (await import("../../constants/walker-params.json")).default;
+    expect(DEFAULT_PARAMS.rings.urban).toEqual([0.3, 1.1, 3.2, 12.6]);
+    expect(engine.sources.rings).toContain("https://www.dbs-sar.com/LPB/Dementia.pdf");
+    expect(engine.sources.rings).toContain("urban n = 336");
+    // Every terrain's walker distances (m) are its rings (km), from the same table.
+    for (const [t, km] of Object.entries(engine.params.rings).filter(([k]) => k !== "masses")) {
+      expect(walker.distanceM[t as keyof typeof walker.distanceM]).toEqual([0, ...(km as number[]).map(v => Math.round(v * 1000))]);
+    }
+  });
+  it("gives different mass than flat where the rings differ", () => {
+    expect(buildPrior(ringGrid, ipp, "urban", off, null)).not.toEqual(buildPrior(ringGrid, ipp, "temperate_flat", off, null));
+  });
+});
+
+describe("stored engine params from before a terrain existed (review)", () => {
+  it("buildPrior refuses a terrain its params have no rings for, by name", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const { urban: _u, ...rings } = DEFAULT_PARAMS.rings;
+    const old = { ...DEFAULT_PARAMS, rings } as unknown as typeof DEFAULT_PARAMS;
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, old)).toThrow(/urban/);
+  });
+  it("withEngineDefaults fills a missing ring column from the sourced constants and keeps stored overrides", async () => {
+    const { DEFAULT_PARAMS, withEngineDefaults } = await import("../src/index");
+    const { urban: _u, ...rings } = DEFAULT_PARAMS.rings;
+    const old = { ...DEFAULT_PARAMS, sweepWidthFactor: 1.6, rings: { ...rings, temperate_flat: [0.3, 1.0, 2.4, 12.0] } };
+    const filled = withEngineDefaults(old as unknown as Partial<typeof DEFAULT_PARAMS>);
+    expect(filled.rings.urban).toEqual(DEFAULT_PARAMS.rings.urban);
+    expect(filled.rings.temperate_flat).toEqual([0.3, 1.0, 2.4, 12.0]);
+    expect(filled.sweepWidthFactor).toBe(1.6);
+    expect(withEngineDefaults(undefined)).toEqual(DEFAULT_PARAMS);
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, filled)).not.toThrow();
+  });
+});
+
+describe("a ring column must be usable before a prior is built from it (review round 2)", () => {
+  it("refuses an empty, short, non-positive or non-increasing column by name", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    for (const urban of [[], [0.3, 1.1, 3.2], [0.3, 1.1, 3.2, 12.6, 20], [0, 1.1, 3.2, 12.6], [0.3, -1, 3.2, 12.6], [0.3, 3.2, 1.1, 12.6],
+      [0.3, 1.1, 1.1, 12.6], [0.3, 1.1, Number.NaN, 12.6], [0.3, 1.1, Number.POSITIVE_INFINITY, 12.6]]) {
+      const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban } };
+      expect(() => buildPrior(ringGrid, ipp, "urban", off, null, params), JSON.stringify(urban)).toThrow(/urban/);
+    }
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, DEFAULT_PARAMS)).not.toThrow();
+  });
+});
+
+describe("the ring masses must be usable too (review round 3)", () => {
+  it("refuses empty, negative, non-finite or over-one masses, even with a matching radii column", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const cases: [number[], number[]][] = [[[], []], [[0.3], [-0.1]], [[0.3], [Number.NaN]], [[0.3, 1.1], [0.6, 0.6]], [[0.3], [0]]];
+    for (const [urban, masses] of cases) {
+      const params = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban, masses } };
+      expect(() => buildPrior(ringGrid, ipp, "urban", off, null, params), JSON.stringify(masses)).toThrow(/mass/);
+    }
+    const one = { ...DEFAULT_PARAMS, rings: { ...DEFAULT_PARAMS.rings, urban: [0.3, 1.1], masses: [0.5, 0.5] } };
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, one)).not.toThrow();
+  });
+});

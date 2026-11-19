@@ -27,7 +27,8 @@
     "rings": {
       "masses": [0.25, 0.25, 0.25, 0.20],
       "temperate_flat": [0.3, 1.0, 2.4, 12.8],
-      "temperate_mountain": [0.3, 0.8, 1.9, 8.3]
+      "temperate_mountain": [0.3, 0.8, 1.9, 8.3],
+      "urban": [0.3, 1.1, 3.2, 12.6]
     },
     "nearFeature": {
       "bufferM": 71,
@@ -52,7 +53,7 @@
     "detectionRangeMinM": "OURS: accepted detection range, metres",
     "detectionRangeMaxM": "OURS: accepted detection range, metres",
     "detectionProfile": "SOURCED: ISRID dementia profile, about 1% respond to shouts; sound-only clears are not counted by default",
-    "rings": "SOURCED: ISRID dementia distance rings, km, dbS public page; masses 0.25 per ring to 75%, 0.20 to 95%",
+    "rings": "SOURCED: ISRID dementia distance from the IPP, km, 25/50/75/95%, Lost Person Behavior p. 164 (publisher's public sample https://www.dbs-sar.com/LPB/Dementia.pdf, read 2026-11-18): temperate mountain n = 95, temperate flat n = 175, urban n = 336; masses 0.25 per ring to 75%, 0.20 to 95%",
     "nearFeature": "SOURCED: ISRID track offset, 75% within 71 m",
     "wedge": "SOURCED: ISRID dispersion, 75% within 66 degrees each side (n = 11); factors 0.75 / (132/360) and 0.25 / (228/360)"
   }

@@ -52,6 +52,17 @@
           "type": "string",
           "maxLength": 60
         },
+        "otherNames": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "description": "Other names she may answer to, in the family's order; nickname mirrors the first.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          }
+        },
         "ageYears": {
           "anyOf": [
             {

@@ -28,7 +28,11 @@ data class Vehicle(val involved: Boolean, val description: String) {
  */
 data class SubjectProfile(
     val answersTo: String = "",
-    val nickname: String = "",
+    /**
+     * Other names they may answer to (a maiden name, a childhood or old nickname): someone with
+     * dementia may answer only to a name from long ago. Up to [Profiles.MAX_OTHER_NAMES].
+     */
+    val otherNames: List<String> = emptyList(),
     val birthdate: LocalDate? = null,
     val ageYears: Int? = null,
     val gender: String = "",
@@ -63,6 +67,8 @@ data class SubjectProfile(
 data class SharedProfile(
     val answersTo: String,
     val nickname: String,
+    /** Every other name they may answer to; null on documents written before the list existed. */
+    val otherNames: List<String>?,
     val ageYears: Int?,
     val gender: String,
     val appearance: String,
@@ -89,7 +95,10 @@ data class SharedProfile(
         "clothingLastWorn" to clothingLastWorn, "mobilityAids" to mobilityAids, "dementiaType" to dementiaType,
         "flags" to flags, "triggersToAvoid" to triggersToAvoid, "bestApproach" to bestApproach,
         "uniqueDescription" to uniqueDescription, "photoTakenOn" to photoTakenOn, "approachNoteIds" to approachNoteIds,
-    )
+    ).apply {
+        // The rules take otherNames only as a list, so a document without one leaves the key out.
+        if (otherNames != null) put("otherNames", otherNames)
+    }
 }
 
 /** profile/command: command and family only, never in a pack. */
@@ -120,8 +129,15 @@ object Profiles {
     val MOBILITY_AIDS = listOf("cane", "walker", "wheelchair", "other")
     const val PHOTO_WARN_DAYS = 60L
     const val UPDATE_PROMPT_DAYS = 183L
+    const val MAX_OTHER_NAMES = 5
 
     private fun cap(s: String, n: Int) = s.trim().take(n)
+
+    /** The other names as kept and shared: trimmed, at most 60 characters, no blanks or repeats, at most five. */
+    fun otherNames(names: List<String>): List<String> {
+        val seen = mutableSetOf<String>()
+        return names.map { cap(it, 60) }.filter { it.isNotEmpty() && seen.add(it.lowercase()) }.take(MAX_OTHER_NAMES)
+    }
     private fun inRange(v: Int?, r: IntRange) = v?.takeIf { it in r }
 
     private fun sharedDementiaType(p: SubjectProfile) =
@@ -129,7 +145,9 @@ object Profiles {
 
     fun forSearchers(p: SubjectProfile): SharedProfile = SharedProfile(
         answersTo = cap(p.answersTo, 60),
-        nickname = cap(p.nickname, 60),
+        // Older readers know only the nickname field: it carries the first other name.
+        nickname = otherNames(p.otherNames).firstOrNull() ?: "",
+        otherNames = otherNames(p.otherNames),
         ageYears = inRange(p.ageYears, 18..120),
         gender = cap(p.gender, 40),
         appearance = cap(p.appearance, 200),
@@ -160,7 +178,7 @@ object Profiles {
 
     /**
      * Approach note ids: "may_not_respond" and "approach_calm" first (plan Task 35a),
-     * then the rest of the spec 13.3 table in order, each filtered by its "shown when"
+     * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
     fun approachNoteIds(p: SubjectProfile): List<String> {
@@ -168,6 +186,8 @@ object Profiles {
         val ids = mutableListOf<String>()
         if ("mayNotRespond" in f) ids += "may_not_respond"
         ids += "approach_calm"
+        // Third in the shared order, shown exactly when "may not respond" is.
+        if ("mayNotRespond" in f) ids += "stop_calling_name"
         if ("likelyToHide" in f) ids += "likely_to_hide"
         if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
         if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"

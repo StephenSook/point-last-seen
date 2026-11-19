@@ -8,7 +8,7 @@ import org.junit.Test
 
 class NineOneOneScriptTest {
     private val p = SubjectProfile(
-        answersTo = "Mae", nickname = "Mama Mae", ageYears = 82, gender = "female", heightFt = 5, heightIn = 2, weightLb = 130,
+        answersTo = "Mae", otherNames = listOf("Mama Mae", "Margaret"), ageYears = 82, gender = "female", heightFt = 5, heightIn = 2, weightLb = 130,
         hair = "grey", eyeColor = "brown", primaryLanguage = "English", clothingLastWorn = "blue coat",
         mobilityAids = setOf("cane"), dementiaType = "lewy_body", flags = setOf("mayNotRespond", "carriesMedicalAlertCard"),
         medications = "donepezil", appearance = "short grey curls",
@@ -28,6 +28,13 @@ class NineOneOneScriptTest {
         for (s in listOf("Mae", "82", "5 feet 2 inches", "130 pounds", "grey", "brown", "blue coat", "cane", "dementia", "may not answer", "donepezil", "medical alert card", "English")) {
             assertTrue(s, text.contains(s))
         }
+    }
+
+    /** A person with dementia may answer only to an older name, so every other name is read out. */
+    @Test fun everyOtherNameIsReadToTheCallTaker() {
+        assertTrue(NineOneOneScript.lines(p, null).contains("A person with dementia is missing. Their name is Mae (also called Mama Mae, Margaret)."))
+        val onlyOthers = NineOneOneScript.lines(SubjectProfile(otherNames = listOf("Peggy", "Margaret")), null)
+        assertTrue(onlyOthers.contains("A person with dementia is missing. They may answer to Peggy or Margaret."))
     }
 
     @Test fun emptyFieldsAreLeftOutNotPrintedAsBlanks() {

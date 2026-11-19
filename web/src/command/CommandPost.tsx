@@ -559,9 +559,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     // One batch: the sighting, its confirmation and the prior land together or not at all.
     return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built) };
   };
-  const saveProfile = (p: FamilyProfile) => {
+  const saveProfile = (p: FamilyProfile, opened: FamilyProfile) => {
     setProfileError(null);
-    writeProfile(pls.db, incidentId, p).catch(() => setProfileError("The profile was not saved. Edit it and save again."));
+    writeProfile(pls.db, incidentId, opened, p).catch(() =>
+      setProfileError("The profile was not saved. Edit it and save again."),
+    );
   };
   const shareDestination = async (place: Place) => {
     const w = writer();
@@ -755,6 +757,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <LayerSwitches
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
+              rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
               hasBearing={bearing !== null}
               model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}

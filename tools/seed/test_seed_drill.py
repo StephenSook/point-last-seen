@@ -31,6 +31,8 @@ def test_incident_doc_is_a_labelled_drill_without_join_hashes():
     assert "joinCodeHash" not in d and "commandJoinCodeHash" not in d
     assert d["engineParams"]["sweepWidthFactor"] == 1.645 and d["engineParams"]["detectionProfile"] == {"soundCounts": False}
     assert d["priorInputEventIds"] == [] and d["priorSeed"] == 20261122
+    # A new incident starts urban (field expert: a suburb or a big park around Atlanta is urban); command can change it.
+    assert d["terrain"] == "urban"
 
 
 def test_one_join_code_per_role():

@@ -13,7 +13,7 @@ class ProfileStoreTest {
     }
 
     private val full = SubjectProfile(
-        answersTo = "Mae", nickname = "Mama Mae", birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
+        answersTo = "Mae", otherNames = listOf("Mama Mae", "Margaret"), birthdate = LocalDate.of(1944, 3, 2), ageYears = 82,
         gender = "female", appearance = "grey curls, \"quoted\"", heightFt = 5, heightIn = 2, weightLb = 130,
         hair = "grey", eyeColor = "brown", primaryLanguage = "English", clothingLastWorn = "blue coat",
         mobilityAids = setOf("cane", "walker"), dementiaType = "lewy_body", shareDementiaType = true,
@@ -37,18 +37,27 @@ class ProfileStoreTest {
         assertEquals(full, ProfileStore(kv).load())
     }
 
-    /** A profile written in parts (a nickname alone) reads with every list empty and the default flags. */
+    /** A profile written in parts (an old nickname alone) reads with every list empty and the default flags. */
     @Test fun aNicknameOnlyDocumentReadsWithEmptyListsAndDefaultFlags() {
         val p = ProfileCodec.decode("""{"nickname":"Mama Mae"}""")
-        assertEquals("Mama Mae", p.nickname)
+        assertEquals(listOf("Mama Mae"), p.otherNames)
         assertEquals(emptySet<String>(), p.mobilityAids)
         assertEquals(SubjectProfile().flags, p.flags)
         assertEquals(emptyList<PlaceEntry>(), p.previousAddresses)
         assertEquals(emptyList<PlaceEntry>(), p.placesFrequented)
         assertEquals(emptyList<WanderingEntry>(), p.pastWandering)
         assertEquals(null, p.vehicle)
-        assertEquals(Profiles.approachNoteIds(SubjectProfile(nickname = "Mama Mae")), Profiles.approachNoteIds(p))
+        assertEquals(Profiles.approachNoteIds(SubjectProfile(otherNames = listOf("Mama Mae"))), Profiles.approachNoteIds(p))
         assertEquals(18, Profiles.forSearchers(p).flags.size)
+    }
+
+    /** A profile saved before the list existed keeps its one nickname as the first other name. */
+    @Test fun anOldSavedNicknameBecomesTheFirstOtherName() {
+        assertEquals(listOf("Peggy"), ProfileCodec.decode("""{"answersTo":"Mae","nickname":"Peggy"}""").otherNames)
+        assertEquals(emptyList<String>(), ProfileCodec.decode("""{"answersTo":"Mae","nickname":"  "}""").otherNames)
+        assertEquals(listOf("Margaret"), ProfileCodec.decode("""{"otherNames":["Margaret"],"nickname":"Peggy"}""").otherNames)
+        val saved = kotlinx.serialization.json.Json.parseToJsonElement(ProfileCodec.encode(full)) as kotlinx.serialization.json.JsonObject
+        assertEquals(false, "nickname" in saved)
     }
 
     @Test fun aMissingOrBrokenStoredProfileLoadsEmpty() {

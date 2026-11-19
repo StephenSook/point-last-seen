@@ -25,7 +25,8 @@ export type EventType =
 export type Reporter = "searcher" | "public_caller" | "family" | "camera" | "system";
 export type PositionSource = "gps" | "assigned_segment" | "manual" | "map_click" | "camera_pin" | "none";
 export type InputMethod = "keyboard_dictation" | "typed" | "picklist" | "clip" | "photo" | "system";
-export type Terrain = "temperate_flat" | "temperate_mountain";
+/** The ISRID distance column the prior uses; "urban" covers suburbs and big parks too (field expert). */
+export type Terrain = "temperate_flat" | "temperate_mountain" | "urban";
 
 export interface LatLon {
   lat: number;
@@ -210,7 +211,10 @@ export interface ProfileFlags {
 
 export interface SharedProfile {
   answersTo: string;
+  /** Mirrors otherNames[0] when otherNames is present ("" for an empty list), so older readers still show one. */
   nickname: string;
+  /** Other names she may answer to, 0 to 5, each 1 to 60 characters. Absent on profiles saved before the list. */
+  otherNames?: string[];
   ageYears: number | null;
   gender: string;
   appearance: string;
@@ -289,6 +293,17 @@ export interface RouteGraph {
 }
 
 /** shared/schemas/incident-conditions.schema.json: the incident's typed conditions for the urgency chip. */
+/** incidents/{id}/debriefs/{segmentId} (shared/schemas/debrief.schema.json). The engine never reads it. */
+export interface Debrief {
+  tookMinutes: number;
+  worked?: string;
+  didNotWork?: string;
+  byUid: string;
+  /** Firestore server timestamp of the first write. */
+  createdAt: unknown;
+  clearedEventId?: string | null;
+}
+
 export interface IncidentConditions {
   tempF: number | null;
   wet: boolean | null;
@@ -309,7 +324,7 @@ export interface EngineParams {
   detectionRangeMinM: number;
   detectionRangeMaxM: number;
   detectionProfile: { soundCounts: boolean };
-  rings: { masses: number[]; temperate_flat: number[]; temperate_mountain: number[] };
+  rings: { masses: number[]; temperate_flat: number[]; temperate_mountain: number[]; urban: number[] };
   nearFeature: { bufferM: number; nearShare: number; farShare: number };
   wedge: { halfAngleDeg: number; inside: number; outside: number };
 }

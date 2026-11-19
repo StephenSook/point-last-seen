@@ -109,6 +109,7 @@ fun ProfileScreen(
     var addresses by remember(profile) { mutableStateOf(profile.previousAddresses.joinToString("\n") { it.label }) }
     var places by remember(profile) { mutableStateOf(profile.placesFrequented.joinToString("\n") { it.label }) }
     var wandering by remember(profile) { mutableStateOf(profile.pastWandering.joinToString("\n") { it.foundWhere }) }
+    var others by remember(profile) { mutableStateOf(profile.otherNames.joinToString("\n")) }
 
     fun edited(): SubjectProfile = p.copy(
         ageYears = age.trim().toIntOrNull(), heightFt = ft.trim().toIntOrNull(), heightIn = inch.trim().toIntOrNull(),
@@ -116,6 +117,7 @@ fun ProfileScreen(
         previousAddresses = lines(addresses).map { l -> profile.previousAddresses.firstOrNull { it.label == l } ?: PlaceEntry(l, null) },
         placesFrequented = lines(places).map { l -> profile.placesFrequented.firstOrNull { it.label == l } ?: PlaceEntry(l, null) },
         pastWandering = lines(wandering).map { l -> profile.pastWandering.firstOrNull { it.foundWhere == l } ?: WanderingEntry(l, null) },
+        otherNames = Profiles.otherNames(lines(others)),
     )
 
     FamilyScaffold(mode, killCloud = false) {
@@ -135,7 +137,8 @@ fun ProfileScreen(
 
         Heading("Searchers see this")
         Field("Name they answer to", p.answersTo, max = 60) { p = p.copy(answersTo = it) }
-        Field("Nickname", p.nickname, max = 60) { p = p.copy(nickname = it) }
+        Field("Other names they may answer to (one per line)", others, max = 320) { others = it }
+        Note("A maiden name, or a childhood or old nickname. Up to ${Profiles.MAX_OTHER_NAMES}.")
         Field("Age", age, numeric = true, max = 3) { age = it }
         Field("Height (feet)", ft, numeric = true, max = 1) { ft = it }
         Field("Height (inches)", inch, numeric = true, max = 2) { inch = it }
