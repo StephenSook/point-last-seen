@@ -68,3 +68,6 @@ android/app/release/
 ._*
 .vscode/
 *.swp
+
+# Kotlin compiler cache that Gradle leaves in the Android project.
+android/.kotlin/

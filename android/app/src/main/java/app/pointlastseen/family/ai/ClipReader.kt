@@ -59,7 +59,8 @@ data class ClipRequest(
     val consent: ClipConsent,
     /** Read live (Remote Config): checked before the read, before upload and before inference. */
     val killCloud: () -> Boolean,
-    val modelName: String,
+    /** The server prompt template that reads the clip; the template, not the app, picks the model. */
+    val templateId: String,
     val uploaderUid: String,
 )
 
@@ -152,7 +153,7 @@ class ClipReader(
             val now = deps.nowMs()
             val route = RouteRecord(
                 platform = "android", path = if (reply.source == Source.ON_DEVICE) "on_device" else "cloud",
-                stage = "sdk", model = r.modelName, reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
+                stage = "sdk", model = templateModel(r.templateId), reason = "sdk_only_in_cloud", latencyMs = reply.latencyMs,
                 sdkReported = true, blocked = null, decidedAtMs = now,
             )
             // A reply that cannot be read, or one that fails the shared checks, completes the record as a
@@ -175,5 +176,8 @@ class ClipReader(
         const val PAUSED = "Clip reading is paused right now. Tell command about the clip."
         const val NEEDS_CONSENT =
             "Three consents are needed for this clip: the person in the clip, the owner of the footage, and cloud processing."
+
+        /** What the route record names as the model: the server template that ran (80 characters at most). */
+        fun templateModel(templateId: String): String = "server template $templateId".take(80)
     }
 }

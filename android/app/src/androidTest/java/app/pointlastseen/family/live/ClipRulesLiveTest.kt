@@ -65,7 +65,7 @@ class ClipRulesLiveTest {
     private fun request(bytes: ByteArray, uid: String, at: Long) = ClipRequest(
         bytes = bytes, mimeType = "video/mp4", durationS = 30, clipStartMs = at - 60_000L, clockConfirmed = true, cameraFacingDeg = 90,
         consent = ClipConsent(Hashes.sha256Hex(bytes), ConsentMark(uid, at), ConsentMark(uid, at), ConsentMark(uid, at), null),
-        killCloud = { false }, modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+        killCloud = { false }, templateId = RcValues.DEFAULTS.clipTemplateId, uploaderUid = uid,
     )
 
     /** The app's own Firestore writes, with the model call replaced by the fixture sighting. */

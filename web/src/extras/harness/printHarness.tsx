@@ -1,8 +1,9 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../hostApp";
+import { MapLibreMap, type PostState, type SegmentDoc, type SharedProfile, type ViewState } from "../hostApp";
 import { DRILL_LABEL } from "../print/printModel";
 import { drillView, planFixture } from "../testdata/fixtures";
+import { kennesawPlan, kennesawView } from "../testdata/kennesaw";
 
 function square(segmentId: string, lon: number, priorPoa: number): SegmentDoc {
   const lat = 34.1;
@@ -14,11 +15,22 @@ function square(segmentId: string, lon: number, priorPoa: number): SegmentDoc {
 }
 
 const segments = [square("AA", -84.81, 0.3), square("BB", -84.804, 0.5)];
+// ?long=1 gives every added team a task long enough to wrap on the sheet.
+const longTask = new URLSearchParams(location.search).get("long") === "1"
+  ? "Search BB from the trail to the creek, then sweep the east bank back to the parking area, calling at each junction."
+  : "Search BB from the trail.";
 const extraTeams = new URLSearchParams(location.search).get("teams") === "11"
   ? Array.from({ length: 9 }, (_, index) => ({ teamId: `team-${index + 3}`, name: `Team ${index + 3}` }))
   : [];
 const plan = planFixture(5);
-const state: PostState = {
+// ?site=kennesaw: the Kennesaw Mountain drill's teams (T1 to T3) and a made-up plan v1 over that grid's real segment
+// ids, with no reports yet, as on drill morning.
+const kennesaw = new URLSearchParams(location.search).get("site") === "kennesaw";
+// ?profile=1: a made-up shared profile with other names and approach notes, including a health note that must never print.
+const harnessProfile = new URLSearchParams(location.search).get("profile") === "1"
+  ? { shared: { answersTo: "Roberta", nickname: "Bea", otherNames: ["Bea", "Mom", "Miss Bea"], approachNoteIds: ["may_not_respond", "approach_calm", "stop_calling_name", "seizures"] } as unknown as SharedProfile, command: undefined }
+  : null;
+const harnessState: PostState = {
   view: { ...drillView, segments, teams: [...drillView.teams, ...extraTeams], rowPrior: 0.2 },
   // 14 sightings, command's confirmation of the first and a retraction of the last: 13 reports, 16 events.
   events: [
@@ -26,11 +38,14 @@ const state: PostState = {
     { eventId: "harness-confirm", type: "confirmation", role: "command", targetEventId: "harness-0", serverTimeMs: null, pendingWrite: false },
     { eventId: "harness-retract", type: "retraction", role: "command", targetEventId: "harness-13", serverTimeMs: null, pendingWrite: false },
   ],
-  plans: [{ ...plan, assignments: [...plan.assignments, ...extraTeams.map(({ teamId }) => ({ teamId, segmentIds: ["BB"], taskText: "Search BB from the trail.", reason: "" }))] }],
-  profile: null,
+  plans: [{ ...plan, assignments: [...plan.assignments, ...extraTeams.map(({ teamId }) => ({ teamId, segmentIds: ["BB"], taskText: longTask, reason: "" }))] }],
+  profile: harnessProfile,
   denied: false,
   offline: false,
 };
+const state: PostState = kennesaw
+  ? { view: kennesawView, events: [], plans: [kennesawPlan], profile: null, denied: false, offline: false }
+  : harnessState;
 const vs: ViewState = {
   code: "K7Q4", hash: "a".repeat(64),
   result: {

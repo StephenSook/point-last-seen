@@ -23,14 +23,25 @@ test("MapView hands its map to onReady once loaded", async ({ page }) => {
 test("on a prior's first draw the dots grow outward from the point last seen", async ({ page }) => {
   await page.goto("/harness/map.html?ripple");
   const wrap = page.getByTestId("map").locator("xpath=..");
-  await expect(wrap).toHaveAttribute("data-ripple", "playing", { timeout: 20_000 });
-  const plates = page.locator(".plate");
-  const far = (await plates.nth(22).boundingBox())!; // DE, far from AB
-  const centre = { x: far.x + far.width / 2, y: far.y - 16 };
-  const early = await pixelAt(page, centre.x, centre.y);
-  expect(near(early, MAP_INK.dot), `far dot already drawn early: ${hex(early)}`).toBe(false);
-  await expect(wrap).toHaveAttribute("data-ripple", "done", { timeout: 3_000 });
-  const late = await pixelAt(page, centre.x, centre.y);
+  await expect(wrap).toHaveAttribute("data-ripple", "done", { timeout: 20_000 });
+  // The ripple's own record (every grow value, in order), so load on the machine cannot change the answer.
+  const log = await page.evaluate(() => (window as unknown as { growLog: { id: number; grow: number }[] }).growLog);
+  const NEAR = 1; // AB, the point last seen
+  const FAR = 22; // DE, far from AB
+  const firstGrow = (id: number) => log.findIndex((e) => e.id === id && e.grow > 0);
+  // Every dot starts at nothing, and the far dot starts growing after the near one.
+  expect(log.find((e) => e.id === FAR)?.grow).toBe(0);
+  expect(firstGrow(NEAR)).toBeGreaterThanOrEqual(0);
+  expect(firstGrow(FAR)).toBeGreaterThan(firstGrow(NEAR));
+  // Whenever both had started, the far dot was never larger than the near one.
+  const now: Record<number, number> = {};
+  for (const e of log) {
+    now[e.id] = e.grow;
+    if (now[NEAR] !== undefined && now[FAR] !== undefined) expect(now[FAR]).toBeLessThanOrEqual(now[NEAR]! + 1e-9);
+  }
+  // And at the end the far dot is drawn.
+  const plate = (await page.locator(".plate").nth(22).boundingBox())!;
+  const late = await pixelAt(page, plate.x + plate.width / 2, plate.y - 16);
   expect(near(late, MAP_INK.dot), `far dot after the ripple: ${hex(late)}`).toBe(true);
 });
 

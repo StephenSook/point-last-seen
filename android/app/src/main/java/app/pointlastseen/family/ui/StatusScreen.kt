@@ -25,6 +25,8 @@ fun StatusScreen(
     onRetry: () -> Unit,
     onLeave: () -> Unit,
     shareFailed: Boolean = false,
+    /** The name the person answers to, for the fixed news line. */
+    subjectName: String = "",
 ) {
     val ring = MaterialTheme.colorScheme.outline
     val open = status != "found" && status != "closed"
@@ -33,6 +35,7 @@ fun StatusScreen(
             drawCircle(ring, radius = size.minDimension / 2 - 4.dp.toPx(), style = Stroke(width = 3.dp.toPx()))
         }
         Sentence(Copy.status(status))
+        Note(Copy.newsByPhone(subjectName))
         if (shareFailed) Note("The profile did not reach command. It will be sent again when you save it.")
         if (pending > 0) Note(if (pending == 1) "1 item waiting to send." else "$pending items waiting to send.")
         if (rejected > 0) {

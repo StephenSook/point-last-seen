@@ -265,3 +265,19 @@ test("a read that failed after its consent record was written is followed by a r
   await expect(page.getByTestId("calls")).toHaveText("2");
   expect(await how(page)).toEqual({ retry: true });
 });
+
+test("a clip reading carries a closed What ran receipt with the bytes of the clip sent", async ({ page }) => {
+  await page.goto("/harness/clip.html?outcome=read");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  await page.getByRole("radio", { name: "East", exact: true }).check();
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  const receipt = card.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
+  await receipt.getByText("What ran", { exact: true }).click();
+  await expect(receipt).toContainText("Asked for: the cloud, with the clip's three consents.");
+  await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
+  await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
+  await expect(receipt).toContainText("Sent: 5,000 bytes of the clip, as base64.");
+});

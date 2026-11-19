@@ -5,6 +5,7 @@ import {
   REPLY_TIMEOUT_MS,
   checkWording,
   planPrompt,
+  NUMBER_NOT_IN_PLAN,
   templateWording,
   wordPlan,
   wordingParams,
@@ -222,5 +223,22 @@ describe("the plan text's size", () => {
     const out = await wordPlan(draft, deps({}));
     expect(out.promptBytes).toBe(new TextEncoder().encode(planPrompt(draft)).length);
     expect(out.promptBytes).toBeGreaterThan(0);
+  });
+});
+
+describe("numbers in the model's wording", () => {
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
+    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
+  it("accepts numbers that are in the plan the model was given", () => {
+    expect(checkWording(draft, withReason("POA now 31.0%, up from 20.0%."))).toEqual({ ok: true });
+  });
+  it("refuses a number that is not in the plan, in a reason or in the summary", () => {
+    expect(checkWording(draft, withReason("POA now 45%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
+    expect(checkWording(draft, withReason("Highest.", "Teams cover 90% of the area."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
+  });
+  it("a reason with a number not in the draft falls to the template, and the attempt says why", async () => {
+    const out = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify(withReason("POA now 45%.")), inferenceSource: "in_cloud" }) }));
+    expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
+    expect(out.attempt).toMatchObject({ failure: "number", route: { path: "cloud" } });
   });
 });

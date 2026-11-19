@@ -271,6 +271,26 @@ finding) and how it was verified. Newest first.
   number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
   tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
 
+### docs(ios): restore the changelog headings a merge dropped
+- What: a merge of main into a profile branch kept one side in the changelog's conflicting part,
+  which removed 24 entry headings, their blank lines and 8 "Source: review." lines; entries ran
+  together under the wrong titles. The file is now the correct three-way merge of both sides: every
+  entry from each side, each under its own heading.
+- Source: review (changelog read while merging).
+- Verified: a script checked that every non-blank line of main's file and of both merge parents is
+  in the restored file (0 missing from each), and the restored file has 132 headings.
+
+### feat(ios-core): read the shared profile's tracking aids
+- What: profile/shared gains `trackingAids` ({ aids, note }), the tracking aids the family named.
+  The iPhone now reads it: absent means unknown, missing parts read as empty, and it is written
+  back only when present. It is for the search cards only; the profile text a model may see is
+  unchanged by it. Unknown aid values are kept here and skipped where the card lines are built.
+- Source: shared profile schema change (tracking aids).
+- Verified: a test for a profile with aids and a note, one without the field, one with only aids,
+  the written form, and the model-facing text being the same with or without the aids. It failed
+  to compile before the change and passes after; 270 PLSCore tests pass. The schema parity check
+  passes only together with the schema change that adds the field (checked on a dry merge).
+
 ### fix(ios): a closed incident drops its mission even when the claims are unchanged
 - What: the sign-in check returned early when the claims still named the loaded mission's
   incident and team, so an incident command had closed kept its mission (and its listener and

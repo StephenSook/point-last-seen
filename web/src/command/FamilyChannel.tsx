@@ -7,13 +7,15 @@ import { parseQuestion, QUESTION_TEMPLATES, type FamilyQuestion, type SearchStat
 
 type Props = {
   questions: readonly FamilyQuestion[];
+  /** The incident is open: the rules take a new question only then. */
+  open: boolean;
   /** What the family was last told, or null when nothing was sent. */
   searchState: SearchState | null;
   onAsk: (text: string) => Promise<void>;
   onTell: (state: SearchState) => Promise<void>;
 };
 
-export function FamilyChannel({ questions, searchState, onAsk, onTell }: Props) {
+export function FamilyChannel({ questions, open, searchState, onAsk, onTell }: Props) {
   const [text, setText] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -87,11 +89,11 @@ export function FamilyChannel({ questions, searchState, onAsk, onTell }: Props) 
       <div className="layer">
         <label>
           Question for the family
-          <textarea maxLength={280} value={text} onChange={(e) => setText(e.target.value)} disabled={asking} />
+          <textarea maxLength={280} value={text} onChange={(e) => setText(e.target.value)} disabled={asking || !open} />
         </label>
         <div className="row">
           {QUESTION_TEMPLATES.map((t) => (
-            <button key={t} type="button" className="btn ghost small" onClick={() => setText(t)} disabled={asking}>
+            <button key={t} type="button" className="btn ghost small" onClick={() => setText(t)} disabled={asking || !open}>
               {t}
             </button>
           ))}
@@ -101,7 +103,8 @@ export function FamilyChannel({ questions, searchState, onAsk, onTell }: Props) 
             {askError}
           </p>
         )}
-        <button type="button" className="btn" onClick={() => void ask()} disabled={asking}>
+        {!open && <p className="muted small" role="status">Questions close when the search is no longer open.</p>}
+        <button type="button" className="btn" onClick={() => void ask()} disabled={asking || !open}>
           Ask the family
         </button>
       </div>

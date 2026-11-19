@@ -34,7 +34,7 @@ export function generatorFor(model: TextModel): WordingDeps["generate"] {
   };
 }
 
-/** Plan wording on the SDK's PREFER_IN_CLOUD mode, cloud and on-device parameters both set. */
+/** Plan wording on the SDK's PREFER_ON_DEVICE mode (wordingParams), cloud and on-device parameters both set. */
 export function wordingGenerator(ai: AI, model: string): WordingDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, wordingParams(model), { timeout: REPLY_TIMEOUT_MS }));
 }

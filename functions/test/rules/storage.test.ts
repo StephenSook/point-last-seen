@@ -1,7 +1,7 @@
 import { getStorage as getAdminStorage } from "firebase-admin/storage";
 import { doc, setDoc } from "firebase/firestore";
-import { getMetadata, ref, uploadBytes } from "firebase/storage";
-import { afterAll, beforeEach, describe, it } from "vitest";
+import { getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { clipReadingDoc } from "../fixtures";
 import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims, storageAs } from "../helpers";
 
@@ -38,6 +38,24 @@ describe("storage rules (spec section 7)", () => {
   it("an expired judge sandbox takes no uploads (storage reads the incident from Firestore)", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
     await assertFails(uploadBytes(ref(storageAs("family-uid", { inc: "J1", role: "family", team: null }), `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+  it("command and family list a search's photos, as the command post's tray does; a searcher cannot (review)", async () => {
+    // The tray lists photos/{incidentId} and clips/{incidentId}: a list there is a read of the files under it.
+    await getAdminStorage(adminApp).bucket().file(`photos/I1/${SHA}.jpg`).save(Buffer.from("x"), { contentType: "image/jpeg" });
+    for (const claims of [commandClaims, familyClaims]) {
+      const listed = await listAll(ref(storageAs("u", claims), "photos/I1"));
+      expect(listed.items.map(i => i.name)).toEqual([`${SHA}.jpg`]);
+    }
+    await assertFails(listAll(ref(storageAs("searcher-uid", searcherClaims), "photos/I1")));
+    await assertSucceeds(listAll(ref(storageAs("searcher-uid", searcherClaims), "clips/I1")));
+  });
+  it("a judge sandbox still being set up takes no uploads; once ready it does", async () => {
+    const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });
+    const live = { name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) };
+    await admin.db.doc("incidents/J1").set({ ...live, setupReady: false });
+    await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc("incidents/J1").set({ ...live, setupReady: true });
+    await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
   it("a judge sandbox without a timestamp expiry takes no uploads; an unexpired one does", async () => {
     const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });

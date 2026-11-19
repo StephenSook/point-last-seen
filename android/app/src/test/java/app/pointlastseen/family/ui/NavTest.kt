@@ -12,6 +12,13 @@ class NavTest {
         assertEquals(Screen.STATUS, Nav.start(joined = true, gone = true).screen)
     }
 
+    /** The search lead's question opens only for a family that has joined the search. */
+    @Test fun aQuestionOpensOnlyOnceJoined() {
+        assertEquals(Screen.PROFILE, Nav.open(Nav.start(joined = false, gone = true), Screen.QUESTION).screen)
+        assertEquals(Screen.QUESTION, Nav.open(Nav.start(joined = true, gone = false), Screen.QUESTION).screen)
+        assertEquals(Screen.STATUS, Nav.back(Nav.open(Nav.start(joined = true, gone = true), Screen.QUESTION)).screen)
+    }
+
     @Test fun shesGoneShowsCallFirstBeforeAnythingElse() {
         val s = Nav.shesGone(Nav.start(joined = false, gone = false))
         assertEquals(Screen.CALL_FIRST, s.state.screen)

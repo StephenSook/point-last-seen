@@ -19,6 +19,7 @@ const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
   timeout: "the model took too long",
   unreadable: "its answer could not be read",
   rejected: "its wording failed the checks",
+  number: "it used a number that is not in the plan",
 };
 
 /** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */

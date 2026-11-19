@@ -62,3 +62,17 @@ it("the card holds no uid and no profile field", () => {
   expect(cards).toHaveLength(2);
   expect(JSON.stringify(cards)).not.toMatch(/uid|joinCode|rawText|profile|clipPath|consent|private-marker/i);
 });
+
+it("every card carries the incident's training line, in a practice search too", () => {
+  const practice = "Training drill. Practice search; nobody is missing.";
+  const cards = radioCards({ ...model, mode: "judge", drillLabel: practice }, { sayLines: false });
+  expect(cards.length).toBeGreaterThan(0);
+  for (const card of cards) expect(card.drillLine).toBe(practice);
+});
+
+it("each card carries the person lines it is given, in order, and none by default", () => {
+  const lines = ["Answers to Roberta (also Bea, Mom, Miss Bea)", "If they may not come when called, stop calling their name."];
+  for (const card of radioCards(model, { sayLines: false, personLines: lines })) expect(card.personLines).toEqual(lines);
+  for (const card of radioCards(model, { sayLines: false })) expect(card.personLines).toEqual([]);
+});
+

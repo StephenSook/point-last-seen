@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import notesFile from "../../../shared/constants/approach-notes.json";
-import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, mergeProfileSave, profileDocs, profileFromDocs, profilePatch, sharedFromDoc } from "./profile";
+import { answersToLine, APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, mergeProfileSave, profileDocs, profileFromDocs, profilePatch, sharedFromDoc } from "./profile";
 
 const full = {
   ...emptyProfile(),
@@ -196,5 +196,44 @@ describe("mergeProfileSave: what a command save writes over the documents as the
     const opened = emptyProfile();
     const out = mergeProfileSave(opened, { ...opened, nearbyWater: "Clear Creek" }, { shared: null, command: null });
     expect(out.command).toMatchObject({ nearbyWater: "Clear Creek" });
+  });
+});
+
+describe("answersToLine", () => {
+  const base = profileDocs(emptyProfile()).shared;
+  it("names every name they answer to: the main one, then the others", () => {
+    expect(answersToLine({ ...base, answersTo: "Roberta", otherNames: ["Bea", "Mom", "Miss Bea"], nickname: "Bea" })).toBe("Answers to Roberta (also Bea, Mom, Miss Bea)");
+  });
+  it("does not repeat the main name, and falls back to the nickname without a list", () => {
+    expect(answersToLine({ ...base, answersTo: "Bea", otherNames: ["Bea", "Mom"], nickname: "Bea" })).toBe("Answers to Bea (also Mom)");
+    expect(answersToLine({ ...base, answersTo: "Roberta", nickname: "Bea" })).toBe("Answers to Roberta (also Bea)");
+    expect(answersToLine({ ...base, answersTo: "Roberta", nickname: "" })).toBe("Answers to Roberta");
+  });
+  it("uses the names alone when no main name was given, and says nothing with none", () => {
+    expect(answersToLine({ ...base, answersTo: "", otherNames: ["Bea", "Mom"], nickname: "Bea" })).toBe("Answers to Bea, Mom");
+    expect(answersToLine({ ...base, answersTo: "", nickname: "" })).toBeNull();
+  });
+});
+
+describe("the family's tracking aids", () => {
+  const aids = { aids: ["project_lifesaver", "gps_tracker"], note: "Tracker is in her coat pocket" };
+  it("are read from the stored document, and absent stays absent", () => {
+    expect(sharedFromDoc({ ...profileDocs(emptyProfile()).shared, trackingAids: aids }).trackingAids).toEqual(aids);
+    expect("trackingAids" in sharedFromDoc(profileDocs(emptyProfile()).shared)).toBe(false);
+  });
+  it("are removed when command sets them back to not known", () => {
+    const opened = { ...emptyProfile(), trackingAids: { aids: ["gps_tracker" as const], note: "" } };
+    const { trackingAids: _drop, ...edited } = opened;
+    const stored = { ...profileDocs(opened).shared };
+    const out = mergeProfileSave(opened, edited, { shared: stored, command: null });
+    expect(out.shared).not.toBeNull();
+    expect("trackingAids" in (out.shared as object)).toBe(false);
+  });
+  it("survive a command save of another shared field, since the document is written whole", () => {
+    const opened = emptyProfile();
+    const edited = { ...opened, gender: "female" };
+    const stored = { ...profileDocs(opened).shared, trackingAids: aids };
+    const out = mergeProfileSave(opened, edited, { shared: stored, command: null });
+    expect(out.shared).toMatchObject({ gender: "female", trackingAids: aids });
   });
 });

@@ -7,7 +7,7 @@
 #   Exit 0: every check ran and passed. Exit 1: a check failed (the run stops there).
 #   Exit 2: every check that ran passed, but a tool was missing, so some checks did NOT run (listed at the end).
 # CI_LOCAL_HIDE="tool ..." makes the named tools count as missing (for this script's own tests).
-# PLS_HEAVY_LOCK=1 skips taking the machine-wide heavy-suite lock (set by the script once it holds it).
+# PLS_HEAVY_LOCK=1 skips taking a heavy-suite slot (scripts/heavy.sh sets it once the run holds one).
 set -euo pipefail
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(git rev-parse --show-toplevel)"
@@ -35,13 +35,10 @@ for arg in "$@"; do
 done
 if [ -z "$SECTIONS" ]; then SECTIONS=" gates ts rules web ios android"; fi
 
-# One heavy suite at a time on this machine: several worktrees running full suites at once overload it and make
-# timing-based browser tests flake. Re-run this script under the shared lock (lockf waits its turn); a runner
-# without lockf (CI) runs as is.
-if [ -z "${PLS_HEAVY_LOCK:-}" ] && command -v lockf >/dev/null 2>&1; then
-  export PLS_HEAVY_LOCK=1
-  echo "ci-local: waiting for the machine's heavy-suite lock (/tmp/heavy-suite.lock)"
-  exec lockf -k /tmp/heavy-suite.lock bash "$SELF" "$@"
+# At most two heavy suites at once on this machine: run this script in a heavy-suite slot (scripts/heavy.sh takes a
+# free slot, or waits saying who holds one, and never waits on itself). Inside the slot PLS_HEAVY_LOCK is set.
+if [ -z "${PLS_HEAVY_LOCK:-}" ]; then
+  exec bash "$(dirname "$SELF")/heavy.sh" bash "$SELF" "$@"
 fi
 
 want() { case " $SECTIONS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
@@ -71,7 +68,7 @@ if want gates; then
   python3 -I scripts/hygiene_guard.py .
 
   echo "== gates: schema parity and vector generator tests"
-  "$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py scripts/test_workflow_paths.py scripts/test_ci_local.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
+  "$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py scripts/test_workflow_paths.py scripts/test_ci_local.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py tools/extras/test_build_elevation.py tools/extras/test_publish_scam.py tools/extras/test_publish_drill_run.py -q
 
   if have gitleaks; then
     echo "== gates: secret scan (full history)"
@@ -172,7 +169,7 @@ if want android; then
   else
     echo "== android: unit tests and debug build"
     (cd android && ./gradlew --no-daemon testDebugUnitTest assembleDebug compileDebugAndroidTestKotlin)
-    python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 150
+    python3 -I android/count-tests.py android/app/build/test-results/testDebugUnitTest --min 290
   fi
 fi
 

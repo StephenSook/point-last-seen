@@ -59,8 +59,8 @@ export function planFromDoc(data: unknown): PlanDoc | null {
   };
 }
 
-/** What the plans rule holds: at most 10 teams, at most 6 segments a team, and push-reachable team ids. */
-export const PLAN_MAX_TEAMS = 10;
+/** What the plans rule holds: at most 8 teams, at most 6 segments a team, and push-reachable team ids. */
+export const PLAN_MAX_TEAMS = 8;
 export const PLAN_MAX_SEGMENTS = 6;
 const PLAN_TEAM_ID = /^[A-Za-z0-9_]{1,32}$/;
 

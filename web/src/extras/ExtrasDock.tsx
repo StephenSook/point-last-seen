@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ExportButton } from "./export/ExportButton";
 import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
-import { DeleteMedia, printableApproachLines, type IncidentView } from "./hostApp";
+import { DeleteMedia, printablePersonLines, type IncidentView } from "./hostApp";
 import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
 import { reportsIn } from "./reports";
 import type { PrintSessionData } from "./print/PrintSession";
@@ -54,8 +54,8 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
   }, [open]);
 
   function openPrint(kind: PrintSessionData["kind"]) {
-    const ids = state.profile?.shared?.approachNoteIds;
-    setSurface({ kind, model: snapshot(), approachLines: kind === "assignment" && Array.isArray(ids) ? printableApproachLines(ids) : [] });
+    // The person's names and approach notes, for both the sheet and the cards; each prints them only when ticked.
+    setSurface({ kind, model: snapshot(), approachLines: printablePersonLines(state.profile?.shared ?? null) });
     setOpen(false);
   }
 
@@ -141,7 +141,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
       {terrain.on && terrain.file && <TerrainLegend classes={terrain.classes} file={terrain.file} hasStart={terrain.hasStart} />}
       {surface?.kind === "check" && (
         <ExtrasDialog title={checkTitle} onClose={closeDialog} returnFocus={more}>
-          {view.incident?.mode === "drill" && <p className="extras-drill-line">{DRILL_LABEL}</p>}
+          <p className="extras-drill-line">{view.incident?.drillLabel || DRILL_LABEL}</p>
           <ExtrasBoundary>
             <Suspense fallback={<p>Loading.</p>}>
               <LazyRadioCodeCheck mine={matchCode} reportCount={reportCount} planVersion={surface.planVersion} />

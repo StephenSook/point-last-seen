@@ -5,6 +5,214 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
+  a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
+  under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
+  gate checked only the availability call. Docs may name them, and the iPhone and Android code is not affected.
+  Source: review (the web's direct built-in model calls were unguarded, unlike the companion guard's).
+  Verified: one test per call (each form fails the gate) failed first, now passes, with a control that a doc
+  mention, a Swift session and the AI Logic builder pass; all 35 gate tests pass; the gate over the repository exits
+  0 with 966 files walked.
+- The public-hygiene guard keeps its word list as SHA-256 hashes, so neither `scripts/hygiene_guard.py` nor its test
+  spells a word it protects. It splits the text into lowercased words and checks each word's hash (and the word
+  without a trailing "s"), and the hash of each two- or three-word phrase joined exactly as written by "-", a space
+  or "/". The review rule id, the work-stream-as-role form and the settings path stay as shapes, the author's
+  surname is still allowed after the given name, and the floor, the self-exclusion and the public and private modes
+  are unchanged. The test builds every planted term from parts.
+  Source: review (the repository is public, so the guarded words were readable in the guard itself).
+  Verified: the new tests (the guard holds each term's hash and spells none; a plural such as an upper-case word
+  with a trailing "s" is found; every phrase in any case is found, and its parts alone or with another joiner are
+  not) failed first on the old guard, now all 9 pass; the old and the new guard both walk 938 files with no hits.
+- The web workflow installs ffmpeg before the component harness checks. The clip harnesses (the clip form, and the
+  frame sampler's moving and still clips) make their test clips with ffmpeg, since the repository keeps every .mp4
+  out, and the Ubuntu runner image does not ship it, so both tests failed at setup with "ffmpeg: not found" on the
+  first real CI runs. The check that every workflow command runs in `scripts/ci-local.sh` treats the install as
+  runner setup, as it does the Playwright browser install.
+  Source: CI (the web job's harness step, the first run with Actions minutes available).
+  Verified: the ci-local mirror check passes; the web job's result is on this change's pull request.
+- The Android unit-test floor is 290, the suite's real count with the tracking-aids form and profile tests (it was
+  274). `android/count-tests.py --min` fails a run whose results hold fewer tests, so a test class that stops running
+  cannot pass as green. It is set in `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the tracking-aids work.
+  Verified: the Android job on this branch runs 290 tests with 0 failures and `count-tests --min 290` passes; the
+  check that every workflow command runs in ci-local passes.
+- A rules test pins the expression budget for profile/shared: the heaviest shared profile (five other names of 60
+  characters with the nickname mirror, every text field at its schema maximum, every mobility aid, flag and
+  approach-note id, all four tracking aids and an 80-character note) is accepted, so the tracking-aid checks fit
+  beside the rest. The text limits and choices are read from the schema and the approach-notes constants, so the
+  test follows them.
+  Source: review (the rules' 1,000-expression limit; the plans worst case had no room).
+  Verified: all 16 profile rules tests pass in the emulator.
+- The engine gives the search card's tracking-aid lines: `trackingAidLines(shared)` reads
+  `shared/constants/tracking-aids.json` (each aid's form label and card line, in card order, the "none" line and the
+  note's 80-character limit), so every app shows the same words. It gives one line per aid the family named (a
+  choice it does not know is skipped), then the family's note; nothing when the family has not said; and "No tracker
+  or medical ID, as the family said." when it said none. `SharedProfile` gains the optional `trackingAids`, and
+  `profileForSearchers` carries it into profile/shared; `profileForModel` never includes it.
+  Source: expert input, with the card wording agreed with the web, iPhone and Android apps.
+  Verified: the tests (absent gives nothing; empty gives the none line; the order, the skipped unknown choice and the
+  trimmed note; profile/shared carries it only when given; the model profile never does; the constants' choices and
+  note limit equal the schema's) failed first, now all 248 engine tests pass; typecheck and lint exit 0; TypeScript
+  schema parity holds (Swift and Kotlin follow in their apps).
+- The shared profile can carry the family's tracking aids (expert input): `trackingAids` = { `aids`: up to 4 distinct
+  of `project_lifesaver`, `medicalert_id`, `gps_tracker` and `phone_location`; `note`: 0 to 80 characters with no
+  digits }, optional, so a build that never sends it keeps saving. Absent means unknown; an empty list and note mean
+  the family said none. It is for the search cards only and is never sent to a model. The schema gives the shape and
+  the generated rule checks it; the profile rule adds each choice once and no digit of any script in the note
+  (`\P{Nd}`, so fullwidth digits are refused too).
+  Source: expert input (a state Alzheimer's association: Project Lifesaver runs in some Georgia counties, families
+  use other trackers, and a medical ID matters when the person cannot say who they are).
+  Verified: the rules test (a profile without the field, an empty one, all four, a note and an 80-character note are
+  accepted; a repeat, an unknown choice, five, ASCII and fullwidth digits, 81 characters, an extra key, a missing note,
+  a non-list and a number are refused) failed first, now all 139 rules tests pass; the generated block is current.
+  Schema parity waits for the TypeScript, Swift and Kotlin types.
+- A Node 24 job (`.github/workflows/node24.yml`) runs the engine, the grid builder, the public-run exporter and the
+  web app (typecheck, tests and the placeholder build) and the functions typecheck on Node 24, beside the Node 22
+  jobs, on pull requests to main and on main. The Firebase web SDK asks for Node 24.12; the root package's engines
+  field stays at Node 22 until this job is green, and Cloud Functions keep the nodejs22 runtime. The check that every
+  workflow command also runs in `scripts/ci-local.sh` covers the new workflow.
+  Source: review (the web SDK's Node requirement; a fresh clone on Node 24).
+  Verified: the ci-local and workflow-path tests pass (14); rules_gate and the public hygiene guard exit 0. The job's
+  own result is on its pull request.
+- CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
+  work): the new check that every Python test file is in a pytest list found it on its first run after that work
+  merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.
+  Source: the check above.
+  Verified: the check named the file and now passes; the gates job's whole pytest line passes locally.
+- `NOTICE` credits the source of the dementia distance rings: ISRID figures from R. J. Koester, Lost Person
+  Behavior, "Dementia (Alzheimer's)", p. 164, read from the publisher's public sample, and points to the evidence
+  files that hold the figures as printed and the other published sources.
+  Source: review (credit for the distance tables).
+  Verified: the page, URL and wording match `docs/evidence/isrid-dementia-p164.md` and
+  `shared/constants/engine-params.json`; rules_gate and the public hygiene guard exit 0.
+- CI now runs the two test files under `tools/extras` (the elevation build and the scam-panel publisher, 32 tests),
+  which were named in no pytest list and so had only run by hand. They are added to the gates job's pytest line in
+  `.github/workflows/ci.yml` and to the same line in `scripts/ci-local.sh`, and a new test in
+  `scripts/test_ci_local.py` fails when any Python test file git would ship is named in no workflow's pytest command
+  (by its path or a parent folder), so a new test file cannot be missed again.
+  Source: review (a test file outside every CI list).
+  Verified: the new test failed first naming the two files, now passes, with a companion test that it finds an
+  unlisted file; the gates job's whole pytest line passes locally (185 tests).
+- The rules gate now refuses speech recognition on every platform and says why, and keeps the system voice allowed.
+  It already refused Apple's Speech framework and the webkit-prefixed browser recognizer; it now also refuses
+  Android's speech recognizer, Android's recognize-speech intent (by class name and by its action string) and the
+  browser's unprefixed recognizer. The gate's comment states the rule: recognition reads the user's speech with a
+  model outside Firebase AI Logic; the system text-to-speech voice (the iPhone app's fallback when the cloud voice
+  cannot be reached) speaks text the app already holds. The README says the same, and that iPhone keyboard
+  dictation gives the app typed text.
+  Source: review (the speech rule, made to agree across the project's guards).
+  Verified: the new test (six recognizer uses across Swift, Kotlin and TypeScript each fail the gate) failed first,
+  the system-voice test (AVSpeechSynthesizer, TextToSpeech, speechSynthesis pass) passes; all 31 gate tests pass;
+  the gate over the repository exits 0 with 936 files walked.
+- The README says what is true now rather than what is planned: the judge page replays a published drill run and
+  says "No published run yet." until one exists; the iPhone app's public TestFlight link and the Android app's
+  release asset are named as not published yet; and the status line says the project was built for #BuildHybridAI
+  2026 with made-up drill data.
+  Source: review (README tense).
+  Verified: the judge page's wording matches `web/src/judge/JudgePage.tsx`; `gh release list` shows no release;
+  rules_gate and the public hygiene guard exit 0.
+- A rules test pins that the command post's photo tray can list a search's photos: command and family list
+  `photos/{incidentId}` (the read rule on the files under it covers the list), and a searcher cannot; a searcher can
+  list clips. A review had read the tray's list as having no matching rule.
+  Source: review (cross-model, rules range, a finding to verify).
+  Verified: the test lists a stored photo as command and as family and is refused for a searcher; all 14 storage
+  rules tests pass in the emulator.
+- A plan holds at most 8 assignments and a drill at most 8 teams (both were 10), and each assignment's segment ids
+  must be a list, so an empty string or a map no longer passes for one. The list check costs one more rules
+  expression per assignment; with it, the heaviest plan no longer fit 10 even on a drill, and the worst case (a judge
+  incident, whose expiry and setup are checked, with a blocked wording route) fits 9 and not 10. So 8 keeps one
+  assignment of room. `tools/seed/seed_drill.py` refuses more than 8 teams to match, and `docs/LIMITS.md` says why.
+  Source: review (cross-model, rules range: segment ids not checked as a list; the expression budget's worst case).
+  Verified: the tests (an empty-string and a map segment id refused; the heaviest 8 on a drill and on a judge incident
+  with a blocked route accepted; 9 assignments refused; 9 teams refused by the seed tool) failed first where they
+  test new refusals, now all 138 rules tests and 23 seed tests pass; measured in the emulator, the worst case fits 9
+  assignments and not 10; rules_gate passes.
+- The family push carries only the kind and the incident id: the question's id no longer leaves Firestore, and the
+  family app lists unanswered questions from Firestore when it opens. A searching or paused notice now also needs the
+  incident to be open and not past its end, so a late event after the search ends spends no budget and sends
+  nothing. `docs/LIMITS.md` says both.
+  Source: review (cross-model, round 1, mediums; privacy by default).
+  Verified: the tests (every kind's whole message without a question id; no searching or paused notice for a found,
+  closed or expired incident, and no budget doc written) failed first, now all 17 push tests pass; functions
+  typecheck exit 0.
+- `startJudgeSession`'s copy is checked write by write and by owner. Every write's own result is collected (a failure
+  is caught as it happens and thrown after the writer closes, since `BulkWriter.close()` resolves even when a write
+  failed), so a short copy is never marked ready. Before clearing and before copying, the build checks that it still
+  owns the setup, so a builder that stalled while another took over never clears or writes the newer sandbox. A live
+  sandbox made before setup was tracked is checked against the seed (as many segments and teams, and the shared
+  profile if the seed has one): a complete copy gets its flag and keeps its judge's work, a short one is rebuilt on
+  the slot it already used.
+  Source: review (cross-model, round 1, high 2 and a medium).
+  Verified: the tests (a write that fails leaves the sandbox not ready and grants nothing, and a retry finishes it; a
+  stalled builder resuming after a takeover leaves the newer sandbox and its judge's event alone; a legacy sandbox
+  with nothing copied is rebuilt, one with a full copy is handed back with its event) failed first, now all 13 judge
+  session tests pass with no unhandled error; functions typecheck exit 0.
+- `docs/evidence/drill/kennesaw-seed.md` records the Kennesaw drill as seeded: park staff confirmed by email on
+  2026-11-19 that the training exercise needs no Special Use Permit and suggested the trails south of Dallas Highway;
+  the incident `drill-kennesaw-1` (teams T1 to T3, urban terrain marked as the default and not verified for this site,
+  the point last seen on the Kolb Farm Loop Trail) and the exact commands that built and seeded it.
+  Source: the drill's seeding.
+  Verified: every command and value matches the run and its read-back (339 segment documents, prior version 1 with
+  `priorBuiltAt`, the export passes every check); no person or address is named.
+- The Kennesaw Mountain drill grid sits on the trails south of Dallas Highway, as park staff suggested: 338
+  segments, 4.21 km2 over the Kolb's Farm, Cheatham Hill and Old John Ward trails, its northern edge about 100 m below
+  the road. Before, its window was around the Visitor Center and the summits, all north of the road. Its route graph
+  (644 edges) and basemap tiles (Protomaps 2026-11-18) are committed beside it, and `shared/grid/README.md` records
+  how each was made with its sha256.
+  Source: review (park staff's advice for the drill).
+  Verified: the grid tests now cover both sites' graph and tiles (the graph indexes in the engine and is bounded by
+  the grid's box; the tiles are PMTiles v3 covering it) and pin the grid below 33.945 north; they failed first, now
+  all 9 pass; the engine suite passes; rules_gate passes.
+- `.gitignore` ignores `android/.kotlin/`, the Kotlin compiler's cache that Gradle builds leave in the Android
+  project, so it no longer shows as an untracked folder after a local build or gets walked by the repository gates.
+  Source: review (seen after the merge point's Android build).
+  Verified: `git check-ignore android/.kotlin` matches and `git status` no longer lists it.
+- The Android unit-test floor is the real count, 274, in both `android.yml` and `scripts/ci-local.sh` (it was 150), so
+  losing even one test class fails CI and the local mirror instead of passing quietly.
+  Source: review (a floor far below the count would not notice a dropped class).
+  Verified: the merge point's full local mirror counted 274 Android unit tests, 0 failures, 0 skipped; `count-tests.py
+  --min 274` passes on those results and `--min 275` fails; the ci-local mirror test still finds the two commands equal.
+- `scripts/heavy.sh <command...>` runs any heavy command (a full vitest or Playwright suite, a Gradle or Xcode test
+  run) in one of the machine's two heavy-suite slots, with the same rules `ci-local.sh` follows: take a free slot at
+  once, or wait on slot 1 naming the process that holds it every 5 minutes, give up after 90 minutes, and never wait
+  on itself (a caller already in a slot, or a run started under lockf on a heavy-suite lock, runs directly). The
+  command's exit code comes back. `ci-local.sh` now re-runs itself through it, so there is one implementation.
+  Source: review (direct heavy runs still took the old single lock, which did not count against the two slots).
+  Verified: the new test (a command runs in a slot with `PLS_HEAVY_LOCK` set and its exit 3 comes back; with both
+  slots held it names the holder and runs when one frees; a hand-wrapped nested run does not wait; no command is
+  refused) and the ci-local slot tests pass, 10 in all, on a temporary lock folder; `bash -n`, rules_gate and
+  hygiene_guard pass.
+- A plan's doc id must be its version in exactly one form: four digits, zero-padded (`0016`), or the plain number
+  from 10000 up, so `00016` or `016` can no longer stand beside `0016` as a second plan of the same version. Each
+  segment id in an assignment must be text: splitting the joined ids must give back the same list, which refuses a
+  number (join() would turn it into text) and an id holding a comma. `docs/LIMITS.md` drops the gap it named and says
+  10 assignments is the most that fits.
+  Source: review (cross-model, round 1, mediums).
+  Verified: the tests (`00016`, `012345` and `016` refused, `0016` and `12345` accepted; a numeric segment id alone or
+  among text ids refused, at the first and the tenth assignment) failed first, now all 136 rules tests pass in the
+  emulator, the heaviest 10-assignment plan with a wording route among them; with room for an 11th, 11 heavy
+  assignments do not fit the expression limit (measured, then the rules file restored).
+- A judge practice search still being set up is closed to its members until the copy finishes: the Firestore rules
+  (`liveFor`), the Storage rules (`notExpired`) and `deleteIncidentMediaNow` refuse a judge incident whose
+  `setupReady` is false, so a returning judge, whose claims still name `judge-{uid}`, cannot read or write a sandbox
+  while it is rebuilt. A sandbox made before setup was tracked has no flag and counts as ready. `setupReady`,
+  `setupId` and `setupStartedAtMs` are server-owned: no client may change them. The media delete now also requires a
+  judge sandbox to carry a timestamp expiry, as the rules do.
+  Source: review (cross-model, round 1, high 1).
+  Verified: the tests (a member with live claims cannot read the incident or a segment or write an event while setup
+  is false, and can once it is true or absent; command cannot write any setup field; a family upload is refused while
+  setup is false; the media delete refuses a sandbox being set up or one with no expiry, and works once ready) failed
+  first, now the 43 roles, storage and media delete tests pass in the emulator; functions typecheck exit 0.
+- `scripts/ci-local.sh` takes one of two heavy-suite slots (`/tmp/heavy-suite-1.lock`, then `-2.lock`) without
+  waiting, and only when both are busy waits on the first, printing which process holds it every 5 minutes and giving
+  up after 90 minutes. It never waits on itself: a run already holding a slot (`PLS_HEAVY_LOCK`) or started by hand
+  under `lockf` on a heavy-suite lock skips the slots. Before, a hand-wrapped run held the one lock while the script's
+  own re-run waited on it forever, which stopped every other suite on the machine for 2.5 hours.
+  Source: review (the single lock deadlocked under a hand wrap; two full suites at once keep the load reasonable).
+  Verified: the tests (a hand-wrapped nested run finishes; with one slot busy the run takes the other at once; with
+  both busy it names the holder's PID while it waits, then runs) failed first, now all 9 ci-local tests pass, using a
+  temporary lock folder so the machine's slots are never touched (skipped where lockf does not exist, as on CI);
+  `bash -n`, rules_gate and hygiene_guard pass.
 - The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
   was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
   engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled

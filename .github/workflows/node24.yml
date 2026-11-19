@@ -1,0 +1,62 @@
+name: Node 24
+
+# The engine, the tools, the web app and the functions typecheck on Node 24, beside the Node 22 jobs. The
+# Firebase web SDK asks for Node 24.12, and the root package's engines field stays at 22 until this job is green.
+# Cloud Functions keep the nodejs22 runtime (firebase.json), so the functions only typecheck here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: node24-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  node24:
+    name: node24
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install (clean, from the lockfile)
+        run: npm ci
+      - name: Engine typecheck
+        run: npm run typecheck -w shared/engine-ts
+      - name: Engine lint (unused symbols)
+        run: npm run lint -w shared/engine-ts
+      - name: Engine tests
+        run: npm test -w shared/engine-ts
+      - name: Grid builder typecheck and tests
+        run: |
+          npm run typecheck -w tools/grid-builder
+          npm test -w tools/grid-builder
+      - name: Public-run exporter typecheck and tests
+        run: |
+          npm run typecheck -w tools/export-run
+          npm test -w tools/export-run
+      - name: Web typecheck
+        run: npm run typecheck -w web
+      - name: Web unit tests
+        run: npm test -w web
+      - name: Web build (placeholder config; proves it compiles, never deployed)
+        env:
+          VITE_FIREBASE_API_KEY: ci-build-check
+          VITE_FIREBASE_AUTH_DOMAIN: ci-build-check.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: ci-build-check
+          VITE_FIREBASE_STORAGE_BUCKET: ci-build-check.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "0"
+          VITE_FIREBASE_APP_ID: "1:0:web:0"
+          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ci-build-check
+        run: npm run build -w web
+      - name: Functions typecheck
+        run: npm run typecheck -w functions

@@ -31,6 +31,25 @@ function seek(v: HTMLVideoElement, t: number): Promise<void> {
   });
 }
 
+const same = (a: Float32Array, b: Float32Array) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/**
+ * Draws a sample, and draws it again (after `wait`, up to `tries` more times) while it is byte-identical to the
+ * previous sample: under load "seeked" can fire before the new frame is decoded, and the canvas then reads the
+ * previous frame, which would read as a still span. A truly still clip settles on the same frame and costs only
+ * the waits.
+ */
+export async function settledDraw(draw: () => Float32Array, prev: Float32Array | null, wait: () => Promise<void>, tries = 3): Promise<Float32Array> {
+  let px = draw();
+  for (let i = 0; i < tries && prev && same(px, prev); i++) {
+    await wait();
+    px = draw();
+  }
+  return px;
+}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
 /** Grey frames (0 to 1) every `everyS` seconds at width x height, with the clip's length. */
 export async function sampleFrames(clip: Blob, everyS: number = MOTION.sampleEveryS, width: number = MOTION.width, height: number = MOTION.height): Promise<{ durationS: number; frames: MotionFrame[] }> {
   const { v, done } = await load(clip);
@@ -42,13 +61,16 @@ export async function sampleFrames(clip: Blob, everyS: number = MOTION.sampleEve
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx || !Number.isFinite(durationS)) throw new Error("This clip could not be decoded here.");
     const frames: MotionFrame[] = [];
-    for (let t = 0; t < durationS; t += everyS) {
-      await seek(v, t);
+    const grey = (): Float32Array => {
       ctx.drawImage(v, 0, 0, width, height);
       const rgba = ctx.getImageData(0, 0, width, height).data;
       const px = new Float32Array(width * height);
       for (let i = 0; i < px.length; i++) px[i] = (0.299 * rgba[i * 4]! + 0.587 * rgba[i * 4 + 1]! + 0.114 * rgba[i * 4 + 2]!) / 255;
-      frames.push({ t, px });
+      return px;
+    };
+    for (let t = 0; t < durationS; t += everyS) {
+      await seek(v, t);
+      frames.push({ t, px: await settledDraw(grey, frames.at(-1)?.px ?? null, nextFrame) });
     }
     return { durationS, frames };
   } finally {

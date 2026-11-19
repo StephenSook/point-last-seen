@@ -65,6 +65,29 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     const e2 = ev(S, { seq: 2 });
     await assertSucceeds(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
+  it("a judge sandbox still being set up locks its members out, even with live claims; a ready or legacy one does not", async () => {
+    // Review: a returning judge keeps claims for judge-{uid}, so access must wait for the copy to finish.
+    const live = { name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) };
+    await admin.db.doc("incidents/J1").set({ ...live, setupReady: false, setupId: "s1", setupStartedAtMs: 1 });
+    await admin.db.doc("incidents/J1/segments/AA").set({ segmentId: "AA", priorPoa: 0.1 });
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1/segments/AA")));
+    const e2 = ev(S, { seq: 2 });
+    await assertFails(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
+    await admin.db.doc("incidents/J1").update({ setupReady: true });
+    await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
+    await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1/segments/AA")));
+    await admin.db.doc("incidents/J1").set(live);
+    await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
+  });
+  it("only the server sets a sandbox's setup state", async () => {
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000), setupReady: true });
+    const db = dbAs(C, J);
+    for (const f of [{ setupReady: false }, { setupId: "mine" }, { setupStartedAtMs: 0 }]) {
+      await assertFails(setDoc(doc(db, "incidents/J1"), f, { merge: true }));
+    }
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { setupReady: true }, { merge: true }));
+  });
   it("a closed incident stays readable to its members but takes no new events or plans", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
     await assertSucceeds(getDoc(doc(dbAs(S, searcherClaims), "incidents/I1")));

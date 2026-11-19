@@ -1,4 +1,4 @@
-import { DRILL_LABEL, type PrintModel } from "./printModel";
+import type { PrintModel } from "./printModel";
 
 export const ICS204_EDITION = "v3.1";
 export const ICS204_BLOCK_TITLES = [
@@ -19,7 +19,9 @@ export const ICS204_RESOURCE_COLUMNS = [
   "Contact (e.g., phone, pager, radio frequency, etc.)",
   "Reporting Location, Special Equipment and Supplies, Remarks, Notes, Information",
 ] as const;
-export const ICS204_ROWS_PER_SHEET = 10;
+// Five teams per sheet keeps each sheet on one Letter page: a sheet always draws this many resource rows, and each
+// team adds a work-assignment line that may wrap (measured: ten rows overflowed the page even with three teams).
+export const ICS204_ROWS_PER_SHEET = 5;
 
 export type Ics204Typed = {
   dateFrom: string; dateTo: string; timeFrom: string; timeTo: string;
@@ -61,7 +63,7 @@ export function ics204Sheets(
   if (model.planVersion === null) return [];
   const { dateFrom, dateTo, timeFrom, timeTo, branch, division, group, stagingArea } = typed;
   const specialInstructions: string[] = [];
-  if (model.mode === "drill") specialInstructions.push(`${DRILL_LABEL} Do not dial 911.`);
+  specialInstructions.push(`${model.drillLabel} Do not dial 911.`);
   const reportLabel = model.reportCount === 1 ? "report" : "reports";
   specialInstructions.push(
     `Map match code at print time: ${model.matchCode ?? "Unavailable"} (plan v${model.planVersion}, ${model.reportCount} ${reportLabel}).`,

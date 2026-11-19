@@ -44,20 +44,21 @@ it("leader, persons and contact stay blank for a pen", () => {
   ]);
 });
 
-it("eleven teams make two sheets; both carry the incident name; pages read 1 of 2 and 2 of 2", () => {
+it("eleven teams make three sheets of at most five; each carries the incident name; pages read 1 to 3 of 3", () => {
   const teams = Array.from({ length: 11 }, (_, index) => ({ ...model.teams[1]!, name: `Team ${index + 1}` }));
   const pages = sheets({ ...model, teams });
 
   expect(pages.map(({ incidentName, page, pages }) => [incidentName, page, pages])).toEqual([
-    ["Oak Park", 1, 2], ["Oak Park", 2, 2],
+    ["Oak Park", 1, 3], ["Oak Park", 2, 3], ["Oak Park", 3, 3],
   ]);
-  expect(pages.map(({ resources }) => resources.length)).toEqual([10, 1]);
-  expect(pages[1]?.workAssignments).toEqual([expect.stringContaining("Team 11")]);
+  expect(pages.map(({ resources }) => resources.length)).toEqual([5, 5, 1]);
+  expect(pages[2]?.workAssignments).toEqual([expect.stringContaining("Team 11")]);
 });
 
-it("block 7 starts with the drill line in drill mode", () => {
+it("block 7 starts with the incident's training line in every mode", () => {
   expect(sheets()[0]?.specialInstructions[0]).toBe("Training drill. Nobody is missing. Do not dial 911.");
-  expect(sheets({ ...model, mode: "judge" })[0]?.specialInstructions.join(" ")).not.toContain("Training drill");
+  const practice = "Training drill. Practice search; nobody is missing.";
+  expect(sheets({ ...model, mode: "judge", drillLabel: practice })[0]?.specialInstructions[0]).toBe(`${practice} Do not dial 911.`);
 });
 
 it("block 7 carries the match code line", () => {

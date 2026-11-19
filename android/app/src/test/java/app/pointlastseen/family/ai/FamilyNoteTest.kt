@@ -157,6 +157,17 @@ class FamilyNoteTest {
         assertEquals("sdk_fallback", out.route.reason)
     }
 
+    /**
+     * The on-device model name appears only when the SDK reports ON_DEVICE: a PREFER_ON_DEVICE call that the SDK
+     * answered from the cloud (a phone with a local model that fell back) records the cloud model.
+     */
+    @Test fun aCloudReplyToAPreferOnDeviceCallRecordsTheCloudModel() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
+        assertEquals(listOf(NoteMode.PREFER_ON_DEVICE), model.calls.map { it.first })
+        assertEquals("gemini-3.5-flash-lite", out.route.model)
+    }
+
     @Test fun anOnDeviceAnswerIsTheDefault() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
         val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = false)) as NoteOutcome.Read
@@ -182,5 +193,33 @@ class FamilyNoteTest {
         assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn).read("   ", env(DeviceModelStatus.UNAVAILABLE, true)))
         assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn).read("x".repeat(2001), env(DeviceModelStatus.UNAVAILABLE, true)))
         assertTrue(model.calls.isEmpty())
+    }
+
+    /**
+     * Without consent, or with the cloud paused, the only route is this phone. A reply the SDK reports from the
+     * cloud is refused: nothing is kept and no route record claims a cloud read. The invariant never rests on the SDK.
+     */
+    @Test fun aDeviceOnlyReadRefusesAReplyFromTheCloud() = runTest {
+        for (e in listOf(env(DeviceModelStatus.AVAILABLE, consent = false), env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))) {
+            val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+            assertEquals(NoteOutcome.Failed, FamilyNote(model, screen, signedIn).read(note, e))
+            assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
+        }
+    }
+
+    /** A failed sign-in that falls back to the device-only route is held to the same rule. */
+    @Test fun aSignInFallbackToDeviceOnlyAlsoRefusesACloudReply() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true)).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        assertEquals(NoteOutcome.Failed, out)
+        assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
+    }
+
+    /** The route names the model that ran: Gemini Nano through ML Kit on this phone, the cloud model otherwise. */
+    @Test fun theRouteNamesTheModelThatRan() = runTest {
+        val onDevice = FamilyNote(FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5)), screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        assertEquals("gemini-nano (ML Kit Prompt API)", (onDevice as NoteOutcome.Read).route.model)
+        val cloud = FamilyNote(FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        assertEquals("gemini-3.5-flash-lite", (cloud as NoteOutcome.Read).route.model)
     }
 }
