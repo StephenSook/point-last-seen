@@ -11,7 +11,7 @@ type DialogProps = {
 
 const focusable = 'button:not([disabled]), input:not([disabled])';
 
-export function ExtrasDialog({ title, onClose, returnFocus, children, printing = false }: DialogProps & { printing?: boolean }) {
+export function ExtrasDialog({ title, onClose, returnFocus, children, printing = false, className }: DialogProps & { printing?: boolean; className?: string }) {
   const titleId = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -31,7 +31,7 @@ export function ExtrasDialog({ title, onClose, returnFocus, children, printing =
 
   return createPortal(
     <div
-      className={`extras-dialog${printing ? " extras-print-dialog" : ""}`}
+      className={`extras-dialog${printing ? " extras-print-dialog" : ""}${className ? ` ${className}` : ""}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

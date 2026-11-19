@@ -30,3 +30,64 @@
 .extras-menu [role="menuitem"]:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .extras-menu small { display: block; color: var(--fg-3, #aeaaa7); }
 .extras-menu [role="alert"] { margin: 0.4rem 0.6rem; }
+
+/* Replay time ruler: marks differ by shape; spans and bands are neutral greys, so the map's colours keep their meaning. */
+.extras-ruler { display: grid; gap: 4px; }
+.extras-ruler-clock { display: flex; gap: 12px; align-items: baseline; }
+.extras-ruler-elapsed { font-family: var(--clock, var(--mono, monospace)); font-size: 1.25rem; color: var(--fg-1, #f8f4f1); }
+.extras-ruler-track { position: relative; }
+.extras-ruler-track svg { display: block; width: 100%; height: 56px; overflow: visible; }
+.extras-ruler-scale, .extras-ruler-tick { stroke: var(--fg-4, #898583); stroke-width: 1; }
+.extras-ruler-label { fill: var(--fg-3, #aeaaa7); font-family: var(--mono, monospace); font-size: 11px; }
+.extras-ruler-span { fill: var(--fg-3, #aeaaa7); }
+.extras-ruler-band { fill: var(--fg-2, #d7d3d0); }
+.extras-ruler-marks { fill: var(--fg-1, #f8f4f1); }
+.extras-ruler-head { stroke: var(--fg-1, #f8f4f1); stroke-width: 2; }
+.extras-ruler-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.extras-ruler-track:has(.extras-ruler-input:focus-visible) { outline: 2px solid var(--fg-1, #f8f4f1); outline-offset: 2px; }
+
+/* Replay: a full-screen dark dialog (the print dialogs stay paper-white). */
+.extras-replay-dialog { background: var(--bg-0, #110f0d); color: var(--fg-1, #f8f4f1); color-scheme: dark; font-family: var(--ui, system-ui, sans-serif); padding: 0; }
+.extras-replay-dialog .extras-dialog-content { width: 100%; max-width: none; min-height: 100%; margin: 0; padding: 12px 16px; background: transparent; box-sizing: border-box; display: grid; gap: 8px; }
+.extras-replay-dialog :focus-visible { outline-color: var(--fg-1, #f8f4f1); }
+.extras-replay-dialog button { background: var(--bg-2, #252220); color: var(--fg-1, #f8f4f1); border: 1px solid var(--line, #403c3a); }
+.extras-replay-dialog button:disabled { color: var(--fg-4, #898583); }
+.extras-replay { display: grid; gap: 8px; }
+.extras-replay-map { position: relative; height: min(56vh, 520px); min-height: 240px; }
+.extras-replay-map .map-wrap, .extras-replay-map .map { height: 100%; }
+.extras-replay-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.extras-replay-legs ol { margin: 0; padding-inline-start: 1.25rem; }
+.extras-replay-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The judge page's replay sits inline under door D1. */
+.extras-judge-replay { display: grid; gap: 8px; margin-block: 16px; }
+
+/* Space-time cube (judge page only). Neutral ink: no hue carries a meaning here. */
+.extras-cube { display: grid; gap: 8px; }
+.extras-cube-svg { width: 100%; max-width: 560px; height: auto; touch-action: none; cursor: grab; }
+.extras-cube-svg:focus-visible { outline: 2px solid var(--fg-1, #f8f4f1); outline-offset: 2px; }
+.extras-cube-floor path { fill: none; stroke: var(--line, #403c3a); stroke-width: 1; }
+.extras-cube-axis { stroke: var(--fg-4, #898583); stroke-width: 1; }
+.extras-cube-label { fill: var(--fg-3, #aeaaa7); font-family: var(--mono, monospace); font-size: 13px; }
+.extras-cube-drop { stroke: var(--fg-4, #898583); stroke-width: 1; stroke-dasharray: 1 3; }
+.extras-cube-order { fill: none; stroke: var(--fg-2, #d7d3d0); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.extras-cube-bar { stroke: var(--fg-1, #f8f4f1); stroke-width: 4; stroke-linecap: round; }
+.extras-cube-stem { stroke: var(--fg-3, #aeaaa7); stroke-width: 1.5; }
+.extras-cube-point { fill: var(--fg-1, #f8f4f1); }
+.extras-cube-legend p { margin: 0; }
+.extras-cube-table { border-collapse: collapse; font-size: 0.9rem; }
+.extras-cube-table caption { text-align: start; color: var(--fg-3, #aeaaa7); padding-block-end: 4px; }
+.extras-cube-table th, .extras-cube-table td { text-align: start; padding: 2px 12px 2px 0; border-block-end: 1px solid var(--line, #403c3a); }
+
+/* Camera read check (judge page only). */
+.extras-scam th[scope="row"] { white-space: nowrap; }
+.extras-scam-misses { margin: 0; padding-inline-start: 1.25rem; }
+
+/* Terrain legend: shown only while the terrain layer is on; neutral ink like the chevrons on the map. */
+.extras-terrain-legend { position: fixed; z-index: 3; inset-inline-start: 16px; inset-block-end: 16px; max-width: min(420px, calc(100vw - 32px)); padding: 8px 12px; background: var(--bg-1, #1c1917); color: var(--fg-1, #f8f4f1); border: 1px solid var(--line, #403c3a); }
+.extras-terrain-legend p { margin: 0 0 4px; }
+.extras-terrain-chevron { vertical-align: -2px; }
+.extras-terrain-chevron path { fill: none; stroke: var(--fg-3, #aeaaa7); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* An export that failed after its menu closed. */
+.extras-dock-alert { margin: 0 0 0 8px; color: var(--fg-1, #f8f4f1); }
