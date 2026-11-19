@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A searcher's join names a team a push can reach: letters, digits or `_`, at most 32 characters, and never
+  `family` (any case), whose topic is the family's. Before, any id up to 128 characters joined, including ones with
+  `-`, which no plan push reaches.
+  Source: review (the family topic `pls-{incident}-family` and the team topic share a form).
+  Verified: the test (`dev-1`, a 33-character id, `family` and `Family` are each refused as invalid-argument, even
+  when the team exists) failed first, now 21 join tests pass; every team id in the live project (20 teams, T1 and
+  T2) still passes; `bash scripts/ci-local.sh` exit 0.
 - Family pushes. `notifyFamilyQuestion` (on `familyQuestions/{questionId}` create) and `notifyFamilySearchState`
   (on incident update, when `searchState` becomes `searching` or `paused`) send one push to the topic
   `pls-{incidentId}-family`, with fixed wording and ids only: `{kind, incidentId}` plus `questionId` for a question.
