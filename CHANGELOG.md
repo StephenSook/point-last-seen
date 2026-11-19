@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- CI runs `tools/extras/test_publish_drill_run.py` too (the drill-run publisher's tests, added with the drill-day
+  work): the new check that every Python test file is in a pytest list found it on its first run after that work
+  merged. It is added to the gates job's pytest line in `.github/workflows/ci.yml` and in `scripts/ci-local.sh`.
+  Source: the check above.
+  Verified: the check named the file and now passes; the gates job's whole pytest line passes locally.
 - `NOTICE` credits the source of the dementia distance rings: ISRID figures from R. J. Koester, Lost Person
   Behavior, "Dementia (Alzheimer's)", p. 164, read from the publisher's public sample, and points to the evidence
   files that hold the figures as printed and the other published sources.
