@@ -1,5 +1,5 @@
 export * from "./types";
-export { DEFAULT_PARAMS } from "./params";
+export { DEFAULT_PARAMS, withEngineDefaults } from "./params";
 export { coverage, normalizeCoverage, pod, sweepWidth, trackLength } from "./pod";
 export { ioc } from "./ioc";
 export { posterior } from "./posterior";

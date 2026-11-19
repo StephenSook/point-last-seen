@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- The engine refuses, by name, a terrain its params hold no rings for ("No distance rings for terrain
+  "urban" in these engine params"), instead of failing on an undefined ring list. `withEngineDefaults(stored)`
+  fills what an incident's stored params predate (a ring column added later, such as urban) from the sourced
+  constants and keeps every stored value; loaders call it before building a prior.
+  Source: review of PR #21 (finding 2: an urban grid on an incident created before urban existed broke its
+  ring rebuild).
+  Verified: the tests (an urban prior from old params throws naming urban; withEngineDefaults adds the urban
+  column, keeps an overridden flat column and sweep width, and returns the constants for no params; the filled
+  params build) failed first, now 233 engine tests pass; engine typecheck and lint exit 0.
 - Firestore rules enforce the nickname mirror: when the shared profile carries `otherNames`, `nickname` must be its
   first name, or "" for an empty list, so every reader shows the same name. A profile saved before the list keeps
   any nickname.

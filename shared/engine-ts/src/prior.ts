@@ -59,6 +59,7 @@ export function buildPrior(
   params: EngineParams = DEFAULT_PARAMS,
 ): PriorResult {
   const radiiKm = params.rings[terrain];
+  if (!Array.isArray(radiiKm)) throw new Error(`No distance rings for terrain "${terrain}" in these engine params`);
   const masses = params.rings.masses;
   const center = point([ipp.lon, ipp.lat]);
   const circles = radiiKm.map(r => circle(center, r, { steps: RING_STEPS, units: "kilometers" }));

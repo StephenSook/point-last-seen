@@ -83,3 +83,23 @@ describe("urban terrain (field expert: a suburb or a big park around Atlanta is 
     expect(buildPrior(ringGrid, ipp, "urban", off, null)).not.toEqual(buildPrior(ringGrid, ipp, "temperate_flat", off, null));
   });
 });
+
+describe("stored engine params from before a terrain existed (review)", () => {
+  it("buildPrior refuses a terrain its params have no rings for, by name", async () => {
+    const { DEFAULT_PARAMS } = await import("../src/index");
+    const { urban: _u, ...rings } = DEFAULT_PARAMS.rings;
+    const old = { ...DEFAULT_PARAMS, rings } as unknown as typeof DEFAULT_PARAMS;
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, old)).toThrow(/urban/);
+  });
+  it("withEngineDefaults fills a missing ring column from the sourced constants and keeps stored overrides", async () => {
+    const { DEFAULT_PARAMS, withEngineDefaults } = await import("../src/index");
+    const { urban: _u, ...rings } = DEFAULT_PARAMS.rings;
+    const old = { ...DEFAULT_PARAMS, sweepWidthFactor: 1.6, rings: { ...rings, temperate_flat: [0.3, 1.0, 2.4, 12.0] } };
+    const filled = withEngineDefaults(old as unknown as Partial<typeof DEFAULT_PARAMS>);
+    expect(filled.rings.urban).toEqual(DEFAULT_PARAMS.rings.urban);
+    expect(filled.rings.temperate_flat).toEqual([0.3, 1.0, 2.4, 12.0]);
+    expect(filled.sweepWidthFactor).toBe(1.6);
+    expect(withEngineDefaults(undefined)).toEqual(DEFAULT_PARAMS);
+    expect(() => buildPrior(ringGrid, ipp, "urban", off, null, filled)).not.toThrow();
+  });
+});
