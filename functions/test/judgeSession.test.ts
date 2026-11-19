@@ -13,8 +13,8 @@ const NOW = Date.UTC(2026, 11, 12, 15, 0);
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 const cfg = { seedIncidentId: "SEED", perDay: 3 };
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const counter = admin.db.doc("ops/judgeSessions");
-const used = async () => (await counter.get()).get("count");
+const counterAt = (ms: number) => admin.db.doc(`ops/judgeSessions-${day(ms)}`);
+const used = async (ms = NOW) => (await counterAt(ms).get()).get("count");
 const pointer = async (uid: string) => (await admin.db.doc(`judgeUsers/${uid}`).get()).get("incidentId");
 const inc = (id: string) => admin.db.doc(`incidents/${id}`);
 const size = async (id: string, sub: string) => (await inc(id).collection(sub).get()).size;
@@ -60,7 +60,7 @@ describe("startJudgeSession", () => {
     expect((await inc(incidentId).collection("profile").doc("command").get()).exists).toBe(false);
     expect(await size(incidentId, "events")).toBe(0);
     expect(await claims(uid)).toEqual({ inc: incidentId, role: "command", team: null });
-    expect((await counter.get()).data()).toEqual({ day: day(NOW), count: 1 });
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1 });
   });
   it("a visitor who comes back while the sandbox is live gets the same one, and nothing more is counted", async () => {
     const uid = await freshUid();
@@ -85,12 +85,14 @@ describe("startJudgeSession", () => {
     expect((await inc(first).collection("events").doc("x").get()).exists).toBe(true);
     expect(await used()).toBe(2);
   });
-  it("the daily cap holds, and a new day starts a new count", async () => {
-    await counter.set({ day: day(NOW), count: 3 });
+  it("the daily cap holds per UTC day, each day on its own counter (review: a late call could reset a new day)", async () => {
+    await counterAt(NOW).set({ count: 3 });
     await expect(handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg)).rejects.toMatchObject({ code: "resource-exhausted" });
-    await counter.set({ day: day(NOW - DAY), count: 3 });
-    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
-    expect((await counter.get()).data()).toEqual({ day: day(NOW), count: 1 });
+    // Yesterday's count never touches today's, and a start counts only on the day it runs.
+    await counterAt(NOW + DAY).set({ count: 2 });
+    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW + DAY, cfg);
+    expect(await used(NOW + DAY)).toBe(3);
+    expect(await used(NOW)).toBe(3);
   });
   it("a signed-out caller is refused, and a missing seed is an error, not an empty sandbox", async () => {
     await expect(handleStartJudgeSession(admin.db, admin.auth, null, NOW, cfg)).rejects.toMatchObject({ code: "unauthenticated" });
@@ -240,7 +242,7 @@ describe("startJudgeSession and a sandbox made before setup was tracked", () => 
     expect((await legacy(uid).collection("events").doc("mine").get()).exists).toBe(true);
     expect((await legacy(uid).get()).get("setupReady")).toBe(true);
     expect(await pointer(uid)).toBe(`judge-${uid}`);
-    expect((await counter.get()).exists).toBe(false);
+    expect((await counterAt(NOW).get()).exists).toBe(false);
   });
   it("a short copy is rebuilt on a fresh incident, on the slot it already used, and the old one is retired", async () => {
     const uid = await freshUid();
@@ -251,7 +253,7 @@ describe("startJudgeSession and a sandbox made before setup was tracked", () => 
     expect(await size(id, "teams")).toBe(2);
     expect(((await inc(id).get()).get("expiresAt") as Timestamp).toMillis()).toBe(NOW + DAY);
     expect(((await legacy(uid).get()).get("expiresAt") as Timestamp).toMillis()).toBeLessThanOrEqual(NOW + HOUR);
-    expect((await counter.get()).exists).toBe(false);
+    expect((await counterAt(NOW).get()).exists).toBe(false);
   });
   it("the check compares document ids, not counts: the right number of the wrong segments is short (review)", async () => {
     const uid = await freshUid();

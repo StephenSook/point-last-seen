@@ -95,7 +95,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
   const setupId = randomUUID();
   const attemptId = `judge-${uid}-${randomUUID().replace(/-/g, "").slice(0, 12)}`, attemptRef = db.doc(`incidents/${attemptId}`);
   const today = new Date(nowMs).toISOString().slice(0, 10);
-  const counter = db.doc("ops/judgeSessions");
+  // One counter per UTC day: a call that started before midnight and commits after it counts on its own day only.
+  const counter = db.doc(`ops/judgeSessions-${today}`);
   // A new attempt: the seed's settings, this session's window, and a setup this call owns.
   const attempt = (seed: DocumentData, createdAt: Timestamp, expiresAt: Timestamp) => ({
     ...Object.fromEntries(Object.entries(seed).filter(([k]) => !NOT_COPIED.has(k))),
@@ -131,9 +132,9 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
       throw new HttpsError("resource-exhausted", "One new practice search per hour. Try again later.");
     }
     if (!seed!.exists) throw new HttpsError("failed-precondition", NO_SEED);
-    const used = count!.get("day") === today && typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
+    const used = typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
     if (used >= cfg.perDay) throw new HttpsError("resource-exhausted", "Practice searches are full for today. Try again tomorrow.");
-    tx.set(counter, { day: today, count: used + 1 });
+    tx.set(counter, { count: used + 1 });
     const createdAt = Timestamp.fromMillis(nowMs);
     tx.set(attemptRef, attempt(seed!.data()!, createdAt, Timestamp.fromMillis(nowMs + DAY_MS)));
     tx.set(userRef, { incidentId: attemptId, createdAt });

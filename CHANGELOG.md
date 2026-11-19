@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The daily cap on new practice searches counts on one document per UTC day, `ops/judgeSessions-{YYYY-MM-DD}`.
+  With one shared counter, a start that read the counter before midnight and committed after a start of the new day
+  wrote yesterday's date back, and the new day's count began again from zero. Nothing else reads the counter.
+  Source: review (round 2 on the functions: calls across midnight could reset the day's count).
+  Verified: the tests (a full day refuses; a start on the next day counts on that day's document and never on the
+  day before) failed first, now all 19 judge-session tests pass; functions typecheck exits 0.
 - A practice search made before setup was tracked is kept only when it holds every one of the seed's segment and
   team ids (and the shared profile when the seed has one), and never without the seed. The check used to compare
   counts, so the right number of the wrong segments passed, and an empty sandbox matched an absent seed (0 and 0)
