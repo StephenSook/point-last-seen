@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the assignment voice no longer holds up the plan listener, the topic or the alerts question
+- What: loading a mission waited for the assignment to finish speaking before it started the plan
+  listener, followed the team's push topic or asked about alerts. The cloud voice takes seconds, so
+  on the simulator the alerts question arrived late. The voice now runs as its own task, chained so
+  voices keep their order, with the voice settings taken at load time.
+- Source: a simulator check of the push work.
+- Verified: a test whose voice never starts: the listener, the topic and the alerts question are in
+  place at once. Against the old code it failed ("Time limit was exceeded: 60.000 seconds"); with
+  the fix it passes. Tests that count spoken lines now wait for the voice task. Both "never waits"
+  tests carry a one-minute limit, so a regression fails instead of hanging. 108 app tests pass; the
+  CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): a push topic subscription never holds up the join, the mission or the alerts question
 - What: FCM completes a topic subscription only once the phone has its messaging token, which can
   be never (no APNs key yet, alerts not yet allowed). The mission load waited for it, so on the

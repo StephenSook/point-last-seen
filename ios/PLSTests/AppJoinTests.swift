@@ -119,7 +119,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
 
     /// FCM holds a subscription until the phone has its token, which can be never (no APNs key or
     /// no permission yet): the join, the mission and the alerts question never wait for it.
-    @Test func aSubscriptionThatNeverAnswersNeverHoldsTheJoin() async throws {
+    @Test(.timeLimit(.minutes(1))) func aSubscriptionThatNeverAnswersNeverHoldsTheJoin() async throws {
         let topics = FakePushTopics()
         let gate = ReadGate()
         topics.hold = gate
@@ -139,13 +139,16 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let voice = FakeVoice()
         let m = model(FakeJoinBackend(), reader, voice: voice)
         await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
         #expect(reader.watching == ["drill-dev-1"] && voice.spoken.count == 1)
         let segments = try #require(m.mission?.grid.map(\.segmentId))
         let newer = DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3)
         await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Search the north field." && m.mission?.assignedSegmentIds == [segments.last ?? ""])
         #expect(voice.spoken.count == 2)
         await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(voice.spoken.count == 2)
         await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 4, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
         #expect(m.mission?.assignment == nil && m.mission?.assignedSegmentIds.isEmpty == true && voice.spoken.count == 2)
@@ -245,6 +248,27 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.missionEntries.isEmpty)
         await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
         #expect(m.missionEntries.map(\.doc.incidentId) == ["drill-dev-1"] && store.entries.count == 2)
+    }
+
+    /// A voice that is slow to start, or never does, holds nothing up: the plan listener and the
+    /// team's topic start as soon as the mission loads.
+    @Test(.timeLimit(.minutes(1))) func aVoiceThatNeverStartsHoldsNothingUp() async throws {
+        final class SilentVoice: AssignmentVoice {
+            let gate = ReadGate()
+            func speak(_ text: String) async -> Double? { await gate.wait(); return 1 }
+        }
+        let voice = SilentVoice()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let topics = FakePushTopics()
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: topics,
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "voice-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(m.mission != nil && reader.watching == ["drill-dev-1"] && topics.ops == ["+pls-drill-dev-1-T1"] && m.offersAlerts)
+        voice.gate.release()
+        await m.speech?.value
     }
 
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {

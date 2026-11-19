@@ -44,7 +44,9 @@ import Testing
                               profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
                               assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
         await model.load(mission)
+        await model.speech?.value
         await model.load(mission)
+        await model.speech?.value
         #expect(voice.spoken == ["New assignment. Segment A C. Walk the creek bank."])
     }
 
@@ -82,6 +84,7 @@ import Testing
             model.config.voiceTemplateId = "voice-template"
             model.connectivity.pathChanged(satisfied: true)
             await model.load(try spokenMission())
+            await model.speech?.value
             // Signed in is the control: it proves this setup does reach the cloud voice.
             #expect(cloud.spoken.count == (signedIn ? 1 : 0))
             #expect(onDevice.spoken.count == (signedIn ? 0 : 1))

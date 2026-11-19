@@ -38,6 +38,9 @@ final class AppModel {
     /// The latest topic change in flight. FCM holds a subscription until the phone has its token,
     /// which may never come (no APNs key, no permission), so nothing else ever waits for it.
     @ObservationIgnored private(set) var topicFollow: Task<Void, Never>?
+    /// The assignment voice in flight. Speaking takes seconds (longer on the cloud voice), so the plan
+    /// listener, the topic and the alerts question never wait for it; voices keep their order.
+    @ObservationIgnored private(set) var speech: Task<Void, Never>?
     /// Notification permission, and where "asked once" is kept.
     private let alerts: AlertPermission
     private let defaults: UserDefaults
@@ -396,13 +399,19 @@ final class AppModel {
     }
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
+    /// The voice runs after any voice still speaking, and loading does not wait for it.
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
-        await speaker.update(mission.assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,
-                             killCloud: config.killCloud, signedIn: signIn.signedIn)
+        let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
+        let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
+        speech = Task { [weak self] in
+            await previous?.value
+            await self?.speaker.update(assignment, voiceTemplate: template, online: online,
+                                       killCloud: killCloud, signedIn: signedIn)
+        }
     }
 
     func refreshGate() {
