@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A plan's doc id must be its version in exactly one form: four digits, zero-padded (`0016`), or the plain number
+  from 10000 up, so `00016` or `016` can no longer stand beside `0016` as a second plan of the same version. Each
+  segment id in an assignment must be text: splitting the joined ids must give back the same list, which refuses a
+  number (join() would turn it into text) and an id holding a comma. `docs/LIMITS.md` drops the gap it named and says
+  10 assignments is the most that fits.
+  Source: review (cross-model, round 1, mediums).
+  Verified: the tests (`00016`, `012345` and `016` refused, `0016` and `12345` accepted; a numeric segment id alone or
+  among text ids refused, at the first and the tenth assignment) failed first, now all 136 rules tests pass in the
+  emulator, the heaviest 10-assignment plan with a wording route among them; with room for an 11th, 11 heavy
+  assignments do not fit the expression limit (measured, then the rules file restored).
 - A judge practice search still being set up is closed to its members until the copy finishes: the Firestore rules
   (`liveFor`), the Storage rules (`notExpired`) and `deleteIncidentMediaNow` refuse a judge incident whose
   `setupReady` is false, so a returning judge, whose claims still name `judge-{uid}`, cannot read or write a sandbox
