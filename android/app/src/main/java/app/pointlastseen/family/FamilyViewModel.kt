@@ -34,6 +34,9 @@ import app.pointlastseen.family.data.FamilySightingInput
 import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.push.FamilyTopic
+import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.FirestoreFamilyQuestions
+import app.pointlastseen.family.ui.QuestionUi
 import app.pointlastseen.family.data.FirebasePhotoBucket
 import app.pointlastseen.family.data.FirestorePhotoConsentSink
 import app.pointlastseen.family.data.FirestoreEventStore
@@ -350,6 +353,41 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             photosUi = photosUi.copy(busy = false)
+        }
+    }
+
+    // The search lead's question: read from the server when opened, answered once.
+    var questionUi by mutableStateOf(QuestionUi())
+        private set
+    private var openQuestion: Pair<String, String>? = null
+    private val questions: FamilyQuestionStore = FirestoreFamilyQuestions()
+
+    fun openQuestion(incidentId: String, questionId: String) {
+        if (session.incidentId() != incidentId) return
+        openQuestion = incidentId to questionId
+        questionUi = QuestionUi(loading = true)
+        open(Screen.QUESTION)
+        viewModelScope.launch { loadQuestion(incidentId, questionId) }
+    }
+
+    private suspend fun loadQuestion(incidentId: String, questionId: String, error: String? = null) {
+        questionUi = try {
+            val q = questions.read(incidentId, questionId)
+            if (q == null) QuestionUi(error = "The question could not be found.") else QuestionUi(text = q.text, answer = q.answer, error = error)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            QuestionUi(error = "The question could not be read. Check the connection and try again.")
+        }
+    }
+
+    fun sendAnswer(text: String) {
+        val (incidentId, questionId) = openQuestion ?: return
+        val uid = Firebase.auth.currentUser?.uid ?: return
+        questionUi = questionUi.copy(sending = true, error = null)
+        viewModelScope.launch {
+            val sent = runCatching { questions.answer(incidentId, questionId, text, uid) }
+            // Read it back either way: a refused answer usually means it was already answered.
+            loadQuestion(incidentId, questionId, error = if (sent.isFailure) "The answer was not sent. Check the connection and try again." else null)
         }
     }
 

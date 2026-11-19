@@ -33,7 +33,10 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) handleShare(intent)
+        if (savedInstanceState == null) {
+            handleShare(intent)
+            handleFamilyQuestion(intent)
+        }
         setContent {
             PaperTheme {
                 FamilyRoot(
@@ -50,6 +53,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleShare(intent)
+        handleFamilyQuestion(intent)
+    }
+
+    /** A tapped "The search lead has a question" opens that question; the text is read from the server. */
+    private fun handleFamilyQuestion(intent: Intent?) {
+        if (intent?.getStringExtra("kind") != "question") return
+        val incident = intent.getStringExtra("incidentId") ?: return
+        val question = intent.getStringExtra("questionId") ?: return
+        vm.openQuestion(incident, question)
     }
 
     /** A clip shared from a camera or gallery app opens the clip screen; file:// and this app's own URIs are refused. */

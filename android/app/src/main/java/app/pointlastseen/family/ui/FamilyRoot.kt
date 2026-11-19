@@ -41,6 +41,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back)
             Screen.SIGHTING -> SightingScreen(mode, rc.killCloud, busy = false, error = vm.sightingError, nowMs = System::currentTimeMillis, onSend = vm::sendSighting, onBack = vm::back)
             Screen.SCRIPT_911 -> Script911Screen(vm.profile, mode, rc.killCloud, onBack = vm::back)
+            Screen.QUESTION -> QuestionScreen(mode, rc.killCloud, vm.questionUi, onSend = vm::sendAnswer, onBack = vm::back)
             Screen.ABOUT -> AboutPhoneScreen(vm.deviceStatus, mode, rc.killCloud, rc.cloudModelAndroid, AppCheckSetup.PROVIDER, BuildConfig.VERSION_NAME, onBack = vm::back)
         }
     }
