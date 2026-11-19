@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A plan holds at most 8 assignments and a drill at most 8 teams (both were 10), and each assignment's segment ids
+  must be a list, so an empty string or a map no longer passes for one. The list check costs one more rules
+  expression per assignment; with it, the heaviest plan no longer fit 10 even on a drill, and the worst case (a judge
+  incident, whose expiry and setup are checked, with a blocked wording route) fits 9 and not 10. So 8 keeps one
+  assignment of room. `tools/seed/seed_drill.py` refuses more than 8 teams to match, and `docs/LIMITS.md` says why.
+  Source: review (cross-model, rules range: segment ids not checked as a list; the expression budget's worst case).
+  Verified: the tests (an empty-string and a map segment id refused; the heaviest 8 on a drill and on a judge incident
+  with a blocked route accepted; 9 assignments refused; 9 teams refused by the seed tool) failed first where they
+  test new refusals, now all 138 rules tests and 23 seed tests pass; measured in the emulator, the worst case fits 9
+  assignments and not 10; rules_gate passes.
 - The family push carries only the kind and the incident id: the question's id no longer leaves Firestore, and the
   family app lists unanswered questions from Firestore when it opens. A searching or paused notice now also needs the
   incident to be open and not past its end, so a late event after the search ends spends no budget and sends
