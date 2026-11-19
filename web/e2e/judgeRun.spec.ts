@@ -71,3 +71,15 @@ test("the judge page says what the product is in one line and links home", { tag
   // The repository and the video are linked only once they are public.
   await expect(page.getByRole("link", { name: /GitHub|video/i })).toHaveCount(0);
 });
+
+test("the judge page opens with a numbered three-minute route, each step linking to its section", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const route = page.getByRole("list", { name: "Three minutes, in order" });
+  const steps = route.getByRole("link");
+  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "Get this laptop ready", "See the cloud model"]);
+  // Every link lands on a heading that is on the page.
+  for (const href of await steps.evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""))) {
+    expect(href).toMatch(/^#[a-z0-9-]+$/);
+    await expect(page.locator(`${href}`)).toHaveCount(1);
+  }
+});

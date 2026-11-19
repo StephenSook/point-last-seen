@@ -1520,3 +1520,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the sighting note stays editable while it is read, on this laptop or in the cloud. A reply that arrives after the note was changed is now dropped instead of filled into the fields, and the form says "The note changed while it was being read. Read it again." A reply for the unchanged note fills the fields as before.
 - Source: review (a late reply could fill fields from an older note).
 - Verified: two new sighting harness tests (`?read=slow`: change the note, then the model answers, and the fields stay as they were with the line shown; the unchanged note fills Top) were written first and the dropped-reply test failed, then both passed; 3 sighting harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(judge): open the judge page with a numbered three-minute route
+- What: under the one-line purpose, an ordered list "Three minutes, in order": Try a practice search, Watch the drill replay, Get this laptop ready, See the cloud model. Each step links to its section on the page (the replay step goes to the replay when a run is published, otherwise to the line saying there is none). Rows are 28 px tall so each link is an easy target.
+- Source: judge-page review (a judge needs the route before the details).
+- Verified: a new no-backend test (the four steps in order; every link lands on one heading on the page) failed first (no list), then passed; the axe check caught link targets that were too close and passes after the row height; 23 of 23 no-backend browser checks pass. scripts/ci-local.sh exit 0.
