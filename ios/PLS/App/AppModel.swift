@@ -320,15 +320,37 @@ final class AppModel {
     /// Reads the team's mission and loads it; says why not, or nil when it loaded.
     @discardableResult
     func loadMission(incidentId: String, teamId: String) async -> String? {
+        switch await readMission(incidentId: incidentId, teamId: teamId, fromServer: false) {
+        case .loaded, .superseded: nil
+        case let .failed(failure): failure.message
+        case .unread: Self.missionUnread
+        case .denied: Self.notOnATeam
+        }
+    }
+
+    /// How a mission read ended.
+    enum MissionLoad: Equatable {
+        case loaded
+        /// A newer join, load or drop started meanwhile and has the say.
+        case superseded
+        case failed(MissionBuilder.Failure)
+        /// Not read: no signal, or (from the server only) the server could not be reached.
+        case unread
+        /// The security rules refused the read.
+        case denied
+    }
+
+    /// Reads the team's mission (`fromServer`: never from the cache) and loads it.
+    private func readMission(incidentId: String, teamId: String, fromServer: Bool) async -> MissionLoad {
         missionGeneration += 1
         let generation = missionGeneration
         do {
-            let docs = try await missionReader.read(incidentId: incidentId)
+            let docs = try await missionReader.read(incidentId: incidentId, fromServer: fromServer)
             var mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
                                                    bundledParams: try BundledConstants.engineParams())
             mission.ownerUid = uid()
             // A newer join or load started while this one read: it has the say.
-            guard generation == missionGeneration else { return nil }
+            guard generation == missionGeneration else { return .superseded }
             // The listener applied a newer plan while this read ran: that plan stays, also when it
             // took the task away, in the same version order the listener keeps.
             if let held = self.mission, held.incidentId == incidentId, held.teamId == teamId,
@@ -339,15 +361,17 @@ final class AppModel {
             }
             await load(mission)
             // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
-            guard generation == missionGeneration else { return nil }
+            guard generation == missionGeneration else { return .superseded }
             watchPlans(incidentId: incidentId, teamId: teamId)
             followTopicSoon()
             await refreshAlerts()
-            return nil
+            return .loaded
         } catch let failure as MissionBuilder.Failure {
-            return failure.message
+            return .failed(failure)
+        } catch MissionReadError.accessDenied {
+            return .denied
         } catch {
-            return Self.missionUnread
+            return .unread
         }
     }
 
@@ -387,10 +411,11 @@ final class AppModel {
 
     /// A tapped new-assignment push. Every tap is checked against the server, also when the push
     /// names the loaded mission: the claims are read fresh, and they must name the push's incident
-    /// and team; then the incident and plan are read again, and only then the task screen opens. A
-    /// push for another team (an old push) or after the role was taken away opens nothing, and the
-    /// mission follows the claims. With no signal, the mission already on this phone is the offline
-    /// path: the task opens for a push that names it.
+    /// and team; then the incident and plan are read again from the server (never the cache), and
+    /// the task screen opens only for an open incident whose plan is at least the push's. A push
+    /// for another team (an old push) or after the role was taken away opens nothing, and the
+    /// mission follows the claims; a closed incident or a refused read drops the mission. With no
+    /// signal, or no server, the same user's mission already on this phone is the offline path.
     func openedPush(_ payload: PushPayload) async {
         let matchesLoaded = { [weak self] in
             self?.mission?.incidentId == payload.incidentId && self?.mission?.teamId == payload.teamId
@@ -421,10 +446,27 @@ final class AppModel {
         }
         if mission != nil, !matchesLoaded() { await dropMission() }
         membership = (incidentId, teamId)
-        let message = await loadMission(incidentId: incidentId, teamId: teamId)
+        let outcome = await readMission(incidentId: incidentId, teamId: teamId, fromServer: true)
         guard check == accessCheck else { return }
-        joinMessage = message
-        if message == nil, matchesLoaded() { openTaskRequests += 1 }
+        switch outcome {
+        case .loaded:
+            joinMessage = nil
+            // The plan the push announces must be the one on screen, or a newer one.
+            if matchesLoaded(), (mission?.planVersion ?? Int.min) >= payload.planVersion { openTaskRequests += 1 }
+        case .unread:
+            // The server could not be reached: the offline path, for the same user only.
+            if heldByThisUser, matchesLoaded() { openTaskRequests += 1 } else { joinMessage = Self.missionUnread }
+        case .failed(.notOpen):
+            await dropMission()
+            joinMessage = MissionBuilder.Failure.notOpen.message
+        case let .failed(failure):
+            joinMessage = failure.message
+        case .denied:
+            await dropMission()
+            joinMessage = Self.notOnATeam
+        case .superseded:
+            break
+        }
     }
 
     /// The searcher's answer to the alerts question; asked once, whatever the answer. With no

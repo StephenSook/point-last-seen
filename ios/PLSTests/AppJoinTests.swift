@@ -62,8 +62,14 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     /// The next read waits here (one read only).
     var holdNextRead: ReadGate?
 
-    func read(incidentId: String) async throws -> MissionDocs {
+    /// Per read, whether it had to come from the server (true) or could use the cache.
+    private(set) var serverReads: [Bool] = []
+    /// When set, reads are refused as by the security rules (access taken away).
+    var denyReads = false
+    func read(incidentId: String, fromServer: Bool) async throws -> MissionDocs {
         reads.append(incidentId)
+        serverReads.append(fromServer)
+        if denyReads { throw MissionReadError.accessDenied }
         if let gate = holdNextRead {
             holdNextRead = nil
             await gate.wait()

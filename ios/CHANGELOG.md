@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a push tap reads the mission from the server and opens only an open incident's newer plan
+- What: a tapped push read the incident and plan with Firestore's default source, which can answer
+  from the cache, and it opened the task whatever plan version it found. The tap now reads only
+  from the server. It opens the task only for an open incident whose plan is at least the push's
+  version. A closed incident, or a read the security rules refuse, drops the mission and opens
+  nothing. When the server cannot be reached, the same user's mission on the phone opens, as with
+  no signal; other reads still use the cache for offline use.
+- Source: review (finding 3, third round).
+- Verified: tests for a tap reading from the server, an unreachable server (same user opens the
+  mission on the phone), a closed incident (dropped, with the reason shown), a refused read
+  (dropped), and a plan older than the push (nothing opens). The push tests' incident now carries
+  the plan version the pushes announce. 152 app tests pass.
+
 ### fix(ios): a changed or withdrawn task stops the line playing, and each voice callback is its own line's
 - What: speech stopped only on a new incident or team, so when command changed or took away the
   team's task, the old line kept playing. Any change to the task now stops the line playing and any
