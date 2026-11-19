@@ -363,6 +363,14 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ events: [{ ...cam, position: null }] })).ok).toBe(true);
   });
 
+  it("refuses any report placed by a camera pin, whatever its kind", () => {
+    const at = { lat: 33.79, lon: -84.37, accuracyM: null };
+    const pinned = runEvent(eventDoc({ eventId: "s", type: "sighting", positionSource: "camera_pin", position: at }), T0);
+    expect(fromPublishedRun(run({ events: [pinned] }))).toEqual({ ok: false, reason: "The run carries a camera's place. A public run must not." });
+    expect(fromPublishedRun(run({ events: [{ ...pinned, positionSource: "gps" }] })).ok).toBe(true);
+    expect(fromPublishedRun(run({ events: [{ ...pinned, position: null }] })).ok).toBe(true);
+  });
+
   it("refuses a camera reading with any field beyond the times the replay uses", () => {
     const cam = runEvent(eventDoc({ eventId: "cam", type: "camera_sighting", reading: cameraReading() }), T0);
     expect(fromPublishedRun(run({ events: [cam] })).ok).toBe(true);
