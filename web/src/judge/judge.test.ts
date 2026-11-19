@@ -13,9 +13,9 @@ describe("d2Copy", () => {
   });
 
   // The check only asks Chrome what the model can take; it reads nothing, so the lines say "ready", never "read".
-  it("(b) text only: the model is ready for the note, and photos stay on this laptop", () => {
+  it("(b) text only: the model is ready for the note, and no model reads the sample photos", () => {
     expect(d2Copy("text", { replay: false })).toEqual({
-      lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so photos stay on this laptop."],
+      lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so no model reads the sample photos."],
       photoButton: null,
     });
   });

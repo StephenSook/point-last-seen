@@ -1,5 +1,6 @@
 // Dev-server-only harness (web/harness/family.html): the family channel with one answered and one open
-// question. Asks and state changes are recorded on the page; ?fail=1 refuses them. No Firebase.
+// question. Asks and state changes are recorded on the page; ?fail=1 refuses them; ?status=found is an incident
+// that is no longer open. No Firebase.
 
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -9,6 +10,7 @@ import "../theme/fonts.css";
 import "../theme/base.css";
 
 const fail = new URLSearchParams(location.search).get("fail") === "1";
+const open = (new URLSearchParams(location.search).get("status") ?? "open") === "open";
 const questions: FamilyQuestion[] = [
   { id: "q2", text: "Places they used to walk or live?", askedAtMs: 2, answer: null },
   { id: "q1", text: "Did they ever go by another name?", askedAtMs: 1, answer: { text: "Bea, and Mom to the grandkids", atMs: 3 } },
@@ -22,6 +24,7 @@ function Harness() {
       <p className="drill">Synthetic questions, not drill data.</p>
       <FamilyChannel
         questions={questions}
+        open={open}
         searchState={told}
         onAsk={async (text) => {
           if (fail) throw new Error("refused");

@@ -417,7 +417,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
     // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
-    // still stored) lives in readStoredPhotoInCloud; without all three the photo stays on this laptop.
+    // still stored) lives in readStoredPhotoInCloud; without all three no cloud model reads the photo.
     const t0 = Date.now();
     const r = await readStoredPhotoInCloud(p, {
       confirmConsent: (sha) => confirmPhotoConsent(pls.db, incidentId, sha),
@@ -736,6 +736,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           {questions && (
             <FamilyChannel
               questions={questions}
+              open={incident?.status === "open"}
               searchState={searchStateOf(incident)}
               onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
               onTell={(next) => tellFamily(pls.db, incidentId, next)}
@@ -758,6 +759,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
               rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
+              terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
               hasBearing={bearing !== null}
               model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}

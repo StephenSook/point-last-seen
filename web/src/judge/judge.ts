@@ -20,7 +20,7 @@ export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFail
       return { lines: ["This browser can download its built-in model first. Press Get this laptop ready to start; it can take a few minutes."], photoButton: null };
     // The check asks Chrome what its model can take and reads nothing, so these say "ready", never "read".
     case "text":
-      return { lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so photos stay on this laptop."], photoButton: null };
+      return { lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so no model reads the sample photos."], photoButton: null };
     case "image":
       return { lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" };
   }

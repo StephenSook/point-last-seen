@@ -25,10 +25,31 @@ export function hasUnsavedText(fields: Iterable<{ type: string; value: string }>
   return false;
 }
 
-/** Wires the watch to this page: reload, or a status line with a Reload button while words are typed. */
+/** How often an open page asks whether a new deploy's worker is waiting (a demo tab can stay open for hours). */
+const UPDATE_EVERY_MS = 30 * 60 * 1000;
+
+/**
+ * Wires the watch to this page: reload, or a status line with a Reload button while words are typed. The page
+ * also answers the new worker's ping (public/sw-takeover.js), so the worker leaves it to do that itself, and it
+ * asks for a worker update when it becomes visible again and every 30 minutes.
+ */
 export function startNewBuildWatch(): void {
+  const sw = typeof navigator !== "undefined" && "serviceWorker" in navigator ? navigator.serviceWorker : undefined;
+  if (sw) {
+    sw.addEventListener("message", (e: MessageEvent) => {
+      if ((e.data as { type?: unknown } | null)?.type === "pls-build-ping") e.ports[0]?.postMessage("pls-build-pong");
+    });
+    sw.startMessages();
+    void sw.ready.then((reg) => {
+      const check = () => void reg.update().catch(() => undefined);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") check();
+      });
+      setInterval(check, UPDATE_EVERY_MS);
+    });
+  }
   watchForNewBuild({
-    sw: typeof navigator !== "undefined" && "serviceWorker" in navigator ? navigator.serviceWorker : undefined,
+    sw,
     reload: () => location.reload(),
     unsaved: () => hasUnsavedText(Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"), (el) => ({ type: el instanceof HTMLTextAreaElement ? "textarea" : el.type, value: el.value }))),
     ask: () => {
