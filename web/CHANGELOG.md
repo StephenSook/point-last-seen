@@ -1620,3 +1620,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the build now copies `kennesaw-mountain-drill.pmtiles` and `.graph.json` from shared/grid into `/tiles/` beside the dev park's, so the Sunday drill incident (drill-kennesaw-1) draws its basemap and can run the walker model; both are precached for offline use like the dev park's. The tiles check covers both grids and now also runs in the no-backend browser checks, so a grid left out of the build fails before a deploy.
 - Source: the Kennesaw drill seed (shared/grid gained the grid's files).
 - Verified: the tiles check for kennesaw-mountain-drill failed first against the placeholder build (the app shell came back as text/html), then both grids pass (PMTiles magic on a range request; graph as application/json). Typecheck clean; the full local mirror runs on the pull request head.
+
+### feat(command): show the incident's terrain note under the ring source line
+- What: when an incident carries `terrainNote` (written by the seed, for example "Default terrain column (urban), not verified for this site." on the Kennesaw drill), the Prior section shows it under the ring source line, so command knows the distance table is a default. A missing or non-text note shows nothing; text is capped at 200 characters. Command cannot change it here.
+- Source: the Kennesaw drill seed's terrain note.
+- Verified: a new layers harness test (the note under the source line; none without it) failed first, then passed; 11 layers harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
