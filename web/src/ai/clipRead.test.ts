@@ -230,9 +230,11 @@ describe("readClip", () => {
   });
 
   it("an old windowed miss whose record is deleted after the lookup is not sent", async () => {
-    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 } });
+    // The clip is stored, so only the server's consent check can stop the read.
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 }, exists: true });
     const r = await readClip(t.req, { ...t.deps, confirmReading: async () => { t.calls.push("confirm"); return null; } });
     expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists", "confirm"]);
     expect(t.generated).toEqual([]);
   });
 

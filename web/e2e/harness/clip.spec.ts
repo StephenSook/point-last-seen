@@ -219,7 +219,9 @@ test("after a delete and fresh ticks, the next read is a new read, not a retry",
   await page.getByRole("button", { name: "Media deleted" }).click();
   for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
   await page.getByRole("button", { name: "Read clip" }).click();
-  await expect.poll(() => how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
+  // The second read must have happened before its options are checked: the first read's options are the same.
+  await expect(page.getByTestId("calls")).toHaveText("2");
+  expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
 });
 
 test("a delete while the clip file is still loading stops the read: nothing reaches the model", async ({ page }) => {
