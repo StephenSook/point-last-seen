@@ -27,6 +27,14 @@ import Testing
         }
     }
 
+    /// A phone number typed into a description field never reaches a model with it.
+    @Test func aPhoneNumberInADescriptionNeverReachesAModel() {
+        let p = ModelProfile(shared: .object(["appearance": .string("tall, call her son on 404 555 0123"),
+                                              "clothingLastWorn": .string("blue robe, tag reads 4045550123"),
+                                              "hair": .string("white")]))
+        #expect(!p.toolText.contains("555") && p.toolText.contains(PhoneNumbers.replacement) && p.toolText.contains("blue robe"))
+    }
+
     @Test func anEmptyProfileSaysSo() {
         #expect(ModelProfile(shared: .object([:])).toolText == "No description on file.")
         #expect(ModelProfile(shared: .null).toolText == "No description on file.")

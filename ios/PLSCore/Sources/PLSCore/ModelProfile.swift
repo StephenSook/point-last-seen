@@ -38,7 +38,7 @@ public struct ModelProfile: Codable, Sendable, Equatable {
         try c.encode(mobilityAids, forKey: .mobilityAids)
     }
 
-    /// What `SubjectProfileTool` returns to the model.
+    /// What `SubjectProfileTool` returns to the model, with any phone number in the family's words removed.
     public var toolText: String {
         var lines: [String] = []
         if let clothingLastWorn { lines.append("Clothing last worn: \(clothingLastWorn).") }
@@ -46,6 +46,6 @@ public struct ModelProfile: Codable, Sendable, Equatable {
         if let heightFt { lines.append("Height: \(heightFt) ft \(heightIn ?? 0) in.") }
         if let hair { lines.append("Hair: \(hair).") }
         if let mobilityAids { lines.append("Mobility aids: \(mobilityAids.joined(separator: ", ")).") }
-        return lines.isEmpty ? "No description on file." : lines.joined(separator: " ")
+        return lines.isEmpty ? "No description on file." : PhoneNumbers.scrub(lines.joined(separator: " "))
     }
 }
