@@ -38,7 +38,8 @@ ROOT = SCRIPT.parents[1]
 WORKFLOWS = ("ci", "engine", "rules", "web", "swift", "android")
 # Runner setup only CI needs (a local machine has these installed).
 SETUP = ("pip install -r requirements-dev.txt", "curl -sSfL -o", "| sha256sum -c -", "tar -xzf", "npm ci",
-         "npm install -g firebase-tools@", "npx playwright install --with-deps")
+         "npm install -g firebase-tools@", "npx playwright install --with-deps",
+         "sudo apt-get install -y --no-install-recommends ffmpeg")
 # The same check written two ways: CI regenerates the vectors and diffs them, ci-local runs the generator's --check.
 SAME = {"-I tools/vectors/make_vectors.py": "-I tools/vectors/make_vectors.py --check",
         "git diff --exit-code -- shared/test-vectors/search.json shared/test-vectors/prior.json shared/test-vectors/urgency.json":

@@ -1650,3 +1650,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: after a note read fills the fields, a closed "What ran" line opens to what was asked for ("this laptop only", or "the cloud, after the consent tap"), where it ran as the SDK reported it, the model, and what left this laptop: nothing for a laptop read, or the UTF-8 size of the note the template received, measured after phone numbers were removed ("Sent: N bytes of the note, with phone numbers removed."). It never shows the note.
 - Source: review (a compact receipt on each AI result).
 - Verified: a new unit test (the cloud read reports the size of the note it sent, with a phone number removed first) and a new sighting harness test (the cloud path's receipt lines with "22 bytes of the note") failed first, then passed; 15 note read tests and 4 sighting harness tests pass; typecheck clean. The full local mirror runs on the pull request head.
+
+### ci(web): install ffmpeg before the component harness checks
+- What: the clip and frame harness tests make their synthetic test clip (a grey frame with a moving red square, no person) with ffmpeg, which GitHub's Ubuntu runner does not ship, so two harness tests failed on the first real CI run while passing locally. The web job now installs ffmpeg (`sudo apt-get install -y --no-install-recommends ffmpeg`) before the harness step, and the workflow-mirror check lists that install as runner setup, like the Playwright browser install.
+- Source: the web job on pull request CI ("ffmpeg: not found").
+- Verified: the workflow file parses; `scripts/test_ci_local.py` (every workflow command mirrored, setup excepted) and `scripts/test_workflow_paths.py` pass; the next CI run on the pull request is the check.
