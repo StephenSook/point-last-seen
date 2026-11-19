@@ -1699,3 +1699,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a save applies only what command changed, and it looked only at fields present in the edited profile, so an optional field set back to unknown (tracking aids, say) was silently kept. Now a field present when the form opened and absent after counts as a change, and the merged document drops it.
 - Source: review while adding the tracking-aids editor.
 - Verified: a new test (tracking aids set back to unknown are not in the shared document written) failed first (they were kept), then passed; 30 profile tests and the 21 schema survival tests pass; typecheck clean.
+
+### feat(command): edit the tracking or ID aids in the profile form
+- What: the profile form has a "Tracking or ID aids" group: "Not known yet" (no field, the default) or "The family answered", which shows a box for each aid with the shared list's labels (in card order) and "Note for teams (no numbers)" (up to 80 characters). Nothing ticked means the family said none. A note with a digit is refused before saving: "Leave out numbers: give serials and phone numbers to the search lead directly.", which matches the security rule. Aids already on the profile show ticked.
+- Source: field input on approach (tracking and ID aids).
+- Verified: five new profile harness tests (unanswered saves no field; named aids saved in card order with the note; answered with none ticked saves an empty list; a note with a number refused and nothing saved; stored aids shown ticked) failed first, then passed; 8 profile harness tests pass; typecheck clean.
