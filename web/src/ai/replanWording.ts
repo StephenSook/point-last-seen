@@ -115,7 +115,12 @@ export type WordingDeps = {
   killCloud?: boolean;
 };
 
-export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null };
+/** A model asked for wording whose answer was not used: where it ran (as far as the SDK said) and why. */
+export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" };
+/** `attempt` is present only when a model was asked and its answer was not used; `route` is what worded the plan. */
+export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt };
+
+const UNUSED = "The model's wording could not be used. The plan below uses fixed wording.";
 
 class ReplyTimeout extends Error {}
 
@@ -140,9 +145,17 @@ function route(path: RouteRecord["path"], reason: RouteRecord["reason"], model: 
 
 export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<WordedPlan> {
   const t0 = deps.now();
-  const template = (notice: string | null): WordedPlan => {
+  const template = (notice: string | null, attempt?: WordingAttempt): WordedPlan => {
     const t1 = deps.now();
-    return { wording: templateWording(draft), route: route("rules", "template_fallback", "template", t1 - t0, false, t1), notice };
+    const plan: WordedPlan = { wording: templateWording(draft), route: route("rules", "template_fallback", "template", t1 - t0, false, t1), notice };
+    return attempt ? { ...plan, attempt } : plan;
+  };
+  // Where the asked model ran, as the SDK reported it; with no report it stays unknown.
+  const askedRoute = (source: string | undefined): RouteRecord => {
+    const t1 = deps.now();
+    if (source === "on_device") return route("on_device", "sdk_prefer_on_device", "chrome-built-in", t1 - t0, true, t1);
+    if (source === "in_cloud") return route("cloud", "on_device_unavailable", deps.model, t1 - t0, true, t1);
+    return route("unknown", "sdk_prefer_on_device", deps.model, t1 - t0, false, t1);
   };
   if (deps.killCloud) return template("Cloud paused by command. The plan below uses fixed wording.");
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -156,9 +169,9 @@ export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<Wor
     try {
       modelWording = JSON.parse(reply.text) as ModelWording;
     } catch {
-      return template(null);
+      return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: "unreadable" });
     }
-    if (!checkWording(draft, modelWording).ok) return template(null);
+    if (!checkWording(draft, modelWording).ok) return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: "rejected" });
     // The task lines come from the plan; the model's own text supplies only the reasons and the summary.
     const wording: PlanWording = {
       assignments: modelWording.assignments.map((a) => {
@@ -171,7 +184,7 @@ export async function wordPlan(draft: PlanDraft, deps: WordingDeps): Promise<Wor
     if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "on_device_unavailable", deps.model, t1 - t0, true, t1), notice: null };
     return { wording, route: route("unknown", "sdk_prefer_on_device", deps.model, t1 - t0, false, t1), notice: null };
   } catch (e) {
-    return template(noticeFor(e));
+    return template(noticeFor(e), { route: askedRoute(undefined), failure: e instanceof ReplyTimeout ? "timeout" : "error" });
   } finally {
     clearTimeout(timer);
   }

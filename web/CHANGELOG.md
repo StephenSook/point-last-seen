@@ -50,17 +50,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): wire the command post: join as command, then map, teams, POA and lanes
 - What: `CommandPost` starts Firebase (or shows which build values are missing), signs in, and opens the post when the ID token already holds `inc` and role command for `?incident=`; otherwise it shows the join form. The post subscribes to the incident and its events, shows the drill line "Training drill. Nobody is missing." in the header, the map, the teams rail, the POA list and the merge lanes. Errors shown to the user are fixed plain sentences; raw error text never reaches the page. The convergence code reads "----" until the engine (Task 8) lands.
-- Source: plan Task 15 step 3; rival self-audit addendum ("no raw error text reaches the DOM").
+- Source: plan Task 15 step 3; review ("no raw error text reaches the DOM").
 - Verified: typecheck and build clean; local smoke renders the join form with the drill line.
 
 ### feat(web): add the app entry, HTML shell and a Vite build that checks its config
 - What: `index.html` (dark colour scheme, an SVG icon), `src/main.tsx` (mounts the command post), and `vite.config.ts`: the env is read from the repo root, a production build fails at once when any Firebase value or the App Check site key is missing, and the version.json plugin records `GITHUB_SHA` or `git rev-parse HEAD` plus a dirty flag. Adds `preview` and `e2e` scripts.
-- Source: plan Task 15; spec section 14 ("the build fails when it is missing"); rival self-audit addendum (version.json).
+- Source: plan Task 15; spec section 14 ("the build fails when it is missing"); review (version.json).
 - Verified: `npm run build -w web` exit 0 with the untracked env; `dist/version.json` holds the 40-character commit. The first local smoke found a 404 for `/favicon.ico` (the page had no icon) and a 400 from anonymous sign-up (`CONFIGURATION_NOT_FOUND`, Auth not yet set up); the icon fixed the first, lane A's Task 0 fixed the second, and the shell smoke then passed with zero console errors.
 
 ### test(web): add the Playwright smoke with the live-commit check
 - What: `e2e/playwright.config.ts` (real Chrome, 1440 px; a local preview of `dist` unless `BASE_URL` is set), `e2e/fixtures.ts` (`withDebugToken` sets the App Check debug global from `PLS_APPCHECK_DEBUG_TOKEN`; every console error, page error and HTTP 400 or higher response is collected with its URL), and `e2e/smoke.spec.ts`: the shell shows the drill line and the join form with zero console errors; "the live site serves this commit" (version.json equals `EXPECT_COMMIT` or HEAD, and not dirty when deployed); a joined post draws the map canvas and the license line after one successful App Check exchange. That third test needs a seeded drill incident: it fails under CI when the fixture is missing and is skipped only on a local run.
-- Source: plan Task 15 step 5; rival self-audit addendum (live-commit smoke).
+- Source: plan Task 15 step 5; review (live-commit smoke).
 - Verified: local run against `vite preview` with the PLS web app and the Keychain debug token: 2 passed, 1 skipped (no seeded incident; rules and joinIncident arrive with Task 11).
 
 ### docs(evidence): record spike S4 step 2 on-device photo read scores
@@ -96,12 +96,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): word plans on the SDK's hybrid mode with a checked fallback
 - What: `replanWording.ts`: `wordingParams` (PREFER_IN_CLOUD; cloud model with `systemInstruction` and `responseJsonSchema`; on-device create options from `onDeviceCreateOptions("text", SYSTEM)`, so English text in and out sit under `onDeviceParams.createOptions` with the system prompt repeated in `initialPrompts`, and the same schema as `responseConstraint`); `planPrompt` (the engine's table in the user text); `templateWording`; `checkWording` (team ids must equal the draft's, text non-empty and at most 200 characters); `wordPlan`, which never rejects and records the route: in_cloud gives cloud (`sdk_prefer_in_cloud`), on_device gives on_device (`link_down_fallback`), a missing source gives path "unknown" with `sdkReported` false, and a throw, a bad reply or a 15 s timeout gives the template on path "rules" (`template_fallback`). Notices are fixed sentences for App Check refusal (401, 403), busy (429), unavailable (503), timeout and any other failure; raw error text never reaches them.
-- Source: plan Task 16c; rival self-audit addendum (F1 placement, unknown inferenceSource, plain 429 and 503, no raw error text, a measured reply timeout).
+- Source: plan Task 16c; review (F1 placement, unknown inferenceSource, plain 429 and 503, no raw error text, a measured reply timeout).
 - Verified: `src/ai/replanWording.test.ts`, 16 tests, failed first (module missing), then passed. A live AI Logic call with this response schema returned 200 in 1,431 ms with both team ids (App Check debug exchange 200), which is the measurement behind the 15 s timeout together with the 0.8 to 1.8 s cloud replies in S4 step 4.
 
 ### feat(web): build AI Logic models in one client file
 - What: `client.ts` creates one `getAI` instance on the Gemini Developer API with the limited-use App Check token switch, and `wordingGenerator` builds the plan-wording model with `wordingParams` and the 15 s request timeout. `generatorFor` maps a reply to its text and the SDK's `inferenceSource`. This is the only web file allowed to call the model builder (rules gate).
-- Source: plan Task 16c (`client.ts`), rival self-audit addendum (model builders only in their client files).
+- Source: plan Task 16c (`client.ts`), review (model builders only in their client files).
 - Verified: `src/ai/client.test.ts`, 3 tests, failed first (module missing), then passed; rules gate ok.
 
 ### fix(web): never record Playwright traces, which would store the App Check debug secret
@@ -161,7 +161,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(sightings): read a caller's note on this laptop only, behind the private-data gate
 - What: `sightingText.ts`. `readSightingText` removes phone numbers, sends possible crime evidence to no model (and asks no gate), asks the gate with `SIGHTING_TEXT_OPTS` (the same object the on-device model is created with) and makes no SDK call when the answer is no or the check throws, keeps a reply only when the SDK reports `on_device` (a cloud or missing source is discarded), and keeps only values inside the closed lists of `report-reading.schema.json` with a quote found in the note (the engine's `validateReading`). `readSightingTextInCloud` throws without a consent record for that note, refuses evidence and a paused cloud without a call, makes exactly one cloud call, and keeps only an `in_cloud` result. `sightingTextParams` is strictly ONLY_ON_DEVICE with the schema as the response constraint.
-- Source: plan Task 36 (X10 on-device text read), spec section 15 (the gate, steps 1 to 5), rival self-audit F1 (same options to availability and create), Codex privacy finding 6 (test both boundaries of the private-read client; the deployed one-request control comes with the privacy e2e).
+- Source: plan Task 36 (X10 on-device text read), spec section 15 (the gate, steps 1 to 5), review (same options to availability and create), Codex privacy finding 6 (test both boundaries of the private-read client; the deployed one-request control comes with the privacy e2e).
 - Verified: `src/ai/sightingText.test.ts`, 12 tests, failed first (module missing), then passed; rules gate ok (no token counting in this file).
 
 ### feat(sightings): build the on-device and consented cloud models for the caller's note
@@ -206,27 +206,27 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(web): stop parsing clip_model until the clip read exists
 - What: `rc.ts` no longer parses `clip_model` (wired-or-cut: no web code read it). The clip read is Task 18; it brings the key back together with a test that the value picks the clip model.
-- Source: self-audit sweep (5 of 8 parsed Remote Config values had no reader).
+- Source: review (5 of 8 parsed Remote Config values had no reader).
 - Verified: `src/config/rc.test.ts` changed first to expect no `clip_model` (2 tests failed), then passed after the removal; `grep -c clip web/src/config/rc.ts` is 0.
 
 ### fix(web): stop parsing token_budget_fraction, which only the iOS router uses
 - What: `rc.ts` no longer parses `token_budget_fraction` (wired-or-cut: the web has no router that budgets tokens; the iOS router reads it). The key stays in the Remote Config template for iOS.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect no `token_budget_fraction` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing replan_use_tools; web plan wording calls no tools
 - What: `rc.ts` no longer parses `replan_use_tools` (wired-or-cut: `wordPlan` sends the engine's table in the prompt and declares no tools). If cloud function calling (cut rank X3 extras) is ever built, it brings the key back with a test.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect no `replan_use_tools` (2 tests failed), then passed after the removal.
 
 ### fix(web): stop parsing the judge-door keys, which the server reads
 - What: `rc.ts` no longer parses `judge_seed_run_id` and `judge_sessions_per_day` (wired-or-cut: the `startJudgeSession` function reads them; no web code did). The unused number helper and an emptied range test went with them, so no test asserts nothing.
-- Source: self-audit sweep.
+- Source: review.
 - Verified: `src/config/rc.test.ts` changed first to expect neither key (2 tests failed), then passed after the removal; 10 of 10.
 
 ### test(web): require every parsed Remote Config value to have a reader in web code
 - What: the web sets in-app defaults only for the three keys it reads (`cloud_model_web`, `kill_cloud`, `use_limited_use_tokens`); the other platforms' keys stay in the shared template. A new test scans every non-test source file under web/src (more than 10 files, so an empty scan cannot pass) and fails when a parsed value has no `rc.<field>` reader.
-- Source: self-audit sweep ("every template key is parsed and used", applied to the web's own parser).
+- Source: review ("every template key is parsed and used", applied to the web's own parser).
 - Verified: the defaults test failed first (7 keys, wanted 3) and passes now; the reader guard was proved against a planted value `neverReadControl`, which failed it with "rc.neverReadControl", then the plant was removed (0 matches left).
 
 ### chore(merge): bring main into lane-web (the web CI job, per-worktree emulator temp folders, rules fixes)
@@ -236,7 +236,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(photos): read a family photo on this laptop only, behind the private-data gate
 - What: `photoCues.ts`. `readPhotoOnDevice` asks the gate with `PHOTO_OPTS` (English text and image in, English text out: the same object the photo model is created with) and makes no SDK call when the answer is no, the check throws, or the browser's model reads text only; it keeps a reply only when the SDK reports `on_device` (a cloud or missing source is refused); a slow reply is given up after a timeout without a second call or any cancel of a running model download. `cleanCues` checks the closed lists of `photo-cues.schema.json`, caps landmarks at three, and keeps a place name only when the sign text shows it. `readPhotoInCloud` throws without a consent record for that photo, refuses while `kill_cloud` is on, makes one cloud call and keeps only an `in_cloud` result.
-- Source: plan Task 20 (cut rank X11; S4 step 2 gave GO on the Gemma profile), rival self-audit addendum (no inferenceSource is refused; a reply timeout separate from the download), Codex privacy finding 6 (both boundaries tested at the unit level; the deployed one-request control follows with privacy.spec).
+- Source: plan Task 20 (cut rank X11; S4 step 2 gave GO on the Gemma profile), review (no inferenceSource is refused; a reply timeout separate from the download), Codex privacy finding 6 (both boundaries tested at the unit level; the deployed one-request control follows with privacy.spec).
 - Verified: `src/ai/photoCues.test.ts`, 14 tests, failed first (module missing), then passed; rules gate ok (no token counting in this file).
 
 ### feat(web): name Chrome's model state in the gate for the laptop-ready screen
@@ -251,12 +251,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(privacy): point any cloud fallback of a private on-device read at a host that cannot resolve
 - What: `client.ts` builds the private ONLY_ON_DEVICE models (the caller's note and the family photo) with `PRIVATE_REQUEST_OPTIONS`, whose `baseUrl` is `https://on-device-only.invalid` (RFC 2606). If the SDK ever falls back to the cloud for such a call (firebase-js-sdk #10635), the request cannot leave the machine. The gate stays the first check; this is the second. Also adds the photo builders (`photoGenerator` on-device, `photoCloudGenerator` after consent) with typed parts (`type: "text"`, `type: "inlineData"`), as @firebase/ai 3.1.0's `Part` requires.
-- Source: rival self-audit addendum, Task 20 ("if the installed @firebase/ai type files expose a base URL, build the private ONLY_ON_DEVICE instances with an unreachable address"). Grep result: `RequestOptions.baseUrl` exists (ai-public.d.ts line 2431), and the model's request options reach the cloud request URL (dist lines 1489 and 3345 to 3349).
+- Source: review, Task 20 ("if the installed @firebase/ai type files expose a base URL, build the private ONLY_ON_DEVICE instances with an unreachable address"). Grep result: `RequestOptions.baseUrl` exists (ai-public.d.ts line 2431), and the model's request options reach the cloud request URL (dist lines 1489 and 3345 to 3349).
 - Verified: the `PRIVATE_REQUEST_OPTIONS` test failed first (not exported), then passed; a mapping test covers `photoGeneratorFor` (written with the builder, not before it). Live, on the spike page with LanguageModel deleted and NO gate: the fallback request went to on-device-only.invalid and failed with `net::ERR_NAME_NOT_RESOLVED`; zero requests reached firebasevertexai.googleapis.com.
 
 ### docs(evidence): record the unreachable base URL check in spike S4
 - What: a section in `docs/evidence/spikes/S4.md`: with LanguageModel deleted and no gate, the SDK's fallback request for a model built with the unreachable base URL failed with `net::ERR_NAME_NOT_RESOLVED`, and nothing reached firebasevertexai.
-- Source: rival self-audit addendum, Task 20 (record the base-URL result).
+- Source: review, Task 20 (record the base-URL result).
 - Verified: CDP Network log of the run (raw file kept outside the repo); rules gate ok.
 
 ### feat(photos): hash, store and list family photos through the Storage SDK
@@ -1478,7 +1478,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(command): put the family channel on the command post
 - What: the post's right rail now has the Family section: Searching or Paused for the family (from `incident.searchState`, sent with `tellFamily`), the three question templates, Ask (`askFamily`, auto-id), and the family's answers as they arrive (`subscribeQuestions`). If the questions cannot be read (for example before the channel's rules are deployed), the section is not drawn and the rest of the post keeps working; that refusal never counts as the post losing access.
-- Source: Ask the family (coordinator queue), with the family-channel rules.
+- Source: Ask the family, with the family-channel rules.
 - Verified: a new read-only deployed test (`e2e/family.spec.ts`: the Family region, Searching and Paused, a template) failed on the live site at 784f5e2 (no section); it passes once this deploy and the channel's rules are both live. The 6 family harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### ci(web): run the component harness and extras browser suites in the web workflow
@@ -1490,3 +1490,28 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/pagefacts.spec.ts` (robots.txt is a real file, each page's description and title, the join page does not shift) and `e2e/fonts.spec.ts` (self-hosted fonts from this origin, tabular digits) are tagged `@no-backend`, so the web workflow and the local mirror run them on every change instead of only against the deployed site.
 - Source: CI audit.
 - Verified: in a fresh worktree with no `.env.local`, against the placeholder build with `CI=1`, the 4 tests pass; with them, 22 of 22 no-backend browser checks pass here. scripts/ci-local.sh exit 0.
+
+### docs(web): drop an internal planning name from a changelog source line
+- What: the family channel entry's source line named an internal planning queue; it now names the feature and its rules only.
+- Source: public-repository hygiene review.
+- Verified: a scan of web/CHANGELOG.md and web/CHANGELOG-EXTRAS.md for internal names and private paths finds none. scripts/ci-local.sh exit 0.
+
+### docs(web): name review sources plainly in this changelog
+- What: 14 source lines that named an internal audit of other projects now say "review", keeping each line's engineering reason (for example "review (version.json)"). No entry's facts change.
+- Source: public-repository hygiene review.
+- Verified: a case-insensitive search of this file for the audit's two names finds nothing (the word "arrival" aside). scripts/ci-local.sh exit 0.
+
+### docs(web): keep the audit's names out of the entry that removed them
+- What: the previous entry's Verified line quoted the search it ran, which put the two names back into this file; it now describes the search instead.
+- Source: the committed-tree check after that commit (want-0 found 1).
+- Verified: the same case-insensitive search of the committed file finds nothing. scripts/ci-local.sh exit 0.
+
+### fix(camera): trace clip triage on this laptop only when the SDK says it ran there
+- What: the on-device frame check now passes the SDK's `inferenceSource` through, and triage keeps it. A clip with no person is traced as `on_device` with `sdkReported: true` only when every frame check reported on-device; if any check reported the cloud the path is `cloud`; with no report the path is `unknown` and `sdkReported` is false, so it never counts toward the on-device share. Before, every no-person result was stamped on-device and SDK-reported.
+- Source: review (clip triage stamped on_device without an SDK-reported source).
+- Verified: new tests (`src/camera/triage.test.ts`: every check on-device gives on_device; no report, or a mix, gives unknown; the route for unknown is path unknown with sdkReported false) failed first, then passed; the frame generator test now also expects the SDK's source back; 14 triage tests and 23 clip and triage harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(plans): keep a failed model attempt apart from the fixed wording that replaced it
+- What: when the plan wording asked a model and its answer was not used (an error, a timeout, text that is not the wording's JSON, or wording that fails the checks), `wordPlan` now returns that attempt beside the fixed-wording route: where it ran as the SDK reported it (`on_device`, `cloud`, or `unknown` with `sdkReported` false) and why it failed. The post traces the attempt on its own, so an attempt that may have sent the draft is never hidden behind the "rules" route of the fixed wording. Unusable model text now says "The model's wording could not be used. The plan below uses fixed wording." No attempt is recorded when the model's wording was used or when no model was asked.
+- Source: review (a failed plan-wording cloud attempt was recorded as the rules route).
+- Verified: two new tests (`src/ai/replanWording.test.ts`: error, unreadable, rejected and timeout attempts with their routes and the plan still worded by rules; none for a used answer or a paused cloud) failed first, then passed; 23 wording tests and 6 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
