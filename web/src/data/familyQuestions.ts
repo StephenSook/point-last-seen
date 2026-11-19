@@ -4,7 +4,7 @@
 // Nothing about whether the person was found, or their condition, goes through here: that news comes from the
 // search lead in person or by phone.
 
-import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
+import { addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
 
 export const QUESTION_TEMPLATES = [
   "Did they ever go by another name?",
@@ -22,14 +22,6 @@ export function parseQuestion(text: string): { ok: true; text: string } | { ok: 
   if (!t) return { ok: false, message: "Type a question first." };
   if (t.length > MAX_QUESTION) return { ok: false, message: `A question is ${MAX_QUESTION} characters at most.` };
   return { ok: true, text: t };
-}
-
-const ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-/** A random 20-character id (the rules take 1 to 40 of A-Z, a-z, 0-9, _ and -). */
-export function newQuestionId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(20));
-  return Array.from(bytes, (b) => ID_CHARS[b % ID_CHARS.length]).join("");
 }
 
 export function newQuestionDoc(text: string, uid: string): object {
@@ -64,8 +56,9 @@ export function subscribeQuestions(db: Firestore, incidentId: string, cb: (q: Fa
   }, onError);
 }
 
+/** Firestore picks the id (20 letters and digits, which the rules require), so no typed text can ride the push as one. */
 export async function askFamily(db: Firestore, incidentId: string, text: string, uid: string): Promise<void> {
-  await setDoc(doc(db, "incidents", incidentId, "familyQuestions", newQuestionId()), newQuestionDoc(text, uid));
+  await addDoc(collection(db, "incidents", incidentId, "familyQuestions"), newQuestionDoc(text, uid));
 }
 
 export async function tellFamily(db: Firestore, incidentId: string, state: SearchState): Promise<void> {

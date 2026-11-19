@@ -1,6 +1,6 @@
 import { serverTimestamp, Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
-import { newQuestionDoc, newQuestionId, parseQuestion, QUESTION_TEMPLATES, questionFromDoc, searchStateOf } from "./familyQuestions";
+import { newQuestionDoc, parseQuestion, QUESTION_TEMPLATES, questionFromDoc, searchStateOf } from "./familyQuestions";
 
 describe("asking the family", () => {
   it("offers three plain templates", () => {
@@ -10,9 +10,6 @@ describe("asking the family", () => {
     expect(parseQuestion("  Where did they work?  ")).toEqual({ ok: true, text: "Where did they work?" });
     expect(parseQuestion("   ")).toEqual({ ok: false, message: "Type a question first." });
     expect(parseQuestion("x".repeat(281))).toEqual({ ok: false, message: "A question is 280 characters at most." });
-  });
-  it("makes ids the rules accept", () => {
-    for (let i = 0; i < 20; i++) expect(newQuestionId()).toMatch(/^[A-Za-z0-9]{20}$/);
   });
   it("writes the text, the writer and the server's time, nothing else", () => {
     const d = newQuestionDoc("Where did they work?", "u1") as Record<string, unknown>;

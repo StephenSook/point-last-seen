@@ -1470,3 +1470,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `command/FamilyChannel.tsx`, "Family": command tells the family the search is Searching or Paused (it asks first: "Tell the family the search is paused? They get a notice with no details.", then shows "The family was told: paused."), asks a question (typed, or from the three templates; "Type a question first." when empty), and sees each question with the family's answer or "No answer yet.". It carries no control for a find or the person's condition and says "News of a find or their condition goes from the search lead in person, not here." A refused send says so and keeps the text. A dev-only harness page (`web/harness/family.html`) runs it with fakes. Not on the command post yet.
 - Source: field-expert input (search and rescue practitioner) and the shared family-channel rules.
 - Verified: `e2e/harness/family.spec.ts` (6 tests: answers and open questions; a template then Ask; an empty question refused; paused asks first then shows; no found or condition control; a refused ask keeps the text) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### refactor(data): let Firestore pick the id of a question to the family
+- What: `askFamily` now writes with `addDoc`, so Firestore's own auto-id (20 letters and digits) names the question, which is exactly what the familyQuestions rule requires, instead of an id made in this file. The hand-made id and its test are gone.
+- Source: the familyQuestions create rule (auto-id only).
+- Verified: 6 family question tests pass; typecheck clean; the rules tests in scripts/ci-local.sh cover a command create at an auto-id. scripts/ci-local.sh exit 0.
