@@ -30,6 +30,9 @@ profile, notes, photos and camera clips from their own app, and decides which of
   own model, with the cloud as the fallback where a call allows it).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
+- Speech: the iPhone app speaks an assignment change in a cloud voice from Firebase AI Logic and falls back to the
+  phone's own system voice. No app calls a speech recognizer, and the repository's rules gate refuses one on every
+  platform. A searcher can dictate a report with the iPhone keyboard's microphone key, which gives the app typed text.
 
 Status: built for #BuildHybridAI 2026. Training drill use only: every drill uses made-up data, and nobody in any drill
 is missing.

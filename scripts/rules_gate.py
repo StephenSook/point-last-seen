@@ -18,12 +18,19 @@ from pathlib import Path, PurePosixPath
 SELF_PATHS = ("scripts/rules_gate.py", "scripts/test_rules_gate.py")
 
 # Model and speech paths outside Firebase AI Logic. Case-sensitive tokens.
+# Speech: recognition is banned on every platform, since it reads the user's speech with a model outside Firebase
+# AI Logic (Apple's Speech framework and its recognizer, Android's recognizer and its recognize-speech intent, the
+# browser's SpeechRecognition with or without its webkit prefix). The system text-to-speech voice is allowed as the
+# fallback voice (AVSpeechSynthesizer, Android TextToSpeech, the browser's speechSynthesis): it speaks text the app
+# already holds and reads nothing from the user.
 BANNED_EXACT = (
     "import Speech",
-    "SFSpeechRecognizer",
+    "SpeechRecognizer",
+    "RecognizerIntent",
+    "RECOGNIZE_SPEECH",
     "import Vision",
     "CoreML",
-    "webkitSpeechRecognition",
+    "SpeechRecognition",
     "TextDetector",
     "BarcodeDetector",
     "startChat",

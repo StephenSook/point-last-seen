@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate now refuses speech recognition on every platform and says why, and keeps the system voice allowed.
+  It already refused Apple's Speech framework and the webkit-prefixed browser recognizer; it now also refuses
+  Android's speech recognizer, Android's recognize-speech intent (by class name and by its action string) and the
+  browser's unprefixed recognizer. The gate's comment states the rule: recognition reads the user's speech with a
+  model outside Firebase AI Logic; the system text-to-speech voice (the iPhone app's fallback when the cloud voice
+  cannot be reached) speaks text the app already holds. The README says the same, and that iPhone keyboard
+  dictation gives the app typed text.
+  Source: review (the speech rule, made to agree across the project's guards).
+  Verified: the new test (six recognizer uses across Swift, Kotlin and TypeScript each fail the gate) failed first,
+  the system-voice test (AVSpeechSynthesizer, TextToSpeech, speechSynthesis pass) passes; all 31 gate tests pass;
+  the gate over the repository exits 0 with 936 files walked.
 - The README says what is true now rather than what is planned: the judge page replays a published drill run and
   says "No published run yet." until one exists; the iPhone app's public TestFlight link and the Android app's
   release asset are named as not published yet; and the status line says the project was built for #BuildHybridAI
