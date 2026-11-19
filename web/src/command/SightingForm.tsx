@@ -4,8 +4,9 @@
 // no field of the stored event holds it, and phone numbers are removed from
 // the note before it is stored or read.
 
-import type { ClothingColor, Direction } from "@pls/engine";
+import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
+import { receiptLines } from "../ai/receipt";
 import type { SightingCues, SightingRead } from "../ai/sightingText";
 import type { SightingInput } from "../data/sightings";
 import type { LatLon } from "../map/geo";
@@ -17,7 +18,9 @@ const DIRECTIONS: [Direction, string][] = [
 const COLORS: ClothingColor[] = ["unknown", "black", "white", "gray", "brown", "tan", "red", "orange", "yellow", "green", "blue", "purple", "pink"];
 const WHO: [SightingInput["reportedBy"], string][] = [["stranger", "Stranger"], ["neighbour", "Neighbour"], ["staff", "Staff at a business"], ["family", "Family"]];
 
-type CloudRead = { reading: SightingCues } | { refused: string };
+/** Where a read ran and what it sent, when the post knows it (for the "What ran" receipt). */
+type Ran = { route?: RouteRecord; sentBytes?: number };
+type CloudRead = ({ reading: SightingCues } & Ran) | { refused: string };
 
 type Props = {
   place: LatLon | null;
@@ -26,7 +29,7 @@ type Props = {
   choices: readonly { segmentId: string; centre: LatLon }[];
   onPlace: (p: LatLon) => void;
   onSave: (input: SightingInput) => Promise<void>;
-  readNote: (text: string) => Promise<SightingRead>;
+  readNote: (text: string) => Promise<SightingRead | ({ reading: SightingCues } & Ran)>;
   readNoteInCloud: (text: string) => Promise<CloudRead>;
   onClose: () => void;
 };
@@ -49,6 +52,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [callbackNumber, setCallbackNumber] = useState("");
   const [busy, setBusy] = useState<"read" | "cloud" | "save" | null>(null);
   const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed">("none");
+  // The last read that filled the fields: what was asked for, where it ran and what it sent.
+  const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
   // The note as it is now: a reply for an older note is dropped rather than filled in.
   const noteNow = useRef(note);
   noteNow.current = note;
@@ -70,7 +75,11 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     try {
       const r = await readNote(asked);
       if (noteNow.current !== asked) return setReadState("changed");
-      if ("reading" in r) fill(r.reading);
+      if ("reading" in r) {
+        fill(r.reading);
+        const w = r as Ran;
+        setRan(w.route ? { asked: "this laptop only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
+      }
       else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
       setReadState("not-read");
@@ -86,7 +95,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     try {
       const r = await readNoteInCloud(asked);
       if (noteNow.current !== asked) return setReadState("changed");
-      if ("reading" in r) fill(r.reading);
+      if ("reading" in r) {
+        fill(r.reading);
+        setRan(r.route ? { asked: "the cloud, after the consent tap", route: r.route, sentBytes: r.sentBytes ?? 0 } : null);
+      }
       else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
       setReadState("not-read");
@@ -212,6 +224,14 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         </div>
       )}
       {readState === "filled" && <p role="status" className="muted">Suggested from the note. Check every field.</p>}
+      {readState === "filled" && ran && (
+        <details className="receipt">
+          <summary>What ran</summary>
+          {receiptLines({ asked: ran.asked, route: ran.route, sentBytes: ran.sentBytes, what: "the note, with phone numbers removed" }).map((l) => (
+            <p key={l} className="small">{l}</p>
+          ))}
+        </details>
+      )}
       {readState === "evidence" && <p role="status">This note may describe evidence. It was not sent to any model. Fill the fields by hand.</p>}
       {readState === "not-read" && <p role="status">The note could not be read. Fill the fields by hand.</p>}
       {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}

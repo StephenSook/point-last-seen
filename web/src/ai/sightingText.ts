@@ -110,7 +110,7 @@ export async function readSightingTextInCloud(
   text: string,
   consent: CloudConsent | null,
   deps: CloudSightingDeps,
-): Promise<{ reading: SightingCues } | { refused: "possible-evidence" | "cloud-paused" | "not-in-cloud" | "invalid" }> {
+): Promise<{ reading: SightingCues; sentBytes: number } | { refused: "possible-evidence" | "cloud-paused" | "not-in-cloud" | "invalid" }> {
   if (!consent || !consent.byUid || !Number.isFinite(consent.atMs)) throw new Error("A cloud read needs a consent tap for this note.");
   const note = removePhoneNumbers(text);
   if (isPossibleEvidence(note)) return { refused: "possible-evidence" };
@@ -118,5 +118,6 @@ export async function readSightingTextInCloud(
   const reply = await deps.generateCloud(note);
   if (reply.inferenceSource !== "in_cloud") return { refused: "not-in-cloud" };
   const cues = checked(reply.text, note);
-  return cues ? { reading: cues } : { refused: "invalid" };
+  // sentBytes: the note as the template received it (phone numbers removed), for the "What ran" receipt.
+  return cues ? { reading: cues, sentBytes: new TextEncoder().encode(note).length } : { refused: "invalid" };
 }
