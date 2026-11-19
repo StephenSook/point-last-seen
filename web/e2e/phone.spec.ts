@@ -6,7 +6,7 @@ test.use({ viewport: { width: 390, height: 844 } });
 test("on a phone the post header fits in two lines", async ({ page }) => {
   await withDebugToken(page);
   await joinCommand(page);
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   const head = (await page.locator(".post-head").boundingBox())!;
   // Two rows of 44 px controls plus padding; four wrapped lines were about 120 px.
   expect(head.height).toBeLessThanOrEqual(110);
@@ -16,7 +16,7 @@ test("on a phone the post header fits in two lines", async ({ page }) => {
 test("on a phone the map credit covers no cell label", async ({ page }) => {
   await withDebugToken(page);
   await joinCommand(page);
-  await expect(page.locator(".plate").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(500);
   const credit = (await page.getByTestId("map-credit").boundingBox())!;
   const boxes = await page.locator(".plate:visible, .seg-code:visible").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
