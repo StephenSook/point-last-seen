@@ -1694,3 +1694,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the three debrief entries under 2026-11-17 had lost their "### " heading lines when they were carried onto main, so their bullets ran into each other. The headings are back, each before its own "What" line, taken from the original commits.
 - Source: review of the changelog after the debrief merge.
 - Verified: the three headings match the original commit subjects; no other line changed.
+
+### fix(profile): a field command sets back to unknown is removed on save
+- What: a save applies only what command changed, and it looked only at fields present in the edited profile, so an optional field set back to unknown (tracking aids, say) was silently kept. Now a field present when the form opened and absent after counts as a change, and the merged document drops it.
+- Source: review while adding the tracking-aids editor.
+- Verified: a new test (tracking aids set back to unknown are not in the shared document written) failed first (they were kept), then passed; 30 profile tests and the 21 schema survival tests pass; typecheck clean.
