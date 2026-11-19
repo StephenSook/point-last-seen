@@ -191,15 +191,22 @@ describe("readClip", () => {
 
   it("a windowed miss stored by older code does not block a full read: it reads again and writes nothing", async () => {
     const windowedMiss = { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 };
-    // The model gets the bytes inline, so nothing in Storage is checked or uploaded either (the upload
-    // rule needs the caller to own the record with 31 days left, which a second seat does not).
-    const t = await setup({ stored: windowedMiss, exists: false });
+    // The clip must still be stored (a delete removes it), but nothing is uploaded: the upload rule needs the
+    // caller to own the record with 31 days left, which a second seat does not.
+    const t = await setup({ stored: windowedMiss, exists: true });
     const r = await readClip(t.req, t.deps);
-    expect(t.calls).toEqual(["find", "confirm", "model"]);
+    expect(t.calls).toEqual(["find", "exists", "confirm", "model"]);
     expect(t.generated).toEqual([undefined]);
     expect(r).toMatchObject({ kind: "read", cached: false, route: { reason: "sdk_only_in_cloud" } });
     expect(t.written).toEqual([]);
     expect(t.completed).toEqual([]);
+  });
+
+  it("an old windowed miss whose clip is no longer stored is not read again", async () => {
+    const t = await setup({ stored: { reading: { status: "no_sighting", reasons: ["no_person"] }, route: { reason: "on_device_triage_flagged" } as StoredClipReading["route"], expiresAtMs: NOW + 60_000 }, exists: false });
+    expect(await readClip(t.req, t.deps)).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists"]);
+    expect(t.generated).toEqual([]);
   });
 
   it("an old windowed miss whose consent has expired is not read again", async () => {

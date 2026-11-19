@@ -1210,3 +1210,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the dev-page guard (`src/harness/noCloud.test.ts`) also fails when a harness page imports `getGenerativeModel` or `getTemplateGenerativeModel` from `firebase/ai`, which would build a model around the app's builders. Importing `getAI` alone, as the triage page does to hand an instance to the on-device frame check, stays allowed.
 - Source: second-model review of PR #20, round 2 (note: the four-name scan missed a direct SDK import).
 - Verified: a planted page importing `getGenerativeModel` from `firebase/ai` made the guard fail naming it; with the page removed it passes; a first, broader version flagged the triage page's `getAI` import and was narrowed to the model builders. scripts/ci-local.sh exit 0.
+
+### fix(camera): require the stored clip before re-reading an old windowed miss
+- What: re-reading a no-sighting result that older code stored for a flagged window now first checks the clip is still in Storage, and refuses ("The consent record for this clip was deleted. Nothing was sent.") when it is gone. It still uploads nothing. Before, that path skipped Storage entirely, so a clip whose file had been deleted while its record remained could still be sent from the bytes on the laptop.
+- Source: second-model review of PR #20, round 3, finding 2 (high).
+- Verified: the legacy re-read test now expects the Storage check before the server check and the model, and a new test (clip gone: refused after the lookup and the check, model never called) failed first, then passed; 119 ai unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.

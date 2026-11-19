@@ -221,10 +221,11 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     // The pause is read live again here: it may have arrived while the consent record was saving.
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     // A retry may find the clip already stored; clips are create-only, so a second upload is refused.
-    // An old windowed miss is read again from these bytes inline and stores nothing, the clip included.
-    const stored = oldWindowedMiss || (found ? await deps.clipExists(sha) : false);
+    // An old windowed miss is read again from these bytes inline and uploads nothing, but its clip must still
+    // be stored: a delete removes it, and a gone clip means its consent was withdrawn.
+    const stored = found ? await deps.clipExists(sha) : false;
     if (!stored) {
-      if (r.retry) return { kind: "refused", message: CONSENT_GONE };
+      if (r.retry || oldWindowedMiss) return { kind: "refused", message: CONSENT_GONE };
       // And once more after that lookup, right before the clip leaves the laptop.
       if (r.killCloud()) return { kind: "refused", message: PAUSED };
       await deps.upload(sha, r.bytes, r.mimeType);
