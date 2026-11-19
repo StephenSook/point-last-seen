@@ -47,3 +47,13 @@ describe("sightingCards", () => {
     expect(sightingCards([s, ev({ type: "retraction", targetEventId: s.eventId, effect: { kind: "none", why: "informational" } })])).toEqual([]);
   });
 });
+
+describe("a family sighting command placed on the map", () => {
+  it("shows the placement, placed and ready to confirm, in place of the family's unplaced report", () => {
+    const family = ev({ role: "family", reporter: "family", position: null, positionSource: "none", effect: { kind: "none", why: "needs_command" } });
+    const placed = ev({ role: "command", reporter: "family", targetEventId: family.eventId });
+    const cards = sightingCards([family, placed]);
+    expect(cards.map((c) => c.sighting.eventId)).toEqual([placed.eventId]);
+    expect(cards[0]).toMatchObject({ needsPlace: false, status: "awaiting" });
+  });
+});

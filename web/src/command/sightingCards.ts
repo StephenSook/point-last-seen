@@ -32,8 +32,13 @@ export function sightingCards(docs: readonly EventDoc[]): SightingCard[] {
     const prev = decided.get(d.targetEventId);
     if (!prev || greater(key, prev.key)) decided.set(d.targetEventId, { key, decision: d.decision });
   }
+  // A family sighting command placed on the map is shown as its placement (a command sighting that points at it).
+  const placed = new Set<string>();
+  for (const d of byId.values()) {
+    if (d.type === "sighting" && d.role === "command" && d.targetEventId && !retracted.has(d.eventId)) placed.add(d.targetEventId);
+  }
   return [...byId.values()]
-    .filter((d) => d.type === "sighting" && !retracted.has(d.eventId))
+    .filter((d) => d.type === "sighting" && !retracted.has(d.eventId) && !placed.has(d.eventId))
     .sort((a, b) => (b.observedAtMs ?? 0) - (a.observedAtMs ?? 0) || (a.eventId < b.eventId ? -1 : 1))
     .map((s) => ({
       sighting: s,
