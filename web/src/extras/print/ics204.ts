@@ -19,7 +19,9 @@ export const ICS204_RESOURCE_COLUMNS = [
   "Contact (e.g., phone, pager, radio frequency, etc.)",
   "Reporting Location, Special Equipment and Supplies, Remarks, Notes, Information",
 ] as const;
-export const ICS204_ROWS_PER_SHEET = 10;
+// Five teams per sheet keeps each sheet on one Letter page: a sheet always draws this many resource rows, and each
+// team adds a work-assignment line that may wrap (measured: ten rows overflowed the page even with three teams).
+export const ICS204_ROWS_PER_SHEET = 5;
 
 export type Ics204Typed = {
   dateFrom: string; dateTo: string; timeFrom: string; timeTo: string;

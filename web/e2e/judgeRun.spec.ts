@@ -17,7 +17,7 @@ test("a published run replays in one section, labelled as a training drill", { t
   await expect(section.getByTestId("replay-code")).toHaveText(/^[0-9A-Z]{4}$/);
   await expect(section.locator(".plate").first()).toBeVisible();
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
-  await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   // One replay section: the page's own placeholder is gone and "No published run yet." is never said.
   await expect(page.getByRole("region", { name: "Replay the training drill" })).toHaveCount(0);
   await expect(page.getByText("No published run yet.")).toHaveCount(0);
@@ -55,7 +55,7 @@ test("the site serves its published drill run, and the judge page replays it", {
   // The end frame of this exact file: a change to the engine or the reader that moves the judged map fails here.
   // Re-exporting the run changes the file and this code in the same commit.
   await expect(section.getByTestId("replay-code")).toHaveText("T43J");
-  await expect(section.getByText("Training drill. Nobody is missing.")).toBeVisible();
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("replay-refused")).toHaveCount(0);
   // The Numbers section says what is there and promises nothing that is not built.
   const numbers = page.getByRole("region", { name: "Numbers" });
