@@ -225,6 +225,8 @@ final class AppModel {
     func trySignIn() async {
         signedIn = await signIn.ensure()
         if signedIn {
+            // The account changed since the mission was read: nothing of it is this user's.
+            if let mission, mission.ownerUid != uid() { await dropMission() }
             await resumeMission()
             return
         }
@@ -296,6 +298,12 @@ final class AppModel {
         if check == accessCheck { joinMessage = message }
     }
 
+    /// True when a user is signed in and any loaded mission was read for that same user.
+    private var heldByThisUser: Bool {
+        guard let user = uid() else { return false }
+        return mission.map { $0.ownerUid == user } ?? true
+    }
+
     /// The claims read fresh from the server, or the cached ones with no signal; nil with no token.
     private func latestClaims() async -> [String: JSONValue]? {
         if let fresh = await joinBackend.currentClaims(forceRefresh: true) { return fresh }
@@ -316,8 +324,9 @@ final class AppModel {
         let generation = missionGeneration
         do {
             let docs = try await missionReader.read(incidentId: incidentId)
-            let mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
+            var mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
                                                    bundledParams: try BundledConstants.engineParams())
+            mission.ownerUid = uid()
             // A newer join or load started while this one read: it has the say.
             guard generation == missionGeneration else { return nil }
             await load(mission)
@@ -383,6 +392,13 @@ final class AppModel {
         let fresh = await joinBackend.currentClaims(forceRefresh: true)
         guard check == accessCheck else { return }
         guard let fresh else {
+            // Auth could not confirm access. With no user, or a mission read for another user, what
+            // the phone holds is not this user's: it goes and nothing opens. The same user with no
+            // signal: the mission on this phone is the offline path.
+            guard heldByThisUser else {
+                if mission != nil || membership != nil { await dropMission() }
+                return
+            }
             if matchesLoaded() { openTaskRequests += 1 }
             return
         }

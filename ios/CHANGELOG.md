@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a push tap Auth cannot confirm opens a mission only for the user it was read for
+- What: when a tapped push could not get fresh claims, the phone opened the loaded mission's task
+  for any reason the claims were missing: no user at all (signed out) as well as no signal. The
+  mission now records the user it was read for. Without fresh claims, a tap with no user, or with
+  another user than that one, drops the mission and opens nothing; the same user with no signal
+  still opens the mission on the phone, as offline. A sign-in as another user also drops the old
+  user's mission before the new claims are read.
+- Source: review (finding 1, third round).
+- Verified: tests for a tap with no user, a tap with another user, a tap by the same user with no
+  signal, and a sign-in as another user. The first two failed before the change; the sign-in test
+  failed with its check taken out. 141 app tests pass.
+
 ### fix(ios): a phone with no user drops its mission, and the foreground checks access again
 - What: two gaps in following this phone's access. When the phone had no user at all any more
   (signed out, for example after the account was removed) and signing in failed, the old user's

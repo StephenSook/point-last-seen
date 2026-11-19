@@ -23,6 +23,9 @@ struct Mission: Sendable {
     /// The version of the plan the assignment came from; nil before command approves one. Only a
     /// newer plan replaces it.
     var planVersion: Int? = nil
+    /// The signed-in user the mission was read for. Without fresh claims, only that same user may
+    /// open it from a push; another user or none means it is not theirs.
+    var ownerUid: String? = nil
     /// Events already folded into the pack's prior; the posterior leaves them out.
     var priorInputEventIds: [String] = []
     /// The incident's `conditions` typed at command (temperature, wet); nil when not set.
