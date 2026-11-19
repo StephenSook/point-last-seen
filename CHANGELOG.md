@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The published drill run served at `/evidence/published-run.json` carries the engine's urban ring column. The run
+  was exported before the urban terrain existed, so its stored engine params lacked `rings.urban`, and once the
+  engine defaults gained it the replay reader refused the run (a field of the wrong type). The column is filled
+  with the constants' value, the exporter's own rule for an incident made before a field existed; nothing else in
+  the run changes.
+  Source: the merge of main into the field-expert branch (the web test of the served run failed).
+  Verified: the file differs from main's only by the added column (6 lines; every other value equal when parsed);
+  the web test of the served run (2 tests) and the exporter's reader check on the file pass.
 - `seed_segments.py` binds its commit to the incident version it validated. The same read that checks the
   incident's stored ring column returns its `updateTime`. The incident write is now the first write, with that
   `updateTime` as its precondition, so if anyone changed the incident between the read and the commit, the first
