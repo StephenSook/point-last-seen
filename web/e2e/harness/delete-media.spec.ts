@@ -35,3 +35,19 @@ test("with only saved records left it still offers to delete them", async ({ pag
   await page.getByRole("button", { name: "Delete now" }).click();
   await expect(page.getByRole("status")).toHaveText("Deleted 2 items: clips, photos and their readings.");
 });
+
+test("a lost reply is not called a clean result: it says so and counts again before offering Delete now", async ({ page }) => {
+  await page.goto("/harness/delete.html?counts=4,3,7&after=1,0,1&answer=unavailable");
+  await page.getByRole("button", { name: "Delete now" }).click();
+  await expect(page.getByRole("status")).toHaveText("The server did not confirm the delete. This shows what is stored now.");
+  await expect(page.getByText("Delete 1 clip and 0 photos for this search? This can't be undone.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete now" })).toBeEnabled();
+});
+
+test("a reply with no count does not invent one, and shows what is stored now", async ({ page }) => {
+  await page.goto("/harness/delete.html?counts=4,3,7&after=0,0,0&answer=nocount");
+  await page.getByRole("button", { name: "Delete now" }).click();
+  await expect(page.getByRole("status")).toHaveText("The delete finished, but the server did not say how many items it removed.");
+  await expect(page.getByText("There are no clips or photos for this search.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete now" })).toHaveCount(0);
+});

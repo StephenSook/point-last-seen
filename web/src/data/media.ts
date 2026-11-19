@@ -31,22 +31,33 @@ export function deleteQuestion(c: MediaCounts): string | null {
   return `Delete ${plural(c.clips, "clip", "clips")} and ${plural(c.photos, "photo", "photos")} for this search? This can't be undone.`;
 }
 
-export function deletedLine(deleted: number): string {
+export function deletedLine(deleted: number | null): string {
+  if (deleted === null) return "The delete finished, but the server did not say how many items it removed.";
   return `Deleted ${plural(deleted, "item", "items")}: clips, photos and their readings.`;
 }
 
-// The server's refusals are plain sentences meant for the person; show them as they are.
-const SERVER_SENTENCES = new Set(["Only the incident's command can delete its media.", "Sign in before deleting an incident's media."]);
-
-export function deleteMediaMessage(e: unknown): string {
-  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  const message = e instanceof Error ? e.message : "";
-  if ((code.endsWith("permission-denied") || code.endsWith("unauthenticated")) && SERVER_SENTENCES.has(message)) return message;
-  if (code.endsWith("unavailable")) return "No connection. Nothing was deleted. Try again when the link is back.";
-  return "The clips and photos were not deleted. Try again.";
+/** The server's count, or null when the reply does not carry a whole, non-negative one. */
+export function readDeletedCount(data: unknown): number | null {
+  const n = typeof data === "object" && data !== null ? (data as { deleted?: unknown }).deleted : undefined;
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 ? n : null;
 }
 
-export async function deleteMediaNow(functions: Functions, incidentId: string): Promise<number> {
-  const r = await httpsCallable<{ incidentId: string }, { deleted: number }>(functions, "deleteIncidentMediaNow")({ incidentId });
-  return typeof r.data?.deleted === "number" ? r.data.deleted : 0;
+/** Said when the outcome is unknown: the dialog then counts again before offering Delete now. */
+export const UNCONFIRMED = "The server did not confirm the delete. This shows what is stored now.";
+
+// The server's refusals are plain sentences meant for the person, and it gives them before deleting
+// anything, so they confirm nothing was deleted. Any other failure is unconfirmed: the server deletes
+// files and records in steps, and its reply can be lost after the delete finished.
+const SERVER_SENTENCES = new Set(["Only the incident's command can delete its media.", "Sign in before deleting an incident's media."]);
+
+export function deleteFailure(e: unknown): { text: string; unconfirmed: boolean } {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  const message = e instanceof Error ? e.message : "";
+  if ((code.endsWith("permission-denied") || code.endsWith("unauthenticated")) && SERVER_SENTENCES.has(message)) return { text: message, unconfirmed: false };
+  return { text: UNCONFIRMED, unconfirmed: true };
+}
+
+export async function deleteMediaNow(functions: Functions, incidentId: string): Promise<number | null> {
+  const r = await httpsCallable<{ incidentId: string }, unknown>(functions, "deleteIncidentMediaNow")({ incidentId });
+  return readDeletedCount(r.data);
 }

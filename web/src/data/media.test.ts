@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deletedLine, deleteMediaMessage, deleteQuestion } from "./media";
+import { deletedLine, deleteFailure, deleteQuestion, readDeletedCount, UNCONFIRMED } from "./media";
 
 const fbErr = (code: string, message: string) => Object.assign(new Error(message), { code });
 
@@ -23,15 +23,32 @@ describe("deletedLine", () => {
     expect(deletedLine(7)).toBe("Deleted 7 items: clips, photos and their readings.");
     expect(deletedLine(1)).toBe("Deleted 1 item: clips, photos and their readings.");
   });
+  it("does not invent a count the server did not send", () => {
+    expect(deletedLine(null)).toBe("The delete finished, but the server did not say how many items it removed.");
+  });
 });
 
-describe("deleteMediaMessage", () => {
-  it("shows the server's own reason for a refusal", () => {
-    expect(deleteMediaMessage(fbErr("functions/permission-denied", "Only the incident's command can delete its media."))).toBe("Only the incident's command can delete its media.");
-    expect(deleteMediaMessage(fbErr("functions/unauthenticated", "Sign in before deleting an incident's media."))).toBe("Sign in before deleting an incident's media.");
+describe("readDeletedCount", () => {
+  it("takes a whole, non-negative count and nothing else", () => {
+    expect(readDeletedCount({ deleted: 7 })).toBe(7);
+    expect(readDeletedCount({ deleted: 0 })).toBe(0);
+    expect(readDeletedCount({})).toBeNull();
+    expect(readDeletedCount({ deleted: "7" })).toBeNull();
+    expect(readDeletedCount({ deleted: -1 })).toBeNull();
+    expect(readDeletedCount(null)).toBeNull();
   });
-  it("names a lost connection, and is plain otherwise", () => {
-    expect(deleteMediaMessage(fbErr("functions/unavailable", "x"))).toBe("No connection. Nothing was deleted. Try again when the link is back.");
-    expect(deleteMediaMessage(new Error("boom"))).toBe("The clips and photos were not deleted. Try again.");
+});
+
+describe("deleteFailure", () => {
+  it("shows the server's own refusal, which it gives before deleting anything", () => {
+    expect(deleteFailure(fbErr("functions/permission-denied", "Only the incident's command can delete its media."))).toEqual({ text: "Only the incident's command can delete its media.", unconfirmed: false });
+    expect(deleteFailure(fbErr("functions/unauthenticated", "Sign in before deleting an incident's media."))).toEqual({ text: "Sign in before deleting an incident's media.", unconfirmed: false });
+  });
+  it("calls any other failure unconfirmed: the server deletes in steps and its reply can be lost", () => {
+    expect(deleteFailure(fbErr("functions/unavailable", "x"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
+    expect(deleteFailure(fbErr("functions/internal", "x"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
+    expect(deleteFailure(fbErr("functions/permission-denied", "some other sentence"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
+    expect(deleteFailure(new Error("boom"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
+    expect(UNCONFIRMED).toBe("The server did not confirm the delete. This shows what is stored now.");
   });
 });

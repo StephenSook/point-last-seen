@@ -17,5 +17,5 @@ export type DockProps = {
   vs: ViewState | null;
   map: unknown;
   /** The command post's delete-media control (counting and the server call); the menu shows it when given. */
-  deleteMedia?: { count: () => Promise<{ clips: number; photos: number; records: number }>; run: () => Promise<number> };
+  deleteMedia?: { count: () => Promise<{ clips: number; photos: number; records: number }>; run: () => Promise<number | null> };
 };
