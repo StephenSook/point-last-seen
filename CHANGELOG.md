@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The README says up front that the live `/judge` is the way to try it and that running the apps needs your own
+  Firebase project. It gives the toolchain with versions (Node 22 with the Firebase SDK's Node 24.12 warning,
+  Python 3.12 or later, Java 21 or later, the Firebase CLI 15, gitleaks 8, Xcode 27 with XcodeGen 2.45, the Android
+  SDK), how to run every check or one platform with `ci-local.sh` and what its exit codes mean, and ten numbered
+  steps for a developer's own project: Blaze plan, Anonymous sign-in, Firestore and Storage, the Gemini Developer
+  API, the three apps and their config files, App Check providers and debug tokens, deploy, template and Remote
+  Config publish, seeding a drill, and running each app.
+  Source: review (a fresh clone, following only the README, found no word that a Firebase project is needed).
+  Verified: each command and file name exists in the repository; the providers match `ios/PLS/App/PLSApp.swift`
+  and `android/app/src/release/.../AppCheckSetup.kt`; the versions are the ones installed where every check
+  passes; `bash scripts/ci-local.sh --gates` exit 0.
 - `scripts/ci-local.sh` takes `--gates`, `--ts`, `--rules`, `--web`, `--ios` and `--android` to run one platform's
   checks (no flag runs them all), and a missing tool no longer stops the run: its section says "NOT RUN, <tool> is
   not installed" and the script ends with exit 2 and the list of what did not run, never "all checks passed". Exit
