@@ -2,6 +2,10 @@
 
 Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGELOG-EXTRAS.md, web/public/extras/**, tools/extras/**. Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-19
+
+- Merge: main (692c987) into the extras branch before it merges, so the branch is checked against the main it lands on. No conflicts, and main changed no extras file; it changed the lockfile, so dependencies were reinstalled (`npm ci`). Source: merge to main. Verified: the extras browser checks pass 39 of 39 on the merged tree; `bash scripts/ci-local.sh` exit 0.
+
 ## 2026-11-18
 
 - Docs: the run contract now states the reader's role and three limits. The exporter is what keeps private data out of the public run; the reader is a second check and a crash guard, not a parser for hostile files. Its user id scan is best effort: it misses an id split across fields or joined to other letters and digits, so the exporter's pseudonyms are the guarantee. It parses the whole file before its size checks run. The judge check compares each segment's percent and centroid, not its polygon. Source: review (second-model review round 4: one high and two medium findings recorded as limits rather than fixed). Verified: comment-only change in `runContract.ts`; web typecheck exit 0; `bash scripts/ci-local.sh` exit 0.

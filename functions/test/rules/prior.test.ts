@@ -1,7 +1,7 @@
 // The prior is rewritten in one batch (every segment, ROW and the incident) at the next priorVersion. Two command
 // seats that rebuild from the same version must not both land: the second batch would overwrite the newer prior
 // with probabilities from older inputs.
-import { doc, setDoc, writeBatch, updateDoc, type Firestore } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, Timestamp, writeBatch, updateDoc, type Firestore } from "firebase/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { commandEvent, validEvent } from "../fixtures";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims } from "../helpers";
@@ -102,6 +102,15 @@ describe("a camera Confirm lands once (two seats, same clip, same version)", () 
     b.set(doc(db, `incidents/I1/events/${alone.eventId}`), alone);
     await assertFails(b.commit());
   });
+  it("the inputs must be a list: a map keyed by the sighting's id does not count (review)", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    const cam = camEvent("seat-a", 1);
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.4, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorInputEventIds: { [cam.eventId as string]: true }, priorVersion: 6 });
+    b.set(doc(db, `incidents/I1/events/${cam.eventId}`), cam);
+    await assertFails(b.commit());
+  });
   it("the family app still confirms a clip by itself (it never moves the prior)", async () => {
     const db = dbAs("family-uid", familyClaims);
     const cam = camEvent("family-uid", 1, "family");
@@ -119,5 +128,22 @@ describe("the prior's inputs change only with the next version", () => {
       await assertFails(updateDoc(doc(db, "incidents/I1"), { [k]: v, priorVersion: 7 }));
     }
     await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { ipp: inputs.ipp, ippSource: "sighting", priorInputEventIds: inputs.priorInputEventIds, priorVersion: 6 }));
+  });
+});
+
+describe("when the current prior was built (priorBuiltAt, for the replay)", () => {
+  it("is set only with the next version, and only to the server's time", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { priorBuiltAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { priorVersion: 6, priorBuiltAt: Timestamp.fromMillis(Date.UTC(2026, 0, 1)) }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { priorVersion: 6, priorBuiltAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { priorVersion: 7 }));
+  });
+  it("rides in a full prior batch", async () => {
+    const db = dbAs("seat-a", commandClaims);
+    const b = writeBatch(db);
+    for (const s of [...SEGS, "ROW"]) b.set(doc(db, `incidents/I1/segments/${s}`), { priorPoa: 0.3, priorVersion: 6 }, { merge: true });
+    b.update(doc(db, "incidents/I1"), { priorModel: "walkers", priorVersion: 6, priorBuiltAt: serverTimestamp() });
+    await assertSucceeds(b.commit());
   });
 });

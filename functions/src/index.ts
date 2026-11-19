@@ -2,14 +2,17 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { beforeGenerateContent } from "firebase-functions/v2/ai";
 import { onCall } from "firebase-functions/v2/https";
-import { onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onObjectDeleted } from "firebase-functions/v2/storage";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
-import { deleteClipForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
+import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
+import { handlePlanCreated } from "./notify.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -87,3 +90,17 @@ export const cloudGuard = beforeGenerateContent({ region: "us-central1", maxInst
     console.log(JSON.stringify(guardLogLine({ model: event.data.model, template: event.data.template, request: event.data.request as never }, out)));
     return out;
   });
+
+/**
+ * notifyPlanApproved (Firestore trigger on plans/{version} create): one push per team whose assignment changed, on
+ * the team's topic, with no person, place or task text. Collapse key = incident; lives 2 hours.
+ */
+export const notifyPlanApproved = onDocumentCreated({ document: "incidents/{incidentId}/plans/{version}", region: "us-central1" },
+  event => handlePlanCreated(getFirestore(), getMessaging(), event.params.incidentId, event.params.version, Date.now()).then(() => undefined));
+
+/**
+ * deletePhotoConsentOnPhotoDelete (Storage trigger): when a photo object is deleted, by command, by the media delete
+ * or by the 30-day lifecycle, its cloud-read consent goes too, so a re-upload of the same bytes needs a new consent.
+ */
+export const deletePhotoConsentOnPhotoDelete = onObjectDeleted({ region: "us-central1", retry: true },
+  event => deletePhotoConsentForObject(getFirestore(), event.data.name).then(() => undefined));

@@ -41,9 +41,9 @@
     }
   },
   "sources": {
-    "sweepWidthFactor": "SOURCED: W = 1.645 x Rd, Koester et al. 2014 (PLS-DOMAIN)",
-    "sweepSpeedMps": "SOURCED: sweep speed, Hashimoto et al. 2026 (PLS-DOMAIN)",
-    "hastySpeedMps": "SOURCED: hasty speed, Hashimoto et al. 2026 (PLS-DOMAIN)",
+    "sweepWidthFactor": "SOURCED: W = 1.645 x Rd, Koester et al. 2014, Wilderness Environ Med 25(2) (docs/evidence/search-math-sources.md)",
+    "sweepSpeedMps": "SOURCED: median sweep speed, Hashimoto et al. 2026, PLoS One 21(6): e0339541 (docs/evidence/search-math-sources.md)",
+    "hastySpeedMps": "SOURCED: median hasty speed, Hashimoto et al. 2026, PLoS One 21(6): e0339541 (docs/evidence/search-math-sources.md)",
     "secondsPerMinute": "unit conversion: reports give minutes, track length uses seconds",
     "iocBase": "OURS: PLS v1 likelihood table (CASIE Table 7 not read)",
     "authenticityWeight": "OURS: PLS v1 likelihood table",

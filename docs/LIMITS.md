@@ -82,8 +82,10 @@ each line says what the limit is and why.
   the clip can outlast its consent by that function's delay; the 30-day lifecycle is the backstop. When
   command deletes a record, its clip goes with it.
 - An incident's command can delete all its clips, photos and their readings at once with
-  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. Packs
-  are not included; they are rebuilt from the incident and expire with the lifecycle rule.
+  `deleteIncidentMediaNow`, for example when a family withdraws consent, instead of waiting 30 days. It first
+  marks the incident (`mediaRevokedAt`, a new server time on each call), so every open command seat drops the
+  media at once, then deletes the files and readings. Packs are not included; they are rebuilt from the incident
+  and expire with the lifecycle rule.
 - A judge's practice search (`startJudgeSession`) is a copy of the development drill on the Piedmont Park grid:
   its grid, prior, teams and shared profile, labelled "Training drill. Practice search; nobody is missing." It
   carries no events from the drill; the judge adds reports and sightings. It switches to the exported drill run
@@ -91,6 +93,30 @@ each line says what the limit is and why.
   is deleted, with everything in it, a day after it ends.
 - When a judge sandbox ends, the security rules stop every signed-in read and write of its data and media
   at once. Its files are deleted within 15 minutes of the end by `deleteIncidentMedia`, which runs every 5
-  minutes and retries a sandbox until a sweep finds nothing left. It is built and goes live with the next
-  security rules deploy; until then a sandbox's media lasts up to 30 days, and so does any link made during
-  the sandbox.
+  minutes and retries a sandbox until a sweep finds nothing left. Both are live (deployed 2026-11-18); the daily
+  probe checks the sweep's `ops/storage` heartbeat. A link made during the sandbox stops working when its file
+  is deleted.
+
+## The published drill run
+
+- `tools/export-run` writes the public run (`web/public/evidence/published-run.json`) with no Firebase uid:
+  authors and devices are pseudonyms (`author-N`, `device-N`), report text is null, a reading survives only on a
+  camera sighting (its clock and times), and a place to check or a camera pin has no position. It refuses to
+  write a run that breaks any of these.
+- Event ids stay as stored, because plans and the prior name events by id. An event id is a hash of the incident,
+  the writing device's auth uid and a counter, so someone who already holds a participant's uid could check which
+  events are theirs. Uids are never published, and every published run is a drill on team-owned devices.
+- The judge replay's reader is a second check, not the privacy boundary. Its scan for user ids is best effort; the
+  exporter's pseudonyms are the guarantee.
+- The reader parses the whole file before its size checks (at most 1,000 reports, over at most 7 days), so an
+  oversized file costs the browser a parse before it is refused.
+- The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
+
+## Push notifications
+
+- When command approves a plan, `notifyPlanApproved` pushes each team whose assignment changed, on the topic
+  `pls-{incident}-{team}`. Firebase Cloud Messaging topics are open: any install of an app can subscribe to any topic
+  name. So a push carries nothing private: a fixed line ("Your team has a new task. Open Point Last Seen to see
+  it."), the incident and team ids, and the plan version. The task itself is read in the app, behind the security
+  rules. Pushes go only to teams the incident has, at most 20 a plan, and never in a judge practice search.
+- iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

@@ -69,12 +69,15 @@ service cloud.firestore {
         && request.resource.data.status in ['open', 'found', 'closed']
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty'])
+              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt'])
         // The prior moves one version at a time, and its inputs change only with that step, so two seats
         // rebuilding from the same version cannot both land.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',
-              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams'])
-            || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1);
+              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams', 'priorBuiltAt'])
+            || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1)
+        // When the current prior was built, for the replay: the server's time of the write that built it.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorBuiltAt'])
+            || request.resource.data.priorBuiltAt == request.time);
       allow delete: if false;
 
       match /segments/{segmentId} {
@@ -168,6 +171,20 @@ service cloud.firestore {
       }
       match /photoReadings/{sha256} {
         allow read, write: if isCommand(incidentId);
+      }
+      // A photo's cloud-read consent, written by the family member who shares the photo. Command reads it from the
+      // server before any cloud read of that photo. Never changed; its creator withdraws it; the media delete
+      // removes it with the photos.
+      match /photoConsents/{sha256} {
+        allow read: if isCommandOrFamily(incidentId);
+        allow create: if isFamily(incidentId) && sha256.matches('^[0-9a-f]{64}$')
+          && exactKeys(request.resource.data, ['storagePath', 'cloudProcessing', 'createdByUid', 'createdAt'])
+          && request.resource.data.storagePath == 'photos/' + incidentId + '/' + sha256 + '.jpg'
+          && consentOk(request.resource.data.cloudProcessing)
+          && request.resource.data.createdByUid == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if isFamily(incidentId) && resource.data.createdByUid == request.auth.uid;
       }
 
       match /events/{eventId} {
@@ -401,7 +418,9 @@ service cloud.firestore {
     // reading doc (consent record) must exist.
     function cameraMovesPrior(incidentId, eventId, inc) {
       let after = getAfter(/databases/$(database)/documents/incidents/$(incidentId)).data;
-      return after.get('priorVersion', -1) == inc.get('priorVersion', 0) + 1 && eventId in after.get('priorInputEventIds', []);
+      let inputs = after.get('priorInputEventIds', []);
+      // A list only: `in` also matches the keys of a map.
+      return after.get('priorVersion', -1) == inc.get('priorVersion', 0) + 1 && inputs is list && eventId in inputs;
     }
 
     function cameraReadingOk(incidentId, r) {
