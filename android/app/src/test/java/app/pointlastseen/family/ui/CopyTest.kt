@@ -15,7 +15,13 @@ class CopyTest {
     @Test fun callFirstSaysTheDrillCallTakerInADrill() {
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("drill"))
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("judge"))
-        assertEquals("Call 911 first.", Copy.callFirst(null))
+        assertEquals("Look in the immediate area now. If you don't find them within 5 minutes, call 911.", Copy.callFirst(null))
+    }
+
+    /** The first minutes, in her words of advice: look nearby now, call 911 within five minutes. */
+    @Test fun theFirstMinutesGuidanceAndItsSource() {
+        assertEquals("Look in the immediate area now. If you don't find them within 5 minutes, call 911.", Copy.FIRST_MINUTES)
+        assertEquals("Guidance from Kim Franklin, Alzheimer's Association Georgia", Copy.FIRST_MINUTES_SOURCE)
     }
 
     @Test fun theUnjoinedCallFirstScreenNamesTheDrillCallTaker() {
@@ -42,5 +48,11 @@ class CopyTest {
         assertEquals("An on-device model can be downloaded to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADABLE))
         assertEquals("An on-device model is downloading to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADING))
         assertEquals("This phone could not report its on-device model.", Copy.aboutModel(DeviceModelStatus.UNKNOWN))
+    }
+
+    /** News about the missing person comes only by phone from the search lead, never from the app. */
+    @Test fun theNewsLineSaysNewsComesByPhone() {
+        org.junit.Assert.assertEquals("News about Mae comes from your search lead by phone, never from this app.", Copy.newsByPhone("Mae"))
+        org.junit.Assert.assertEquals("News about them comes from your search lead by phone, never from this app.", Copy.newsByPhone("  "))
     }
 }

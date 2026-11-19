@@ -64,7 +64,7 @@ sealed class ClipUi {
 private val HHMM = Regex("""^([01]?\d|2[0-3]):([0-5]\d)$""")
 
 @Composable
-private fun Tick(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun Tick(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,

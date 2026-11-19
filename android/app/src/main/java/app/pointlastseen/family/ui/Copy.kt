@@ -8,6 +8,9 @@ object Copy {
     const val KILL_CLOUD = "Cloud reading is paused. You can still type everything in."
     const val EVIDENCE = "This may be evidence. Do not touch it. Call command now."
     const val UNJOINED_DRILL_HINT = "In a training drill, call the drill call-taker, not 911."
+    /** Advice for the first minutes from a dementia-care expert, quoted as her advice. */
+    const val FIRST_MINUTES = "Look in the immediate area now. If you don't find them within 5 minutes, call 911."
+    const val FIRST_MINUTES_SOURCE = "Guidance from Kim Franklin, Alzheimer's Association Georgia"
     /** Where the release APK is published (GitHub Releases). */
     const val DOWNLOAD_PAGE = "https://github.com/StephenSook/point-last-seen/releases/latest"
 
@@ -16,7 +19,11 @@ object Copy {
     fun drillBanner(mode: String?): String? = if (isDrill(mode)) DRILL else null
 
     fun callFirst(mode: String?): String =
-        if (isDrill(mode)) "Training drill. Call the drill call-taker, not 911." else "Call 911 first."
+        if (isDrill(mode)) "Training drill. Call the drill call-taker, not 911." else FIRST_MINUTES
+
+    /** The fixed status line: news about the missing person never comes from this app. */
+    fun newsByPhone(name: String): String =
+        "News about ${name.trim().ifEmpty { "them" }} comes from your search lead by phone, never from this app."
 
     fun status(status: String?): String = when (status) {
         "found" -> "Found. Safe."

@@ -1,6 +1,6 @@
 package app.pointlastseen.family.ui
 
-enum class Screen { PROFILE, CALL_FIRST, JOIN, STATUS, CLIP, PHOTOS, NOTE, SIGHTING, ABOUT, SCRIPT_911 }
+enum class Screen { PROFILE, CALL_FIRST, JOIN, STATUS, CLIP, PHOTOS, NOTE, SIGHTING, ABOUT, SCRIPT_911, QUESTION }
 
 data class NavState(val screen: Screen, val gone: Boolean, val joined: Boolean)
 
@@ -30,8 +30,12 @@ object Nav {
         if (s.gone) NavStep(s.copy(screen = Screen.STATUS, joined = true), publishProfile = true)
         else NavStep(s.copy(screen = Screen.PROFILE, joined = true))
 
-    fun open(s: NavState, target: Screen): NavState =
-        if (target in ACTIONS && !(s.joined && s.gone)) s else s.copy(screen = target)
+    fun open(s: NavState, target: Screen): NavState = when {
+        target in ACTIONS && !(s.joined && s.gone) -> s
+        // The search lead's question belongs to a search the family has joined.
+        target == Screen.QUESTION && !s.joined -> s
+        else -> s.copy(screen = target)
+    }
 
     /** The 911 script is read during the call, so Back returns to "Call 911 first". */
     fun back(s: NavState): NavState = s.copy(

@@ -4,32 +4,83 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Where the two profile documents go: incidents/{incidentId}/profile/{shared|command}. */
+sealed interface ProfileWrite {
+    data class Whole(val data: Map<String, Any?>) : ProfileWrite
+    data class Fields(val data: Map<String, Any?>) : ProfileWrite
+}
+
 fun interface ProfileSink {
-    fun write(incidentId: String, docId: String, data: Map<String, Any?>, onResult: (Throwable?) -> Unit)
+    fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit)
+}
+
+interface PublishedProfiles {
+    fun get(key: String): String?
+    fun put(key: String, json: String)
+}
+
+/** What was last published, per incident and document, in this phone's private storage. */
+class PrefsPublishedProfiles(private val store: KeyValueStore) : PublishedProfiles {
+    override fun get(key: String): String? = store.get("published:$key")
+    override fun put(key: String, json: String) = store.put("published:$key", json)
 }
 
 /**
- * After "She's gone": the shared fields to profile/shared (readable by every member,
- * carried in packs) and the history to profile/command (command and family only).
- * Firestore rules work per document, so the split keeps history off searcher phones.
+ * After "She's gone": the shared fields to profile/shared (readable by every member, carried in packs)
+ * and the history to profile/command (command and family only). The first publish of a document writes
+ * it whole; after that only the fields that changed on this phone are sent, so a restart sends nothing
+ * and a field command edited is not undone. What was published is remembered only after the write.
  */
-class ProfilePublisher(private val sink: ProfileSink) {
+class ProfilePublisher(private val sink: ProfileSink, private val published: PublishedProfiles) {
     fun publish(incidentId: String, p: SubjectProfile, onDone: (Boolean) -> Unit) {
-        val left = AtomicInteger(2)
+        val writes = listOf("shared" to Profiles.forSearchers(p).toMap(), "command" to Profiles.forCommand(p).toMap())
+            .mapNotNull { (doc, data) -> plan(incidentId, doc, data)?.let { Triple(doc, data, it) } }
+        if (writes.isEmpty()) return onDone(true)
+        val left = AtomicInteger(writes.size)
         var ok = true
-        val each: (Throwable?) -> Unit = { err ->
-            if (err != null) ok = false
-            if (left.decrementAndGet() == 0) onDone(ok)
+        for ((doc, data, change) in writes) {
+            sink.write(incidentId, doc, change) { err ->
+                if (err == null) published.put(key(incidentId, doc), DocJson.of(data).toString()) else ok = false
+                if (left.decrementAndGet() == 0) onDone(ok)
+            }
         }
-        sink.write(incidentId, "shared", Profiles.forSearchers(p).toMap(), each)
-        sink.write(incidentId, "command", Profiles.forCommand(p).toMap(), each)
+    }
+
+    private fun key(incidentId: String, doc: String) = "$incidentId/$doc"
+
+    /** The whole document the first time, then only the changed fields; null when nothing changed. */
+    private fun plan(incidentId: String, doc: String, data: Map<String, Any?>): ProfileWrite? {
+        val last = published.get(key(incidentId, doc))?.let { DocJson.parse(it) } ?: return ProfileWrite.Whole(data)
+        val now = DocJson.of(data)
+        val changed = data.filterKeys { now[it] != last[it] }
+        return if (changed.isEmpty()) null else ProfileWrite.Fields(changed)
+    }
+}
+
+/** Document values as JSON, so a value read back compares equal to the same value built again. */
+private object DocJson {
+    fun of(data: Map<String, Any?>): kotlinx.serialization.json.JsonObject = value(data) as kotlinx.serialization.json.JsonObject
+
+    fun parse(text: String): kotlinx.serialization.json.JsonObject? =
+        runCatching { kotlinx.serialization.json.Json.parseToJsonElement(text) as kotlinx.serialization.json.JsonObject }.getOrNull()
+
+    private fun value(v: Any?): kotlinx.serialization.json.JsonElement = when (v) {
+        null -> kotlinx.serialization.json.JsonNull
+        is String -> kotlinx.serialization.json.JsonPrimitive(v)
+        is Boolean -> kotlinx.serialization.json.JsonPrimitive(v)
+        is Number -> kotlinx.serialization.json.JsonPrimitive(v.toDouble())
+        is Map<*, *> -> kotlinx.serialization.json.JsonObject(v.entries.associate { (k, x) -> k.toString() to value(x) })
+        is List<*> -> kotlinx.serialization.json.JsonArray(v.map(::value))
+        is Set<*> -> kotlinx.serialization.json.JsonArray(v.map(::value))
+        else -> kotlinx.serialization.json.JsonPrimitive(v.toString())
     }
 }
 
 class FirestoreProfileSink : ProfileSink {
-    override fun write(incidentId: String, docId: String, data: Map<String, Any?>, onResult: (Throwable?) -> Unit) {
-        Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document(docId)
-            .set(data).addOnCompleteListener { onResult(it.exception) }
+    override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) {
+        val doc = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document(docId)
+        when (change) {
+            is ProfileWrite.Whole -> doc.set(change.data).addOnCompleteListener { onResult(it.exception) }
+            is ProfileWrite.Fields -> doc.update(change.data).addOnCompleteListener { onResult(it.exception) }
+        }
     }
 }

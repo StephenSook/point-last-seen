@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
+- Merge: main (224b182, with the web lane's fixes for two timing-sensitive browser tests) into the extras branch before PR #35 merges. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: web typecheck exit 0; `bash scripts/ci-local.sh` on the PR head exit CI_EXIT.
+
 - Merge: main (0cd6a21, which adds the shared heavy-run script) into the extras branch. No conflicts, no extras file and no lockfile changed. Source: merge to main. Verified: the extras unit tests pass 198; web typecheck exit 0. The full local mirror runs once on the PR head before merge.
 
 - Fix: with background graphics on, a printed sheet or card had dark margins around the white page. The print styles made `body` white, but the page root stayed transparent under the app's dark color scheme, so the canvas around the sheet printed dark. In print, while the sheet or cards are open, the root is now white with a light color scheme. Source: the print check of the assignment sheet and radio card PDFs. Verified: the new browser check (in print media, the page root and body are white) fails without the fix ("rgba(0, 0, 0, 0)") and passes with it. The sheet PDF, rendered with background graphics on, is now black on white with no dark margin. The print checks pass 9 of 9; the extras browser checks pass 45 of 45; web typecheck exit 0. The full local mirror runs once on the PR head before merge.
