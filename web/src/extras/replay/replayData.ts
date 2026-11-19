@@ -236,6 +236,30 @@ const strayRefusal = (field: string) => refuse(`The run carries a field a public
 const typeRefusal = (field: string) => refuse(`The run has a field of the wrong type: ${field}.`);
 const USER_ID = "The run carries a user id. A public run must not.";
 
+/** Names an object's own prototype machinery answers to. A file must not use them as a key or an id. */
+const RESERVED_NAMES: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
+/** The first reserved name used anywhere in `v`, as a key or a text value, or null. */
+function reservedName(v: unknown, depth = 0): string | null {
+  if (depth > 64) return null; // the uid scan refuses a run nested this deep
+  if (typeof v === "string") return RESERVED_NAMES.has(v) ? v : null;
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const r = reservedName(x, depth + 1);
+      if (r) return r;
+    }
+    return null;
+  }
+  if (isObj(v)) {
+    for (const [k, x] of Object.entries(v)) {
+      if (RESERVED_NAMES.has(k)) return k;
+      const r = reservedName(x, depth + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 /** A Firebase Auth uid standing alone inside longer text: 28 letters and digits with no letter or digit beside them. */
 const UID_IN_TEXT = /(?:^|[^A-Za-z0-9])[A-Za-z0-9]{28}(?:$|[^A-Za-z0-9])/;
 
@@ -270,6 +294,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   if (Array.isArray(events) && events.length > MAX_RUN_EVENTS) return refuse(`The run has more reports than the replay can show (${MAX_RUN_EVENTS} at most).`);
   // Before the field checks, so a user id is named as one wherever it sits, and a refusal never repeats it.
   if (holdsUidShape(run)) return refuse(USER_ID);
+  const reserved = reservedName(run);
+  if (reserved) return refuse(`The run uses a reserved name: ${reserved}.`);
   const topStray = strayField(run as Record<string, unknown>, RUN_FIELDS.run, null);
   if (topStray) return strayRefusal(topStray);
   const topType = wrongType(run as Record<string, unknown>, RUN_TYPES.run, null);
@@ -314,7 +340,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
     const teamType = wrongType(t, RUN_TYPES.team, "team");
     if (teamType) return typeRefusal(teamType);
   }
-  const offsets: Record<string, number> = {};
+  // Keyed by file data, so it has no prototype: a device id can never reach an inherited name.
+  const offsets: Record<string, number> = Object.create(null) as Record<string, number>;
   for (const d of devices) {
     if (!isObj(d)) return typeRefusal("device");
     const deviceStray = strayField(d, RUN_FIELDS.device, "device");

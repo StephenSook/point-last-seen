@@ -23,14 +23,15 @@ const listOf = (c: Check): Check => (v, at) => (Array.isArray(v) ? (v.every((x) 
 function shape(need: Record<string, Check>, may: Record<string, Check> = {}): Check {
   return (v, at) => {
     if (!isPlain(v)) return at;
-    for (const k of Object.keys(v)) if (!(k in need) && !(k in may)) return at;
+    // Own fields only: `in` would also find inherited names such as toString or __proto__.
+    for (const k of Object.keys(v)) if (!Object.hasOwn(need, k) && !Object.hasOwn(may, k)) return at;
     for (const [k, c] of Object.entries(need)) {
-      if (!(k in v)) return at;
+      if (!Object.hasOwn(v, k)) return at;
       const bad = c(v[k], `${at}.${k}`);
       if (bad) return bad;
     }
     for (const [k, c] of Object.entries(may)) {
-      if (!(k in v)) continue;
+      if (!Object.hasOwn(v, k)) continue;
       const bad = c(v[k], `${at}.${k}`);
       if (bad) return bad;
     }
@@ -139,7 +140,7 @@ export const RUN_TYPES: Record<"run" | "incident" | "segment" | "row" | "team" |
 /** The first field of `o` present with the wrong type, as "where.field" (or "field" at the top), or null. */
 export function wrongType(o: Record<string, unknown>, types: Record<string, Check>, where: string | null): string | null {
   for (const [k, v] of Object.entries(o)) {
-    const c = types[k];
+    const c = Object.hasOwn(types, k) ? types[k] : undefined;
     if (!c) continue; // a field the contract does not list is refused by name before this runs
     const bad = c(v, where ? `${where}.${k}` : k);
     if (bad) return bad;

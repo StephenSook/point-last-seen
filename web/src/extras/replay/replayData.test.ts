@@ -470,6 +470,18 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ segments: [offEarth, ...base.segments.slice(1)] }))).toEqual({ ok: false, reason: "The run has a field of the wrong type: segment.centroid.lat." });
   });
 
+  it("refuses __proto__, constructor and prototype as any key or value", () => {
+    const base = runV1();
+    const seg = base.segments[0] as RunSegment;
+    const e = base.events[0]!;
+    const reserved = (name: string) => ({ ok: false, reason: `The run uses a reserved name: ${name}.` });
+    const protoPosition: unknown = JSON.parse('{"lat":33.79,"lon":-84.37,"accuracyM":null,"__proto__":{"a":1}}');
+    expect(fromPublishedRun(run({ events: [{ ...e, position: protoPosition } as typeof e] }))).toEqual(reserved("__proto__"));
+    expect(fromPublishedRun(run({ segments: [{ ...seg, segmentId: "__proto__" }, ...base.segments.slice(1)] }))).toEqual(reserved("__proto__"));
+    expect(fromPublishedRun(run({ teams: [{ teamId: "constructor", name: "Alfa" }] }))).toEqual(reserved("constructor"));
+    expect(fromPublishedRun(run({ events: [{ ...e, targetEventId: "prototype" }] }))).toEqual(reserved("prototype"));
+  });
+
   it("refuses a run that covers more than 7 days, or carries a server time outside the years 2000 to 2100", () => {
     const base = runV1();
     const e = base.events[0]!;
