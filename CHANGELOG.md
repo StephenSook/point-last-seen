@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `docs/evidence/drill/kennesaw-seed.md`: how to rebuild the Kennesaw grid and seed its drill incident, step by
+  step, marked NOT RUN until the park gives written permission (the Piedmont drill is the fallback). It states the
+  urban terrain, with temperate mountain as the alternative command can pick.
+  Source: review (keep the second drill ready, not live).
+  Verified: the commands match the tools' usage (`build-grid --site-from-osm`, `--query`, `--prior`, `--graph`;
+  `seed_drill.py`, `seed_segments.py`); `bash scripts/ci-local.sh` exit 0.
 - `shared/grid/kennesaw-mountain-drill.grid.json`: a second drill grid, ready but not used: Kennesaw Mountain
   National Battlefield Park (OpenStreetMap relation 143353) inside a 2.4 km window around the Visitor Center and
   the two summits, 285 segments and 3.76 km2, the park's inholdings kept out as holes. Built from an OpenStreetMap
