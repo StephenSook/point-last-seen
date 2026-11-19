@@ -8,6 +8,9 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ## 2026-11-17
 
+- What: `data/debriefs.ts` for `incidents/{id}/debriefs/{segmentId}`: `parseDebriefForm` (whole minutes 0 to 1440; "what worked" and "what didn't work" optional, trimmed, up to 500 characters each), `debriefFromDoc`, `newDebriefDoc` (writer, server time, the cleared event when known), `debriefEdit` (time and notes only; a cleared note is removed), `clearedSegments` (each cleared segment once, its latest clear), `debriefAuthor` (the clearing team when its own device wrote it, else Command), `subscribeDebriefs` and `saveDebrief`. Nothing here feeds the map, the probabilities or the plans.
+- Source: field-expert input (search and rescue practitioner: debrief after a search) and the shared debrief rules.
+- Verified: `src/data/debriefs.test.ts` (8 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
 ### feat(web): validate join requests and call joinIncident
 - What: `joinRequest` cleans the join code (trim, upper case, no spaces or hyphens), requires 8 characters and an incident id, and sends a team only for the searcher role. `joinIncident` calls the callable and refreshes the ID token so new claims reach the rules at once.
 - Source: plan Task 15 (`web/src/data/join.ts`), callable contract from Task 11.
