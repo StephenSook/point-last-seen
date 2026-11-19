@@ -19,6 +19,7 @@ function Harness() {
       <LayerSwitches
         layers={{ linear: true, wedge: false }}
         terrain={new URLSearchParams(location.search).get("terrain") === "urban" ? "urban" : "temperate_flat"}
+        rings={new URLSearchParams(location.search).get("rings") === "custom" ? [0.5, 1, 2.5, 10] : undefined}
         hasBearing={false}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}

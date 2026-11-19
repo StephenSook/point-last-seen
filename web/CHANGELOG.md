@@ -1095,3 +1095,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when the profile has the family's list of other names, the form no longer shows a Nickname field: the nickname mirrors the list's first entry on every save, so an edit there was silently dropped. It shows the list instead, read-only, through `namesToCall`: "Names they answer to: Bea, Mom, Roberta. The family keeps this list in their app." Without a list, the Nickname field works as before.
 - Source: review of the field-expert branch, round 2, finding 3.
 - Verified: the profile harness gets `?names=1`; the new test (no Nickname field, the list line) failed first, then passed; a second test checks the field is still there without a list; 3 profile harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): name custom ring radii as custom instead of crediting ISRID
+- What: the rings' source line credits ISRID only while the incident's stored radii for its terrain are the sourced ones (`DEFAULT_PARAMS.rings`). Radii stored differently are named with their values: "Urban rings, custom radii (0.5, 1, 2.5, 10 km), not the ISRID table, measured in a straight line." The picker takes the incident's stored radii (`rings`, from `engineParams` completed with the defaults).
+- Source: review of the field-expert branch, round 2, finding 5.
+- Verified: two new `terrains.test.ts` cases (the sourced radii keep the ISRID line; other radii give the custom line) failed first for the custom case, then passed; the new layers harness test (`?rings=custom`) failed first, then passed; 9 layers harness tests and 5 terrain unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.

@@ -689,6 +689,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <LayerSwitches
               layers={incident.priorLayers ?? { linear: false, wedge: false }}
               terrain={incident.terrain ?? "temperate_flat"}
+              rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
               hasBearing={bearing !== null}
               model={incident.priorModel ?? "rings"}
               vehicleInvolved={profile?.command?.vehicle?.involved === true}

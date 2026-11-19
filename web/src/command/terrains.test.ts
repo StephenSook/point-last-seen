@@ -1,3 +1,4 @@
+import { DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import params from "../../../shared/constants/engine-params.json";
 import { RING_SAMPLE, TERRAINS, ringSourceLine } from "./terrains";
@@ -24,5 +25,14 @@ describe("terrain choices", () => {
     expect(ringSourceLine("urban")).toBe("Urban rings, ISRID dementia (n = 336), measured in a straight line.");
     expect(ringSourceLine("temperate_flat")).toBe("Temperate flat rings, ISRID dementia (n = 175), measured in a straight line.");
     expect(ringSourceLine("temperate_mountain")).toBe("Temperate mountain rings, ISRID dementia (n = 95), measured in a straight line.");
+  });
+});
+
+describe("the source line with stored radii", () => {
+  it("credits ISRID only while the stored radii are the sourced ones", () => {
+    expect(ringSourceLine("urban", DEFAULT_PARAMS.rings.urban)).toBe("Urban rings, ISRID dementia (n = 336), measured in a straight line.");
+  });
+  it("says custom radii, and shows them, when they differ", () => {
+    expect(ringSourceLine("urban", [0.5, 1, 2.5, 10])).toBe("Urban rings, custom radii (0.5, 1, 2.5, 10 km), not the ISRID table, measured in a straight line.");
   });
 });

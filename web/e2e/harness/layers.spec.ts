@@ -84,3 +84,8 @@ test("a rebuild refused because another seat moved the prior first says so in pl
   await page.getByRole("button", { name: "Server refuses the first" }).click();
   await expect(page.getByRole("alert")).toHaveText("Another seat updated the map. Showing the newer one.");
 });
+
+test("radii stored differently from the sourced table are named as custom, not credited to ISRID", async ({ page }) => {
+  await page.goto("/harness/layers.html?terrain=urban&rings=custom");
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("Urban rings, custom radii (0.5, 1, 2.5, 10 km), not the ISRID table, measured in a straight line.");
+});
