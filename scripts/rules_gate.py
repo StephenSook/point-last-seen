@@ -72,6 +72,11 @@ MODEL_BUILDERS = {
 TOKEN_URL = re.compile(r"\b(getDownloadURL|downloadURL|downloadUrl)\b")
 CLIENT_DIRS = ("web/", "ios/", "android/")
 
+# The web reaches the browser's built-in model only through Firebase AI Logic's hybrid mode, never by making or
+# prompting a session itself. Plain, optional-chained (?.) and bracket access all count.
+BUILT_IN_SESSION = re.compile(
+    r"LanguageModel\s*(?:\?\s*)?(?:\.\s*create\b|\[\s*[\"']create[\"']\s*\])"
+    r"|\.\s*prompt(?:Streaming)?\s*\(|\[\s*[\"']prompt(?:Streaming)?[\"']\s*\]\s*\(")
 # Plain, optional-chained (?.) and bracket ("availability") access all count.
 AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
@@ -161,6 +166,8 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
         m = ANYCASE.search(line)
         if m:
             bad(f"banned name '{m.group(0)}'")
+        if not is_doc and rel.startswith("web/") and BUILT_IN_SESSION.search(line):
+            bad("a built-in model session is made or prompted only by Firebase AI Logic, never by web code")
         if not is_doc and AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
             bad("LanguageModel.availability is allowed only in the web AI gate module")
         if rel in COUNT_TOKENS_BANNED_IN and "countTokens" in line:

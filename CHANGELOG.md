@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
+  a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
+  under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
+  gate checked only the availability call. Docs may name them, and the iPhone and Android code is not affected.
+  Source: review (the web's direct built-in model calls were unguarded, unlike the companion guard's).
+  Verified: one test per call (each form fails the gate) failed first, now passes, with a control that a doc
+  mention, a Swift session and the AI Logic builder pass; all 35 gate tests pass; the gate over the repository exits
+  0 with 966 files walked.
 - The public-hygiene guard keeps its word list as SHA-256 hashes, so neither `scripts/hygiene_guard.py` nor its test
   spells a word it protects. It splits the text into lowercased words and checks each word's hash (and the word
   without a trailing "s"), and the hash of each two- or three-word phrase joined exactly as written by "-", a space
