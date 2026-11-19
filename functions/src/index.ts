@@ -111,7 +111,7 @@ export const deletePhotoConsentOnPhotoDelete = onObjectDeleted({ region: "us-cen
  */
 export const notifyFamilyQuestion = onDocumentCreated({ document: "incidents/{incidentId}/familyQuestions/{questionId}", region: "us-central1" },
   async event => {
-    await handleFamilyQuestion(getFirestore(), getMessaging(), event.params.incidentId, event.params.questionId, Date.now());
+    await handleFamilyQuestion(getFirestore(), getMessaging(), event.params.incidentId, event.params.questionId, event.id, Date.now());
   });
 
 /**
@@ -121,5 +121,5 @@ export const notifyFamilyQuestion = onDocumentCreated({ document: "incidents/{in
 export const notifyFamilySearchState = onDocumentUpdated({ document: "incidents/{incidentId}", region: "us-central1" },
   async event => {
     await handleSearchState(getFirestore(), getMessaging(), event.params.incidentId,
-      event.data?.before.data(), event.data?.after.data(), Date.now());
+      event.data?.before.data(), event.data?.after.data(), event.id, Date.now());
   });

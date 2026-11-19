@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Family pushes go out once per trigger event and only while still true. One transaction reads the incident, claims
+  the event (by a hash of its id) and takes the day's budget slot, so a redelivered event sends nothing and uses no
+  budget. A question needs an incident that is still open, and a searching or paused push needs the incident to
+  still hold that state, so a late event for a state already left is dropped. A question id must be a Firestore
+  auto-id, and the incident id must make a valid topic, both checked before any budget is used. Logs keep ids
+  and text out.
+  Source: review (family channel, round 1).
+  Verified: the tests (the exact message for all three kinds, sent from a stored question with distinctive text that
+  never appears; a repeated event id sends once and counts once; a stale state sends nothing; the cap is the
+  literal 20; malformed question and incident ids send nothing and write no budget doc; a found incident gets no
+  question push) failed first, now all 16 push tests pass; typecheck exit 0; `bash scripts/ci-local.sh` exit 0.
 - A family question's id must be a Firestore auto-id (20 letters and digits), so nothing a person types can ride a
   push as an id, and command can ask only while the incident's status is `open` (before, anything but `closed`, so
   a found incident could still take a question).
