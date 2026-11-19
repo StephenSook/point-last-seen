@@ -36,7 +36,8 @@ each line says what the limit is and why.
   written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
   so each assignment is checked by its index; 10 is what fits the rules' 1,000-expression limit with room to spare.
   The one thing the rules cannot see is a segment id written as a number instead of text. Only a command seat can
-  write a plan, and the command post always writes ids as text; the apps read ids only as text.
+  write a plan, the command post always writes ids as text, and it reads each stored plan field by field
+  (`planFromDoc`), setting aside, and naming on the post, any record that is not a plan.
 
 ## On-device safety (Android)
 

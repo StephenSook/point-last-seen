@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` says how the one gap the plan rule leaves (a numeric segment id) is closed: the command post reads
+  each stored plan field by field (`planFromDoc`) and sets aside, and names, any record that is not a plan.
+  Source: review (the command post now decodes plans on read).
+  Verified: matches `web/src/data/plans.ts` (a segment id that is not text returns null); no dashes or curly quotes.
 - The security rules drop the `planDrafts` read path: no function writes plan drafts and, since the command post
   removed its draft listener (now deployed), nothing reads them. Reads and writes there are now refused by default.
   Source: review (a read-only path to a collection nothing uses).
