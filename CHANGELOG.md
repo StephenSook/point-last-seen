@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-18
 
+- `shared/constants/models.json` names the speech model's caller as the server prompt template `pls-voice-v1`;
+  the retired Remote Config key `tts_model_ios` is gone from it.
+  Source: review (the film fact-sheet audit).
+  Verified: no other shipped file names `tts_model_ios` (`git grep`); `bash scripts/ci-local.sh` exit 0.
 - `docs/SECURITY.md`'s table of cloud calls now lists all eight, with whether each is a server prompt template or a
   direct call: it adds the web clip read (direct, because a template cannot pass the clip window) and the iOS
   spoken assignment change (template `pls-voice-v1`), and replaces "None is templated today" with which three are.
