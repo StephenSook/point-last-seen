@@ -2,6 +2,17 @@
 // writer agree on one typed contract instead of each guessing the other. The file is served publicly at
 // /evidence/published-run.json: it carries no uid, no join code, no report text, no profile field, no clip
 // path and no consent record. The reader refuses a run that carries report text.
+//
+// The exporter (tools/export-run) is what keeps private data out of this file: it writes only these fields, from
+// records whose source it knows. The reader (replay/replayData.ts) is a second check and a guard against crashes,
+// not a parser for hostile files. Three of its limits:
+// - Its user id scan is best effort. It finds a 28-letter-and-digit id standing alone, in a key or in decoded shape
+//   text, but not one split across two fields or joined to other letters and digits. Pseudonymizing in the exporter
+//   is the guarantee.
+// - It parses the whole file before its size checks run (the report cap, the 7-day span), so a very large file still
+//   costs its parse.
+// - The judge check compares each segment's percent and centroid with the live map, not its polygon: a change to a
+//   polygon alone does not show in it.
 
 import type { Assignment, EngineParams, EventDoc, RouteRecord } from "../laneC";
 
