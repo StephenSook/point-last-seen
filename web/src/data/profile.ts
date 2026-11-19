@@ -62,6 +62,9 @@ export function sharedFromDoc(data: unknown): SharedProfile {
     triggersToAvoid: str(d["triggersToAvoid"]), bestApproach: str(d["bestApproach"]), uniqueDescription: str(d["uniqueDescription"]),
     photoTakenOn: typeof d["photoTakenOn"] === "string" ? d["photoTakenOn"] : null,
     approachNoteIds: arr(d["approachNoteIds"], (x): x is string => typeof x === "string"),
+    // Kept when stored (the family app writes the list), so a later save from here writes it back: the shared
+    // document is replaced whole, and dropping the list here would erase the names. Absent stays absent.
+    ...(Array.isArray(d["otherNames"]) ? { otherNames: arr(d["otherNames"], (x): x is string => typeof x === "string") } : {}),
   };
 }
 

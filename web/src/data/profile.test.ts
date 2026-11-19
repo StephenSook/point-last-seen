@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import notesFile from "../../../shared/constants/approach-notes.json";
-import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, profileDocs, profileFromDocs } from "./profile";
+import { APPROACH_FOOTER, approachLines, commandWarnings, emptyProfile, profileDocs, profileFromDocs, sharedFromDoc } from "./profile";
 
 const full = {
   ...emptyProfile(),
@@ -105,5 +105,23 @@ describe("commandWarnings", () => {
 
   it("never shows the profile-update warning at command, which cannot see that date", () => {
     expect(commandWarnings({ ...full, profileUpdatedOn: null }, now)).not.toContain("profile_stale");
+  });
+});
+
+describe("other names", () => {
+  const five = ["Bobbie", "Mom", "Roberta", "Miss Bea", "Bea"];
+
+  it("a clothing edit at command keeps all five names, with the nickname mirroring the first", () => {
+    const stored = { ...profileDocs(emptyProfile()).shared, otherNames: five, nickname: "Bobbie" };
+    const p = profileFromDocs(sharedFromDoc(stored), undefined);
+    const saved = profileDocs({ ...p, clothingLastWorn: "Green raincoat" }).shared;
+    expect(saved.otherNames).toEqual(five);
+    expect(saved.nickname).toBe("Bobbie");
+    expect(saved.clothingLastWorn).toBe("Green raincoat");
+  });
+
+  it("reads only string names, and adds no list when none was stored", () => {
+    expect(sharedFromDoc({ otherNames: ["Bea", 7, null, "Mom"] }).otherNames).toEqual(["Bea", "Mom"]);
+    expect("otherNames" in sharedFromDoc({ nickname: "Bea" })).toBe(false);
   });
 });
