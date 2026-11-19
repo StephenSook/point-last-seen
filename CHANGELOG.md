@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A rules test pins the command post's family question listener: command and family list `familyQuestions`
+  ordered by `createdAt`, newest first, and a non-member cannot. A command update of `searchState` alone was already
+  pinned.
+  Source: review (the command post's Family section).
+  Verified: all 8 family question rules tests pass in the emulator; the live drill incident has status `open` and
+  no stored conditions, so a `searchState`-only update passes its rule there; `bash scripts/ci-local.sh --gates
+  --rules` exit 0.
 - `docs/LIMITS.md` says how the one gap the plan rule leaves (a numeric segment id) is closed: the command post reads
   each stored plan field by field (`planFromDoc`) and sets aside, and names, any record that is not a plan.
   Source: review (the command post now decodes plans on read).
