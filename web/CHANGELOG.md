@@ -1455,3 +1455,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the deployed specs that wait for the map (a11y, approve-offline, beat, change, judge, offline, phone, smoke) now wait for `.plate:visible`. A cell whose labels give way to a more likely cell's keeps its plate in the page but hidden, so the first plate in page order can be a hidden one, which made the two phone tests time out on the live site.
 - Source: the live run of `e2e/phone.spec.ts` on 5f2b594.
 - Verified: against the deployed site (5f2b594), phone, change and beat specs 5 of 5 pass (the phone tests had failed at their first wait). scripts/ci-local.sh exit 0.
+
+### fix(command): keep More on the second header row on a phone
+- What: on the phone header, a long incident name now shrinks with an ellipsis (full name still in the page), so the incident, the match code and More always share the second row. With "Development drill (synthetic)" More had wrapped to a third row (118 px of header).
+- Source: live run of `e2e/phone.spec.ts` on 8e57c12 (118 px against the 110 px limit) and a screenshot.
+- Verified: the deployed phone header test failed on 8e57c12; it is re-run on the deploy that carries this change. scripts/ci-local.sh exit 0.
