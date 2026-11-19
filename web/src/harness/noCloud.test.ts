@@ -17,6 +17,11 @@ describe("dev harness pages", () => {
         walked += 1;
         const text = readFileSync(new URL(name, base), "utf8");
         for (const b of CLOUD_BUILDERS) if (new RegExp(`\\b${b}\\b`).test(text)) offenders.push(`${dir}${name}: ${b}`);
+        // Nor may a page build a model from the SDK directly, around the builders (getAI alone, to hand an
+        // instance to an on-device builder, is fine).
+        for (const m of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']firebase\/ai["']/g)) {
+          for (const sdk of ["getGenerativeModel", "getTemplateGenerativeModel"]) if (new RegExp(`\\b${sdk}\\b`).test(m[1]!)) offenders.push(`${dir}${name}: firebase/ai ${sdk}`);
+        }
       }
     }
     expect(walked).toBeGreaterThanOrEqual(10);
