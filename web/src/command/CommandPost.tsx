@@ -515,7 +515,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         incidentId, bytes: input.bytes, mimeType: input.mimeType, durationS: input.durationS, clipStartMs: input.clipStartMs,
         clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg,
         consent: { clipSha256: sha, personInClip: mark(input.consents.personInClip), footageOwner: mark(input.consents.footageOwner), cloudProcessing: mark(input.consents.cloudProcessing), publicUse: mark(input.consents.publicUse) },
-        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason,
+        killCloud: () => rcNow.current.killCloud, model: rc.cloudModelWeb, uid, window: how.window, reason: how.reason, retry: how.retry,
       },
       clipReadDeps(firestoreClipIo(pls.db, pls.storage, incidentId), clipCloudGenerator(ai(), rc.cloudModelWeb)),
     );

@@ -243,6 +243,29 @@ describe("readClip", () => {
     expect(t.generated).toEqual([]);
   });
 
+  it("a whole-clip retry never writes consent: with the record gone it is refused", async () => {
+    const t = await setup({ stored: null });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find"]);
+    expect(t.written).toEqual([]);
+  });
+
+  it("a whole-clip retry uses the record and clip already stored, and writes no consent and no clip", async () => {
+    const t = await setup({ stored: { expiresAtMs: NOW + 60_000 }, exists: true });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toMatchObject({ kind: "read", route: { reason: "user_override_after_triage" } });
+    expect(t.calls).toEqual(["find", "exists", "confirm", "model", "complete"]);
+    expect(t.written).toEqual([]);
+  });
+
+  it("a whole-clip retry whose clip is no longer stored is refused, not uploaded again", async () => {
+    const t = await setup({ stored: { expiresAtMs: NOW + 60_000 }, exists: false });
+    const r = await readClip({ ...t.req, retry: true, reason: "user_override_after_triage" }, t.deps);
+    expect(r).toEqual({ kind: "refused", message: CONSENT_GONE });
+    expect(t.calls).toEqual(["find", "exists"]);
+  });
+
   it("passes the flagged window to the model and records the route's reason", async () => {
     const t = await setup();
     const r = await readClip({ ...t.req, window: { startS: 2, endS: 9 }, reason: "on_device_triage_flagged" }, t.deps);

@@ -187,7 +187,8 @@ test("triage: when the flagged seconds show no one, the whole clip can be read w
   await expect(page.getByRole("status")).toHaveText("No one was found in the flagged seconds. Nothing changed.");
   expect(await how(page)).toEqual({ window: { startS: 1, endS: 5 }, reason: "on_device_triage_flagged" });
   await page.getByRole("button", { name: "Read the whole clip in the cloud" }).click();
-  await expect.poll(() => how(page)).toEqual({ reason: "user_override_after_triage" });
+  // A retry: it uses the first read's consent record and writes no new one.
+  await expect.poll(() => how(page)).toEqual({ reason: "user_override_after_triage", retry: true });
 });
 
 test("triage: changing a consent withdraws the whole-clip read", async ({ page }) => {

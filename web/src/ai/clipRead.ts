@@ -129,6 +129,12 @@ export type ClipReadRequest = {
   window?: ClipWindow;
   /** Why the clip goes to the cloud (the route's reason); a plain consented read by default. */
   reason?: RouteReason;
+  /**
+   * A whole-clip retry after a flagged window showed no one. It never writes or renews consent and never
+   * uploads: the record and clip from the first read must still be there, or it is refused and the family
+   * consents again.
+   */
+  retry?: boolean;
 };
 
 export type ClipReadDeps = {
@@ -201,10 +207,11 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
       // No model call and no write: the facing just given sets the bearing.
       return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, s.exitEdge), route: found.route, cached: true };
     }
+    if (r.retry && !found) return { kind: "refused", message: CONSENT_GONE };
     if (!(await unchanged())) return { kind: "refused", message: NEEDS_CONSENT };
     if (r.killCloud()) return { kind: "refused", message: PAUSED };
     const started = deps.nowMs();
-    if (!oldWindowedMiss) {
+    if (!oldWindowedMiss && !r.retry) {
       await deps.writeConsent(
         found
           ? takeOverConsent(found, consent, started, r.uid)
@@ -217,6 +224,7 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     // An old windowed miss is read again from these bytes inline and stores nothing, the clip included.
     const stored = oldWindowedMiss || (found ? await deps.clipExists(sha) : false);
     if (!stored) {
+      if (r.retry) return { kind: "refused", message: CONSENT_GONE };
       // And once more after that lookup, right before the clip leaves the laptop.
       if (r.killCloud()) return { kind: "refused", message: PAUSED };
       await deps.upload(sha, r.bytes, r.mimeType);

@@ -16,7 +16,8 @@ import type { TriageResult } from "./triage";
 export type ClipConsents = { personInClip: boolean; footageOwner: boolean; cloudProcessing: boolean; publicUse: boolean };
 
 /** How the cloud read runs after triage: the flagged seconds, and why the clip is sent. */
-export type ReadHow = { window?: ClipWindow; reason?: RouteReason };
+/** `retry`: the whole-clip read after a flagged window showed no one; it uses the first read's consent record. */
+export type ReadHow = { window?: ClipWindow; reason?: RouteReason; retry?: boolean };
 
 export type ClipIntakeInput = {
   bytes: Uint8Array;
@@ -248,7 +249,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       {held && (
         <div className="note-state">
           <p role="status">{HELD[held.kind]}</p>
-          <button type="button" className="btn ghost" onClick={() => void read(held.input, { reason: "user_override_after_triage" })} disabled={busy !== false}>
+          <button type="button" className="btn ghost" onClick={() => void read(held.input, held.kind === "window-miss" ? { reason: "user_override_after_triage", retry: true } : { reason: "user_override_after_triage" })} disabled={busy !== false}>
             {held.kind === "window-miss" ? "Read the whole clip in the cloud" : "Read in the cloud anyway"}
           </button>
         </div>
