@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a phone with no user drops its mission, and the foreground checks access again
+- What: two gaps in following this phone's access. When the phone had no user at all any more
+  (signed out, for example after the account was removed) and signing in failed, the old user's
+  mission stayed loaded. A cached user still counts as signed in, so offline use is unchanged. And
+  coming back to the foreground settled waiting reports but did not check access, so a role or
+  team command changed while the app was away waited for the next reconnect. With signal, the
+  foreground now runs the same sign-in check (claims, team and incident status). This commit
+  covers both parts of review finding 3 that were left, which share a test file.
+- Source: review (finding 3).
+- Verified: tests for a failed sign-in with no user (mission dropped, no retry offered) and for a
+  role removed while the app was away (dropped on return to the foreground). Both failed before
+  the change and pass after; 137 app tests pass.
+
 ### fix(ios): a tapped push is checked against the server before the task opens
 - What: a tap on a push that named the loaded mission opened the task with no check, so an old
   push could reopen the mission of a team the phone had been removed from. A push for another team

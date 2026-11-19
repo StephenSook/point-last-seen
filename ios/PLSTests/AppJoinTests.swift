@@ -395,6 +395,38 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
     }
 
+    /// The phone has no user at all any more (signed out, for example after the account was removed)
+    /// and signing in fails: the mission that belonged to the old user is dropped. A cached user
+    /// keeps the mission for offline use, as before.
+    @Test func aFailedSignInWithNoUserDropsTheMission() async throws {
+        final class Account: @unchecked Sendable { var present = true }
+        let account = Account()
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.present }, attempt: { false }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: try drillDocs()),
+                         pushTopics: FakePushTopics(), alerts: FakeAlerts(),
+                         defaults: UserDefaults(suiteName: "signin-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        account.present = false
+        await m.trySignIn()
+        #expect(m.mission == nil && !m.canRetryMission)
+    }
+
+    /// Back in the foreground with signal, the phone checks its access again, so a role command
+    /// took away while it was suspended is followed at once.
+    @Test func comingBackToTheForegroundChecksAccessAgain() async throws {
+        let backend = FakeJoinBackend()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()))
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        m.connectivity.pathChanged(satisfied: true)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        m.becameActive()
+        await m.foregroundCheck?.value
+        #expect(m.mission == nil)
+    }
+
     /// An incident command closed, with the claims unchanged: the next sign-in check reads its status
     /// and drops the mission with the closure message. With no signal the mission stays.
     @Test func aClosedIncidentIsDroppedEvenWithUnchangedClaims() async throws {

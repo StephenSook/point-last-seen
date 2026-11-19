@@ -39,6 +39,8 @@ final class AppModel {
     /// token (it is tried again when the token arrives), and a subscription can be slow with no
     /// signal, so nothing else ever waits for it.
     @ObservationIgnored private(set) var topicFollow: Task<Void, Never>?
+    /// The access check started by a return to the foreground.
+    @ObservationIgnored private(set) var foregroundCheck: Task<Void, Never>?
     /// The assignment voice in flight. Speaking takes seconds (longer on the cloud voice), so the plan
     /// listener, the topic and the alerts question never wait for it; voices keep their order.
     @ObservationIgnored private(set) var speech: Task<Void, Never>?
@@ -222,7 +224,14 @@ final class AppModel {
 
     func trySignIn() async {
         signedIn = await signIn.ensure()
-        if signedIn { await resumeMission() }
+        if signedIn {
+            await resumeMission()
+            return
+        }
+        // No user at all (signed out, for example after the account was removed) and the sign-in
+        // failed: what this phone holds belonged to a user that is gone. A cached user (offline)
+        // counts as signed in, so offline use keeps its mission.
+        if !signIn.signedIn, mission != nil || membership != nil { await dropMission() }
     }
 
     /// Counts the join, retry and sign-in checks of this phone's access. Each takes a number when it
@@ -523,9 +532,13 @@ final class AppModel {
         if missionGeneration == before + 1, check == accessCheck { joinMessage = message }
     }
 
-    /// Back in the foreground: the same check, in case the reconnect happened while suspended.
+    /// Back in the foreground: the same checks, in case the reconnect happened while suspended. With
+    /// signal it settles waiting reports and checks this phone's access again, so a role or team
+    /// command changed (or an incident it closed) while the app was away is followed at once.
     func becameActive() {
-        if connectivity.isOnline { store?.reconcileUnresolved() }
+        guard connectivity.isOnline else { return }
+        store?.reconcileUnresolved()
+        foregroundCheck = Task { [weak self] in await self?.trySignIn() }
     }
 
     func retry(_ eventId: String) {
