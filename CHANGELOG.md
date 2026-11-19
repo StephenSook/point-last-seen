@@ -5,6 +5,23 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Each practice-search attempt gets its own incident id, so a late builder, the cleanup job and the media sweep can
+  only ever act on their own attempt's data. Every build claim makes a fresh incident `judge-{uid}-{12 hex}`, and
+  `judgeUsers/{uid}` names the attempt that won; only that one is handed back and given the command role. A setup
+  that died is replaced by a fresh attempt for the same session (the same 24-hour window and the same slot of the
+  daily cap) and the dead one is ended (expiry now, setup id retired), so the rules refuse it, its builder can no
+  longer finish it, and the sweeps remove it. Builders no longer clear anything: a new attempt's incident is empty. A
+  sandbox made before attempts had ids (`incidents/judge-{uid}`) is checked against the seed; a whole one is kept
+  and pointed to, a short one is replaced by a fresh attempt instead of being rebuilt in place.
+  Source: review (round 2 on the functions: a stalled builder could delete a ready sandbox's data, and the hourly
+  cleanup could delete a replacement sandbox at the same id; a 2nd gen function keeps running after its timeout, so
+  the fix removes the shared path rather than relying on the timeout).
+  Verified: the tests (fresh ids and the pointer; a builder that stalls inside its copy and resumes after a takeover
+  writes only its own retired attempt; a failed or failing copy is retried on a fresh id on the same slot; two starts
+  at once use one slot; a legacy sandbox kept or replaced; cleanup removes an ended attempt and never the newer one)
+  failed first, now all 16 judge-session tests pass in the emulators; functions typecheck exits 0; the web reads the
+  id only from the callable's result and checks only its `judge-` prefix, and the iPhone and Android apps never read
+  it.
 - `startJudgeSession`'s timeout is one named constant, `JUDGE_SESSION_TIMEOUT_S` (120 s), used by `index.ts`, and a
   test pins the setup lease (`SETUP_STALE_MS`, 5 minutes) at more than twice it and reads `index.ts` to check the
   callable uses it. The lease is a margin, not a guarantee: a 2nd gen function runs on Cloud Run, which closes the
