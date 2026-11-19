@@ -81,8 +81,22 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(JoinCallError(error(.internal)) == .other && JoinCallError(NSError(domain: "x", code: 1)) == .other)
     }
 
-    /// The callable is in us-central1 and enforces App Check with replay protection.
-    @Test func theCallableUsesLimitedUseAppCheckTokens() {
-        #expect(FirebaseJoinBackend.region == "us-central1" && FirebaseJoinBackend.options.requireLimitedUseAppCheckTokens)
+    /// The real adapter, with its two edges captured: it calls joinIncident with limited-use App
+    /// Check tokens, refreshes the token after a join, and reads cached claims only when asked to.
+    @Test func theFirebaseAdapterCallsJoinWithLimitedUseTokensAndRefreshesClaims() async throws {
+        final class Seen: @unchecked Sendable { var names: [String] = []; var limitedUse: [Bool] = []; var refreshes: [Bool] = [] }
+        let seen = Seen()
+        let backend = FirebaseJoinBackend(signIn: { true }, callable: { name, options, _ in
+            seen.names.append(name)
+            seen.limitedUse.append(options.requireLimitedUseAppCheckTokens)
+            return ["ok": true, "incidentId": "drill-dev-1"]
+        }, tokenClaims: { force in
+            seen.refreshes.append(force)
+            return ["inc": "drill-dev-1", "role": "searcher", "team": "T1"]
+        })
+        #expect(await Joiner(backend: backend).join(request) == .joined(incidentId: "drill-dev-1", teamId: "T1"))
+        _ = await backend.currentClaims(forceRefresh: false)
+        #expect(seen.names == ["joinIncident"] && seen.limitedUse == [true] && seen.refreshes == [true, false])
+        #expect(FirebaseJoinBackend.region == "us-central1")
     }
 }

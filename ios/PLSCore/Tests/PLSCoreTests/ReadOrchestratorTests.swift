@@ -42,16 +42,20 @@ private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = tr
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
 
 @Suite struct ReadOrchestratorTests {
-    /// A phone number is removed before the report reaches any model, on the phone or in the
-    /// cloud, not only before it is stored.
-    @Test func aPhoneNumberNeverReachesAModel() async {
-        let r = FakeRunner()
-        r.guidedResults[.onDevice] = [.failure(.other)]
-        r.permissiveResults = [.failure(.other)]
-        let text = "Team two cleared segment AC, caller is at 404-555-0123, nothing found"
-        _ = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: r, clock: clock)
-        #expect(!r.texts.isEmpty)
-        #expect(r.texts.allSatisfy { !$0.contains("555") && $0.contains(PhoneNumbers.replacement) })
+    /// A phone number is removed before the report reaches any model: each route's model gets
+    /// exactly the scrubbed text, on the phone (guided, then permissive) and in the cloud.
+    @Test func everyRouteHandsItsModelExactlyTheScrubbedText() async {
+        let text = "Team two cleared segment AC, caller at 404 five five five 0123, nothing found"
+        let scrubbed = "Team two cleared segment AC, caller at [number removed], nothing found"
+        let onPhone = FakeRunner()
+        onPhone.guidedResults[.onDevice] = [.failure(.guardrailBlock)]
+        onPhone.permissiveResults = [.failure(.guardrailBlock)]
+        _ = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: onPhone, clock: clock)
+        #expect(onPhone.calls == [.guided(.onDevice), .permissive] && onPhone.texts == [scrubbed, scrubbed])
+        let inCloud = FakeRunner()
+        inCloud.guidedResults[.cloud] = [.success(okReading())]
+        _ = await ReadOrchestrator.read(text: text, context: rctx(online: true, onDevice: false), runner: inCloud, clock: clock)
+        #expect(inCloud.calls == [.guided(.cloud)] && inCloud.texts == [scrubbed])
     }
 
     @Test func onDeviceGuidedReadingIsUsedWhenValid() async {

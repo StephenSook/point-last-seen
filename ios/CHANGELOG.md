@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### test(ios): pin the exact text each model route receives and the join adapter's real options
+- What: the redaction test exercised only the on-device guided call, and the join tests checked a
+  static option and a fake's refresh, so neither could catch its own regression. The core test now
+  asserts that each route's model gets exactly the scrubbed text (on the phone, guided then
+  permissive; in the cloud, guided), and the Firebase join adapter takes its two Firebase edges as
+  seams, so a test sees the callable it calls (joinIncident), its limited-use App Check option and
+  the refresh flag of each claims read. Also corrects a comment: the callable enforces App Check,
+  and limited-use tokens are what replay protection consumes when it is turned on.
+- Source: review.
+- Verified: with the scrub line removed, the route test fails on both routes; the adapter test
+  failed to compile before the seams and fails if the option or the forced refresh is dropped;
+  all pass now; 276 core and 96 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
 ### fix(ios): read the mission again without the code, and never re-join a team already held
 - What: when the server granted the join but the mission could not be read, the only button sent
   the code again, which a one-use code refuses although the phone already had membership. The app
