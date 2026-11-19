@@ -99,7 +99,8 @@ export function JudgePage() {
         )}
       </section>
 
-      <JudgeExtras run={run?.state === "run" ? run.run : null} />
+      {/* A run the reader refuses still reaches the replay section, which says why in plain words. */}
+      <JudgeExtras run={run?.state === "run" || run?.state === "refused" ? run.run : null} />
 
       <section aria-labelledby="model-h">
         <h2 id="model-h" className="label">Cloud model</h2>

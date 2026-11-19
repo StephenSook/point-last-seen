@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { harnessRun } from "../extras/testdata/replayIncident";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
@@ -31,20 +32,27 @@ describe("d2Copy", () => {
 
 describe("loadPublishedRun", () => {
   const ok = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  const run = { runId: "r1", label: "Training drill", exportedAt: "2026-11-22T20:00:00Z", incident: {}, segments: [], teams: [], devices: [], events: [], plans: [], measurements: [] };
+  // Made-up run data (the replay harness's), read by the same reader the replay uses.
+  const run = harnessRun();
 
   it("says there is no published run on a 404", async () => {
     expect(await loadPublishedRun(async () => new Response("", { status: 404 }))).toEqual({ state: "none" });
   });
 
-  it("returns a run that has every required part", async () => {
+  it("returns a run the replay reader accepts", async () => {
     expect(await loadPublishedRun(ok(run))).toEqual({ state: "run", run });
   });
 
-  it("refuses a file that is missing a part or is not JSON, rather than show wrong numbers", async () => {
-    const { measurements: _m, ...partial } = run;
-    expect(await loadPublishedRun(ok(partial))).toEqual({ state: "invalid" });
+  it("names why the replay reader refuses a run, rather than show it or call it missing", async () => {
+    const broken = { ...run, events: run.events.map((e, i) => (i === 0 ? { ...e, serverTimeMs: undefined } : e)) };
+    expect(await loadPublishedRun(ok(broken))).toEqual({ state: "refused", run: JSON.parse(JSON.stringify(broken)), reason: "The run has no arrival time for a report." });
+    const { events: _e, ...noReports } = run;
+    expect(await loadPublishedRun(ok(noReports))).toMatchObject({ state: "refused" });
+  });
+
+  it("calls a file that is not a JSON object unreadable", async () => {
     expect(await loadPublishedRun(async () => new Response("not json", { status: 200 }))).toEqual({ state: "invalid" });
+    expect(await loadPublishedRun(ok([1, 2]))).toEqual({ state: "invalid" });
   });
 
   it("treats the app's own HTML (the hosting rewrite for a missing file) as no run", async () => {

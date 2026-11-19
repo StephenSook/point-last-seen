@@ -1365,3 +1365,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Get this laptop ready only asks Chrome what its built-in model can take; it reads no note and no photo. The lines now say "The built-in model on this laptop is ready for the sighting note." (and "... and sample photos." when it takes images), with "It cannot read images, so photos stay on this laptop." for a text-only model. With no model, the line points at "The replay above shows a recorded drill run." instead of saying the replay runs in the cloud, which it does not.
 - Source: judge-page claims review, item (c).
 - Verified: the three d2Copy tests were changed to the new lines first and failed, then passed; 15 judge tests pass. scripts/ci-local.sh exit 0.
+
+### feat(judge): check the published run with the replay's own reader
+- What: `loadPublishedRun` no longer checks for ten field names; it runs the file through `fromPublishedRun`, the reader the replay uses. A file the reader accepts is a run; one it refuses comes back as `refused` with the reader's reason (for example "The run has no arrival time for a report."), and still reaches the replay section, which shows that reason. A file that is not a JSON object is `invalid`.
+- Source: judge-page review, item (b).
+- Verified: new loader tests (the harness run is accepted; one with a report missing its arrival time is refused with that reason; one with no reports is refused; a JSON array is invalid) failed first (a refused file read as a run, a run with no reports as invalid), then passed; 16 judge tests pass; typecheck clean. scripts/ci-local.sh exit 0.

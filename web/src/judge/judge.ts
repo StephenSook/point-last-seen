@@ -3,6 +3,7 @@
 // claim about the product, so each says only what was measured or built.
 
 import type { DeviceState } from "../ai/deviceModel";
+import { fromPublishedRun } from "../extras/replay/replayData";
 
 /** `replay` is true only when a published run exists, so the line never points at a replay that is not there. */
 export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[]; photoButton: string | null } {
@@ -28,10 +29,20 @@ export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFail
 const RUN_PARTS = ["runId", "label", "exportedAt", "incident", "segments", "teams", "devices", "events", "plans", "measurements"] as const;
 export type PublishedRun = Record<(typeof RUN_PARTS)[number], unknown>;
 
-/** The published run, or why there is none. A broken file is "invalid", never shown as numbers. */
-export async function loadPublishedRun(
-  fetchFn: (url: string, init?: RequestInit) => Promise<Response> = fetch,
-): Promise<{ state: "run"; run: PublishedRun } | { state: "none" } | { state: "invalid" } | { state: "unavailable" }> {
+export type PublishedRunLoad =
+  | { state: "run"; run: PublishedRun }
+  /** The file is a run the replay reader refuses; `reason` says why in plain words. */
+  | { state: "refused"; run: PublishedRun; reason: string }
+  | { state: "none" }
+  | { state: "invalid" }
+  | { state: "unavailable" };
+
+/**
+ * The published run, or why there is none. The run is checked by the same reader the replay uses
+ * (fromPublishedRun), so the page never calls a file a run that the replay then refuses. A file that is
+ * not a JSON object is "invalid"; nothing from either is shown as numbers.
+ */
+export async function loadPublishedRun(fetchFn: (url: string, init?: RequestInit) => Promise<Response> = fetch): Promise<PublishedRunLoad> {
   let res: Response;
   try {
     res = await fetchFn("/evidence/published-run.json", { cache: "no-store" });
@@ -48,8 +59,10 @@ export async function loadPublishedRun(
   } catch {
     return { state: "invalid" };
   }
-  if (typeof body !== "object" || body === null || RUN_PARTS.some((k) => !(k in body))) return { state: "invalid" };
-  return { state: "run", run: body as PublishedRun };
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return { state: "invalid" };
+  const run = body as PublishedRun;
+  const read = fromPublishedRun(run);
+  return read.ok ? { state: "run", run } : { state: "refused", run, reason: read.reason };
 }
 
 /**
