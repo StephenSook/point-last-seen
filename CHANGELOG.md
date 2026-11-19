@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The README is written for judges first: the judge page's link at the top and what it offers today (a practice
+  search, and which models the command post uses; the replay after the drill), what ships on each platform and how
+  to try it (the command post's URL, TestFlight once the public build exists, a signed APK as a GitHub release
+  asset), and a setup from a clean checkout. It now says how the models are called: cloud reads through Firebase
+  AI Logic, on-device reads on the web and Android through AI Logic's hybrid inference, and on iPhone through Apple
+  Foundation Models (`SystemLanguageModel`). It no longer claims that every model call goes through Firebase AI
+  Logic, which the iPhone's on-device reads do not.
+  Source: review (the backlog audit: an untrue line, and a README that was not written for a judge).
+  Verified: the live site and `/judge` answer HTTP 200; the judge page's replay flag is off on main
+  (`REPLAY_LIVE`); the model paths match `ios/PLS/AI/ModelSessionFactory.swift`,
+  `android/.../ai/AiClient.kt` and `web/src/ai/client.ts`; `bash scripts/ci-local.sh` exit 0.
 - `docs/LIMITS.md` says that the judge replay's reader is a second check, not the privacy boundary (its user-id scan
   is best effort; the exporter's pseudonyms are the guarantee), that it parses a whole file before its size checks,
   and that its check compares each segment's percent and centroid, not its polygon. A new section on push
