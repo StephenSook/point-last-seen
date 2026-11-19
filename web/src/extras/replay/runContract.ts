@@ -7,6 +7,13 @@ import type { Assignment, EngineParams, EventDoc } from "../laneC";
 
 export const PUBLISHED_RUN_VERSION = 1;
 
+/**
+ * The most reports a public run may carry. The reader computes every frame once to check the run, and that work
+ * grows with the square of the reports (measured: 1,000 reports about 0.6 s, 5,000 about 15 s). A real drill run
+ * has about 24.
+ */
+export const MAX_RUN_EVENTS = 1_000;
+
 /** A run author's pseudonym: "author-" and a number, stable within one run. Never the real uid. */
 export const AUTHOR_PSEUDONYM = /^author-[0-9]+$/;
 /**

@@ -36,16 +36,21 @@ function priorInUseFrom(data: ReplayData): number | "start" | "never" {
 export function replayWindow(data: ReplayData): ReplayWindow | null {
   const arrived = data.events.filter((e) => e.arrivedAtMs !== null);
   if (arrived.length === 0) return null;
-  const starts = arrived.map((e) => (e.clockSuspect ? e.arrivedAtMs! : Math.min(e.sentAtMs, e.arrivedAtMs!)));
-  const ends = arrived.map((e) => e.arrivedAtMs!);
-  for (const p of data.plans) {
-    starts.push(p.approvedAtMs);
-    ends.push(p.approvedAtMs);
+  // A loop, not Math.min(...times): spreading a large run's times into one call overflows the stack.
+  let startMs = Number.POSITIVE_INFINITY;
+  let endMs = Number.NEGATIVE_INFINITY;
+  for (const e of arrived) {
+    const at = e.arrivedAtMs!;
+    startMs = Math.min(startMs, e.clockSuspect ? at : Math.min(e.sentAtMs, at));
+    endMs = Math.max(endMs, at);
   }
-  const startMs = Math.min(...starts);
+  for (const p of data.plans) {
+    startMs = Math.min(startMs, p.approvedAtMs);
+    endMs = Math.max(endMs, p.approvedAtMs);
+  }
   const from = priorInUseFrom(data);
   // A prior that came into use after the last report is still the one the live map draws, so the window reaches it.
-  const endMs = Math.max(...ends, typeof from === "number" ? from : -Infinity);
+  if (typeof from === "number") endMs = Math.max(endMs, from);
   return { startMs, endMs, priorInUseFromMs: from === "start" ? startMs : from === "never" ? Number.POSITIVE_INFINITY : from };
 }
 

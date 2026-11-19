@@ -21,6 +21,15 @@ function data(over: object = {}, extra: ReturnType<typeof streamed>[] = []): Rep
 const arrivedDocs = (d: ReplayData): EventDoc[] => d.events.filter((e) => e.arrivedAtMs !== null).map((e) => e.doc);
 
 describe("replayWindow", () => {
+  it("finds the window of a very large run without spreading its times into one call", () => {
+    const d = data();
+    const one = d.events.find((e) => e.arrivedAtMs !== null)!;
+    const many = Array.from({ length: 200_000 }, (_, k) => ({ ...one, eventId: `big${k}`, sentAtMs: T0 + k, arrivedAtMs: T0 + k + 1, clockSuspect: false }));
+    const w = replayWindow({ ...d, events: many, plans: [] });
+    expect(w?.startMs).toBe(T0);
+    expect(w?.endMs).toBe(T0 + 200_000);
+  });
+
   it("no arrived event gives no window", () => {
     const d = fromLive(replayView(), [streamed(eventDoc({ eventId: "p" }), null, true)], [])!;
     expect(replayWindow(d)).toBeNull();

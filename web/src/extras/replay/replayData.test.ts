@@ -3,7 +3,7 @@ import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
 import { runDevice, runEvent } from "../testdata/replayIncident";
-import { PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunCameraReading, type RunSegment } from "./runContract";
+import { MAX_RUN_EVENTS, PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunCameraReading, type RunSegment } from "./runContract";
 
 const MIN = 60_000;
 const DAY = 24 * 3_600_000;
@@ -397,6 +397,13 @@ describe("fromPublishedRun", () => {
     expect(fromPublishedRun(run({ segments: [good, ...base.segments.slice(1)] })).ok).toBe(true);
     const offEarth = { ...seg, centroid: { lat: 91, lon: -84.37 } };
     expect(fromPublishedRun(run({ segments: [offEarth, ...base.segments.slice(1)] }))).toEqual({ ok: false, reason: "The run has a field of the wrong type: segment.centroid.lat." });
+  });
+
+  it("refuses a run with more reports than the replay can check and show", () => {
+    const base = runV1();
+    const e = base.events[0]!;
+    const events = Array.from({ length: MAX_RUN_EVENTS + 1 }, (_, k) => ({ ...e, eventId: `n${k}`, seq: k + 1 }));
+    expect(fromPublishedRun(run({ events }))).toEqual({ ok: false, reason: `The run has more reports than the replay can show (${MAX_RUN_EVENTS} at most).` });
   });
 
   it("refuses a run whose engine settings fail on any frame, not only the last", () => {

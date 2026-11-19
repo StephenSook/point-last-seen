@@ -17,7 +17,7 @@ import {
   type Team,
 } from "../laneC";
 import { DRILL_LABEL } from "../print/printModel";
-import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, RUN_ENUMS, RUN_FIELDS } from "./runContract";
+import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, FIREBASE_UID_SHAPE, MAX_RUN_EVENTS, RUN_ENUMS, RUN_FIELDS } from "./runContract";
 import { RUN_TYPES, wrongType } from "./runSchema";
 import { replayWindow, stateAt } from "./stateAt";
 
@@ -262,6 +262,8 @@ export function fromPublishedRun(run: PublishedRun): { ok: true; data: ReplayDat
   if (topStray) return strayRefusal(topStray);
   const topType = wrongType(run as Record<string, unknown>, RUN_TYPES.run, null);
   if (topType) return typeRefusal(topType);
+  // Before any walk of the run, so a very large file costs nothing to refuse.
+  if (Array.isArray(events) && events.length > MAX_RUN_EVENTS) return refuse(`The run has more reports than the replay can show (${MAX_RUN_EVENTS} at most).`);
   if (holdsUidShape(run)) return refuse(USER_ID);
   if (!isObj(incident) || !str(incident["name"]) || !num(incident["priorVersion"])) return refuse("The run is missing its incident.");
   const incidentStray = strayField(incident, RUN_FIELDS.incident, "incident");
