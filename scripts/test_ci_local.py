@@ -35,7 +35,7 @@ def test_a_missing_tool_is_not_run_and_never_a_pass():
 
 # Every command a workflow runs must also run in ci-local, or "local mirror green" can pass with a CI check skipped.
 ROOT = SCRIPT.parents[1]
-WORKFLOWS = ("ci", "engine", "rules", "web", "swift", "android")
+WORKFLOWS = ("ci", "engine", "rules", "web", "swift", "android", "node24")
 # Runner setup only CI needs (a local machine has these installed).
 SETUP = ("pip install -r requirements-dev.txt", "curl -sSfL -o", "| sha256sum -c -", "tar -xzf", "npm ci",
          "npm install -g firebase-tools@", "npx playwright install --with-deps", "sudo apt-get install")
