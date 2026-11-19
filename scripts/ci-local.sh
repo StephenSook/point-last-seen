@@ -22,7 +22,7 @@ python3 -I scripts/check_rc_keys.py .
 python3 -I scripts/hygiene_guard.py .
 
 echo "== gates: schema parity and vector generator tests"
-"$PY" -I -m pytest scripts/test_check_schema_parity.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
+"$PY" -I -m pytest scripts/test_check_schema_parity.py scripts/test_firebase_config.py tools/vectors/test_make_vectors.py tools/seed/test_seed_drill.py tools/seed/test_seed_segments.py tools/rules/test_gen_rules_validators.py scripts/test_emulator_config.py scripts/test_rc_publish.py scripts/test_models_probe.py scripts/test_check_rc_keys.py scripts/test_hygiene_guard.py scripts/test_templates.py scripts/test_appcheck_control.py scripts/test_media_probe.py scripts/test_judging_window.py -q
 
 echo "== gates: secret scan (full history)"
 gitleaks git --redact --no-banner --log-opts="--all" .
@@ -33,6 +33,8 @@ npm run lint -w shared/engine-ts
 npm test -w shared/engine-ts
 npm run typecheck -w tools/grid-builder
 npm test -w tools/grid-builder
+npm run typecheck -w tools/export-run
+npm test -w tools/export-run
 
 echo "== vectors-parity: vectors are current, engine passes them"
 python3 -I tools/vectors/make_vectors.py --check

@@ -85,12 +85,14 @@ def test_every_call_sends_the_hosting_origin_as_referer(monkeypatch):
     assert seen["referer"] == "https://buildhybridai-2026-yg3m.web.app/"
 
 
-def test_ci_mode_without_a_token_skips_cleanly_and_calls_nothing(monkeypatch, capsys):
+def test_ci_mode_without_a_token_fails_loudly_and_calls_nothing(monkeypatch, capsys):
+    # The repository secret exists (2026-11-18), so a missing token now means the secret was lost or renamed: the
+    # positive read must fail rather than skip into a green run.
     def no_network(*a, **k):
         raise AssertionError("no network call may happen without a CI token")
     monkeypatch.setattr(ac.urllib.request, "urlopen", no_network)
     monkeypatch.delenv("APPCHECK_DEBUG_TOKEN_CI", raising=False)
-    assert ac.main(["--ci"]) == 0
+    assert ac.main(["--ci"]) == 1
     assert "no CI token" in capsys.readouterr().out
 
 
@@ -104,3 +106,18 @@ def test_the_debug_token_comes_from_the_environment_in_ci_and_the_keychain_local
 def test_model_calls_carry_app_check_and_the_firebase_id_token():
     # AI Logic's authenticated-users mode (on since 2026-11-18) refuses a call without a Firebase Auth ID token.
     assert ac.model_headers("k", "ac", "idt") == {"x-goog-api-key": "k", "X-Firebase-AppCheck": "ac", "Authorization": "Firebase idt"}
+
+
+def test_a_dispatch_can_point_the_probe_at_another_site_and_a_schedule_keeps_the_real_one(monkeypatch):
+    # The wrong-URL control: a manual run with a wrong site must fail, which proves the probe can fail.
+    def fresh():
+        s = importlib.util.spec_from_file_location("ac_fresh", Path(__file__).with_name("appcheck_control.py"))
+        m = importlib.util.module_from_spec(s)
+        s.loader.exec_module(m)
+        return m
+    monkeypatch.setenv("PLS_SITE", "https://wrong-site.invalid")
+    assert fresh().SITE == "https://wrong-site.invalid"
+    monkeypatch.setenv("PLS_SITE", "")  # a scheduled run passes the empty input
+    assert fresh().SITE == "https://buildhybridai-2026-yg3m.web.app"
+    monkeypatch.delenv("PLS_SITE")
+    assert fresh().SITE == "https://buildhybridai-2026-yg3m.web.app"
