@@ -213,6 +213,30 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
     return problems
 
 
+# Live and device tests write to the test-only drill (drill-test-1), never to the drill every judge practice search is
+# copied from. The seed id is read from the function that copies it, so renaming the seed keeps it guarded.
+JUDGE_SESSION_FILE = "functions/src/judgeSession.ts"
+JUDGE_SEED = re.compile(r'JUDGE_SEED_INCIDENT\s*=\s*"([A-Za-z0-9_-]+)"')
+LIVE_TEST_PATH = re.compile(r"^(?:android/app/src/androidTest/|android/[^/]+\.sh$|web/e2e/|ios/PLSUITests/)")
+
+
+def check_live_targets(root: Path, files: list[str]) -> list[str]:
+    if JUDGE_SESSION_FILE not in files:
+        return []
+    m = JUDGE_SEED.search(read_text(root / JUDGE_SESSION_FILE) or "")
+    if not m:
+        return [f"{JUDGE_SESSION_FILE}:0: JUDGE_SEED_INCIDENT not found; update the gate"]
+    seed = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(m.group(1))}(?![A-Za-z0-9_-])")
+    problems = []
+    for rel in files:
+        if not LIVE_TEST_PATH.search(rel) or rel.endswith(".md"):
+            continue
+        for n, line in enumerate((read_text(root / rel) or "").splitlines(), start=1):
+            if seed.search(line):
+                problems.append(f"{rel}:{n}: live and device tests use drill-test-1, never the judge seed '{m.group(1)}'")
+    return problems
+
+
 def check_builder_floor(root: Path, files: list[str]) -> list[str]:
     problems = []
     present = set(files)
@@ -248,6 +272,7 @@ def main(root: str) -> int:
         if text is not None:
             problems += check_lines(rel, text, models)
     problems += check_builder_floor(root_path, files)
+    problems += check_live_targets(root_path, files)
     for p in problems:
         print(p)
     status = "FAIL" if problems else "ok"

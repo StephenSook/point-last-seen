@@ -51,6 +51,39 @@ def test_system_text_to_speech_is_allowed_as_the_fallback_voice(tmp_path):
     assert run_gate(tmp_path).returncode == 0
 
 
+SEED_TS = 'export const JUDGE_SEED_INCIDENT = "drill-seed-1";\n'
+
+
+def test_live_and_device_tests_never_name_the_judge_seed(tmp_path):
+    # Review: live tests wrote a test stamp into the drill every judge practice search is copied from. The seed id
+    # is read from the function, so a renamed seed is still guarded.
+    write(tmp_path, "functions/src/judgeSession.ts", SEED_TS)
+    for rel, text in (("android/app/src/androidTest/java/x/LiveTest.kt", 'const val INCIDENT = "drill-seed-1"'),
+                      ("android/run-drill-e2e.sh", "incident=drill-seed-1"),
+                      ("web/e2e/smoke.spec.ts", 'await join(page, "drill-seed-1")'),
+                      ("ios/PLSUITests/JoinUITests.swift", 'let incident = "drill-seed-1"')):
+        write(tmp_path, rel, text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and rel in out.stdout and "drill-test-1" in out.stdout, rel
+        write(tmp_path, rel, "ok")
+
+
+def test_the_seed_may_appear_in_docs_unit_tests_and_functions_and_other_ids_pass(tmp_path):
+    write(tmp_path, "functions/src/judgeSession.ts", SEED_TS)
+    write(tmp_path, "android/E2E.md", "The judge seed drill-seed-1 is never a test target.")
+    write(tmp_path, "android/app/src/test/java/x/PushTest.kt", 'teamTopic("drill-seed-1", "T1")')
+    write(tmp_path, "web/src/data/practice.test.ts", 'expect(id).not.toBe("drill-seed-1")')
+    write(tmp_path, "functions/test/judgeSession.test.ts", 'seedIncidentId: "drill-seed-1"')
+    write(tmp_path, "web/e2e/smoke.spec.ts", 'await join(page, "drill-test-1"); const other = "drill-seed-10";')
+    assert run_gate(tmp_path).returncode == 0
+
+
+def test_a_seed_constant_the_gate_cannot_read_fails(tmp_path):
+    write(tmp_path, "functions/src/judgeSession.ts", "export const SEED = 1;\n")
+    out = run_gate(tmp_path)
+    assert out.returncode == 1 and "JUDGE_SEED_INCIDENT" in out.stdout
+
+
 def test_clean_tree_passes(tmp_path):
     (tmp_path / "a.swift").write_text("import FoundationModels\n")
     assert run_gate(tmp_path).returncode == 0

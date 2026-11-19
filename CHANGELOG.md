@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate fails when a live or device test names the judge seed, the drill every judge practice search is
+  copied from: its id (read from `JUDGE_SEED_INCIDENT` in `functions/src/judgeSession.ts`, so a renamed seed stays
+  guarded) may not appear in `android/app/src/androidTest/`, `android/*.sh`, `web/e2e/` or `ios/PLSUITests/`. Those
+  tests use the test-only drill `drill-test-1`. Docs, unit tests and the functions may still name the seed, and an
+  unreadable seed constant fails the gate.
+  Source: review (live tests had written into the judge seed).
+  Verified: the tests (a Kotlin device test, a run script, a web e2e spec and an iPhone UI test naming the seed each
+  fail; the same id in a doc, a unit test or the functions and another drill id pass; an unreadable constant fails)
+  failed first, now all 38 gate tests pass.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the
