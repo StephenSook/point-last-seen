@@ -15,7 +15,7 @@ import {
   type ProfileWarning,
   type SharedProfile,
 } from "@pls/engine";
-import { doc, onSnapshot, setDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, type Firestore, type Unsubscribe } from "firebase/firestore";
 import notesFile from "../../../shared/constants/approach-notes.json";
 
 export function emptyProfile(): FamilyProfile {
@@ -62,6 +62,9 @@ export function sharedFromDoc(data: unknown): SharedProfile {
     triggersToAvoid: str(d["triggersToAvoid"]), bestApproach: str(d["bestApproach"]), uniqueDescription: str(d["uniqueDescription"]),
     photoTakenOn: typeof d["photoTakenOn"] === "string" ? d["photoTakenOn"] : null,
     approachNoteIds: arr(d["approachNoteIds"], (x): x is string => typeof x === "string"),
+    // Kept when stored (the family app writes the list), so a later save from here writes it back: the shared
+    // document is replaced whole, and dropping the list here would erase the names. Absent stays absent.
+    ...(Array.isArray(d["otherNames"]) ? { otherNames: arr(d["otherNames"], (x): x is string => typeof x === "string") } : {}),
   };
 }
 
@@ -113,12 +116,69 @@ export function commandWarnings(p: FamilyProfile, todayMs: number): ProfileWarni
   return profileWarnings(p, todayMs).filter((w) => w === "photo_old");
 }
 
-export async function writeProfile(db: Firestore, incidentId: string, p: FamilyProfile): Promise<void> {
-  const { shared, command } = profileDocs(p);
-  await Promise.all([
-    setDoc(doc(db, "incidents", incidentId, "profile", "shared"), shared),
-    setDoc(doc(db, "incidents", incidentId, "profile", "command"), command),
-  ]);
+const changedKeys = (before: object, after: object): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(after).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify((before as Record<string, unknown>)[k])));
+
+/**
+ * What a save changes, per document: only the fields that differ from the profile as it was when the form
+ * opened. The family app edits the same documents, so writing a whole snapshot would erase what they changed
+ * meanwhile (a name added, say). The names travel together: nickname mirrors otherNames' first entry.
+ */
+export function profilePatch(before: FamilyProfile, after: FamilyProfile): { shared: Record<string, unknown>; command: Record<string, unknown> } {
+  const a = profileDocs(before);
+  const b = profileDocs(after);
+  return { shared: changedKeys(a.shared, b.shared), command: changedKeys(a.command, b.command) };
+}
+
+/**
+ * What a command save writes, given the profile when the form opened, as edited, and both documents as the
+ * server holds them now (null when absent). Only the fields command changed are applied, onto the current
+ * profile, flags one by one; the family's names list, when the server has one, stays (its first entry is the
+ * nickname, so a nickname edit here gives way); missing fields of an older document are filled with their empty
+ * values; and the approach notes are worked out again from the merged profile. A document is written, whole,
+ * only when command changed something in it. Null means no write.
+ */
+export function mergeProfileSave(
+  opened: FamilyProfile,
+  edited: FamilyProfile,
+  current: { shared: unknown; command: unknown },
+): { shared: object | null; command: object | null } {
+  const patch = profilePatch(opened, edited);
+  const changesShared = Object.keys(patch.shared).length > 0;
+  const changesCommand = Object.keys(patch.command).length > 0;
+  if (!changesShared && !changesCommand) return { shared: null, command: null };
+  const now = profileFromDocs(current.shared ? sharedFromDoc(current.shared) : undefined, current.command ? commandFromDoc(current.command) : undefined);
+  const merged: Record<string, unknown> = { ...now };
+  for (const k of Object.keys(edited) as (keyof FamilyProfile)[]) {
+    if (k === "flags") continue;
+    if (JSON.stringify(edited[k]) !== JSON.stringify(opened[k])) merged[k] = edited[k];
+  }
+  const flags: Record<string, boolean> = { ...now.flags };
+  const openedFlags = opened.flags as unknown as Record<string, boolean>;
+  for (const [f, v] of Object.entries(edited.flags)) if (v !== openedFlags[f]) flags[f] = v;
+  merged["flags"] = flags;
+  if (now.otherNames !== undefined) {
+    merged["otherNames"] = now.otherNames;
+    merged["nickname"] = now.otherNames[0] ?? "";
+  }
+  const out = profileDocs(merged as unknown as FamilyProfile);
+  return { shared: changesShared ? out.shared : null, command: changesCommand ? out.command : null };
+}
+
+/**
+ * Saves the form in one transaction over both documents read from the server: a family edit that lands
+ * meanwhile makes the transaction retry with it, so it is never overwritten, and an absent document is
+ * created only when the server says it is absent. Offline, the save fails and says so.
+ */
+export async function writeProfile(db: Firestore, incidentId: string, opened: FamilyProfile, edited: FamilyProfile): Promise<void> {
+  const sharedRef = doc(db, "incidents", incidentId, "profile", "shared");
+  const commandRef = doc(db, "incidents", incidentId, "profile", "command");
+  await runTransaction(db, async (tx) => {
+    const [s, c] = [await tx.get(sharedRef), await tx.get(commandRef)];
+    const out = mergeProfileSave(opened, edited, { shared: s.exists() ? s.data() : null, command: c.exists() ? c.data() : null });
+    if (out.shared) tx.set(sharedRef, out.shared);
+    if (out.command) tx.set(commandRef, out.command);
+  });
 }
 
 export function subscribeProfile(

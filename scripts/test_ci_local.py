@@ -6,7 +6,9 @@ SCRIPT = Path(__file__).with_name("ci-local.sh")
 
 
 def run(*args: str, hide: str = ""):
-    env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": str(Path.home()), "CI_LOCAL_HIDE": hide}
+    # PLS_HEAVY_LOCK=1: these runs are light, and ci-local may already hold the machine's heavy-suite lock.
+    env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": str(Path.home()), "CI_LOCAL_HIDE": hide,
+           "PLS_HEAVY_LOCK": "1"}
     return subprocess.run(["bash", str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=120)
 
 
@@ -91,3 +93,12 @@ def test_every_workflow_command_runs_in_ci_local():
 def test_a_workflow_step_missing_from_ci_local_is_found():
     wf = "jobs:\n  x:\n    steps:\n      - run: npm test -w web\n      - run: |\n          npx brand-new-check\n"
     assert unmirrored([wf], "npm test -w web\n") == ["npx brand-new-check"]
+
+
+def test_a_full_run_takes_the_machine_wide_heavy_suite_lock_unless_it_already_holds_it():
+    # Several worktrees on one machine: only one heavy suite runs at a time, or timing-based browser tests flake.
+    text = SCRIPT.read_text()
+    assert 'exec lockf -k /tmp/heavy-suite.lock bash "$SELF" "$@"' in text
+    assert 'if [ -z "${PLS_HEAVY_LOCK:-}" ]' in text and "export PLS_HEAVY_LOCK=1" in text
+    # The lock comes after the options are read, so --help and a bad option never wait for it.
+    assert text.index("exec lockf") > text.index('*) echo "ci-local: unknown option')

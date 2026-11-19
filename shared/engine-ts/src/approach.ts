@@ -47,6 +47,7 @@ function applies(id: string, p: FamilyProfile): boolean {
   switch (id) {
     case "may_not_respond": return f.mayNotRespond !== false;
     case "approach_calm": return true;
+    case "stop_calling_name": return f.mayNotRespond !== false;
     case "likely_to_hide": return f.likelyToHide;
     case "afraid_of_uniforms": return f.afraidOfUniforms;
     case "validate_feelings": return f.hallucinationsOrDelusions || (p.shareDementiaType && p.dementiaType === "lewy_body");
@@ -75,10 +76,23 @@ export function approachNoteIds(profile: FamilyProfile): string[] {
   return ORDER.filter(id => applies(id, profile));
 }
 
-/** The profile/shared document: the 20 shared fields; dementiaType only with the family's consent (else null). */
+/** The names to call the person by: the other-names list when present, else the nickname. Readers use this. */
+export function namesToCall(p: Pick<SharedProfile, "nickname" | "otherNames">): string[] {
+  if (p.otherNames !== undefined) return p.otherNames.filter(has);
+  return has(p.nickname) ? [p.nickname] : [];
+}
+
+/**
+ * The profile/shared document: the 20 shared fields, plus otherNames when the family has the list (nickname then
+ * mirrors its first entry); dementiaType only with the family's consent (else null).
+ */
 export function profileForSearchers(profile: FamilyProfile): SharedProfile {
   const out: Record<string, unknown> = {};
   for (const k of SHARED_KEYS) out[k] = profile[k];
+  if (profile.otherNames !== undefined) {
+    out.otherNames = [...profile.otherNames];
+    out.nickname = profile.otherNames[0] ?? "";
+  }
   out.dementiaType = profile.shareDementiaType ? profile.dementiaType : null;
   out.approachNoteIds = approachNoteIds(profile);
   return out as unknown as SharedProfile;

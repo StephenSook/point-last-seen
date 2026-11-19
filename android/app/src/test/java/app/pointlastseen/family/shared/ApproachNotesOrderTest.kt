@@ -19,7 +19,7 @@ class ApproachNotesOrderTest {
             flags = Profiles.FLAGS.toSet(), dementiaType = "lewy_body", shareDementiaType = true,
             primaryLanguage = "Spanish", triggersToAvoid = "loud voices", bestApproach = "Sing.", uniqueDescription = "hums",
         )
-        assertEquals(21, order.size)
+        assertEquals(22, order.size)
         assertEquals(order, Profiles.approachNoteIds(everything))
     }
 

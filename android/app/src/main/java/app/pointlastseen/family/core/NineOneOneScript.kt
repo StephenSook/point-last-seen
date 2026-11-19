@@ -1,5 +1,6 @@
 package app.pointlastseen.family.core
 
+import app.pointlastseen.family.data.Profiles
 import app.pointlastseen.family.data.SubjectProfile
 
 /**
@@ -19,8 +20,18 @@ object NineOneOneScript {
         val drill = mode == "drill" || mode == "judge"
         val out = mutableListOf(if (drill) DRILL_LINE else "Tell the call-taker:")
         fun add(s: String?) { if (!s.isNullOrBlank()) out += s }
-        val name = listOf(p.answersTo, p.nickname.takeIf { it.isNotBlank() }?.let { "(also called $it)" }).filter { !it.isNullOrBlank() }.joinToString(" ")
-        add(if (name.isNotBlank()) "A person with dementia is missing. Their name is $name." else "A person with dementia is missing.")
+        // Someone with dementia may answer only to an older name, so every other name is read out.
+        val name = p.answersTo.trim()
+        val others = Profiles.otherNames(p.otherNames)
+        val missing = "A person with dementia is missing."
+        add(
+            when {
+                name.isNotEmpty() && others.isNotEmpty() -> "$missing Their name is $name (also called ${others.joinToString(", ")})."
+                name.isNotEmpty() -> "$missing Their name is $name."
+                others.isNotEmpty() -> "$missing They may answer to ${orList(others)}."
+                else -> missing
+            },
+        )
         add(listOfNotNull(p.ageYears?.let { "Age $it" }, p.gender.takeIf { it.isNotBlank() }).joinToString(", ").ifBlank { null }?.let { "$it." })
         if (p.heightFt != null) add("Height ${p.heightFt} feet ${p.heightIn ?: 0} inches.")
         p.weightLb?.let { add("Weight about $it pounds.") }
@@ -36,4 +47,6 @@ object NineOneOneScript {
         add("Last seen: (say the time and the place).")
         return out
     }
+
+    private fun orList(xs: List<String>) = if (xs.size == 1) xs[0] else xs.dropLast(1).joinToString(", ") + " or " + xs.last()
 }

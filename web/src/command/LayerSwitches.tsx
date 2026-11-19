@@ -5,10 +5,13 @@
 import type { PriorLayers, Terrain } from "@pls/engine";
 import { useEffect, useRef, useState } from "react";
 import { priorRefusalMessage } from "./postAccess";
+import { ringSourceLine, TERRAINS } from "./terrains";
 
 type Props = {
   layers: PriorLayers;
   terrain: Terrain;
+  /** The incident's stored ring radii for this terrain (km); the source line names them when they differ from ISRID's. */
+  rings?: unknown;
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
   vehicleInvolved: boolean;
@@ -18,12 +21,7 @@ type Props = {
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
 
-const TERRAINS: [Terrain, string][] = [
-  ["temperate_flat", "Temperate flat (default, not verified for this site)"],
-  ["temperate_mountain", "Temperate mountain"],
-];
-
-export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
+export function LayerSwitches({ layers, terrain, rings, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
@@ -60,7 +58,7 @@ export function LayerSwitches({ layers, terrain, hasBearing, vehicleInvolved, mo
       <h2 id="prior-h" className="label">Prior</h2>
       <div className="layer">
         <p>Rings, always on</p>
-        <p className="muted small">ISRID dementia distances, n = 175, measured in a straight line.</p>
+        <p className="muted small">{ringSourceLine(terrain, rings)}</p>
         <label>
           Distance table
           <select value={draft.terrain} onChange={(e) => setDraft((d) => ({ ...d, terrain: e.target.value as Terrain }))}>
