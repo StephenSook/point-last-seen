@@ -43,4 +43,10 @@ class CopyTest {
         assertEquals("An on-device model is downloading to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADING))
         assertEquals("This phone could not report its on-device model.", Copy.aboutModel(DeviceModelStatus.UNKNOWN))
     }
+
+    /** News about the missing person comes only by phone from the search lead, never from the app. */
+    @Test fun theNewsLineSaysNewsComesByPhone() {
+        org.junit.Assert.assertEquals("News about Mae comes from your search lead by phone, never from this app.", Copy.newsByPhone("Mae"))
+        org.junit.Assert.assertEquals("News about them comes from your search lead by phone, never from this app.", Copy.newsByPhone("  "))
+    }
 }

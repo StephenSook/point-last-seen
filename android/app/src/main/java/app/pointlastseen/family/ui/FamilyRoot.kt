@@ -34,6 +34,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
                 status = incident?.status, mode = mode, killCloud = rc.killCloud,
                 pending = vm.pendingCount(writes), rejected = vm.rejectedCount(writes),
                 onOpen = vm::open, onRetry = vm::retryRejected, onLeave = vm::leaveSearch, shareFailed = vm.profileShareFailed,
+                subjectName = vm.profile.answersTo,
             )
             Screen.CLIP -> ClipScreen(mode, rc.killCloud, vm.clipLabel, vm.clipUi, onPick = onPickClip, onRead = vm::readClip, onConfirm = vm::confirmClip, onBack = vm::back)
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back, onCloudRead = vm::cloudRead)
