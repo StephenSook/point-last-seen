@@ -22,7 +22,7 @@ test("the More menu lists its items in order and follows the menu button keys", 
 
 test("with a site elevation file, Terrain is the last item", async ({ page }) => {
   await page.goto("/extras-harness/terrain.html");
-  await expect(page.locator(".plate").first()).toBeVisible();
+  await expect(page.locator(".plate:not(.crowded)").first()).toBeVisible();
   await page.getByRole("button", { name: "More", exact: true }).click();
   const names = await page.getByRole("menu", { name: "More" }).locator('[role^="menuitem"]').evaluateAll((items) => items.map((i) => i.firstChild?.textContent?.trim() ?? ""));
   expect(names.at(-1)).toBe("Terrain");

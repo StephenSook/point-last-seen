@@ -5,7 +5,7 @@ const harness = "/extras-harness/terrain.html";
 async function ready(page: Page, query = "") {
   await page.goto(`${harness}${query}`);
   await expect(page.getByText("Made-up harness data")).toBeVisible();
-  await expect(page.locator(".plate").first()).toBeVisible();
+  await expect(page.locator(".plate:not(.crowded)").first()).toBeVisible();
 }
 
 async function terrainItem(page: Page) {

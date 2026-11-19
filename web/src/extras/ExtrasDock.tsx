@@ -3,6 +3,7 @@ import { ExportButton } from "./export/ExportButton";
 import { ExtrasBoundary, PANEL_LOAD_FAILED } from "./ExtrasBoundary";
 import { DeleteMedia, printableApproachLines, type IncidentView } from "./laneC";
 import { LazyPrintSession, LazyRadioCodeCheck, LazyReplayPanel, prefetchDockPanels } from "./lazyPanels";
+import { reportsIn } from "./reports";
 import type { PrintSessionData } from "./print/PrintSession";
 import { buildPrintModel, DRILL_LABEL } from "./print/printModel";
 import { ExtrasDialog } from "./print/PrintRoot";
@@ -36,7 +37,8 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
   const more = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const matchCode = vs?.code ?? null;
-  const reportCount = new Set(state.events.map(({ eventId }) => eventId)).size;
+  // Reports a person would count (the match code itself covers every event, confirmations and retractions too).
+  const reportCount = reportsIn(state.events);
   // The replay follows the live state while it is open: a report that lands extends the window.
   const replayData = useMemo(() => fromLive(view, state.events, state.plans), [view, state.events, state.plans]);
   const terrain = useTerrain(view, map, loadElevation);

@@ -79,7 +79,7 @@ test("without reduced motion Play runs the replay to the end", async ({ page }) 
 
 test("the before-prior span shows the not-stored line and no percent plate", async ({ page }) => {
   const dialog = await openReplay(page);
-  await expect(dialog.locator(".plate").first()).toBeVisible();
+  await expect(dialog.locator(".plate:not(.crowded)").first()).toBeVisible();
   const slider = dialog.getByRole("slider", { name: "Replay time" });
   await slider.focus();
   await page.keyboard.press("Home");
