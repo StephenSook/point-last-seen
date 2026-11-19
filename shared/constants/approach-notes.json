@@ -9,13 +9,14 @@
     "ours": "ours"
   },
   "order": [
-    "may_not_respond", "approach_calm", "likely_to_hide", "afraid_of_uniforms", "validate_feelings", "looking_for_home",
+    "may_not_respond", "approach_calm", "stop_calling_name", "likely_to_hide", "afraid_of_uniforms", "validate_feelings", "looking_for_home",
     "gait_unsteady", "freezing", "fall_risk", "soft_voice", "fluctuates", "sensitive_to_touch", "sensitive_to_light",
     "may_strike_out", "seizures", "medication_alert", "medication_timing", "language", "triggers", "best_approach", "unique"
   ],
   "notes": {
     "may_not_respond": { "text": "They may not answer when called. Search with your eyes.", "shownWhen": "default (flags.mayNotRespond is not false)", "sourceRole": "search_team" },
     "approach_calm": { "text": "Come from the front. Speak softly. Be patient.", "shownWhen": "always", "sourceRole": "search_team" },
+    "stop_calling_name": { "text": "If they may not come when called, stop calling their name.", "shownWhen": "default (flags.mayNotRespond is not false)", "sourceRole": "search_team" },
     "likely_to_hide": { "text": "They may hide. Check under cover, in brush and inside structures.", "shownWhen": "flags.likelyToHide", "sourceRole": "practitioner" },
     "afraid_of_uniforms": { "text": "Uniforms may frighten them. Send someone in plain clothes first if you can.", "shownWhen": "flags.afraidOfUniforms", "sourceRole": "practitioner" },
     "validate_feelings": { "text": "If they see or believe things that are not real, do not argue. Say you understand how they feel.", "shownWhen": "flags.hallucinationsOrDelusions, or dementiaType lewy_body when the family shares it", "sourceRole": "practitioner" },

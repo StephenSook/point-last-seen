@@ -15,6 +15,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-18
 
+### feat(ios): read the other names a person may answer to from the shared profile
+- What: `SharedProfile` gains `otherNames`, the optional list of up to five other names she may
+  answer to, in the family's order. It is nil on profiles saved before the list and is written
+  back only when present. `namesToCall` gives the names to call her by: the list when present,
+  else the nickname, leaving blank names out, as the TS engine's `namesToCall` does. The iPhone
+  shows no nickname on any screen today, so no screen changes here.
+- Source: field expert input through the profile change on the field-expert branch.
+- Verified: a test decodes a listed and an older profile, checks the TS engine's four
+  `namesToCall` cases and the written keys; it failed to compile, then passed; 269 core tests
+  pass; schema parity now reads 21 fields for iOS. The CI mirror's gates, TS, vectors, rules and
+  emulator steps, the web typecheck and build, and Swift core pass. Two failures come from the
+  base branch, not this change (which touches only `ios/`): schema parity on Android's
+  `SharedProfile` (no `otherNames` yet; a control with the iOS field removed fails the same step),
+  and the web test that expects two default approach notes now that a third exists. The Android
+  build was not run here.
+
 ### feat(ios): speak assignments through the published voice template
 - What: the AI Logic voice now calls the published prompt template named by the new Remote Config
   key `voice_template_id` (default `pls-voice-v1`) with the approved plan text as its only input,

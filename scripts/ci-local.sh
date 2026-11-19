@@ -7,7 +7,9 @@
 #   Exit 0: every check ran and passed. Exit 1: a check failed (the run stops there).
 #   Exit 2: every check that ran passed, but a tool was missing, so some checks did NOT run (listed at the end).
 # CI_LOCAL_HIDE="tool ..." makes the named tools count as missing (for this script's own tests).
+# PLS_HEAVY_LOCK=1 skips taking the machine-wide heavy-suite lock (set by the script once it holds it).
 set -euo pipefail
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(git rev-parse --show-toplevel)"
 
 usage() {
@@ -32,6 +34,15 @@ for arg in "$@"; do
   esac
 done
 if [ -z "$SECTIONS" ]; then SECTIONS=" gates ts rules web ios android"; fi
+
+# One heavy suite at a time on this machine: several worktrees running full suites at once overload it and make
+# timing-based browser tests flake. Re-run this script under the shared lock (lockf waits its turn); a runner
+# without lockf (CI) runs as is.
+if [ -z "${PLS_HEAVY_LOCK:-}" ] && command -v lockf >/dev/null 2>&1; then
+  export PLS_HEAVY_LOCK=1
+  echo "ci-local: waiting for the machine's heavy-suite lock (/tmp/heavy-suite.lock)"
+  exec lockf -k /tmp/heavy-suite.lock bash "$SELF" "$@"
+fi
 
 want() { case " $SECTIONS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 have() {

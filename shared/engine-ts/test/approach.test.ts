@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import notesFile from "../../constants/approach-notes.json";
 import {
-  approachNoteIds, detectionProfile, placeToCheck, profileForCommand, profileForModel, profileForSearchers, profileWarnings,
+  approachNoteIds, detectionProfile, namesToCall, placeToCheck, profileForCommand, profileForModel, profileForSearchers, profileWarnings,
 } from "../src/index";
 import type { FamilyProfile, ProfileFlags } from "../src/index";
 
@@ -38,6 +38,14 @@ describe("approach notes and profile split (spec section 13)", () => {
   it("default profile shows may_not_respond and approach_calm first", () => {
     expect(approachNoteIds(base).slice(0, 2)).toEqual(["may_not_respond", "approach_calm"]);
   });
+  it("stop_calling_name follows the first two whenever may_not_respond shows (field expert)", () => {
+    expect(approachNoteIds(base).slice(0, 3)).toEqual(["may_not_respond", "approach_calm", "stop_calling_name"]);
+    const answers = withFlags(base, { mayNotRespond: false });
+    expect(approachNoteIds(answers)).not.toContain("may_not_respond");
+    expect(approachNoteIds(answers)).not.toContain("stop_calling_name");
+    expect(notes.stop_calling_name).toEqual({ text: "If they may not come when called, stop calling their name.",
+      shownWhen: notesFile.notes.may_not_respond.shownWhen, sourceRole: "search_team" });
+  });
   it("hide and uniform flags add notes and set the hidden target", () => {
     const p = withFlags(base, { likelyToHide: true, afraidOfUniforms: true });
     expect(approachNoteIds(p)).toEqual(expect.arrayContaining(["likely_to_hide", "afraid_of_uniforms"]));
@@ -70,6 +78,23 @@ describe("approach notes and profile split (spec section 13)", () => {
   it("dementiaType is shared only with the consent switch (null otherwise, as the schema requires)", () => {
     expect(profileForSearchers({ ...full, shareDementiaType: false }).dementiaType).toBeNull();
     expect(profileForSearchers({ ...full, dementiaType: "vascular" }).dementiaType).toBe("vascular");
+  });
+  it("other names she may answer to: shared as listed, with nickname mirroring the first (field expert)", () => {
+    const shared = profileForSearchers({ ...full, nickname: "old", otherNames: ["Mom", "Margaret", "Peggy"] });
+    expect(shared.otherNames).toEqual(["Mom", "Margaret", "Peggy"]);
+    expect(shared.nickname).toBe("Mom");
+    expect(Object.keys(shared).length).toBe(21);
+    expect(profileForSearchers({ ...full, nickname: "old", otherNames: [] }).nickname).toBe("");
+    // An older profile with no list keeps its nickname and adds no key (Firestore refuses an undefined field).
+    const old = profileForSearchers({ ...full, nickname: "Peggy" });
+    expect(old.nickname).toBe("Peggy");
+    expect("otherNames" in old).toBe(false);
+  });
+  it("readers call the person by the list, falling back to the nickname", () => {
+    expect(namesToCall({ nickname: "Mom", otherNames: ["Mom", "Peggy"] })).toEqual(["Mom", "Peggy"]);
+    expect(namesToCall({ nickname: "Peggy" })).toEqual(["Peggy"]);
+    expect(namesToCall({ nickname: "", otherNames: [] })).toEqual([]);
+    expect(namesToCall({ nickname: "  " })).toEqual([]);
   });
   it("profileForSearchers carries the approach note ids", () => {
     expect(profileForSearchers(full).approachNoteIds).toEqual(approachNoteIds(full));

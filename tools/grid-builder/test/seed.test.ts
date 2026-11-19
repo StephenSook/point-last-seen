@@ -50,4 +50,11 @@ describe("cli --prior", () => {
     expect(main(["--prior", join(dir, "g.json"), "--ipp", "north", "--terrain", "temperate_flat", "--out", out])).toBe(2);
     expect(main(["--prior", join(dir, "g.json"), "--ipp", "1,2", "--terrain", "desert", "--out", out])).toBe(2);
   });
+  it("builds an urban prior (field expert: suburbs and big parks are urban)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "prior-"));
+    writeFileSync(join(dir, "g.json"), JSON.stringify(grid));
+    const out = join(dir, "segments.json");
+    expect(main(["--prior", join(dir, "g.json"), "--ipp", `${ipp.lat},${ipp.lon}`, "--terrain", "urban", "--out", out])).toBe(0);
+    expect(JSON.parse(readFileSync(out, "utf8")).terrain).toBe("urban");
+  });
 });

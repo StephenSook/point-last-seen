@@ -4,7 +4,11 @@ import Foundation
 /// in the pack; only the six appearance fields in `ModelProfile` ever reach a model.
 public struct SharedProfile: Codable, Sendable, Equatable {
     public var answersTo: String
+    /// Mirrors `otherNames[0]` when the list is present ("" for an empty list), so older readers still show one.
     public var nickname: String
+    /// Other names she may answer to, 0 to 5, each 1 to 60 characters, in the family's order.
+    /// Absent (nil) on profiles saved before the list.
+    public var otherNames: [String]?
     public var ageYears: Int?
     public var gender: String
     public var appearance: String
@@ -25,7 +29,7 @@ public struct SharedProfile: Codable, Sendable, Equatable {
     public var approachNoteIds: [String]
 
     enum CodingKeys: String, CodingKey {
-        case answersTo, nickname, ageYears, gender, appearance, heightFt, heightIn, weightLb, hair, eyeColor, primaryLanguage,
+        case answersTo, nickname, otherNames, ageYears, gender, appearance, heightFt, heightIn, weightLb, hair, eyeColor, primaryLanguage,
              clothingLastWorn, mobilityAids, dementiaType, flags, triggersToAvoid, bestApproach, uniqueDescription, photoTakenOn,
              approachNoteIds
     }
@@ -37,6 +41,7 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         func text(_ k: CodingKeys) throws -> String { try c.decodeIfPresent(String.self, forKey: k) ?? "" }
         answersTo = try text(.answersTo)
         nickname = try text(.nickname)
+        otherNames = try c.decodeIfPresent([String].self, forKey: .otherNames)
         ageYears = try c.decodeIfPresent(Int.self, forKey: .ageYears)
         gender = try text(.gender)
         appearance = try text(.appearance)
@@ -57,11 +62,13 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         approachNoteIds = try c.decodeIfPresent([String].self, forKey: .approachNoteIds) ?? []
     }
 
-    /// All 20 keys, nulls written out (the schema allows no other keys).
+    /// All 20 keys, nulls written out (the schema allows no other keys), plus `otherNames` only
+    /// when the profile has the list.
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(answersTo, forKey: .answersTo)
         try c.encode(nickname, forKey: .nickname)
+        try c.encodeIfPresent(otherNames, forKey: .otherNames)
         try c.encode(ageYears, forKey: .ageYears)
         try c.encode(gender, forKey: .gender)
         try c.encode(appearance, forKey: .appearance)
@@ -80,5 +87,13 @@ public struct SharedProfile: Codable, Sendable, Equatable {
         try c.encode(uniqueDescription, forKey: .uniqueDescription)
         try c.encode(photoTakenOn, forKey: .photoTakenOn)
         try c.encode(approachNoteIds, forKey: .approachNoteIds)
+    }
+
+    /// The names to call her by: the other-names list when present, else the nickname; blank names
+    /// are left out (the TS engine's namesToCall).
+    public var namesToCall: [String] {
+        let has = { (s: String) in !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if let otherNames { return otherNames.filter(has) }
+        return has(nickname) ? [nickname] : []
     }
 }

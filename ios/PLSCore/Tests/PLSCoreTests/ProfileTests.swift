@@ -27,6 +27,28 @@ func sharedProfileJSON(ids: [String], language: String = "Spanish", unique: Stri
     }
 
 
+    /// Other names she may answer to: absent on documents saved before the list, kept in the
+    /// family's order when present. The names to call read the list first, then the nickname
+    /// (the TS engine's namesToCall, same four cases).
+    @Test func otherNamesAreReadFirstAndTheNicknameOtherwise() throws {
+        func profile(_ extra: [String: JSONValue]) throws -> SharedProfile {
+            guard case var .object(o) = sharedProfileJSON(ids: []) else { throw CocoaError(.coderInvalidValue) }
+            for (k, v) in extra { o[k] = v }
+            return try JSONValue.object(o).decode(SharedProfile.self)
+        }
+        let listed = try profile(["nickname": .string("Mom"), "otherNames": .array([.string("Mom"), .string("Peggy")])])
+        #expect(listed.otherNames == ["Mom", "Peggy"] && listed.namesToCall == ["Mom", "Peggy"])
+        let older = try profile(["nickname": .string("Peggy")])
+        #expect(older.otherNames == nil && older.namesToCall == ["Peggy"])
+        #expect(try profile(["nickname": .string(""), "otherNames": .array([])]).namesToCall == [])
+        #expect(try profile(["nickname": .string("  ")]).namesToCall == [])
+        // Written back as read: the list when there is one, no key when there is none.
+        guard case let .object(written) = try JSONValue(encoding: listed), case let .object(writtenOlder) = try JSONValue(encoding: older) else {
+            Issue.record("encode"); return
+        }
+        #expect(written["otherNames"] == .array([.string("Mom"), .string("Peggy")]) && writtenOlder["otherNames"] == nil)
+    }
+
     /// The rules let command write profile/shared in parts, so a nickname alone is a legal document.
     @Test func aNicknameOnlyDocumentDecodesWithEverythingElseEmpty() throws {
         let p = try JSONDecoder().decode(SharedProfile.self, from: Data(#"{"nickname":"Dottie"}"#.utf8))

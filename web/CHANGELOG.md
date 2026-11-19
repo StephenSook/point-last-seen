@@ -1106,6 +1106,51 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: second-model review of PR #16, round 3, finding 1 (high).
 - Verified: new plan harness test (with the model answering only on a button: suggest, change the assignments, then the model answers: no suggestion and no Approve) failed first, then passed; all three plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
+### test(profile): expect stop_calling_name as the third default approach note
+- What: the shared approach notes now carry `stop_calling_name` ("If they may not come when called, stop calling their name.", shown when `may_not_respond` is), third in their order. The web card and the printed sheets render notes by id, so it shows with no code change; the default-notes test pinned exactly two and now expects the three, and a new test checks that a family answer of "answers when called" (`mayNotRespond: false`) removes both name-calling notes.
+- Source: field-expert input (search and rescue practitioner), with the shared note from the field-expert branch.
+- Verified: the old pin failed on the new shared notes (three, not two); the updated test and the new one pass; 12 profile unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(data): complete an incident's engine settings with the engine defaults
+- What: the command post reads the incident through `incidentFromDoc`, which completes the stored `engineParams` with `withEngineDefaults` from the engine. An incident saved before urban rings existed now has them when its terrain is urban, stored values are kept, and an incident with no stored settings gets the defaults; every reader and rebuild sees the same complete settings. Prior writes only read `engineParams`, so nothing new is written.
+- Source: review of the field-expert branch (urban terrain).
+- Verified: `src/data/incidentDoc.test.ts` (old rings gain urban and keep a stored column; nothing stored gives the defaults; the rest of the incident is unchanged) failed first (missing), then passed; 448 web unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): offer Urban first in the distance table and name the column in use
+- What: the prior's distance table lists "Urban (suburb, town, big park)" first, then "Temperate flat" and "Temperate mountain" (`command/terrains.ts`), so an urban incident, which new incidents now are, has its own option and shows it chosen. The rings' source line names the column in use and its sample size, for example "Urban rings, ISRID dementia (n = 336), measured in a straight line."; before it always said n = 175. The sizes (urban 336, flat 175, mountain 95) are the ones the shared source line states, and a test checks them against it. An incident with no stored terrain still reads as temperate flat, the column its stored prior was built with.
+- Source: field-expert input (Atlanta suburbs and parks are urban) and review of the field-expert branch.
+- Verified: `src/command/terrains.test.ts` (order and label, sizes parsed from the shared source line, the line per column) failed first (missing), then passed; new layers harness test (`?terrain=urban`: Urban chosen, the three options in order, the urban line) fails against the previous picker (value "temperate_flat") and passes now; 8 layers harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(data): keep a profile's other names when command saves the profile
+- What: `sharedFromDoc` now keeps `otherNames` (string entries only) when the stored shared profile has the list, and adds none when it does not. The shared document is replaced whole on save, so before this a command edit to any field (clothing, say) wrote the profile back without the list and erased the names the family app saved. The engine's `profileForSearchers` writes the list back with `nickname` mirrored from its first entry.
+- Source: review of the field-expert branch (other names).
+- Verified: two new profile tests (a clothing edit at command keeps all five names and the mirrored nickname; only string names are read, and no list appears when none was stored) failed first (the list read as undefined), then passed; 14 profile tests and 453 web unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(profile): save only the fields command changed, so family edits are kept
+- What: the profile form keeps the profile as it was when it opened, and Save writes only the fields that differ from it (`profilePatch`), merged into each document that already exists (`writeProfile`). A document that does not exist yet is written whole, since the rules check the complete shared document. Before, Save wrote a whole snapshot of both documents, so a name, or any other field, that the family app changed while the form was open was erased.
+- Source: review of the field-expert branch, round 2, finding 1 (high).
+- Verified: three new `profilePatch` tests (opened with the family's names, a clothing edit writes only the clothing; a flag change writes the flags and the approach notes it changes; a command-only field touches only the command document) failed first (missing), then passed; 456 web unit tests and the profile harness test pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(profile): show the family's names list instead of a nickname field it would override
+- What: when the profile has the family's list of other names, the form no longer shows a Nickname field: the nickname mirrors the list's first entry on every save, so an edit there was silently dropped. It shows the list instead, read-only, through `namesToCall`: "Names they answer to: Bea, Mom, Roberta. The family keeps this list in their app." Without a list, the Nickname field works as before.
+- Source: review of the field-expert branch, round 2, finding 3.
+- Verified: the profile harness gets `?names=1`; the new test (no Nickname field, the list line) failed first, then passed; a second test checks the field is still there without a list; 3 profile harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): name custom ring radii as custom instead of crediting ISRID
+- What: the rings' source line credits ISRID only while the incident's stored radii for its terrain are the sourced ones (`DEFAULT_PARAMS.rings`). Radii stored differently are named with their values: "Urban rings, custom radii (0.5, 1, 2.5, 10 km), not the ISRID table, measured in a straight line." The picker takes the incident's stored radii (`rings`, from `engineParams` completed with the defaults).
+- Source: review of the field-expert branch, round 2, finding 5.
+- Verified: two new `terrains.test.ts` cases (the sourced radii keep the ISRID line; other radii give the custom line) failed first for the custom case, then passed; the new layers harness test (`?rings=custom`) failed first, then passed; 9 layers harness tests and 5 terrain unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(profile): save over the server's current profile in one transaction
+- What: the profile form's Save now runs one Firestore transaction over both profile documents read from the server (`writeProfile`), and `mergeProfileSave` decides what to write: only the fields command changed since the form opened, applied onto the profile as the server holds it now, with flags applied one by one. A family edit that lands meanwhile makes the transaction retry with it, so it is never overwritten, whichever writes first; an absent document is created only when the server says it is absent; offline, the save fails and says so. The family's names list, when the server has one, is kept and its first entry stays the nickname, so a stale nickname edit here gives way while the other edits still land. Missing fields of an older document are filled with their empty values, so the written document is complete and valid. The approach notes are worked out again from the merged profile in the same write, so a family flag set meanwhile (fall risk, say) keeps its note. These three fixes share the one merge and save path, so they are one commit.
+- Source: review of the field-expert branch, round 3, findings 1 (high), 2 and 3.
+- Verified: seven new `mergeProfileSave` tests (family created the profile after the form opened; family changed the names after; a legacy document with only a nickname; a family flag set meanwhile keeps its note; a nickname edit gives way to a names list; nothing changed writes nothing; an absent document is created) failed first (missing), then passed; 465 web unit tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### fix(command): show invalid stored ring radii as invalid settings instead of crashing
+- What: the rings' source line now checks the incident's stored radii with the engine's own rule (one radius per ring mass, each finite, positive and larger than the last) before formatting them. A column that is not a list, or is empty, short, non-finite, non-positive or out of order, shows "Urban rings: the radii stored for this incident are not valid settings (4 increasing positive distances are needed)." and the command post stays usable. Before, a non-list column threw during render and took the post down, and empty, NaN or Infinity columns were shown as custom radii although the engine refuses them.
+- Source: review of the field-expert branch, round 3, finding 6.
+- Verified: two new `terrains.test.ts` tests (four non-list values; six unusable lists) failed first, then passed; 7 terrain unit tests and 9 layers harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
 ### fix(camera): release the clip form when the chosen file can no longer be read
 - What: the clip form locks before its first await (so consent cannot change mid-read), but a file that became unreadable after it was chosen made `arrayBuffer()` reject outside any handler, leaving the form, Cancel and the file picker locked. The read is now caught: the form says "This clip could not be read from this computer. Choose it again." and unlocks, and nothing is sent.
 - Source: second-model review of PR #16, round 3, finding 3 (medium; follow-up after the merge).
