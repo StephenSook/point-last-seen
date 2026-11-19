@@ -1,4 +1,4 @@
-# Changelog: web command post (lane C)
+# Changelog: web command post
 
 Each entry names what changed, its source (plan task or finding) and how it was verified, in commit order.
 
@@ -56,7 +56,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 ### feat(web): add the app entry, HTML shell and a Vite build that checks its config
 - What: `index.html` (dark colour scheme, an SVG icon), `src/main.tsx` (mounts the command post), and `vite.config.ts`: the env is read from the repo root, a production build fails at once when any Firebase value or the App Check site key is missing, and the version.json plugin records `GITHUB_SHA` or `git rev-parse HEAD` plus a dirty flag. Adds `preview` and `e2e` scripts.
 - Source: plan Task 15; spec section 14 ("the build fails when it is missing"); review (version.json).
-- Verified: `npm run build -w web` exit 0 with the untracked env; `dist/version.json` holds the 40-character commit. The first local smoke found a 404 for `/favicon.ico` (the page had no icon) and a 400 from anonymous sign-up (`CONFIGURATION_NOT_FOUND`, Auth not yet set up); the icon fixed the first, lane A's Task 0 fixed the second, and the shell smoke then passed with zero console errors.
+- Verified: `npm run build -w web` exit 0 with the untracked env; `dist/version.json` holds the 40-character commit. The first local smoke found a 404 for `/favicon.ico` (the page had no icon) and a 400 from anonymous sign-up (`CONFIGURATION_NOT_FOUND`, Auth not yet set up); the icon fixed the first, the backend setup fixed the second, and the shell smoke then passed with zero console errors.
 
 ### test(web): add the Playwright smoke with the live-commit check
 - What: `e2e/playwright.config.ts` (real Chrome, 1440 px; a local preview of `dist` unless `BASE_URL` is set), `e2e/fixtures.ts` (`withDebugToken` sets the App Check debug global from `PLS_APPCHECK_DEBUG_TOKEN`; every console error, page error and HTTP 400 or higher response is collected with its URL), and `e2e/smoke.spec.ts`: the shell shows the drill line and the join form with zero console errors; "the live site serves this commit" (version.json equals `EXPECT_COMMIT` or HEAD, and not dirty when deployed); a joined post draws the map canvas and the license line after one successful App Check exchange. That third test needs a seeded drill incident: it fails under CI when the fixture is missing and is skipped only on a local run.
@@ -116,7 +116,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): build and write approved plans from the draft and its wording
 - What: `plans.ts`: `planDocFor` joins the draft's segments with the wording's task line and reason per team (in draft order) into exactly the plan schema's eight fields, with `approvedByUid` the signed-in command uid and `approvedAt` a server timestamp, and refuses wording that lacks a draft team; `nextPlanVersion` and `planDocId` ("0001"); `localDraft` runs the engine's `assignTeams` so the post can draft with the link down; `approvePlan` writes `plans/{version}` and is called only from Approve.
-- Source: plan Task 16c (`approvePlan`), spec 11.4 (plans have one writer; a local draft with the link down), lane A's rules contract (plans create-only, `approvedByUid` is the command uid).
+- Source: plan Task 16c (`approvePlan`), spec 11.4 (plans have one writer; a local draft with the link down), the security rules contract (plans create-only, `approvedByUid` is the command uid).
 - Verified: `src/data/plans.test.ts`, 6 tests, failed first (module missing), then passed; typecheck clean.
 
 ### feat(web): keep plan wording off the cloud while kill_cloud is on
@@ -137,12 +137,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 ### feat(web): show the suggested plan with its route glyph and approve it by hand
 - What: `RouteGlyph` names where a model output came from with an icon and a word ("Cloud", "This laptop", "Fixed wording", "Route not reported"), with `data-path` for tests. `WhatChanged` shows the draft's source, a "Suggest plan" button, then a "Suggested" card with the glyph, any plain notice, each team's task and reason, and "Approve". Both buttons are disabled while their call runs; errors sit beside them in fixed sentences; nothing is written before Approve. Styles for the card, the glyph and the team-rail plan lines; "New" uses neutral ink, because change-cyan means only "moved by the last report".
 - Source: plan Task 16c (`WhatChanged.tsx`, glyph with `data-path`), spec 22 (every model output is "Suggested"; write buttons disabled during a write; errors beside their control) and 22.1 (cyan only for "moved").
-- Verified: typecheck and build clean. Behaviour is covered by `replanWording` and `plans` unit tests; the deployed replan e2e runs when lane A's draft function and rules land.
+- Verified: typecheck and build clean. Behaviour is covered by `replanWording` and `plans` unit tests; the deployed replan e2e runs when the server's draft function and rules land.
 
 ### feat(web): wire re-plan into the command post
 - What: the post starts Remote Config (real-time), listens to approved plans and to the server draft for its own event set (falling back to `localDraft` when there is none), words the draft with `wordPlan` through `wordingGenerator` (model and `kill_cloud` from Remote Config, 15 s timeout), and on Approve writes the next plan version with the signed-in command uid. The team rail shows each team's current segments and task, and "New" for 10 seconds when a plan is approved while the page is open. A banner says when the cloud is paused.
 - Source: plan Task 16c steps 3 and 5, spec 11.4.
-- Verified: typecheck and build clean; 112 unit tests pass; local shell smoke passed. The deployed replan e2e (`data-path="cloud"`, Approve writes `plans/0001`, the team card changes) waits for lane A's `draftPlanOnEvent`, rules and a drill seed.
+- Verified: typecheck and build clean; 112 unit tests pass; local shell smoke passed. The deployed replan e2e (`data-path="cloud"`, Approve writes `plans/0001`, the team card changes) waits for a server draft function (`draftPlanOnEvent`), rules and a drill seed.
 
 ### chore(merge): bring main into lane-web (rules, joinIncident, ring prior, seeding tool)
 - What: merges origin/main (security rules and storage rules, `joinIncident`, the ISRID ring prior, the drill seeding tool, the limits and production checklist) into lane-web; the root lockfile conflict was resolved by taking main's file and re-running `npm install` on the merged tree.
@@ -156,7 +156,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(sightings): build public sighting and confirmation events that move the map only after confirmation
 - What: `sightings.ts`: `removePhoneNumbers` (10-digit numbers with an optional +1, brackets, spaces, dots or hyphens, including "+1 (404) 5550142", and 7-digit local numbers; times like 14:03 and segment ids stay); `buildSightingEvent` (all 25 event keys, command role, `deviceId` and `authorUid` the signed-in uid, `eventId` from the engine over incident, uid and seq, `observedAtMs` required, place from the map click, the note stored only after phone numbers are removed and at most 2000 characters, reporter "family" or "public_caller", effect from the engine's `deriveClueEffect`: strong evidence for the clicked segment, "outside_area" off the grid, "needs_command" with no place); `buildConfirmation` (targets the sighting, effect none); `useAsStartPoint` (adds the sighting to `priorInputEventIds`, moves the start pin, raises the prior version).
-- Source: plan Task 36, spec 12.2, lane A's rules contract (25 keys, deviceId = uid, role = claim), the Android phone-number shape from the Codex privacy review (finding 2 was Android's; the same shape is covered here).
+- Source: plan Task 36, spec 12.2, the security rules contract (25 keys, deviceId = uid, role = claim), the Android phone-number shape from the Codex privacy review (finding 2 was Android's; the same shape is covered here).
 - Verified: `src/data/sightings.test.ts`, 14 tests, failed first (module missing), then passed: unconfirmed, confirmed and rejected sightings through the engine's `toEngineEvents`; no caller name or number in any stored field; a sighting promoted to the start point stops counting. One test's own regex was case-sensitive against "Place"; the test was corrected, not the message.
 
 ### feat(sightings): read a caller's note on this laptop only, behind the private-data gate
@@ -171,12 +171,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(web): number this browser's events from the clock so an id never repeats
 - What: `makeSeq` returns whole-number sequence values that start from the clock in milliseconds and only move forward (one past the last value within a millisecond or after the clock steps back). Event ids hash (incident, uid, seq), so a reload or a new browser profile cannot repeat an id.
-- Source: lane A's rules contract ("start the command post's seq from the current epoch ms").
+- Source: the security rules contract ("start the command post's seq from the current epoch ms").
 - Verified: `src/data/seq.test.ts`, 3 tests, failed first (module missing), then passed.
 
 ### feat(sightings): show each sighting's decision, missing place and out-of-area state
 - What: `sightingCards` lists each sighting once (newest seen first) with its status: awaiting, confirmed or rejected. Decisions follow the engine's order (a command decision outranks a family one; the latest within a role wins; a searcher's confirmation is ignored). Retracted sightings drop out. A card says when the sighting has no place yet and when it fell outside the search area.
-- Source: plan Task 36 (confirm and reject at command; the out-of-area banner), lane D's family sightings that arrive with no place.
+- Source: plan Task 36 (confirm and reject at command; the out-of-area banner), the Android family app's sightings that arrive with no place.
 - Verified: `src/command/sightingCards.test.ts`, 5 tests, failed first (module missing), then passed.
 
 ### feat(web): let a map click place a point and show it as a pin
@@ -201,7 +201,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(merge): bring main into lane-web (eventId framing, one-role join codes, per-worktree emulator ports)
 - What: merges origin/main: the length-prefixed eventId framing and the rules that recompute each event id, one join code per role, effect validation in rules and engines, and emulator runs on per-worktree ports. The web computes event ids only through the engine's `eventId`, so nothing in web/ changed.
-- Source: build order (merge main when lane A's engine framing lands, then re-run the tests).
+- Source: build order (merge main when the engine framing lands, then re-run the tests).
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree (engine 155, vectors 134, rules and joinIncident 63 in the emulators on this worktree's ports); web typecheck exit 0 and 153 unit tests pass, including the sighting tests that compare ids with the engine's `eventId`.
 
 ### fix(web): stop parsing clip_model until the clip read exists
@@ -261,7 +261,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(photos): hash, store and list family photos through the Storage SDK
 - What: `photos.ts`: `sha256Hex`; `photoPath` (only a 64-character hash can name a photo, so no other text can become a path); `photoReadingDoc` (hash, path, cues, route, the family's yes, no or not-sure, and `expiresAt` 30 days on for the TTL policy); `bytesToBase64` in chunks; `loadPhotos` lists `photos/{incident}/` and reads each object with `getBytes` (2 MB cap), so Storage rules apply and no download URL exists; `uploadPhoto` skips an object that already exists, because photos are create-only and named by content; `savePhotoReading` writes `photoReadings/{sha256}` (command only).
-- Source: plan Task 20, spec section 7 (`photoReadings`, the 30-day expiry); security rule (never `getDownloadURL`), lane A's create-only photo paths (63a65bb).
+- Source: plan Task 20, spec section 7 (`photoReadings`, the 30-day expiry); security rule (never `getDownloadURL`), the create-only photo paths in the storage rules (63a65bb).
 - Verified: `src/data/photos.test.ts`, 6 tests, failed first (module missing), then passed; rules gate ok (no download URL in web code).
 
 ### feat(photos): re-encode added photos as JPEG with the long side at most 1536 px
@@ -296,12 +296,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### chore(merge): bring main into lane-web (Task 35a: profile splitting and approach notes)
 - What: merges origin/main 2bc711c: the engine's `approachNoteIds`, `profileForSearchers`, `profileForCommand`, `profileForModel`, `profileWarnings`, `detectionProfile`, `placeToCheck`, and `shared/constants/approach-notes.json` (copy, order, footer, first-screen limit 7, source role per note).
-- Source: lane A's Task 35a, which Task 35c builds on.
+- Source: the backend's Task 35a, which Task 35c builds on.
 - Verified: `scripts/ci-local.sh` exit 0 on the merged tree; web typecheck and unit tests pass.
 
 ### feat(profile): split the subject profile into the shared and command documents at the command post
 - What: `profile.ts`: `emptyProfile` (mayNotRespond on, every other flag off); `profileDocs` uses the engine's `profileForSearchers` (exactly the 20 keys the rules allow; dementia type only with the family's consent) and `profileForCommand` (history, places, water, vehicle); `profileFromDocs` reads both back into the form, with the family-only fields left empty; `approachLines` turns the shared document's note ids into the card's lines from `approach-notes.json` (family text and language filled into their templates, an id without copy skipped, seven lines first and the rest under More) plus the footer; `commandWarnings` shows only the photo-age warning, because the profile update date never leaves the family phone; `writeProfile` and `subscribeProfile` for `profile/shared` and `profile/command`.
-- Source: plan Task 35c, spec 13.2 and 13.3, lane A's 35a and the rules allowlist (3feb2a7).
+- Source: plan Task 35c, spec 13.2 and 13.3, the backend's 35a and the rules allowlist (3feb2a7).
 - Verified: `src/data/profile.test.ts`, 11 tests, failed first (module missing), then passed: no key in both documents, no family-only field in either, consent-gated dementia type, the first-screen limit, template filling.
 
 ### fix(profile): clear the profile documents with the rest of the incident on an access denial
@@ -321,7 +321,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(profile): wire the profile, places to check and the approach card into the command post
 - What: the post listens to `profile/shared` and `profile/command` (cleared on an access denial), shows the approach card when a shared profile exists, opens the profile form ("Add profile" or "Edit profile"), saves both documents through the engine's splitters, and turns a place with a map point into a `destination` event with the engine's `placeToCheck` (one place, its label and position only; deviceId the command uid). Map picks are one at a time: a profile place or the sighting pin, with "Click the map to place it." while picking.
-- Source: plan Task 35c step 3, spec 13.2 ("Add as a place to check" creates a destination event), lane A's `placeToCheck` contract.
+- Source: plan Task 35c step 3, spec 13.2 ("Add as a place to check" creates a destination event), the shared `placeToCheck` contract.
 - Verified: typecheck, build and 202 unit tests; scripts/ci-local.sh exit 0. GitHub jobs are still blocked by the Actions budget. The deployed profile check (and the phone-side check of Task 35 step 5) waits for joinIncident.
 
 ### feat(judge): give the judge's door its D2 state lines and a published-run loader
@@ -357,7 +357,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(photos): say when photos could not be loaded or added instead of showing an empty tray
 - What: `loadPhotosOrError` returns the photos or the sentence "Photos could not be loaded. Reload to try again."; the tray shows it as an alert instead of "No photos yet." Adding photos now counts files that were not added (unreadable, or over 2 MB after re-encoding) and says "One photo was not added." or the count, instead of skipping them silently.
-- Source: found on the live site: the bucket's missing CORS rule made every photo read fail, and the tray quietly showed an empty list (a silent failure). The CORS rule itself is lane A's root config and was handed over.
+- Source: found on the live site: the bucket's missing CORS rule made every photo read fail, and the tray quietly showed an empty list (a silent failure). The CORS rule itself is in the root config and was handed to its owner.
 - Verified: two new tests in `src/data/photos.test.ts` failed first (not a function), then passed (8 of 8); typecheck and build clean; scripts/ci-local.sh exit 0.
 
 ### fix(join): say App Check refused the browser instead of blaming the join code
@@ -417,7 +417,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(map): show the grid's own attribution line and make the joined smoke require segments
 - What: the incident's `gridAttribution` (the license line tools/grid-builder stamps, "Map data from OpenStreetMap contributors (ODbL)") is read with the incident and shown as the map credit whenever its segments draw; the fixed "Map data from OpenStreetMap" stays only as the fallback. The joined smoke now requires the drill's segments and plates to draw before it checks the credit.
-- Source: lane A seeded drill-dev-1 with a 67-segment grid and asked that the stamped attribution show wherever the map draws. The earlier smoke check could pass before segments loaded (an empty map with no credit is consistent), so it passed against the old build; it is no longer vacuous.
+- Source: The backend seeded drill-dev-1 with a 67-segment grid and asked that the stamped attribution show wherever the map draws. The earlier smoke check could pass before segments loaded (an empty map with no credit is consistent), so it passed against the old build; it is no longer vacuous.
 - Verified: new `mapCredit` test failed first, then passed (4 of 4). The new smoke failed against the live old build (received "Map data from OpenStreetMap"), then passed against the local preview with segments drawn. Typecheck clean. scripts/ci-local.sh exit 0.
 
 ### chore(deps): add vite-plugin-pwa 2.0.0 for the offline command post
@@ -522,7 +522,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(basemap): load a site's self-hosted PMTiles file whole, checked by its magic bytes
 - What: `basemap/load.ts` `loadBasemap(url)` fetches the site's PMTiles file in one request (a small site extract, so the service worker can keep it as an ordinary response for offline use; no range requests) and accepts it only when it starts with "PMTiles" and spec version 3. A 404 or the hosting's HTML answer is "absent", other bytes are "invalid", a failed fetch is "unavailable". The file is wrapped in pmtiles' `FileSource` and keyed by its file name for the `pmtiles://` protocol.
-- Source: UI review U4 and review P1 item 6 (self-hosted PMTiles basemap); lane A's dev extract for drill-dev-1.
+- Source: UI review U4 and review P1 item 6 (self-hosted PMTiles basemap); the backend's dev extract for drill-dev-1.
 - Verified: `src/basemap/load.test.ts` (4 tests) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(basemap): style the Protomaps basemap in the 22.1 instrument greys
@@ -531,7 +531,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: `src/basemap/style.test.ts` (4 tests: tokens only, fills under and lines over with no labels, Protomaps v4 layers only, water bg-3 and lines fg-4) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(map): draw the site's self-hosted basemap under the probability field
-- What: MapView takes `basemapUrl`; the post passes `/tiles/<gridId>.pmtiles`. One pmtiles protocol is registered for the page; the loaded file is drawn with `basemapLayers`, shapes inserted under the probability fills and lines between the fills and the segment edges. The credit counts the basemap only once it is drawn, and the map carries `data-basemap` (drawn, absent, invalid, unavailable). The service worker precaches `.pmtiles` files, so the basemap draws offline. The dev extract (lane A, Protomaps build 20261118, Piedmont Park, never for the film or judges) lives in `web/public/tiles/`, which `web/.gitignore` keeps out of git; a real site's extract will be copied in at build.
+- What: MapView takes `basemapUrl`; the post passes `/tiles/<gridId>.pmtiles`. One pmtiles protocol is registered for the page; the loaded file is drawn with `basemapLayers`, shapes inserted under the probability fills and lines between the fills and the segment edges. The credit counts the basemap only once it is drawn, and the map carries `data-basemap` (drawn, absent, invalid, unavailable). The service worker precaches `.pmtiles` files, so the basemap draws offline. The dev extract (backend, Protomaps build 20261118, Piedmont Park, never for the film or judges) lives in `web/public/tiles/`, which `web/.gitignore` keeps out of git; a real site's extract will be copied in at build.
 - Source: UI review U4, review P1 item 6.
 - Verified: new `e2e/basemap.spec.ts` failed against the live site (no basemap), then passed against the local preview: basemap drawn, OpenStreetMap credit, zero tile requests to another host. The offline reload test still passes with the basemap precached (11 entries). Still at 1440 px checked. scripts/ci-local.sh exit 0. Not pushed or deployed yet: merge point 2 is running.
 
@@ -646,7 +646,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: new change-harness test failed first (no pin), then passed: during the beat the pin is visible and the arc exists, the arc is fully opaque after 900 ms and faded at "done", the pin remains. Frame at 750 ms checked by eye. All 19 harness specs pass. scripts/ci-local.sh exit 0.
 
 ### feat(walkers): run the seeded walker simulation as a worker job with its measured time
-- What: `workers/walkerJob.ts` runs one `simulateWalkers` call (the engine's seeded walker prior, plain arithmetic) and posts `progress` at the start and the end, then `result` with the elapsed milliseconds on this machine, or `error` with the engine's message instead of throwing inside the worker. `workers/walkers.worker.ts` is the Web Worker around it (spec 10.6). Progress every 1,000 walkers needs an engine hook (asked of lane A); splitting the run would change the seeded table.
+- What: `workers/walkerJob.ts` runs one `simulateWalkers` call (the engine's seeded walker prior, plain arithmetic) and posts `progress` at the start and the end, then `result` with the elapsed milliseconds on this machine, or `error` with the engine's message instead of throwing inside the worker. `workers/walkers.worker.ts` is the Web Worker around it (spec 10.6). Progress every 1,000 walkers needs an engine hook (asked of the engine's owners); splitting the run would change the seeded table.
 - Source: plan Task 37c.
 - Verified: `src/workers/walkerJob.test.ts` (2 tests on the engine's toy graph) failed first (module missing), then passed: the posted result equals `simulateWalkers` called directly, the time is measured, and a refused run posts the engine's message. scripts/ci-local.sh exit 0.
 
@@ -726,13 +726,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: new `e2e/phonefit.spec.ts` at 390 x 844 failed first (15px), then passed (16 px fields, Join button at least 44 px). scripts/ci-local.sh exit 0.
 
 ### feat(walkers): forward the engine's progress every 1,000 walkers from the Worker
-- What: the walker job passes `onProgress` (engine hook from lane A, called every 1,000 walkers and once at the end, with an identical table) and posts each value; the job's own end-of-run progress message is gone.
+- What: the walker job passes `onProgress` (engine hook added to the engine, called every 1,000 walkers and once at the end, with an identical table) and posts each value; the job's own end-of-run progress message is gone.
 - Source: plan Task 37c ("the worker posts progress every 1,000 walkers").
 - Verified: the walker job test now runs 2,500 walkers and expects progress 0, 1000, 2000, 2500; it failed first (0, 2500), then passed. The Worker harness spec now reads progress 0 to 10,000 in steps of 1,000 and still matches the engine's table. scripts/ci-local.sh exit 0.
 
 ### feat(walkers): read the grid builder's stored route graph and index it with the engine
 - What: `loadRouteGraph` now reads the stored `RouteGraph` the grid builder writes (`build-grid --graph`) and indexes it with the engine's `indexRouteGraph`; a file without edges and nodes, or one the engine refuses (no bounds or projection, which would read as a graph with no exits), is "invalid".
-- Source: plan Task 37c; lane A moved `indexRouteGraph` into @pls/engine and built the dev site's graph.
+- Source: plan Task 37c; `indexRouteGraph` moved into @pls/engine and built the dev site's graph.
 - Verified: `src/prior/walkerPrior.test.ts` (5 tests, with a two-station stored graph) failed first (the old reader expected an indexed file), then passed, including a refused graph without a projection. scripts/ci-local.sh exit 0.
 
 ### test(e2e): sign in once per run and reuse the session in every test
@@ -871,15 +871,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: `src/camera/triage.test.ts` (9 tests with fakes: params and parser, no model samples nothing, still clip asks no model, one check per span at its peak, flagged span only, every flagged span covered, unreadable answer counts as a person, failures end triage) and the `frameGeneratorFor` test failed first (modules and export missing), then passed; typecheck clean. Not measured on a real built-in model (none on this Mac). scripts/ci-local.sh exit 0.
 
 ### feat(ai): cache a no-sighting clip result and take over a stalled clip record
-- What: per the ruling on stalled clip records and lane A's schema and rules (500e574, fc6e005, merged): a reply with no usable sighting now completes the record with the typed result `{ status: "no_sighting", reasons }` (the check's reason codes, or `unreadable_reply`), so the next seat gets "Couldn't read this clip" from the record with no model call; a model or network failure still leaves the record open. A record with no reading, from anyone, is taken over: the writer becomes its owner with their own consent, expiry and createdAt, every other field unchanged (`takeOverConsent`, replacing `renewConsent`). `readClip` also takes the triage window (passed to the model) and the route's reason (default `sdk_only_in_cloud`).
-- Source: review ruling (b) + (a) on the cross-seat finding; lane A's ClipNoSighting schema and takeover rule.
+- What: per the ruling on stalled clip records and the shared schema and rules (500e574, fc6e005, merged): a reply with no usable sighting now completes the record with the typed result `{ status: "no_sighting", reasons }` (the check's reason codes, or `unreadable_reply`), so the next seat gets "Couldn't read this clip" from the record with no model call; a model or network failure still leaves the record open. A record with no reading, from anyone, is taken over: the writer becomes its owner with their own consent, expiry and createdAt, every other field unchanged (`takeOverConsent`, replacing `renewConsent`). `readClip` also takes the triage window (passed to the model) and the route's reason (default `sdk_only_in_cloud`).
+- Source: review ruling (b) + (a) on the cross-seat finding; the ClipNoSighting schema and takeover rule.
 - Verified: new and changed tests (takeover by another user's stalled record keeps stored fields and sets the writer as owner; failed checks and an unreadable reply stored as no-sighting with their reasons; window and reason passed through) failed first, then passed (27 in clipRead and clips tests); a stored no-sighting result returns with only a lookup; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### test(e2e): read the same clip twice live and require no second model call
 - What: the live clip test reads its fresh no-person clip a second time and requires "Couldn't read this clip. Nothing changed." again with still exactly one AI Logic request in the run: the first read stored the typed no-sighting result, so the second comes from the record.
 - Source: ruling (b) on stalled clip records (ed004b6).
 - Also: the test no longer compares the match code before and after (other live tests write to the same drill incident in parallel, and the code changed under it once); it requires that no camera-sighting card appears, so there is nothing to confirm.
-- Verified: passed against the live site built from ed004b6 (that deploy was stamped dirty because this spec was uncommitted; redeployed clean right after). The first ci-local attempt failed on a 32 s timeout in scripts/test_emulator_config.py (lane A's emulator test; it passes alone in 3.6 s and this change touches no script), then scripts/ci-local.sh exit 0.
+- Verified: passed against the live site built from ed004b6 (that deploy was stamped dirty because this spec was uncommitted; redeployed clean right after). The first ci-local attempt failed on a 32 s timeout in scripts/test_emulator_config.py (the backend's emulator test; it passes alone in 3.6 s and this change touches no script), then scripts/ci-local.sh exit 0.
 
 ### feat(camera): triage a clip in the intake before sending, with a consented override
 - What: when the post gives the intake a triage step, "Read clip" first checks the clip on this laptop ("Checking on this laptop"). No motion: "Nothing moves in this clip. Nothing was sent." No person: "No person found on this laptop. Nothing was sent." Both offer "Read in the cloud anyway", which sends the clip with the consents already given and the reason `user_override_after_triage`. A flagged clip goes to the cloud read with only its flagged seconds and the reason `on_device_triage_flagged`. Without the built-in model, or when triage fails, the clip goes to the plain consented read as before. The panel passes the triage step and the read's window and reason through. The harness page's `?triage=` mode gives fixed triage answers.
@@ -888,7 +888,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### feat(camera): give the triage results that send nothing a route for the trace
 - What: `triageRoute`: a still clip is recorded as a code decision (path rules, model "motion-check", reason `triage_no_motion`, no model asked); no person as this laptop's model (path on_device, "chrome-built-in", `on_device_triage_no_person`). These routes go only to the hybrid-inference trace and are never stored; a flagged or plain read is traced by the cloud read itself.
-- Source: review ruling (a route record must never imply a model judged a static clip); lane A's route reasons (23fde93).
+- Source: review ruling (a route record must never imply a model judged a static clip); the shared route reasons (23fde93).
 - Verified: three `triageRoute` tests failed first (export missing), then passed (12 in triage.test.ts); typecheck clean. scripts/ci-local.sh exit 0.
 
 ### feat(web): run clip triage on this laptop before a camera clip is sent
@@ -897,8 +897,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: typecheck and build clean; the deployed suite runs right after this commit (on this Mac's Chrome there is no built-in model, so the live clip test takes the plain path). scripts/ci-local.sh exit 0.
 
 ### feat(extras): add the person-in-view band model for a clip timeline
-- What: `web/src/extras/clip/band.ts` (extras Task 10, P-40, owned by lane C now): the cloud reading's first seen to last seen as one interval, clamped to the clip's length, at least 2 px wide, scaled to the last interval and marked open ended when the length is unknown, with the key frame's mark; "Person in view 00:10 to 02:14" or "No person seen.". Intervals from on-device checks keep their own source, but none are stored or passed today (triage keeps no per-window checks).
-- Source: hand-off H4 (review: no extras session, lane C owns it).
+- What: `web/src/extras/clip/band.ts` (extras Task 10, P-40, owned by the web command post now): the cloud reading's first seen to last seen as one interval, clamped to the clip's length, at least 2 px wide, scaled to the last interval and marked open ended when the length is unknown, with the key frame's mark; "Person in view 00:10 to 02:14" or "No person seen.". Intervals from on-device checks keep their own source, but none are stored or passed today (triage keeps no per-window checks).
+- Source: hand-off H4 (review: no extras session, the web command post owns it).
 - Verified: `src/extras/clip/band.test.ts` (8 tests, the plan's seven plus the text) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(camera): show the person-in-view band on the sighting card, opening the clip at a click
@@ -908,7 +908,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### docs(web): reword changelog sources for the public repository
 - What: in `web/CHANGELOG.md` and `web/CHANGELOG-EXTRAS.md`, the names of internal process roles are replaced by plain wording with the same meaning ("review ruling", "reviewed before commit", "run in review", "Review fix before commit"). Text only; history is not rewritten.
-- Source: lane A's public-hygiene guard (scripts/hygiene_guard.py), ahead of the repository going public.
+- Source: the public-hygiene guard (scripts/hygiene_guard.py), ahead of the repository going public.
 - Verified: the guard reports no hits in web/ (it reported 13 before: 4 in CHANGELOG.md, 9 in CHANGELOG-EXTRAS.md). scripts/ci-local.sh exit 0.
 
 ### test(harness): add a page that measures clip triage in a browser with the built-in model
@@ -922,8 +922,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: the page's gate test still passes. In the installed Chrome connected to this Mac (2026-11-18), both answers were "downloadable": no built-in model is present in that profile, so triage stopped at the gate with 0 samples, 0 checks and 0 Google requests; no download was started. scripts/ci-local.sh exit 0.
 
 ### feat(ai): read a sighting note in the cloud through the server prompt template
-- What: the consented cloud read of a sighting note now calls the server prompt template (`getTemplateGenerativeModel`, `{ templateId, templateVariables: { note } }`): only the template id and the phone-scrubbed note leave the laptop; the template (`shared/templates/pls-sighting-note-v1.json`, published by lane A) holds the model, temperature 0, the instruction and the output schema. The reply is validated exactly as before. New Remote Config key `sighting_template_id` (default "pls-sighting-note-v1"; anything that is not a plain name falls back), added to `remoteconfig.template.json` so the key check passes. The inline cloud parameters are removed; the on-device read keeps its own instruction, so that text stays in the bundle.
-- Source: W2 (server prompt templates), lane A's template 0c7b28c and its go.
+- What: the consented cloud read of a sighting note now calls the server prompt template (`getTemplateGenerativeModel`, `{ templateId, templateVariables: { note } }`): only the template id and the phone-scrubbed note leave the laptop; the template (`shared/templates/pls-sighting-note-v1.json`, published with the backend) holds the model, temperature 0, the instruction and the output schema. The reply is validated exactly as before. New Remote Config key `sighting_template_id` (default "pls-sighting-note-v1"; anything that is not a plain name falls back), added to `remoteconfig.template.json` so the key check passes. The inline cloud parameters are removed; the on-device read keeps its own instruction, so that text stays in the bundle.
+- Source: W2 (server prompt templates), the template 0c7b28c and its go.
 - Verified: the RC tests (default, typed read, malformed ids fall back, every parsed value has a reader), the `templateGeneratorFor` test and a parity test (the template's output fields, lists and caps equal the client's `SIGHTING_CUES_JSON`) failed first, then passed (35); typecheck clean; scripts/check_rc_keys.py ok (11 keys). The live 200 through templateGenerateContent is checked after the merge to main and a deploy from main. scripts/ci-local.sh exit 0.
 
 ### feat(web): say what the product does on the join page and send judges to /judge
@@ -982,7 +982,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: new tests (the stored wedge goes off with no bearing; `cameraConfirmWrites` returns the two events and the prior with the sighting as an input; it throws, returning nothing, when part cannot be built) failed first, then passed (5 in cameraPrior.test.ts); typecheck clean; clip harness passes. scripts/ci-local.sh exit 0.
 
 ### fix(walkers): refuse a walker result that finishes after the prior moved on
-- What: the walker prior is written only if the incident's prior version is still the one the run started from (`runAgainstVersion`, read through a ref to the latest incident). Before, a run that finished after another rebuild (for example a confirmed camera clip) was written as the same next version from the old start point and inputs, over the newer prior. The panel shows "The prior changed while the walkers ran. Run them again." This closes the case on one laptop; a write from another laptop at the same version needs a server-side version check (asked of lane A).
+- What: the walker prior is written only if the incident's prior version is still the one the run started from (`runAgainstVersion`, read through a ref to the latest incident). Before, a run that finished after another rebuild (for example a confirmed camera clip) was written as the same next version from the old start point and inputs, over the newer prior. The panel shows "The prior changed while the walkers ran. Run them again." This closes the case on one laptop; a write from another laptop at the same version needs a server-side version check (asked of the backend).
 - Source: second-model review of PR #16, finding 2 (high).
 - Verified: two new tests (an unchanged version returns the result; a version that moved during the run is refused with that sentence) failed first (export missing), then passed; typecheck clean; walker and prior-switch harness tests pass. scripts/ci-local.sh exit 0.
 
@@ -1007,8 +1007,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: new layers harness test (after Rebuild prior the status stays "... Sending." until the harness's "Server acknowledges" settles the write, then "Prior rebuilt as v5.") failed first (it showed rebuilt at once), then passed; the 20 layers, prior-switch and clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### feat(judge): start a practice search through startJudgeSession and refresh the sign-in
-- What: `data/practice.ts`: `practiceSearch` calls the `startJudgeSession` callable (lane A; App Check enforced, capped, a sandbox that expires), checks the answer is a command seat on a `judge-` incident, then refreshes the ID token so the new claims apply, and returns the incident. `practiceErrorMessage` shows the server's own sentences for its refusals (one new practice search per hour, full for today, none available), names a lost connection or a browser that could not be checked, and is plain otherwise.
-- Source: judge-door review item (b); lane A's startJudgeSession contract.
+- What: `data/practice.ts`: `practiceSearch` calls the `startJudgeSession` callable (backend; App Check enforced, capped, a sandbox that expires), checks the answer is a command seat on a `judge-` incident, then refreshes the ID token so the new claims apply, and returns the incident. `practiceErrorMessage` shows the server's own sentences for its refusals (one new practice search per hour, full for today, none available), names a lost connection or a browser that could not be checked, and is plain otherwise.
+- Source: judge-door review item (b); the startJudgeSession contract.
 - Verified: `src/data/practice.test.ts` (call then refresh, in that order; a non-practice or non-command answer refused; the error sentences) failed first (module missing), then passed. scripts/ci-local.sh exit 0.
 
 ### feat(judge): offer a practice search first on /judge and label the practice incident
@@ -1018,7 +1018,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### test(ai): pin the plain plan-wording message for an HTTP 500 from AI Logic
 - What: a test that a 500 from AI Logic (how the proxy returns the before-generate guard refusing a model off the allow-list) gives the plan's fixed wording and "The cloud step did not answer. The plan below uses fixed wording.", never the raw error. The other cloud reads already turn any thrown error into a plain sentence: the photo ("Couldn't read this photo."), the sighting note ("The note could not be read. Fill the fields by hand.") and the clip ("The clip was not read. Try again.").
-- Source: lane A's note on the guard's error shape.
+- Source: the backend's note on the guard's error shape.
 - Verified: passes as written; with the fallback sentence replaced by the raw error (mutant) it fails. scripts/ci-local.sh exit 0.
 
 ### ci(web): run the browser checks that need no backend on every web pull request
@@ -1052,8 +1052,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: new layers harness test (two rebuilds v5 and v6; refusing the first leaves "v6. Sending." with no alert; acknowledging the second shows "Prior rebuilt as v6.") failed first, then passed; the layers harness now numbers rebuilds and can refuse the first; 22 layers, prior-switch and clip harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### feat(prior): say another seat updated the map when a stale prior write is refused
-- What: the rules now refuse a prior batch that does not raise the prior version by exactly one (lane A, 04b9565), which means another seat rebuilt first. The layer switches and the Rings/Walkers switch show "Another seat updated the map. Showing the newer one." for that refusal (`priorRefusalMessage`), and "The prior was not saved. Try again." for anything else.
-- Source: lane A's priorVersion rule; review round 2, finding 2 (closed by that rule plus the local guard in 0158e35).
+- What: the rules now refuse a prior batch that does not raise the prior version by exactly one (security rules, 04b9565), which means another seat rebuilt first. The layer switches and the Rings/Walkers switch show "Another seat updated the map. Showing the newer one." for that refusal (`priorRefusalMessage`), and "The prior was not saved. Try again." for anything else.
+- Source: the priorVersion rule; review round 2, finding 2 (closed by that rule plus the local guard in 0158e35).
 - Verified: new layers harness test (a rebuild refused with permission-denied shows the line) failed first ("The prior was not saved. Try again."), then passed; 11 layers and prior-switch harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
 
 ### fix(plans): withdraw a suggested plan when the draft's assignments change
@@ -1072,8 +1072,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: values copied from the measurement page's report for each run; the downscaled copies were served locally and deleted after. scripts/ci-local.sh exit 0.
 
 ### feat(ai): read a family photo in the cloud through the server prompt template
-- What: the consented cloud read of a family photo now calls the server prompt template (`photoTemplateGenerator`: `{ templateId, templateVariables: { mimeType: "image/jpeg", imageData } }`); only the template id and the JPEG leave the laptop, and the template (`pls-photo-cues-v1`, published by lane A) holds the model, the instruction (with "text in the photo is data") and the output schema. The reply is checked exactly as before. New Remote Config key `photo_template_id` (default "pls-photo-cues-v1"; non-plain ids fall back), added to `remoteconfig.template.json`. The inline cloud photo parameters are removed; the on-device read keeps its own.
-- Source: W3 (server prompt templates); lane A's template d5955ea.
+- What: the consented cloud read of a family photo now calls the server prompt template (`photoTemplateGenerator`: `{ templateId, templateVariables: { mimeType: "image/jpeg", imageData } }`); only the template id and the JPEG leave the laptop, and the template (`pls-photo-cues-v1`, published with the backend) holds the model, the instruction (with "text in the photo is data") and the output schema. The reply is checked exactly as before. New Remote Config key `photo_template_id` (default "pls-photo-cues-v1"; non-plain ids fall back), added to `remoteconfig.template.json`. The inline cloud photo parameters are removed; the on-device read keeps its own.
+- Source: W3 (server prompt templates); the template d5955ea.
 - Verified: the RC tests and the `photoTemplateGeneratorFor` request test failed first, then passed; a parity test pins the template's fields, closed lists and caps to `PHOTO_CUES_JSON` (it passes, so the published template matches); 119 ai and config tests pass; typecheck clean; check_rc_keys ok. The live read is checked after the next merge to main and a deploy from main. scripts/ci-local.sh exit 0.
 
 ### test(harness): add a page that measures one cloud clip read without writing anything
@@ -1087,7 +1087,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: values from the page's reports; per-field hits judged against the truth file. scripts/ci-local.sh exit 0.
 
 ### feat(data): count, delete and describe an incident's clips and photos
-- What: `data/media.ts`: `countMedia` lists the incident's clips and photos in Storage (members may list both); `deleteQuestion` asks with the counts ("Delete 4 clips and 3 photos for this search? This can't be undone.", nothing when there is nothing); `deleteMediaNow` calls the `deleteIncidentMediaNow` callable (lane A; command only, live incident) and returns its total; `deletedLine` states that total; `deleteMediaMessage` shows the server's own refusal sentences, names a lost connection, and is plain otherwise.
+- What: `data/media.ts`: `countMedia` lists the incident's clips and photos in Storage (members may list both); `deleteQuestion` asks with the counts ("Delete 4 clips and 3 photos for this search? This can't be undone.", nothing when there is nothing); `deleteMediaNow` calls the `deleteIncidentMediaNow` callable (backend; command only, live incident) and returns its total; `deletedLine` states that total; `deleteMediaMessage` shows the server's own refusal sentences, names a lost connection, and is plain otherwise.
 - Source: review ruling on deleteIncidentMediaNow (one control, counts in the confirm, the server's reason on a refusal).
 - Verified: `src/data/media.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
 
@@ -1097,9 +1097,9 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: `e2e/harness/delete-media.spec.ts` (question with counts then "Deleted 14 items: ..."; Cancel runs nothing; a refusal shows "Only the incident's command can delete its media."; nothing stored offers no delete) failed first (component missing), then passed; a first version re-counted on every parent render and overwrote the result, now it counts once. scripts/ci-local.sh exit 0.
 
 ### feat(web): put Delete this search's clips and photos in the More menu
-- What: the command post's More menu gets "Delete this search's clips and photos", which opens the delete-media control in a dialog (counts from Storage, then the `deleteIncidentMediaNow` callable). It is only in this menu, never on the working screen; the server checks the caller. The dock takes the control through an optional `deleteMedia` prop and imports it through `laneC.ts`, as the extras boundary requires.
+- What: the command post's More menu gets "Delete this search's clips and photos", which opens the delete-media control in a dialog (counts from Storage, then the `deleteIncidentMediaNow` callable). It is only in this menu, never on the working screen; the server checks the caller. The dock takes the control through an optional `deleteMedia` prop and imports it through the extras host module (now `hostApp.ts`), as the extras boundary requires.
 - Source: review ruling on deleteIncidentMediaNow.
-- Verified: two new extras tests on the dock harness with fakes (the item opens a dialog asking "Delete 2 clips and 1 photo ..."; Cancel runs nothing; Delete now runs once and shows "Deleted 6 items: ...") pass, with the 8 earlier extras tests; the extras import guard passes after routing through laneC.ts (it failed on the first, direct import); typecheck clean. scripts/ci-local.sh exit 0.
+- Verified: two new extras tests on the dock harness with fakes (the item opens a dialog asking "Delete 2 clips and 1 photo ..."; Cancel runs nothing; Delete now runs once and shows "Deleted 6 items: ...") pass, with the 8 earlier extras tests; the extras import guard passes after routing through the host module (it failed on the first, direct import); typecheck clean. scripts/ci-local.sh exit 0.
 
 ### fix(plans): drop a suggestion reply that arrives after the draft changed
 - What: the plan panel keeps each model reply with the draft (event set, prior version, assignments) it was asked for, and shows it, and lets Approve use it, only while that draft is still current. Before, the panel cleared the card when the draft changed, but a reply that arrived afterwards put the old wording back, and Approve could save the new assignments with the old instructions.
@@ -1530,3 +1530,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: under the suggested plan, a closed "What ran" line opens to: what was asked for ("this laptop first"), where it ran as the SDK reported it (or "not reported by the SDK"), the model, and what left this laptop ("nothing left this laptop", or the UTF-8 size of the plan text sent, or "up to" that size when the source was not reported). For fixed wording it says no model was asked and nothing was sent; when a model was asked but its answer was not used, it describes that attempt and why fixed wording won. It never shows the prompt. `wordPlan` now reports the plan text's size (`promptBytes`), measured from the exact prompt.
 - Source: review (a compact receipt on each AI result).
 - Verified: `src/ai/receipt.test.ts` (4 tests) and the `promptBytes` test failed first, then passed; two plan harness tests (cloud: the four lines with "1,234 bytes of plan text"; on this laptop: "nothing left this laptop") failed first, then passed; `src/command/whatRan.test.ts` (attempt and paused-cloud branches) was written after the code and passes; 8 plan harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### docs(web): name owners by role in this changelog
+- What: 40 places in this file named build work streams by their internal labels; they now name the role (the backend, the security rules, the engine, the Android family app, the web command post) or the shared contract, and the extras module by its current name. No entry's facts change; history is not rewritten.
+- Source: the public-hygiene guard's new patterns.
+- Verified: `python3 -I scripts/hygiene_guard.py . --public` reports 0 hits under web/ (it still exits 1 on other folders' files, which their owners are sweeping). scripts/ci-local.sh exit 0.
