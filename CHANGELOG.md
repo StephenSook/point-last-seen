@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `NOTICE` credits the source of the dementia distance rings: ISRID figures from R. J. Koester, Lost Person
+  Behavior, "Dementia (Alzheimer's)", p. 164, read from the publisher's public sample, and points to the evidence
+  files that hold the figures as printed and the other published sources.
+  Source: review (credit for the distance tables).
+  Verified: the page, URL and wording match `docs/evidence/isrid-dementia-p164.md` and
+  `shared/constants/engine-params.json`; rules_gate and the public hygiene guard exit 0.
 - CI now runs the two test files under `tools/extras` (the elevation build and the scam-panel publisher, 32 tests),
   which were named in no pytest list and so had only run by hand. They are added to the gates job's pytest line in
   `.github/workflows/ci.yml` and to the same line in `scripts/ci-local.sh`, and a new test in
