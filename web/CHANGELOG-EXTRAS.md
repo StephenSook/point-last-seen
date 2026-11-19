@@ -4,7 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-19
 
-- Merge: main (108281d) into the extras branch again, because main moved after the first merge. No conflicts, no extras file changed, and no lockfile change. Main's run exporter now holds the reader's shape and size rules in its own copy of the contract. Source: merge to main. Verified: `bash scripts/ci-local.sh` exit CI_EXIT (it runs the exporter's tests too).
+- Merge: main (108281d) into the extras branch again, because main moved after the first merge. No conflicts, no extras file changed, and no lockfile change. Main's run exporter now holds the reader's shape and size rules in its own copy of the contract. Source: merge to main. Verified: `bash scripts/ci-local.sh` exit 0 (it runs the exporter's tests too). Correction: the merge commit b89b3fd recorded this as "exit CI_EXIT", a placeholder the commit step did not replace; the run it stands for exited 0.
+- Docs: replace a leftover "CI_EXIT" placeholder in the entry above with the run's real exit code, 0. Source: commit check. Verified: `grep -c CI_EXIT web/CHANGELOG-EXTRAS.md` returns 0; `bash scripts/ci-local.sh` exit 0.
 
 - Merge: main (692c987) into the extras branch before it merges, so the branch is checked against the main it lands on. No conflicts, and main changed no extras file; it changed the lockfile, so dependencies were reinstalled (`npm ci`). Source: merge to main. Verified: the extras browser checks pass 39 of 39 on the merged tree; `bash scripts/ci-local.sh` exit 0.
 
