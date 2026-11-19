@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- A family question's id must be a Firestore auto-id (20 letters and digits), so nothing a person types can ride a
+  push as an id, and command can ask only while the incident's status is `open` (before, anything but `closed`, so
+  a found incident could still take a question).
+  Source: review (family channel, round 1).
+  Verified: the rules tests (`q1`, 19 and 21 characters, a `-`, an `_` and a name-like id are refused; a found or
+  closed incident takes no question) failed first, now all 114 rules tests pass in the emulator;
+  `bash scripts/ci-local.sh` exit 0.
 - The web workflow also typechecks and tests the public-run exporter, since its tests run exports through the
   replay reader in `web/src/extras/replay`; a change to the reader now re-runs that cross-check.
   Source: review (a reader change would otherwise skip the exporter's tests).

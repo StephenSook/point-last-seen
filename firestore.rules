@@ -175,7 +175,9 @@ service cloud.firestore {
       // deletes it (incident cleanup does). The push about it carries ids only, never the text.
       match /familyQuestions/{questionId} {
         allow read: if isMember(incidentId);
-        allow create: if isCommand(incidentId) && isOpen(incidentId) && questionId.matches('^[A-Za-z0-9_-]{1,40}$')
+        // The id is a Firestore auto-id (20 letters and digits), so nothing a person types can ride the push as an
+        // id; and only an open incident (not a found or closed one) takes a new question.
+        allow create: if isCommand(incidentId) && incidentData(incidentId).status == 'open' && questionId.matches('^[A-Za-z0-9]{20}$')
           && exactKeys(request.resource.data, ['text', 'createdByUid', 'createdAt'])
           && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
           && request.resource.data.createdByUid == request.auth.uid && request.resource.data.createdAt == request.time;
