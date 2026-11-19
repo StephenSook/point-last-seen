@@ -124,7 +124,7 @@ class DrillE2ETest {
             ClipRequest(
                 bytes = bytes, mimeType = "video/mp4", durationS = 2, clipStartMs = now - 60_000L, clockConfirmed = true,
                 cameraFacingDeg = 90, consent = ClipConsent(sha, mark, mark, mark, null), killCloud = { false },
-                modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+                templateId = RcValues.DEFAULTS.clipTemplateId, uploaderUid = uid,
             ),
         )
         log("clip outcome=${outcome::class.simpleName}")
@@ -152,7 +152,7 @@ class DrillE2ETest {
                 ClipRequest(
                     bytes = bytes, mimeType = "video/mp4", durationS = 2, clipStartMs = now - 60_000L, clockConfirmed = true,
                     cameraFacingDeg = 90, consent = ClipConsent(sha, ConsentMark(uid, later), ConsentMark(uid, later), ConsentMark(uid, later), null),
-                    killCloud = { false }, modelName = RcValues.DEFAULTS.clipModel, uploaderUid = uid,
+                    killCloud = { false }, templateId = RcValues.DEFAULTS.clipTemplateId, uploaderUid = uid,
                 ),
             )
             assertEquals(ClipOutcome.CouldNotRead, again)

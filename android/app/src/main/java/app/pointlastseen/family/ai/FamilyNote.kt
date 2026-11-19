@@ -81,7 +81,8 @@ class FamilyNote(private val model: NoteModel, private val screen: EvidenceScree
             else -> "on_device_unavailable"
         }
         val route = RouteRecord(
-            platform = "android", path = path, stage = "sdk", model = env.modelName, reason = reason,
+            platform = "android", path = path, stage = "sdk",
+            model = if (reply.source == Source.ON_DEVICE) ON_DEVICE_MODEL else env.modelName, reason = reason,
             latencyMs = reply.latencyMs, sdkReported = true, blocked = null, decidedAtMs = env.nowMs(),
         )
         return NoteOutcome.Read(reading, route, cleaned)

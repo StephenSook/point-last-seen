@@ -203,4 +203,12 @@ class FamilyNoteTest {
         assertEquals(NoteOutcome.Failed, out)
         assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
     }
+
+    /** The route names the model that ran: Gemini Nano through ML Kit on this phone, the cloud model otherwise. */
+    @Test fun theRouteNamesTheModelThatRan() = runTest {
+        val onDevice = FamilyNote(FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5)), screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        assertEquals("gemini-nano (ML Kit Prompt API)", (onDevice as NoteOutcome.Read).route.model)
+        val cloud = FamilyNote(FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        assertEquals("gemini-3.5-flash-lite", (cloud as NoteOutcome.Read).route.model)
+    }
 }
