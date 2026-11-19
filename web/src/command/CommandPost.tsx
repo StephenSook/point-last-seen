@@ -547,7 +547,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const saveProfile = (p: FamilyProfile, opened: FamilyProfile) => {
     setProfileError(null);
-    writeProfile(pls.db, incidentId, opened, p, { shared: profile?.shared !== undefined, command: profile?.command !== undefined }).catch(() =>
+    writeProfile(pls.db, incidentId, opened, p).catch(() =>
       setProfileError("The profile was not saved. Edit it and save again."),
     );
   };
