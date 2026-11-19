@@ -221,6 +221,14 @@ describe("the family's tracking aids", () => {
     expect(sharedFromDoc({ ...profileDocs(emptyProfile()).shared, trackingAids: aids }).trackingAids).toEqual(aids);
     expect("trackingAids" in sharedFromDoc(profileDocs(emptyProfile()).shared)).toBe(false);
   });
+  it("are removed when command sets them back to not known", () => {
+    const opened = { ...emptyProfile(), trackingAids: { aids: ["gps_tracker" as const], note: "" } };
+    const { trackingAids: _drop, ...edited } = opened;
+    const stored = { ...profileDocs(opened).shared };
+    const out = mergeProfileSave(opened, edited, { shared: stored, command: null });
+    expect(out.shared).not.toBeNull();
+    expect("trackingAids" in (out.shared as object)).toBe(false);
+  });
   it("survive a command save of another shared field, since the document is written whole", () => {
     const opened = emptyProfile();
     const edited = { ...opened, gender: "female" };

@@ -8,12 +8,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ## 2026-11-17
 
+### feat(command): show and save segment debriefs on the command post
 - What: the command post subscribes to the incident's debriefs and shows the Debriefs section under the plan: every cleared segment from the event stream (its latest clear) and every segment with a debrief. Command saves through `saveDebrief` (create tied to the clear, or edit). A failure to load says "Debriefs could not be loaded." in its place without stopping the post. A new guard, `src/data/debriefScope.test.ts`, fails if any source file other than the debrief module, its section, the post and the harness names debriefs, so no map, probability or plan code can read one.
 - Source: field-expert input (search and rescue practitioner: debrief after a search).
 - Verified: the guard passes and fails on a file planted in `prior/` (removed); it walks more than 100 files; 119 data unit tests and the 5 debrief harness tests pass; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(command): add the debrief section for cleared segments
 - What: `command/DebriefSection.tsx`, "Debriefs": each cleared segment (and any segment that has a debrief) shows its debrief, the time it took, "Worked: ...", "Didn't work: ..." and who wrote it (the clearing team when its own device did, else Command), or "No debrief yet." with "Add debrief". Command adds or edits one: "Time it took (minutes)", "What worked (optional)", "What didn't work (optional)", Save debrief. A bad time or an over-long note is refused with the reason before anything is saved; a refused save says "The debrief was not saved. Try again." and keeps the form. A new debrief is tied to the segment's latest clear. A dev-only harness page (`web/harness/debrief.html`) runs it with fakes. Not on the command post yet.
 - Source: field-expert input (search and rescue practitioner: debrief after a search).
 - Verified: `e2e/harness/debrief.spec.ts` (5 tests: the list with and without a debrief; add, tied to the clear; a bad time refused with no save; edit from what is stored; a refused save) failed first (component missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
+
+### feat(data): read, check and write segment debriefs
 - What: `data/debriefs.ts` for `incidents/{id}/debriefs/{segmentId}`: `parseDebriefForm` (whole minutes 0 to 1440; "what worked" and "what didn't work" optional, trimmed, up to 500 characters each), `debriefFromDoc`, `newDebriefDoc` (writer, server time, the cleared event when known), `debriefEdit` (time and notes only; a cleared note is removed), `clearedSegments` (each cleared segment once, its latest clear), `debriefAuthor` (the clearing team when its own device wrote it, else Command), `subscribeDebriefs` and `saveDebrief`. Nothing here feeds the map, the probabilities or the plans.
 - Source: field-expert input (search and rescue practitioner: debrief after a search) and the shared debrief rules.
 - Verified: `src/data/debriefs.test.ts` (8 tests) failed first (module missing), then passed; typecheck clean. scripts/ci-local.sh exit 0.
@@ -1679,3 +1684,28 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a command save writes the shared profile document whole, built from what the post read, and the reader kept only fields it knew, so saving any shared field (gender, say) would have erased the tracking aids the family app writes. The reader now keeps `trackingAids` when it is stored (known aid ids only, the note as text) and leaves it absent when it is not, the same way it keeps the family's names list.
 - Source: review while adding tracking aids to the approach card.
 - Verified: two new tests (the stored aids read back and an absent field stays absent; a command save of another shared field keeps them) failed first (the field was dropped), then passed; 29 profile tests pass; typecheck clean.
+
+### test(profile): every shared-profile field in the schema survives a command save
+- What: a new test walks the shared schema's SharedProfile (`shared/schemas/subject-profile.schema.json`), makes a valid value for each field that differs from an empty profile, stores it, saves a command edit of another field, and checks the stored value is still in the shared document written. A field added to the schema without the web keeping it fails here, because the save writes the document whole. The approach note ids are worked out again on every save and are left out.
+- Source: review (the tracking-aids erase, so the next optional field cannot repeat it).
+- Verified: 21 tests pass (20 fields and the schema walk); with the tracking-aids reader branch removed, "keeps trackingAids" fails, and it passes again with it restored.
+
+### docs(web): restore the headings of the three debrief entries
+- What: the three debrief entries under 2026-11-17 had lost their "### " heading lines when they were carried onto main, so their bullets ran into each other. The headings are back, each before its own "What" line, taken from the original commits.
+- Source: review of the changelog after the debrief merge.
+- Verified: the three headings match the original commit subjects; no other line changed.
+
+### fix(profile): a field command sets back to unknown is removed on save
+- What: a save applies only what command changed, and it looked only at fields present in the edited profile, so an optional field set back to unknown (tracking aids, say) was silently kept. Now a field present when the form opened and absent after counts as a change, and the merged document drops it.
+- Source: review while adding the tracking-aids editor.
+- Verified: a new test (tracking aids set back to unknown are not in the shared document written) failed first (they were kept), then passed; 30 profile tests and the 21 schema survival tests pass; typecheck clean.
+
+### feat(command): edit the tracking or ID aids in the profile form
+- What: the profile form has a "Tracking or ID aids" group: "Not known yet" (no field, the default) or "The family answered", which shows a box for each aid with the shared list's labels (in card order) and "Note for teams (no numbers)" (up to 80 characters). Nothing ticked means the family said none. A note with a digit is refused before saving: "Leave out numbers: give serials and phone numbers to the search lead directly.", which matches the security rule. Aids already on the profile show ticked.
+- Source: field input on approach (tracking and ID aids).
+- Verified: five new profile harness tests (unanswered saves no field; named aids saved in card order with the note; answered with none ticked saves an empty list; a note with a number refused and nothing saved; stored aids shown ticked) failed first, then passed; 8 profile harness tests pass; typecheck clean.
+
+### fix(camera): redraw a clip sample that repeats the previous frame before calling it still
+- What: the motion sampler seeks the clip, waits for "seeked", and draws the frame to a canvas. Under load "seeked" can fire before the new frame is decoded, so the canvas reads the previous frame again and a moving span reads as still (on-device triage could then decide "no motion" and skip a clip with a person in it). Now a sample that is byte-identical to the previous one is drawn again after a frame (up to 3 times) before it is accepted. A truly still clip settles on the same frame and costs only those waits. A frame-callback approach was tried first and dropped: a clip element that is not on the page never presents frames, so every sample waited its full bound.
+- Source: an intermittent harness failure on CI (two consecutive samples identical on a moving clip).
+- Verified: three new unit tests for the redraw (a stale draw redrawn until the new frame; a still frame accepted after the retries; one draw when the frame differs) failed first, then passed; the frames harness tests pass at their usual speed (0.5 s moving, 0.7 s still), 30 of 30 over 10 repeats with 7 workers; clip and triage harness tests pass; typecheck clean.
