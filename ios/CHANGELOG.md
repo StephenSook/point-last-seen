@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a build without its Firebase settings file shows a plain screen instead of crashing
+- What: GoogleService-Info.plist is not in the repo, so a fresh clone built and then crashed at
+  launch: FirebaseApp.configure() raised ("could not find a valid GoogleService-Info.plist").
+  The app now checks the bundled settings first. When the file is missing, or lacks the app ID,
+  sender ID, API key or project ID that Auth and Firestore need, nothing that needs Firebase starts
+  and one plain screen says what to add and where. With the file in place, startup is unchanged
+  (FirebaseApp.configure() still reads the default file).
+- Source: review (fresh-clone check).
+- Verified: tests for complete settings, no file, an unreadable path and each missing field; they
+  failed to compile before the change and pass after; 112 app tests pass. On the simulator, a build
+  without the plist crashed with SIGABRT in +[FIRApp configure] before the change; after it, the
+  same build kept running and showed the plain screen. The CI mirror `bash scripts/ci-local.sh`
+  exit 0.
+
 ### build(ios): track the app's package pins so a fresh clone builds the same versions
 - What: the generated Xcode project was untracked as a whole, so its package pins never reached the
   repo, and Xcode wrote the app's 16 pins into ios/PLSCore/Package.resolved instead. That file is

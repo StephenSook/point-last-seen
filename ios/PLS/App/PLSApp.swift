@@ -18,21 +18,23 @@ final class PLSAppCheckFactory: NSObject, AppCheckProviderFactory {
 @main
 struct PLSApp: App {
     @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
+    /// False in a build without usable Firebase settings: nothing that needs Firebase starts.
+    private let configured: Bool
 
     init() {
         AppCheck.setAppCheckProviderFactory(PLSAppCheckFactory())
-        FirebaseApp.configure()
+        configured = FirebaseSetup.configure()
+        guard configured else { return }
 
         // Mission data is never collected from the cache while the team is out of signal.
         let settings = FirestoreSettings()
         settings.cacheSettings = PersistentCacheSettings(sizeBytes: FirestoreCacheSizeUnlimited as NSNumber)
         Firestore.firestore().settings = settings
-
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            if configured { RootView() } else { MissingSettingsView() }
         }
     }
 }
