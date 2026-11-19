@@ -34,7 +34,7 @@ test("the published run replays on the judge page and its last frame matches the
   expect(expected).toMatch(/^[0-9A-Z]{4}$/);
   await expect(section.getByTestId("replay-code")).toHaveText(expected!);
   // The code hashes the prior version and report ids only; the plates show the map itself.
-  await expect(section.locator(".plate").first()).toBeVisible();
+  await expect(section.locator(".plate:not(.crowded)").first()).toBeVisible();
   expect(await replayPlates(page)).toEqual(await expectedPlates(page));
   // And pair by pair: each segment's percent at that segment's place.
   const f = await frames(page);
@@ -61,7 +61,7 @@ test("a run with other prior weights keeps the match code but not the map, and t
   await page.goto(`${harness}?run=weights`);
   const section = page.getByRole("region", { name: "Watch the run over time" });
   await expect(section.getByTestId("replay-code")).toHaveText((await page.getByTestId("expected-code").textContent())!);
-  await expect(section.locator(".plate").first()).toBeVisible();
+  await expect(section.locator(".plate:not(.crowded)").first()).toBeVisible();
   expect(await replayPlates(page)).not.toEqual(await expectedPlates(page));
 });
 
@@ -69,7 +69,7 @@ test("a run whose shapes trade places keeps the code and the plates' text but no
   await page.goto(`${harness}?run=swap`);
   const section = page.getByRole("region", { name: "Watch the run over time" });
   await expect(section.getByTestId("replay-code")).toHaveText((await page.getByTestId("expected-code").textContent())!);
-  await expect(section.locator(".plate").first()).toBeVisible();
+  await expect(section.locator(".plate:not(.crowded)").first()).toBeVisible();
   expect(await replayPlates(page)).toEqual(await expectedPlates(page));
   const f = await frames(page);
   expect(f.replay).not.toEqual(f.live);
