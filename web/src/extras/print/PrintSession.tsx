@@ -10,6 +10,8 @@ import { PrintRoot } from "./PrintRoot";
 
 export const assignmentTitle = "Print assignment sheet";
 export const cardsTitle = "Print radio cards";
+/** One box, on the sheet and on the cards, says plainly what ticking it puts on paper. */
+export const personBoxLabel = "Print the person's names and approach notes (teams need them in the field; paper leaves this app)";
 const editFields = [
   ["dateFrom", "Date From", "mm/dd/yyyy"], ["dateTo", "Date To", "mm/dd/yyyy"],
   ["timeFrom", "Time From", "hh:mm"], ["timeTo", "Time To", "hh:mm"],
@@ -30,6 +32,7 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [typed, setTyped] = useState(() => defaultTyped(model, timeZone));
   const [printedAtMs, setPrintedAtMs] = useState(model.printedAtMs);
+  const [cardsPerson, setCardsPerson] = useState(false);
   const drillLine = model.drillLabel;
   useEffect(() => {
     const stamp = () => flushSync(() => setPrintedAtMs(Date.now()));
@@ -43,10 +46,16 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
     staleMessage = `A newer plan (v${latest}) was approved. Print again.`;
   }
   if (kind === "cards") {
-    // Q2 is open until the command report flow is available.
-    const cards = radioCards(model, { sayLines: false });
+    // The say-it-like-this lines wait for a command report flow; the person lines print only when ticked.
+    const cards = radioCards(model, { sayLines: false, personLines: cardsPerson ? approachLines : [] });
+    const cardControls = cards.length === 0 ? undefined : (
+      <label className="extras-note-option">
+        <input type="checkbox" checked={cardsPerson} onChange={(event) => setCardsPerson(event.target.checked)} />
+        {personBoxLabel}
+      </label>
+    );
     return (
-      <PrintRoot title={cardsTitle} onClose={onClose} returnFocus={returnFocus} staleMessage={staleMessage} drillLine={drillLine}
+      <PrintRoot title={cardsTitle} onClose={onClose} returnFocus={returnFocus} controls={cardControls} staleMessage={staleMessage} drillLine={drillLine}
         emptyMessage={cards.length === 0 ? "No teams to print." : undefined}>
         <RadioCards cards={cards} matchCode={matchCode} />
       </PrintRoot>
@@ -72,7 +81,7 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
           const includeApproachNotes = event.target.checked;
           setTyped((current) => ({ ...current, includeApproachNotes }));
         }} />
-        Include the approach notes
+        {personBoxLabel}
       </label>
     </>
   );

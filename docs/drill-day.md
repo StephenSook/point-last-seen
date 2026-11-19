@@ -19,7 +19,9 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
 
 1. On the command post, open **More**, then **Print assignment sheet**.
 2. Check the pre-filled Date From and Time From. Fill Branch, Division, Group or Staging Area only if the drill uses
-   them. Leave **Include the approach notes** off unless the search lead asks for them.
+   them. The box **Print the person's names and approach notes** is off. Tick it when teams should carry the names
+   the person answers to (for example "Answers to Roberta (also Bea, Mom)") and how to approach them: a person may
+   answer only to an old name. Paper leaves the app, so leave it off unless the search lead wants it.
 3. Press **Print**. In the printer dialog, set:
    - Destination: the printer.
    - Paper size: Letter.
@@ -31,8 +33,9 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
    - One page per sheet. The footer reads "IAP Page 1 of 1".
    - Block 7 starts "Training drill. Nobody is missing. Do not dial 911."
    - The match code in block 7 is the code in the command post header (MATCH).
-5. Open **More**, then **Print radio cards**. Print with the same settings, and cut along the dashed line. Give each
-   team its own card.
+5. Open **More**, then **Print radio cards**. The same box is on this page, also off; tick it to put the names and
+   approach notes on every card. Print with the same settings, and cut along the dashed line. Give each team its own
+   card.
 6. During the drill, a team reads its match code over the radio, one character at a time. Command types it into
    **More**, then **Check a radio code**. "Same map" means the team and command see the same prior version and the
    same reports.

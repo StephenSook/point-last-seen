@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ExtrasDock } from "../ExtrasDock";
-import { MapLibreMap, type PostState, type SegmentDoc, type ViewState } from "../hostApp";
+import { MapLibreMap, type PostState, type SegmentDoc, type SharedProfile, type ViewState } from "../hostApp";
 import { DRILL_LABEL } from "../print/printModel";
 import { drillView, planFixture } from "../testdata/fixtures";
 import { kennesawPlan, kennesawView } from "../testdata/kennesaw";
@@ -26,6 +26,10 @@ const plan = planFixture(5);
 // ?site=kennesaw: the Kennesaw Mountain drill's teams (T1 to T3) and a made-up plan v1 over that grid's real segment
 // ids, with no reports yet, as on drill morning.
 const kennesaw = new URLSearchParams(location.search).get("site") === "kennesaw";
+// ?profile=1: a made-up shared profile with other names and approach notes, including a health note that must never print.
+const harnessProfile = new URLSearchParams(location.search).get("profile") === "1"
+  ? { shared: { answersTo: "Roberta", nickname: "Bea", otherNames: ["Bea", "Mom", "Miss Bea"], approachNoteIds: ["may_not_respond", "approach_calm", "stop_calling_name", "seizures"] } as unknown as SharedProfile, command: undefined }
+  : null;
 const harnessState: PostState = {
   view: { ...drillView, segments, teams: [...drillView.teams, ...extraTeams], rowPrior: 0.2 },
   // 14 sightings, command's confirmation of the first and a retraction of the last: 13 reports, 16 events.
@@ -35,7 +39,7 @@ const harnessState: PostState = {
     { eventId: "harness-retract", type: "retraction", role: "command", targetEventId: "harness-13", serverTimeMs: null, pendingWrite: false },
   ],
   plans: [{ ...plan, assignments: [...plan.assignments, ...extraTeams.map(({ teamId }) => ({ teamId, segmentIds: ["BB"], taskText: longTask, reason: "" }))] }],
-  profile: null,
+  profile: harnessProfile,
   denied: false,
   offline: false,
 };
