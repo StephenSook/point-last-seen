@@ -35,14 +35,16 @@ incident and can be rotated. Never do it with a real incident's code.
 ANDROID_SERIAL=<serial from adb devices> bash android/release-probe.sh
 ```
 
-Before building, it stops unless the app is already installed on the phone (this is an update) and
-no test package is. It builds the release test APK, then the signed release app through `release.sh`
+One run per phone at a time (a second run stops at once). Before building, it stops unless the phone
+answers, the app is already installed on it (this is an update) and no test package is. It builds the release test APK, then the signed release app through `release.sh`
 (with its APK scan, release config check and version check), installs the app as an update
 (`adb install -r`, which keeps the app's data and does not open it), installs the test APK without
 replacing one, runs the one `ReleaseAppCheckProbeTest` method and prints its `PLS-PROBE` lines
 (outcomes and error text, never a token). It then removes the test package it installed, whether the
-probe passed or not, and nothing else. Exit 0 means adb ran, the runner finished, and the test passed:
-the release provider got a token and the note came back from the cloud. A skipped, ignored or failed
-test, or a test package it could not remove, exits 1. A phone with a debug build of the app refuses
+probe passed or not, and nothing else. Exit 0 means the runner finished with exactly that one test
+started and passed: the release provider got a token and the note came back from the cloud. A skipped,
+ignored or failed test, any other result, or a test package it could not remove or check, exits 1. The
+note call prefers the phone's own model, so a phone that answers it on the phone fails the probe (its
+line says `source=ON_DEVICE`) rather than passing it. A phone with a debug build of the app refuses
 the update (different signing key). An emulator fails the attestation (HTTP 403), so the probe needs a
 real phone. `PLS_PROBE_SKIP_BUILD=1` reuses the APKs already built.
