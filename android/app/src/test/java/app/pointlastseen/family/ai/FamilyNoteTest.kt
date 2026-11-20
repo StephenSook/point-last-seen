@@ -244,4 +244,18 @@ class FamilyNoteTest {
         FamilyNote(model, screen, signedIn, spanishOnly).read(spanishNote, env(DeviceModelStatus.AVAILABLE, consent = true))
         assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
     }
+
+    /**
+     * The screen reads the note as written and as cleaned: removing a number (which adds the English words
+     * "number removed") must not turn a refused note into one the cloud may read.
+     */
+    @Test fun removingANumberNeverLetsARefusedNoteThrough() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val chinese = LanguageScreen(emptySet(), emptySet(), minForeign = 3, foreignOverEnglish = 2)
+        for (note in listOf("奶奶的電話是 一二三四五六七", "Бабушка ушла 404-555-0142")) {
+            val out = FamilyNote(model, screen, signedIn, chinese).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+            assertEquals(note, NoteOutcome.NotEnglish, out)
+        }
+        assertTrue(model.calls.isEmpty())
+    }
 }

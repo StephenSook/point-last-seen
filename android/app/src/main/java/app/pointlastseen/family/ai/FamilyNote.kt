@@ -62,7 +62,8 @@ class FamilyNote(
         if (cleaned.isEmpty() || cleaned.length > MAX_NOTE) return NoteOutcome.Invalid
         if (screen.isPossibleEvidence(cleaned)) return NoteOutcome.PossibleEvidence
         val local = env.status == DeviceModelStatus.AVAILABLE
-        val english = language.looksEnglish(cleaned)
+        // As written and as cleaned: removing a number adds English words, which must not let a refused note through.
+        val english = language.looksEnglish(note) && language.looksEnglish(cleaned)
         val wanted = when {
             local && (env.killCloud || !env.cloudConsent || !english) -> NoteMode.ONLY_ON_DEVICE
             local -> NoteMode.PREFER_ON_DEVICE
