@@ -56,4 +56,14 @@ import Testing
         #expect(EchoText.effectLine(.none(why: .soundOnly), type: .clue, practice: true) == "Calling alone is not counted for this person.")
         #expect(EchoText.effectLine(.none(why: .needsCommand), type: .clue, practice: false) == "Ask command.")
     }
+
+    /// A note the language screen kept off the cloud says so under the report, and names the hand path.
+    @Test func aNoteKeptOffTheCloudForItsLanguageSaysSo() {
+        func route(_ reason: RouteReason) -> RouteRecord {
+            RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "rules", reason: reason,
+                        latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+        }
+        #expect(EchoText.refusalLine(route(.notEnglish)) == "This note doesn't look like English, so it stays on this phone. Pick instead of typing.")
+        #expect(EchoText.refusalLine(route(.onDeviceUnavailable)) == nil)
+    }
 }

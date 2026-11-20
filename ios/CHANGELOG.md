@@ -5,6 +5,31 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): a note that does not look English never goes to the cloud read
+- What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
+  the router's cloud route and the move to the cloud after Apple's model fails. A note that does not
+  look English is read by the phone's rules instead, with route reason not_english, and the report
+  says "This note doesn't look like English, so it stays on this phone. Pick instead of typing."
+  Apple's on-device read and the pick list are unchanged. The app bundles
+  shared/constants/language-words.json; if it cannot be read, no note goes to the cloud.
+- Source: plan (language screen before any cloud read of a note); review (iPhone wording approved).
+- Verified: tests that a Spanish note on the cloud route and after the on-device model fails calls no
+  cloud model and reads by rules with reason not_english, that it still reads on this phone when
+  Apple's model works, that an English note quoting Spanish still goes to the cloud, the app reader
+  with the bundled word lists, and the refusal line. They failed to compile before the change and
+  pass after; 327 core and 191 app tests pass.
+
+### feat(ios-core): the language screen, by the shared rule and vectors
+- What: PLSCore gains LanguageScreen.looksEnglish, built from shared/constants/language-words.json:
+  the note is folded and split as the evidence screen does, words made only of digits are dropped,
+  and a note does not look English when more than half its words are non-Latin, or when its foreign
+  function words plus non-Latin words are at least minForeign and more than foreignOverEnglish times
+  its English words. It is not yet called by the read; that follows.
+- Source: plan (language screen before any cloud read of a note).
+- Verified: shared/test-vectors/language.json runs in a Swift test: 18 mustAllow pass as English, 9
+  mustRefuse do not, the 1 knownMiss passes as English as on every platform, and a new kind of case
+  in the file fails the test. It failed to compile before the change; all 322 core tests pass.
+
 ### test(ios): run the phone-number vectors' exact cases, replacement token and pending marks
 - What: the Swift vector runner reads the file's new shape: a top-level replacement token (checked
   against the one this phone writes), an exact array whose output is compared byte for byte, and an

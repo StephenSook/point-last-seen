@@ -33,11 +33,14 @@ private let report = "Team two cleared segment AC, coverage point eight, nothing
 private func okReading(_ ids: [String] = ["AC"]) -> ReportReading {
     reading(segmentIds: ids, coverage: 0.8, evidenceQuote: "cleared segment AC")
 }
+private let languageScreen = try? LanguageScreen(json: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("constants/language-words.json")))
 private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = true, kill: Bool = false, mode: String? = "drill") -> ReadContext {
-    ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
-                onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
-                estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
-                cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
+    var c = ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
+                        onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
+                        estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
+                        cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
+    c.language = languageScreen
+    return c
 }
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
 
@@ -114,6 +117,40 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .cloud)
         #expect(o.route.reason == .onDeviceUnavailable)
         #expect(o.route.model == "gemini-3.5-flash-lite")
+    }
+
+    /// A note that does not look English never goes to the cloud read: the router's cloud route reads
+    /// by rules, saying why, and the person picks instead. Apple's model and English notes are untouched.
+    @Test func aNoteThatIsNotEnglishNeverGoesToTheCloud() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules && o.route.stage == .deterministicParser && o.route.reason == .notEnglish)
+    }
+
+    @Test func aNoteThatIsNotEnglishIsNotSentToTheCloudAfterTheOnDeviceModelFails() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.path == .rules && o.route.reason == .notEnglish)
+    }
+
+    @Test func aNoteThatIsNotEnglishStillReadsOnThisPhone() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río en AC hace diez minutos."
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "abrigo azul"))]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)] && o.route.path == .onDevice)
+    }
+
+    @Test func anEnglishNoteQuotingSpanishStillGoesToTheCloud() async {
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: "Cleared segment AC, nothing found; the family calls her Abuela Rosa.",
+                                            context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.cloud)] && o.route.path == .cloud)
     }
 
     @Test func noConsentMeansRulesNotCloud() async {
