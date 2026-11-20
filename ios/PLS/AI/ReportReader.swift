@@ -15,6 +15,9 @@ struct ReportSituation {
     /// Connectivity, consent, kill switch and incident mode as they are now; read again by
     /// PLSCore at the moment of any cloud dispatch. Nil means the values above are used.
     var liveGate: (@Sendable () -> LiveGate)? = nil
+    /// The release route check only: Apple's model counts as unavailable for this one read, so the
+    /// router takes the cloud route. Never set for a searcher's report.
+    var onDeviceOff = false
 }
 
 /// Reads one field report and never throws. The decisions live in PLSCore's ReadOrchestrator;
@@ -23,6 +26,11 @@ struct ReportReader {
     let ai: FirebaseAI
     let config: RemoteConfigValues
     let screen: EvidenceScreen
+    /// The language screen before any cloud read, from the bundled word lists. If they cannot be read
+    /// it is nil, and no note goes to the cloud.
+    var language: LanguageScreen? = try? BundledConstants.languageScreen()
+    /// The grounding rule run on every reading; when it cannot be loaded the fields it checks are blanked.
+    var grounding: Grounding? = try? BundledConstants.grounding()
     /// Counts tokens with Apple's model (a seam for tests).
     var estimateTokens: @Sendable (String, [any Tool]) async -> Int = { await ModelSessionFactory.estimateTokens(report: $0, tools: $1) }
     /// The count is a call into Apple's model and can stall like any model call (spike S1 on the
@@ -34,22 +42,36 @@ struct ReportReader {
     }
     /// Records the route of every read, on every path (P-15; a seam for tests).
     var recordRoute: @Sendable (RouteRecord) -> Void = { PerformanceTelemetry.record($0) }
+    /// Apple's model as this phone reports it (a seam for tests).
+    var deviceStatus: @Sendable () -> OnDeviceStatus = { ModelSessionFactory.onDeviceStatus() }
+
+    /// The three read-only tools for one read. The cloud gets all three; Apple's model gets none, and its
+    /// instructions are built from the first two.
+    static func tools(for situation: ReportSituation) -> [any Tool] {
+        [SegmentAtTool(positionSegmentId: situation.positionSegmentId),
+         TeamAssignmentTool(assignedSegmentIds: situation.assignedSegmentIds),
+         SubjectProfileTool(profile: situation.profile)]
+    }
 
     func read(_ text: String, situation: ReportSituation) async -> ReadOutcome {
         // The evidence screen and the drill check come before any call that hands the text to a
         // model API, the token count included; then no count is needed at all.
         let modelAllowed = !screen.isPossibleEvidence(text) && situation.incidentMode.map(ReadPlan.modelModes.contains) == true
-        let tools: [any Tool] = [SegmentAtTool(positionSegmentId: situation.positionSegmentId),
-                                 TeamAssignmentTool(assignedSegmentIds: situation.assignedSegmentIds),
-                                 SubjectProfileTool(profile: situation.profile)]
+        let tools = Self.tools(for: situation)
         var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
-            networkOnline: situation.networkOnline, onDevice: ModelSessionFactory.onDeviceStatus(),
+            networkOnline: situation.networkOnline,
+            onDevice: situation.onDeviceOff
+                ? OnDeviceStatus(available: false, localeSupported: false, contextSize: 0, variant: "off for the route check")
+                : deviceStatus(),
             // The count is a call into Apple's model too, so it gets the text without phone numbers.
             estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), tools) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
+        context.language = language
+        context.grounding = grounding
+        context.profile = situation.profile
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
         recordRoute(outcome.route)

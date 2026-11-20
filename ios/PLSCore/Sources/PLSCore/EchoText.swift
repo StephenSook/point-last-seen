@@ -5,6 +5,15 @@ import Foundation
 public enum EchoText {
     /// The effect line for an event of this type: a sighting is named as one, and it changes
     /// the map only once command confirms it.
+    /// In the practice drill (`practice`) there is no command to ask, so "Ask command." becomes what
+    /// to do in a real search; every other line stays the same.
+    public static func effectLine(_ effect: Effect, type: EventType, practice: Bool) -> String {
+        let line = effectLine(effect, type: type)
+        let ask = "Ask command."
+        guard practice, line.hasSuffix(ask) else { return line }
+        return line.dropLast(ask.count) + "In a real search, ask command."
+    }
+
     public static func effectLine(_ effect: Effect, type: EventType) -> String {
         if type == .sighting, case let .clue(influences, _) = effect {
             let at = influences.first { $0.value == .strongFor }?.key ?? influences.keys.sorted().first ?? "?"
@@ -36,6 +45,29 @@ public enum EchoText {
         if case let .none(why) = effect { return why != .informational && why != .incorporatedInPrior }
         return false
     }
+
+    /// Why a report was kept off a route, shown under it; nil when nothing was refused.
+    public static func refusalLine(_ route: RouteRecord) -> String? {
+        route.reason == .notEnglish ? "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing." : nil
+    }
+
+    /// Why the router chose a route, in plain words for the route check screen.
+    public static func reasonWords(_ reason: RouteReason) -> String {
+        switch reason {
+        case .onDeviceDefault: "Apple's model reads first"
+        case .noNetwork: "no signal"
+        case .onDeviceUnavailable: "Apple's model is not available"
+        case .localeUnsupported: "Apple's model does not support this phone's language"
+        case .overTokenBudget: "the report is too long for Apple's model"
+        case .possibleEvidence: "possible evidence, so no model reads it"
+        case .notDrillMode: "not a drill, so no model reads it"
+        case .notEnglish: "the note does not look English"
+        case .unknown: "a reason this version does not know"
+        }
+    }
+
+    /// A read's time in seconds with one decimal.
+    public static func seconds(_ ms: Double) -> String { String(format: "%.1f s", ms / 1000) }
 
     public static func deliveryLine(_ state: OutboxState) -> String {
         switch state {

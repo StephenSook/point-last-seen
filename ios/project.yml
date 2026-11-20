@@ -43,6 +43,12 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/tracking-aids.json
         buildPhase: resources
+      - path: ../shared/constants/language-words.json
+        buildPhase: resources
+      - path: ../shared/constants/grounding-words.json
+        buildPhase: resources
+      - path: ../shared/practice/ios-practice-pack.json
+        buildPhase: resources
       - path: ../shared/grid/kennesaw-mountain-drill.pmtiles
         buildPhase: resources
       - path: ../shared/grid/piedmont-park-dev.pmtiles

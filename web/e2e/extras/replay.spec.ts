@@ -37,6 +37,15 @@ test("dragging the slider to the end shows the same match code as the live heade
   expect(errors).toEqual([]);
 });
 
+test("the clock and the elapsed time are each labelled, shown once, and the elapsed digits are not in the 7-segment font", async ({ page }) => {
+  const dialog = await openReplay(page);
+  await expect(dialog.locator(".extras-replay-facts")).toContainText(/Clock \d\d:\d\d/);
+  const readout = dialog.locator(".extras-ruler-clock");
+  await expect(readout).toHaveText(/^Elapsed \d\d:\d\d:\d\d$/);
+  const font = await readout.locator(".extras-ruler-elapsed").evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(font).not.toContain("DSEG7");
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });

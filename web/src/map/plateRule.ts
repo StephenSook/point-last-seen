@@ -2,6 +2,12 @@
 // inside the segment's on-screen box at the current zoom; zooming in brings more back. A "<0.1%" plate is never
 // drawn. With "every percent" on, command sees every plate of 0.1% or more whatever its size. The same rule
 // runs on the phones, so a commander and a searcher see the same numbers at the same zoom.
+//
+// Dots and codes (labelFit.ts), for the phones to match: a cell's dot is never wider than the cell, its radius
+// capped at half the smaller side of the cell's on-screen box; the cell's code sits left of its dot when it fits
+// there inside the box, moves onto the centre when it does not, and is hidden only when it fits nowhere (the cell
+// is still named in the ranked list and the Place list). Plates, dots and codes are all decided again on every
+// camera move.
 
 import type { Box } from "./labelDensity";
 

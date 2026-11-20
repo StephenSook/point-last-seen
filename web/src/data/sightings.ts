@@ -10,17 +10,13 @@ import {
   type Direction,
   type EventDoc,
   type ReportReading,
+  type RouteRecord,
 } from "@pls/engine";
 import { effectSegments, segmentContaining, type GridSegmentDoc, type LatLon } from "../map/geo";
 
-const NUMBER_REMOVED = "[number removed]";
-// 10 digits (optional +1, optional brackets around the area code, spaces, dots or hyphens between groups),
-// or a 7-digit local number with a separator. Times like 14:03 use a colon and are left alone.
-const PHONE = /(?:\+?1[\s.-]*)?(?:\(\s*\d{3}\s*\)|\b\d{3})[\s.-]*\d{3}[\s.-]*\d{4}\b|\b\d{3}[.-]\d{4}\b/g;
-
-export function removePhoneNumbers(text: string): string {
-  return text.replace(PHONE, NUMBER_REMOVED);
-}
+// Phone numbers are removed by the shared rule (see ./phoneNumbers): the same cases on every platform.
+export { removePhoneNumbers } from "./phoneNumbers";
+import { removePhoneNumbers } from "./phoneNumbers";
 
 export type SightingInput = {
   observedAtMs: number;
@@ -32,7 +28,17 @@ export type SightingInput = {
   carried: string;
   reportedBy: "stranger" | "neighbour" | "staff" | "family";
   freeText: string;
+  /** The model read that filled the fields, with its route (null when the read reported none). Absent: typed by hand. */
+  readFilled?: { route: RouteRecord | null };
 };
+
+/**
+ * The route of a report a person entered with no model: the same record the iPhone writes for a picked report.
+ * `decidedAtMs` is the time it was written.
+ */
+export function handEntryRoute(decidedAtMs: number): RouteRecord {
+  return { platform: "web", path: "rules", stage: "picklist", model: "none", reason: "on_device_default", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs };
+}
 
 /** Who is writing and what the incident looks like right now. `seq` must never repeat for this uid. */
 export type CommandWriter = {
@@ -98,6 +104,8 @@ export function buildSightingEvent(input: SightingInput, w: CommandWriter): Even
   });
   return {
     ...commandEventBase(w),
+    // Where the reading came from, so a drill run's replay can say which reports a model read.
+    route: input.readFilled ? input.readFilled.route : handEntryRoute(w.clientTimeMs),
     type: "sighting",
     reporter: input.reportedBy === "family" ? "family" : "public_caller",
     observedAtMs: input.observedAtMs,

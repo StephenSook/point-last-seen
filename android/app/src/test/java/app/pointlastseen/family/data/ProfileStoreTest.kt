@@ -74,4 +74,16 @@ class ProfileStoreTest {
         val kv = MemoryStore().apply { put("profile", "{not json") }
         assertEquals(SubjectProfile(), ProfileStore(kv).load())
     }
+
+    /** A save reports whether it reached the disk, so the edit marks are recorded only after one that did. */
+    @Test fun aSaveSaysWhetherItReachedTheDisk() {
+        val failing = object : KeyValueStore {
+            override fun get(key: String): String? = null
+            override fun put(key: String, value: String) {}
+            override fun remove(key: String) {}
+            override fun putChecked(key: String, value: String): Boolean = false
+        }
+        assertEquals(false, ProfileStore(failing).save(full))
+        assertEquals(true, ProfileStore(MemoryStore()).save(full))
+    }
 }

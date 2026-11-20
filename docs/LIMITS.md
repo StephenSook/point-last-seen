@@ -40,9 +40,24 @@ each line says what the limit is and why.
 - A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
   first share adds only fields the search does not have yet; command or the family fills an empty field by editing
   it.
+- A family's edit made on the phone before its first publish to a search reaches the search for single fields (names,
+  descriptions, the clothing last worn, triggers and the like). For a list or set field (other names, mobility aids,
+  the behaviour flags, places, past addresses and wandering spots, the tracking answer, the vehicle), the edit reaches
+  the search only where command's profile does not have that field yet; where it does, command's entries stay. After
+  the first publish, an edit to such a field sends the phone's whole list, which replaces the entries command added
+  to that field.
 - The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
   the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
   phone that loses its access while offline shows the search until it can check.
+- "Leave this search" stops new changes at once, waits up to 5 seconds for changes already sent, then asks the phone
+  to stop following the search's notifications. Leaving is on this phone only: its sign-in still names it as the
+  search's family, and the server checks that sign-in, so a change made offline just before leaving still reaches the
+  search when the phone reconnects. A write already under way when the family leaves (a photo or clip upload, or the
+  profile's first publish) can still reach the search: each one checks the join just before it starts, and only a
+  membership check on the server at that moment could stop one already started.
+- After leaving a search, the phone shows no notice for it while the app is open. A notice Android shows while the app
+  is in the background can still arrive until Firebase confirms the phone has stopped following that search; a drop
+  that was not confirmed is tried again each time the app starts.
 
 ## Search model
 
@@ -60,6 +75,41 @@ each line says what the limit is and why.
   with no comma, and a plan's doc id is its version in exactly one form ("0016", never "00016"). The command post
   also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
   is not a plan.
+
+## Language
+
+- Notes are expected in English. The web asks Chrome's on-device model for English text in and out
+  (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
+  setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
+  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule on
+  every platform removes any run of 7 or more digits, written in any script, or English digit words. A
+  note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
+  well it reads one. Evidence described in another language is not caught by the pre-screen.
+
+## Phone numbers in notes
+
+- The family app and the command post remove phone numbers from a note the way the iPhone app does (the web runs a
+  port of the Android rule, `web/src/data/phoneNumbers.ts`): seven or more digits in a row,
+  written in any script or spoken, joined by separators (spaces, dashes, dots, commas, brackets, slashes), even across a line break. Search information inside
+  such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
+  only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
+  (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
+- To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
+  too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
+  "ga 30301-1234" is removed, while "GA 30301-1234" stays.
+- It keeps too much in two cases. A phone number written like a street address with an ordinal street ("5550 142nd
+  St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
+  number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
+  to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
+- A count of a million or more written with commas ("walked 1,234,567 steps") is removed on every platform, because a
+  phone number can be written the same way ("Call 4,045,550,142"); a count under seven digits ("12,345") stays.
+- A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
+  way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
+  Without the "+" a pair stays.
+- Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
+  47 and the web 52. Each platform's runner runs every case not marked pending for it. The iPhone is pending on five
+  (a bare minus between decimals, an ordinal with no street word after it, and three times joined to other digits)
+  until it takes the current Android rule (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## On-device safety (Android)
 
@@ -168,6 +218,19 @@ each line says what the limit is and why.
 - The reader parses the whole file before its size checks (at most 1,000 reports, over at most 7 days), so an
   oversized file costs the browser a parse before it is refused.
 - The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
+
+## Command post extras
+
+- The replay shows no map before the current prior: a moment from an earlier prior reads "Earlier prior. The map for
+  this time is not stored."
+- Reports still sending are not in the replay.
+- The assignment sheet's names and numbers are handwritten.
+- The names the person answers to and the approach notes print only when command ticks the box, and paper leaves the
+  app: once printed, nothing in the app controls it.
+- The GeoJSON export was checked in MapLibre only.
+- Terrain ships only where stream links mostly run downhill. The development site has no terrain, so neither does the
+  judge practice search. The 3 m "about level" band is ours, and the vertical accuracy of the 3DEP data is unverified.
+- Reloading the extras panels offline is not verified on the deployed app.
 
 ## Push notifications
 

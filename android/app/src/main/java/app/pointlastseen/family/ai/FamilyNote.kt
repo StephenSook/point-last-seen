@@ -1,6 +1,7 @@
 package app.pointlastseen.family.ai
 
 import app.pointlastseen.family.core.EvidenceScreen
+import app.pointlastseen.family.core.LanguageScreen
 import app.pointlastseen.family.core.PhoneNumbers
 import app.pointlastseen.family.data.RouteRecord
 import app.pointlastseen.family.data.SignIn
@@ -34,6 +35,8 @@ data class FamilyNoteReading(val kind: String, val label: String, val summary: S
 
 sealed class NoteOutcome {
     data object NeedsConsent : NoteOutcome()
+    /** The note does not look English, so it is not sent to the cloud to be read; with no model here it is filled by hand. */
+    data object NotEnglish : NoteOutcome()
     data object FillByHand : NoteOutcome()
     data object PossibleEvidence : NoteOutcome()
     data object Invalid : NoteOutcome()
@@ -44,19 +47,29 @@ sealed class NoteOutcome {
 /**
  * "I remembered something": a typed note structured into a closed schema with the
  * SDK's hybrid mode. Without the family's cloud consent the only route is this
- * phone's own model; with no local model and no consent, nothing is sent.
+ * phone's own model; with no local model and no consent, nothing is sent. A note that
+ * does not look English ([language]) never goes to the cloud read either.
  */
-class FamilyNote(private val model: NoteModel, private val screen: EvidenceScreen, private val signIn: SignIn) {
+class FamilyNote(
+    private val model: NoteModel,
+    private val screen: EvidenceScreen,
+    private val signIn: SignIn,
+    private val language: LanguageScreen,
+) {
 
     suspend fun read(note: String, env: NoteEnv): NoteOutcome {
         val cleaned = PhoneNumbers.remove(note.trim())
         if (cleaned.isEmpty() || cleaned.length > MAX_NOTE) return NoteOutcome.Invalid
         if (screen.isPossibleEvidence(cleaned)) return NoteOutcome.PossibleEvidence
         val local = env.status == DeviceModelStatus.AVAILABLE
+        // As written and as cleaned: removing a number adds English words, which must not let a refused note through.
+        val english = language.looksEnglish(note) && language.looksEnglish(cleaned)
         val wanted = when {
-            local && (env.killCloud || !env.cloudConsent) -> NoteMode.ONLY_ON_DEVICE
+            local && (env.killCloud || !env.cloudConsent || !english) -> NoteMode.ONLY_ON_DEVICE
             local -> NoteMode.PREFER_ON_DEVICE
             env.killCloud -> return NoteOutcome.FillByHand
+            // Asked before consent: a note the cloud read may not take is not worth agreeing to send.
+            !english -> return NoteOutcome.NotEnglish
             !env.cloudConsent -> return NoteOutcome.NeedsConsent
             else -> NoteMode.PREFER_ON_DEVICE
         }

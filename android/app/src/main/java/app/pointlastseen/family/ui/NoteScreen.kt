@@ -75,6 +75,10 @@ fun NoteScreen(
                     ManualKind(ui.text, onAdd)
                 }
                 NoteOutcome.PossibleEvidence -> Sentence(Copy.EVIDENCE)
+                NoteOutcome.NotEnglish -> {
+                    Sentence(Copy.NOT_ENGLISH)
+                    ManualKind(ui.text, onAdd)
+                }
                 is NoteOutcome.Read -> {
                     var label by remember(o) { mutableStateOf(o.reading.label) }
                     Sentence("Suggested: ${KIND_LABEL[o.reading.kind] ?: o.reading.kind}")

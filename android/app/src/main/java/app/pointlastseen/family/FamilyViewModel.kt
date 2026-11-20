@@ -17,6 +17,7 @@ import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
 import app.pointlastseen.family.ai.FirebaseClipDeps
+import app.pointlastseen.family.ai.JoinedClipDeps
 import app.pointlastseen.family.ai.NoteEnv
 import app.pointlastseen.family.config.FirebaseRcSource
 import app.pointlastseen.family.config.RcStore
@@ -25,9 +26,11 @@ import app.pointlastseen.family.core.ClipFile
 import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.core.EvidenceTerms
 import app.pointlastseen.family.core.JpegEncoder
+import app.pointlastseen.family.core.LanguageWords
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
 import app.pointlastseen.family.core.SharedUris
 import app.pointlastseen.family.core.SightingCheck
+import app.pointlastseen.family.data.BusyOwner
 import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -35,10 +38,17 @@ import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
+import app.pointlastseen.family.data.RecordOwner
 import app.pointlastseen.family.push.FamilyTopic
+import app.pointlastseen.family.data.FamilyEdits
 import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.Departure
+import app.pointlastseen.family.data.JoinGeneration
+import app.pointlastseen.family.data.JoinedStart
 import app.pointlastseen.family.data.Membership
 import app.pointlastseen.family.data.MembershipCheck
+import app.pointlastseen.family.data.OneTimer
+import app.pointlastseen.family.data.StillJoined
 import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
 import app.pointlastseen.family.ui.QuestionOpen
@@ -75,7 +85,10 @@ import com.google.firebase.auth.auth
 import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
@@ -85,7 +98,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = PrefsStore(app, "pls")
     private val session = Session(prefs)
     private val profileStore = ProfileStore(PrefsStore(app, "pls-profile"))
-    private val familyTopic = FamilyTopic.firebase()
+    private val familyTopic = FamilyTopic.firebase(PrefsStore(app, "pls-topics"))
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     val rc = RcStore(FirebaseRcSource(Firebase.remoteConfig))
@@ -93,8 +106,18 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val writer = EventWriter(FirestoreEventStore())
     // A refused read of the incident asks whether this phone is still part of the search.
     private val watch = IncidentWatch(onDenied = { checkMembership() })
+    // Tries at watching again after a refused read kept the search; reset by a join or the foreground.
+    private var reattachTries = 0
+    // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
+    private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
-    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
+    // The shared English-note screen; without its word list it refuses every note for the cloud.
+    private val language = LanguageWords.screen(app)
+    // The published fields the family changed on this phone: a first publish sends them even over a value already there.
+    // Kept in the session's own store, so leaving forgets the search and the marks in one write.
+    private val familyEdits = FamilyEdits(prefs)
+    private var publishRequests = 0
+    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
@@ -103,6 +126,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var profile by mutableStateOf(profileStore.load())
         private set
+    // The last profile that reached the disk: edit marks compare against it, so an edit whose save failed is
+    // marked by the next save that works.
+    private var lastSaved: SubjectProfile = profile
     var deviceStatus by mutableStateOf(DeviceModelStatus.UNKNOWN)
         private set
     var joinBusy by mutableStateOf(false)
@@ -121,6 +147,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var profileShareFailed by mutableStateOf(false)
         private set
+
+    /** The last profile save failed on this phone: its changes were not sent, whatever the share says (cleared by a save that works). */
+    var profileUnsaved by mutableStateOf(false)
+        private set
     private var clipUri: Uri? = null
     private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
     private var lastClipStartMs: Long = 0L
@@ -134,14 +164,80 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var questionCheck: Job? = null
     private val membership = Membership.firebase()
     private var membershipCheck: Job? = null
+    // Which join a membership answer belongs to: bumped on every join, leave and drop.
+    private val joins = JoinGeneration { Firebase.auth.currentUser?.uid }
+    // Asking again after an UNKNOWN membership answer (a failed refresh): one pending wait at a time.
+    private val confirmRetry = OneTimer(viewModelScope)
+    private var confirmTries = 0
+    // Photo uploads and clip reads for the current join: cancelled when the phone leaves or is dropped.
+    private var joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
+
+    /** Checked just before each cloud write of work started now: the same join, and the session still on it. */
+    private fun stillJoined(incidentId: String): StillJoined {
+        val ticket = joins.ticket()
+        return StillJoined { joins.isCurrent(ticket) && session.incidentId() == incidentId }
+    }
+
+    // Which photo operation (an upload or a withdrawal) owns the photo screen's busy state. Declared before init, which
+    // can reach a drop (and so stopJoinedWork) before later properties are set.
+    private val photoWork = BusyOwner()
+
+    /** Stops the photo and clip work of the join being left; its screens go back to idle, with no clip card left over. */
+    private fun stopJoinedWork() {
+        joinedWork.cancel()
+        joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
+        clipUi = ClipUi.Idle
+        lastClip = null
+        clipUri = null
+        clipLabel = null
+        // The photo counts and notes, and the "not shared" note, were for the search being left; so was any photo
+        // operation still running, which may no longer release the busy state.
+        photoWork.reset()
+        photosUi = PhotosUi(0, false, null)
+        profileShareFailed = false
+    }
 
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); checkMembership() }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); startJoined(it) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
-        // After a restart in the gone-and-joined state, write the profile again (idempotent).
+        // A topic drop FCM never confirmed (offline when leaving) is tried again.
+        viewModelScope.launch { familyTopic.retryPending() }
+    }
+
+    /**
+     * A start while joined: the membership answer comes first; only when it keeps this same join is the join
+     * confirmed and the profile written again (after a restart in the gone-and-joined state, idempotent). A drop
+     * writes nothing; an UNKNOWN answer (offline, a failed refresh) publishes nothing and asks again later.
+     */
+    private fun startJoined(incidentId: String) {
+        val ticket = joins.ticket()
+        membershipCheck?.cancel()
+        membershipCheck = viewModelScope.launch {
+            JoinedStart.run(
+                check = { membership.check(incidentId) },
+                isCurrent = { joins.isCurrent(ticket) && session.incidentId() == incidentId },
+                onKeep = { confirmed(ticket); if (!watch.attached) reattachWatch(incidentId, ticket) },
+                onDrop = { dropSearch() },
+                onUnknown = { askAgain(incidentId, ticket) },
+            )
+        }
+    }
+
+    /** The server confirmed this join: profile changes kept while it was unconfirmed are published now. */
+    private fun confirmed(ticket: app.pointlastseen.family.data.JoinTicket) {
+        joins.confirm(ticket)
+        confirmRetry.cancel()
+        confirmTries = 0
         publishIfGone()
+    }
+
+    /** No answer yet (offline, a failed refresh): ask again after a wait, while the phone is on the same join. */
+    private fun askAgain(incidentId: String, ticket: app.pointlastseen.family.data.JoinTicket) {
+        confirmRetry.schedule(Membership.retryDelay(confirmTries++)) {
+            if (joins.isCurrent(ticket) && session.incidentId() == incidentId && !joins.confirmed()) startJoined(incidentId)
+        }
     }
 
     fun warnings(): List<String> = Profiles.warnings(profile, System.currentTimeMillis(), zone)
@@ -166,7 +262,15 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveProfile(p: SubjectProfile) {
         profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
-        profileStore.save(profile)
+        // Marks and the publish follow only a profile that reached the disk: a mark kept without its edit could send
+        // an old value over command's, and a publish of an unsaved profile could not be repeated after a restart.
+        if (!profileStore.save(profile)) {
+            profileUnsaved = true
+            return
+        }
+        profileUnsaved = false
+        familyEdits.record(lastSaved, profile)
+        lastSaved = profile
         publishIfGone()
     }
 
@@ -179,24 +283,47 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun calledFirst() = apply(Nav.calledFirst(nav))
 
     /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
-    fun leaveSearch() {
-        questionCheck?.cancel()
-        openQuestion = null
-        watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
-        session.leave()
-        prefs.remove(GONE)
-        nav = Nav.leave(nav)
-    }
+    fun leaveSearch() = leave(keepGone = false)
 
     /** The family left a search still open: forget it, keep the profile and its "gone" state, so it can join again. */
-    fun leaveOpenSearch() {
+    fun leaveOpenSearch() = leave(keepGone = true)
+
+    /**
+     * Forget the search at once, so no new write starts (every writer reads the session); give writes already
+     * sent up to [LEAVE_SETTLE_MS] to reach the server; then drop the family topic and report it done.
+     */
+    private fun leave(keepGone: Boolean) {
+        val incidentId = session.incidentId() ?: return
+        joins.next()
+        membershipCheck?.cancel()
         questionCheck?.cancel()
         openQuestion = null
-        watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
-        session.leave()
-        nav = Nav.leftOpen(nav)
+        stopJoinedWork()
+        reattach.cancel()
+        confirmRetry.cancel()
+        // Its writes are no longer shown or offered again ("Try again" would resend them to the search left).
+        writer.forget(incidentId)
+        viewModelScope.launch {
+            Departure.leave(
+                // Everything stored about the departure goes on disk before the wait (the topic drop, and for a found or
+                // closed search the gone flag), so a process death or a cleared screen during the wait loses neither.
+                forget = {
+                    watch.stop()
+                    familyTopic.leaving(incidentId)
+                    // The search and, for a found or closed one, the gone flag go in one write.
+                    // The family's edits were for this search: none may reach the next search's first publish. Forgotten
+                    // in the same write as the search, so a failed or interrupted write cannot keep one without the other.
+                    session.leave(alsoRemove = (if (keepGone) emptyList() else listOf(GONE)) + FamilyEdits.STORED_KEYS)
+                },
+                // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
+                settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
+                timeoutMs = LEAVE_SETTLE_MS,
+                finish = {
+                    viewModelScope.launch { familyTopic.left(incidentId) }
+                    nav = if (keepGone) Nav.leftOpen(nav) else Nav.leave(nav)
+                },
+            )
+        }
     }
 
     /**
@@ -206,18 +333,59 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private fun checkMembership() {
         val incidentId = session.incidentId() ?: return
         if (membershipCheck?.isActive == true) return
+        val ticket = joins.ticket()
         membershipCheck = viewModelScope.launch {
-            if (membership.check(incidentId) == MembershipCheck.DROP && session.incidentId() == incidentId) dropSearch()
+            val answer = membership.check(incidentId)
+            if (!joins.isCurrent(ticket) || session.incidentId() != incidentId) return@launch
+            when (answer) {
+                MembershipCheck.DROP -> dropSearch()
+                MembershipCheck.KEEP -> { confirmed(ticket); reattachWatch(incidentId, ticket) }
+                MembershipCheck.UNKNOWN -> reattachWatch(incidentId, ticket)
+            }
         }
     }
 
+    /**
+     * A refused read ended the watch but the search stays (the refresh kept it, or could not run): watch again
+     * after a short wait, a few times at most; after that the next foreground tries again.
+     */
+    private fun reattachWatch(incidentId: String, ticket: app.pointlastseen.family.data.JoinTicket) {
+        val wait = IncidentWatch.reattachDelay(reattachTries++) ?: return
+        reattach.schedule(wait) {
+            if (joins.isCurrent(ticket) && session.incidentId() == incidentId && !watch.attached) watch.watch(incidentId)
+        }
+    }
+
+    /** Back in the foreground: a watch the server ended is started again (the next refusal checks membership). */
+    fun onForeground() {
+        val incidentId = session.incidentId() ?: return
+        // Still unconfirmed (no answer at start): ask now rather than wait for the next scheduled try.
+        if (!joins.confirmed() && membershipCheck?.isActive != true) {
+            confirmRetry.cancel()
+            startJoined(incidentId)
+        }
+        if (watch.attached) return
+        reattach.cancel()
+        reattachTries = 0
+        watch.watch(incidentId)
+    }
+
+    /** The search this phone is in now, for screens that must not act on another search's snapshot. */
+    fun currentIncidentId(): String? = session.incidentId()
+
     /** This phone is no longer part of the search: forget it, keep the profile, and say so on the join screen. */
     private fun dropSearch() {
+        joins.next()
+        membershipCheck = null
         questionCheck?.cancel()
         openQuestion = null
+        stopJoinedWork()
+        reattach.cancel()
+        confirmRetry.cancel()
+        session.incidentId()?.let { writer.forget(it) }
         watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
-        session.leave()
+        session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
+        session.leave(alsoRemove = FamilyEdits.STORED_KEYS)
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
     }
@@ -235,6 +403,13 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             when (val out = Join(FirebaseJoinBackend()).join(code)) {
                 is JoinOutcome.Joined -> {
                     session.joined(out.incidentId)
+                    joins.next()
+                    membershipCheck?.cancel()
+                    // The join itself is the server's answer: this join is confirmed, for the user that joined.
+                    joins.ticket().takeIf { it.uid == out.uid }?.let { joins.confirm(it) }
+                    confirmRetry.cancel()
+                    confirmTries = 0
+                    reattachTries = 0
                     watch.watch(out.incidentId)
                     familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
@@ -252,9 +427,16 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         if (step.publishProfile) publishIfGone()
     }
 
+    /** Only for a confirmed join; while unconfirmed, profile changes stay saved on the phone until it is. */
     private fun publishIfGone() {
         val inc = session.incidentId() ?: return
-        if (nav.gone && nav.joined) publisher.publish(inc, profile) { ok -> profileShareFailed = !ok }
+        if (!(nav.gone && nav.joined) || !joins.confirmed()) return
+        val still = stillJoined(inc)
+        val request = ++publishRequests
+        // Only the newest publish sets the note: an older one ending later must not hide a newer failure. A result
+        // for a search the phone has since left says nothing about the one it is in now.
+        // The profile that reached the disk, not an edit whose save failed: every path that publishes sends that one.
+        publisher.publish(inc, lastSaved, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
@@ -269,9 +451,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rejectedCount(states: Map<String, WriteState>) = states.values.count { it == WriteState.REJECTED }
 
-    /** Sends every refused event again with its same id (a landed copy reads back as acknowledged). */
+    /** Sends every refused event of the search this phone is in again, with its same id. */
     fun retryRejected() {
-        writes.value.filterValues { it == WriteState.REJECTED }.keys.forEach { writer.retry(it) }
+        val incidentId = session.incidentId() ?: return
+        writer.retryRejected(incidentId)
     }
 
     // Someone saw them
@@ -295,7 +478,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
-            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn).read(text, env)
+            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
             noteUi = NoteUi.Done(outcome, text)
         }
@@ -328,9 +511,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         val uid = Firebase.auth.currentUser?.uid ?: return
         clipUi = ClipUi.Busy
-        viewModelScope.launch {
+        val still = stillJoined(incidentId)
+        viewModelScope.launch(joinedWork) {
             clipUi = try {
-                readClipOrFail(uri, incidentId, uid, form)
+                readClipOrFail(uri, incidentId, uid, form, still)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 ClipUi.Done(ClipOutcome.Failed)
@@ -338,7 +522,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun readClipOrFail(uri: Uri, incidentId: String, uid: String, form: ClipForm): ClipUi {
+    private suspend fun readClipOrFail(uri: Uri, incidentId: String, uid: String, form: ClipForm, still: StillJoined): ClipUi {
         val app = getApplication<Application>()
         val bytes = withContext(Dispatchers.IO) { ClipFile.readUpTo(app.contentResolver, uri, MAX_CLIP_BYTES + 1) }
             ?: return ClipUi.Done(ClipOutcome.Refused("This clip could not be opened. Choose it again."))
@@ -354,7 +538,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             consent = consent, killCloud = { rc.current().killCloud }, templateId = rc.current().clipTemplateId,
             uploaderUid = uid,
         )
-        return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
+        return when (val out = ClipReader(JoinedClipDeps(FirebaseClipDeps(incidentId, ai), still)).read(request)) {
             is ClipOutcome.Read -> {
                 if (!out.cached) out.route?.let { telemetry.record(it) }
                 lastClip = out to form
@@ -392,9 +576,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
+        val operation = photoWork.take()
         // The tick, as it stands when the photos are chosen, is the consent for each of them.
         val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
-        viewModelScope.launch {
+        val still = stillJoined(incidentId)
+        viewModelScope.launch(joinedWork) {
             val resolver = getApplication<Application>().contentResolver
             for (uri in uris) {
                 val jpeg = withContext(Dispatchers.Default) { runCatching { JpegEncoder.encode(resolver, uri) }.getOrNull() }
@@ -402,20 +588,22 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     photosUi = photosUi.copy(error = "One photo could not be read.")
                     continue
                 }
-                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent)) {
+                // The phone lists a consent before its write starts (PhotoUpload), so leaving mid-write keeps it withdrawable.
+                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink(), ledger = consentedPhotos).upload(incidentId, jpeg, consent, still)) {
                     is PhotoOutcome.Uploaded -> {
-                        if (out.cloudRead == CloudRead.ALLOWED) consentedPhotos.add(incidentId, out.path.substringAfterLast('/').removeSuffix(".jpg"))
                         photosUi = photosUi.copy(
                             uploaded = photosUi.uploaded + 1,
                             notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                            unconfirmed = photosUi.unconfirmed + if (out.cloudRead == CloudRead.UNCONFIRMED) 1 else 0,
                             consented = consentedPhotos.list(incidentId).size,
                         )
                     }
                     is PhotoOutcome.Refused -> photosUi = photosUi.copy(error = out.message)
                     is PhotoOutcome.Failed -> photosUi = photosUi.copy(error = out.message)
+                    PhotoOutcome.Left -> break
                 }
             }
-            photosUi = photosUi.copy(busy = false)
+            if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
         }
     }
 
@@ -473,16 +661,26 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun withdrawCloudRead() {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
+        val still = stillJoined(incidentId)
+        val operation = photoWork.take()
         viewModelScope.launch {
-            val r = PhotoConsentWithdrawal(consentedPhotos) { inc, sha -> FirestorePhotoConsentSink().delete(inc, sha) }.withdrawAll(incidentId)
-            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
+            val sink = FirestorePhotoConsentSink()
+            val me = Firebase.auth.currentUser?.uid
+            val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
+            val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
+            // The withdrawal still runs to the end after a leave (it only takes consent away), but its result is for
+            // that search: it must not change the photo screen of a search joined since. It still lets go of the busy
+            // screen it set, unless a newer photo operation or a leave has taken it.
+            if (!still.check()) {
+                if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
+                return@launch
+            }
             photosUi = photosUi.copy(
-                busy = false,
+                busy = if (photoWork.owns(operation)) false else photosUi.busy,
                 consented = consentedPhotos.list(incidentId).size,
-                withdrawNote = when {
-                    r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
-                    else -> "The cloud read is off for ${photos(r.withdrawn)}."
-                },
+                // A withdrawal with no failure settled every listed consent, the unconfirmed ones included.
+                unconfirmed = if (r.failed == 0) 0 else photosUi.unconfirmed,
+                withdrawNote = PhotoConsentWithdrawal.note(r),
             )
         }
     }
@@ -499,5 +697,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val GONE = "gone"
+        /** How long leaving waits for writes already sent to reach the server. */
+        private const val LEAVE_SETTLE_MS = 5_000L
     }
 }

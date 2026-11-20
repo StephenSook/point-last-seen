@@ -94,7 +94,8 @@ object ProfileCodec {
 class ProfileStore(private val store: KeyValueStore) {
     fun load(): SubjectProfile = store.get(KEY)?.let { runCatching { ProfileCodec.decode(it) }.getOrNull() } ?: SubjectProfile()
 
-    fun save(p: SubjectProfile) = store.put(KEY, ProfileCodec.encode(p))
+    /** True once the profile is on disk. */
+    fun save(p: SubjectProfile): Boolean = store.putChecked(KEY, ProfileCodec.encode(p))
 
     companion object {
         private const val KEY = "profile"

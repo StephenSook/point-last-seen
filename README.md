@@ -4,8 +4,8 @@ A search-planning aid for search and rescue training drills, for a person with d
 
 **Judges: open https://buildhybridai-2026-yg3m.web.app/judge.** It needs no account and no key. From there you can
 start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours) and
-check which on-device and cloud models the command post is using. When a drill run is published, the page replays it;
-until then it says "No published run yet."
+check which on-device and cloud models the command post is using. The page also replays the development drill's
+published run (Piedmont Park, the build's own test reports and plans, 2026-11-18 to 19).
 
 ## What it does
 
@@ -22,6 +22,19 @@ profile, notes, photos and camera clips from their own app, and decides which of
 | iPhone searcher app | Searchers in the field | TestFlight (the public link is not published yet) |
 | Android family app | The missing person's family | A signed APK as a GitHub release asset (no release is published yet) |
 
+Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
+
+Also available on the command post (from its extras menu). Whether the drill used each one is filled in after the
+drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-extras).
+
+- ICS 204-shaped assignment sheet (layout follows FEMA ICS Form 204 v3.1; not an official form)
+- GeoJSON export of segments and assignments (RFC 7946)
+- Radio cards and a match code check
+- The sheet and radio cards can print the names the person answers to and the approach notes (one box, off by
+  default)
+- Replay of the event log over time, from the current prior onward
+- Terrain display layer (USGS 3DEP; display only; the prior has no elevation term), for the Kennesaw drill grid only
+
 ## How the models are called
 
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Three calls
@@ -30,6 +43,12 @@ profile, notes, photos and camera clips from their own app, and decides which of
   own model, with the cloud as the fallback where a call allows it).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
+  This follows Firebase iOS SDK 13.0.0, which removed the SDK's own `SystemLanguageModel` and `HybridModel` and says to
+  use `ai.geminiLanguageModel(name:)` directly with Apple's Foundation Models framework (`FirebaseAI/CHANGELOG.md`,
+  lines 69 to 74 at tag 13.2.0, the version this app pins); `ios/PLS/AI/ModelSessionFactory.swift` does exactly that.
+- When no model reads a note or report, nothing is sent. The web receipt says "No model was asked: fixed wording
+  from code." and "Sent: nothing.", the iPhone reads the report with fixed rules and marks it "Read by the phone's
+  rules. No model.", and the web and Android forms ask for the fields by hand.
 - Speech: the iPhone app speaks an assignment change in a cloud voice from Firebase AI Logic and falls back to the
   phone's own system voice. No app calls a speech recognizer, and the repository's rules gate refuses one on every
   platform. A searcher can dictate a report with the iPhone keyboard's microphone key, which gives the app typed text.

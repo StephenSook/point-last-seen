@@ -29,6 +29,88 @@ import Testing
         #expect(o.reading.coverage == 0.8)
     }
 
+    /// The release route check reads one fixed sentence on each route. With Apple's model available
+    /// the router takes it; with the model turned off for the check (and signal and consent), the
+    /// same sentence goes to the cloud route instead.
+    @Test func theRouteCheckCanTurnTheOnDeviceModelOffForOneRead() async throws {
+        final class Paths: @unchecked Sendable { let m = Mutex<[RoutePath]>([]) }
+        let paths = Paths()
+        struct Recording: ReadModelRunner {
+            let paths: Paths
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                paths.m.withLock { $0.append(path) }
+                return .success(ReportReading.unclear(quote: String(text.prefix(40))))
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Recording(paths: paths) }
+        r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        var s = situation(mode: "drill")
+        s.networkOnline = true
+        s.cloudConsent = true
+        let onDevice = await r.read("cleared segment AC, nothing found", situation: s)
+        s.onDeviceOff = true
+        let cloud = await r.read("cleared segment AC, nothing found", situation: s)
+        #expect(onDevice.route.path == .onDevice && cloud.route.path == .cloud)
+        #expect(paths.m.withLock { $0 } == [.onDevice, .cloud])
+    }
+
+    /// A note that does not look English is not sent to the cloud even with signal and consent when
+    /// Apple's model is off; it reads by rules and its route says why. The app's bundled word lists drive it.
+    @Test func aNoteThatIsNotEnglishIsNeverSentToTheCloud() async throws {
+        final class Paths: @unchecked Sendable { let m = Mutex<[RoutePath]>([]) }
+        let paths = Paths()
+        struct Recording: ReadModelRunner {
+            let paths: Paths
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                paths.m.withLock { $0.append(path) }
+                return .success(ReportReading.unclear(quote: String(text.prefix(40))))
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Recording(paths: paths) }
+        r.deviceStatus = { OnDeviceStatus(available: false, localeSupported: true, contextSize: 4096, variant: "test") }
+        var s = situation(mode: "drill")
+        s.networkOnline = true
+        s.cloudConsent = true
+        let o = await r.read("Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos.", situation: s)
+        #expect(paths.m.withLock { $0 }.isEmpty)
+        #expect(o.route.path == .rules && o.route.reason == .notEnglish)
+        let english = await r.read("Cleared segment AC, nothing found.", situation: s)
+        #expect(english.route.path == .cloud)
+    }
+
+    /// The reader hands the subject's description to code, which decides the match for Apple's model.
+    @Test func onThePhoneTheMatchWithTheSubjectComesFromCode() async throws {
+        struct Answer: ReadModelRunner {
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                var r = ReportReading.unclear(quote: text)
+                r.kind = .clue
+                r.topColor = .blue
+                r.matchesProfile = .inconsistent
+                return .success(r)
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Answer() }
+        r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        var s = situation(mode: "drill")
+        s.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat")]))
+        let o = await r.read("Saw someone in blue by the creek in AC", situation: s)
+        #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
+        // The reader grounds every reading in its note: a colour the note does not say is blanked, so it
+        // cannot match the subject either. (The note above says blue, so it fails if the word list is not loaded.)
+        let blanked = await r.read("Saw someone by the creek in AC", situation: s)
+        #expect(blanked.reading.topColor == .unknown && blanked.reading.matchesProfile == .unknown)
+        #expect((try? BundledConstants.grounding()) != nil)
+    }
+
     @Test func remoteConfigDefaultsMatchTheSpec() {
         let d = RemoteConfigValues.defaults
         #expect(d.cloudModelIOS == "gemini-3.5-flash-lite")

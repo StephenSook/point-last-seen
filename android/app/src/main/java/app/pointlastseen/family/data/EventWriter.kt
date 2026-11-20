@@ -43,6 +43,21 @@ class EventWriter(
         docs[eventId]?.let { send(it) }
     }
 
+    /** Resends every refused write of [incidentId] with its same id (a landed copy reads back as acknowledged). */
+    fun retryRejected(incidentId: String) {
+        state.value.filterValues { it == WriteState.REJECTED }.keys
+            .mapNotNull { docs[it] }
+            .filter { it.incidentId == incidentId }
+            .forEach { send(it) }
+    }
+
+    /** The phone left [incidentId]: its writes are no longer shown or offered again; answers still coming are ignored. */
+    fun forget(incidentId: String) {
+        val gone = docs.filterValues { it.incidentId == incidentId }.keys
+        gone.forEach { docs.remove(it) }
+        state.update { it - gone }
+    }
+
     fun lastWritten(eventId: String): EventDoc? = docs[eventId]
 
     private fun send(d: EventDoc) {
@@ -62,9 +77,12 @@ class EventWriter(
 
     private suspend fun handle(r: Pair<String, Throwable?>) {
         val (id, err) = r
+        val doc = docs[id] ?: return
         if (err == null) return mark(id, WriteState.ACKNOWLEDGED)
-        val incidentId = docs[id]?.incidentId ?: return
-        when (store.existsOnServer(incidentId, id)) {
+        val onServer = store.existsOnServer(doc.incidentId, id)
+        // Forgotten (the phone left that search) while the read ran: the answer changes nothing.
+        if (docs[id] !== doc) return
+        when (onServer) {
             true -> mark(id, WriteState.ACKNOWLEDGED)
             false -> mark(id, WriteState.REJECTED)
             null -> mark(id, WriteState.PENDING)

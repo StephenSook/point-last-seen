@@ -33,6 +33,12 @@ object PlanPushInbox {
 class PlsMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         FamilyPush.parse(message.data)?.let { notice ->
+            // A notice for a search this phone has left (the topic drop not yet confirmed) is not shown.
+            val current = app.pointlastseen.family.data.Session(app.pointlastseen.family.data.PrefsStore(this, "pls")).incidentId()
+            if (!FamilyPush.isForCurrentSearch(notice, current)) {
+                Log.i(TAG, "family push kind=${message.data["kind"]} for a search this phone is not in; not shown")
+                return
+            }
             Log.i(TAG, "family push kind=${message.data["kind"]} incident=${notice.incidentId}")
             FamilyPushInbox.received.tryEmit(notice)
             showFamily(this, message.notification?.title ?: FAMILY_TITLE, notice, message.data)

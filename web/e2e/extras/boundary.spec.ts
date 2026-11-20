@@ -18,5 +18,5 @@ test("on the judge page a cube that fails to load leaves the replay in place", a
   await page.route("**/src/extras/cube/SpaceTimeCube.tsx*", (route) => route.abort());
   await page.goto("/extras-harness/judge.html");
   await expect(page.getByRole("region", { name: "Space and time" }).getByRole("alert")).toHaveText(failed);
-  await expect(page.getByRole("region", { name: "Watch the run over time" }).getByRole("slider", { name: "Replay time" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Watch the drill replay" }).getByRole("slider", { name: "Replay time" })).toBeVisible();
 });

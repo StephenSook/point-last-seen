@@ -25,6 +25,22 @@ test("with no published run the page says so once and offers a practice search f
   await expect(page.getByText("Training drill. Nobody is missing.")).toBeVisible();
 });
 
+test("the judge page carries one advice line from a dementia-care expert, by name", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const advice = page.getByTestId("judge-advice");
+  await expect(advice).toBeVisible();
+  await expect(advice).toContainText("Kim Franklin of the Alzheimer's Association Georgia told us");
+  await expect(advice).toContainText("because the longer you wait, the further they can get.");
+  await expect(advice).toHaveCount(1);
+});
+
+test("the judge page links to the public source code", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const link = page.getByRole("navigation", { name: "Links" }).getByRole("link", { name: "Source code" });
+  await expect(link).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+});
+
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
@@ -105,6 +121,19 @@ test("two clicks in the same moment start one practice search", async ({ page })
   await page.getByRole("button", { name: "Try a practice search" }).evaluate((b: HTMLButtonElement) => { b.click(); b.click(); });
   await expect(page).toHaveURL(/\?incident=judge-stubbed-seat/, { timeout: 15_000 });
   expect(posts).toBe(1);
+});
+
+// Back from the practice incident, the browser can show this page from its back/forward cache, as it was when it
+// left: mid-start. The restore event is fired here by hand, because Playwright's Chromium rarely restores a page.
+test("a page shown again from the back/forward cache has the start button ready", async ({ page }) => {
+  await withDebugToken(page);
+  await page.route("**/startJudgeSession", (route) => (route.request().method() === "POST" ? undefined : route.continue()));
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).click();
+  const practice = page.getByRole("region", { name: "Try a practice search" });
+  await expect(practice.getByRole("button", { name: "Starting" })).toBeDisabled();
+  await page.evaluate(() => dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  await expect(practice.getByRole("button", { name: "Try a practice search" })).toBeEnabled();
 });
 
 test("the judge page names the cloud model Remote Config selects right now", async ({ page }) => {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { harnessRun } from "../extras/testdata/replayIncident";
-import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
   it("(a) no built-in model: nothing private was sent, and the replay is named only when it exists", () => {
-    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run."], photoButton: null });
-    expect(d2Copy("no-model", { replay: false })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent."], photoButton: null });
+    expect(d2Copy("no-model", { replay: true })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run."] });
+    expect(d2Copy("no-model", { replay: false })).toEqual({ lines: ["This browser has no built-in model. Nothing private was sent."] });
   });
 
   it("says a failed download plainly", () => {
@@ -13,20 +13,23 @@ describe("d2Copy", () => {
   });
 
   // The check only asks Chrome what the model can take; it reads nothing, so the lines say "ready", never "read".
-  it("(b) text only: the model is ready for the note, and no model reads the sample photos", () => {
-    expect(d2Copy("text", { replay: false })).toEqual({
-      lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so no model reads the sample photos."],
-      photoButton: null,
-    });
+  // A practice search has no photos and the page shows none, so no line names sample photos.
+  it("(b) text only: the model is ready for the note and cannot read photos", () => {
+    expect(d2Copy("text", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read photos on this laptop."] });
   });
 
-  it("(c) image input: ready for sample photos too", () => {
-    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" });
+  it("(c) image input: ready for the note and photos", () => {
+    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note and photos."] });
   });
 
   it("downloadable: says the model can be downloaded first", () => {
     expect(d2Copy("downloadable", { replay: false }).lines[0]).toMatch(/download/);
-    expect(d2Copy("downloadable", { replay: false }).photoButton).toBeNull();
+  });
+
+  it("no line names sample photos", () => {
+    for (const state of ["no-model", "downloadable", "text", "image"] as const) {
+      for (const line of d2Copy(state, { replay: true }).lines) expect(line).not.toMatch(/sample photo/i);
+    }
   });
 });
 
@@ -96,5 +99,20 @@ describe("fetchedTime", () => {
   it("gives the Remote Config fetch time with its time zone", () => {
     expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "America/New_York")).toBe("14:05:09 EST");
     expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "UTC")).toBe("19:05:09 UTC");
+  });
+});
+
+describe("ADVICE_LINE", () => {
+  // What she told us, in our words: credited as her advice, never as an endorsement, and never in quote marks,
+  // because nothing here is a word-for-word quote.
+  it("credits Kim Franklin as advice, paraphrased with no quote marks", () => {
+    expect(ADVICE_LINE).toMatch(/^Kim Franklin of the Alzheimer's Association Georgia told us /);
+    expect(ADVICE_LINE).toContain("within five minutes, call police, because the longer you wait, the further they can get.");
+    expect(ADVICE_LINE).not.toContain('"');
+    expect(ADVICE_LINE).not.toMatch(/endorse|recommends|approved/i);
+  });
+
+  it("uses plain ASCII punctuation only", () => {
+    expect(ADVICE_LINE).toMatch(/^[\x20-\x7e]+$/);
   });
 });

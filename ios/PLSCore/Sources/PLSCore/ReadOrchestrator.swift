@@ -65,6 +65,12 @@ public struct ReadContext: Sendable {
     public var stageTimeoutSeconds: Double = 20
     /// The segment under the searcher's GPS fix, if any: the segment a report that names none is about.
     public var positionSegmentId: String?
+    /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
+    public var language: LanguageScreen?
+    /// The grounding rule run on every read's reading. Without it the fields it checks are blanked (fails closed).
+    public var grounding: Grounding?
+    /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
+    public var profile: ModelProfile?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -105,8 +111,21 @@ public enum ReadOrchestrator {
         var decision = plan.decision
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
+        var notes: [String] = []
+        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once
+        // more, with the report and a reminder (greedy sampling gives the same answer to the same input).
+        var quoteRetried = false
+        var retryingQuote = false
+        let limit = context.stageTimeoutSeconds
+        let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
-        func finish(_ reading: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
+        /// A colour, direction, footwear or carried item the note does not support is blanked after every read.
+        func grounded(_ r: ReportReading) -> ReportReading {
+            context.grounding.map { $0.ground(r, note: text) } ?? Grounding.blanked(r)
+        }
+
+        func finish(_ unGrounded: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
+            let reading = grounded(unGrounded)
             let model: String
             switch (path, stage) {
             case (_, .evidenceProtocol): model = "none"
@@ -116,7 +135,8 @@ public enum ReadOrchestrator {
             }
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
-            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport)
+            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport,
+                               stageNotes: notes)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -153,37 +173,74 @@ public enum ReadOrchestrator {
                     if !modeOK { decision = RouteDecision(path: .rules, reason: .notDrillMode) }
                     path = .rules
                     stage = .deterministicParser
+                } else if !(context.language.map { $0.looksEnglish(spoken) && $0.looksEnglish(text) } ?? false) {
+                    // The cloud read would run now, but the note does not look English, as written or with
+                    // its phone number removed (which adds English words): it is not sent, it is read by
+                    // rules, and the route says why.
+                    decision = RouteDecision(path: .rules, reason: .notEnglish)
+                    path = .rules
+                    stage = .deterministicParser
                 }
             }
             let next: NextStep
             switch stage {
             case .guided:
                 let guidedPath = path
-                let result = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
-                    ?? .failure(path == .cloud ? .network : .other)
+                let retrying = retryingQuote
+                retryingQuote = false
+                let prompt = retrying ? PromptText.quoteRetry(text) : text
+                let callStart = retrying ? clock.nowMs() : 0
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(prompt, path: guidedPath) }
+                if retrying { notes.append("guided \(guidedPath.rawValue): retry with a quote reminder took \(Int(max(0, clock.nowMs() - callStart))) ms") }
+                if raw == nil { notes.append("guided \(guidedPath.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(path == .cloud ? .network : .other)
                 if guidedPath == .cloud {
                     if case .failure(.network) = result { transport = .failed } else if transport != .failed { transport = .succeeded }
                 }
                 switch result {
                 case let .success(modelReading):
-                    let r = withCodeSegments(modelReading)
-                    if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
+                    var r = withCodeSegments(modelReading)
+                    // Apple's model reads the report alone (it never sees the description), so code
+                    // decides whether the report matches the subject.
+                    if guidedPath == .onDevice {
+                        // Grounded first, so a colour copied from the profile is no match.
+                        r = grounded(r)
+                        r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
+                        r = Self.zerosNotStated(r)
+                        r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)
+                    }
+                    let v = validate(r, context, text)
+                    if v.isOK { return finish(r, path: path, stage: .guided) }
+                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
+                    if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
+                        quoteRetried = true
+                        retryingQuote = true
+                        continue
+                    }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
+                    if raw != nil { notes.append("guided \(guidedPath.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     lastFailure = f
                     next = RouterPolicy.afterFailure(f, path: path, stage: .guided)
                 }
             case .permissiveText:
-                let result = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) } ?? .failure(.other)
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) }
+                if raw == nil { notes.append("permissive \(path.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(.other)
                 switch result {
                 case let .success(line):
                     if let line = PermissiveLine.parse(line, known: context.knownSegmentIds) {
                         let merged = withCodeSegments(line.merged(into: parse(text, context)))
-                        if validate(merged, context, text).isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        let v = validate(merged, context, text)
+                        if v.isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        notes.append("permissive \(path.rawValue): invalid \(Self.reasons(v))")
+                    } else {
+                        notes.append("permissive \(path.rawValue): unparsed")
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .permissiveText)
                 case let .failure(f):
+                    if raw != nil { notes.append("permissive \(path.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     next = RouterPolicy.afterFailure(f, path: path, stage: .permissiveText)
                 }
@@ -212,6 +269,39 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection
+    /// range 0 is never a valid value, so it is read as not stated. Coverage keeps its 0, which can be stated.
+    static func zerosNotStated(_ reading: ReportReading) -> ReportReading {
+        var r = reading
+        if r.minutes == 0 { r.minutes = nil }
+        if r.searchers == 0 { r.searchers = nil }
+        if r.detectionRangeM == 0 { r.detectionRangeM = nil }
+        return r
+    }
+
+    /// Apple's model can add a mark to the end of its quote ("...segment BP." for a report with no period).
+    /// At most one trailing . , ! or ? is dropped, and only when the quote is not in the report as it is
+    /// and what is left is, exactly. The quote stays the report's own words; code never writes one.
+    static func withoutAddedMark(_ quote: String, _ text: String) -> String {
+        guard let last = quote.last, ".,!?".contains(last), !text.contains(quote) else { return quote }
+        let left = String(quote.dropLast())
+        return !left.isEmpty && text.contains(left) ? left : quote
+    }
+
+    /// What a rejected quote was, for a stage note: "(quote empty)" or the quote cut to 60 characters. Kept
+    /// only in the read outcome and the drill's route-check file, never in the event.
+    static func quoteNote(_ v: ValidationResult, _ quote: String) -> String {
+        guard case let .invalid(reasons) = v, reasons.contains("quote_not_in_text") else { return "" }
+        let q = quote.trimmingCharacters(in: .whitespacesAndNewlines)
+        return q.isEmpty ? " (quote empty)" : " (quote: \"\(q.prefix(60))\")"
+    }
+
+    /// The validator's reasons, joined for a stage note.
+    static func reasons(_ v: ValidationResult) -> String {
+        if case let .invalid(reasons) = v { return reasons.joined(separator: ",") }
+        return ""
     }
 
     static func note(_ failure: ReadFailure, _ blocked: inout BlockKind?) {

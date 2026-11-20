@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import type { ReplayData } from "./replayData";
-import { clockLabel, elapsedLabel, nextMark, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
+import { elapsedLabel, nextMark, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
 import type { ReplayWindow } from "./stateAt";
 
 // The SVG is drawn in CSS pixels at the track's measured width, so labels and shapes are never stretched.
@@ -68,9 +68,9 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
   const head = toX(tMs);
   return (
     <div className="extras-ruler">
-      <div className="extras-ruler-clock">
-        <span className="extras-ruler-elapsed" aria-hidden="true">{elapsedLabel(tMs, w.startMs)}</span>
-        <span className="num muted">{clockLabel(tMs, timeZone)}</span>
+      {/* The clock is in the facts line above; the slider announces both, so this readout is not read twice. */}
+      <div className="extras-ruler-clock" aria-hidden="true">
+        <span>Elapsed</span> <span className="extras-ruler-elapsed">{elapsedLabel(tMs, w.startMs)}</span>
       </div>
       <div className="extras-ruler-track" ref={track}>
         <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">

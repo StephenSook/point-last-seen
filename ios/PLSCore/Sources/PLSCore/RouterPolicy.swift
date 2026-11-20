@@ -17,6 +17,8 @@ public enum RouteReason: String, Codable, Sendable, CaseIterable {
     case possibleEvidence = "possible_evidence"
     /// The incident is not a drill or a judge sandbox, so no model is called.
     case notDrillMode = "not_drill_mode"
+    /// The note does not look English, so the language screen kept it off the cloud read.
+    case notEnglish = "not_english"
     /// Decode only: a reason this build does not know. The rules bound the reason by length,
     /// so a newer client's value can reach this phone; the event still counts. Never produced here.
     case unknown
@@ -51,6 +53,8 @@ public enum ReadFailure: String, Codable, Sendable, CaseIterable, Error {
     case network
     case appCheckRefused = "app_check_refused"
     case cancelled
+    /// The model gave no answer; for Apple's model, an answer cut off by the response cap.
+    case emptyResponse = "empty_response"
     case other
 }
 
@@ -206,7 +210,7 @@ public enum RouterPolicy {
             return path == .onDevice && stage == .guided ? .stage(.permissiveText) : .stage(.deterministicParser)
         case .unavailable, .contextExceeded:
             return path == .onDevice && stage == .guided ? .rerouteWithoutOnDevice : .stage(.deterministicParser)
-        case .parseFailed, .network, .appCheckRefused, .cancelled, .other:
+        case .parseFailed, .network, .appCheckRefused, .cancelled, .emptyResponse, .other:
             return .stage(.deterministicParser)
         }
     }

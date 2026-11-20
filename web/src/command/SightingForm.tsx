@@ -2,7 +2,7 @@
 // The place comes from a map click or the Place list. A callback name or number may be typed
 // for the operator, but it stays in this form only and is cleared on save:
 // no field of the stored event holds it, and phone numbers are removed from
-// the note before it is stored or read.
+// the note (by the shared rule, see data/phoneNumbers) before it is stored or read.
 
 import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
@@ -50,10 +50,16 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [note, setNote] = useState("");
   const [callbackName, setCallbackName] = useState("");
   const [callbackNumber, setCallbackNumber] = useState("");
-  const [busy, setBusy] = useState<"read" | "cloud" | "save" | null>(null);
-  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed">("none");
+  // A read in progress; saving is tracked apart, so Save stays available while a read runs.
+  const [busy, setBusy] = useState<"read" | "cloud" | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Each read takes a number, and Save takes the next: a reply whose number is no longer the latest is dropped.
+  const readSeq = useRef(0);
+  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout">("none");
   // The last read that filled the fields: what was asked for, where it ran and what it sent.
   const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
+  // The read that filled the fields, kept for the saved sighting's route even if its receipt is no longer shown.
+  const [readFilled, setReadFilled] = useState<{ route: RouteRecord | null } | null>(null);
   // The note as it is now: a reply for an older note is dropped rather than filled in.
   const noteNow = useRef(note);
   noteNow.current = note;
@@ -71,21 +77,34 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     setReadState("filled");
   }
 
+  // A read's status, its receipt and the words it came from belong to the note it read. Once the note is edited
+  // they no longer describe it, so they go; the fields it filled stay, since they may have been checked by hand.
+  function changeNote(text: string) {
+    setNote(text);
+    if (readState === "none") return;
+    setReadState("none");
+    setRan(null);
+    setQuote("");
+  }
+
   async function readOnLaptop() {
     setBusy("read");
     setError(null);
     const asked = note;
+    const mine = ++readSeq.current;
     try {
       const r = await readNote(asked);
+      if (readSeq.current !== mine) return;
       if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) {
         fill(r.reading);
         const w = r as Ran;
         setRan(w.route ? { asked: "this laptop only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
+        setReadFilled({ route: w.route ?? null });
       }
-      else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : "not-read");
+      else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : r.refused === "timeout" ? "timeout" : "not-read");
     } catch {
-      setReadState("not-read");
+      if (readSeq.current === mine) setReadState("not-read");
     } finally {
       setBusy(null);
     }
@@ -95,16 +114,19 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     setBusy("cloud");
     setError(null);
     const asked = note;
+    const mine = ++readSeq.current;
     try {
       const r = await readNoteInCloud(asked);
+      if (readSeq.current !== mine) return;
       if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) {
         fill(r.reading);
         setRan(r.route ? { asked: "the cloud, after the consent tap", route: r.route, sentBytes: r.sentBytes ?? 0 } : null);
+        setReadFilled({ route: r.route ?? null });
       }
       else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
-      setReadState("not-read");
+      if (readSeq.current === mine) setReadState("not-read");
     } finally {
       setBusy(null);
     }
@@ -118,16 +140,18 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       setError("Enter the time it was seen.");
       return;
     }
-    setBusy("save");
+    setSaving(true);
+    // A read still running when Save is pressed fills nothing afterwards: what is saved is what was on screen.
+    readSeq.current++;
     try {
-      await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note });
+      await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note, ...(readFilled ? { readFilled } : {}) });
       setCallbackName("");
       setCallbackNumber("");
       onClose();
     } catch {
       setError("The sighting was not saved. Check the fields and try again.");
     } finally {
-      setBusy(null);
+      setSaving(false);
     }
   }
 
@@ -202,7 +226,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       </label>
       <label>
         Note
-        <textarea value={note} maxLength={2000} rows={3} onChange={(e) => setNote(e.target.value)} aria-describedby="note-hint" />
+        <textarea value={note} maxLength={2000} rows={3} onChange={(e) => changeNote(e.target.value)} aria-describedby="note-hint" />
       </label>
       <p id="note-hint" className="muted">Do not type the caller's name.</p>
       <div className="row">
@@ -239,6 +263,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       )}
       {readState === "evidence" && <p role="status">This note may describe evidence. It was not sent to any model. Fill the fields by hand.</p>}
       {readState === "not-read" && <p role="status">The note could not be read. Fill the fields by hand.</p>}
+      {readState === "timeout" && <p role="status">The read took too long. Fill the fields by hand.</p>}
       {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}
       <fieldset className="callback">
         <legend>Callback (stays on this screen, cleared on save)</legend>
@@ -257,10 +282,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         </p>
       )}
       <div className="row">
-        <button type="submit" className="btn" disabled={busy !== null}>
-          {busy === "save" ? "Saving" : "Save sighting"}
+        <button type="submit" className="btn" disabled={saving}>
+          {saving ? "Saving" : "Save sighting"}
         </button>
-        <button type="button" className="btn ghost" onClick={onClose} disabled={busy === "save"}>
+        <button type="button" className="btn ghost" onClick={onClose} disabled={saving}>
           Cancel
         </button>
       </div>

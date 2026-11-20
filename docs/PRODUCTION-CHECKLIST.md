@@ -40,14 +40,14 @@ must give.
   with `--allow KEY`, validates, then publishes with If-Match. `firebase.json` names no template, so a plain
   `firebase deploy` cannot replace it. The template holds every key the three clients read
   (`scripts/test_rc_publish.py`).
-- [ ] Before App Check is enforced on Firestore and Storage (both UNENFORCED, monitoring only, since 2026-11-19
-  01:33 UTC): the 24-hour verdict read (`firebaseappcheck.googleapis.com/services/verification_count` per app) shows
-  no unverified traffic beyond our own probes; the daily probe passes with its App Check token; and every local dev
-  session has an App Check debug token set, because the reCAPTCHA Enterprise key allows only the two hosting
-  origins (live-backend e2e sets it through `web/e2e/fixtures.ts` and fails without it). After enforcing each
-  service, within 15 minutes: the probe, the command post, the Android note and clip, an iOS read and an admin tool
-  read work, and a REST read with no App Check token is refused. To roll back, set the service's enforcement mode
-  back to UNENFORCED.
+- [x] App Check is enforced on Firestore and Storage: Storage since 2026-11-20 01:47:55 UTC, Firestore since
+  2026-11-20 21:29:29 UTC, each read back by GET. Before each, the verdict read (`firebaseappcheck.googleapis.com/
+  services/verification_count` per app) showed no unverified traffic from a real client (for Firestore, including an
+  iPhone release build passing App Attest). Within 15 minutes of enforcing Firestore: 64 of 64 live web specs, the
+  daily probe (run 44824078797), an iPhone read and Firestore VALID-only verdicts (iOS 60, web 711, no denial), and a
+  REST read with no App Check token was refused (403). Local dev sessions need an App Check debug token, because the
+  reCAPTCHA Enterprise key allows only the two hosting origins (live-backend e2e sets it through
+  `web/e2e/fixtures.ts`). To roll back, set the service's enforcement mode back to UNENFORCED.
 - [ ] The clipReadings TTL policy is ACTIVE: `gcloud firestore fields ttls list --project buildhybridai-2026-yg3m`
   lists `clipReadings/fields/expiresAt` as ACTIVE (it is declared in firestore.indexes.json and deployed with
   the indexes).
@@ -63,6 +63,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
 | clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; Storage takes a clip only while its consent expires 31 or more days after the upload, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
 | Judge sandbox (`startJudgeSession`): expires 24 h after start, one new per visitor per hour, at most 50 new a day | Each judge's sandbox lives 24 h; its media goes within 15 min of the end; the sandbox itself is deleted a day after it ends | `deleteIncidentMedia` every 5 min and `deleteEndedSandboxesJob` every hour (no end date); the cap (line below) |
+| Judge drill `drill-judge-1` (shared; the judges' searcher and family codes) | The two codes work until 2026-12-17T23:59:59Z (`expiresAt` on each code; joinIncident refuses an expired code) | No schedule resets it; `tools/practice/judge_drill.py --reset` refuses 2026-12-10 to 2026-12-16; `--check` (line below) |
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
 | Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
@@ -70,7 +71,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | Daily probe workflow (`probe.yml`, 13:23 UTC) | Runs; GitHub cron can start hours late | Both scripts retire after 2026-12-17, pinned by the test |
 | GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public from 2026-11-28, last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |
 | Actions budget ($15, resets monthly on the 1st) | December has its own $15; the repo is public from 2026-11-28, so its minutes are free | Line below |
-| Gemini spend cap ($25 budget) | Judge sandboxes call the cloud; burn rate NOT MEASURED yet | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below measures it |
+| Gemini spend cap ($25 budget) | Judge sandboxes call the cloud. Measured 2026-11-20 (`scripts/ai_spend.py --since 2026-11-13`): $0.05 for every cloud read in the week (all tests, drills and 8 practice searches), so at most $0.0063 per practice search, and a week at the cap of 50 a day at most $2.20. An average cloud read on 2026-11-19 cost about $0.0005 (50 reads, 735 input and 120 output tokens each), so $25 over a week at the cap allows about 140 reads per search. 8 searches cannot show what a real judge reads | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below re-measures it |
 | Model versions pinned in prompts and Remote Config | A model shut down inside the window breaks the cloud route | The rules gate pins every id to `shared/constants/models.json` (read 2026-11-18); line below re-reads it |
 | Artifact Registry cleanup (1 day) | Deletes old function images only; running functions keep serving | Nothing; a rollback rebuilds from source |
 
@@ -84,9 +85,10 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
   UTC day across all visitors (`functions/src/judgeSession.ts`, counted in the admin-only `ops/judgeSessions-{YYYY-MM-DD}`,
   one document per day, so the sessions so far are the sum of those counts).
   Lower it there, and redeploy, if the Gemini burn rate line below needs it.
-- [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
-  and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
-  already used. If not, lower the daily cap before submit.
+- [ ] Gemini burn rate: on 2026-11-29 run `python3 -I scripts/ai_spend.py --since 2026-11-13`. It prices the
+  token counts at the published rates, divides by the practice searches recorded so far and exits 1 when (cost per
+  search) x (daily cap) x 7 days does not fit under the $25 cap; add the drill and film spend already used. If it
+  does not fit, lower the daily cap before submit.
 - [ ] Re-read https://firebase.google.com/docs/ai-logic/models on 2026-11-28 or later: every id under `models`
   in `shared/constants/models.json` still shows no shutdown date before 2026-12-17, any newly retiring id moves
   to `banned`, and `readOn` is updated. The rules gate then fails on any source that still names a banned or
@@ -96,3 +98,9 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
   --jq '.workflows[] | "\(.state) \(.path)"'` shows probe.yml `active`, with its newest run under 26 hours old.
 - [ ] The Actions budget for December is set (Settings > Billing > Budgets) or the repo is public, so the
   daily probe is not blocked by billing during the window.
+- [ ] Judge drill: before 2026-12-10, `python3 -I tools/practice/judge_drill.py --check` exits 0 (its baseline docs
+  match the judge seed). Reset it only on demand before then (`--reset` lists what it deletes, `--reset --yes` does
+  it); never from 2026-12-10 to 2026-12-16, which the tool refuses.
+- [ ] After judging, revoke the judges' two codes: `python3 -I tools/seed/seed_drill.py --revoke-code
+  buildhybridai-2026-yg3m drill-judge-1 searcher drill-judge-1-judges`, then the same with `family`. They also stop
+  working by themselves at 2026-12-17T23:59:59Z.

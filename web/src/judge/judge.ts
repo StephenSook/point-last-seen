@@ -5,24 +5,28 @@
 import type { DeviceState } from "../ai/deviceModel";
 import { fromPublishedRun } from "../extras/replay/replayData";
 
+/**
+ * Why the first minutes matter: what a dementia-care expert we spoke to told us, in our words. It is advice she
+ * gave us, never an endorsement of this project, and it carries no quote marks because it is not word for word.
+ */
+export const ADVICE_LINE =
+  "Kim Franklin of the Alzheimer's Association Georgia told us to check the immediate area first and, if the person is not found within five minutes, call police, because the longer you wait, the further they can get.";
+
 /** `replay` is true only when a published run exists, so the line never points at a replay that is not there. */
-export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[]; photoButton: string | null } {
+export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[] } {
   if (opts.downloadFailed && state !== "text" && state !== "image") {
-    return { lines: ["This browser could not download its built-in model. Nothing private was sent."], photoButton: null };
+    return { lines: ["This browser could not download its built-in model. Nothing private was sent."] };
   }
   switch (state) {
     case "no-model":
-      return {
-        lines: [opts.replay ? "This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run." : "This browser has no built-in model. Nothing private was sent."],
-        photoButton: null,
-      };
+      return { lines: [opts.replay ? "This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run." : "This browser has no built-in model. Nothing private was sent."] };
     case "downloadable":
-      return { lines: ["This browser can download its built-in model first. Press Get this laptop ready to start; it can take a few minutes."], photoButton: null };
+      return { lines: ["This browser can download its built-in model first. Press Get this laptop ready to start; it can take a few minutes."] };
     // The check asks Chrome what its model can take and reads nothing, so these say "ready", never "read".
     case "text":
-      return { lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read images, so no model reads the sample photos."], photoButton: null };
+      return { lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read photos on this laptop."] };
     case "image":
-      return { lines: ["The built-in model on this laptop is ready for the sighting note and sample photos."], photoButton: "Read sample photos on this laptop" };
+      return { lines: ["The built-in model on this laptop is ready for the sighting note and photos."] };
   }
 }
 

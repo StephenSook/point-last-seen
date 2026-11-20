@@ -17,6 +17,277 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - `joinIncident` refuses a judge sandbox whose setup is not finished (`setupReady !== true`), as the rules do, so it
   never grants claims that every read would then refuse. Source: review (Codex round 1, low). Verified test first: the
   join test's no-flag and not-ready cases failed, then passed; suite 256 of 256.
+- Phone vectors and LIMITS after the web took the Android phone-number rule (web/src/data/phoneNumbers.ts): "web"
+  leaves pendingOn on all 23 cases it was pending on, so the web now runs every case; LIMITS says every platform
+  removes a run of 7 or more digits, a count of a million or more and a decimal pair that starts with +, renames the
+  section "Phone numbers in notes", and states the counts (Android 52, the iPhone 47, the web 52, the iPhone pending
+  on five until it takes the current Android rule). Source: the web port. Verified: the web runner passes all 52 cases
+  forced (the web team's run); scripts/test_phone_vectors.py checks the LIMITS counts against the file (6 passed).
+- Phone vectors: the pending marks for the web now match what the web does. Measured against
+  web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
+  spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
+  were still marked and are now unmarked. LIMITS states each platform's pass count (Android 52, the iPhone 47, the web
+  29), and scripts/test_phone_vectors.py checks those counts against the file. Source: review. Verified: a probe of
+  the web function over every case (29 pass, the 23 failures all now pending on web); Android PhoneVectorsTest and the
+  iPhone's PhoneNumberVectorTests pass locally on this file; the count test failed on a planted 51 and passes on 52.
+- README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
+  its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
+  names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the
+  Kennesaw-only terrain display layer; and a LIMITS section with their seven limits. Source: the extras hand-over at
+  main 7afaee2. Verified: each feature is on main (Ics204View.tsx with v3.1, ExportButton.tsx RFC 7946,
+  LazyRadioCodeCheck, printablePersonLines, ReplayPanel's "Earlier prior" line, and only
+  kennesaw-mountain-drill.elevation.json under web/public/extras/terrain); no camera-read or space-time claim is made.
+- Public run export: a report's route is its read's provenance (path, stage, model, reason, latencyMs and the rest of
+  the route record), and the export's check now refuses a route whose values a route record cannot hold (enums from
+  shared/schemas/route-record.schema.json, a model id of at most 80 characters, numbers for the times, a boolean
+  sdkReported), so no note text can ride in one. The reading's content still never leaves on a report. Source: review
+  (the replay's per-report provenance). Verified: tools/export-run tests 24 passed (the new route-values test failed
+  first; a full reading with evidenceQuote exports only its route; a planted evidenceQuote is refused); typecheck
+  passes.
+- Grounding vectors README: where the rule applies. The web and the iPhone read notes into these fields; the Android
+  family app has none to ground (its note read fills kind, label, summary and evidenceQuote; a family sighting's
+  direction and colours are picked by hand; a camera clip's colours come from the frames, with no note or profile in
+  the request). Source: the Android team's check at 720038b4. Verified: no shared/templates/*.json names the profile.
+- Engine: groundReading(reading, note) returns a copy of a reading with each colour, direction, footwear or carried
+  value the note does not support blanked (shared/engine-ts/src/ground.ts, rule and words from
+  shared/constants/grounding-words.json). Each platform calls it after every read; the web wiring follows in its own
+  change. Source: review (a read took blue from the subject's profile). Verified: test/grounding.test.ts runs every
+  grounding.json case per field (32 tests, red before the function existed); engine typecheck, lint and all 312 tests
+  pass.
+- Grounding vectors: shared/constants/grounding-words.json holds the word lists and the rule for grounding a reading
+  in its note (a colour or a direction stays only when its word is in the note, footwear or carried only when it
+  shares a word with it; otherwise the field is blanked), and shared/test-vectors/grounding.json pins 26 cases, a kept
+  and a blanked case for each of topColor, bottomColor, direction, footwear and carried, including the profile leak
+  (blue from the profile). scripts/test_grounding_vectors.py checks both files and runs in CI. Source: review.
+  Verified: pytest 4 passed; local gates pass.
+- SECURITY row 14 and the production checklist: App Check is now ENFORCED on Firestore (since 2026-11-20 21:29:29 UTC)
+  as well as Storage (since 01:47:55 UTC), with the verdict read that preceded each and the post-enforcement checks
+  (64 of 64 live web specs, the daily probe run 44824078797, an iPhone read, Firestore VALID-only verdicts, and a REST
+  read with no App Check token refused with 403). Source: the enforcement step. Verified: the enforcement mode read
+  back ENFORCED; Cloud Monitoring verification_count 21:29 to 21:50 UTC showed Firestore iOS VALID 60 and web VALID
+  711 and no denial.
+- README: one line on what a person sees when no model reads (nothing is sent; the web receipt's fixed wording, the
+  iPhone's rules mark, and the web and Android forms asking for the fields by hand), and the judge-page line now says
+  the page replays the development drill's published run instead of "No published run yet". Source: review. Verified:
+  wording copied from web/src/ai/receipt.ts, ios/PLSCore/Sources/PLSCore/Glyphs.swift and
+  web/src/command/SightingForm.tsx; the live /evidence/published-run.json is the Piedmont Park development run.
+- README, How the models are called: the iPhone route cites its basis, Firebase iOS SDK 13.0.0's
+  FirebaseAI/CHANGELOG.md (lines 69 to 74 at tag 13.2.0: SystemLanguageModel and HybridModel removed; use
+  ai.geminiLanguageModel(name:) with Apple's Foundation Models directly). Source: review. Verified: fetched the file
+  at tag 13.2.0 (lines 69 to 74 hold that entry); ios/project.yml pins 13.2.0; ModelSessionFactory.swift builds
+  LanguageModelSession(model: ai.geminiLanguageModel(name:)).
+- SECURITY, Data and media: one paragraph on what Performance Monitoring records: one trace per model read with the
+  route only and its latency, never text (the attributes each platform sends, Android's matching Analytics event, the
+  iPhone's spoken-assignment trace), plus the SDKs' automatic page-load, app-start, screen and network samples.
+  Source: review. Verified against web/src/telemetry/trace.ts, ios/PLS/AI/PerformanceTelemetry.swift,
+  ios/PLS/AI/AssignmentSpeaker.swift and the Android Telemetry.kt.
+- SECURITY: the plan-wording row's mode now matches the code, on-device first with a cloud fallback (PREFER_ON_DEVICE
+  in web/src/ai/replanWording.ts); it said prefer cloud. Source: review. Verified: grep shows replanWording.ts sets
+  InferenceMode.PREFER_ON_DEVICE and no other doc says prefer cloud.
+- Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
+  time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
+  between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
+  Android change and its review. Verified: PhoneVectorsTest passes locally on this branch with main at 720038b;
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: the two time cases stay pending on android. Android's rule removes the number but leaves the minutes
+  ("Call [number removed]:42", "Call GA [number removed]:30"), which fails the no-digit-left check. Source: this
+  branch's Android CI run. Verified: PhoneVectorsTest run locally on this branch: fails on each of the two cases with
+  android unmarked, passes with both pending (all other cases run).
+- Phone vectors: Android's rule (#109) now passes every case it was pending on, so "android" leaves pendingOn on 19
+  cases (the grouped, Unicode-digit, two-CRLF, date, + pair, bare minus, ordinal and time cases); the web stays
+  pending on all of them and the iPhone on the bare minus, the ordinal and the two time cases. LIMITS takes the
+  Android branch's wording (the + bullet, the street-address and colon limits), so this branch's own street-address
+  line is dropped as a duplicate. Source: the Android change. Verified: the Android team ran every pending case
+  against #109; scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: the iPhone now reads a month and day as a date and removes a decimal pair that starts with + (#119),
+  so "ios" leaves pendingOn on plus_before_decimal_pair and short_date_beside_number; LIMITS says the + pair is kept
+  today on the web and Android only. Source: the iPhone change. Verified: the iPhone team ran the file with both marks
+  removed before #119 merged; scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: exact case "Seen 11/19/2026 14:03 404-555-0142" -> "Seen 11/19/2026 14:03 [number removed]" (a date
+  and a time both stay beside a removed number), pending on web and android; the iPhone gives this output today.
+  Source: the iPhone team's run. Verified: scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: a time keeps its place only after a date or on its own beside a number; joined to other digits before
+  its hour, or after a ZIP+4 code, it goes with the run (mustRemove "Call 1 404 555 01:42" and "Call GA 40455-5014
+  2:30", pending on web, ios and android). LIMITS: a phone number written like a street address ("Call 5550 142nd St")
+  is kept on the iPhone and Android. Source: review. Verified: scripts/test_phone_vectors.py 5 passed; local gates
+  pass.
+- Phone vectors, two more shared rulings: a bare minus between decimals with no space or comma is a number (mustRemove
+  "Call 44.2071-23.4567"; the comma and space GPS keeps stay), and an ordinal stays apart only when a street word
+  follows it (mustRemove "Call 4550 142nd"; keeps "12345 67th Ave" and "near 4550 142nd St"). Both removes are pending
+  on web, ios and android (Android's rule for them is on its open branch). README says so. Source: review. Verified:
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: the exact case "Seen 11/19 555-0142" is pending on ios too. The iPhone rule reads a date only with
+  three groups, so a month and day beside a number join it into one 11-digit run and the whole run goes. The iPhone
+  team is adding a month/day date. Source: the iPhone team's run of #118's cases. Verified:
+  scripts/test_phone_vectors.py passes; local gates pass.
+- Phone vectors, two shared rulings: a decimal pair that starts with + is a phone number, not a coordinate (mustRemove
+  "Call +44.2071, -23.4567", pending on every platform; the keep "GPS 33.7490, -84.3880" stays), and a date beside a
+  phone number stays while only the number goes (exact cases for 11/19/2026, 2026-11-19, 11/19 and "Nov 19 2026"
+  beside a number, plus a word between; mustKeep "Seen 11/19/2026 14:03"; pending on web and android). "404/555/0142"
+  was already a mustRemove. README and LIMITS say so. Source: review. Verified: scripts/test_phone_vectors.py 5
+  passed; local gates pass.
+- Phone vectors: the iPhone now removes a grouped count of seven or more digits (#116), so "ios" leaves pendingOn on
+  grouped_phone_number and adlam_grouped_number; LIMITS says a comma-written phone number is kept today on the web and
+  Android only. Source: the iPhone grouped-count change. Verified: the iPhone team ran main's file with these marks
+  removed against #116 before it merged; scripts/test_phone_vectors.py 5 passed; local gates pass. Correction to the
+  grouped-count entry below: that file has 5 tests (one of them new), not 6.
+- Vectors README: a grouped count is no longer listed as search information that can shield itself inside a run. Under
+  the 7+ digit ruling the grouped-count span always holds 7 or more digits, so it can never apply; the iPhone and
+  Android rules both drop it. "walked 12,345 steps" on its own stays a keep. Source: the iPhone and Android reviews.
+  Verified: local gates pass.
+- Language screen: the shared rule now says to judge the note as the person wrote it, before phone numbers are
+  removed, since the [number removed] token adds English-looking words that hid a non-Latin note; two mustRefuse cases
+  pin it ("Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"). Source: the Android and iPhone reviews of the screen.
+  Verified: looksEnglish refuses both as written and would pass them after cleaning (checked first); 32 engine
+  language tests pass.
+- Phone vectors: a grouped count of seven or more digits is now a number (privacy wins ties): the keep becomes "walked
+  12,345 steps" and mustRemove "Call 4,045,550,142" is added, pending on web, ios and android. Seven more cases from
+  the Android review: mustRemove "Call OH 41234-5678" and an Adlam grouped number (both were keeps that let a phone
+  number through), a spacing accent, NEL, dingbat digits and 幺 inside a number, and mustKeep "Seen Nov\r\n\r\n19
+  2026". The contract's no-digit-left check now catches a number character in any script (Unicode Nd, Nl, No), not
+  only 0-9. README and LIMITS say so, including that a comma-written phone number is kept today. Source: review.
+  Verified: scripts/test_phone_vectors.py 6 passed, including a new test that an Adlam or a dingbat digit left behind
+  fails the contract.
+- Vectors README: the phone-number reference rule names its file,
+  android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt (the iPhone's matches it), and states it as
+  that file does: seven or more digits in a row, joined by short separators; search information inside a run stays
+  only when the rest of the run is nothing or whole numbers of seven or more digits, otherwise the whole run is
+  removed; an ordinal never joins others. Source: review (the Android port is the reference). Verified against the
+  file's header comment on main 3aa206e.
+- Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \r\n19 2026" and "GPS 33.7490,\r\n-84.3880"),
+  so a line break inside a date or a coordinate pair never joins its digits into a number on any platform. Pending on
+  web. Source: the iPhone parity sweep against the Android rule. Verified: the vector test passes.
+- Phone-number vector: the new cases are pending on web only; the iPhone port of the reference rule passes them all,
+  so iOS runs them. Source: review. Verified: the vector test passes.
+- Phone-number vector gaps (from the Android port's review): 6 more mustRemove (dotted pairs 06.12.20.26.19, a number
+  glued to a date, U+2011, U+2010 and U+2013 hyphens, a number split by CRLF), 5 more mustKeep (GPS pair, ZIP+4,
+  grouped count 1,234,567, 12345 67th Ave, 5km), and a new exact case type checked byte for byte ("Seen at 14:03,
+  404-555-0142" becomes "Seen at 14:03, [number removed]"; the shared replacement token is now in the file). New cases
+  carry pendingOn [ios, web]: a runner skips cases pending for its platform. The contract and the reference rule (the
+  Android family app's) are in the vectors README. Source: review. Verified: the vector test passes and fails a
+  scrubber that does nothing, wipes the note, or writes a different token.
+- Route reason `not_english` (route-record schema enum and engine-ts RouteReason): the language screen refused the
+  cloud read because the note does not look English, so the read went to no cloud model and fell to the platform's own
+  path. Distinct from on_device_unavailable, so command sees why. Source: the iPhone language-screen port. Verified:
+  schema parity ok (13 schemas, 31 platform types), engine typecheck and tests pass; the iPhone already decodes an
+  unknown reason safely.
+- Language screen before a cloud read (row H decision): `shared/constants/language-words.json` holds the rule and two
+  word lists (429 English, 90 Spanish, Portuguese and Vietnamese function words, none shared); a note is refused for
+  the cloud read when more than half its words are non-Latin, or when it has 3 or more foreign words and more than
+  twice as many as English ones. `shared/test-vectors/language.json`: 18 must-allow (including 6 English notes quoting
+  Spanish), 9 must-refuse (es, pt, vi, ko) and 1 known miss ("Ella no está aquí" passes). The web runs `looksEnglish`
+  from shared/engine-ts; iOS and Android port it. Source: review (evidence in another language escapes the English
+  pre-screen). Verified: 30 engine tests pass; the rule refuses 0 of 325 English sentences from the repo's docs, where
+  a one-sided English-share rule refused 22%.
+- LIMITS: a family's edit before its first publish reaches the search for single fields; for a list or set field it
+  reaches the search only where command's profile lacks that field; after the first publish, an edit to such a field
+  sends the phone's whole list, replacing what command added. Source: review of the Android profile publish change.
+  Verified against the Android code on main (EditableFields.sendable passes single values only; FirstPublish.of; the
+  Fields path sends changed values whole with doc.update).
+- judge_drill.py, review round 3 (four medium, one low; the last round): a reset now deletes what judges wrote under a
+  team (devices and their measurements) while keeping the team doc; deletes a segment the validated seed no longer
+  has, in the same atomic commit as the baseline, and --check flags such a segment (the iPhone refuses segments at
+  mixed prior versions); polygon positions must be finite and rings must hold at least 4 positions; the dry run counts
+  exactly what a reset deletes. A reset commit holds at most 500 writes, so a grid of up to about 400 segments resets
+  and a larger one is refused rather than split (kept on purpose: atomic, and the largest drill grid has 338
+  segments). Verified test first: 2 new tests failed, then passed; 15 judge_drill tests; the live --check and dry run
+  exit 0.
+- seed_drill.py --expires accepts ASCII digits only and refuses an impossible date the same way, never repeating the
+  value. Source: review round 2 (low). Verified test first: three new bad values failed, then passed; 15 seed_drill
+  tests.
+- judge_drill.py, review round 2 (one high, four medium): a reset never deletes under segments or teams, so a seed
+  missing a doc cannot remove one the drill needs; the seed must have every team and segment its plan names, and a
+  gridId, gridAttribution, priorVersion and engineParams; segment numbers must be stored as Firestore numbers (a
+  timestamp is not one) and polygon positions as number pairs; the baseline write and the delete of any stale plan are
+  one atomic commit, so a failed delete can never leave an old plan beside a new baseline; ids from Firestore names
+  are used as they are (never unquoted, so two ids cannot merge). Verified test first: 4 new tests failed, then
+  passed, plus a guard that the real media delete takes 404 as gone and raises otherwise (13 judge_drill tests); the
+  live --check still exits 0.
+- judgeDrill rules tests: the segment refusal now uses a write command may make (prior unchanged), with command making
+  the same write as a control, and the family profile control changes a value the fixture does not already hold, so
+  neither passes for the wrong reason. Source: review round 1 (low). Verified: rules and functions suite 260 of 260.
+- seed_drill.py --expires: an invalid or past value is no longer repeated in the error, so a code pasted into the
+  wrong argument never reaches the screen or a log. Source: review round 1 (low). Verified: 15 seed_drill tests pass.
+- judge_drill.py hardening (review round 1: two high, two medium, two low): the seed is refused unless its segments
+  pass the apps' contract and it has profile/shared; --reset rewrites the baseline first, then deletes extras, then
+  media, and a media file already gone (the clip trigger removes clips with their readings) counts as deleted, so a
+  reset that stops part way never leaves the drill without its baseline; the walker lists parents that were never
+  written (showMissing) and pages collection ids; --check fails on a plan the baseline does not have and on a stale
+  incident field, and --write clears such a field; doc ids are quoted in URLs. Verified test first: 4 new tests
+  failed, then passed (8 judge_drill tests); the live --check still exits 0.
+- Judge drill `drill-judge-1` SEEDED in the live project (evidence `docs/evidence/drill/drill-judge-1-seed.md`): made
+  by seed_drill.py, baseline written from the judge seed (73 docs; --check ok; segment contract 68 docs at prior
+  version 5), and one searcher and one family code for judges, each with expiresAt 2026-12-17T23:59:59Z, kept only in
+  the Keychain (account drill-judge-1-judges). PRODUCTION-CHECKLIST: a judging-window row and two lines (check before
+  2026-12-10, revoke after judging). Source: review (a judge cannot reach the phone apps). Verified: the read-back in
+  the evidence file.
+- `tools/practice/judge_drill.py`: the shared judge drill `drill-judge-1`, built from the judge seed so it tells the
+  same story as /judge and the iPhone practice pack: the incident fields judgeSession.ts copies, segments, teams,
+  profile/shared and the pack's plan (approvedByUid `judge-drill-baseline`), as a training drill (mode drill, the
+  drill label, "Judge drill" in the name). `--check` compares the baseline docs with the seed and counts what judges
+  added; `--write` applies the baseline; `--reset` lists what a reset deletes (docs judges added, through nested
+  collections, and their media) and `--reset --yes` does it, for drill-judge-1 only and never from 2026-12-10 to
+  2026-12-16. Values are copied as Firestore stores them. Source: review (judge codes). Verified: 4 tests (baseline
+  overrides, drift caught, reset refusals, bad arguments change nothing).
+- Rules tests for a judge drill shared by many judges (`functions/test/rules/judgeDrill.test.ts`): no searcher or
+  family member can close, relabel, pause, re-plan or delete the drill, or write its segments, teams or shared profile
+  deletion; a searcher cannot change, delete or forge another member's report; a family member cannot change an answer
+  another gave; a searcher cannot write the profile while a family member's normal edit passes. Each test also has a
+  write that succeeds (the drill's command, a member's own report, the first answer), so a refusal cannot come from a
+  broken setup. Source: review (judge codes). Verified: rules and functions suite 260 of 260.
+- `seed_drill.py --add-code ... --expires <UTC time>`: an extra join code can carry `expiresAt`, after which
+  joinIncident refuses it (the check already existed in join.ts; the tool never wrote the field). The time must be
+  written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
+  judging). Verified test first: the expiry field and the refusal of five bad times failed, then passed; 15 seed_drill
+  tests pass.
+- Phone-number vector: dates are kept on every platform. Four mustKeep cases added ("11/19/2026", "2026-11-19",
+  "11/19", "Nov 19"), pinned in `scripts/test_phone_vectors.py`; "404/555/0142" (3-3-4 grouping) stays mustRemove. A
+  date in a note is search information, not a phone number. Source: review (a slash fix on one platform began removing
+  dates). Verified: the vector test passes, and a scrubber that removes any 7-digit run joined by / or - fails the
+  contract on 11/19/2026 and 2026-11-19.
+- `docs/TEST-MATRIX.md`, linked once under the README's ships table: one row per platform and model path (mode and API
+  with file:line, the model as recorded, hardware and OS or browser, channel, date, result, tracked evidence). Rows
+  that never ran say Not run and why: web on-device note read and plan wording, Android on-device (the A16 has no
+  AICore), and both iPhone paths (no docs/evidence/ios yet). `scripts/test_test_matrix.py` (CI and ci-local lists)
+  fails on an untracked evidence file, a code line that no longer holds its call, a Not run with no reason, or a Not
+  run row once its evidence folder exists. Writing it found that the clip-read row's measurement page was removed
+  after its run (9db2ddb); the row now says so. Source: review (no test matrix). Verified: 3 tests pass.
+- LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
+  iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
+  words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,
+  unmeasured, and evidence in another language escapes the pre-screen. Source: review (language scope not stated).
+  Verified against gate.ts, ModelSessionFactory.swift, ReportParser.swift, evidence-terms.json and its three readers,
+  ReadOutcomeBuilder.swift, and the prompt templates (none names a language).
+- Gemini burn rate measured: `scripts/ai_spend.py` reads AI Logic's token counts and the practice searches started
+  (ops/judgeSessions-{day}), prices the tokens at the Gemini Developer API paid rates (source and read date in the
+  file; a model with no price fails the run) and projects a week at the daily cap of 50. 2026-11-13 to 2026-11-20:
+  $0.05 for every cloud read, at most $0.0063 per practice search, a week at the cap at most $2.20 against $25;
+  PRODUCTION-CHECKLIST row and the 2026-11-29 line now use the script. `scripts/test_ai_spend.py` (CI and ci-local
+  lists) checks the arithmetic, that an unpriced model fails, that every model in models.json has a price and that the
+  cap matches judgeSession.ts. Source: review (burn rate not measured). Verified: 5 tests pass; the live run exits 0.
+- `shared/practice/ios-practice-pack.json`: the iPhone's practice drill, so a judge can open the searcher app without
+  a code. `tools/practice/export_practice_pack.py --write` exports it from the judge seed (drill-dev-1, read from
+  judge-seed.json) with the same overrides `startJudgeSession` applies (NOT_COPIED and the drill label are read from
+  judgeSession.ts), plus the seed's latest plan at its prior version that no test wrote (plan 0019) with
+  `approvedByUid` set to `practice-pack`; timestamps become epoch milliseconds. `--check` compares the committed file
+  with the live seed. `tools/practice/test_export_practice_pack.py` (in the CI and ci-local pytest lists) checks the
+  committed file offline: the iPhone's required fields, the segment contract, a T1 assignment naming segments in the
+  pack, profile fields only from profile/shared, no uid or join-code field, under 1 MB; ten spoiled copies are each
+  caught. Source: review (a judge cannot reach the phone apps). Verified: --write, --check and the offline check exit
+  0 (53,011 bytes, 68 segments); 5 tests pass.
+- `shared/test-vectors/phone-numbers.json`: one hand-written set of phone-number cases for every platform that removes
+  numbers from a note. Must remove: spaced digits, spoken digits, +44 and +52 numbers, slashes, parentheses and spaces
+  (7 cases, each in the same sentence); must keep unchanged: 14:03, segment 12, 3 searchers, 45% and a sentence with
+  all four. The contract is in the vectors README; `scripts/test_phone_vectors.py` (in the CI and ci-local pytest
+  lists) pins the required cases and checks that the contract passes a correct scrubber and fails one that does
+  nothing or wipes the note. Source: review (phone patterns differ by platform). Verified: 4 tests pass.
+- SECURITY row 1c: Android release App Check is PASSED, not pending. The release-signed build on a Samsung A16 got a
+  Play Integrity token, signed in and made a cloud note read on 2026-11-18
+  (`docs/evidence/android/a16-2026-11-18/README.md`, lines 20-21). The row also records the settings read back
+  2026-11-20 (a sideloaded version is accepted on a device of any integrity level; the release SHA-256 is registered)
+  and that all 14 release-build token exchanges from 2026-11-19 18:00 to 2026-11-20 01:34 UTC succeeded. Source:
+  review. Verified against the evidence file, the App Check config API and the serviceruntime request counts for
+  ExchangePlayIntegrityToken.
 - LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
   family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
   the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause
@@ -24,6 +295,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   call push an alert path; the paused notice text is in functions/src/notify.ts.
 
 ## 2026-11-19
+
+- LIMITS: a write already under way when the family leaves (a photo or clip upload, or the profile's first publish)
+  can still reach the search; each checks the join just before it starts, and only a server-side membership check
+  could stop one already started. Source: review of the Android leave change. Verified against the Android code
+  (`JoinedClipDeps` and `PhotoUpload` check `stillJoined` before each write).
+- LIMITS: leaving a search on the family app. "Leave this search" stops new changes, waits up to 5 seconds for sent
+  ones, then asks the phone to stop following the search's notifications; leaving is local to the phone, whose sign-in
+  still names it as the search's family, so a change made offline just before leaving is accepted when the phone
+  reconnects. After leaving, the app shows no notice for that search while open; a background notice can still arrive
+  until Firebase confirms the topic drop, which is retried at each app start until confirmed. Source: review of the
+  Android leave change. Verified against the Android code (`waitForPendingWrites` bounded at 5,000 ms,
+  `Session.leave()` removes only the local incident id, `FamilyPush.isForCurrentSearch`, `FamilyTopic` pending drops
+  with `retryPending`) and the rules' `isMember`, which reads the sign-in's `inc` claim.
 
 - `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
   touching the incident's primary code: `--add-code <project> <incidentId> <role> <incidentId>-<name>` keeps the code

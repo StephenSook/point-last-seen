@@ -186,4 +186,71 @@ class ProfilesTest {
         assertEquals("", note("Unit \uFF14 in his coat"))
         assertEquals("", note("Call 404 555 0142"))
     }
+
+    /** Address, place and wandering lines typed in the profile form lose phone numbers like a note does. */
+    @Test fun placeLinesFromTheFormLosePhoneNumbers() {
+        assertEquals(
+            listOf("Old home, call [number removed]", "Grace Church", "the mill"),
+            Profiles.placeLabels("Old home, call 404-555-0142\n  Grace Church ; the mill\n\n"),
+        )
+    }
+
+    /** A number split across two lines is still caught, and a saved place keeps its position when its label is cleaned. */
+    @Test fun formPlacesAreCleanedAsAWholeAndKeepTheirPositions() {
+        assertEquals(false, Profiles.placeLabels("Call 404-555\r\n  0142").joinToString(" ").any { it.isDigit() })
+        val saved = listOf(PlaceEntry("Old home, call 404-555-0142", LatLon(33.7, -84.4)))
+        assertEquals(
+            listOf(PlaceEntry("Old home, call [number removed]", LatLon(33.7, -84.4))),
+            Profiles.placeEntries("Old home, call 404-555-0142", saved),
+        )
+    }
+
+    /** Each form row keeps its own saved position, even when two rows clean to the same label. */
+    @Test fun eachRowKeepsItsOwnSavedPosition() {
+        val saved = listOf(
+            PlaceEntry("East gate, call 404-555-0142", LatLon(33.7, -84.4)),
+            PlaceEntry("East gate, call 404-555-0199", LatLon(33.8, -84.5)),
+        )
+        assertEquals(
+            listOf(PlaceEntry("East gate, call [number removed]", LatLon(33.7, -84.4)), PlaceEntry("East gate, call [number removed]", LatLon(33.8, -84.5))),
+            Profiles.placeEntries("East gate, call 404-555-0142\nEast gate, call 404-555-0199", saved),
+        )
+        assertEquals(listOf("Trail marker [number removed]", "[number removed] Oak Road"), Profiles.placeLabels("Trail marker 1234\n5678 Oak Road"))
+    }
+
+    /** The approach notes read from a shared document are the ones the profile itself gives, so a merged document can be checked. */
+    @Test fun approachNotesFromTheSharedDocumentMatchTheProfile() {
+        val p = SubjectProfile(
+            flags = setOf("mayNotRespond", "fallRisk", "softVoice", "medicationTimingMatters"),
+            dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
+            triggersToAvoid = "sirens", bestApproach = "", uniqueDescription = "a red scarf",
+        )
+        assertEquals(Profiles.approachNoteIds(p), Profiles.approachNoteIds(Profiles.forSearchers(p).toMap()))
+    }
+
+    /** The table of note inputs covers every approach note, in card order: with every input changed, it gives the notes the profile gives. */
+    @Test fun theNoteInputTableMatchesTheNotes() {
+        val p = SubjectProfile(
+            flags = Profiles.FLAGS.toSet(), dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
+            triggersToAvoid = "sirens", bestApproach = "slowly", uniqueDescription = "a red scarf",
+        )
+        assertEquals(Profiles.approachNoteIds(p), Profiles.mergeApproachNotes(emptyList(), Profiles.forSearchers(p).toMap(), Profiles.NOTE_INPUT_KEYS))
+    }
+
+    /** Each input of a note that reads two moves it on its own, and a change to some other input leaves it as stored. */
+    @Test fun eachInputOfATwoInputNoteMovesItAlone() {
+        val cases = listOf(
+            Triple("validate_feelings", mapOf<String, Any?>("flags" to mapOf("hallucinationsOrDelusions" to true)), "flags.hallucinationsOrDelusions"),
+            Triple("validate_feelings", mapOf<String, Any?>("dementiaType" to "lewy_body"), "dementiaType"),
+            Triple("soft_voice", mapOf<String, Any?>("flags" to mapOf("softVoice" to true)), "flags.softVoice"),
+            Triple("soft_voice", mapOf<String, Any?>("flags" to mapOf("slowToRespond" to true)), "flags.slowToRespond"),
+            Triple("medication_alert", mapOf<String, Any?>("flags" to mapOf("medicationSensitivity" to true)), "flags.medicationSensitivity"),
+            Triple("medication_alert", mapOf<String, Any?>("flags" to mapOf("carriesMedicalAlertCard" to true)), "flags.carriesMedicalAlertCard"),
+        )
+        for ((note, merged, input) in cases) {
+            assertTrue("$input adds $note", note in Profiles.mergeApproachNotes(emptyList(), merged, setOf(input)))
+            assertFalse("$input drops $note", note in Profiles.mergeApproachNotes(listOf(note), emptyMap(), setOf(input)))
+            assertTrue("another input keeps $note", note in Profiles.mergeApproachNotes(listOf(note), emptyMap(), setOf("flags.seizures")))
+        }
+    }
 }

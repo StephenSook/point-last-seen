@@ -3,12 +3,15 @@ package app.pointlastseen.family.live
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import app.pointlastseen.family.MainActivity
 import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
 import app.pointlastseen.family.data.Join
 import app.pointlastseen.family.data.JoinOutcome
+import app.pointlastseen.family.data.PrefsStore
+import app.pointlastseen.family.data.Session
 import app.pointlastseen.family.push.FamilyNotice
 import app.pointlastseen.family.push.FamilyPushInbox
 import app.pointlastseen.family.push.PlanPush
@@ -34,11 +37,32 @@ class FamilyPushLiveTest {
     private fun log(s: String) = Log.i("PLS-E2E", s)
 
     @Test fun theFamilyGetsTheQuestionAndTheStatesAndAnswersOnce(): Unit = runBlocking {
+        val prefs = PrefsStore(InstrumentationRegistry.getInstrumentation().targetContext, "pls")
+        val session = Session(prefs)
+        // The drill join changes this install's sign-in claims, so an install already in another search would be
+        // left with a search its claims no longer name. Fail (not skip) before joining, so a run asked for is
+        // never reported as passed without its checks.
+        assertTrue("Run this test on a clean test install: this install is in a search.", session.incidentId() == null)
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         val incidentId = (joined as JoinOutcome.Joined).incidentId
         val uid = joined.uid
         val topic = PlanPush.familyTopic(incidentId)!!
+        // The app shows (and hands the test) only notices for the search it is in, so the test joins it in the
+        // app's own session too, without the gone flag (nothing is published), and puts both back afterwards.
+        val goneBefore = prefs.get(GONE_KEY)
+        prefs.remove(GONE_KEY)
+        session.joined(incidentId)
+        try {
+            launchAndWait(incidentId, uid, topic)
+        } finally {
+            session.leave()
+            if (goneBefore == null) prefs.remove(GONE_KEY) else prefs.put(GONE_KEY, goneBefore)
+            log("app session put back")
+        }
+    }
+
+    private suspend fun launchAndWait(incidentId: String, uid: String, topic: String) {
         ActivityScenario.launch(MainActivity::class.java).use {
             FirebaseMessaging.getInstance().subscribeToTopic(topic).await()
             log("family subscribed topic=$topic, waiting up to $WAIT_MIN min")
@@ -74,5 +98,7 @@ class FamilyPushLiveTest {
 
     private companion object {
         const val WAIT_MIN = 15
+        // The app's own "gone" flag in the same store (FamilyViewModel).
+        const val GONE_KEY = "gone"
     }
 }
