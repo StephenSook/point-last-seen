@@ -1834,6 +1834,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review finding (no way from the judge page to the code).
 - Verified: a new `@no-backend` check in `e2e/judge.spec.ts` failed first (no link), then passed with all 31 placeholder-build checks; typecheck clean; a 390 px screenshot showed both links on one line with space between.
 
+### feat(command): the POA heading spells out what POA means
+- What: the ranked list's heading wraps POA in `<abbr title="Probability of area: the engine's estimate for each segment">`, so a reader new to search terms can find out what the column is. The heading's accessible name stays "POA".
+- Source: review finding (unexplained abbreviation on the command post).
+- Verified: a new harness check in `e2e/harness/rank.spec.ts` failed first (no abbr), then passed with the other rank and change harness checks (9); typecheck clean.
+
 ### feat(command): the post says when reports are still being saved and asks before the page closes
 - What: while any report the post wrote is still unanswered by the server (pending, or being read back after an error), the right rail shows "Saving one report. Keep this page open." (or the count), and closing or reloading the page asks first (`beforeunload`). New `src/data/pendingWrites.ts`: `pendingCount`, `savingLine` and `guardLeave`. Firestore already keeps unsent writes in this browser (`persistentLocalCache`), so a report survives a close and is sent the next time the post opens here; the line and the prompt cover a person who would not reopen it, and the first moment after Save.
 - Source: a live check whose page closed at once after Save lost its report.
