@@ -12,6 +12,21 @@ class SessionTest {
         override fun remove(key: String) { m.remove(key) }
     }
 
+    /** Leaving removes the search and the given keys (the gone flag) in one storage write: a process death cannot keep half. */
+    @Test fun leavingRemovesTheSearchAndTheGivenKeysInOneWrite() {
+        val writes = mutableListOf<List<String>>()
+        val store = object : KeyValueStore {
+            val m = mutableMapOf("incidentId" to "inc-1", "gone" to "1", "seq" to "5")
+            override fun get(key: String) = m[key]
+            override fun put(key: String, value: String) { m[key] = value }
+            override fun remove(key: String) { writes += listOf(key); m.remove(key) }
+            override fun removeAll(keys: Collection<String>) { writes += keys.toList(); keys.forEach { m.remove(it) } }
+        }
+        Session(store).leave(alsoRemove = listOf("gone"))
+        assertEquals(listOf(listOf("incidentId", "gone")), writes)
+        assertEquals(mapOf("seq" to "5"), store.m)
+    }
+
     @Test fun seqStartsFromTheClockOnAFreshInstall() {
         val s = Session(MemoryStore())
         assertEquals(1_763_000_000_000L, s.nextSeq(nowMs = 1_763_000_000_000L))

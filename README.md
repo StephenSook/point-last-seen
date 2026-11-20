@@ -22,6 +22,8 @@ profile, notes, photos and camera clips from their own app, and decides which of
 | iPhone searcher app | Searchers in the field | TestFlight (the public link is not published yet) |
 | Android family app | The missing person's family | A signed APK as a GitHub release asset (no release is published yet) |
 
+Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
+
 ## How the models are called
 
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Three calls

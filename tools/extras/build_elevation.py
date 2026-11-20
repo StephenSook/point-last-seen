@@ -6,8 +6,12 @@ cell's box, keeping only those inside the cell. It sends only those sample point
 address. Requests are paced (one a second by default). A server error is retried once after a 10 s pause; nothing is
 retried in a loop, and any other failed or implausible answer stops the run and writes no file.
 
+With --cache, every value read is also kept in that file (keyed by point, with the grid's hash), so a run stopped by
+one failed answer can be run again and reads only the points it has not read. Keep the cache out of web/public: it
+is working data, not something to serve. A cache built for another grid is ignored.
+
     python3 -I tools/extras/build_elevation.py --grid shared/grid/<site>.grid.json \
-        --out web/public/extras/terrain/<gridId>.elevation.json [--pace-s 1.0]
+        --out web/public/extras/terrain/<gridId>.elevation.json [--pace-s 1.0] [--cache <private path>]
     python3 -I tools/extras/build_elevation.py --check --grid <same> --out <same>   # exit 1: a cell is missing or the grid changed
 
 The output is a display layer only: the search prior has no elevation term. Standard library only.
@@ -36,6 +40,8 @@ MIN_M, MAX_M = -500.0, 9000.0
 
 # A server error (HTTP 5xx) is retried once, after this pause; nothing else is retried, and never in a loop.
 RETRY_PAUSE_S = 10.0
+# With --cache, the values read so far are written out after this many new ones (and when the run ends).
+SAVE_EVERY = 25
 
 Fetch = Callable[[float, float], bytes]
 
@@ -94,18 +100,34 @@ def parse_epqs(body: bytes) -> float:
     return value
 
 
-def build(grid: dict, fetch: Fetch, sleep: Callable[[float], None], today: str, pace_s: float = 1.0) -> dict:
-    """Every cell's mean, min and max elevation. Raises on the first failure; the caller writes nothing then."""
+def point_key(lat: float, lon: float) -> str:
+    return f"{lat:.6f},{lon:.6f}"
+
+
+def build(grid: dict, fetch: Fetch, sleep: Callable[[float], None], today: str, pace_s: float = 1.0,
+          known: dict[str, float] | None = None, save: Callable[[], None] | None = None) -> dict:
+    """Every cell's mean, min and max elevation. Raises on the first failure; the caller writes nothing then.
+
+    `known` holds values already read for this grid (a cache). A point in it is not fetched again and not paced,
+    and every new value is added to it; `save` is called every SAVE_EVERY new values so a stopped run keeps them.
+    """
+    known = {} if known is None else known
     cells: dict[str, dict] = {}
     plan = [(cell, sample_points(cell)) for cell in grid["segments"]]
     total = sum(len(points) for _, points in plan)
     i = 0
+    fetched = 0
     for cell, points in plan:
         values = []
         for lat, lon in points:
-            if i > 0:
-                sleep(pace_s)
             i += 1
+            key = point_key(lat, lon)
+            if key in known:
+                values.append(known[key])
+                continue
+            if fetched > 0:
+                sleep(pace_s)
+            fetched += 1
             where = f"cell {cell['segmentId']}, request {i} of {total} ({lat:.6f}, {lon:.6f})"
             try:
                 try:
@@ -113,9 +135,13 @@ def build(grid: dict, fetch: Fetch, sleep: Callable[[float], None], today: str, 
                 except ServerError:
                     sleep(RETRY_PAUSE_S)
                     body = fetch(lat, lon)
-                values.append(parse_epqs(body))
+                value = parse_epqs(body)
             except (ServerError, OSError, ValueError) as e:
                 raise ValueError(f"{where}: {e}") from e
+            values.append(value)
+            known[key] = value
+            if save and fetched % SAVE_EVERY == 0:
+                save()
         cells[cell["segmentId"]] = {
             "meanM": round(sum(values) / len(values), 2),
             "minM": round(min(values), 2),
@@ -164,6 +190,29 @@ def http_fetch(lat: float, lon: float) -> bytes:
         return res.read()
 
 
+def load_cache(path: Path, grid_sha: str) -> dict[str, float]:
+    """The values a cache holds for this grid; empty when it is missing, unreadable or built for another grid."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict) or data.get("gridSha256") != grid_sha or not isinstance(data.get("points"), dict):
+        return {}
+    known: dict[str, float] = {}
+    for key, value in data["points"].items():
+        # The same range check as a fresh answer: a cache never brings in a value the service could not have given.
+        if isinstance(key, str) and isinstance(value, (int, float)) and not isinstance(value, bool) and MIN_M <= value <= MAX_M:
+            known[key] = float(value)
+    return known
+
+
+def save_cache(path: Path, grid_sha: str, known: dict[str, float]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps({"gridSha256": grid_sha, "points": known}, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
 def main(argv: list[str] | None = None, fetch: Fetch = http_fetch, sleep: Callable[[float], None] = time.sleep,
          today: str | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -171,6 +220,7 @@ def main(argv: list[str] | None = None, fetch: Fetch = http_fetch, sleep: Callab
     ap.add_argument("--out", required=True)
     ap.add_argument("--pace-s", type=float, default=1.0)
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--cache", help="keep every value read here, and read only the missing points on a rerun")
     args = ap.parse_args(argv)
     if args.pace_s < 1.0:
         print("build_elevation: the pace is at least 1 s a request", file=sys.stderr)
@@ -195,11 +245,25 @@ def main(argv: list[str] | None = None, fetch: Fetch = http_fetch, sleep: Callab
             print(f"build_elevation: {out} matches {args.grid}")
         return 1 if problems else 0
     stamp = today or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    grid_sha = hashlib.sha256(grid_bytes).hexdigest()
+    cache = Path(args.cache) if args.cache else None
+    known = load_cache(cache, grid_sha) if cache else {}
+    if cache:
+        print(f"build_elevation: {len(known)} points already read in {cache}")
+
+    def save() -> None:
+        if cache:
+            save_cache(cache, grid_sha, known)
+
     try:
-        result = with_grid_hash(build(grid, fetch, sleep, stamp, args.pace_s), grid_bytes)
+        result = with_grid_hash(build(grid, fetch, sleep, stamp, args.pace_s, known, save), grid_bytes)
     except (OSError, ValueError) as e:
         print(f"build_elevation: stopped, no file written: {e}", file=sys.stderr)
+        if cache:
+            print(f"build_elevation: kept {len(known)} points in {cache}; run again with it to go on", file=sys.stderr)
         return 1
+    finally:
+        save()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(f"build_elevation: wrote {out} ({len(result['cells'])} cells)")

@@ -53,7 +53,8 @@ struct RootView: View {
             PushInbox.shared.attachToken { model.pushTokenArrived() }
         }
         // A tapped push opens the task, from wherever the searcher was.
-        .onChange(of: model.openTaskRequests) { _, _ in path = NavigationPath() }
+        // A tapped push shows the task, unless the account changed since the request was made.
+        .onChange(of: model.openTaskRequests) { _, _ in if model.openTaskStillCurrent { path = NavigationPath() } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.becameActive() }
         }

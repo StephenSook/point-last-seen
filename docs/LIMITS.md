@@ -29,12 +29,10 @@ each line says what the limit is and why.
   settled with the server, since a report still in that user's write queue would otherwise be stranded.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
-  plus a count of account changes, where every change of user starts a new session. Two narrow windows
-  remain. A first join that signs in a new anonymous user can only bind its session after the join returns,
-  so an account change in that last instant could pair the join's team with the new user; the security
-  rules still decide what that user may read, and a refused read drops the mission. And a push tap that
-  passed every check can still land on the task screen just after an account change; the old mission is
-  gone by then, so the screen says "No mission loaded" and nothing of it is shown or spoken.
+  plus a count of account changes, where every change of user starts a new session. A join signs in first,
+  so its session is known before any of its checks, and a tapped push's request to show the task carries its
+  session, so the screen ignores it after an account change. What is left is Auth itself: the session follows
+  Auth's reports, and the security rules still decide what each user may read.
 - Plans carry no setup id. A practice incident rebuilt under the same id could publish the same plan
   version again; while the old copy is on an iPhone, a reload of the same version keeps the plan on screen
   (only a strictly newer version replaces it), so that phone keeps the old task until a newer plan arrives
@@ -42,9 +40,24 @@ each line says what the limit is and why.
 - A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
   first share adds only fields the search does not have yet; command or the family fills an empty field by editing
   it.
+- A family's edit made on the phone before its first publish to a search reaches the search for single fields (names,
+  descriptions, the clothing last worn, triggers and the like). For a list or set field (other names, mobility aids,
+  the behaviour flags, places, past addresses and wandering spots, the tracking answer, the vehicle), the edit reaches
+  the search only where command's profile does not have that field yet; where it does, command's entries stay. After
+  the first publish, an edit to such a field sends the phone's whole list, which replaces the entries command added
+  to that field.
 - The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
   the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
   phone that loses its access while offline shows the search until it can check.
+- "Leave this search" stops new changes at once, waits up to 5 seconds for changes already sent, then asks the phone
+  to stop following the search's notifications. Leaving is on this phone only: its sign-in still names it as the
+  search's family, and the server checks that sign-in, so a change made offline just before leaving still reaches the
+  search when the phone reconnects. A write already under way when the family leaves (a photo or clip upload, or the
+  profile's first publish) can still reach the search: each one checks the join just before it starts, and only a
+  membership check on the server at that moment could stop one already started.
+- After leaving a search, the phone shows no notice for it while the app is open. A notice Android shows while the app
+  is in the background can still arrive until Firebase confirms the phone has stopped following that search; a drop
+  that was not confirmed is tried again each time the app starts.
 
 ## Search model
 
@@ -62,6 +75,40 @@ each line says what the limit is and why.
   with no comma, and a plan's doc id is its version in exactly one form ("0016", never "00016"). The command post
   also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
   is not a plan.
+
+## Language
+
+- Notes are expected in English. The web asks Chrome's on-device model for English text in and out
+  (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
+  setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
+  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule knows
+  US formats on the web, while the iPhone and Android remove any run of 7 or more digits or English digit words. A
+  note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
+  well it reads one. Evidence described in another language is not caught by the pre-screen.
+
+## Phone numbers in notes (Android)
+
+- The family app removes phone numbers from a note the way the iPhone app does: seven or more digits in a row,
+  written in any script or spoken, joined by separators (spaces, dashes, dots, commas, brackets, slashes), even across a line break. Search information inside
+  such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
+  only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
+  (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
+- To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
+  too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
+  "ga 30301-1234" is removed, while "GA 30301-1234" stays.
+- It keeps too much in two cases. A phone number written like a street address with an ordinal street ("5550 142nd
+  St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
+  number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
+  to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
+- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, which reads it as a
+  grouped count; the iPhone and Android remove it. The shared rule removes any grouped count of seven or more
+  digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
+  (as it already is on the iPhone and Android). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark
+  each platform that has not followed yet.
+- The web keeps a pair of decimals even when it starts with "+", so a phone number written that way ("Call
+  +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
+  with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
+  removed too; without the "+" it stays.
 
 ## On-device safety (Android)
 
@@ -190,6 +237,8 @@ each line says what the limit is and why.
   "Teams are searching now." twice, a question's notice can arrive after the family has answered it, and the search
   can end between the check and the send. A notice only says to open the app, which shows the current state and the
   questions still waiting from Firestore.
+- Pushes are a convenience, not an alert: delivery can be late or missing. Anything urgent reaches the family by the
+  search lead's call, as the paused notice says.
 - Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
   every push carries only fixed wording and ids, never a name, a place, a task or a question's text. Such a
   subscriber can still see when a search's teams get new tasks, when it starts or pauses, and when the family is

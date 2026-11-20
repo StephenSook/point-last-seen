@@ -13,7 +13,7 @@ test("a published run replays in one section, labelled as a training drill", { t
   await serveRun(page, JSON.stringify(harnessRun()));
   await page.addInitScript(() => { delete (window as { LanguageModel?: unknown }).LanguageModel; });
   await page.goto("/judge");
-  const section = page.getByRole("region", { name: "Watch the run over time" });
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
   await expect(section.getByTestId("replay-code")).toHaveText(/^[0-9A-Z]{4}$/);
   await expect(section.locator(".plate").first()).toBeVisible();
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
@@ -53,15 +53,20 @@ test("the site serves its published drill run, and the judge page replays it", {
   const file = (await res.json()) as { label: string; runId: string };
   expect(file.label).toContain("Training drill. Nobody is missing.");
   await page.goto("/judge");
-  const section = page.getByRole("region", { name: "Watch the run over time" });
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
   // The end frame of this exact file: a change to the engine or the reader that moves the judged map fails here.
   // Re-exporting the run changes the file and this code in the same commit.
   await expect(section.getByTestId("replay-code")).toHaveText("T43J");
   await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("replay-refused")).toHaveCount(0);
-  // The Numbers section says what is there and promises nothing that is not built.
+  // The Numbers section shows counts read from the served file, each with its unit, and promises nothing not built.
   const numbers = page.getByRole("region", { name: "Numbers" });
-  await expect(numbers).toContainText(`Published run ${file.runId}.`);
+  const counted = file as unknown as { events: unknown[]; plans: { version: number }[]; segments: { segmentId: string }[] };
+  const events = counted.events.length;
+  const versions = new Set(counted.plans.map((p) => p.version)).size;
+  const searchSegments = counted.segments.filter((s) => s.segmentId !== "ROW").length;
+  await expect(numbers).toContainText(`${events} events, ${versions} plan versions and ${searchSegments} search segments in this run.`);
+  await expect(numbers).not.toContainText(file.runId);
   await expect(numbers).not.toContainText("recompute");
 });
 
@@ -88,7 +93,7 @@ async function routeLinksLand(page: Page): Promise<string[]> {
 
 test("the judge page opens with a numbered three-minute route, each step linking to its section", { tag: "@no-backend" }, async ({ page }) => {
   await page.goto("/judge");
-  await expect(page.getByRole("region", { name: "Watch the run over time" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Watch the drill replay" })).toBeVisible();
   expect((await routeLinksLand(page))[1]).toBe("#extras-replay-h");
 });
 

@@ -14,7 +14,7 @@ rules do not apply). Synthetic drill data only: no real person, place or case.
 Usage: python3 -I tools/seed/seed_drill.py <project> <incidentId> "<name>" <teamId> [<teamId> ...]
        python3 -I tools/seed/seed_drill.py --rotate <project> <incidentId> <role>
 
-       python3 -I tools/seed/seed_drill.py --add-code <project> <incidentId> <role> <incidentId>-<name>
+       python3 -I tools/seed/seed_drill.py --add-code <project> <incidentId> <role> <incidentId>-<name> [--expires <UTC time>]
        python3 -I tools/seed/seed_drill.py --revoke-code <project> <incidentId> <role> <incidentId>-<name>
 
 --rotate replaces one role's code: the new code is kept in the Keychain (account <incidentId>.next) before
@@ -25,6 +25,8 @@ anything changes, then one atomic commit creates the new joinCodes doc (only if 
 kept in the Keychain under the role's service and its own account, <incidentId>-<name>, then its joinCodes doc is
 created (only if absent). --revoke-code checks that the code's doc names this incident and role, deletes it (only
 if present) and removes the Keychain entry. Neither ever touches the primary code (account = the incident id).
+--expires (a future UTC time such as 2026-12-17T23:59:59Z) gives the extra code an expiresAt, after which joinIncident
+refuses it; revoke it anyway once it is no longer needed.
 """
 
 import hashlib
@@ -135,13 +137,30 @@ def extra_account_ok(incident_id: str, account: str) -> bool:
     return account.startswith(prefix) and EXTRA_ACCOUNT.fullmatch(account[len(prefix):]) is not None
 
 
-def add_code_write(project: str, incident_id: str, role: str, code: str) -> dict:
-    """Create the code's doc, only if no doc has that hash."""
+def add_code_write(project: str, incident_id: str, role: str, code: str, expires: str | None = None) -> dict:
+    """Create the code's doc, only if no doc has that hash; with an expiry, joinIncident refuses it after that time."""
     base = f"projects/{project}/databases/(default)/documents/joinCodes"
-    doc = {"incidentId": incident_id, "roles": [role]}
-    return {"update": {"name": f"{base}/{code_hash(code)}", "fields": to_value(doc)["mapValue"]["fields"]},
+    fields = to_value({"incidentId": incident_id, "roles": [role]})["mapValue"]["fields"]
+    if expires is not None:
+        fields["expiresAt"] = {"timestampValue": expires}
+    return {"update": {"name": f"{base}/{code_hash(code)}", "fields": fields},
             "currentDocument": {"exists": False},
             "updateTransforms": [{"fieldPath": "createdAt", "setToServerValue": "REQUEST_TIME"}]}
+
+
+def check_expires(expires: str) -> str:
+    """A UTC time written YYYY-MM-DDTHH:MM:SSZ, in the future."""
+    import datetime
+    bad = "--expires must be a UTC time like 2026-12-17T23:59:59Z (the value given is not repeated here)"
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", expires):
+        raise SystemExit(bad)
+    try:
+        when = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    except ValueError:
+        raise SystemExit(bad) from None
+    if when <= datetime.datetime.now(datetime.timezone.utc):
+        raise SystemExit("--expires must be a time in the future")
+    return expires
 
 
 def revoke_code_write(project: str, code: str) -> dict:
@@ -167,13 +186,13 @@ def _commit(project: str, writes: list[dict]) -> None:
         r.read()
 
 
-def add_code(project: str, incident_id: str, role: str, account: str) -> int:
+def add_code(project: str, incident_id: str, role: str, account: str, expires: str | None = None) -> int:
     _check_extra(incident_id, role, account)
     service = KEYCHAIN_SERVICES[role]
     code = make_rotated_code({keychain_read(KEYCHAIN_SERVICES[r], incident_id) for r in ROLES})
     keychain_store(service, account, code)
     try:
-        _commit(project, [add_code_write(project, incident_id, role, code)])
+        _commit(project, [add_code_write(project, incident_id, role, code, expires)])
     except urllib.error.HTTPError as e:
         subprocess.run(["security", "delete-generic-password", "-s", service, "-a", account], capture_output=True)
         raise SystemExit(f"creating the code failed: HTTP {e.code} {e.read().decode()[:200]}; nothing was kept") from None
@@ -267,11 +286,20 @@ def check_teams(teams: list[str]) -> list[str]:
 
 def main(argv: list[str]) -> int:
     if argv[:1] in (["--add-code"], ["--revoke-code"]):
+        expires = None
+        if argv[0] == "--add-code" and len(argv) >= 6 and argv[5] == "--expires":
+            if len(argv) != 7:
+                print(__doc__)
+                return 2
+            expires = check_expires(argv[6])
+            argv = argv[:5]
         if len(argv) != 5:
             print(__doc__)
             return 2
         _check_extra(argv[2], argv[3], argv[4])
-        return (add_code if argv[0] == "--add-code" else revoke_code)(argv[1], argv[2], argv[3], argv[4])
+        if argv[0] == "--add-code":
+            return add_code(argv[1], argv[2], argv[3], argv[4], expires)
+        return revoke_code(argv[1], argv[2], argv[3], argv[4])
     if argv[:1] == ["--rotate"]:
         if len(argv) != 4:
             print(__doc__)

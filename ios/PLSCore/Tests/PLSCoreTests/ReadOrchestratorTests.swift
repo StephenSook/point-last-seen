@@ -33,11 +33,14 @@ private let report = "Team two cleared segment AC, coverage point eight, nothing
 private func okReading(_ ids: [String] = ["AC"]) -> ReportReading {
     reading(segmentIds: ids, coverage: 0.8, evidenceQuote: "cleared segment AC")
 }
+private let languageScreen = try? LanguageScreen(json: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("constants/language-words.json")))
 private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = true, kill: Bool = false, mode: String? = "drill") -> ReadContext {
-    ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
-                onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
-                estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
-                cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
+    var c = ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
+                        onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
+                        estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
+                        cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
+    c.language = languageScreen
+    return c
 }
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
 
@@ -114,6 +117,115 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .cloud)
         #expect(o.route.reason == .onDeviceUnavailable)
         #expect(o.route.model == "gemini-3.5-flash-lite")
+    }
+
+    /// A note that does not look English never goes to the cloud read: the router's cloud route reads
+    /// by rules, saying why, and the person picks instead. Apple's model and English notes are untouched.
+    @Test func aNoteThatIsNotEnglishNeverGoesToTheCloud() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules && o.route.stage == .deterministicParser && o.route.reason == .notEnglish)
+    }
+
+    /// The screen judges the note as written as well as without its phone number: removing a number
+    /// adds the English words "number removed", which must not carry a note over the line.
+    @Test func aRemovedPhoneNumberNeverMakesANoteLookEnglish() async {
+        for note in ["Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"] {
+            let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+            let o = await ReadOrchestrator.read(text: note, context: rctx(onDevice: false), runner: r, clock: clock)
+            #expect(r.calls.isEmpty, "\(note)")
+            #expect(o.route.reason == .notEnglish, "\(note)")
+        }
+    }
+
+    @Test func aNoteThatIsNotEnglishIsNotSentToTheCloudAfterTheOnDeviceModelFails() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.unavailable)]
+        r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+        #expect(o.route.path == .rules && o.route.reason == .notEnglish)
+    }
+
+    @Test func aNoteThatIsNotEnglishStillReadsOnThisPhone() async {
+        let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río en AC hace diez minutos."
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "abrigo azul"))]
+        let o = await ReadOrchestrator.read(text: spanish, context: rctx(), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)] && o.route.path == .onDevice)
+    }
+
+    @Test func anEnglishNoteQuotingSpanishStillGoesToTheCloud() async {
+        let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: "Cleared segment AC, nothing found; the family calls her Abuela Rosa.",
+                                            context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.cloud)] && o.route.path == .cloud)
+    }
+
+    /// Why each model stage was not used is kept with the read, so a route check on a real phone can
+    /// say it: an answer the validator rejected, a stage that ran out of time, a line that could not be read.
+    @Test func aRejectedModelAnswerIsRecordedWithItsReason() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules)
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
+    }
+
+    /// After a guardrail block the phone's second, plain-text stage runs; a line it cannot read is recorded.
+    @Test func anUnreadablePermissiveLineIsRecorded() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.guardrailBlock)]
+        r.permissiveResults = [.success("no idea")]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.stageNotes == ["guided on_device: guardrail_block", "permissive on_device: unparsed"])
+    }
+
+    @Test func aStageThatRunsOutOfTimeIsRecorded() async {
+        struct Slow: ReadModelRunner {
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                try? await Task.sleep(for: .seconds(5))
+                return .failure(.other)
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.unavailable) }
+        }
+        var c = rctx(online: false)
+        c.stageTimeoutSeconds = 0.05
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: Slow(), clock: clock)
+        #expect(o.stageNotes == ["guided on_device: timed out after 0.05 s"])
+    }
+
+    @Test func aReadTheModelAnswersHasNoNotes() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.stageNotes.isEmpty)
+    }
+
+    /// Apple's model reads the report alone, so its matchesProfile is not used: code decides it from the
+    /// description. The cloud's answer is kept as it is.
+    @Test func onThePhoneCodeDecidesWhetherAReportMatchesTheSubject() async {
+        var c = rctx()
+        c.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat")]))
+        var answer = okReading()
+        answer.topColor = .blue
+        answer.matchesProfile = .inconsistent
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(answer)]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
+        let cloud = FakeRunner(); cloud.guidedResults[.cloud] = [.success(answer)]
+        let oc = await ReadOrchestrator.read(text: report, context: { var x = c; x.onDevice.available = false; return x }(), runner: cloud, clock: clock)
+        #expect(oc.route.path == .cloud && oc.reading.matchesProfile == .inconsistent)
+    }
+
+    /// A model that quotes the subject's description instead of the report is rejected, and the read
+    /// says why (the validator is unchanged).
+    @Test func anAnswerQuotingTheSubjectsDescriptionIsRejected() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules && o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
     }
 
     @Test func noConsentMeansRulesNotCloud() async {

@@ -6,8 +6,10 @@ import PLSCore
 enum ReportPrompt {
     static let version = "pls-report-v1"
     static let guidedText = PromptText.guided
+    static let onDeviceGuidedText = PromptText.onDeviceGuided
     static let permissiveText = PromptText.permissive
 
     static let guided = Instructions(guidedText)
+    static let onDeviceGuided = Instructions(onDeviceGuidedText)
     static let permissive = Instructions(permissiveText)
 }

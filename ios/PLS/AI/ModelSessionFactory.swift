@@ -38,7 +38,7 @@ enum ModelSessionFactory {
     static func estimateTokens(report: String, tools: [any Tool]) async -> Int {
         let model = SystemLanguageModel.default
         do {
-            let parts = try await [model.tokenCount(for: ReportPrompt.guided), model.tokenCount(for: report),
+            let parts = try await [model.tokenCount(for: ReportPrompt.onDeviceGuided), model.tokenCount(for: report),
                                    model.tokenCount(for: tools), model.tokenCount(for: ReportReadingG.generationSchema)]
             return parts.reduce(0, +)
         } catch {
@@ -103,7 +103,9 @@ struct FoundationModelRunner: ReadModelRunner {
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
         switch path {
         case .onDevice:
-            let session = LanguageModelSession(model: SystemLanguageModel.default, tools: tools, instructions: ReportPrompt.guided)
+            // Apple's model reads the report alone: no description tool, and code decides matchesProfile.
+            let session = LanguageModelSession(model: SystemLanguageModel.default, tools: Self.onDeviceTools(tools),
+                                               instructions: ReportPrompt.onDeviceGuided)
             do {
                 return .success(try await session.respond(to: text, generating: ReportReadingG.self).content.reading)
             } catch {
@@ -123,6 +125,9 @@ struct FoundationModelRunner: ReadModelRunner {
             return .failure(.other)
         }
     }
+
+    /// The tools Apple's model gets: all but the subject's description.
+    static func onDeviceTools(_ tools: [any Tool]) -> [any Tool] { tools.filter { $0.name != ToolText.subjectDescriptionName } }
 
     /// Same on-device model with permissive guardrails; string output only (guided generation
     /// always runs the default guardrails). Never used on the cloud route.

@@ -75,6 +75,19 @@
 .extras-spell-table dt { font-weight: 700; }
 .extras-spell-table dd { margin: 0; }
 
+/* Phone-width preview only (paper keeps the layout above): blocks 1 and 2 stack, the period fields wrap two to a
+   row, a date or a role name breaks only at a space, and the role column is wide enough for "Division/Group". */
+@media screen and (max-width: 40rem) {
+  .extras-ics-top { grid-template-columns: 1fr; }
+  .extras-ics-top [data-block="2"] { border-left: 0; border-top: 1px solid #000; }
+  .extras-ics-fields { flex-wrap: wrap; }
+  .extras-ics-fields > div { flex: 1 1 6rem; }
+  .extras-ics-fields dd, .extras-ics-sheet [data-block="4"] th { overflow-wrap: normal; }
+  .extras-ics-sheet [data-block="4"] thead td:first-child { width: 42%; }
+  .extras-ics-footer { flex-wrap: wrap; }
+  .extras-ics-footer > * { white-space: nowrap; }
+}
+
 /* 0.4in leaves room for a full sheet whose work assignments wrap (measured), and sits inside any office printer's
    printable area. */
 @page { size: letter; margin: 0.4in; }

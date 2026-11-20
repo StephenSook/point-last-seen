@@ -19,6 +19,8 @@ struct ReadyCheckView: View {
     @State private var leaveRefused = false
 
     static let leaveLabel = "Leave this search"
+    static let endPracticeLabel = "End the practice drill"
+    static let endPracticeDetail = "Its reports are deleted from this phone. You can then join a search or start the practice drill again."
     static let leaveDetail = "This phone stops getting this team's tasks and can join another search. Command still lists you until they remove you."
 
     var body: some View {
@@ -62,9 +64,11 @@ struct ReadyCheckView: View {
                     Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
                 }
                 if model.mission != nil || model.canRetryMission {
-                    section(Self.leaveLabel) {
+                    let inPractice = model.mission?.isPractice == true
+                    let leaveTitle = inPractice ? Self.endPracticeLabel : Self.leaveLabel
+                    section(leaveTitle) {
                         Button { confirmingLeave = true } label: {
-                            Label(Self.leaveLabel, systemImage: "rectangle.portrait.and.arrow.right")
+                            Label(leaveTitle, systemImage: "rectangle.portrait.and.arrow.right")
                                 .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
                         }
                         .buttonStyle(.plain)
@@ -74,13 +78,19 @@ struct ReadyCheckView: View {
                             Text(AppModel.leaveBlocked).font(.title3.weight(.semibold))
                         }
                     }
-                    .confirmationDialog(Self.leaveLabel, isPresented: $confirmingLeave, titleVisibility: .visible) {
-                        Button("Leave", role: .destructive) {
+                    .confirmationDialog(leaveTitle, isPresented: $confirmingLeave, titleVisibility: .visible) {
+                        Button(inPractice ? "End" : "Leave", role: .destructive) {
                             Task { leaveRefused = !(await model.leaveSearch()) }
                         }
                         Button("Stay", role: .cancel) {}
                     } message: {
-                        Text(Self.leaveDetail)
+                        Text(inPractice ? Self.endPracticeDetail : Self.leaveDetail)
+                    }
+                }
+                if model.canRouteCheck {
+                    section("Route check") {
+                        NavigationLink("Check both read routes") { RouteCheckView(model: model) }
+                            .accessibilityIdentifier("route-check-link")
                     }
                 }
                 #if DEBUG

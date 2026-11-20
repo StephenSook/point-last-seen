@@ -7,6 +7,17 @@ interface KeyValueStore {
     fun get(key: String): String?
     fun put(key: String, value: String)
     fun remove(key: String)
+
+    /** Writes [value] and says whether it reached the disk (PrefsStore reports its commit; others always succeed). */
+    fun putChecked(key: String, value: String): Boolean {
+        put(key, value)
+        return true
+    }
+
+    /** Removes every key in one write where the store can (PrefsStore does), so none survives without the others. */
+    fun removeAll(keys: Collection<String>) {
+        keys.forEach { remove(it) }
+    }
 }
 
 class PrefsStore(context: Context, name: String) : KeyValueStore {
@@ -20,6 +31,14 @@ class PrefsStore(context: Context, name: String) : KeyValueStore {
 
     override fun remove(key: String) {
         prefs.edit().remove(key).commit()
+    }
+
+    override fun putChecked(key: String, value: String): Boolean = prefs.edit().putString(key, value).commit()
+
+    override fun removeAll(keys: Collection<String>) {
+        val edit = prefs.edit()
+        keys.forEach { edit.remove(it) }
+        edit.commit()
     }
 }
 
@@ -51,7 +70,8 @@ class Session(private val store: KeyValueStore) {
 
     fun joined(incidentId: String) = store.put(INCIDENT, incidentId)
 
-    fun leave() = store.remove(INCIDENT)
+    /** Forgets the search, and [alsoRemove] (the gone flag of a found or closed search) in the same write. */
+    fun leave(alsoRemove: Collection<String> = emptyList()) = store.removeAll(listOf(INCIDENT) + alsoRemove)
 
     companion object {
         private const val SEQ = "seq"

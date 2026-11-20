@@ -10,6 +10,7 @@ import app.pointlastseen.family.ai.NoteEnv
 import app.pointlastseen.family.ai.NoteOutcome
 import app.pointlastseen.family.config.RcValues
 import app.pointlastseen.family.core.EvidenceTerms
+import app.pointlastseen.family.core.LanguageWords
 import app.pointlastseen.family.data.FirebaseSignIn
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -33,7 +34,7 @@ class NoteBeforeJoinLiveTest {
         Log.i("PLS-PROBE", "note before join: signed in before=${Firebase.auth.currentUser != null}")
         val env = NoteEnv(status = DeviceModelStatus.UNAVAILABLE, cloudConsent = true, killCloud = false, nowMs = System::currentTimeMillis, modelName = RcValues.DEFAULTS.cloudModelAndroid)
         val out = withTimeout(90_000) {
-            FamilyNote(AiClient { RcValues.DEFAULTS }.familyNote, EvidenceTerms.screen(ctx), FirebaseSignIn).read("She likes to walk to the old mill on Sundays.", env)
+            FamilyNote(AiClient { RcValues.DEFAULTS }.familyNote, EvidenceTerms.screen(ctx), FirebaseSignIn, LanguageWords.screen(ctx)).read("She likes to walk to the old mill on Sundays.", env)
         }
         val route = (out as? NoteOutcome.Read)?.route
         Log.i("PLS-PROBE", "note before join: outcome=${out::class.simpleName} path=${route?.path} latencyMs=${route?.latencyMs} signed in after=${Firebase.auth.currentUser != null}")

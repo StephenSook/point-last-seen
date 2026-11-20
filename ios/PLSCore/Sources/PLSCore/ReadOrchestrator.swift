@@ -65,6 +65,10 @@ public struct ReadContext: Sendable {
     public var stageTimeoutSeconds: Double = 20
     /// The segment under the searcher's GPS fix, if any: the segment a report that names none is about.
     public var positionSegmentId: String?
+    /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
+    public var language: LanguageScreen?
+    /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
+    public var profile: ModelProfile?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -105,6 +109,9 @@ public enum ReadOrchestrator {
         var decision = plan.decision
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
+        var notes: [String] = []
+        let limit = context.stageTimeoutSeconds
+        let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
         func finish(_ reading: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
             let model: String
@@ -116,7 +123,8 @@ public enum ReadOrchestrator {
             }
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
-            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport)
+            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport,
+                               stageNotes: notes)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -153,37 +161,58 @@ public enum ReadOrchestrator {
                     if !modeOK { decision = RouteDecision(path: .rules, reason: .notDrillMode) }
                     path = .rules
                     stage = .deterministicParser
+                } else if !(context.language.map { $0.looksEnglish(spoken) && $0.looksEnglish(text) } ?? false) {
+                    // The cloud read would run now, but the note does not look English, as written or with
+                    // its phone number removed (which adds English words): it is not sent, it is read by
+                    // rules, and the route says why.
+                    decision = RouteDecision(path: .rules, reason: .notEnglish)
+                    path = .rules
+                    stage = .deterministicParser
                 }
             }
             let next: NextStep
             switch stage {
             case .guided:
                 let guidedPath = path
-                let result = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
-                    ?? .failure(path == .cloud ? .network : .other)
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
+                if raw == nil { notes.append("guided \(guidedPath.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(path == .cloud ? .network : .other)
                 if guidedPath == .cloud {
                     if case .failure(.network) = result { transport = .failed } else if transport != .failed { transport = .succeeded }
                 }
                 switch result {
                 case let .success(modelReading):
-                    let r = withCodeSegments(modelReading)
-                    if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
+                    var r = withCodeSegments(modelReading)
+                    // Apple's model reads the report alone (it never sees the description), so code
+                    // decides whether the report matches the subject.
+                    if guidedPath == .onDevice { r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown }
+                    let v = validate(r, context, text)
+                    if v.isOK { return finish(r, path: path, stage: .guided) }
+                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))")
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
+                    if raw != nil { notes.append("guided \(guidedPath.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     lastFailure = f
                     next = RouterPolicy.afterFailure(f, path: path, stage: .guided)
                 }
             case .permissiveText:
-                let result = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) } ?? .failure(.other)
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) }
+                if raw == nil { notes.append("permissive \(path.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(.other)
                 switch result {
                 case let .success(line):
                     if let line = PermissiveLine.parse(line, known: context.knownSegmentIds) {
                         let merged = withCodeSegments(line.merged(into: parse(text, context)))
-                        if validate(merged, context, text).isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        let v = validate(merged, context, text)
+                        if v.isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        notes.append("permissive \(path.rawValue): invalid \(Self.reasons(v))")
+                    } else {
+                        notes.append("permissive \(path.rawValue): unparsed")
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .permissiveText)
                 case let .failure(f):
+                    if raw != nil { notes.append("permissive \(path.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     next = RouterPolicy.afterFailure(f, path: path, stage: .permissiveText)
                 }
@@ -212,6 +241,12 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// The validator's reasons, joined for a stage note.
+    static func reasons(_ v: ValidationResult) -> String {
+        if case let .invalid(reasons) = v { return reasons.joined(separator: ",") }
+        return ""
     }
 
     static func note(_ failure: ReadFailure, _ blocked: inout BlockKind?) {

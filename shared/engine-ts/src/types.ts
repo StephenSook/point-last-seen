@@ -77,7 +77,8 @@ export type RoutePath = "on_device" | "cloud" | "rules" | "unknown";
 export type ReadStage = "guided" | "permissive_text" | "deterministic_parser" | "evidence_protocol" | "sdk" | "picklist";
 export type RouteReason =
   | "on_device_default" | "no_network" | "on_device_unavailable" | "locale_unsupported" | "over_token_budget"
-  | "possible_evidence" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"
+  // The language screen found the note not English, so it went to no cloud model.
+  | "possible_evidence" | "not_english" | "not_drill_mode" | "sdk_prefer_in_cloud" | "sdk_prefer_on_device" | "sdk_only_in_cloud"
   | "sdk_only_on_device" | "sdk_fallback" | "link_down_fallback" | "template_fallback" | "consented_cloud_read"
   // Clip triage on the web: a flagged span read in the cloud; the laptop's model or a motion check finding
   // nothing (nothing sent; trace only); and the consented cloud read anyway after such a result.

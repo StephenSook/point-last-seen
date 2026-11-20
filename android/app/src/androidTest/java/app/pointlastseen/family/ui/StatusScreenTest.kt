@@ -30,6 +30,13 @@ class StatusScreenTest {
         assertEquals(listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT), opened)
     }
 
+    /** A profile save that failed on this phone is said on the status screen, even when the earlier profile was shared. */
+    @Test fun aProfileSaveThatFailedOnThisPhoneIsSaid() {
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, unsaved = true) } }
+        rule.onNodeWithText("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
+            .performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun aFoundIncidentSaysFoundSafeAndOffersNothingToSend() {
         rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
         rule.onNodeWithText("Found. Safe.").assertIsDisplayed()
