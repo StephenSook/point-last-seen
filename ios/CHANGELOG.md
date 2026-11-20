@@ -33,6 +33,17 @@ finding) and how it was verified. Newest first.
   a joined search never replaced. They failed to compile before the change and pass after; 182 app
   tests and the text-size scan pass.
 
+### fix(ios): run the shared phone-number vectors, and remove numbers written with slashes
+- What: PLSCore's tests now run every case of shared/test-vectors/phone-numbers.json through
+  PhoneNumbers.scrub: each mustRemove number is gone, with no digit and no forbidden spoken part left
+  and the text around it kept; each mustKeep line (a time, a segment number, a count, a percent, all
+  together) comes back unchanged. The first run failed on "404/555/0142": a slash did not join the
+  parts of a number, so the number stayed in the stored note. A slash now joins them like - and . do.
+  A date written 11/19/2026 now reads as a number and is removed, as 2026-11-19 already was.
+- Source: review (shared phone-number vectors).
+- Verified: the vector test failed on the slash case before the fix and passes after; all 313 core
+  tests pass, including the earlier phone-number tests.
+
 ### docs: how the iPhone report-reading eval is run and scored
 - What: docs/evidence/eval/README.md describes the eval before any result exists: the answer key (written
   by one person before any model run, made-up drill reports on the piedmont-park-dev grid, frozen with

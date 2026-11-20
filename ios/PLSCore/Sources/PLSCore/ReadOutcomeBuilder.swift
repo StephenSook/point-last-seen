@@ -165,7 +165,7 @@ public enum ReadOutcomeBuilder {
 
 /// A caller's or searcher's phone number never reaches a model and is never stored (spec section
 /// 12.2). Seven or more digits in a row are a number: written digits (any script, full-width
-/// folded) and spoken digit words count alike, joined only by short separators (spaces, - . , ( ))
+/// folded) and spoken digit words count alike, joined only by short separators (spaces, - . , ( ) /)
 /// and with an optional leading + or (. Report numbers (coverage, minutes, searchers) are far
 /// shorter, so they stay.
 public enum PhoneNumbers {
@@ -224,9 +224,9 @@ public enum PhoneNumbers {
         }
     }
 
-    /// What may sit between the parts of one number: at most three spaces or - . , ( ).
+    /// What may sit between the parts of one number: at most three spaces or - . , ( ) /.
     static func onlySeparators(_ s: Substring) -> Bool {
-        s.count <= 3 && s.allSatisfy { $0.isWhitespace || "-.,()".contains($0) }
+        s.count <= 3 && s.allSatisfy { $0.isWhitespace || "-.,()/".contains($0) }
     }
 }
 
