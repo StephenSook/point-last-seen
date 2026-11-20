@@ -5,6 +5,15 @@ import Foundation
 public enum EchoText {
     /// The effect line for an event of this type: a sighting is named as one, and it changes
     /// the map only once command confirms it.
+    /// In the practice drill (`practice`) there is no command to ask, so "Ask command." becomes what
+    /// to do in a real search; every other line stays the same.
+    public static func effectLine(_ effect: Effect, type: EventType, practice: Bool) -> String {
+        let line = effectLine(effect, type: type)
+        let ask = "Ask command."
+        guard practice, line.hasSuffix(ask) else { return line }
+        return line.dropLast(ask.count) + "In a real search, ask command."
+    }
+
     public static func effectLine(_ effect: Effect, type: EventType) -> String {
         if type == .sighting, case let .clue(influences, _) = effect {
             let at = influences.first { $0.value == .strongFor }?.key ?? influences.keys.sorted().first ?? "?"

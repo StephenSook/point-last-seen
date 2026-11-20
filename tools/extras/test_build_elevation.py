@@ -209,3 +209,68 @@ def test_a_missing_or_broken_grid_is_refused_without_a_traceback(tmp_path, capsy
     assert err.count("build_elevation: cannot read the grid") == 2
     assert "Traceback" not in err
     assert not out.exists()
+
+
+def test_a_rerun_with_a_cache_fetches_only_the_points_it_has_not_read(tmp_path):
+    grid = tmp_path / "g.grid.json"
+    grid.write_text(json.dumps(GRID))
+    out = tmp_path / "terrain" / "g.elevation.json"
+    cache = tmp_path / "private" / "g.cache.json"
+    first = []
+
+    def flaky(lat, lon):
+        first.append((lat, lon))
+        return b"<html>blocked</html>" if len(first) == 7 else epqs(200 + len(first))
+
+    args = ["--grid", str(grid), "--out", str(out), "--cache", str(cache)]
+    assert be.main(args, fetch=flaky, sleep=lambda s: None, today="2026-11-20") == 1
+    assert not out.exists()  # the output is still all or nothing
+    assert len(json.loads(cache.read_text())["points"]) == 6  # the six good answers are kept
+
+    second = FakeFetch(lambda lat, lon: 300)
+    pauses = []
+    assert be.main(args, fetch=second, sleep=pauses.append, today="2026-11-20") == 0
+    assert len(second.calls) == 4  # only the points not yet read
+    assert set(second.calls).isdisjoint(first[:6])
+    assert len(pauses) == 3  # paced between real requests only
+    data = json.loads(out.read_text())
+    assert sum(c["n"] for c in data["cells"].values()) == 10
+    assert be.main(["--grid", str(grid), "--out", str(out), "--check"]) == 0
+
+
+def test_a_cache_built_for_another_grid_is_not_used(tmp_path):
+    grid = tmp_path / "g.grid.json"
+    grid.write_text(json.dumps(GRID))
+    cache = tmp_path / "g.cache.json"
+    cache.write_text(json.dumps({"gridSha256": "0" * 64, "points": {"33.780500,-84.369500": 1.0}}))
+    fetch = FakeFetch(lambda lat, lon: 250)
+    args = ["--grid", str(grid), "--out", str(tmp_path / "o.json"), "--cache", str(cache)]
+    assert be.main(args, fetch=fetch, sleep=lambda s: None, today="2026-11-20") == 0
+    assert len(fetch.calls) == 10
+    assert json.loads(cache.read_text())["gridSha256"] == hashlib.sha256(grid.read_bytes()).hexdigest()
+
+
+def test_the_cache_never_changes_the_result(tmp_path):
+    grid = tmp_path / "g.grid.json"
+    grid.write_text(json.dumps(GRID))
+    plain, cached = tmp_path / "plain.json", tmp_path / "cached.json"
+    heights = lambda lat, lon: round(100 + lat * 3 - lon, 3)  # noqa: E731
+    assert be.main(["--grid", str(grid), "--out", str(plain)], fetch=FakeFetch(heights), sleep=lambda s: None, today="2026-11-20") == 0
+    args = ["--grid", str(grid), "--out", str(cached), "--cache", str(tmp_path / "c.json")]
+    assert be.main(args, fetch=FakeFetch(heights), sleep=lambda s: None, today="2026-11-20") == 0
+    assert be.main(args, fetch=FakeFetch(lambda lat, lon: 9000), sleep=lambda s: None, today="2026-11-20") == 0  # all cached
+    assert json.loads(cached.read_text()) == json.loads(plain.read_text())
+
+
+def test_a_cached_value_outside_the_range_is_read_again(tmp_path):
+    grid = tmp_path / "g.grid.json"
+    grid.write_text(json.dumps(GRID))
+    sha = hashlib.sha256(grid.read_bytes()).hexdigest()
+    first = be.sample_points(GRID["segments"][0])[0]
+    cache = tmp_path / "c.json"
+    cache.write_text(json.dumps({"gridSha256": sha, "points": {be.point_key(*first): 99999.0}}))
+    fetch = FakeFetch(lambda lat, lon: 250)
+    args = ["--grid", str(grid), "--out", str(tmp_path / "o.json"), "--cache", str(cache)]
+    assert be.main(args, fetch=fetch, sleep=lambda s: None, today="2026-11-20") == 0
+    assert first in fetch.calls
+    assert json.loads(cache.read_text())["points"][be.point_key(*first)] == 250
