@@ -226,4 +226,10 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u2779\u2777\u2779 \u277A\u277A\u277A \u24FF\u2776\u2779\u2778"))
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u278D\u278A\u278D-\u278E\u278E\u278E-\u278A\u278B\u278D\u278C"))
     }
+
+    /** A grouped count written in digits outside the BMP (Adlam) is read by its characters, not its UTF-16 units. */
+    @Test fun aGroupedCountInAdlamDigitsStays() {
+        val count = "walked \uD83A\uDD51,\uD83A\uDD52\uD83A\uDD53\uD83A\uDD54,\uD83A\uDD55\uD83A\uDD56\uD83A\uDD57 steps"
+        assertEquals(count, PhoneNumbers.remove(count))
+    }
 }

@@ -149,7 +149,8 @@ object PhoneNumbers {
      */
     private fun searchSpans(s: String, parts: List<Part>): Set<Int> {
         fun gap(a: Int, b: Int) = s.substring(parts[a].end, parts[b].start)
-        fun len(i: Int) = parts[i].end - parts[i].start
+        // Length in characters as read (code points), so digits outside the BMP count once each.
+        fun len(i: Int) = s.codePointCount(parts[i].start, parts[i].end)
         fun text(i: Int) = s.substring(parts[i].start, parts[i].end)
         fun value(i: Int): Int? = text(i).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
         fun written(i: Int) = i in parts.indices && parts[i].written
