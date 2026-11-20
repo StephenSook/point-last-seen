@@ -295,8 +295,7 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
         assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
         assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
-        val out = PhoneNumbers.remove("Call 1 404 555 01:42")
-        assertEquals(out, false, out.contains("01"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 1 404 555 01:42"))
     }
 
     /** An ordinal stays apart only as a street name (67th Ave, 125th St); without a street word it joins the number. */
@@ -318,7 +317,7 @@ class PhoneNumbersTest {
 
     /** Dropping a time never lets other search information keep a number: a short piece seen before the drop still takes the whole run. */
     @Test fun droppingATimeNeverShieldsTheRestOfTheRun() {
-        assertEquals("Call GA [number removed]:42", PhoneNumbers.remove("Call GA 40455-5014 2 01:42"))
+        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2 01:42"))
     }
 
     /** A month and day written with a slash (11/19) is a date: beside a number it stays, and the number goes. */
@@ -331,8 +330,7 @@ class PhoneNumbersTest {
 
     /** A time keeps its place only after a date: after a ZIP+4 code (or any other digits) it goes with the number. */
     @Test fun aTimeAfterAZipCodeGoesWithTheNumber() {
-        val out = PhoneNumbers.remove("Call GA 40455-5014 2:30")
-        assertEquals(out, false, Regex("""\d{3}""").containsMatchIn(out))
+        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2:30"))
         assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
     }
 
@@ -340,5 +338,10 @@ class PhoneNumbersTest {
     @Test fun aPlusBeforeThePairMakesItANumber() {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call +44.2071, -23.4567"))
         assertEquals("GPS 33.7490, -84.3880", PhoneNumbers.remove("GPS 33.7490, -84.3880"))
+    }
+
+    /** Joining a dropped time's minutes never hides the short piece its hour leaves: the whole run still goes. */
+    @Test fun aJoinedTimeStillLeavesItsHourAShortPiece() {
+        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2:30 555-0142"))
     }
 }
