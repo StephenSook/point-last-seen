@@ -1779,3 +1779,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `MapView` applies `plateShown` before placing labels and again after every move (zoom or pan): a plate under 1.0%, or wider or taller than its segment's box at the current zoom, is hidden (class `unfit`, visibility hidden, still in the page), never clipped. The labels left still hide by collision, so none overlap. New prop `everyPercent` shows every plate of 0.1% or more. Plates now have 6 px side and 2 px top and bottom padding (12 and 4 in total), as on the phones. The map harness takes `?every` and `?tiny` (cell DF at 0.01%) and exposes its map and cells for tests.
 - Source: the shared map label rule for the phone and web maps.
 - Verified: three harness checks failed first (all 23 plates showed on a roomy map; on a 300 px map AB's plate showed wider than its cell; with every percent a "<0.1%" plate would show), then passed: 17 plates of 1.0% or more on a roomy map, no visible plate wider or taller than its cell on a 300 px map, 23 plates and no "<0.1%" with every percent on. All 125 harness checks pass; typecheck clean.
+
+### feat(map): an Every percent switch on the map
+- What: `MapView` takes `onEveryPercent`; when set (and the map has segments) it shows an "Every percent" checkbox at the map's top right, which turns `everyPercent` on and off. Keyboard-reachable with the page's focus ring. The map harness shows it with `?switch`.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a harness check (unchecked shows 17 plates; checked 23; unchecked 17 again; focusable) failed first (no switch), then passed with the 11 other map checks; typecheck clean.

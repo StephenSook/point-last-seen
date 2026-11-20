@@ -2,6 +2,7 @@
 // whose only entry is index.html). It draws MapView over a small synthetic grid so
 // map visuals can be checked by screenshot. The data is made up and labelled so.
 
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MapView } from "../map/MapView";
 import { cohortReleaseMs, type Track } from "../motion/walkerCanvas";
@@ -46,13 +47,15 @@ const POA = params.has("tiny") ? { ...HARNESS_POA, DF: 0.0001 } : HARNESS_POA;
 (window as unknown as { harnessCells: unknown }).harnessCells = HARNESS_SEGMENTS.map((s) => ({ segmentId: s.segmentId, ring: s.geometry.coordinates[0] }));
 
 function Harness() {
+  const [every, setEvery] = useState(params.has("every"));
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "auto 1fr" }}>
       <p className="drill" style={{ margin: 0, padding: 8 }}>Synthetic test grid, not drill data.</p>
       <MapView
         segments={HARNESS_SEGMENTS}
         poa={POA}
-        everyPercent={params.has("every")}
+        everyPercent={every}
+        onEveryPercent={params.has("switch") ? setEvery : undefined}
         onReady={(m) => {
           document.body.dataset["mapReady"] = m ? "map" : "none";
           (window as unknown as { harnessMap: unknown }).harnessMap = m;

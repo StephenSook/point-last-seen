@@ -56,6 +56,8 @@ type Props = {
   basemapUrl?: string | null;
   /** Command's "every percent": every plate of 0.1% or more, not only those of 1.0% or more that fit their cell. */
   everyPercent?: boolean;
+  /** When set, the map shows an "Every percent" switch that calls this. */
+  onEveryPercent?: ((on: boolean) => void) | undefined;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
   beat?: {
     key: string;
@@ -82,7 +84,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note, everyPercent = false }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note, everyPercent = false, onEveryPercent }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -414,6 +416,12 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         <p className="map-note" data-testid="map-note">
           {note}
         </p>
+      )}
+      {onEveryPercent && segments.length > 0 && (
+        <label className="map-switch">
+          <input type="checkbox" checked={everyPercent} onChange={(e) => onEveryPercent(e.target.checked)} />
+          Every percent
+        </label>
       )}
       {credit && (
         <div className="map-credit" data-testid="map-credit">

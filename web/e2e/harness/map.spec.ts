@@ -154,3 +154,18 @@ test("with every percent on, every plate of 0.1% or more shows, and never a <0.1
   await expect(page.locator(".plate:visible", { hasText: "<0.1%" })).toHaveCount(0);
   await expect(page.locator(".plate:visible")).toHaveCount(23);
 });
+
+test("command's Every percent switch shows every plate of 0.1% or more, and turning it off goes back", async ({ page }) => {
+  await page.goto("/harness/map.html?switch");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const every = page.getByRole("checkbox", { name: "Every percent" });
+  await expect(every).not.toBeChecked();
+  await expect(page.locator(".plate:visible")).toHaveCount(17);
+  await every.check();
+  await expect(page.locator(".plate:visible")).toHaveCount(23);
+  await every.uncheck();
+  await expect(page.locator(".plate:visible")).toHaveCount(17);
+  // It is reachable by keyboard, with a visible focus ring.
+  await every.focus();
+  await expect(every).toBeFocused();
+});
