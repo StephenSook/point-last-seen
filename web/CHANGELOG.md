@@ -1889,6 +1889,21 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
 - Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
 
+### fix(map): the report pin is a labelled image, so it passes the accessibility check
+- What: the pin the beat drops at a new report's position (`MapView`, `.report-pin`) gets `role="img"` beside its `aria-label="Report position"`. A name on an element with no role is not allowed (axe `aria-prohibited-attr`) and is not read out; the pin stays on screen after the beat, so the defect showed whenever a report had arrived.
+- Source: the live accessibility check at 390 px failed with `aria-prohibited-attr: [".report-pin"]` once live checks wrote reports during it.
+- Verified: a new harness check in `e2e/harness/change.spec.ts` (after a report, the pin is an image named "Report position", and axe with the live check's WCAG tags finds no violation on it) failed first (no such image), then passed with the other change and map harness checks (18/18); typecheck clean.
+
+### fix(extras): the replay reader checks a report's route values as the exporter does
+- What: in `src/extras/replay/runSchema.ts`, a public run's route record must have a model id no longer than the shared route schema allows (80 characters, exported from `src/extras/hostApp.ts` as `ROUTE_MODEL_MAX`, the extras folder's one door to outside code) and a `latencyMs` and `decidedAtMs` of zero or more; before, any text and any number passed. The coded fields keep their lists. The exporter (`tools/export-run`) checks the same values, so the reader stays a second wall: no note text can ride in a route.
+- Source: the run exporter gained a value check on routes; the reader mirrors it.
+- Verified: three new tests in `src/extras/replay/runSchema.test.ts` (a route the exporter would write is taken, an 80-character model id too; an 81-character one, a negative latency and a negative decision time are refused by name) failed first where they should, then passed; the extras import guard passes; 870/870 web unit tests and the exporter's 24 tests pass; typecheck clean.
+
+### fix(ai): a reply's source is typed with the SDK's own InferenceSource
+- What: `src/ai/client.ts` exports `ReplySource` (`InferenceSource | undefined`, from `firebase/ai`) and types the text and template models' `inferenceSource` with it instead of any string, so a branch on a misspelt source ("on-device") no longer compiles.
+- Source: review finding (the inference source was a plain string).
+- Verified: a type test in `src/ai/clientTypes.test.ts` (`@ts-expect-error` on "on-device") failed the typecheck first with the plain string ("Unused '@ts-expect-error'"), then passed with the SDK type; the 141 AI tests and the web unit suite pass; typecheck clean.
+
 ### fix(ai): a note read keeps only what the note supports
 - What: `checked` in `src/ai/sightingText.ts` passes each validated reading through `groundReading` (`@pls/engine`) before the form sees it, for the laptop read and the consented cloud read alike: a colour, direction, footwear or carried item the note does not support (filled from the missing person's profile, say) is blanked. `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites.
 - Source: the shared grounding rule (a reading's colour, direction, footwear and carried value must come from its note).

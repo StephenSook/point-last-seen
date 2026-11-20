@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { MAP_INK, POA_RAMP } from "../../src/map/poaStyle";
 import { hex, near, pixelAt } from "./pixel";
@@ -96,4 +97,14 @@ test("the beat springs a pin in at the report and draws an arc to the largest mo
   await expect(map).toHaveAttribute("data-beat", "done", { timeout: 2_500 });
   expect(Number(await arc.evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(0.05);
   await expect(page.getByTestId("report-pin")).toBeVisible();
+});
+
+test("the report pin passes the accessibility check: a labelled image, not a labelled plain element", async ({ page }) => {
+  await page.goto("/harness/change.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Report again" }).click();
+  await expect(page.getByTestId("report-pin")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Report position" })).toBeVisible();
+  const r = await new AxeBuilder({ page }).include(".report-pin").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  expect(r.violations.map((v) => v.id)).toEqual([]);
 });

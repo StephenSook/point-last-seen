@@ -20,6 +20,10 @@ enum BundledConstants {
         try LanguageScreen(json: data("language-words"))
     }
 
+    static func grounding() throws -> Grounding {
+        try Grounding(json: data("grounding-words"))
+    }
+
     private struct ParamsFile: Decodable { let params: EngineParams }
 
     static func engineParams() throws -> EngineParams {

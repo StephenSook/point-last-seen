@@ -104,6 +104,11 @@ import Testing
         s.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat")]))
         let o = await r.read("Saw someone in blue by the creek in AC", situation: s)
         #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
+        // The reader grounds every reading in its note: a colour the note does not say is blanked, so it
+        // cannot match the subject either. (The note above says blue, so it fails if the word list is not loaded.)
+        let blanked = await r.read("Saw someone by the creek in AC", situation: s)
+        #expect(blanked.reading.topColor == .unknown && blanked.reading.matchesProfile == .unknown)
+        #expect((try? BundledConstants.grounding()) != nil)
     }
 
     @Test func remoteConfigDefaultsMatchTheSpec() {

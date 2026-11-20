@@ -34,12 +34,15 @@ private func okReading(_ ids: [String] = ["AC"]) -> ReportReading {
     reading(segmentIds: ids, coverage: 0.8, evidenceQuote: "cleared segment AC")
 }
 private let languageScreen = try? LanguageScreen(json: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("constants/language-words.json")))
+private let groundingWords = try? Grounding(json: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("constants/grounding-words.json")))
+private let blueCoat = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat, gray pants")]))
 private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = true, kill: Bool = false, mode: String? = "drill") -> ReadContext {
     var c = ReadContext(incidentMode: mode, knownSegmentIds: ["AA", "AB", "AC", "AD"], networkOnline: online,
                         onDevice: OnDeviceStatus(available: onDevice, localeSupported: true, contextSize: 4096, variant: "AFM 3 Core Advanced"),
                         estimatedTokens: 400, tokenBudgetFraction: 0.5, cloudConsent: consent, killCloud: kill,
                         cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
     c.language = languageScreen
+    c.grounding = groundingWords
     return c
 }
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
@@ -211,11 +214,13 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         var answer = okReading()
         answer.topColor = .blue
         answer.matchesProfile = .inconsistent
+        // The report says blue: a colour the report does not say is blanked before the match (grounding).
+        let blueReport = "Team two cleared segment AC, saw someone in a blue coat"
         let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(answer)]
-        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        let o = await ReadOrchestrator.read(text: blueReport, context: c, runner: r, clock: clock)
         #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
         let cloud = FakeRunner(); cloud.guidedResults[.cloud] = [.success(answer)]
-        let oc = await ReadOrchestrator.read(text: report, context: { var x = c; x.onDevice.available = false; return x }(), runner: cloud, clock: clock)
+        let oc = await ReadOrchestrator.read(text: blueReport, context: { var x = c; x.onDevice.available = false; return x }(), runner: cloud, clock: clock)
         #expect(oc.route.path == .cloud && oc.reading.matchesProfile == .inconsistent)
     }
 
@@ -315,6 +320,52 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
         #expect(r.calls == [.guided(.onDevice)] && o.route.path == .rules)
         #expect(o.stageNotes == ["guided on_device: empty_response"])
+    }
+
+    /// After every read a colour the note does not say is blanked (the shared grounding rule). On the phone
+    /// it is blanked before code decides the profile match, so a colour copied from the profile is no match.
+    @Test func aColourTheNoteDoesNotSayIsBlankedBeforeTheProfileMatch() async {
+        let r = FakeRunner()
+        var seen = reading(kind: .sighting, evidenceQuote: "Saw a person near the water")
+        seen.topColor = .blue
+        r.guidedResults[.onDevice] = [.success(seen)]
+        var c = rctx(online: false)
+        c.profile = blueCoat
+        let o = await ReadOrchestrator.read(text: "Saw a person near the water in AC", context: c, runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.topColor == .unknown && o.reading.matchesProfile == .unknown)
+    }
+
+    @Test func aColourTheNoteSaysIsKeptAndCanMatch() async {
+        let r = FakeRunner()
+        var seen = reading(kind: .sighting, evidenceQuote: "Saw a person in a blue coat")
+        seen.topColor = .blue
+        r.guidedResults[.onDevice] = [.success(seen)]
+        var c = rctx(online: false)
+        c.profile = blueCoat
+        let o = await ReadOrchestrator.read(text: "Saw a person in a blue coat in AC", context: c, runner: r, clock: clock)
+        #expect(o.reading.topColor == .blue && o.reading.matchesProfile == .consistent)
+    }
+
+    @Test func theCloudsReadingIsGroundedToo() async {
+        let r = FakeRunner()
+        var seen = reading(kind: .sighting, evidenceQuote: "Saw a person near the water")
+        seen.topColor = .blue
+        seen.direction = .n
+        r.guidedResults[.cloud] = [.success(seen)]
+        let o = await ReadOrchestrator.read(text: "Saw a person near the water in AC", context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(o.route.path == .cloud && o.reading.topColor == .unknown && o.reading.direction == .unknown)
+    }
+
+    /// With no word list loaded the grounded fields are blanked: the read fails closed.
+    @Test func withNoWordListTheGroundedFieldsAreBlanked() async {
+        let r = FakeRunner()
+        var seen = reading(kind: .sighting, evidenceQuote: "Saw a person in a blue coat")
+        seen.topColor = .blue
+        r.guidedResults[.onDevice] = [.success(seen)]
+        var c = rctx(online: false)
+        c.grounding = nil
+        let o = await ReadOrchestrator.read(text: "Saw a person in a blue coat in AC", context: c, runner: r, clock: clock)
+        #expect(o.reading.topColor == .unknown)
     }
 
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
