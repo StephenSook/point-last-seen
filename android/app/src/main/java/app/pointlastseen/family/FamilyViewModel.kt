@@ -144,6 +144,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var profileShareFailed by mutableStateOf(false)
         private set
+
+    /** The last profile save failed on this phone: its changes were not sent, whatever the share says (cleared by a save that works). */
+    var profileUnsaved by mutableStateOf(false)
+        private set
     private var clipUri: Uri? = null
     private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
     private var lastClipStartMs: Long = 0L
@@ -257,7 +261,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
         // Marks and the publish follow only a profile that reached the disk: a mark kept without its edit could send
         // an old value over command's, and a publish of an unsaved profile could not be repeated after a restart.
-        if (!profileStore.save(profile)) return
+        if (!profileStore.save(profile)) {
+            profileUnsaved = true
+            return
+        }
+        profileUnsaved = false
         familyEdits.record(lastSaved, profile)
         lastSaved = profile
         publishIfGone()
