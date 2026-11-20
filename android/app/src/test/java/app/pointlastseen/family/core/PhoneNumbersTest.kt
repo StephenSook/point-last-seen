@@ -179,4 +179,20 @@ class PhoneNumbersTest {
     @Test fun aRemovedRunKeepsItsLineBreaks() {
         assertEquals("Trail marker [number removed]\n[number removed] Oak Road", PhoneNumbers.remove("Trail marker 1234\n5678 Oak Road"))
     }
+
+    /** The final review's cases: a unit on a whole number, overlapping dates, an indented line break, "triple five". */
+    @Test fun theFinalReviewsNumbersGo() {
+        assertEquals("Call [number removed]pm", PhoneNumbers.remove("Call 4045550142pm"))
+        val cases = mapOf(
+            "Call 06.12.20-06-19" to listOf("06.12", "06-19"),
+            "Call +1 (404) 555-\n    0142" to listOf("404", "0142"),
+            "Call +1 (404) 555-\r0142" to listOf("404", "0142"),
+            "Call four oh four, triple five, zero one four two" to listOf("four", "triple", "zero"),
+            "Call double four zero four five five five one four two" to listOf("double", "five"),
+        )
+        for ((input, gone) in cases) {
+            val out = PhoneNumbers.remove(input)
+            for (g in gone) assertEquals("$input -> $out", false, out.contains(g))
+        }
+    }
 }

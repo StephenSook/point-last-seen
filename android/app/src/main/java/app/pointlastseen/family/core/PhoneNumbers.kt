@@ -57,11 +57,18 @@ object PhoneNumbers {
      * A run of digits (counting its digits), a word (one if it is a spoken digit, else none). An [alone] run
      * counts by itself and never joins its neighbours.
      */
-    private class Part(val start: Int, val end: Int, val digits: Int, val written: Boolean, var alone: Boolean = false)
+    private class Part(val start: Int, val end: Int, var digits: Int, val written: Boolean, var alone: Boolean = false)
+
+    // A spoken repeat before a digit counts the extra digits it stands for: "triple five" is three digits.
+    private val REPEATS = mapOf("double" to 1, "triple" to 2)
 
     fun remove(text: String): String {
         val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
         val parts = parts(folded)
+        for (i in 0 until parts.size - 1) {
+            val repeat = REPEATS[word(folded, parts[i])] ?: continue
+            if (!parts[i].written && parts[i + 1].digits > 0 && onlySeparators(folded.substring(parts[i].end, parts[i + 1].start))) parts[i].digits = repeat
+        }
         for (i in parts.indices) {
             if (parts[i].written && i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end &&
                 word(folded, parts[i + 1]) in ORDINALS
@@ -114,7 +121,7 @@ object PhoneNumbers {
         var lower = parts[first].start
         while (lower > 0 && s[lower - 1] in "+(") lower--
         val upper = parts[last].end
-        val breaks = s.substring(lower, upper).replace("\r\n", "\n").count { it == '\n' }
+        val breaks = s.substring(lower, upper).replace("\r\n", "\n").count { it == '\n' || it == '\r' }
         out.replace(lower, upper, List(breaks + 1) { REPLACEMENT }.joinToString("\n"))
     }
 
@@ -144,6 +151,8 @@ object PhoneNumbers {
             return v <= max
         }
         val kept = mutableSetOf<Int>()
+        // Written dates found below, each as its three parts; two that share a part cancel each other.
+        val dates = mutableListOf<IntRange>()
         for (i in parts.indices) {
             if (!parts[i].written) {
                 if (word(s, parts[i]) !in MONTHS) continue
@@ -159,9 +168,12 @@ object PhoneNumbers {
             if (i + 2 < parts.size && written(i + 1) && written(i + 2) && isDate(s, parts[i], parts[i + 1], parts[i + 2]) &&
                 !sameSeparatorNeighbour(s, parts, i, i + 2)
             ) {
-                kept += i..(i + 2)
+                dates += i..(i + 2)
             }
-            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end && word(s, parts[i + 1]) in UNITS) {
+            // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
+            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end && word(s, parts[i + 1]) in UNITS &&
+                parts[i].digits < 7
+            ) {
                 kept += i
             }
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
@@ -180,6 +192,9 @@ object PhoneNumbers {
             ) {
                 kept += i..(i + 1)
             }
+        }
+        for (d in dates) {
+            if (dates.none { other -> other != d && other.first <= d.last && d.first <= other.last }) kept += d
         }
         return kept
     }
@@ -244,11 +259,13 @@ object PhoneNumbers {
     }
 
     /**
-     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a pasted
-     * line break (CRLF) counts as one, as on the iPhone.
+     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a line break
+     * (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number split across lines.
      */
     private fun onlySeparators(s: String): Boolean {
-        val gap = s.replace("\r\n", "\n")
+        val gap = LINE_BREAK.replace(s, "\n")
         return gap.length <= 3 && gap.all { it.isWhitespace() || it in "-.,()/" || it in DASHES }
     }
+
+    private val LINE_BREAK = Regex("""(\r\n|\n|\r)[ \t]*""")
 }
