@@ -1824,6 +1824,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the drill run's replay needs each report's provenance; every command-typed sighting so far was stored with a null route.
 - Verified: four new unit tests in `src/data/sightings.test.ts` (hand entry, a read's route, a read with no route, a placed family sighting) failed first and pass, with a confirmation still null; three new harness checks in `e2e/harness/sighting.spec.ts` (a cloud read's route reaches the save; hand entry hands no read; a read with no route hands `{"route":null}`) failed first where they could, then passed with the other 10 sighting harness checks; 814/814 web unit tests; typecheck clean. The hand-entry route meets every field of the rules' `schema_RouteRecord`.
 
+### fix(command): editing the note after a read clears that read's status, receipt and quote
+- What: in `SightingForm`, any change to the note after a read sets the read state back to none and clears the What ran receipt and the From the note words. The fields the read filled keep their values, since they may already have been checked by hand, and the saved sighting still records that read's route, since the fields came from it. Before, "Suggested from the note. Check every field.", the receipt and the quoted words stayed on screen for a note they no longer described.
+- Source: review finding (read status outliving the note it read).
+- Verified: two new harness checks in `e2e/harness/sighting.spec.ts` (a cloud read, then an edit: status and receipt gone, Top still red; a slow read with a quote, then an edit that keeps the quoted words: the quote line gone) failed first, then passed; a third (an edit after a cloud read still saves the cloud route) guards the route; 16/16 sighting and sightings harness checks; typecheck clean.
+
 ### feat(command): the POA heading spells out what POA means
 - What: the ranked list's heading wraps POA in `<abbr title="Probability of area: the engine's estimate for each segment">`, so a reader new to search terms can find out what the column is. The heading's accessible name stays "POA".
 - Source: review finding (unexplained abbreviation on the command post).
