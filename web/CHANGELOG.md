@@ -1784,3 +1784,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `MapView` takes `onEveryPercent`; when set (and the map has segments) it shows an "Every percent" checkbox at the map's top right, which turns `everyPercent` on and off. Keyboard-reachable with the page's focus ring. The map harness shows it with `?switch`.
 - Source: the shared map label rule (command may show every percent).
 - Verified: a harness check (unchecked shows 17 plates; checked 23; unchecked 17 again; focusable) failed first (no switch), then passed with the 11 other map checks; typecheck clean.
+
+### feat(command): the command map has the Every percent switch
+- What: the command post keeps an "every percent" view setting for its own screen (off at first) and passes it to the map with its switch. Nothing is written anywhere; other seats are not affected.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a new live check on the test drill, `e2e/plates.spec.ts` (every visible plate is 1.0% or more; Every percent shows more plates and never a "<0.1%" one; off again goes back), passed on a local build: 14 plates by default, 47 with Every percent; typecheck clean. Screenshots of both views were checked by eye.
