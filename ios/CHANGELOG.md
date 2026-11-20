@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): code decides whether a reading by Apple's model matches the subject
+- What: ProfileMatch.decide compares a reading's colours and item, footwear and carried words with
+  the subject's description: consistent when one of them is in it, otherwise unknown, so a clue is
+  never marked down on a guess. For a reading by Apple's model the read sets matchesProfile
+  this way (ReadContext.profile carries the description); the cloud's answer is kept as it is.
+- Source: review (Apple's model copied the subject's description into readings).
+- Verified: tests for consistent and unknown matches, for the on-device override (and the cloud
+  answer kept), and that an answer quoting the description is rejected with quote_not_in_text; they
+  failed to compile before the change and pass after; all 356 core tests pass.
+
 ### feat(ios): the route check file says why each model stage was not used
 - What: each route in the saved route-check file carries the read's stage notes, so a route check
   run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:
