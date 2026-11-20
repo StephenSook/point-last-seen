@@ -1,8 +1,8 @@
 // "Add sighting": a caller's or passer-by's sighting, entered at command.
 // The place comes from a map click or the Place list. A callback name or number may be typed
 // for the operator, but it stays in this form only and is cleared on save:
-// no field of the stored event holds it, and phone numbers are removed from
-// the note before it is stored or read.
+// no field of the stored event holds it, and phone numbers in US formats are
+// removed from the note before it is stored or read.
 
 import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
@@ -234,7 +234,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       )}
       {readState === "consent" && (
         <div role="status" className="note-state">
-          <p>The note goes to Gemini in the cloud. Phone numbers are removed first.</p>
+          <p>The note goes to Gemini in the cloud. Phone numbers in US formats are removed first.</p>
           <button type="button" className="btn ghost" onClick={readInCloud} disabled={busy !== null}>
             {busy === "cloud" ? "Reading" : "I consent for this note"}
           </button>
@@ -246,7 +246,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {readState === "filled" && ran && (
         <details className="receipt">
           <summary>What ran</summary>
-          {receiptLines({ asked: ran.asked, route: ran.route, sentBytes: ran.sentBytes, what: "the note, with phone numbers removed" }).map((l) => (
+          {receiptLines({ asked: ran.asked, route: ran.route, sentBytes: ran.sentBytes, what: "the note, with US-format phone numbers removed" }).map((l) => (
             <p key={l} className="small">{l}</p>
           ))}
         </details>

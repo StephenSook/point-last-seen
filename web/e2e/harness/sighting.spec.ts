@@ -41,13 +41,15 @@ test("a cloud note read carries a closed What ran receipt with the bytes of the 
   await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
   await page.getByRole("button", { name: "Read the note" }).click();
   await page.getByRole("button", { name: "Read in the cloud" }).click();
+  // The web removes phone numbers in US formats only, so the consent says exactly that.
+  await expect(page.getByText("The note goes to Gemini in the cloud. Phone numbers in US formats are removed first.")).toBeVisible();
   await page.getByRole("button", { name: "I consent for this note" }).click();
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
   const receipt = page.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await receipt.getByText("What ran", { exact: true }).click();
   await expect(receipt).toContainText("Asked for: the cloud, after the consent tap.");
   await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
-  await expect(receipt).toContainText("Sent: 22 bytes of the note, with phone numbers removed.");
+  await expect(receipt).toContainText("Sent: 22 bytes of the note, with US-format phone numbers removed.");
 });
 
 test("a filled read shows the words it came from, quoted from the note", async ({ page }) => {
