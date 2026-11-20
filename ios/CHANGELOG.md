@@ -5,6 +5,62 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): a note that does not look English never goes to the cloud read
+- What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
+  the router's cloud route and the move to the cloud after Apple's model fails. A note that does not
+  look English is read by the phone's rules instead, with route reason not_english, and the report
+  says "This note doesn't look like English, so it stays on this phone. Pick instead of typing."
+  Apple's on-device read and the pick list are unchanged. The app bundles
+  shared/constants/language-words.json; if it cannot be read, no note goes to the cloud.
+- Source: plan (language screen before any cloud read of a note); review (iPhone wording approved).
+- Verified: tests that a Spanish note on the cloud route and after the on-device model fails calls no
+  cloud model and reads by rules with reason not_english, that it still reads on this phone when
+  Apple's model works, that an English note quoting Spanish still goes to the cloud, the app reader
+  with the bundled word lists, and the refusal line. They failed to compile before the change and
+  pass after; 327 core and 191 app tests pass.
+
+### feat(ios-core): the language screen, by the shared rule and vectors
+- What: PLSCore gains LanguageScreen.looksEnglish, built from shared/constants/language-words.json:
+  the note is folded and split as the evidence screen does, words made only of digits are dropped,
+  and a note does not look English when more than half its words are non-Latin, or when its foreign
+  function words plus non-Latin words are at least minForeign and more than foreignOverEnglish times
+  its English words. It is not yet called by the read; that follows.
+- Source: plan (language screen before any cloud read of a note).
+- Verified: shared/test-vectors/language.json runs in a Swift test: 18 mustAllow pass as English, 9
+  mustRefuse do not, the 1 knownMiss passes as English as on every platform, and a new kind of case
+  in the file fails the test. It failed to compile before the change; all 322 core tests pass.
+
+### test(ios): run the phone-number vectors' exact cases, replacement token and pending marks
+- What: the Swift vector runner reads the file's new shape: a top-level replacement token (checked
+  against the one this phone writes), an exact array whose output is compared byte for byte, and an
+  optional pendingOn on any case, which skips the case only when it names ios. The kind guard now
+  allows these keys and also fails on an unknown key inside a case.
+- Source: review (shared phone-number vectors gain exact-output cases).
+- Verified: with the coming vector file (13 mustRemove, 14 mustKeep, 1 exact, none pending on ios)
+  all 6 vector tests pass; a copy with a wrong exact output fails; a copy with an unknown kind fails;
+  with main's file all 325 core tests pass.
+
+### test(ios): fail when the phone-number vectors gain a kind of case the iPhone does not run
+- What: the Swift vector test decoded only mustRemove and mustKeep and would ignore any new kind of
+  case added to shared/test-vectors/phone-numbers.json. A new test asserts the file's top-level keys
+  are exactly the ones the iPhone runs, so a new kind fails Swift core until it is run here.
+- Source: review (shared phone-number vectors gain an exact-output case).
+- Verified: run against a copy of the file with an extra "mustEqual" key it fails; against the real
+  file it passes, with the other 18 phone-number tests.
+
+### fix(ios): phone numbers by the shared rule: no date shields a number; search details stay
+- What: the iPhone's phone-number rule now matches the Android rule. A date carved out of a longer run
+  of digits no longer shields part of a number ("06.12.20.26.19", "404-555-2026-11-19" are removed);
+  a date beside a whole number of its own still stays. Non-breaking, en and em dashes and the minus
+  sign join a number's parts like a hyphen. Search information made of digits counts no digits, so
+  it stays and never joins a number: a time (14:03), a coordinate pair (33.7490, -84.3880), a
+  grouped count (1,234,567), a ZIP+4 code (30301-1234) and a month-name date (Nov 19 2026, 19 November
+  2026); a number glued to a unit or an ordinal ending (67th, 5km) counts alone. Chinese numeral
+  digits, a pasted line break and spoken digits in capitals were already caught; tests now pin them.
+- Source: review (phone-number review of the Android rule; the same gaps were in the iPhone rule).
+- Verified: tests for each case above; the date, dash, time and month-date, and search-information
+  tests failed before the change and pass after; all 322 core tests pass.
+
 ### fix(ios): written dates stay in a report; a slash-joined phone number still goes
 - What: a date is search information (when someone was last seen), not a phone number. The phone
   number rule now keeps three digit groups joined by the same one of / - . that read as a date:

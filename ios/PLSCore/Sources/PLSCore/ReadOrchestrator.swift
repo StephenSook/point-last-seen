@@ -65,6 +65,8 @@ public struct ReadContext: Sendable {
     public var stageTimeoutSeconds: Double = 20
     /// The segment under the searcher's GPS fix, if any: the segment a report that names none is about.
     public var positionSegmentId: String?
+    /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
+    public var language: LanguageScreen?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -151,6 +153,12 @@ public enum ReadOrchestrator {
                     // Like the router, rules keep the reason step 1 failed, except when the
                     // incident has left drill or judge mode, which is said as such.
                     if !modeOK { decision = RouteDecision(path: .rules, reason: .notDrillMode) }
+                    path = .rules
+                    stage = .deterministicParser
+                } else if !(context.language?.looksEnglish(text) ?? false) {
+                    // The cloud read would run now, but the note does not look English: it stays on this
+                    // phone, read by rules, and the route says why.
+                    decision = RouteDecision(path: .rules, reason: .notEnglish)
                     path = .rules
                     stage = .deterministicParser
                 }

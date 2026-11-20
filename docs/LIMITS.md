@@ -40,6 +40,12 @@ each line says what the limit is and why.
 - A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
   first share adds only fields the search does not have yet; command or the family fills an empty field by editing
   it.
+- A family's edit made on the phone before its first publish to a search reaches the search for single fields (names,
+  descriptions, the clothing last worn, triggers and the like). For a list or set field (other names, mobility aids,
+  the behaviour flags, places, past addresses and wandering spots, the tracking answer, the vehicle), the edit reaches
+  the search only where command's profile does not have that field yet; where it does, command's entries stay. After
+  the first publish, an edit to such a field sends the phone's whole list, which replaces the entries command added
+  to that field.
 - The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
   the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
   phone that loses its access while offline shows the search until it can check.
@@ -76,9 +82,20 @@ each line says what the limit is and why.
   (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
   setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
   every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule knows
-  US formats on the web and Android, while the iPhone removes any run of 7 or more digits or English digit words. A
+  US formats on the web, while the iPhone and Android remove any run of 7 or more digits or English digit words. A
   note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
   well it reads one. Evidence described in another language is not caught by the pre-screen.
+
+## Phone numbers in notes (Android)
+
+- The family app removes phone numbers from a note the way the iPhone app does: seven or more digits in a row,
+  written in any script or spoken, joined by short separators, even across a line break. Search information inside
+  such a run (a date, a time, coordinates, a grouped count, a ZIP+4 code after a state, a number with a unit) stays
+  only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
+  (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
+- To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
+  too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
+  "ga 30301-1234" is removed, while "GA 30301-1234" stays.
 
 ## On-device safety (Android)
 

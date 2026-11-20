@@ -46,6 +46,11 @@ public enum EchoText {
         return false
     }
 
+    /// Why a report was kept off a route, shown under it; nil when nothing was refused.
+    public static func refusalLine(_ route: RouteRecord) -> String? {
+        route.reason == .notEnglish ? "This note doesn't look like English, so it stays on this phone. Pick instead of typing." : nil
+    }
+
     public static func deliveryLine(_ state: OutboxState) -> String {
         switch state {
         case .pending: return "On this phone only"
