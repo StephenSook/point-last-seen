@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): the route check file says why each model stage was not used
+- What: each route in the saved route-check file carries the read's stage notes, so a route check
+  run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:
+  invalid quote_not_in_text"). The screen is unchanged.
+- Source: review (Apple's model not used on a real iPhone).
+- Verified: the app builds and all 191 app tests pass; the file is checked on the phone with build 6.
+
 ### feat(ios-core): a read records why each model stage was not used
 - What: ReadOutcome.stageNotes lists, in order, why each model stage did not give the reading: an
   answer the validator rejected ("guided on_device: invalid quote_not_in_text"), a stage that ran
