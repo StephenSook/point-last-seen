@@ -70,6 +70,7 @@ final class AppModel {
     var canRetryMission: Bool { membership != nil && mission == nil }
     static let missionUnread = "Joined, but the mission could not be read. Check the connection and try again."
     static let notOnATeam = "This phone is no longer on a team. Ask command for a join code."
+    static let accountChangedDuringJoin = "This phone's account changed during the join. Join again."
 
     init(signIn: SignIn = .firebase(),
          appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
@@ -251,8 +252,6 @@ final class AppModel {
         defer { joining = false }
         // A join is the newest wish: any load or check still running from before must not replace it.
         missionGeneration += 1
-        accessCheck += 1
-        let check = accessCheck
         let request: SearcherJoin
         do {
             request = try SearcherJoin.make(code: code, teamId: teamId, incidentId: incidentId)
@@ -260,12 +259,17 @@ final class AppModel {
             joinMessage = (error as? SearcherJoin.InputError)?.message ?? Joiner.other
             return
         }
-        // Already in this team (and incident, when named): read the mission, do not spend the code.
+        // Signed in first (a new anonymous user after Leave), so the session this join is for starts
+        // before any of its checks: the join's claims, read and mission all belong to that session.
+        guard await joinBackend.ensureSignedIn() else { joinMessage = Joiner.notSignedIn; return }
         noteAccount(uid())
-        let before = currentSession
+        accessCheck += 1
+        let check = accessCheck
+        guard let session = currentSession else { joinMessage = Joiner.notSignedIn; return }
+        // Already in this team (and incident, when named): read the mission, do not spend the code.
         let current = await joinBackend.currentClaims(forceRefresh: true)
-        guard check == accessCheck else { return }
-        if let session = before, isCurrent(session), let claims = current, claims["role"] == .string("searcher"),
+        guard check == accessCheck, isCurrent(session) else { return }
+        if let claims = current, claims["role"] == .string("searcher"),
            claims["team"] == .string(request.teamId), case let .string(held)? = claims["inc"],
            request.incidentId == nil || request.incidentId == held {
             membership = (held, request.teamId)
@@ -275,12 +279,11 @@ final class AppModel {
         }
         let result = await Joiner(backend: joinBackend).join(request)
         guard check == accessCheck else { return }
+        // The account changed while the callable answered: its claims may not be this user's.
+        guard isCurrent(session) else { joinMessage = Self.accountChangedDuringJoin; return }
         switch result {
         case let .failed(message): joinMessage = message
         case let .joined(incidentId, teamId):
-            // The join signs in when needed: the claims it checked are this user's.
-            noteAccount(uid())
-            guard let session = currentSession, check == accessCheck else { joinMessage = Joiner.notSignedIn; return }
             membership = (incidentId, teamId)
             let message = await loadMission(incidentId: incidentId, teamId: teamId, session: session)
             if check == accessCheck { joinMessage = message }

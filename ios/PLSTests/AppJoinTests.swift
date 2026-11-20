@@ -238,6 +238,39 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(topics.ops == ["+pls-drill-dev-1-T1"])
     }
 
+    /// The join signs in before it calls, so it knows whose join it is: if the account changes while
+    /// the callable answers, the joined team is never loaded for the new user.
+    @Test func aJoinWhoseAccountChangesDuringTheCallLoadsNothing() async throws {
+        final class Account: @unchecked Sendable { var uid: String? = "uid-1" }
+        let account = Account(), backend = FakeJoinBackend(), reader = FakeMissionReader(docs: try drillDocs())
+        backend.claims = [:]                                       // not yet in any search
+        backend.claimsAfterJoin = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        backend.duringCall = { account.uid = "uid-2" }
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.uid != nil }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { account.uid }, joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "join-switch-\(UUID().uuidString)")!)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission == nil && reader.reads.isEmpty)
+        #expect(m.joinMessage == AppModel.accountChangedDuringJoin)
+    }
+
+    /// The first join with no user yet (after Leave, say) signs in a new anonymous user and still
+    /// loads the mission at once: the new user's session starts before the join's checks do.
+    @Test func aFirstJoinWithNoUserSignsInAndLoads() async throws {
+        final class Account: @unchecked Sendable { var uid: String? = nil }
+        let account = Account(), backend = FakeJoinBackend(), reader = FakeMissionReader(docs: try drillDocs())
+        backend.claims = [:]
+        backend.claimsAfterJoin = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        backend.onSignIn = { if account.uid == nil { account.uid = "uid-new" } }
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.uid != nil }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { account.uid }, joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "join-first-\(UUID().uuidString)")!)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission?.teamId == "T1" && m.mission?.ownerUid == "uid-new" && m.joinMessage == nil)
+    }
+
     /// A plan command approves after the mission loaded reaches the phone: the assignment changes
     /// and is spoken once; the same plan again says nothing; a plan with no task for this team
     /// clears it without speaking.

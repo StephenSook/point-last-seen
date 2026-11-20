@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a join signs in first, so its session is known before any of its checks
+- What: a join bound its account session only after the callable returned, so an account change in
+  that instant could pair the joined team with another user. It also broke the first join after
+  Leave: that join signs in a new anonymous user, the sign-in counted as an account change in the
+  middle of the join, and the join ended with "Not signed in yet" although it had worked. The join
+  now signs in before anything else, starts the session for that user, and only then takes its
+  check number; if the account changes while the callable answers, it loads nothing and says "This
+  phone's account changed during the join. Join again."
+- Source: review (round 4 residual window); the after-Leave failure was found while closing it.
+- Verified: tests for a first join with no user (it signs in and loads the mission at once) and a
+  join whose account changes during the call (nothing read or loaded, the new message). Both failed
+  before the change and pass after; 175 app tests pass.
+
 ### build(ios): archive and check a release build for App Store Connect, uploading nothing
 - What: ios/scripts/archive_release.sh archives a Release build with a given build number and the
   current commit, exports the .ipa for App Store Connect into a local folder, and checks the
