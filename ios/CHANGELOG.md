@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's model is told its quote may not be empty
+- What: the on-device instructions now say "Copy evidenceQuote word for word from the report; never
+  leave it empty." The cloud instructions and the cloud allow-list are unchanged.
+- Source: review (Apple's model left the quote empty on the simulator).
+- Verified: a test pins the line in the on-device prompt and its absence from the cloud prompt; it failed
+  before the change and passes after; 194 app tests pass.
+
 ### fix(ios-core): Apple's model gets one more try when only its quote is rejected
 - What: on the phone, Apple's model answered the route check's sentence in about 3 s but its reading
   was rejected for quote_not_in_text; on the simulator the same sentence came back once with the quote
