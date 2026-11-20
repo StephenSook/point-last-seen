@@ -1789,3 +1789,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post keeps an "every percent" view setting for its own screen (off at first) and passes it to the map with its switch. Nothing is written anywhere; other seats are not affected.
 - Source: the shared map label rule (command may show every percent).
 - Verified: a new live check on the test drill, `e2e/plates.spec.ts` (every visible plate is 1.0% or more; Every percent shows more plates and never a "<0.1%" one; off again goes back), passed on a local build: 14 plates by default, 47 with Every percent; typecheck clean. Screenshots of both views were checked by eye.
+
+### test(e2e): phone-width checks wait for segment codes, not plates
+- What: the 390 px phone checks and the joined-post accessibility check wait for a visible segment code before reading the page. Under the plate rule a plate shows only where it fits its segment, and at phone width no plate fits the drill's segments, so waiting for a visible plate timed out.
+- Source: a full local run of the browser checks after the plate rule.
+- Verified: the two phone checks and the 390 px accessibility check timed out on "a visible plate" after the plate rule, then passed with the new wait (10 of 10 phone and accessibility checks).
