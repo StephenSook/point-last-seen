@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web job's three browser steps each have a 5-minute limit, about five times their usual time (15 s, 40 s and
+  55 s on recent runs), so a stall is reported as its own step failing instead of the whole job ending cancelled at
+  its 15-minute limit.
+  Source: review (a web run that ended cancelled at the job's limit was hard to read: the stall was in an earlier
+  step).
+  Verified: the ci-local mirror checks pass (7); the web job's result is on this change's pull request.
 - The web workflow installs ffmpeg through `scripts/ci/install-ffmpeg.sh`, which bounds each apt call (60 s for the
   index, 120 s for the install, with apt's own retries) and tries twice, and the step has a 7-minute limit. A stalled
   apt mirror once held the old one-line install until the job's 15-minute limit, so the run ended cancelled instead
