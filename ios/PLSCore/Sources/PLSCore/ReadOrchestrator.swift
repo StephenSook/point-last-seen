@@ -190,6 +190,7 @@ public enum ReadOrchestrator {
                     if guidedPath == .onDevice {
                         r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
                         r = Self.zerosNotStated(r)
+                        r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)
                     }
                     let v = validate(r, context, text)
                     if v.isOK { return finish(r, path: path, stage: .guided) }
@@ -260,6 +261,15 @@ public enum ReadOrchestrator {
         if r.searchers == 0 { r.searchers = nil }
         if r.detectionRangeM == 0 { r.detectionRangeM = nil }
         return r
+    }
+
+    /// Apple's model can add a mark to the end of its quote ("...segment BP." for a report with no period).
+    /// At most one trailing . , ! or ? is dropped, and only when the quote is not in the report as it is
+    /// and what is left is, exactly. The quote stays the report's own words; code never writes one.
+    static func withoutAddedMark(_ quote: String, _ text: String) -> String {
+        guard let last = quote.last, ".,!?".contains(last), !text.contains(quote) else { return quote }
+        let left = String(quote.dropLast())
+        return !left.isEmpty && text.contains(left) ? left : quote
     }
 
     /// What a rejected quote was, for a stage note: "(quote empty)" or the quote cut to 60 characters. Kept

@@ -265,6 +265,49 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") } && !o.stageNotes.isEmpty)
     }
 
+    /// Apple's model can add a period to its quote. At most one trailing . , ! or ? is dropped, and only when
+    /// what is left is the report's own words; the validator is unchanged.
+    @Test func aQuoteWithAnAddedPeriodIsAccepted() async {
+        let r = FakeRunner()
+        let text = "Found a shoe on the path in segment AC"
+        r.guidedResults[.onDevice] = [.success(reading(kind: .clue, evidenceQuote: "Found a shoe on the path in segment AC."))]
+        let o = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)] && o.route.path == .onDevice && o.stageNotes.isEmpty)
+        #expect(o.reading.evidenceQuote == "Found a shoe on the path in segment AC")
+    }
+
+    @Test(arguments: [",", "!", "?"]) func eachTrailingMarkCanBeDropped(_ mark: String) async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(evidenceQuote: "Team two cleared segment AC" + mark))]
+        let o = await ReadOrchestrator.read(text: "Team two cleared segment AC nothing found", context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.evidenceQuote == "Team two cleared segment AC")
+    }
+
+    @Test func aQuoteNotInTheReportAfterDroppingTheMarkStaysRejected() async {
+        let r = FakeRunner()
+        let wrong = reading(kind: .clue, evidenceQuote: "Found a boot on the path.")
+        r.guidedResults[.onDevice] = [.success(wrong), .success(wrong)]
+        let o = await ReadOrchestrator.read(text: "Found a shoe on the path in segment AC", context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules && !o.stageNotes.isEmpty)
+        #expect(o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") })
+    }
+
+    @Test func onlyOneTrailingMarkIsDropped() async {
+        let r = FakeRunner()
+        let two = reading(kind: .clue, evidenceQuote: "Found a shoe on the path in segment AC..")
+        r.guidedResults[.onDevice] = [.success(two), .success(two)]
+        let o = await ReadOrchestrator.read(text: "Found a shoe on the path in segment AC", context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules)
+    }
+
+    @Test func aReportWithThePeriodKeepsItInTheQuote() async {
+        let r = FakeRunner()
+        let text = "Found a shoe on the path in segment AC."
+        r.guidedResults[.onDevice] = [.success(reading(kind: .clue, evidenceQuote: text))]
+        let o = await ReadOrchestrator.read(text: text, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.evidenceQuote == text)
+    }
+
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
     /// more; the validator is unchanged, so two rejections still fall to rules.
     @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {

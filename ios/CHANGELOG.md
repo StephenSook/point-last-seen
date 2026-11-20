@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): a mark Apple's model adds to the end of its quote is dropped
+- What: Apple's model quoted "Found a shoe on the path in segment BP." for a report with no period, and
+  its reading was rejected. For Apple's model, at most one trailing . , ! or ? is now dropped from the
+  quote, and only when the quote is not in the report as it is and what is left is, exactly. A report
+  that has the mark keeps it in the quote. The validator is unchanged; code never writes a quote.
+- Source: review (simulator eval).
+- Verified: tests that a quote with an added period, comma, exclamation or question mark is accepted
+  failed before the change and pass after; tests pin that a quote still not in the report stays rejected,
+  that only one mark is dropped, and that a report with the period keeps it; all core tests pass.
+
 ### fix(ios): with no GPS fix, Apple's model gets no segmentHere tool
 - What: with no GPS fix the segmentHere tool's only answer was "No GPS fix. Do not guess a segment.", and
   Apple's model quoted that sentence as the report, so its reading was rejected. With no fix, Apple's
