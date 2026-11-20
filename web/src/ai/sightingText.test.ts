@@ -98,6 +98,13 @@ describe("readSightingTextInCloud", () => {
     expect(calls).toHaveLength(1);
     expect(out).toMatchObject({ reading: { topColor: "blue" } });
   });
+
+  it("reports the UTF-8 size of the note it sent, after phone numbers were removed", async () => {
+    let sent = "";
+    const out = await readSightingTextInCloud(`${text} call 404-555-0100`, consent, { generateCloud: async (t) => { sent = t; return { text: goodReply, inferenceSource: "in_cloud" }; }, killCloud: false });
+    expect(sent).not.toContain("555");
+    expect(out).toMatchObject({ sentBytes: new TextEncoder().encode(sent).length });
+  });
 });
 
 describe("sightingTextParams", () => {

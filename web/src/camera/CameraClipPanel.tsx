@@ -83,6 +83,8 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         cached={read.o.cached}
         clip={clip}
         durationS={read.input.durationS}
+        route={read.o.route}
+        sentBytes={read.o.sentBytes}
       />
       {sent === null ? (
         <div className="row">

@@ -88,7 +88,7 @@ test("the print view is usable by keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
   await expect(dialog).toBeVisible();
-  for (const label of ["Date From", "Date To", "Time From", "Time To", "Branch", "Division", "Group", "Staging Area", "Include the approach notes"]) {
+  for (const label of ["Date From", "Date To", "Time From", "Time To", "Branch", "Division", "Group", "Staging Area", "Print the person's names and approach notes (teams need them in the field; paper leaves this app)"]) {
     await page.keyboard.press("Tab");
     await expect(dialog.getByLabel(label, { exact: true })).toBeFocused();
   }
@@ -133,3 +133,39 @@ test("two cards fit one letter page in print media", async ({ page }) => {
   }
   expect((await sheet.boundingBox())?.height).toBeLessThanOrEqual(10 * 96);
 });
+
+const personBox = "Print the person's names and approach notes (teams need them in the field; paper leaves this app)";
+const namesLine = "Answers to Roberta (also Bea, Mom, Miss Bea)";
+const stopLine = "If they may not come when called, stop calling their name.";
+
+test("the sheet prints the person's names above the stop-calling note only when the plain-worded box is ticked", async ({ page }) => {
+  await page.goto(`${harness}?profile=1`);
+  await openExtra(page, "Print assignment sheet");
+  const box = page.getByRole("checkbox", { name: personBox });
+  await expect(box).not.toBeChecked();
+  const block7 = page.locator('[data-block="7"]').first();
+  await expect(block7).not.toContainText("Answers to");
+  await box.check();
+  const text = (await block7.textContent()) ?? "";
+  expect(text).toContain(namesLine);
+  expect(text.indexOf(namesLine)).toBeLessThan(text.indexOf(stopLine));
+  expect(text).not.toMatch(/seizure/i);
+  await expect(block7).toContainText("Training drill. Nobody is missing.");
+});
+
+test("each radio card prints the person's names only when the same box is ticked, and keeps its training line", async ({ page }) => {
+  await page.goto(`${harness}?profile=1`);
+  await openExtra(page, "Print radio cards");
+  const box = page.getByRole("checkbox", { name: personBox });
+  await expect(box).not.toBeChecked();
+  const cards = page.locator(".extras-radio-card");
+  await expect(cards.first()).toBeVisible();
+  await expect(page.locator(".extras-radio-sheet")).not.toContainText("Answers to");
+  await box.check();
+  for (const card of await cards.all()) {
+    await expect(card).toContainText(namesLine);
+    await expect(card).toContainText(stopLine);
+    await expect(card).toContainText("Training drill. Nobody is missing.");
+  }
+});
+

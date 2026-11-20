@@ -22,6 +22,15 @@ data class Vehicle(val involved: Boolean, val description: String) {
 }
 
 /**
+ * What can help find them: Project Lifesaver, a MedicAlert ID, a GPS tracker, shared phone location
+ * ([Profiles.TRACKING_AIDS]), and a short note with no digits. Null means the family has not answered;
+ * an empty answer means none.
+ */
+data class TrackingAids(val aids: List<String>, val note: String) {
+    fun toMap(): Map<String, Any> = mapOf("aids" to aids, "note" to note)
+}
+
+/**
  * The full profile, kept on the family phone (spec section 13.2). After "She's gone"
  * the shared fields go to profile/shared and the history fields to profile/command.
  * Medication details, the birthdate and the special concern never leave the phone.
@@ -61,6 +70,7 @@ data class SubjectProfile(
     val pastWandering: List<WanderingEntry> = emptyList(),
     val nearbyWater: String = "",
     val vehicle: Vehicle? = null,
+    val trackingAids: TrackingAids? = null,
 )
 
 /** profile/shared: readable by every member and carried in the pack. */
@@ -87,6 +97,8 @@ data class SharedProfile(
     val uniqueDescription: String,
     val photoTakenOn: String?,
     val approachNoteIds: List<String>,
+    /** Null until the family answers; the rules take the key as optional, so older builds never send it. */
+    val trackingAids: TrackingAids? = null,
 ) {
     fun toMap(): Map<String, Any?> = linkedMapOf(
         "answersTo" to answersTo, "nickname" to nickname, "ageYears" to ageYears, "gender" to gender,
@@ -98,6 +110,7 @@ data class SharedProfile(
     ).apply {
         // The rules take otherNames only as a list, so a document without one leaves the key out.
         if (otherNames != null) put("otherNames", otherNames)
+        if (trackingAids != null) put("trackingAids", trackingAids.toMap())
     }
 }
 
@@ -130,6 +143,8 @@ object Profiles {
     const val PHOTO_WARN_DAYS = 60L
     const val UPDATE_PROMPT_DAYS = 183L
     const val MAX_OTHER_NAMES = 5
+    val TRACKING_AIDS = listOf("project_lifesaver", "medicalert_id", "gps_tracker", "phone_location")
+    const val MAX_TRACKING_NOTE = 80
 
     private fun cap(s: String, n: Int) = s.trim().take(n)
 
@@ -139,6 +154,17 @@ object Profiles {
         return names.map { cap(it, 60) }.filter { it.isNotEmpty() && seen.add(it.lowercase()) }.take(MAX_OTHER_NAMES)
     }
     private fun inRange(v: Int?, r: IntRange) = v?.takeIf { it in r }
+
+    /**
+     * The tracking answer as shared: known aids only, each once, in [TRACKING_AIDS] order; the note trimmed and
+     * capped. A note with any digit after NFKC (fullwidth too) is dropped, so no phone or device number is sent.
+     */
+    fun trackingAids(t: TrackingAids?): TrackingAids? = t?.let { TrackingAids(TRACKING_AIDS.filter { a -> a in it.aids }, trackingNote(it.note)) }
+
+    fun trackingNote(note: String): String {
+        val n = java.text.Normalizer.normalize(note, java.text.Normalizer.Form.NFKC).trim()
+        return if (n.any { it.isDigit() }) "" else n.take(MAX_TRACKING_NOTE).trim()
+    }
 
     private fun sharedDementiaType(p: SubjectProfile) =
         p.dementiaType.takeIf { p.shareDementiaType && it in DEMENTIA_TYPES }
@@ -166,6 +192,7 @@ object Profiles {
         uniqueDescription = cap(p.uniqueDescription, 200),
         photoTakenOn = p.photoTakenOn?.toString(),
         approachNoteIds = approachNoteIds(p),
+        trackingAids = trackingAids(p.trackingAids),
     )
 
     fun forCommand(p: SubjectProfile): CommandProfile = CommandProfile(

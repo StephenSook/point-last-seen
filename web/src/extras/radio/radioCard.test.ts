@@ -70,3 +70,9 @@ it("every card carries the incident's training line, in a practice search too", 
   for (const card of cards) expect(card.drillLine).toBe(practice);
 });
 
+it("each card carries the person lines it is given, in order, and none by default", () => {
+  const lines = ["Answers to Roberta (also Bea, Mom, Miss Bea)", "If they may not come when called, stop calling their name."];
+  for (const card of radioCards(model, { sayLines: false, personLines: lines })) expect(card.personLines).toEqual(lines);
+  for (const card of radioCards(model, { sayLines: false })) expect(card.personLines).toEqual([]);
+});
+
