@@ -286,6 +286,34 @@
         "ios",
         "android"
       ]
+    },
+    {
+      "name": "time_joined_before_its_hour",
+      "input": "Call 1 404 555 01:42",
+      "number": "1 404 555 01:42",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "time_after_zip_not_date",
+      "input": "Call GA 40455-5014 2:30",
+      "number": "GA 40455-5014 2:30",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
     }
   ],
   "mustKeep": [

@@ -105,6 +105,8 @@ each line says what the limit is and why.
   ("Call +44.2071, -23.4567") stays. The shared rule removes a pair that starts with "+", so once each platform
   follows it, a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too; without the "+" it
   stays.
+- A phone number written like a street address, a house number and a numbered street ("Call 5550 142nd St"), is
+  kept on the iPhone and Android, since a house number on a numbered street is real search information.
 
 ## On-device safety (Android)
 

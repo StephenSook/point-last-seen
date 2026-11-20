@@ -159,7 +159,10 @@ count of a million or more is removed too. A decimal pair that starts with `+` i
 (`+44.2071, -23.4567`), since a `+` marks an international number; without the `+` a pair joined by a comma or a
 space stays, while a bare minus with no space or comma (`44.2071-23.4567`) makes it a number. A date beside a phone
 number stays and only the number goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search
-information, and keeping the date leaks nothing once the number is removed.
+information, and keeping the date leaks nothing once the number is removed. A time keeps its place only after a
+date (`Seen 11/19/2026 14:03`) or on its own beside a number (`Seen at 14:03, [number removed]`); joined to other
+digits before its hour, or after a ZIP+4 code, it goes with the run (`Call 1 404 555 01:42`,
+`Call GA 40455-5014 2:30`).
 
 ## language.json (hand-written)
 

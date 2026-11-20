@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: a time keeps its place only after a date or on its own beside a number; joined to other digits before
+  its hour, or after a ZIP+4 code, it goes with the run (mustRemove "Call 1 404 555 01:42" and "Call GA 40455-5014
+  2:30", pending on web, ios and android). LIMITS: a phone number written like a street address ("Call 5550 142nd St")
+  is kept on the iPhone and Android. Source: review. Verified: scripts/test_phone_vectors.py 5 passed; local gates
+  pass.
 - Phone vectors, two more shared rulings: a bare minus between decimals with no space or comma is a number (mustRemove
   "Call 44.2071-23.4567"; the comma and space GPS keeps stay), and an ordinal stays apart only when a street word
   follows it (mustRemove "Call 4550 142nd"; keeps "12345 67th Ave" and "near 4550 142nd St"). Both removes are pending
