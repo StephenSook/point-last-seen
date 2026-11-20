@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY row 14 and the production checklist: App Check is now ENFORCED on Firestore (since 2026-11-20 21:29:29 UTC)
+  as well as Storage (since 01:47:55 UTC), with the verdict read that preceded each and the post-enforcement checks
+  (64 of 64 live web specs, the daily probe run 44824078797, an iPhone read, Firestore VALID-only verdicts, and a REST
+  read with no App Check token refused with 403). Source: the enforcement step. Verified: the enforcement mode read
+  back ENFORCED; Cloud Monitoring verification_count 21:29 to 21:50 UTC showed Firestore iOS VALID 60 and web VALID
+  711 and no denial.
 - README: one line on what a person sees when no model reads (nothing is sent; the web receipt's fixed wording, the
   iPhone's rules mark, and the web and Android forms asking for the fields by hand), and the judge-page line now says
   the page replays the development drill's published run instead of "No published run yet". Source: review. Verified:
