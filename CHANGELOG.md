@@ -5,6 +5,43 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the pending marks for the web now match what the web does. Measured against
+  web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
+  spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
+  were still marked and are now unmarked. LIMITS states each platform's pass count (Android 52, the iPhone 47, the web
+  29), and scripts/test_phone_vectors.py checks those counts against the file. Source: review. Verified: a probe of
+  the web function over every case (29 pass, the 23 failures all now pending on web); Android PhoneVectorsTest and the
+  iPhone's PhoneNumberVectorTests pass locally on this file; the count test failed on a planted 51 and passes on 52.
+- README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
+  its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
+  names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the
+  Kennesaw-only terrain display layer; and a LIMITS section with their seven limits. Source: the extras hand-over at
+  main 7afaee2. Verified: each feature is on main (Ics204View.tsx with v3.1, ExportButton.tsx RFC 7946,
+  LazyRadioCodeCheck, printablePersonLines, ReplayPanel's "Earlier prior" line, and only
+  kennesaw-mountain-drill.elevation.json under web/public/extras/terrain); no camera-read or space-time claim is made.
+- Public run export: a report's route is its read's provenance (path, stage, model, reason, latencyMs and the rest of
+  the route record), and the export's check now refuses a route whose values a route record cannot hold (enums from
+  shared/schemas/route-record.schema.json, a model id of at most 80 characters, numbers for the times, a boolean
+  sdkReported), so no note text can ride in one. The reading's content still never leaves on a report. Source: review
+  (the replay's per-report provenance). Verified: tools/export-run tests 24 passed (the new route-values test failed
+  first; a full reading with evidenceQuote exports only its route; a planted evidenceQuote is refused); typecheck
+  passes.
+- Grounding vectors README: where the rule applies. The web and the iPhone read notes into these fields; the Android
+  family app has none to ground (its note read fills kind, label, summary and evidenceQuote; a family sighting's
+  direction and colours are picked by hand; a camera clip's colours come from the frames, with no note or profile in
+  the request). Source: the Android team's check at 720038b4. Verified: no shared/templates/*.json names the profile.
+- Engine: groundReading(reading, note) returns a copy of a reading with each colour, direction, footwear or carried
+  value the note does not support blanked (shared/engine-ts/src/ground.ts, rule and words from
+  shared/constants/grounding-words.json). Each platform calls it after every read; the web wiring follows in its own
+  change. Source: review (a read took blue from the subject's profile). Verified: test/grounding.test.ts runs every
+  grounding.json case per field (32 tests, red before the function existed); engine typecheck, lint and all 312 tests
+  pass.
+- Grounding vectors: shared/constants/grounding-words.json holds the word lists and the rule for grounding a reading
+  in its note (a colour or a direction stays only when its word is in the note, footwear or carried only when it
+  shares a word with it; otherwise the field is blanked), and shared/test-vectors/grounding.json pins 26 cases, a kept
+  and a blanked case for each of topColor, bottomColor, direction, footwear and carried, including the profile leak
+  (blue from the profile). scripts/test_grounding_vectors.py checks both files and runs in CI. Source: review.
+  Verified: pytest 4 passed; local gates pass.
 - SECURITY row 14 and the production checklist: App Check is now ENFORCED on Firestore (since 2026-11-20 21:29:29 UTC)
   as well as Storage (since 01:47:55 UTC), with the verdict read that preceded each and the post-enforcement checks
   (64 of 64 live web specs, the daily probe run 44824078797, an iPhone read, Firestore VALID-only verdicts, and a REST

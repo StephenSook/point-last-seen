@@ -1,0 +1,134 @@
+{
+ "schemaVersion": 1,
+ "matching": "A model can fill a reading field from the subject's profile instead of the note. After every read, keep a colour or a direction other than unknown only when one of its words below is a whole word of the note, case-insensitive; the single letters N, E, S and W count only when written in capitals. Keep footwear or carried only when it shares a word with the note: words are runs of letters, lowercased, at least minSharedWordLength letters long and not in stopWords. Otherwise blank the field: unknown for a colour or a direction, empty text for footwear or carried. A note is split into words on anything that is not a letter, and a hyphenated or spaced pair (north-east, north east) also counts as the joined word.",
+ "colorWords": {
+  "black": [
+   "black"
+  ],
+  "white": [
+   "white"
+  ],
+  "gray": [
+   "gray",
+   "grey"
+  ],
+  "brown": [
+   "brown"
+  ],
+  "tan": [
+   "tan"
+  ],
+  "red": [
+   "red"
+  ],
+  "orange": [
+   "orange"
+  ],
+  "yellow": [
+   "yellow"
+  ],
+  "green": [
+   "green"
+  ],
+  "blue": [
+   "blue"
+  ],
+  "purple": [
+   "purple"
+  ],
+  "pink": [
+   "pink"
+  ]
+ },
+ "directionWords": {
+  "n": [
+   "north",
+   "northbound",
+   "northward",
+   "northwards"
+  ],
+  "e": [
+   "east",
+   "eastbound",
+   "eastward",
+   "eastwards"
+  ],
+  "s": [
+   "south",
+   "southbound",
+   "southward",
+   "southwards"
+  ],
+  "w": [
+   "west",
+   "westbound",
+   "westward",
+   "westwards"
+  ],
+  "ne": [
+   "northeast",
+   "ne"
+  ],
+  "se": [
+   "southeast",
+   "se"
+  ],
+  "sw": [
+   "southwest",
+   "sw"
+  ],
+  "nw": [
+   "northwest",
+   "nw"
+  ],
+  "upstream": [
+   "upstream"
+  ],
+  "downstream": [
+   "downstream"
+  ]
+ },
+ "capitalLetters": {
+  "n": "N",
+  "e": "E",
+  "s": "S",
+  "w": "W"
+ },
+ "minSharedWordLength": 3,
+ "stopWords": [
+  "the",
+  "and",
+  "with",
+  "her",
+  "his",
+  "him",
+  "she",
+  "they",
+  "was",
+  "were",
+  "has",
+  "had",
+  "have",
+  "for",
+  "from",
+  "that",
+  "this",
+  "pair",
+  "some",
+  "one",
+  "two",
+  "wearing",
+  "wore",
+  "carrying",
+  "carried",
+  "holding",
+  "looked",
+  "like",
+  "possibly",
+  "maybe",
+  "not",
+  "any",
+  "who",
+  "near"
+ ]
+}
