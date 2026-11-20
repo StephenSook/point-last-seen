@@ -124,4 +124,24 @@ class SearchLifecycleTest {
         assertEquals(listOf("forget", "finish"), log)
         assertEquals(5_000L, testScheduler.currentTime)
     }
+
+    /** Only the newest photo operation may release the busy screen: an older one finishing late leaves it busy. */
+    @Test fun onlyTheNewestOperationOwnsTheBusyState() {
+        val owner = BusyOwner()
+        val upload = owner.take()
+        val withdrawal = owner.take()
+        assertFalse(owner.owns(upload))
+        assertTrue(owner.owns(withdrawal))
+    }
+
+    /** Leaving ends every operation taken before it: a withdrawal for the search left cannot unlock the next one's upload. */
+    @Test fun aResetEndsEveryEarlierOperation() {
+        val owner = BusyOwner()
+        val oldWithdrawal = owner.take()
+        owner.reset()
+        assertFalse(owner.owns(oldWithdrawal))
+        val newUpload = owner.take()
+        assertFalse(owner.owns(oldWithdrawal))
+        assertTrue(owner.owns(newUpload))
+    }
 }
