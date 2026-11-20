@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY, Data and media: one paragraph on what Performance Monitoring records: one trace per model read with the
+  route only and its latency, never text (the attributes each platform sends, Android's matching Analytics event, the
+  iPhone's spoken-assignment trace), plus the SDKs' automatic page-load, app-start, screen and network samples.
+  Source: review. Verified against web/src/telemetry/trace.ts, ios/PLS/AI/PerformanceTelemetry.swift,
+  ios/PLS/AI/AssignmentSpeaker.swift and the Android Telemetry.kt.
 - SECURITY: the plan-wording row's mode now matches the code, on-device first with a cloud fallback (PREFER_ON_DEVICE
   in web/src/ai/replanWording.ts); it said prefer cloud. Source: review. Verified: grep shows replanWording.ts sets
   InferenceMode.PREFER_ON_DEVICE and no other doc says prefer cloud.

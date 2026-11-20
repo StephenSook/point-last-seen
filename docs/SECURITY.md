@@ -93,6 +93,14 @@ except the iOS report read, which streams.
 The security rules, media retention and other limits are in `docs/LIMITS.md`. The daily probe also reads the
 public `ops/storage` record (`scripts/media_probe.py`) to check that drill media still expires.
 
+Performance Monitoring records one trace per model read: the route only and its latency, never any report, note,
+photo or answer text. The web and Android send path, reason, platform and stage (`web/src/telemetry/trace.ts`,
+`android/app/src/main/java/app/pointlastseen/family/Telemetry.kt`, which also logs the same four as the Analytics
+event `inference_complete`); the iPhone sends path, stage, reason, model name and any block
+(`ios/PLS/AI/PerformanceTelemetry.swift`), and also times each spoken assignment (`assignment_speech`: voice path,
+outcome, time to first sound). The SDKs add their own automatic samples: page loads and network requests on the web,
+app start, screens and network requests on the phones.
+
 ## Dependencies
 
 `npm audit` reports no high or critical findings. The Firebase web SDK's Firestore is held to `@grpc/grpc-js` 1.14.7
