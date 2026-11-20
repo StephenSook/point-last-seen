@@ -28,6 +28,18 @@ each line says what the limit is and why.
   command still lists that member until command removes them. It waits until every report from the phone is
   settled with the server, since a report still in that user's write queue would otherwise be stranded.
 
+- The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
+  plus a count of account changes, where every change of user starts a new session. Two narrow windows
+  remain. A first join that signs in a new anonymous user can only bind its session after the join returns,
+  so an account change in that last instant could pair the join's team with the new user; the security
+  rules still decide what that user may read, and a refused read drops the mission. And a push tap that
+  passed every check can still land on the task screen just after an account change; the old mission is
+  gone by then, so the screen says "No mission loaded" and nothing of it is shown or spoken.
+- Plans carry no setup id. A practice incident rebuilt under the same id could publish the same plan
+  version again; while the old copy is on an iPhone, a reload of the same version keeps the plan on screen
+  (only a strictly newer version replaces it), so that phone keeps the old task until a newer plan arrives
+  or it joins again.
+
 ## Search model
 
 - The linear-feature layer (ISRID: 75% of found subjects within 71 m of a road, trail, stream or water edge)

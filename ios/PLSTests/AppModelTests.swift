@@ -38,11 +38,12 @@ import Testing
     @Test func loadingAPackSpeaksTheApprovedAssignmentOnce() async throws {
         let voice = FakeVoice()
         let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }),
-                             speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { nil })
-        let mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
+                             speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { "uid-1" })
+        var mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
                               assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
                               profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
                               assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
+        mission.owner = model.currentSession             // a mission is spoken only in the session it was read in
         await model.load(mission)
         await model.speech?.value
         await model.load(mission)
@@ -79,13 +80,13 @@ import Testing
     @Test func theCloudVoiceWaitsForSignIn() async throws {
         for signedIn in [false, true] {
             let onDevice = FakeVoice(), cloud = FakeVoice()
-            let user: String? = signedIn ? "uid-1" : nil
+            // A user is on the phone either way (cached for offline use); only the sign-in check differs.
             let model = AppModel(signIn: SignIn(isSignedIn: { signedIn }, attempt: { false }),
-                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }), uid: { user })
+                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }), uid: { "uid-1" })
             model.config.voiceTemplateId = "voice-template"
             model.connectivity.pathChanged(satisfied: true)
             var mission = try spokenMission()
-            mission.ownerUid = user                      // a mission is spoken only for the user it was read for
+            mission.owner = model.currentSession         // a mission is spoken only in the session it was read in
             await model.load(mission)
             await model.speech?.value
             // Signed in is the control: it proves this setup does reach the cloud voice.
