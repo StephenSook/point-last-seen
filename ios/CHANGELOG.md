@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): the search map's style, in the web map's order
+- What: PLSCore builds the MapLibre style for the phone's search map, matching the web map: grey
+  ground, the grid basemap's parks, water and buildings under the probability fills (0.9 opacity,
+  the eight-step ramp by class), its streets, paths and streams over them as thin grey lines, then
+  segment edges (a dark casing under a grey line) and the team's own segments outlined. The
+  basemap comes from the grid's PMTiles file on the phone (`pmtiles://file://...`) and is left out
+  when there is none, so the fills sit on plain ground. No labels: they would need glyphs from a
+  host. Each segment is a GeoJSON feature with its id, class, printed number and team flag.
+- Source: map screen, step 1 (polygons shaded by the posterior, offline base).
+- Verified: tests for the layer order with and without tiles, the basemap source URL, the ramp
+  expression and opacity, the features (Polygon and MultiPolygon, lon then lat), the team outline
+  filter and valid JSON. 289 PLSCore tests pass.
+
 ### feat(ios): the mission keeps the incident's grid id and its map credit
 - What: the phone's mission now keeps the incident's `gridId` and `gridAttribution`, so the search
   map can pick the grid's offline tiles and show the grid's OpenStreetMap line. Both are nil when
