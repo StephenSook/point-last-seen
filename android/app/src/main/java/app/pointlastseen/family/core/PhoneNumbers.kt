@@ -205,7 +205,10 @@ object PhoneNumbers {
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
                 times += i..(i + 1)
             }
-            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true))) {
+            // A "+" right before the first number makes the pair a phone number (+44.2071, -23.4567), not coordinates.
+            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true)) &&
+                !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
+            ) {
                 kept += i..(i + 3)
             }
             if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&

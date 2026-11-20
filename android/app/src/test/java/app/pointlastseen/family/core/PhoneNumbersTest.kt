@@ -334,4 +334,10 @@ class PhoneNumbersTest {
         assertEquals(out, false, Regex("""\d{3}""").containsMatchIn(out))
         assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
     }
+
+    /** A "+" right before the first number makes a pair of decimals a phone number, not coordinates. */
+    @Test fun aPlusBeforeThePairMakesItANumber() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call +44.2071, -23.4567"))
+        assertEquals("GPS 33.7490, -84.3880", PhoneNumbers.remove("GPS 33.7490, -84.3880"))
+    }
 }
