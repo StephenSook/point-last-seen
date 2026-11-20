@@ -59,9 +59,14 @@ test("the site serves its published drill run, and the judge page replays it", {
   await expect(section.getByTestId("replay-code")).toHaveText("T43J");
   await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("replay-refused")).toHaveCount(0);
-  // The Numbers section says what is there and promises nothing that is not built.
+  // The Numbers section shows counts read from the served file, each with its unit, and promises nothing not built.
   const numbers = page.getByRole("region", { name: "Numbers" });
-  await expect(numbers).toContainText(`Published run ${file.runId}.`);
+  const counted = file as unknown as { events: unknown[]; plans: { version: number }[]; segments: { segmentId: string }[] };
+  const events = counted.events.length;
+  const versions = new Set(counted.plans.map((p) => p.version)).size;
+  const searchSegments = counted.segments.filter((s) => s.segmentId !== "ROW").length;
+  await expect(numbers).toContainText(`${events} events, ${versions} plan versions and ${searchSegments} search segments in this run.`);
+  await expect(numbers).not.toContainText(file.runId);
   await expect(numbers).not.toContainText("recompute");
 });
 
