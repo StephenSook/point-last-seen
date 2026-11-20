@@ -309,4 +309,13 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
         assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
     }
+
+    /** An ordinal stays apart only as a street name (67th Ave, 125th St); without a street word it joins the number. */
+    @Test fun anOrdinalStaysApartOnlyAsAStreetName() {
+        for (text in listOf("Call 4550 142nd", "Call 455 0142th please")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, Regex("""\d{4}""").containsMatchIn(out))
+        }
+        assertEquals("12345 67th Ave. and 12345 125th Street", PhoneNumbers.remove("12345 67th Ave. and 12345 125th Street"))
+    }
 }

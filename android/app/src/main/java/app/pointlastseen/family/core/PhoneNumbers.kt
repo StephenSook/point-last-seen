@@ -13,8 +13,9 @@ import java.text.Normalizer
  * Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a
  * ZIP+4 code after a state, a month-name date. It stays only when the rest of
  * the run is nothing or whole numbers of seven or more digits (which are removed); when any other piece of 1 to 6
- * digits is left beside it, the whole run is removed, since that piece could be part of a number. A number with an
- * ordinal ending (67th) never joins others. A removed run keeps its line breaks.
+ * digits is left beside it, the whole run is removed, since that piece could be part of a number. A street name
+ * (67th Ave: one to three digits, an ordinal ending, a street word) never joins others. A removed run keeps its line
+ * breaks.
  * Code cannot detect a name inside a note, so the form tells people not to type one.
  */
 object PhoneNumbers {
@@ -43,8 +44,12 @@ object PhoneNumbers {
         "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december",
     )
 
-    // A number with one of these endings is an ordinal (67th Ave) and never joins other digits.
+    // A number with one of these endings, before a street word, is a street name (67th Ave) and never joins other digits.
     private val ORDINALS = setOf("st", "nd", "rd", "th")
+    private val STREETS = setOf(
+        "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "pl", "place", "way",
+        "ct", "court", "pkwy", "parkway", "hwy", "highway", "ter", "terrace", "cir", "circle", "sq", "square", "trl", "trail",
+    )
 
     // US state and territory codes, written in capitals (GA 30301-1234); lower case would match common words.
     private val STATES = setOf(
@@ -76,9 +81,11 @@ object PhoneNumbers {
             if (!parts[i].written && parts[i + 1].digits > 0 && onlySeparators(folded.substring(parts[i].end, parts[i + 1].start))) parts[i].digits = repeat
         }
         for (i in parts.indices) {
-            // An ordinal is a number of one to three digits (67th, 125th); a longer group ending in "th" is still part of a number.
-            if (parts[i].written && parts[i].digits <= 3 && i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end &&
-                word(folded, parts[i + 1]) in ORDINALS
+            // An ordinal stays apart only as a street name: one to three digits, its ending, then a street word (67th Ave,
+            // 125th St). A longer group, or one with no street word after it, is still part of a number.
+            if (parts[i].written && parts[i].digits <= 3 && i + 2 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end &&
+                word(folded, parts[i + 1]) in ORDINALS && !parts[i + 2].written && word(folded, parts[i + 2]) in STREETS &&
+                folded.substring(parts[i + 1].end, parts[i + 2].start).isNotEmpty() && folded.substring(parts[i + 1].end, parts[i + 2].start).isBlank()
             ) {
                 parts[i].alone = true
             }
