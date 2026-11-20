@@ -1888,3 +1888,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `NOTE_READ_TIMEOUT_MS` moves below `sightingTextParams` in `src/ai/sightingText.ts`, so `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites for the web's on-device sighting-note read.
 - Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
 - Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
+
+### fix(map): the report pin is a labelled image, so it passes the accessibility check
+- What: the pin the beat drops at a new report's position (`MapView`, `.report-pin`) gets `role="img"` beside its `aria-label="Report position"`. A name on an element with no role is not allowed (axe `aria-prohibited-attr`) and is not read out; the pin stays on screen after the beat, so the defect showed whenever a report had arrived.
+- Source: the live accessibility check at 390 px failed with `aria-prohibited-attr: [".report-pin"]` once live checks wrote reports during it.
+- Verified: a new harness check in `e2e/harness/change.spec.ts` (after a report, the pin is an image named "Report position", and axe with the live check's WCAG tags finds no violation on it) failed first (no such image), then passed with the other change and map harness checks (18/18); typecheck clean.
