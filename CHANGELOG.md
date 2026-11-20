@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vector: dates are kept on every platform. Four mustKeep cases added ("11/19/2026", "2026-11-19",
+  "11/19", "Nov 19"), pinned in `scripts/test_phone_vectors.py`; "404/555/0142" (3-3-4 grouping) stays mustRemove. A
+  date in a note is search information, not a phone number. Source: review (a slash fix on one platform began removing
+  dates). Verified: the vector test passes, and a scrubber that removes any 7-digit run joined by / or - fails the
+  contract on 11/19/2026 and 2026-11-19.
 - LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
   iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
   words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,

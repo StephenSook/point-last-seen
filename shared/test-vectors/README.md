@@ -131,5 +131,5 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   not contain `number`, must contain no digit 0-9 (the number is the only digit run in `input`), must contain none of
   `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
   the number).
-- `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts and percents
-  are not phone numbers.
+- `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
+  and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
