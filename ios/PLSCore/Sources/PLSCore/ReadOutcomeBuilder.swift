@@ -164,16 +164,24 @@ public enum ReadOutcomeBuilder {
 }
 
 /// A caller's or searcher's phone number never reaches a model and is never stored (spec section
-/// 12.2). Seven or more digits in a row are a number: written digits (any script, full-width
-/// folded) and spoken digit words count alike, joined only by short separators (at most three
-/// spaces or - . , ( ) / or dashes) and with an optional leading + or (. Report numbers (times,
-/// minutes, segments, searchers, percents) are far shorter, so they stay, and so does search
-/// information made of digits: a written date (when someone was last seen), a time, a coordinate
-/// pair, a grouped count and a ZIP+4 code. A number glued to a unit or an ordinal ending (67th,
-/// 5km) counts alone. The same rule as the Android app, checked by the shared vectors.
+/// 12.2). The same rule as the Android app, checked by the shared vectors. Seven or more digits in a
+/// row are a number: written digits (any script, full-width folded, Chinese numerals) and spoken digit
+/// words count alike ("double" and "triple" count their repeats), joined only by short separators (at
+/// most three spaces or - . , ( ) / or a dash; a line break with any indentation counts as one) and
+/// with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are
+/// far shorter, so they stay.
+///
+/// Search information made of digits can sit inside such a run: a written date, a time, a coordinate
+/// pair in range, a grouped count, a ZIP+4 code after a state, a month-name date, a number with a
+/// unit. It stays only when the rest of the run is nothing or whole numbers of seven or more digits
+/// (which are removed); when any other piece of 1 to 6 digits is left beside it, the whole run is
+/// removed, since that piece could be part of a number. A number with an ordinal ending (67th) never
+/// joins others. A removed run keeps its line breaks.
 public enum PhoneNumbers {
     public static let replacement = "[number removed]"
     static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+    /// A spoken repeat before a digit counts the extra digits it stands for: "triple five" is three digits.
+    static let repeats: [String: Int] = ["double": 1, "triple": 2]
     /// Dashes besides the plain hyphen, as NFKC leaves them: hyphen, non-breaking hyphen, figure, en and
     /// em dash, minus.
     static let dashes: Set<Character> = ["\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2212}"]
@@ -181,11 +189,17 @@ public enum PhoneNumbers {
         "jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july",
         "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december",
     ]
-    /// Endings glued to a number that make it a quantity or an ordinal (67th, 5km, 3pm), never part of a
-    /// phone number.
+    /// A number with one of these endings is an ordinal (67th Ave) and never joins other digits.
+    static let ordinals: Set<String> = ["st", "nd", "rd", "th"]
+    /// Endings glued to a number that make it a quantity (5km, 3pm).
     static let units: Set<String> = [
-        "st", "nd", "rd", "th", "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph",
-        "kg", "lb", "lbs", "cm", "mm",
+        "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph", "kg", "lb", "lbs", "cm", "mm",
+    ]
+    /// US state and territory codes, in capitals (GA 30301-1234); lower case would match common words.
+    static let states: Set<String> = [
+        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
+        "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR",
+        "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR", "GU", "VI",
     ]
 
     /// A run of digits (counting its digits) or a word (one if it is a spoken digit, else none). A part
@@ -200,40 +214,137 @@ public enum PhoneNumbers {
     public static func scrub(_ text: String) -> String {
         let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
         var parts = parts(s)
-        protect(s, &parts)
-        // A date's three groups count no digits, so they neither make a number nor join one. A date carved
-        // out of a longer run is not one: the digits joined to it on each side must be none, or a number of
-        // their own.
-        var d = 0
-        while d + 2 < parts.count {
-            if parts[d].written, parts[d + 1].written, parts[d + 2].written,
-               isDate(s, parts[d].range, parts[d + 1].range, parts[d + 2].range),
-               !(1...6).contains(joinedDigits(s, parts, d, -1)), !(1...6).contains(joinedDigits(s, parts, d + 2, 1)) {
-                for g in d...(d + 2) { parts[g].digits = 0 }
-                d += 3
-            } else {
-                d += 1
-            }
+        for i in parts.indices.dropLast() {
+            guard let extra = repeats[word(s, parts[i])], !parts[i].written, parts[i + 1].digits > 0,
+                  onlySeparators(s[parts[i].range.upperBound..<parts[i + 1].range.lowerBound]) else { continue }
+            parts[i].digits = extra
         }
+        for i in parts.indices where parts[i].written && i + 1 < parts.count && !parts[i + 1].written
+            && parts[i + 1].range.lowerBound == parts[i].range.upperBound && ordinals.contains(word(s, parts[i + 1])) {
+            parts[i].alone = true
+        }
+        let kept = searchSpans(s, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         var out = s
         var k = parts.count - 1
         while k >= 0 {
             guard parts[k].digits > 0 else { k -= 1; continue }
             var start = k
-            var total = parts[k].digits
-            while start > 0, joins(s, parts[start - 1], parts[start]) {
-                start -= 1
-                total += parts[start].digits
-            }
-            if total >= 7 {
-                var lower = parts[start].range.lowerBound
-                while lower > s.startIndex, "+(".contains(s[s.index(before: lower)]) { lower = s.index(before: lower) }
-                out.replaceSubrange(lower..<parts[k].range.upperBound, with: replacement)
+            while start > 0, joins(s, parts[start - 1], parts[start]) { start -= 1 }
+            if (start...k).reduce(0, { $0 + parts[$1].digits }) >= 7 {
+                let pieces = pieces(start, k, kept)
+                if pieces.contains(where: { (1...6).contains($0.reduce(0) { $0 + parts[$1].digits }) }) {
+                    replace(&out, s, parts, start, k)
+                } else {
+                    for piece in pieces.reversed() { replace(&out, s, parts, piece.first!, piece.last!) }
+                }
             }
             k = start - 1
         }
         return out
+    }
+
+    /// The parts of the run start...end outside the search spans, as consecutive pieces.
+    static func pieces(_ start: Int, _ end: Int, _ kept: Set<Int>) -> [[Int]] {
+        var pieces: [[Int]] = []
+        var open = false
+        for i in start...end {
+            if kept.contains(i) {
+                open = false
+            } else {
+                if !open { pieces.append([]) }
+                pieces[pieces.count - 1].append(i)
+                open = true
+            }
+        }
+        return pieces
+    }
+
+    /// Replaces parts[first...last] (with a leading + or ( when the run starts there), keeping any line breaks.
+    static func replace(_ out: inout String, _ s: String, _ parts: [Part], _ first: Int, _ last: Int) {
+        var lower = parts[first].range.lowerBound
+        while lower > s.startIndex, "+(".contains(s[s.index(before: lower)]) { lower = s.index(before: lower) }
+        let upper = parts[last].range.upperBound
+        let breaks = s[lower..<upper].filter { $0 == "\n" || $0 == "\r" || $0 == "\r\n" }.count
+        out.replaceSubrange(lower..<upper, with: Array(repeating: replacement, count: breaks + 1).joined(separator: "\n"))
+    }
+
+    /// Whether part `a` joins the part `b` right after it into one number.
+    static func joins(_ s: String, _ a: Part, _ b: Part) -> Bool {
+        a.digits > 0 && b.digits > 0 && !a.alone && !b.alone && onlySeparators(s[a.range.upperBound..<b.range.lowerBound])
+    }
+
+    static func word(_ s: String, _ p: Part) -> String { s[p.range].lowercased() }
+
+    /// The parts that are search information, found on the text as it is: a written date (three groups
+    /// joined by one / - . or dash that read as a date, with no digits joined to it by its own
+    /// separator), a time (14:03), a coordinate pair in range (33.7490, -84.3880), a grouped count
+    /// (1,234,567), a ZIP+4 code after a state (GA 30301-1234), a month-name date (Nov 19 2026, 19 November
+    /// 2026) and a number with a unit (5km).
+    static func searchSpans(_ s: String, _ parts: [Part]) -> Set<Int> {
+        func gap(_ a: Int, _ b: Int) -> Substring { s[parts[a].range.upperBound..<parts[b].range.lowerBound] }
+        func len(_ i: Int) -> Int { s[parts[i].range].count }
+        func text(_ i: Int) -> Substring { s[parts[i].range] }
+        func value(_ i: Int) -> Int? { Int(text(i)) }                       // ASCII digits only
+        func written(_ i: Int) -> Bool { parts.indices.contains(i) && parts[i].written }
+        func isDay(_ i: Int) -> Bool { written(i) && len(i) <= 2 && (1...31).contains(value(i) ?? 0) }
+        func isYear(_ i: Int) -> Bool { written(i) && len(i) == 4 && (1900...2100).contains(value(i) ?? 0) }
+        func degrees(_ whole: Int, _ frac: Int, _ max: Double) -> Bool {
+            guard written(whole), written(frac), gap(whole, frac) == ".", len(whole) <= 3, (4...8).contains(len(frac)),
+                  Int(text(whole)) != nil, Int(text(frac)) != nil, let v = Double("\(text(whole)).\(text(frac))") else { return false }
+            return v <= max
+        }
+        var kept = Set<Int>()
+        // Written dates found below, each as its three parts; two that share a part cancel each other.
+        var dates: [ClosedRange<Int>] = []
+        for i in parts.indices {
+            if !parts[i].written {
+                guard months.contains(word(s, parts[i])) else { continue }
+                if isDay(i + 1), gapMatches(gap(i, i + 1), [(isDot, 0, 1), (isSpace, 1, 2)]) {
+                    kept.insert(i + 1)
+                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [(isComma, 0, 1), (isSpace, 1, 2)]) { kept.insert(i + 2) }
+                } else if isDay(i - 1), gapMatches(gap(i - 1, i), [(isSpace, 1, 2)]) {
+                    kept.insert(i - 1)
+                    if isYear(i + 1), gapMatches(gap(i, i + 1), [(isComma, 0, 1), (isSpace, 1, 2)]) { kept.insert(i + 1) }
+                }
+                continue
+            }
+            if i + 2 < parts.count, written(i + 1), written(i + 2), isDate(s, parts[i].range, parts[i + 1].range, parts[i + 2].range),
+               !sameSeparatorNeighbour(s, parts, i, i + 2) {
+                dates.append(i...(i + 2))
+            }
+            // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
+            if i + 1 < parts.count, !parts[i + 1].written, parts[i + 1].range.lowerBound == parts[i].range.upperBound,
+               units.contains(word(s, parts[i + 1])), parts[i].digits < 7 {
+                kept.insert(i)
+            }
+            if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
+                kept.formUnion([i, i + 1])
+            }
+            if degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
+                kept.formUnion(i...(i + 3))
+            }
+            if len(i) <= 3, !(i > 0 && gap(i - 1, i) == ",") {
+                var j = i + 1
+                while written(j), gap(j - 1, j) == ",", len(j) == 3 { j += 1 }
+                if j - i - 1 >= 2 { kept.formUnion(i..<j) }
+            }
+            if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4, i > 0, !parts[i - 1].written,
+               states.contains(String(text(i - 1))), gap(i - 1, i) == " " {
+                kept.formUnion([i, i + 1])
+            }
+        }
+        for d in dates where !dates.contains(where: { $0 != d && $0.overlaps(d) }) { kept.formUnion(d) }
+        return kept
+    }
+
+    /// Whether digits join the date at parts[first...last] by the date's own separator, on either side.
+    static func sameSeparatorNeighbour(_ s: String, _ parts: [Part], _ first: Int, _ last: Int) -> Bool {
+        let sep = s[parts[first].range.upperBound..<parts[first + 1].range.lowerBound]
+        let before = first > 0 && parts[first - 1].digits > 0 && s[parts[first - 1].range.upperBound..<parts[first].range.lowerBound] == sep
+        let after = last + 1 < parts.count && parts[last + 1].digits > 0
+            && s[parts[last].range.upperBound..<parts[last + 1].range.lowerBound] == sep
+        return before || after
     }
 
     static func parts(_ s: String) -> [Part] {
@@ -246,8 +357,9 @@ public enum PhoneNumbers {
                 parts.append(Part(range: i..<j, digits: s.distance(from: i, to: j), written: true))
                 i = j
             } else if s[i].isLetter {
+                // A word stops at a numeral (a Chinese numeral is a letter too), which is a digit here.
                 var j = i
-                while j < s.endIndex, s[j].isLetter { j = s.index(after: j) }
+                while j < s.endIndex, s[j].isLetter, !s[j].isWholeNumber { j = s.index(after: j) }
                 parts.append(Part(range: i..<j, digits: digitWords.contains(s[i..<j].lowercased()) ? 1 : 0, written: false))
                 i = j
             } else {
@@ -257,77 +369,52 @@ public enum PhoneNumbers {
         return parts
     }
 
-    /// The digits joined by separators to parts[edge] on one side (`step` -1 before it, +1 after it).
-    static func joinedDigits(_ s: String, _ parts: [Part], _ edge: Int, _ step: Int) -> Int {
-        var total = 0, cur = edge, next = edge + step
-        while parts.indices.contains(next) {
-            guard step < 0 ? joins(s, parts[next], parts[cur]) : joins(s, parts[cur], parts[next]) else { break }
-            total += parts[next].digits
-            cur = next
-            next += step
+    /// Scrubs every string in a JSON tree, so new reading fields are covered without edits.
+    public static func scrub(json: JSONValue) -> JSONValue {
+        switch json {
+        case let .string(s): return .string(scrub(s))
+        case let .array(a): return .array(a.map { scrub(json: $0) })
+        case let .object(o): return .object(o.mapValues { scrub(json: $0) })
+        case .null, .bool, .number: return json
         }
-        return total
     }
 
-    /// Whether part `a` joins the part `b` right after it into one number.
-    static func joins(_ s: String, _ a: Part, _ b: Part) -> Bool {
-        a.digits > 0 && b.digits > 0 && !a.alone && !b.alone && onlySeparators(s[a.range.upperBound..<b.range.lowerBound])
-    }
-
-    /// Search information made of digits counts no digits, so it neither makes a number nor joins one: a
-    /// time (14:03), a coordinate pair (33.7490, -84.3880), a grouped count (1,234,567), a ZIP+4 code
-    /// (30301-1234) and a month-name date (Nov 19 2026, 19 November 2026). A number glued to a unit or an
-    /// ordinal ending (67th, 5km) counts alone.
-    static func protect(_ s: String, _ parts: inout [Part]) {
-        var p = parts
-        defer { parts = p }
-        func gap(_ a: Int, _ b: Int) -> Substring { s[p[a].range.upperBound..<p[b].range.lowerBound] }
-        func len(_ i: Int) -> Int { s[p[i].range].count }
-        func value(_ i: Int) -> Int? { Int(s[p[i].range]) }                  // ASCII digits only
-        func written(_ i: Int) -> Bool { p.indices.contains(i) && p[i].written }
-        func word(_ i: Int) -> String { s[p[i].range].lowercased() }
-        func zero(_ idx: Int...) { for i in idx { p[i].digits = 0 } }
-        func isDay(_ i: Int) -> Bool { written(i) && len(i) <= 2 && (1...31).contains(value(i) ?? 0) }
-        func isYear(_ i: Int) -> Bool { written(i) && len(i) == 4 && (1900...2100).contains(value(i) ?? 0) }
-        for i in p.indices {
-            if !p[i].written {
-                guard months.contains(word(i)) else { continue }
-                if isDay(i + 1), gapMatches(gap(i, i + 1), [(isDot, 0, 1), (isSpace, 1, 2)]) {
-                    zero(i + 1)
-                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [(isComma, 0, 1), (isSpace, 1, 2)]) { zero(i + 2) }
-                } else if isDay(i - 1), gapMatches(gap(i - 1, i), [(isSpace, 1, 2)]) {
-                    zero(i - 1)
-                    if isYear(i + 1), gapMatches(gap(i, i + 1), [(isComma, 0, 1), (isSpace, 1, 2)]) { zero(i + 1) }
-                }
-                continue
-            }
-            if i + 1 < p.count, !p[i + 1].written, p[i + 1].range.lowerBound == p[i].range.upperBound, units.contains(word(i + 1)) {
-                p[i].alone = true
-            }
-            if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
-                zero(i, i + 1)
-            }
-            if written(i + 1), written(i + 2), written(i + 3), gap(i, i + 1) == ".", gap(i + 2, i + 3) == ".",
-               len(i) <= 3, len(i + 2) <= 3, len(i + 1) >= 4, len(i + 3) >= 4,
-               gapMatches(gap(i + 1, i + 2), [(isSpace, 0, 2), (isComma, 0, 1), (isSpace, 0, 2), (isHyphen, 0, 1)]) {
-                zero(i, i + 1, i + 2, i + 3)
-            }
-            if len(i) <= 3, i == 0 || gap(i - 1, i) != "," {
-                var j = i + 1
-                while written(j), gap(j - 1, j) == ",", len(j) == 3 { j += 1 }
-                if j - i - 1 >= 2 { for g in i..<j { p[g].digits = 0 } }
-            }
-            if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4,
-               i == 0 || !joins(s, p[i - 1], p[i]), i + 2 >= p.count || !joins(s, p[i + 1], p[i + 2]) {
-                zero(i, i + 1)
-            }
-        }
+    /// Three written digit groups joined by the same one of / - . or a dash that read as a date:
+    /// year-month-day (a 4-digit year from 1900 to 2100), or month and day in either order then a 2-digit
+    /// year or such a 4-digit year. Each day is 1 to 31 and a month 1 to 12.
+    static func isDate(_ s: String, _ a: Range<String.Index>, _ b: Range<String.Index>, _ c: Range<String.Index>) -> Bool {
+        let gap1 = s[a.upperBound..<b.lowerBound], gap2 = s[b.upperBound..<c.lowerBound]
+        guard gap1.count == 1, gap1 == gap2, let sep = gap1.first, "/-.".contains(sep) || dashes.contains(sep),
+              let x = Int(s[a]), let y = Int(s[b]), let z = Int(s[c]) else { return false }
+        let (lx, ly, lz) = (s[a].count, s[b].count, s[c].count)
+        let year = 1900...2100, day = 1...31, month = 1...12
+        if lx == 4 { return year.contains(x) && ly <= 2 && lz <= 2 && month.contains(y) && day.contains(z) }
+        guard lx <= 2, ly <= 2, lz == 2 || (lz == 4 && year.contains(z)) else { return false }
+        return day.contains(x) && day.contains(y) && (month.contains(x) || month.contains(y))
     }
 
     static func isSpace(_ c: Character) -> Bool { c.isWhitespace }
     static func isDot(_ c: Character) -> Bool { c == "." }
     static func isComma(_ c: Character) -> Bool { c == "," }
-    static func isHyphen(_ c: Character) -> Bool { c == "-" }
+
+    /// A coordinate pair's middle: at most two spaces, then a comma (at most two spaces and an optional
+    /// minus after it) or a minus.
+    static func coordinateGap(_ gap: Substring) -> Bool {
+        var rest = gap[...]
+        var n = 0
+        while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
+        if rest.first == "," {
+            rest = rest.dropFirst()
+            n = 0
+            while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
+            if rest.first == "-" { rest = rest.dropFirst() }
+        } else if rest.first == "-" {
+            rest = rest.dropFirst()
+        } else {
+            return false
+        }
+        return rest.isEmpty
+    }
 
     /// Whether a gap is exactly a sequence of character classes, each repeated `min` to `max` times. The
     /// classes next to each other never overlap, so taking each greedily decides it.
@@ -341,34 +428,22 @@ public enum PhoneNumbers {
         return rest.isEmpty
     }
 
-    /// Scrubs every string in a JSON tree, so new reading fields are covered without edits.
-    public static func scrub(json: JSONValue) -> JSONValue {
-        switch json {
-        case let .string(s): return .string(scrub(s))
-        case let .array(a): return .array(a.map { scrub(json: $0) })
-        case let .object(o): return .object(o.mapValues { scrub(json: $0) })
-        case .null, .bool, .number: return json
-        }
-    }
-
-    /// Three written digit groups joined by the same one of / - . that read as a date: year-month-day
-    /// (a 4-digit year from 1900 to 2100), or month and day in either order then a 2-digit year or such
-    /// a 4-digit year. Each day is 1 to 31 and a month 1 to 12.
-    static func isDate(_ s: String, _ a: Range<String.Index>, _ b: Range<String.Index>, _ c: Range<String.Index>) -> Bool {
-        let gap1 = s[a.upperBound..<b.lowerBound], gap2 = s[b.upperBound..<c.lowerBound]
-        guard gap1.count == 1, gap1 == gap2, let sep = gap1.first, "/-.".contains(sep),
-              let x = Int(s[a]), let y = Int(s[b]), let z = Int(s[c]) else { return false }
-        let (lx, ly, lz) = (s[a].count, s[b].count, s[c].count)
-        let year = 1900...2100, day = 1...31, month = 1...12
-        if lx == 4 { return year.contains(x) && ly <= 2 && lz <= 2 && month.contains(y) && day.contains(z) }
-        guard lx <= 2, ly <= 2, lz == 2 || (lz == 4 && year.contains(z)) else { return false }
-        return day.contains(x) && day.contains(y) && (month.contains(x) || month.contains(y))
-    }
-
-    /// What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes. A
-    /// pasted line break (CRLF) is one character, so it counts as one.
+    /// What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a line
+    /// break (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number split across lines.
     static func onlySeparators(_ s: Substring) -> Bool {
-        s.count <= 3 && s.allSatisfy { $0.isWhitespace || "-.,()/".contains($0) || dashes.contains($0) }
+        var gap: [Character] = []
+        var i = s.startIndex
+        while i < s.endIndex {
+            let c = s[i]
+            i = s.index(after: i)
+            if c == "\n" || c == "\r" || c == "\r\n" {
+                gap.append("\n")
+                while i < s.endIndex, s[i] == " " || s[i] == "\t" { i = s.index(after: i) }
+            } else {
+                gap.append(c)
+            }
+        }
+        return gap.count <= 3 && gap.allSatisfy { $0.isWhitespace || "-.,()/".contains($0) || dashes.contains($0) }
     }
 }
 
