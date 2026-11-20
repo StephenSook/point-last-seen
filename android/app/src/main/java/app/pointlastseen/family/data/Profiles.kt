@@ -228,13 +228,14 @@ object Profiles {
 
     /**
      * Approach notes after a merge that changed [changed] fields: a note derived from a changed field follows the
-     * merged document; every other note keeps what [stored] says (command may have curated it), and a stored note
-     * this app version does not know stays at the end.
+     * merged document, as does a note with no inputs (always shown); every other note keeps what [stored] says
+     * (command may have curated it), and a stored note this app version does not know stays at the end.
      */
     fun mergeApproachNotes(stored: List<String>, merged: Map<String, Any?>, changed: Set<String>): List<String> {
         val fresh = approachNoteIds(merged).toSet()
         val known = NOTE_INPUTS.map { it.first }.toSet()
-        val notes = NOTE_INPUTS.filter { (id, inputs) -> if (inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
+        // A note with no inputs (approach_calm) is always shown, so it always follows the merged document.
+        val notes = NOTE_INPUTS.filter { (id, inputs) -> if (inputs.isEmpty() || inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
         return notes + stored.filter { it !in known }
     }
 
