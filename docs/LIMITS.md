@@ -223,6 +223,19 @@ each line says what the limit is and why.
   oversized file costs the browser a parse before it is refused.
 - The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
 
+## Command post extras
+
+- The replay shows no map before the current prior: a moment from an earlier prior reads "Earlier prior. The map for
+  this time is not stored."
+- Reports still sending are not in the replay.
+- The assignment sheet's names and numbers are handwritten.
+- The names the person answers to and the approach notes print only when command ticks the box, and paper leaves the
+  app: once printed, nothing in the app controls it.
+- The GeoJSON export was checked in MapLibre only.
+- Terrain ships only where stream links mostly run downhill. The development site has no terrain, so neither does the
+  judge practice search. The 3 m "about level" band is ours, and the vertical accuracy of the 3DEP data is unverified.
+- Reloading the extras panels offline is not verified on the deployed app.
+
 ## Push notifications
 
 - When command approves a plan, `notifyPlanApproved` pushes each team whose assignment changed, on the topic

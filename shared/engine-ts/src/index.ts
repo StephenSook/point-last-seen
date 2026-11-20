@@ -7,6 +7,7 @@ export { rankSegments } from "./rank";
 export { assignTeams } from "./assign";
 export { deriveClearedEffect, deriveClueEffect, isWellFormedEffect, malformedEventIds, toEngineEvents } from "./effects";
 export { validateReading } from "./validate";
+export { groundReading } from "./ground";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
 export { looksEnglish } from "./language";

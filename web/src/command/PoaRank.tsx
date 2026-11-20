@@ -43,7 +43,9 @@ export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly Rank
 
   return (
     <section aria-labelledby="rank-h">
-      <h2 id="rank-h" className="label">POA</h2>
+      <h2 id="rank-h" className="label">
+        <abbr title="Probability of area: the engine's estimate for each segment">POA</abbr>
+      </h2>
       {rows.length === 0 ? (
         <p>No segments yet.</p>
       ) : (

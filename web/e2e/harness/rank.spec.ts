@@ -38,3 +38,10 @@ test("a short list has no Show all", async ({ page }) => {
   await expect(page.getByTestId("poa-rank").locator("tr[data-seg]")).toHaveCount(4);
   await expect(page.getByRole("button", { name: /^Show/ })).toHaveCount(0);
 });
+
+test("the POA heading spells out what POA means", async ({ page }) => {
+  await page.goto("/harness/rank.html");
+  const abbr = page.getByRole("heading", { name: "POA" }).locator("abbr");
+  await expect(abbr).toHaveText("POA");
+  await expect(abbr).toHaveAttribute("title", "Probability of area: the engine's estimate for each segment");
+});
