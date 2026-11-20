@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): fail when the phone-number vectors gain a kind of case the iPhone does not run
+- What: the Swift vector test decoded only mustRemove and mustKeep and would ignore any new kind of
+  case added to shared/test-vectors/phone-numbers.json. A new test asserts the file's top-level keys
+  are exactly the ones the iPhone runs, so a new kind fails Swift core until it is run here.
+- Source: review (shared phone-number vectors gain an exact-output case).
+- Verified: run against a copy of the file with an extra "mustEqual" key it fails; against the real
+  file it passes, with the other 18 phone-number tests.
+
 ### fix(ios): phone numbers by the shared rule: no date shields a number; search details stay
 - What: the iPhone's phone-number rule now matches the Android rule. A date carved out of a longer run
   of digits no longer shields part of a number ("06.12.20.26.19", "404-555-2026-11-19" are removed);

@@ -120,6 +120,14 @@ import Testing
         #expect(f.schemaVersion == 1 && f.mustRemove.count >= 7 && f.mustKeep.count >= 5)
     }
 
+    /// Every kind of case in the file is run here: a new kind fails this test until the iPhone runs it,
+    /// so no case is skipped in silence.
+    @Test func everyKindOfCaseInTheFileIsRun() throws {
+        let data = try Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("test-vectors/phone-numbers.json"))
+        let keys = Set((try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]).keys)
+        #expect(keys == ["schemaVersion", "note", "mustRemove", "mustKeep"], "\(keys.sorted())")
+    }
+
     @Test func everyNumberIsRemovedAndTheTextAroundItStays() throws {
         for c in try file().mustRemove {
             let out = PhoneNumbers.scrub(c.input)
