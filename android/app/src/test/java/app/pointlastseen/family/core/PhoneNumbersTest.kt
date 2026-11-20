@@ -67,12 +67,12 @@ class PhoneNumbersTest {
 
     /**
      * A date carved out of a longer run is not a date: "06.12.20" inside a dotted number, or "2026-11-19" after a
-     * US number's first groups. A date joined to a number goes with it; a word between them keeps the date.
+     * US number's first groups. A date beside a whole number of its own stays, and the number goes.
      */
     @Test fun aDateNeverShieldsPartOfANumber() {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 06.12.20.26.19"))
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404-555-2026-11-19"))
-        assertEquals("Seen [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
+        assertEquals("Seen 11/19/2026 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
         assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
     }
 
@@ -86,15 +86,11 @@ class PhoneNumbersTest {
         }
     }
 
-    /**
-     * A time before a number stays (its minutes are two digits); a month-name date joined to a number goes with it, since
-     * its year could be part of the number; a word between them keeps the date.
-     */
-    @Test fun aTimeBeforeANumberStaysAndAJoinedMonthDateGoesWithIt() {
+    /** A time or a month-name date beside a number stays; only the number goes. */
+    @Test fun aTimeOrMonthDateBesideANumberStays() {
         assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
-        assertEquals("Nov [number removed]", PhoneNumbers.remove("Nov 19 2026 404-555-0142"))
-        assertEquals("19 November [number removed]", PhoneNumbers.remove("19 November 2026, 404-555-0142"))
-        assertEquals("Nov 19 2026, call [number removed]", PhoneNumbers.remove("Nov 19 2026, call 404-555-0142"))
+        assertEquals("Nov 19 2026 [number removed]", PhoneNumbers.remove("Nov 19 2026 404-555-0142"))
+        assertEquals("19 November 2026, [number removed]", PhoneNumbers.remove("19 November 2026, 404-555-0142"))
     }
 
     /** Spoken digits are read the same on a phone set to Turkish (root casing, not the device's). */
@@ -199,14 +195,11 @@ class PhoneNumbersTest {
         }
     }
 
-    /**
-     * Search information split by a pasted line break (CRLF, with or without an indent) is still read as such: a
-     * month-name date and the time after it keep each other, and only the number after them goes.
-     */
+    /** Search information split by a pasted line break (CRLF, with or without an indent) stays beside a whole number, as on the iPhone. */
     @Test fun aLineBreakInsideADateOrCoordinatesKeepsThemBesideANumber() {
-        assertEquals("Seen Nov \r\n19 2026 14:03 [number removed]", PhoneNumbers.remove("Seen Nov \r\n19 2026 14:03 404-555-0142"))
-        assertEquals("Seen Nov 19,\r\n2026 14:03 [number removed]", PhoneNumbers.remove("Seen Nov 19,\r\n2026 14:03 404-555-0142"))
-        assertEquals("Seen 19\r\n  November 2026 14:03 [number removed]", PhoneNumbers.remove("Seen 19\r\n  November 2026 14:03 404-555-0142"))
+        assertEquals("Seen Nov \r\n19 2026 [number removed]", PhoneNumbers.remove("Seen Nov \r\n19 2026 404-555-0142"))
+        assertEquals("Seen Nov 19,\r\n2026 [number removed]", PhoneNumbers.remove("Seen Nov 19,\r\n2026 404-555-0142"))
+        assertEquals("Seen 19\r\n  November 2026 [number removed]", PhoneNumbers.remove("Seen 19\r\n  November 2026 404-555-0142"))
         assertEquals("GPS 33.7490,\r\n-84.3880 [number removed]", PhoneNumbers.remove("GPS 33.7490,\r\n-84.3880 404-555-0142"))
     }
 
@@ -291,23 +284,19 @@ class PhoneNumbersTest {
     }
 
     /**
-     * A date or a time joined to digits that are not search information could be the end of a phone number, so it
-     * goes with them; beside other search information (a date then a time) it stays.
+     * A valid date beside a number stays and the number goes: when someone was seen is search information. A time
+     * joined before its hour to other digits could be a number's last four, so it goes with them.
      */
-    @Test fun aDateOrTimeJoinedToOtherDigitsGoesWithThem() {
-        val cases = mapOf(
-            "Call 1234    555 2026-11-19" to listOf("2026", "1234"),
-            "Call 1 404 555 01:42" to listOf("01", "404"),
-            "Seen 11/19/2026 404-555-0142" to listOf("2026", "0142"),
-            "Seen Nov 19 2026 555 0142" to listOf("2026", "0142"),
-        )
-        for ((text, gone) in cases) {
-            val out = PhoneNumbers.remove(text)
-            for (g in gone) assertEquals("$text -> $out", false, out.contains(g))
-        }
+    @Test fun aDateBesideANumberStaysAndAJoinedTimeGoes() {
+        assertEquals("Seen 11/19/2026 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
+        assertEquals("Seen 2026-11-19 [number removed]", PhoneNumbers.remove("Seen 2026-11-19 404-555-0142"))
+        assertEquals("Seen Nov 19 2026 [number removed]", PhoneNumbers.remove("Seen Nov 19 2026 404-555-0142"))
+        assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
         assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
         assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
         assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
+        val out = PhoneNumbers.remove("Call 1 404 555 01:42")
+        assertEquals(out, false, out.contains("01"))
     }
 
     /** An ordinal stays apart only as a street name (67th Ave, 125th St); without a street word it joins the number. */
@@ -326,8 +315,8 @@ class PhoneNumbersTest {
         assertEquals("GPS 33.7490,-84.3880", PhoneNumbers.remove("GPS 33.7490,-84.3880"))
     }
 
-    /** Dropping a date never lets other search information keep a number: a short piece seen before the drop still takes the whole run. */
-    @Test fun droppingADateNeverShieldsTheRestOfTheRun() {
-        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2 2026-11-19"))
+    /** Dropping a time never lets other search information keep a number: a short piece seen before the drop still takes the whole run. */
+    @Test fun droppingATimeNeverShieldsTheRestOfTheRun() {
+        assertEquals("Call GA [number removed]:42", PhoneNumbers.remove("Call GA 40455-5014 2 01:42"))
     }
 }

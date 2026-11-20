@@ -152,7 +152,7 @@ object PhoneNumbers {
 
     /**
      * The parts that are search information, found on the text as it is, as two sets: every span found, and the spans
-     * kept once a date or time joined to other digits is dropped. Spans: a written date (three groups joined by one
+     * kept once a time joined to other digits is dropped. Spans: a written date (three groups joined by one
      * / - . or dash that read as a date, with no digits joined to it by its own separator), a time (14:03), a
      * coordinate pair in range (33.7490, -84.3880), a ZIP+4 code after a state (GA 30301-1234) and a month-name date
      * (Nov 19 2026, 19 November 2026). A number with a unit (5km) is not one: glued to the last group of a phone number
@@ -216,17 +216,17 @@ object PhoneNumbers {
         fun digitsOf(r: IntRange) = r.filter { parts[it].written }
         // Every span found, before any date or time is dropped below.
         val found = kept + spans.flatMap { digitsOf(it.first) }
-        // A date or a time joined to digits that are not search information could be the end of a phone number, so
-        // it is dropped and goes with them; a date then a time (11/19/2026 14:03) keep each other. A time is checked on
-        // its hour's side only: its minutes are two digits, and a note says "at 14:03, 404-555-0142".
+        // A time joined before its hour to digits that are not search information could be a phone number's last four
+        // digits (1 404 555 01:42), so it is dropped and goes with them; a date then a time (11/19/2026 14:03) keep each
+        // other. Only the hour's side is checked: the minutes are two digits, and a note says "at 14:03, 404-555-0142".
+        // A valid date always stays: when someone was seen is search information, and it leaks nothing once the number
+        // beside it is gone.
         do {
             val inSpans = kept + spans.flatMap { digitsOf(it.first) }
             // Whether the part [outside] (next to [inside]) joins it and is not search information itself.
             fun joinedOutside(inside: Int, outside: Int) = outside in parts.indices &&
                 joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inSpans
-            val drop = spans.filter { (r, isTime) ->
-                joinedOutside(r.first, r.first - 1) || (!isTime && joinedOutside(r.last, r.last + 1))
-            }
+            val drop = spans.filter { (r, isTime) -> isTime && joinedOutside(r.first, r.first - 1) }
             spans.removeAll(drop)
         } while (drop.isNotEmpty())
         return found to (kept + spans.flatMap { digitsOf(it.first) })
