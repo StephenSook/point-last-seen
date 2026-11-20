@@ -22,6 +22,25 @@ public struct ApproachNotes: Sendable, Equatable {
     }
 }
 
+/// `shared/constants/tracking-aids.json`: each tracking aid's search-card line, in card order, and
+/// the line for "none". For the cards only: never sent to a model.
+public struct TrackingAidCopy: Sendable, Equatable {
+    public struct Aid: Sendable, Equatable { public var id: String; public var label: String; public var line: String }
+    public var aids: [Aid]
+    public var noneLine: String
+
+    struct File: Decodable {
+        struct A: Decodable { let id: String; let label: String; let line: String }
+        let aids: [A]; let noneLine: String
+    }
+
+    public init(json: Data) throws {
+        let f = try JSONDecoder().decode(File.self, from: json)
+        aids = f.aids.map { Aid(id: $0.id, label: $0.label, line: $0.line) }
+        noneLine = f.noneLine
+    }
+}
+
 /// The approach card (spec section 13.3): code and fixed copy, no model. Command chose the
 /// note ids from the profile's flags; the phone orders them by the file, fills in the family's
 /// own words, shows the first few and puts the rest under More.
@@ -29,12 +48,15 @@ public struct ApproachCard: Sendable, Equatable {
     public struct Line: Sendable, Equatable { public var id: String; public var text: String; public var sourceRole: String }
     /// "Answers to …": every name they answer to; nil when no name was given.
     public var names: String? = nil
+    /// The tracking-aid lines (`trackingAidLines`); empty when the family has not said.
+    public var aids: [String] = []
     public var first: [Line]
     public var more: [Line]
     public var footer: String
 
-    public init(names: String? = nil, first: [Line], more: [Line], footer: String) {
+    public init(names: String? = nil, aids: [String] = [], first: [Line], more: [Line], footer: String) {
         self.names = names
+        self.aids = aids
         self.first = first
         self.more = more
         self.footer = footer
@@ -53,7 +75,19 @@ public struct ApproachCard: Sendable, Equatable {
         return others.isEmpty ? nil : "Answers to \(others.joined(separator: ", "))"
     }
 
-    public static func build(profile: SharedProfile, notes: ApproachNotes) -> ApproachCard {
+    /// The search card's tracking-aid lines, as the engine's trackingAidLines: one per aid the
+    /// family named, in the file's order (an id this build does not know is skipped), then the
+    /// family's note; the "none" line when the family said there are none; nothing when it has not said.
+    public static func trackingAidLines(_ aids: TrackingAids?, copy: TrackingAidCopy) -> [String] {
+        guard let aids else { return [] }
+        let named = Set(aids.aids)
+        var lines = copy.aids.filter { named.contains($0.id) }.map(\.line)
+        let note = aids.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty { lines.append(note) }
+        return lines.isEmpty ? [copy.noneLine] : lines
+    }
+
+    public static func build(profile: SharedProfile, notes: ApproachNotes, aids copy: TrackingAidCopy? = nil) -> ApproachCard {
         let chosen = Set(profile.approachNoteIds)
         let fields: [String: String] = [
             "primaryLanguage": profile.primaryLanguage, "triggersToAvoid": profile.triggersToAvoid,
@@ -65,7 +99,8 @@ public struct ApproachCard: Sendable, Equatable {
             lines.append(Line(id: id, text: text, sourceRole: note.sourceRole))
         }
         let cut = max(0, notes.firstScreenMax)
-        return ApproachCard(names: answersToLine(profile), first: Array(lines.prefix(cut)), more: Array(lines.dropFirst(cut)),
+        return ApproachCard(names: answersToLine(profile), aids: copy.map { trackingAidLines(profile.trackingAids, copy: $0) } ?? [],
+                            first: Array(lines.prefix(cut)), more: Array(lines.dropFirst(cut)),
                             footer: notes.footer)
     }
 

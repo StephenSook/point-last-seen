@@ -41,6 +41,8 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/urgency.json
         buildPhase: resources
+      - path: ../shared/constants/tracking-aids.json
+        buildPhase: resources
     info:
       path: PLS/Info.plist
       properties:
