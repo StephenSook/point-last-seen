@@ -18,6 +18,12 @@ class PhoneVectorsTest {
     private val vectors = SharedFiles.json("shared/test-vectors/phone-numbers.json")
     private val replacement = vectors["replacement"]!!.jsonPrimitive.content
 
+    // The contract's "no digit left" check: any Unicode number character (Nd, Nl, No), not only 0-9, so a leftover
+    // Adlam or dingbat digit cannot pass.
+    private fun isNumber(cp: Int) = Character.getType(cp).toByte().let {
+        it == Character.DECIMAL_DIGIT_NUMBER || it == Character.LETTER_NUMBER || it == Character.OTHER_NUMBER
+    }
+
     private fun cases(key: String, floor: Int): List<JsonObject> {
         val all = vectors[key]!!.jsonArray.map { it.jsonObject }
         assertTrue("$key cases in the file: ${all.size}", all.size >= floor)
@@ -35,7 +41,7 @@ class PhoneVectorsTest {
             val name = o["name"]!!.jsonPrimitive.content
             val out = PhoneNumbers.remove(o["input"]!!.jsonPrimitive.content)
             assertFalse("$name: the number is gone", out.contains(o["number"]!!.jsonPrimitive.content))
-            assertFalse("$name: no digit is left: $out", out.any { it in '0'..'9' })
+            assertFalse("$name: no number character is left: $out", out.codePoints().anyMatch { isNumber(it) })
             for (f in o["forbidden"]!!.jsonArray) assertFalse("$name: no ${f.jsonPrimitive.content}", out.contains(f.jsonPrimitive.content))
             for (k in o["keep"]!!.jsonArray) assertTrue("$name: keeps ${k.jsonPrimitive.content}", out.contains(k.jsonPrimitive.content))
         }
