@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the iPhone now reads a month and day as a date and removes a decimal pair that starts with + (#119),
+  so "ios" leaves pendingOn on plus_before_decimal_pair and short_date_beside_number; LIMITS says the + pair is kept
+  today on the web and Android only. Source: the iPhone change. Verified: the iPhone team ran the file with both marks
+  removed before #119 merged; scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: exact case "Seen 11/19/2026 14:03 404-555-0142" -> "Seen 11/19/2026 14:03 [number removed]" (a date
   and a time both stay beside a removed number), pending on web and android; the iPhone gives this output today.
   Source: the iPhone team's run. Verified: scripts/test_phone_vectors.py 5 passed; local gates pass.
