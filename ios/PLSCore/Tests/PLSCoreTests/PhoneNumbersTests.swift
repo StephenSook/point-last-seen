@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PLSCore
 
@@ -40,5 +41,38 @@ import Testing
         #expect(j["footwear"] == .string("boot [number removed]"))
         #expect(j["carried"] == .string("phone [number removed]"))
         #expect(j["kind"] == .string("clue"))
+    }
+}
+
+/// Runs every case of shared/test-vectors/phone-numbers.json, the phone-number cases every platform
+/// that removes numbers from a note must pass (contract: shared/test-vectors/README.md).
+@Suite struct PhoneNumberVectorTests {
+    struct Remove: Decodable { var name: String; var input: String; var number: String; var forbidden: [String]; var keep: [String] }
+    struct Keep: Decodable { var name: String; var input: String }
+    struct File: Decodable { var schemaVersion: Int; var mustRemove: [Remove]; var mustKeep: [Keep] }
+
+    func file() throws -> File {
+        try JSONDecoder().decode(File.self, from: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("test-vectors/phone-numbers.json")))
+    }
+
+    @Test func theFileHasCasesOfBothKinds() throws {
+        let f = try file()
+        #expect(f.schemaVersion == 1 && f.mustRemove.count >= 7 && f.mustKeep.count >= 5)
+    }
+
+    @Test func everyNumberIsRemovedAndTheTextAroundItStays() throws {
+        for c in try file().mustRemove {
+            let out = PhoneNumbers.scrub(c.input)
+            #expect(!out.contains(c.number), "\(c.name): \(out)")
+            #expect(!out.contains { $0.isASCII && $0.isNumber }, "\(c.name): \(out)")
+            for word in c.forbidden { #expect(!out.lowercased().contains(word.lowercased()), "\(c.name): \(word) in \(out)") }
+            for part in c.keep { #expect(out.contains(part), "\(c.name): \(part) missing from \(out)") }
+        }
+    }
+
+    @Test func timesSegmentsCountsAndPercentsStayExactly() throws {
+        for c in try file().mustKeep {
+            #expect(PhoneNumbers.scrub(c.input) == c.input, "\(c.name)")
+        }
     }
 }
