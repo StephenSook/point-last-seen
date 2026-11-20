@@ -246,7 +246,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             Departure.leave(
                 // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
                 forget = { watch.stop(); familyTopic.leaving(incidentId); session.leave() },
-                settle = { Firebase.firestore.waitForPendingWrites().await() },
+                // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
+                settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
                 timeoutMs = LEAVE_SETTLE_MS,
                 finish = {
                     viewModelScope.launch { familyTopic.left(incidentId) }
@@ -344,7 +345,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun publishIfGone() {
         val inc = session.incidentId() ?: return
-        if (nav.gone && nav.joined) publisher.publish(inc, profile) { ok -> profileShareFailed = !ok }
+        if (!(nav.gone && nav.joined)) return
+        val still = stillJoined(inc)
+        // A result for a search the phone has since left says nothing about the one it is in now.
+        publisher.publish(inc, profile, still) { ok -> if (still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
