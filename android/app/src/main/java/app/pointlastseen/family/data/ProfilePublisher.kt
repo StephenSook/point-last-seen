@@ -8,31 +8,33 @@ import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicInteger
 
 sealed interface ProfileWrite {
-    data class Whole(val data: Map<String, Any?>) : ProfileWrite
+    /** A first publish: [data] whole, and [edited], the fields the family changed on this phone ([FamilyEdits]). */
+    data class Whole(val data: Map<String, Any?>, val edited: Set<String> = emptySet()) : ProfileWrite
     data class Fields(val data: Map<String, Any?>) : ProfileWrite
 }
 
 /**
  * A phone's first publish of a document. A missing document is created whole. A document already there
- * (written by command, another family phone, or this phone before a reinstall) keeps every value it has,
- * including fields this app version does not know and fields left empty (null); only keys it lacks are added.
+ * (written by command, another family phone, or this phone before a reinstall) gets the keys it lacks and
+ * the fields the family edited on this phone ([FamilyEdits]), which are sent like any later edit; every
+ * other value it has stays, including fields this app version does not know and fields left empty (null).
  */
 sealed interface FirstPublish {
     data class Create(val data: Map<String, Any?>) : FirstPublish
-    data class AddMissing(val data: Map<String, Any?>) : FirstPublish
+    data class Merge(val data: Map<String, Any?>) : FirstPublish
     data object Nothing : FirstPublish
 
     companion object {
-        fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>): FirstPublish {
+        fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>, edited: Set<String> = emptySet()): FirstPublish {
             if (existing == null) return Create(mine)
-            val missing = mine.filterKeys { it !in existing }
-            return if (missing.isEmpty()) Nothing else AddMissing(missing)
+            val send = mine.filterKeys { it !in existing || it in edited }
+            return if (send.isEmpty()) Nothing else Merge(send)
         }
 
         /** [of], staged only while the phone is still on the join: checked inside the transaction, on every attempt. */
-        fun staged(existing: Map<String, Any?>?, mine: Map<String, Any?>, stillJoined: StillJoined): FirstPublish {
+        fun staged(existing: Map<String, Any?>?, mine: Map<String, Any?>, edited: Set<String>, stillJoined: StillJoined): FirstPublish {
             stillJoined.require()
-            return of(existing, mine)
+            return of(existing, mine, edited)
         }
     }
 }
@@ -61,7 +63,12 @@ class PrefsPublishedProfiles(private val store: KeyValueStore) : PublishedProfil
  * What was published is remembered only after the write. A publish for a join the phone has left
  * ([StillJoined]) writes nothing, and [settle] lets leaving wait for the writes already handed to the sink.
  */
-class ProfilePublisher(private val sink: ProfileSink, private val published: PublishedProfiles) {
+class ProfilePublisher(
+    private val sink: ProfileSink,
+    private val published: PublishedProfiles,
+    /** The fields the family edited on this phone, per document: a first publish sends them ([FirstPublish]). */
+    private val edited: (String) -> Set<String> = { emptySet() },
+) {
     private val inFlight = MutableStateFlow(0)
 
     fun publish(incidentId: String, p: SubjectProfile, stillJoined: StillJoined = StillJoined { true }, onDone: (Boolean) -> Unit) {
@@ -90,7 +97,7 @@ class ProfilePublisher(private val sink: ProfileSink, private val published: Pub
 
     /** The whole document the first time, then only the changed fields; null when nothing changed. */
     private fun plan(incidentId: String, doc: String, data: Map<String, Any?>): ProfileWrite? {
-        val last = published.get(key(incidentId, doc))?.let { DocJson.parse(it) } ?: return ProfileWrite.Whole(data)
+        val last = published.get(key(incidentId, doc))?.let { DocJson.parse(it) } ?: return ProfileWrite.Whole(data, edited(doc))
         val now = DocJson.of(data)
         val changed = data.filterKeys { now[it] != last[it] }
         return if (changed.isEmpty()) null else ProfileWrite.Fields(changed)
@@ -125,9 +132,9 @@ class FirestoreProfileSink : ProfileSink {
             // after the read, on every attempt: a leave or drop while the read was in flight stages nothing.
             is ProfileWrite.Whole -> Firebase.firestore.runTransaction { tx ->
                 val snap = tx.get(doc)
-                when (val w = FirstPublish.staged(if (snap.exists()) snap.data else null, change.data, stillJoined)) {
+                when (val w = FirstPublish.staged(if (snap.exists()) snap.data else null, change.data, change.edited, stillJoined)) {
                     is FirstPublish.Create -> tx.set(doc, w.data)
-                    is FirstPublish.AddMissing -> tx.update(doc, w.data)
+                    is FirstPublish.Merge -> tx.update(doc, w.data)
                     FirstPublish.Nothing -> Unit
                 }
                 null

@@ -120,7 +120,29 @@ class ProfilePublisherTest {
             "trackingAids" to mapOf("aids" to listOf("medicalert_id"), "note" to ""), "aFieldFromANewerSchema" to "kept",
         )
         val mine = mapOf<String, Any?>("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
-        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+        assertEquals(FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    /**
+     * Safety field: command set the clothing; the family corrected it on this phone before the phone's first
+     * publish. The correction is sent; a field the family never touched keeps command's value.
+     */
+    @Test fun aFieldTheFamilyEditedBeforeTheFirstPublishIsSent() {
+        val existing = mapOf<String, Any?>("clothingLastWorn" to "red coat", "hair" to "white")
+        val mine = mapOf<String, Any?>("clothingLastWorn" to "blue coat", "hair" to "", "answersTo" to "Mae")
+        assertEquals(
+            FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat", "answersTo" to "Mae")),
+            FirstPublish.of(existing, mine, edited = setOf("clothingLastWorn")),
+        )
+    }
+
+    /** The first publish of each document carries the fields the family edited on this phone. */
+    @Test fun theFirstPublishCarriesTheFamilysEdits() {
+        val sink = FakeSink()
+        ProfilePublisher(sink, MemoryPublished(), edited = { doc -> if (doc == "shared") setOf("clothingLastWorn") else emptySet() })
+            .publish("inc-1", p) {}
+        assertEquals(setOf("clothingLastWorn"), (sink.writes[0].third as ProfileWrite.Whole).edited)
+        assertEquals(emptySet<String>(), (sink.writes[1].third as ProfileWrite.Whole).edited)
     }
 
     /** A publish for a join the phone has left writes nothing and reports it was not shared. */
@@ -145,8 +167,8 @@ class ProfilePublisherTest {
     /** Inside the first-publish transaction (every attempt): once the phone has left, nothing is staged. */
     @Test fun aFirstPublishStagesNothingOnceThePhoneHasLeft() {
         val mine = mapOf<String, Any?>("answersTo" to "Mae")
-        assertEquals(FirstPublish.Create(mine), FirstPublish.staged(null, mine) { true })
-        assertThrows(LeftSearchException::class.java) { FirstPublish.staged(null, mine) { false } }
+        assertEquals(FirstPublish.Create(mine), FirstPublish.staged(null, mine, emptySet()) { true })
+        assertThrows(LeftSearchException::class.java) { FirstPublish.staged(null, mine, emptySet()) { false } }
     }
 
     /** Leaving waits for the profile writes already handed to the sink, not only Firestore's pending writes. */
@@ -166,7 +188,7 @@ class ProfilePublisherTest {
     @Test fun aNullOnTheServerStaysNullAfterAFirstPublish() {
         val existing = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to null, "photoTakenOn" to null)
         val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "photoTakenOn" to "2026-11-01", "clothingLastWorn" to "blue coat")
-        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+        assertEquals(FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
     }
 
     @Test fun aFirstPublishOverACompleteDocumentWritesNothing() {

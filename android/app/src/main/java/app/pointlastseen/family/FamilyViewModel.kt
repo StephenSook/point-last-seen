@@ -37,6 +37,7 @@ import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
 import app.pointlastseen.family.push.FamilyTopic
+import app.pointlastseen.family.data.FamilyEdits
 import app.pointlastseen.family.data.FamilyQuestionStore
 import app.pointlastseen.family.data.Departure
 import app.pointlastseen.family.data.JoinGeneration
@@ -107,7 +108,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
     private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
-    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
+    // The published fields the family changed on this phone: a first publish sends them even over a value already there.
+    private val familyEdits = FamilyEdits(PrefsStore(app, "pls-edits"))
+    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
@@ -236,7 +239,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProfile(p: SubjectProfile) {
-        profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
+        val saved = p.copy(profileUpdatedOn = LocalDate.now(zone))
+        familyEdits.record(profile, saved)
+        profile = saved
         profileStore.save(profile)
         publishIfGone()
     }
