@@ -1770,6 +1770,40 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review of the judge page retry.
 - Verified: on a build with the guard's early return removed the check failed (2 calls, expected 1); with the guard it passes, with the other judge checks.
 
+### feat(map): a rule for which probability plates the map draws
+- What: `map/plateRule.ts`: `plateShown` shows a plate only at 1.0% or more and only when the plate fits inside its segment's on-screen box (width and height, no margin); with "every percent" on, every plate of 0.1% or more; never a "<0.1%" or empty plate. `screenBox` is the axis-aligned box around a segment's projected points. Not used by the map yet.
+- Source: the shared map label rule for the phone and web maps (68 plates buried the map in "<0.1%" labels).
+- Verified: `src/map/plateRule.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean.
+
+### feat(map): plates show at 1.0% or more and only where they fit their segment
+- What: `MapView` applies `plateShown` before placing labels and again after every move (zoom or pan): a plate under 1.0%, or wider or taller than its segment's box at the current zoom, is hidden (class `unfit`, visibility hidden, still in the page), never clipped. The labels left still hide by collision, so none overlap. New prop `everyPercent` shows every plate of 0.1% or more. Plates now have 6 px side and 2 px top and bottom padding (12 and 4 in total), as on the phones. The map harness takes `?every` and `?tiny` (cell DF at 0.01%) and exposes its map and cells for tests.
+- Source: the shared map label rule for the phone and web maps.
+- Verified: three harness checks failed first (all 23 plates showed on a roomy map; on a 300 px map AB's plate showed wider than its cell; with every percent a "<0.1%" plate would show), then passed: 17 plates of 1.0% or more on a roomy map, no visible plate wider or taller than its cell on a 300 px map, 23 plates and no "<0.1%" with every percent on. All 125 harness checks pass; typecheck clean.
+
+### feat(map): an Every percent switch on the map
+- What: `MapView` takes `onEveryPercent`; when set (and the map has segments) it shows an "Every percent" checkbox at the map's top right, which turns `everyPercent` on and off. Keyboard-reachable with the page's focus ring. The map harness shows it with `?switch`.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a harness check (unchecked shows 17 plates; checked 23; unchecked 17 again; focusable) failed first (no switch), then passed with the 11 other map checks; typecheck clean.
+
+### feat(command): the command map has the Every percent switch
+- What: the command post keeps an "every percent" view setting for its own screen (off at first) and passes it to the map with its switch. Nothing is written anywhere; other seats are not affected.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a new live check on the test drill, `e2e/plates.spec.ts` (every visible plate is 1.0% or more; Every percent shows more plates and never a "<0.1%" one; off again goes back), passed on a local build: 14 plates by default, 47 with Every percent; typecheck clean. Screenshots of both views were checked by eye.
+
+### test(e2e): phone-width checks wait for segment codes, not plates
+- What: the 390 px phone checks and the joined-post accessibility check wait for a visible segment code before reading the page. Under the plate rule a plate shows only where it fits its segment, and at phone width no plate fits the drill's segments, so waiting for a visible plate timed out.
+- Source: a full local run of the browser checks after the plate rule.
+- Verified: the two phone checks and the 390 px accessibility check timed out on "a visible plate" after the plate rule, then passed with the new wait (10 of 10 phone and accessibility checks).
+
+### feat(map): the map credit is one linked line, "© OpenStreetMap contributors · Protomaps"
+- What: the credit under every map is one short muted line (fg-4, the same on every map view): "© OpenStreetMap contributors", linked to OpenStreetMap's copyright page (their guideline for web maps), and " · Protomaps", linked to Protomaps' attribution guidelines, only when the basemap is drawn. The grid's stamped licence line is the OpenStreetMap link's title. Both links open in a new tab, are reachable by keyboard and show the page's focus ring. `mapCredit` now returns whether Protomaps is credited instead of a sentence.
+- Source: the shared map credit for the phone and web maps.
+- Verified: the credit unit tests and a harness check (one line, link and address, muted colour, keyboard focus with a visible outline) failed first (the old "Map data from OpenStreetMap" line), then passed with 12 other map checks; the judge replay map now also asserts its credit link; the basemap check expects the full line and passes on a local build with the replay, phone and accessibility checks (18 of 18); typecheck clean. The deployed smoke check is updated to the new line and runs after deploy.
+
+### fix(pwa): a first install of the service worker reloads no page
+- What: `public/sw-takeover.js` notes at install whether an older worker was active, and reloads a focused page that did not answer its ping only when it was (an update from an older build). On a first install there is no older build, the page came from the network, and a page slow to answer is only busy; before, it was reloaded, which on a slow machine could lose what someone had just started typing.
+- Source: the local CI mirror under load: three first-visit browser checks (the new-build pair and the 390 px judge page accessibility check) failed with "Execution context was destroyed ... navigation".
+- Verified: a new sandbox test (first install, focused page that does not answer: no reload) failed first (1 reload), then passed with the 4 existing takeover tests, including the update case that still reloads; the new-build and no-backend accessibility browser checks pass on a local build (9 of 9); typecheck clean.
 ### test(e2e): the clip form check expects the clip's real size, not a fixed byte count
 - What: `e2e/harness/clip.spec.ts` checks that the form passes `bytes: statSync(CLIP).size`, the size of the clip file the test uses, instead of 4448. The clip is generated on the machine running the test, and its size depends on that ffmpeg build.
 - Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.

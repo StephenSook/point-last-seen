@@ -6,13 +6,17 @@
 // typing in it, so it loads the page's own address again only when it is the focused page and this worker began
 // installing less than a minute ago: the update was set off by that page just opening, as on a judge's first visit.
 // Any other unanswering page, including one in a background tab where a note may be half written, is left as it is
-// and gets the new build on its next load.
+// and gets the new build on its next load. On a first install there is no older build at all (the page came from
+// the network), so nothing is reloaded: a page that is slow to answer is only busy.
 
 const RECENT_MS = 60 * 1000;
 let installStartedAt = 0;
+// Whether an older worker was active when this one began installing: only then can an open page be an older build.
+let replacesOlder = false;
 
 self.addEventListener("install", () => {
   installStartedAt = Date.now();
+  replacesOlder = Boolean(self.registration && self.registration.active);
 });
 
 function answers(page) {
@@ -40,7 +44,7 @@ self.addEventListener("activate", (event) => {
           if (await answers(page)) return;
           if (!("navigate" in page)) return;
           // Not awaited: the reload's own request waits until this worker has finished activating.
-          if (page.focused && justOpened) void reload(page);
+          if (replacesOlder && page.focused && justOpened) void reload(page);
         }),
       );
     })(),

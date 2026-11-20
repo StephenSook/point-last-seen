@@ -17,6 +17,8 @@ test("a published run replays in one section, labelled as a training drill", { t
   await expect(section.getByTestId("replay-code")).toHaveText(/^[0-9A-Z]{4}$/);
   await expect(section.locator(".plate").first()).toBeVisible();
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
+  // The replay map credits OpenStreetMap like every other map view.
+  await expect(section.getByTestId("map-credit").getByRole("link", { name: "© OpenStreetMap contributors" })).toBeVisible();
   await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
   // One replay section: the page's own placeholder is gone and "No published run yet." is never said.
   await expect(page.getByRole("region", { name: "Replay the training drill" })).toHaveCount(0);
