@@ -388,6 +388,41 @@ final class AppModel {
         }
     }
 
+    static let leaveBlocked = "Some reports have not reached command yet. Stay in signal until each one says Delivered, then leave."
+
+    /// True while a report from this phone is not settled with the server. Its write waits in this
+    /// user's queue, so signing out now would strand it.
+    var hasUnsettledReports: Bool {
+        store?.entries.contains { entry in
+            switch entry.state {
+            case .pending, .checking: true
+            case let .rejected(reason): Outbox.isRetryable(reason: reason)
+            case .acked: false
+            }
+        } ?? false
+    }
+
+    /// The searcher leaves the search on this phone: speech stops, the team's topic is left, the
+    /// mission goes, and the anonymous account is signed out, so the next join is a new user and
+    /// the join form shows again. Only this phone changes: the old user's claims stay on the server,
+    /// and command still lists that member until command removes them. Refused, with the reason,
+    /// while a report is not yet settled.
+    @discardableResult
+    func leaveSearch() async -> Bool {
+        guard !hasUnsettledReports else { problem = Self.leaveBlocked; return false }
+        // Any access check still running has no say after this.
+        accessCheck += 1
+        await dropMission()
+        await topicFollow?.value
+        signIn.signOut()
+        signedIn = false
+        // The same path as any other sign-out: speech stops and nothing of the old user stays.
+        await accountChanged()
+        joinMessage = nil
+        problem = nil
+        return true
+    }
+
     private let accountEvents: AccountEvents
     /// The account state: the user of the current session and how many account changes the phone has
     /// seen. Read from Auth the first time anything needs it, before any access work.
