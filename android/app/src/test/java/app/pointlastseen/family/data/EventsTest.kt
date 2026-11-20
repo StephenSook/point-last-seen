@@ -48,6 +48,19 @@ class EventsTest {
         assertFalse(e.isTrainingInject)
     }
 
+    /** A family sighting is entered by hand, so it carries the hand-entry route: no model ran (as the iPhone's pick list). */
+    @Test fun aFamilySightingCarriesTheHandEntryRoute() {
+        val e = Events.familySighting(input, ctx())
+        assertEquals(
+            RouteRecord(
+                platform = "android", path = "rules", stage = "picklist", model = "none", reason = "on_device_default",
+                latencyMs = 0, sdkReported = false, blocked = null, decidedAtMs = 1_000_000L,
+            ),
+            e.route,
+        )
+        assertEquals(9, (e.toMap()["route"] as Map<*, *>).size)
+    }
+
     @Test fun phoneNumbersNeverReachTheStoredEvent() {
         val e = Events.familySighting(input, ctx())
         val stored = e.toMap().toString()
