@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web workflow's ffmpeg comes first from a pinned static build in a GitHub release (BtbN FFmpeg-Builds, the
+  month-end autobuild of 2026-10-31, release 8.1), checked against its SHA-256 before use, and only falls back to one
+  bounded apt install. Ubuntu's apt mirrors stalled this step three times, the last on main after the bounded apt
+  install merged (both attempts timed out). The download is bounded to 240 s in all and the step to 9 minutes.
+  Source: CI (main's web job failed in the ffmpeg step: both apt attempts stalled).
+  Verified: the script passes `bash -n`; the ci-local mirror checks pass (7); rules_gate exits 0; the pinned asset's
+  SHA-256 is the one GitHub publishes for it. The web job on this change's pull request downloads and checks it.
 - The rules gate checks that `shared/constants/judge-seed.json`, which the web's live fixtures read, names the same
   judge seed as `JUDGE_SEED_INCIDENT` and a different test drill, so the two copies of the seed id cannot drift.
   The file's description now says what it is: the drill every practice search is copied from (judges do not open
