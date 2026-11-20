@@ -1,0 +1,132 @@
+{
+ "schemaVersion": 1,
+ "note": "The English-note screen, the same cases on every platform that may send a note to the cloud read. Hand-written; see README.md, section language.json. Made-up drill content only.",
+ "mustAllow": [
+  {
+   "name": "plain_sighting",
+   "input": "Saw an older woman in a blue coat walking north on the trail near the creek about ten minutes ago."
+  },
+  {
+   "name": "spanish_person_names",
+   "input": "Maria Gonzalez said her mother Josefina was sitting on the bench by the playground."
+  },
+  {
+   "name": "spanish_place_names",
+   "input": "Checked Calle Ocho and the Rio Vista lot, nothing there, heading back to the parking area."
+  },
+  {
+   "name": "spanish_names_and_place",
+   "input": "Family says she calls herself Abuela and may walk toward the Iglesia de San Juan."
+  },
+  {
+   "name": "cleared_segment",
+   "input": "Team two cleared segment BO, thick brush on the east side, about eighty percent coverage."
+  },
+  {
+   "name": "clue",
+   "input": "Found a white shoe near the drainage ditch behind the school, left it in place and marked it."
+  },
+  {
+   "name": "caller_words",
+   "input": "Caller says a lady with gray hair asked him for directions to the bus stop around noon."
+  },
+  {
+   "name": "terse_report",
+   "input": "Nothing seen. Moving to the next segment now."
+  },
+  {
+   "name": "short_place_only",
+   "input": "Calle Ocho"
+  },
+  {
+   "name": "ids_and_numbers",
+   "input": "BO BP 80% 14:03"
+  },
+  {
+   "name": "clothing_detail",
+   "input": "She was wearing a red sweater, dark pants and white sneakers, carrying a small purse."
+  },
+  {
+   "name": "with_contractions",
+   "input": "Didn't see anyone on the path, but there's a gate that's open by the old mill."
+  },
+  {
+   "name": "mixed_abuela_parque",
+   "input": "Abuela Rosa, la señora del parque, came by the church."
+  },
+  {
+   "name": "mixed_quoted_spanish",
+   "input": "Her grandson said 'ella está muy cansada' and she left toward the river."
+  },
+  {
+   "name": "mixed_iglesia",
+   "input": "The family says she prays at la iglesia de San Pedro every morning."
+  },
+  {
+   "name": "mixed_mi_hijo",
+   "input": "Neighbor heard her calling 'mi hijo, mi hijo' near the bus stop on Calle Ocho."
+  },
+  {
+   "name": "mixed_no_se_donde",
+   "input": "Daughter says Mamá may say 'no sé dónde estoy' if someone asks where she lives."
+  },
+  {
+   "name": "mixed_tienda",
+   "input": "Tía Carmen saw her by the tienda de la esquina, the one with the blue awning."
+  }
+ ],
+ "mustRefuse": [
+  {
+   "name": "spanish_sighting",
+   "language": "es",
+   "input": "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
+  },
+  {
+   "name": "spanish_cleared",
+   "language": "es",
+   "input": "Revisamos el sector y no encontramos nada, vamos al siguiente."
+  },
+  {
+   "name": "spanish_short",
+   "language": "es",
+   "input": "La vi cerca del parque"
+  },
+  {
+   "name": "portuguese_sighting",
+   "language": "pt",
+   "input": "Vi uma senhora de casaco azul andando perto do rio há dez minutos."
+  },
+  {
+   "name": "portuguese_clue",
+   "language": "pt",
+   "input": "Encontramos um sapato branco perto da escola, deixamos no lugar."
+  },
+  {
+   "name": "vietnamese_sighting",
+   "language": "vi",
+   "input": "Tôi thấy một bà cụ mặc áo khoác xanh đi bộ gần con suối khoảng mười phút trước."
+  },
+  {
+   "name": "vietnamese_short",
+   "language": "vi",
+   "input": "Không thấy ai ở đây"
+  },
+  {
+   "name": "korean_sighting",
+   "language": "ko",
+   "input": "파란 코트를 입은 할머니가 개울 근처에서 북쪽으로 걸어가는 것을 봤어요."
+  },
+  {
+   "name": "korean_short",
+   "language": "ko",
+   "input": "아무도 못 봤어요"
+  }
+ ],
+ "knownMiss": [
+  {
+   "name": "short_spanish_few_function_words",
+   "input": "Ella no está aquí",
+   "why": "Too few Spanish function words to tell; it passes on every platform and goes to the cloud read like an English note."
+  }
+ ]
+}

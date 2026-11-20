@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Language screen before a cloud read (row H decision): `shared/constants/language-words.json` holds the rule and two
+  word lists (429 English, 90 Spanish, Portuguese and Vietnamese function words, none shared); a note is refused for
+  the cloud read when more than half its words are non-Latin, or when it has 3 or more foreign words and more than
+  twice as many as English ones. `shared/test-vectors/language.json`: 18 must-allow (including 6 English notes quoting
+  Spanish), 9 must-refuse (es, pt, vi, ko) and 1 known miss ("Ella no está aquí" passes). The web runs `looksEnglish`
+  from shared/engine-ts; iOS and Android port it. Source: review (evidence in another language escapes the English
+  pre-screen). Verified: 30 engine tests pass; the rule refuses 0 of 325 English sentences from the repo's docs, where
+  a one-sided English-share rule refused 22%.
 - `docs/TEST-MATRIX.md`, linked once under the README's ships table: one row per platform and model path (mode and API
   with file:line, the model as recorded, hardware and OS or browser, channel, date, result, tracked evidence). Rows
   that never ran say Not run and why: web on-device note read and plan wording, Android on-device (the A16 has no
