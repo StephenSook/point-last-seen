@@ -266,6 +266,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         stopJoinedWork()
         reattach.cancel()
         confirmRetry.cancel()
+        // Its writes are no longer shown or offered again ("Try again" would resend them to the search left).
+        writer.forget(incidentId)
         viewModelScope.launch {
             Departure.leave(
                 // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
@@ -338,6 +340,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         stopJoinedWork()
         reattach.cancel()
         confirmRetry.cancel()
+        session.incidentId()?.let { writer.forget(it) }
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
@@ -403,9 +406,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rejectedCount(states: Map<String, WriteState>) = states.values.count { it == WriteState.REJECTED }
 
-    /** Sends every refused event again with its same id (a landed copy reads back as acknowledged). */
+    /** Sends every refused event of the search this phone is in again, with its same id. */
     fun retryRejected() {
-        writes.value.filterValues { it == WriteState.REJECTED }.keys.forEach { writer.retry(it) }
+        val incidentId = session.incidentId() ?: return
+        writer.retryRejected(incidentId)
     }
 
     // Someone saw them
