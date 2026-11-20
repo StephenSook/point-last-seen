@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { harnessRun } from "../extras/testdata/replayIncident";
-import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
   it("(a) no built-in model: nothing private was sent, and the replay is named only when it exists", () => {
@@ -96,5 +96,20 @@ describe("fetchedTime", () => {
   it("gives the Remote Config fetch time with its time zone", () => {
     expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "America/New_York")).toBe("14:05:09 EST");
     expect(fetchedTime(Date.UTC(2026, 10, 18, 19, 5, 9), "UTC")).toBe("19:05:09 UTC");
+  });
+});
+
+describe("ADVICE_LINE", () => {
+  // What she told us, in our words: credited as her advice, never as an endorsement, and never in quote marks,
+  // because nothing here is a word-for-word quote.
+  it("credits Kim Franklin as advice, paraphrased with no quote marks", () => {
+    expect(ADVICE_LINE).toMatch(/^Kim Franklin of the Alzheimer's Association Georgia told us /);
+    expect(ADVICE_LINE).toContain("within five minutes, call police, because the longer you wait, the further they can get.");
+    expect(ADVICE_LINE).not.toContain('"');
+    expect(ADVICE_LINE).not.toMatch(/endorse|recommends|approved/i);
+  });
+
+  it("uses plain ASCII punctuation only", () => {
+    expect(ADVICE_LINE).toMatch(/^[\x20-\x7e]+$/);
   });
 });
