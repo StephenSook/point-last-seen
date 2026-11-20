@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): the eval's result file, both arms and the paired comparison
+- What: an eval run writes one result: the facts that pin it (answer key name and SHA-256, who wrote
+  it, grid, app version, build, commit, the guided prompt's SHA-256, device, time), each arm's
+  outputs and score, the rows with both kind and segments right with a 95% Wilson interval, how
+  many rows a model actually read (the rest fell back to the rules or gave nothing), and the rows
+  only the on-device arm or only the rules got right, with the exact McNemar p-value.
+- Source: plan (report-reading evaluation: counts with intervals, the paired comparison, every miss).
+- Verified: a test builds a result from three rows and checks the arms' order, rows right, rows
+  read by a model, the interval, the paired counts and p-value, and the facts. 307 PLSCore tests pass.
+
 ### feat(ios): read an eval report with the app's own reader, forced to one arm
 - What: the app can read one eval report through its real reader, forced to one arm, and journal
   nothing: rules only (no incident mode that allows a model), or Apple's on-device model (the

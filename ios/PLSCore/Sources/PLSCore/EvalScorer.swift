@@ -138,3 +138,68 @@ public struct EvalAnswerKey: Codable, Sendable, Equatable {
         rows.map { EvalRow(id: "n\($0.n)", group: "fresh", text: $0.text, kind: $0.kind, segmentIds: $0.segments, feature: $0.feature) }
     }
 }
+
+/// One eval run's result file: the facts that pin it, each arm's outputs and score, and the paired
+/// comparison of the on-device arm against the rules-only baseline.
+public struct EvalReport: Codable, Sendable, Equatable {
+    public struct RunFacts: Codable, Sendable, Equatable {
+        public var answerKey: String
+        public var answerKeySha256: String
+        public var writtenBy: String
+        public var grid: String
+        public var appVersion: String
+        public var build: String
+        public var commit: String
+        /// SHA-256 of the guided prompt text the model was given.
+        public var promptSha256: String
+        public var device: String
+        public var ranAtMs: Double
+
+        public init(answerKey: String, answerKeySha256: String, writtenBy: String, grid: String, appVersion: String, build: String,
+                    commit: String, promptSha256: String, device: String, ranAtMs: Double) {
+            self.answerKey = answerKey; self.answerKeySha256 = answerKeySha256; self.writtenBy = writtenBy; self.grid = grid
+            self.appVersion = appVersion; self.build = build; self.commit = commit; self.promptSha256 = promptSha256
+            self.device = device; self.ranAtMs = ranAtMs
+        }
+    }
+
+    public struct Arm: Codable, Sendable, Equatable {
+        public var arm: String
+        public var summary: EvalSummary
+        /// Rows with both the kind and the segments right, and its 95% Wilson interval.
+        public var right: Int
+        public var rightInterval: [Double]
+        /// Rows a model actually read (the rest fell back to the rules or gave nothing).
+        public var readByModel: Int
+        public var outputs: [String: EvalOutput]
+    }
+
+    /// The rows only the on-device arm got right, the rows only the rules got right, and the exact
+    /// two-sided McNemar p-value on them.
+    public struct Paired: Codable, Sendable, Equatable {
+        public var onDeviceOnly: Int
+        public var rulesOnly: Int
+        public var pValue: Double
+    }
+
+    public var facts: RunFacts
+    public var arms: [Arm]
+    public var paired: Paired
+
+    public static func make(rows: [EvalRow], facts: RunFacts, onDevice: [String: EvalOutput], rulesOnly: [String: EvalOutput]) -> EvalReport {
+        func arm(_ name: String, _ outputs: [String: EvalOutput]) -> Arm {
+            let summary = EvalScorer.score(rows: rows, outputs: outputs)
+            let right = rows.filter { EvalScorer.correct($0, outputs[$0.id]) }.count
+            let (lo, hi) = EvalScorer.wilson(successes: right, n: rows.count)
+            let byModel = rows.filter { row in
+                guard let path = outputs[row.id]?.path else { return false }
+                return path.hasPrefix("on_device") || path.hasPrefix("cloud")
+            }.count
+            return Arm(arm: name, summary: summary, right: right, rightInterval: [lo, hi], readByModel: byModel, outputs: outputs)
+        }
+        let pair = EvalScorer.paired(rows: rows, a: onDevice, b: rulesOnly)
+        return EvalReport(facts: facts, arms: [arm("on_device", onDevice), arm("rules_only", rulesOnly)],
+                          paired: Paired(onDeviceOnly: pair.aOnly, rulesOnly: pair.bOnly,
+                                         pValue: EvalScorer.mcnemarExact(bOnly: pair.aOnly, cOnly: pair.bOnly)))
+    }
+}

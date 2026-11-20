@@ -72,6 +72,27 @@ import Testing
         #expect(EvalScorer.score(rows: [row], outputs: ["n2": some]).segmentCorrect == 0)
     }
 
+    /// The result file: each arm's outputs and score, rows right (kind and segments) with their
+    /// interval, how many rows each arm actually read with a model, the paired comparison of the
+    /// on-device arm against rules, and the facts that pin the run.
+    @Test func theReportKeepsBothArmsTheComparisonAndTheRunFacts() {
+        let model = ["r1": EvalOutput(reading: reading(kind: .cleared, segmentIds: ["BO"]), blocked: false, path: "on_device/guided", latencyMs: 900),
+                     "r2": EvalOutput(reading: .unclear(), blocked: false, path: "rules/deterministic_parser", latencyMs: 21000),
+                     "r3": EvalOutput(reading: reading(kind: .sighting, segmentIds: ["BQ"]), blocked: false, path: "on_device/guided", latencyMs: 700)]
+        let rules = ["r1": EvalOutput(reading: .unclear(), blocked: false, path: "rules/deterministic_parser", latencyMs: 2),
+                     "r2": EvalOutput(reading: .unclear(), blocked: false, path: "rules/deterministic_parser", latencyMs: 2),
+                     "r3": EvalOutput(reading: reading(kind: .sighting, segmentIds: ["BQ"]), blocked: false, path: "rules/deterministic_parser", latencyMs: 2)]
+        let facts = EvalReport.RunFacts(answerKey: "k", answerKeySha256: "abc", writtenBy: "person", grid: "piedmont-park-dev",
+                                        appVersion: "0.1.0", build: "7", commit: "cf72466", promptSha256: "def", device: "iPhone", ranAtMs: 1)
+        let report = EvalReport.make(rows: threeRows, facts: facts, onDevice: model, rulesOnly: rules)
+        #expect(report.arms.map(\.arm) == ["on_device", "rules_only"])
+        #expect(report.arms[0].right == 2 && report.arms[1].right == 1)
+        #expect(report.arms[0].readByModel == 2 && report.arms[1].readByModel == 0)
+        #expect(abs(report.arms[0].rightInterval[0] - EvalScorer.wilson(successes: 2, n: 3).0) < 1e-12)
+        #expect(report.paired.onDeviceOnly == 1 && report.paired.rulesOnly == 0 && report.paired.pValue == 1.0)
+        #expect(report.facts == facts)
+    }
+
     @Test func wilsonIntervalForTwentyOfTwenty() {
         let (lo, hi) = EvalScorer.wilson(successes: 20, n: 20)
         #expect(abs(lo - 0.839) < 0.002)
