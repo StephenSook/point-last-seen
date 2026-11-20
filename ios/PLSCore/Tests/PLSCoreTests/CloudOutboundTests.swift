@@ -90,4 +90,29 @@ struct SentinelDoc {
         #expect(texts.contains(ToolText.segmentHere(nil)))
         #expect(texts.contains(ToolText.teamAssignment([])))
     }
+
+    /// Apple's model gets no tools: where the team is and what it was assigned are plain sentences in its
+    /// instructions, built by code. It gets no description of the subject and no tool names.
+    @Test func applesModelsInstructionsCarryPositionAndAssignmentAsSentences() {
+        let fix = PromptText.onDeviceGuided(positionSegmentId: "BO", assignedSegmentIds: ["BO", "BP"])
+        #expect(fix.contains("The phone's GPS fix puts the team in segment BO."))
+        #expect(fix.contains("Command assigned this team segments BO, BP."))
+        let none = PromptText.onDeviceGuided(positionSegmentId: nil, assignedSegmentIds: [])
+        #expect(none.contains("The phone has no GPS fix, so where the team is standing is not known."))
+        #expect(none.contains("Command has not assigned this team yet."))
+        for text in [fix, none] {
+            #expect(text.contains("Set matchesProfile to unknown.") && text.contains("never leave it empty"))
+            for name in [ToolText.segmentHereName, ToolText.teamAssignmentName, ToolText.subjectDescriptionName] { #expect(!text.contains(name)) }
+        }
+    }
+
+    /// A quote of either sentence is not the report's words, so the validator rejects it.
+    @Test func aQuoteOfTheContextSentencesIsRejected() {
+        let report = "Cleared segment BO, nothing found."
+        for quote in [PromptText.onDevicePosition("BO"), PromptText.onDevicePosition(nil),
+                      PromptText.onDeviceAssignment(["BO", "BP"]), PromptText.onDeviceAssignment([])] {
+            let r = reading(segmentIds: ["BO"], evidenceQuote: quote)
+            #expect(ReadingValidator.validate(r, knownSegmentIds: ["BO", "BP"], rawText: report) == .invalid(reasons: ["quote_not_in_text"]))
+        }
+    }
 }
