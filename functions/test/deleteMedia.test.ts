@@ -56,6 +56,19 @@ describe("deleteIncidentMediaNow", () => {
     expect(((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt") as Timestamp).toMillis()).toBeGreaterThan(first.toMillis());
     expect((await admin.db.doc("incidents/I2").get()).get("mediaRevokedAt")).toBeUndefined();
   });
+  it("each refusal carries a stable reason beside its sentence, so a client maps the code and reason, not the text", async () => {
+    const reason = (e: unknown) => ({ code: (e as { code: string }).code, reason: (e as { details?: { reason?: string } }).details?.reason,
+      message: (e as Error).message });
+    const cases: [Promise<unknown>, string, string, string][] = [
+      [handleDeleteMedia(admin.db, bucket, command(), { incidentId: "bad id" }), "invalid-argument", "bad_incident_id", "incidentId is malformed."],
+      [handleDeleteMedia(admin.db, bucket, null, { incidentId: "I1" }), "unauthenticated", "not_signed_in", "Sign in before deleting an incident's media."],
+      [handleDeleteMedia(admin.db, bucket, command("I2"), { incidentId: "I1" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
+      [handleDeleteMedia(admin.db, bucket, command("NONE"), { incidentId: "NONE" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
+    ];
+    for (const [call, code, why, message] of cases) {
+      expect(await call.then(() => null, reason)).toEqual({ code, reason: why, message });
+    }
+  });
   it("a refused caller marks nothing", async () => {
     await expect(handleDeleteMedia(admin.db, bucket, command("I2"), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     expect((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt")).toBeUndefined();

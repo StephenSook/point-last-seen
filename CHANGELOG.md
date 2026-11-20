@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- Every refusal from `startJudgeSession` and `deleteIncidentMediaNow` carries a stable `details.reason` beside its
+  sentence, so a client maps the error code and the reason instead of the text (the web SDK adds the HTTP status to
+  the message, which broke an exact match). The practice search: `not_signed_in`, `no_practice`, `hourly_limit`,
+  `daily_limit` and `setup_busy`; the media delete: `bad_incident_id`, `not_signed_in` and `not_command`. The
+  sentences are unchanged.
+  Source: the web app's error mapping (an exact sentence match missed the setup-busy answer).
+  Verified: the tests (each refusal's code and reason, and the media refusals' sentences) failed first, now pass;
+  all 256 functions tests pass; functions typecheck exits 0.
 - `docs/LIMITS.md` states the two practice-search gaps left after the round-3 fixes: a start that pauses between its
   last read and the role write can still put an older attempt's role over a newer winner's (the rules refuse the
   ended one's data and the next start fixes it), and a setup that resumes after its retired attempt was deleted can
