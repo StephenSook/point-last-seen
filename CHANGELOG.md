@@ -11,8 +11,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   expired, and `startJudgeSession` always writes the flag. Source: review (setup gate, medium 3). Verified test first:
   three new no-flag assertions (rules, storage, deleteIncidentMediaNow) failed, then passed with the change;
   live-judge fixtures now carry the flag; rules and functions suite 256 of 256.
-- Tests: the expired, no-expiry and expiry-edit judge sandbox tests (rules, storage, delete media) now give their
-  sandbox `setupReady: true`, so each fails only for the reason it names and would catch a removed expiry check.
+- Tests: the expired, no-expiry and expiry-edit judge sandbox tests (rules, storage, delete media, join) now give
+  their sandbox `setupReady: true`, so each fails only for the reason it names and would catch a removed expiry check.
   Source: review (Codex round 1, low). Verified: suite 256 of 256.
 - `joinIncident` refuses a judge sandbox whose setup is not finished (`setupReady !== true`), as the rules do, so it
   never grants claims that every read would then refuse. Source: review (Codex round 1, low). Verified test first: the

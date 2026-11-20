@@ -28,7 +28,8 @@ beforeEach(async () => {
   await admin.db.doc("incidents/I2").set({ name: "Other drill", mode: "drill", status: "open" });
   await admin.db.doc("incidents/I9").set({ name: "Old drill", mode: "drill", status: "closed" });
   await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["family"] });
-  await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+  await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
+    setupReady: true });
   await admin.db.doc(`joinCodes/${hash("JDGE2345")}`).set({ incidentId: "J1", roles: ["family"] });
   await admin.db.doc(`joinCodes/${hash("TWOR2345")}`).set({ incidentId: "I1", roles: ["searcher", "family"] });
   uid = await freshUser();
