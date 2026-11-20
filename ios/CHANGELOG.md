@@ -5,6 +5,25 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's model is told its quote may not be empty
+- What: the on-device instructions now say "Copy evidenceQuote word for word from the report; never
+  leave it empty." The cloud instructions and the cloud allow-list are unchanged.
+- Source: review (Apple's model left the quote empty on the simulator).
+- Verified: a test pins the line in the on-device prompt and its absence from the cloud prompt; it failed
+  before the change and passes after; 194 app tests pass.
+
+### fix(ios-core): Apple's model gets one more try when only its quote is rejected
+- What: on the phone, Apple's model answered the route check's sentence in about 3 s but its reading
+  was rejected for quote_not_in_text; on the simulator the same sentence came back once with the quote
+  verbatim and once with an empty quote. A guided read on the phone that is rejected only for its quote
+  is now asked once more; a second rejection falls to rules as before. The validator is unchanged and
+  code never fills a quote. The stage note says what the quote was ("(quote empty)", or the quote cut to
+  60 characters); notes stay in the read outcome and the drill's route-check file, never the event.
+- Source: review (phone route check on build 6: guided on_device invalid quote_not_in_text).
+- Verified: tests that an empty quote then a valid answer is accepted on the second try, that two empty
+  quotes fall to rules, and that any other invalid answer is not asked again; the first two failed
+  before the change and pass after; all 359 core tests pass.
+
 ### docs: the eval's on-device arm is Apple's model through the app's own reader
 - What: docs/evidence/eval/README.md said the iPhone's on-device arm ran through "Firebase AI Logic
   hybrid routing". It doesn't: the app's own reader calls Apple's on-device model (Foundation Models,

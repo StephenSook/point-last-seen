@@ -144,6 +144,7 @@ button, input, select { font: inherit; color: inherit; }
 .profile-form .place { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; }
 .judge { width: min(720px, calc(100% - 32px)); margin: 6vh auto; display: grid; gap: 20px; }
 .judge-advice { color: var(--fg-2); border-left: 2px solid var(--line); padding-left: 12px; max-width: 64ch; }
+.judge-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 .judge-route { padding-left: 24px; }
 .judge-route li { margin: 4px 0; }
 .judge-route a { display: inline-block; min-height: 28px; line-height: 28px; }

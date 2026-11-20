@@ -1829,6 +1829,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review finding (read status outliving the note it read).
 - Verified: two new harness checks in `e2e/harness/sighting.spec.ts` (a cloud read, then an edit: status and receipt gone, Top still red; a slow read with a quote, then an edit that keeps the quoted words: the quote line gone) failed first, then passed; a third (an edit after a cloud read still saves the cloud route) guards the route; 16/16 sighting and sightings harness checks; typecheck clean.
 
+### feat(judge): the judge page links to the public source code
+- What: the /judge Links nav adds "Source code" (https://github.com/StephenSook/point-last-seen, opens in a new tab with `rel="noopener noreferrer"`) beside Command post, now that the repository is public, and drops the comment that said it would join later. `.judge-links` lays the links out in a row with a gap, since the nav had no spacing rule.
+- Source: review finding (no way from the judge page to the code).
+- Verified: a new `@no-backend` check in `e2e/judge.spec.ts` failed first (no link), then passed with all 31 placeholder-build checks; typecheck clean; a 390 px screenshot showed both links on one line with space between.
+
 ### feat(command): the POA heading spells out what POA means
 - What: the ranked list's heading wraps POA in `<abbr title="Probability of area: the engine's estimate for each segment">`, so a reader new to search terms can find out what the column is. The heading's accessible name stays "POA".
 - Source: review finding (unexplained abbreviation on the command post).

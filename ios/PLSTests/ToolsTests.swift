@@ -41,4 +41,10 @@ import Testing
         #expect(!PromptText.onDeviceGuided.contains("subjectDescription"))
         #expect(PromptText.guided.contains("subjectDescription"))
     }
+
+    /// Apple's model is told the quote may not be empty; the cloud prompt (and its allow-list) is unchanged.
+    @Test func applesModelIsToldTheQuoteMayNotBeEmpty() {
+        #expect(PromptText.onDeviceGuided.contains("never leave it empty"))
+        #expect(!PromptText.guided.contains("never leave it empty"))
+    }
 }
