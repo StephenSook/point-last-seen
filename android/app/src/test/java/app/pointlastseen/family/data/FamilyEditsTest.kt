@@ -23,6 +23,33 @@ class FamilyEditsTest {
         assertFalse("answersTo" in edits.keys("command"))
     }
 
+    /**
+     * A collection (flags, lists, aids) is never marked: a first publish sending it whole would replace entries
+     * command added, such as a fall-risk flag. It stays add-only-if-missing, as before.
+     */
+    @Test fun aCheckboxOrListEditMarksNothing() {
+        val edits = FamilyEdits(MemoryStore())
+        edits.record(before, before.copy(flags = before.flags + "likelyToHide", mobilityAids = setOf("cane")))
+        edits.record(before, before.copy(placesFrequented = listOf(PlaceEntry("Grace Church", null))))
+        assertEquals(emptySet<String>(), edits.keys("shared"))
+        assertEquals(emptySet<String>(), edits.keys("command"))
+    }
+
+    /** A derived field follows its source: a new other name changes the nickname, but neither is marked. */
+    @Test fun aDerivedFieldIsNeverMarked() {
+        val edits = FamilyEdits(MemoryStore())
+        edits.record(before, before.copy(otherNames = listOf("Mom")))
+        assertEquals(emptySet<String>(), edits.keys("shared"))
+    }
+
+    /** Leaving or a drop ends the edits' reach: they never apply to the next search's first publish. */
+    @Test fun clearingForgetsEveryEdit() {
+        val store = MemoryStore()
+        FamilyEdits(store).record(before, before.copy(clothingLastWorn = "blue coat"))
+        FamilyEdits(store).clear()
+        assertEquals(emptySet<String>(), FamilyEdits(store).keys("shared"))
+    }
+
     @Test fun aSaveThatChangesNothingMarksNothing() {
         val edits = FamilyEdits(MemoryStore())
         edits.record(before, before)
