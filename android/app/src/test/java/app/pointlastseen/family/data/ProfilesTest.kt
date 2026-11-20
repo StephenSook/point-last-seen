@@ -186,4 +186,14 @@ class ProfilesTest {
         assertEquals("", note("Unit \uFF14 in his coat"))
         assertEquals("", note("Call 404 555 0142"))
     }
+
+    /** The approach notes read from a shared document are the ones the profile itself gives, so a merged document can be checked. */
+    @Test fun approachNotesFromTheSharedDocumentMatchTheProfile() {
+        val p = SubjectProfile(
+            flags = setOf("mayNotRespond", "fallRisk", "softVoice", "medicationTimingMatters"),
+            dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
+            triggersToAvoid = "sirens", bestApproach = "", uniqueDescription = "a red scarf",
+        )
+        assertEquals(Profiles.approachNoteIds(p), Profiles.approachNoteIds(Profiles.forSearchers(p).toMap()))
+    }
 }
