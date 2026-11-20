@@ -3,7 +3,7 @@
 // number belongs) refuses the run with the field's name instead of reaching code that would draw it or throw on it.
 // Which fields must be present is decided by the reader, which needs only some of them.
 
-import { DEFAULT_PARAMS, isWellFormedEffect } from "../hostApp";
+import { DEFAULT_PARAMS, isWellFormedEffect, ROUTE_MODEL_MAX } from "../hostApp";
 import { DEVICE_PSEUDONYM, ROUTE_ENUMS, RUN_ENUMS } from "./runContract";
 
 /** Returns the path of the first part of `v` that is not of the type, under `at`, or null when it all is. */
@@ -66,16 +66,20 @@ const measurement = shape(
 );
 // The engine's own exact check for an effect: each kind's fields and nothing else.
 const effect: Check = (v, at) => ok(isWellFormedEffect(v), at);
+// A route's values are the route record's own, as the exporter checks them too: the coded fields from their lists,
+// a model id no longer than the schema allows (so no note text can ride along in one), and times at or above zero.
+const modelId: Check = (v, at) => ok(typeof v === "string" && v.length <= ROUTE_MODEL_MAX, at);
+const atLeastZero: Check = (v, at) => ok(typeof v === "number" && Number.isFinite(v) && v >= 0, at);
 const route = shape({
   platform: oneOf(ROUTE_ENUMS.platform),
   path: oneOf(ROUTE_ENUMS.path),
   stage: oneOf(ROUTE_ENUMS.stage),
-  model: text,
+  model: modelId,
   reason: oneOf(ROUTE_ENUMS.reason),
-  latencyMs: number,
+  latencyMs: atLeastZero,
   sdkReported: yesNo,
   blocked: oneOf(ROUTE_ENUMS.blocked),
-  decidedAtMs: number,
+  decidedAtMs: atLeastZero,
 });
 
 /** The type of each field, per part of the run. Only fields the contract lists appear. */

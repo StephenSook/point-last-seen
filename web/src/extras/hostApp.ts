@@ -2,6 +2,7 @@ import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import type { SharedProfile } from "@pls/engine";
 import approachNotes from "../../../shared/constants/approach-notes.json";
+import routeSchema from "../../../shared/schemas/route-record.schema.json";
 import { answersToLine } from "../data/profile";
 
 // MapLibre looks for its worker next to its own module; after bundling that file is not there. Point it at
@@ -19,6 +20,8 @@ export type { StreamedEvent } from "../data/events";
 export { mergeModel } from "../command/mergeModel";
 export { DeleteMedia } from "../command/DeleteMedia";
 export type { PublishedRun } from "../judge/judge";
+/** The longest model id a route record holds (the shared route schema's own limit). */
+export const ROUTE_MODEL_MAX: number = routeSchema.properties.model.maxLength;
 export {
   DEFAULT_PARAMS,
   convergenceCode,
