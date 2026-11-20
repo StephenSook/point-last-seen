@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `shared/practice/ios-practice-pack.json`: the iPhone's practice drill, so a judge can open the searcher app without
+  a code. `tools/practice/export_practice_pack.py --write` exports it from the judge seed (drill-dev-1, read from
+  judge-seed.json) with the same overrides `startJudgeSession` applies (NOT_COPIED and the drill label are read from
+  judgeSession.ts), plus the seed's latest plan at its prior version that no test wrote (plan 0019) with
+  `approvedByUid` set to `practice-pack`; timestamps become epoch milliseconds. `--check` compares the committed file
+  with the live seed. `tools/practice/test_export_practice_pack.py` (in the CI and ci-local pytest lists) checks the
+  committed file offline: the iPhone's required fields, the segment contract, a T1 assignment naming segments in the
+  pack, profile fields only from profile/shared, no uid or join-code field, under 1 MB; ten spoiled copies are each
+  caught. Source: review (a judge cannot reach the phone apps). Verified: --write, --check and the offline check exit
+  0 (53,011 bytes, 68 segments); 5 tests pass.
 - LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
   family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
   the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause
