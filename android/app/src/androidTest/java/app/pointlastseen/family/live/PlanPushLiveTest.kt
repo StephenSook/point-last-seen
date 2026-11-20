@@ -43,7 +43,7 @@ class PlanPushLiveTest {
     }
 
     private companion object {
-        const val INCIDENT = "drill-dev-1"
+        const val INCIDENT = "drill-test-1"
         const val TEAM = "T1"
         const val WAIT_MIN = 20
     }

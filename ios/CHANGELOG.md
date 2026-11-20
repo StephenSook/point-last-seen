@@ -5,6 +5,37 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the approach card shows the tracking aids the family named
+- What: the app bundles `shared/constants/tracking-aids.json`, and the Ready check's approach card
+  shows its tracking-aid lines under the names line: one per aid the family named (for example
+  "Carries a GPS tracker: ask the family for its last location."), the family's note, or "No
+  tracker or medical ID, as the family said.", as on the web's card. Nothing shows when the family
+  has not said.
+- Source: shared profile change (tracking aids), approach card row.
+- Verified: a test reads the file from the app bundle (every aid id in order, the none line); it
+  failed to compile before the change and passes after; 113 app tests pass.
+
+### feat(ios-core): the search card's tracking-aid lines, from the shared constants
+- What: the iPhone reads `shared/constants/tracking-aids.json` and builds the card's tracking-aid
+  lines the way the engine's `trackingAidLines` does: one line per aid the family named, in the
+  file's order (an id this build does not know is skipped), then the family's trimmed note; the
+  file's "none" line when the family said there are none; nothing when the family has not said.
+  The approach card carries the lines when it is built with the file.
+- Source: shared profile change (tracking aids), card lines.
+- Verified: tests read the shared file itself: every aid and the none line are there, the order and
+  the unknown id, the trimmed note, the none line, nothing when absent, and the card carrying the
+  lines. They failed to compile before the change and pass after; 282 PLSCore tests pass.
+
+### fix(ios): the approach card names every name she answers to
+- What: the iPhone's approach card had no names line, while the web's card says who to call,
+  for example "Answers to Roberta (also Bea, Mom, Miss Bea)". The card now has the same line,
+  built the way the web builds it: the main name, then every other name she answers to (the
+  family's list, else the nickname), each once; no line when no name was given. It is the first
+  line of the card.
+- Source: review (approach card wording on the iPhone).
+- Verified: a test runs the web's six answersToLine cases and checks the card carries the line; it
+  failed to compile before the change and passes after; 277 PLSCore tests pass; the app tests pass.
+
 ### docs(ios): restore the changelog headings a merge dropped
 - What: a merge of main into a profile branch kept one side in the changelog's conflicting part,
   which removed 24 entry headings, their blank lines and 8 "Source: review." lines; entries ran

@@ -95,11 +95,11 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   auth: { uid: string; token: Record<string, unknown> } | null, data: { incidentId?: unknown } | null): Promise<{ deleted: number }> {
   const incidentId = data && typeof data === "object" ? data.incidentId : undefined;
   if (typeof incidentId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(incidentId)) {
-    throw new HttpsError("invalid-argument", "incidentId is malformed.");
+    throw new HttpsError("invalid-argument", "incidentId is malformed.", { reason: "bad_incident_id" });
   }
-  if (auth === null) throw new HttpsError("unauthenticated", "Sign in before deleting an incident's media.");
+  if (auth === null) throw new HttpsError("unauthenticated", "Sign in before deleting an incident's media.", { reason: "not_signed_in" });
   if (auth.token.inc !== incidentId || auth.token.role !== "command") {
-    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
+    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.", { reason: "not_command" });
   }
   // As in the security rules (notExpired): claims outlive an incident, so the incident must exist and must not
   // have ended. An ended judge sandbox is swept by deleteIncidentMedia instead.
@@ -109,7 +109,7 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   const unexpired = exp instanceof Timestamp && exp.toMillis() > Date.now();
   const live = incident.get("mode") === "judge" ? unexpired && incident.get("setupReady") !== false : exp == null || unexpired;
   if (!incident.exists || !live) {
-    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.");
+    throw new HttpsError("permission-denied", "Only the incident's command can delete its media.", { reason: "not_command" });
   }
   // Mark the media revoked before any file goes, so every open command seat clears it and ignores a reload that
   // started earlier. A new time on every call.

@@ -14,6 +14,154 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Verified: the tests (a Kotlin device test, a run script, a web e2e spec and an iPhone UI test naming the seed each
   fail; the same id in a doc, a unit test or the functions and another drill id pass; an unreadable constant fails)
   failed first, now all 38 gate tests pass.
+- Every refusal from `startJudgeSession` and `deleteIncidentMediaNow` carries a stable `details.reason` beside its
+  sentence, so a client maps the error code and the reason instead of the text (the web SDK adds the HTTP status to
+  the message, which broke an exact match). The practice search: `not_signed_in`, `no_practice`, `hourly_limit`,
+  `daily_limit` and `setup_busy`; the media delete: `bad_incident_id`, `not_signed_in` and `not_command`. The
+  sentences are unchanged.
+  Source: the web app's error mapping (an exact sentence match missed the setup-busy answer).
+  Verified: the tests (each refusal's code and reason, and the media refusals' sentences) failed first, now pass;
+  all 256 functions tests pass; functions typecheck exits 0.
+- `docs/LIMITS.md` states the two practice-search gaps left after the round-3 fixes: a start that pauses between its
+  last read and the role write can still put an older attempt's role over a newer winner's (the rules refuse the
+  ended one's data and the next start fixes it), and a setup that resumes after its retired attempt was deleted can
+  write the drill's copy again under an incident that no longer exists (no judge work, no reader, nothing links to
+  it). It drops the line those fixes replaced.
+  Source: review (round 3 on the functions: the two remaining mediums kept as stated limits).
+  Verified: each line matches `functions/src/judgeSession.ts` as changed here; the public hygiene guard exits 0.
+- `startJudgeSession` gives the command role only while the practice search is still the visitor's attempt
+  (`judgeUsers/{uid}`), ready and not ended, read right before the role is written. A start that paused and finds a
+  newer winner throws "still being set up" and leaves the winner's role alone, instead of writing its older
+  attempt over it. The check replaces the separate publication read and also refuses an attempt whose window has
+  ended. A whole older sandbox found without a pointer gets one in the same transaction.
+  Source: review (round 3 on the functions: a late request could overwrite the winner's role).
+  Verified: the new test (a start pauses, a newer attempt wins and is given the role, the paused start resumes) failed
+  first with the older attempt written over the winner, now passes; all 22 judge-session tests pass; functions
+  typecheck exits 0.
+- Two tests pin that a visitor whose pointer (`judgeUsers/{uid}`) names a dead attempt gets a fresh practice
+  search and never the dead one: an attempt the cleanup job has deleted, and an unfinished attempt whose window has
+  ended. Both already held, so the pointer needs no separate pending field.
+  Source: review (round 3 on the functions: the pointer can name an unfinished attempt and outlive it).
+  Verified: both tests pass in the emulators.
+- `docs/LIMITS.md` says what the practice search and the notices do and do not guarantee: each setup attempt has
+  its own incident and a pointer names the one in use, and an older practice search is kept only with every one of
+  the drill's ids; a start at the moment a practice search ends can give the role on the one that just ended (the
+  rules refuse its data, so the visitor starts again); a team's plan notice goes once per version and never for a
+  replaced plan; a family notice can arrive late, repeat a state the search returned to, or come after its question
+  was answered, and only says to open the app; and anyone who knows an incident id can see when its search gets new
+  tasks, starts, pauses or asks the family a question (a real search's id is never published; the drills' ids are in
+  this repository). `docs/PRODUCTION-CHECKLIST.md` names the per-day counter documents.
+  Source: review (round 2 on the functions: the gaps kept as stated limits).
+  Verified: each line matches the code in `functions/src/judgeSession.ts` and `functions/src/notify.ts` as changed
+  here; rules_gate and the public hygiene guard exit 0.
+- A team's new-assignment notice goes once per plan version, and never for a plan that has already been replaced.
+  `notifyPlanApproved` claims each team's notice (`pushBudget/plan-{version}-{team}`, which no client can read or
+  write) before sending, so a redelivered event sends nothing twice; a send that fails gives its claim back, so the
+  next delivery sends it. A plan whose next version already exists announces nothing, so a late event cannot send
+  work a newer plan has replaced.
+  Source: review (round 2 on the functions: a redelivery repeated the sends, and a late older plan could still
+  announce).
+  Verified: the tests (a second delivery sends nothing; plan 1 after plan 2 exists sends nothing while plan 2
+  sends; a failed send is sent on the next delivery) failed first for the first two, the third passed before and
+  after as the guard that a claim never blocks a retry; all 9 plan-notice tests pass; functions typecheck exits 0.
+- The daily cap on new practice searches counts on one document per UTC day, `ops/judgeSessions-{YYYY-MM-DD}`.
+  With one shared counter, a start that read the counter before midnight and committed after a start of the new day
+  wrote yesterday's date back, and the new day's count began again from zero. Nothing else reads the counter.
+  Source: review (round 2 on the functions: calls across midnight could reset the day's count).
+  Verified: the tests (a full day refuses; a start on the next day counts on that day's document and never on the
+  day before) failed first, now all 19 judge-session tests pass; functions typecheck exits 0.
+- A practice search made before setup was tracked is kept only when it holds every one of the seed's segment and
+  team ids (and the shared profile when the seed has one), and never without the seed. The check used to compare
+  counts, so the right number of the wrong segments passed, and an empty sandbox matched an absent seed (0 and 0)
+  and was promoted.
+  Source: review (round 2 on the functions: check expected document ids, not counts, and require the seed).
+  Verified: the tests (three segments with one wrong id is short; an empty or a whole legacy sandbox with no seed is
+  refused, unflagged and given no role) failed first, now all 19 judge-session tests pass.
+- A practice-search copy that throws part way closes its writer before the error leaves, so every write it started
+  has finished before the setup is let go and a retry begins. Before, an error thrown while the copy was still
+  reading the seed skipped `close()`, and its started writes could land after the claim was released.
+  Source: review (round 2 on the functions: drain the writer on error).
+  Verified: the new test (a writer that throws on its second write) failed first with the writer never closed, now
+  passes: the writer is closed, the first write has landed and the setup is let go; all 17 judge-session tests pass.
+- Each practice-search attempt gets its own incident id, so a late builder, the cleanup job and the media sweep can
+  only ever act on their own attempt's data. Every build claim makes a fresh incident `judge-{uid}-{12 hex}`, and
+  `judgeUsers/{uid}` names the attempt that won; only that one is handed back and given the command role. A setup
+  that died is replaced by a fresh attempt for the same session (the same 24-hour window and the same slot of the
+  daily cap) and the dead one is ended (expiry now, setup id retired), so the rules refuse it, its builder can no
+  longer finish it, and the sweeps remove it. Builders no longer clear anything: a new attempt's incident is empty. A
+  sandbox made before attempts had ids (`incidents/judge-{uid}`) is checked against the seed; a whole one is kept
+  and pointed to, a short one is replaced by a fresh attempt instead of being rebuilt in place.
+  Source: review (round 2 on the functions: a stalled builder could delete a ready sandbox's data, and the hourly
+  cleanup could delete a replacement sandbox at the same id; a 2nd gen function keeps running after its timeout, so
+  the fix removes the shared path rather than relying on the timeout).
+  Verified: the tests (fresh ids and the pointer; a builder that stalls inside its copy and resumes after a takeover
+  writes only its own retired attempt; a failed or failing copy is retried on a fresh id on the same slot; two starts
+  at once use one slot; a legacy sandbox kept or replaced; cleanup removes an ended attempt and never the newer one)
+  failed first, now all 16 judge-session tests pass in the emulators; functions typecheck exits 0; the web reads the
+  id only from the callable's result and checks only its `judge-` prefix, and the iPhone and Android apps never read
+  it.
+- `startJudgeSession`'s timeout is one named constant, `JUDGE_SESSION_TIMEOUT_S` (120 s), used by `index.ts`, and a
+  test pins the setup lease (`SETUP_STALE_MS`, 5 minutes) at more than twice it and reads `index.ts` to check the
+  callable uses it. The lease is a margin, not a guarantee: a 2nd gen function runs on Cloud Run, which closes the
+  request at the timeout but does not stop the code, so a builder can resume later.
+  Source: review (round 2 on the functions: a stalled builder).
+  Verified: all 14 judge-session tests pass in the emulators; functions typecheck exits 0.
+- The Kennesaw drill was re-seeded at prior version 2 with the fixed tools (the same grid, point last seen, terrain
+  and layer), so its segments now carry `priorVersion` and `ringPoa` and the iPhone can build its mission.
+  `docs/evidence/drill/kennesaw-seed.md` records the re-seed and the check.
+  Source: the iPhone app could not read the test drill's segments; the Kennesaw drill was seeded the same way.
+  Verified: `segment_contract.py` on the live project: Kennesaw 339 docs at prior version 2, the test drill 68 at
+  version 2 and the development drill 68 at version 5, all readable by the apps.
+- `tools/seed/segment_contract.py` checks an incident's segment docs against the shape the apps decode. The field
+  sets come from `shared/test-vectors/pack-segments-sample.json`, the real segment docs the iPhone's own tests
+  decode. On top of them it checks segmentId equal to the doc id, finite non-negative `priorPoa` and `ringPoa`, one
+  whole-number `priorVersion` equal to the incident's, area above 0, a numeric centroid, `geometryJson` as a string
+  holding a Polygon or MultiPolygon, string lists, `nearFrac` between 0 and 1, a ROW doc, and a prior summing to 1.
+  As a script it reads one live incident (exit 0 readable, 1 not, 2 cannot read). `seed_segments.py` runs it on
+  the docs before writing anything and on the read-back after, and fails if either check fails.
+  Source: the iPhone app could not read a seeded drill's segments; a seed must never produce one it cannot read.
+  Verified: the contract tests (the sample passes; each unreadable shape is named; a MultiPolygon passes; the
+  incident's version must match; a whole incident must sum to 1) and the seed tool's check pass, 32 seed tests in
+  all; against the live project the development drill passes (68 docs at prior version 5) and the test drill and
+  the Kennesaw drill fail on every segment, missing `priorVersion` and `ringPoa`, which is what the iPhone hit.
+- A seeded drill's segments now have the same fields as segments the command post's prior rebuild writes, so the
+  iPhone can build its mission from them. The grid builder's `--prior` adds `ringPoa` (the prior with every layer
+  off, which the rebuild keeps beside the layered prior as its baseline) to each segment, and `seed_segments.py`
+  writes `priorVersion` on every segment and on ROW, besides the incident. Before, a seeded segment had neither, and
+  the iPhone refused the first segment ("The search area could not be read").
+  Source: the iPhone app, joining the test drill.
+  Verified: the tests (the builder's segment keys include `ringPoa`, equal to the layers-off prior, and ROW has
+  none; every segment and ROW write carries the prior version; a missing or negative `ringPoa` is refused) failed
+  first, now all 32 grid-builder and 16 seed-segment tests pass.
+- `scripts/judge_seed_check.py` checks that the drill every judge practice search is copied from has not drifted:
+  it reads the seed named by `JUDGE_SEED_INCIDENT` from the live project and compares what a copy takes (every
+  incident field outside `NOT_COPIED`, both read from `functions/src/judgeSession.ts`; the segments, as a count and
+  a hash; the teams; the shared profile) and a count and hash of the seed's events with the committed
+  `scripts/judge_seed_baseline.json`. It names each difference and exits 1 on drift, and 2 when anything cannot be
+  read, never 0. `docs/PRODUCTION-CHECKLIST.md` runs it before every hosting or functions deploy; `--write`
+  refreshes the baseline after a deliberate change. The baseline was written from the live seed after its shared
+  profile was put back (68 segments, 30 events). Its test runs in the gates job.
+  Source: review (live tests had changed the judge seed's shared profile without anything noticing).
+  Verified: the tests (the seed id and the skipped fields come from the function source; values read as plain
+  JSON; the snapshot is the same in any order; a changed profile field, a new event and a changed segment are each
+  named; a match passes, drift fails, and a missing document or baseline is a failed read) failed first with the
+  module missing, now all 6 pass; against the live project the check exits 0.
+- A test-only drill, `drill-test-1`, exists for the apps' live and device tests, so they never write to the drill
+  every judge practice search is copied from. It has the development drill's grid, point last seen, terrain and
+  near-feature layer, teams T1 and T2, and the same 68 segment ids; its join codes are in the macOS Keychain under
+  account `drill-test-1`. `docs/evidence/drill/drill-test-1-seed.md` records the commands as run and the read-back.
+  Source: review (live tests had written a test stamp and a tracking aid into the judge seed's shared profile).
+  Verified: the read-back in the evidence file (incident fields, teams, 68 segments, ids equal to the development
+  drill's, each Keychain code 8 characters, never printed).
+- The root package accepts Node 22 or 24 (`"engines": { "node": ">=22 <25" }` in `package.json` and its lockfile
+  entry), now that the Node 24 job runs the engine, the tools, the web app and the functions typecheck green on Node
+  24. The functions package stays at Node 22, the Cloud Functions runtime. The README's requirements say the same.
+  Source: review (the Firebase web SDK asks for Node 24.12; engines widen only once the Node 24 job is green).
+  Verified: the Node 24 job passed on its pull request and on main; `npm ci` exits 0 with the new lockfile.
+- The Android unit-test floor is 293, the suite's real count with the first-publish tests (it was 290), in
+  `.github/workflows/android.yml` and `scripts/ci-local.sh`.
+  Source: the Android app's report of its full suite after the first-publish fix.
+  Verified: the Android job on this branch runs 293 tests with 0 failures and `count-tests --min 293` passes.
 - The rules gate refuses web code that makes or prompts a built-in model session itself: `LanguageModel.create`,
   a session's `.prompt(` and `.promptStreaming(`, in plain, optional-chained and bracket forms, in any non-doc file
   under `web/`. The web reaches the browser's model only through Firebase AI Logic's hybrid mode, and before this the

@@ -96,4 +96,28 @@ class ProfilePublisherTest {
         ProfilePublisher(FakeSink(), MemoryPublished()).publish("inc-1", p) { ok -> done = ok }
         assertEquals(true, done)
     }
+
+    /** No document yet: the first publish creates it whole. */
+    @Test fun aFirstPublishCreatesAMissingDocument() {
+        val mine = mapOf("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.Create(mine), FirstPublish.of(existing = null, mine = mine))
+    }
+
+    /**
+     * A document already there (a reinstall, a second family phone): a command edit, another phone's tracking
+     * answer and a field this app does not know all stay; only keys the server lacks or holds as null are added.
+     */
+    @Test fun aFirstPublishKeepsWhatIsAlreadyThere() {
+        val existing = mapOf<String, Any?>(
+            "answersTo" to "Mae (edited by command)", "ageYears" to null,
+            "trackingAids" to mapOf("aids" to listOf("medicalert_id"), "note" to ""), "aFieldFromANewerSchema" to "kept",
+        )
+        val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.AddMissing(mapOf("ageYears" to 82, "clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    @Test fun aFirstPublishOverACompleteDocumentWritesNothing() {
+        val existing = mapOf<String, Any?>("answersTo" to "Mae (edited by command)", "clothingLastWorn" to "red coat")
+        assertEquals(FirstPublish.Nothing, FirstPublish.of(existing, mapOf("answersTo" to "Mae", "clothingLastWorn" to "blue coat")))
+    }
 }
