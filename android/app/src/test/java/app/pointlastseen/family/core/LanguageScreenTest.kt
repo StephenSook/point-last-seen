@@ -35,6 +35,8 @@ class LanguageScreenTest {
             good.replace(""""foreign":["la"]""", """"foreign":["la",true]"""),
             good.replace(""""foreign":["la"]""", """"foreign":["la",3]"""),
             good.replace(""""minForeign":3""", """"minForeign":"3""""),
+            good.replace(""""schemaVersion":1""", """"schemaVersion":"1""""),
+            good.replace(""""foreignOverEnglish":2""", """"foreignOverEnglish":"2""""),
         )) {
             assertEquals(bad, true, runCatching { LanguageScreen.parse(bad) }.isFailure)
         }
