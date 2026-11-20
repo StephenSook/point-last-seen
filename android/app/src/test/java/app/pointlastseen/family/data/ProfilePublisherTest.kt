@@ -195,6 +195,19 @@ class ProfilePublisherTest {
         )
     }
 
+    /** A document whose nickname is null (the rules want a name) gets the nickname its names imply, or the phone's pair. */
+    @Test fun aFirstPublishRepairsANullNickname() {
+        val mine = mapOf<String, Any?>("nickname" to "Mom", "otherNames" to listOf("Mom"), "hair" to "grey")
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to null, "otherNames" to listOf("Peggy")), mine),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Mom"), "hair" to "grey", "nickname" to "Mom")),
+            FirstPublish.of(mapOf("nickname" to null), mine),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

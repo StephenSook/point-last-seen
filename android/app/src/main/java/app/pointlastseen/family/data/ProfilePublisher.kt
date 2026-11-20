@@ -57,12 +57,18 @@ sealed interface FirstPublish {
          * gets the nickname that list implies.
          */
         private fun keepNamesInStep(existing: Map<String, Any?>, send: MutableMap<String, Any?>) {
-            if ("nickname" !in send && "otherNames" !in send) return
-            val names = (if ("otherNames" in send) send["otherNames"] else existing["otherNames"]) as? List<*> ?: return
+            // A stored null nickname breaks the rules' shape: it is repaired from the names below.
+            val nullNickname = "nickname" in existing && existing["nickname"] == null
+            if ("nickname" !in send && "otherNames" !in send && !nullNickname) return
+            val names = (if ("otherNames" in send) send["otherNames"] else existing["otherNames"]) as? List<*>
+            if (names == null) {
+                if (nullNickname) send["nickname"] = ""
+                return
+            }
             val first = names.firstOrNull() as? String ?: ""
             val nickname = if ("nickname" in send) send["nickname"] else existing["nickname"]
             if (nickname == first) return
-            if ("otherNames" in send && "otherNames" !in existing && "nickname" in existing) {
+            if ("otherNames" in send && "otherNames" !in existing && existing["nickname"] is String) {
                 send.remove("otherNames")
                 send.remove("nickname")
             } else {
