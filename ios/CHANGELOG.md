@@ -3,6 +3,21 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-20
+
+### fix(ios): written dates stay in a report; a slash-joined phone number still goes
+- What: a date is search information (when someone was last seen), not a phone number. The phone
+  number rule now keeps three digit groups joined by the same one of / - . that read as a date:
+  year-month-day with a 4-digit year from 1900 to 2100, or month and day in either order with a
+  2-digit year or such a 4-digit year (day 1 to 31, month 1 to 12). A date's groups count no digits,
+  so they never make or join a number. 11/19/2026, 2026-11-19, 19.11.2026 and 11-19-2026 now stay
+  (11/19/2026 and 2026-11-19 were removed before); 404/555/0142, 404-555-0142, 13/45/2026 and
+  5551-12-34 are still removed, and so is a number written next to a date.
+- Source: review (dates are kept on every platform; shared vectors).
+- Verified: a test of dates failed before the change and passes after; a test that date-shaped
+  numbers are still removed passes before and after; the shared vectors with the four new mustKeep
+  dates pass; all 315 core tests pass.
+
 ## 2026-11-19
 
 ### fix(ios): run the shared phone-number vectors, and remove numbers written with slashes

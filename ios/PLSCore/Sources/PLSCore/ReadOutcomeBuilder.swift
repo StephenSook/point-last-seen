@@ -167,7 +167,8 @@ public enum ReadOutcomeBuilder {
 /// 12.2). Seven or more digits in a row are a number: written digits (any script, full-width
 /// folded) and spoken digit words count alike, joined only by short separators (spaces, - . , ( ) /)
 /// and with an optional leading + or (. Report numbers (coverage, minutes, searchers) are far
-/// shorter, so they stay.
+/// shorter, so they stay, and so does a written date (when someone was last seen), which is search
+/// information: three groups joined by one / - or . that read as month and day with a year.
 public enum PhoneNumbers {
     public static let replacement = "[number removed]"
     static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
@@ -176,20 +177,34 @@ public enum PhoneNumbers {
         let folded = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
         // Units: a run of digits counts its digits, a spoken digit word counts one, any other word counts none.
         var units: [(range: Range<String.Index>, digits: Int)] = []
+        var written: [Bool] = []
         var i = folded.startIndex
         while i < folded.endIndex {
             if folded[i].isWholeNumber {
                 var j = i
                 while j < folded.endIndex, folded[j].isWholeNumber { j = folded.index(after: j) }
                 units.append((i..<j, folded.distance(from: i, to: j)))
+                written.append(true)
                 i = j
             } else if folded[i].isLetter {
                 var j = i
                 while j < folded.endIndex, folded[j].isLetter { j = folded.index(after: j) }
                 units.append((i..<j, digitWords.contains(folded[i..<j].lowercased()) ? 1 : 0))
+                written.append(false)
                 i = j
             } else {
                 i = folded.index(after: i)
+            }
+        }
+        // A date's three groups count no digits, so they neither make a number nor join one.
+        var d = 0
+        while d + 2 < units.count {
+            if written[d], written[d + 1], written[d + 2],
+               isDate(folded, units[d].range, units[d + 1].range, units[d + 2].range) {
+                for g in d...(d + 2) { units[g].digits = 0 }
+                d += 3
+            } else {
+                d += 1
             }
         }
         // Walk back from the end, so replacing one number never moves the ones before it.
@@ -222,6 +237,20 @@ public enum PhoneNumbers {
         case let .object(o): return .object(o.mapValues { scrub(json: $0) })
         case .null, .bool, .number: return json
         }
+    }
+
+    /// Three written digit groups joined by the same one of / - . that read as a date: year-month-day
+    /// (a 4-digit year from 1900 to 2100), or month and day in either order then a 2-digit year or such
+    /// a 4-digit year. Each day is 1 to 31 and a month 1 to 12.
+    static func isDate(_ s: String, _ a: Range<String.Index>, _ b: Range<String.Index>, _ c: Range<String.Index>) -> Bool {
+        let gap1 = s[a.upperBound..<b.lowerBound], gap2 = s[b.upperBound..<c.lowerBound]
+        guard gap1.count == 1, gap1 == gap2, let sep = gap1.first, "/-.".contains(sep),
+              let x = Int(s[a]), let y = Int(s[b]), let z = Int(s[c]) else { return false }
+        let (lx, ly, lz) = (s[a].count, s[b].count, s[c].count)
+        let year = 1900...2100, day = 1...31, month = 1...12
+        if lx == 4 { return year.contains(x) && ly <= 2 && lz <= 2 && month.contains(y) && day.contains(z) }
+        guard lx <= 2, ly <= 2, lz == 2 || (lz == 4 && year.contains(z)) else { return false }
+        return day.contains(x) && day.contains(y) && (month.contains(x) || month.contains(y))
     }
 
     /// What may sit between the parts of one number: at most three spaces or - . , ( ) /.
