@@ -189,6 +189,16 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         nav = Nav.leave(nav)
     }
 
+    /** The family left a search still open: forget it, keep the profile and its "gone" state, so it can join again. */
+    fun leaveOpenSearch() {
+        questionCheck?.cancel()
+        openQuestion = null
+        watch.stop()
+        session.incidentId()?.let { familyTopic.left(it) }
+        session.leave()
+        nav = Nav.leftOpen(nav)
+    }
+
     /**
      * Forgets the search only when a forced token refresh succeeds and its claims no longer name it as this
      * family's ([Membership]); a refused read alone, a failed refresh or no network keeps it.

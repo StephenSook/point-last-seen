@@ -59,4 +59,8 @@ class CopyTest {
     @Test fun aDroppedSearchSaysWhyAndWhatToDo() {
         assertEquals("You are no longer part of this search. Ask the search lead for a new code.", Copy.NO_LONGER_MEMBER)
     }
+
+    @Test fun leavingAnOpenSearchAsksInPlainWords() {
+        assertEquals("Leave this search? You will need a new code from the search lead to join again.", Copy.LEAVE_CONFIRM)
+    }
 }

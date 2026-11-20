@@ -108,4 +108,9 @@ class NavTest {
         assertEquals(NavState(Screen.JOIN, gone = true, joined = false), Nav.dropped(NavState(Screen.STATUS, gone = true, joined = true)))
         assertEquals(NavState(Screen.JOIN, gone = false, joined = false), Nav.dropped(NavState(Screen.PROFILE, gone = false, joined = true)))
     }
+
+    /** Leaving an open search returns to the profile, still "gone", so it offers to join again. */
+    @Test fun leavingAnOpenSearchKeepsTheProfileGone() {
+        assertEquals(NavState(Screen.PROFILE, gone = true, joined = false), Nav.leftOpen(NavState(Screen.STATUS, gone = true, joined = true)))
+    }
 }
