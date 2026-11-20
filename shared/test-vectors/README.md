@@ -154,6 +154,10 @@ when the rest of the run is nothing or whole numbers of seven or more digits, an
 digits is left beside it the whole run is removed. A number with an ordinal ending (`67th`) never joins others. A
 grouped count of seven or more digits (`1,234,567` and up) is a number like any other run, since a phone number can be
 written that way (`4,045,550,142`): privacy wins the tie, so a count of a million or more is removed too.
+A decimal pair that starts with `+` is a phone number, not a coordinate (`+44.2071, -23.4567`), since a
+`+` marks an international number; without the `+` a pair stays. A date beside a phone number stays and only the number
+goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search information, and keeping the date leaks
+nothing once the number is removed.
 
 ## language.json (hand-written)
 
