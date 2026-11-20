@@ -15,13 +15,6 @@ import { onDeviceCreateOptions } from "./gate";
 export type SightingCues = { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote: string };
 export type SightingRead = { reading: SightingCues } | { refused: "no-on-device-model" | "not-on-device" | "invalid" | "possible-evidence" | "timeout" };
 
-/**
- * How long a note read on this laptop may take before the form gives up and asks for the fields by hand: the photo
- * read's limit. Measured on Chrome's built-in model: a first session took 11.7 s; an image read's 95th percentile
- * was 31 s. A model download that is still running is never cancelled; only the reply is given up on.
- */
-export const NOTE_READ_TIMEOUT_MS = 30_000;
-
 const P = readingSchema.properties;
 
 export const SIGHTING_CUES_JSON = {
@@ -52,6 +45,13 @@ export function sightingTextParams(): HybridParams {
 }
 
 type Reply = { text: string; inferenceSource: string | undefined };
+
+/**
+ * How long a note read on this laptop may take before the form gives up and asks for the fields by hand: the photo
+ * read's limit. Measured on Chrome's built-in model: a first session took 11.7 s; an image read's 95th percentile
+ * was 31 s. A model download that is still running is never cancelled; only the reply is given up on.
+ */
+export const NOTE_READ_TIMEOUT_MS = 30_000;
 
 export type SightingTextDeps = {
   available: (options: LanguageModelCreateOptions) => Promise<boolean>;

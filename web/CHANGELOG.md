@@ -1878,3 +1878,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readSightingText` races the laptop model's reply against `NOTE_READ_TIMEOUT_MS` (30 s, the photo read's limit; measured on Chrome's built-in model, a first session took 11.7 s and an image read's 95th percentile was 31 s) and returns `refused: "timeout"` when it is not back in time; the form then says "The read took too long. Fill the fields by hand." In `SightingForm`, saving is tracked apart from reading, so Save stays available while a read runs, and each read takes a number that Save moves past, so a reply that lands after Save fills nothing.
 - Source: review finding (the note read had no time limit and Save waited for it).
 - Verified: two new unit tests (a reply that never comes is refused as a timeout; the limit is 30 s) failed first, then passed; two new harness checks in `e2e/harness/sighting.spec.ts` (a timed-out read says so and fills nothing; Save works during a slow read and the late reply fills nothing) failed first, then passed with the other sighting and sightings harness checks (18/18); 818/818 web unit tests; typecheck clean.
+
+### fix(command): the note read's time limit sits below the on-device mode line the test matrix cites
+- What: `NOTE_READ_TIMEOUT_MS` moves below `sightingTextParams` in `src/ai/sightingText.ts`, so `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites for the web's on-device sighting-note read.
+- Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
+- Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
