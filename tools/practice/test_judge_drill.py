@@ -157,15 +157,48 @@ def test_segment_numbers_must_be_stored_as_numbers_and_polygons_as_number_pairs(
         jd.baseline(seed, TS)
 
 
-def test_the_reset_never_deletes_segments_or_teams_and_drops_a_stale_plan_with_the_baseline():
+def test_the_reset_keeps_team_docs_and_drops_stale_plans_and_segments_with_the_baseline():
+    # The seed is validated first (contract, planned teams), so a segment it lacks really was removed; a team doc is
+    # kept because codes do not pin a team and a judge may be on it.
     want = jd.baseline(raw_seed(), TS)
     api = FakeApi(extra_docs=["teams/T9", "segments/ZZ", "plans/0020", "events/e1"], media=[])
     deleted_docs, _ = jd.run_reset(api, want)
     deletes = [n for k, n in api.log if k == "delete"]
-    assert not any("/teams/" in n or "/segments/" in n for n in deletes)
-    assert api.commits[0].count("delete") == 1 and any("plans/0020" in n for n in api.commits[0] if n), \
-        "the stale plan goes in the same commit as the baseline"
-    assert deleted_docs == 2
+    assert not any(n.endswith("/teams/T9") for n in deletes)
+    assert api.commits[0].count("delete") == 2 and any("plans/0020" in n for n in api.commits[0] if n), \
+        "the stale plan and segment go in the same commit as the baseline"
+    assert deleted_docs == 3
+
+
+def test_the_reset_clears_device_records_and_stale_segments_but_keeps_team_docs():
+    # A judge's report leaves a timing record under teams/T1/devices; a seed that dropped a segment leaves it behind
+    # at an old prior version, which the iPhone refuses. Both go; the team doc itself stays.
+    want = jd.baseline(raw_seed(), TS)
+    extra = ["teams/T1/devices/u1", "teams/T1/devices/u1/measurements/m1", "teams/T9", "segments/ZZ", "plans/0020"]
+    plans, segs, rest, _ = jd.plan_reset(FakeApi(extra_docs=extra, media=[]), want)
+    assert [p.rsplit("/", 2)[-2:] for p in plans] == [["plans", "0020"]]
+    assert [p.split("/")[-1] for p in segs] == ["ZZ"]
+    assert sorted(p.split("drill-judge-1/")[1] for p in rest) == ["teams/T1/devices/u1", "teams/T1/devices/u1/measurements/m1"]
+    api = FakeApi(extra_docs=extra, media=[])
+    deleted, _ = jd.run_reset(api, want)
+    assert deleted == 4 and any("segments/ZZ" in n for n in api.commits[0] if n)
+    have = copy.deepcopy(want)
+    have["segments/ZZ"] = {"segmentId": S("ZZ")}
+    assert any(f.startswith("segments/ZZ") for f in jd.differences(want, have))
+
+
+def test_polygons_need_finite_numbers_and_rings_of_four_points():
+    import json as _json
+    import pytest
+    seg = next(k for k in raw_seed()["segments"] if k != "ROW")
+    for spoil in (lambda ring: ring.__setitem__(0, [float("nan"), ring[0][1]]), lambda ring: ring.__delitem__(slice(1, None))):
+        seed = raw_seed()
+        geom = _json.loads(seed["segments"][seg]["geometryJson"]["stringValue"])
+        ring = geom["coordinates"][0] if geom["type"] == "Polygon" else geom["coordinates"][0][0]
+        spoil(ring)
+        seed["segments"][seg]["geometryJson"] = S(_json.dumps(geom))
+        with pytest.raises(ValueError):
+            jd.baseline(seed, TS)
 
 
 def test_ids_from_firestore_names_are_used_as_given():

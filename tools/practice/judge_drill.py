@@ -21,6 +21,8 @@ Exit 0 ok, 1 a difference or a refusal, 2 cannot read or the seed is incomplete.
 """
 import datetime
 import json
+import math
+import re
 import subprocess
 import sys
 import urllib.error
@@ -98,11 +100,15 @@ def _number(raw: dict | None) -> bool:
 
 
 def _positions_ok(coords, depth: int) -> bool:
-    """A GeoJSON coordinates array at the given nesting depth whose positions are [number, number, ...]."""
+    """A GeoJSON coordinates array at the given nesting depth whose positions are finite [number, number, ...] and
+    whose rings (depth 1) hold at least 4 positions, as a closed linear ring must."""
     if not isinstance(coords, list) or not coords:
         return False
     if depth == 0:
-        return len(coords) >= 2 and all(isinstance(c, (int, float)) and not isinstance(c, bool) for c in coords)
+        return len(coords) >= 2 and all(isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c)
+                                         for c in coords)
+    if depth == 1 and len(coords) < 4:
+        return False
     return all(_positions_ok(c, depth - 1) for c in coords)
 
 
@@ -150,6 +156,8 @@ def differences(want: dict[str, dict], have: dict[str, dict]) -> list[str]:
         if keys:
             out.append(f"{path or 'incident'}: differs in {keys[:8]}")
     out += [f"{p}: a plan the baseline does not have" for p in sorted(have) if p.startswith("plans/") and p not in want]
+    out += [f"{p}: a segment the seed does not have (the iPhone refuses mixed prior versions)" for p in sorted(have)
+            if p.startswith("segments/") and p not in want]
     return out
 
 
@@ -178,28 +186,38 @@ def extras(api, want: dict[str, dict]) -> list[str]:
     return [p for p in api.all_docs(f"incidents/{DRILL}") if p[len(prefix):] not in want]
 
 
-KEPT = ("segments/", "teams/")  # a reset never deletes here: the seed may lack a doc the drill still needs
+TEAM_DOC = re.compile(r"teams/[^/]+")  # a team doc itself is kept: codes do not pin a team, a judge may be on it
+
+
+def plan_reset(api, want: dict[str, dict]) -> tuple[list[str], list[str], list[str], list[str]]:
+    """(stale plans, stale segments, other docs to delete, media) for drill-judge-1. The seed passed validation, so a
+    segment or plan it lacks really is stale. Team docs are kept; what judges wrote under them (devices and their
+    measurements) is not."""
+    prefix = f"incidents/{DRILL}/"
+    found = [(p, p[len(prefix):]) for p in extras(api, want)]
+    plans = [p for p, rel in found if rel.startswith("plans/") and rel.count("/") == 1]
+    segs = [p for p, rel in found if rel.startswith("segments/") and rel.count("/") == 1]
+    rest = [p for p, rel in found if p not in plans and p not in segs and not TEAM_DOC.fullmatch(rel)]
+    return plans, segs, rest, api.media(DRILL)
 
 
 def run_reset(api, want: dict[str, dict]) -> tuple[int, int]:
-    """One atomic commit rewrites the baseline and deletes any other plan (the iPhone reads the highest version, so a
-    stale plan must never outlive a new baseline). Then the docs judges added are deleted, never under segments or
-    teams, then their media; a media file already gone (a trigger removed it) counts as deleted. A reset that stops
-    part way leaves the baseline in place; run it again."""
-    prefix = f"incidents/{DRILL}/"
-    found = extras(api, want)
-    plans = [p for p in found if p[len(prefix):].startswith("plans/")]
-    rest = [p for p in found if p not in plans and not p[len(prefix):].startswith(KEPT)]
-    media = api.media(DRILL)
-    first = baseline_writes(want) + [{"delete": f"{DOCS}/{p}"} for p in plans]
+    """One atomic commit rewrites the baseline and deletes any stale plan or segment (the iPhone reads the highest
+    plan and refuses segments at mixed prior versions, so neither may outlive a new baseline). That commit holds at
+    most 500 writes, so a grid of up to about 400 segments resets; a larger one is refused rather than split. Then
+    the docs judges added are deleted, then their media; a media file already gone (a trigger removed it) counts as
+    deleted. A reset that stops part way leaves the baseline in place; run it again."""
+    plans, segs, rest, media = plan_reset(api, want)
+    first = baseline_writes(want) + [{"delete": f"{DOCS}/{p}"} for p in plans + segs]
     if len(first) > 500:
-        raise ValueError(f"the baseline and stale plans need {len(first)} writes, more than one commit holds")
+        raise ValueError(f"the baseline with stale plans and segments needs {len(first)} writes, more than one atomic "
+                         f"commit holds")
     api.commit(first)
     for i in range(0, len(rest), 400):
         api.commit([{"delete": f"{DOCS}/{p}"} for p in rest[i:i + 400]])
     for name in media:
         api.delete_media(name)
-    return len(plans) + len(rest), len(media)
+    return len(plans) + len(segs) + len(rest), len(media)
 
 
 class Api:
@@ -336,8 +354,10 @@ def main(argv: list[str]) -> int:
             print(f"judge_drill: {refused}")
             return 1
         if argv == ["--reset"]:
-            print(f"judge_drill: a reset would rewrite the {len(want)} baseline docs, then delete {len(extras(api, want))} "
-                  f"docs judges added and {len(api.media(DRILL))} media files; dry run, add --yes to reset")
+            plans, segs, rest, media = plan_reset(api, want)
+            print(f"judge_drill: a reset would rewrite the {len(want)} baseline docs, delete {len(plans)} stale plans and "
+                  f"{len(segs)} stale segments with them, then {len(rest)} other docs and {len(media)} media files; "
+                  f"dry run, add --yes to reset")
             return 0
         n_docs, n_media = run_reset(api, want)
         found = differences(want, read_drill(api))

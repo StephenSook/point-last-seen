@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- judge_drill.py, review round 3 (four medium, one low; the last round): a reset now deletes what judges wrote under a
+  team (devices and their measurements) while keeping the team doc; deletes a segment the validated seed no longer
+  has, in the same atomic commit as the baseline, and --check flags such a segment (the iPhone refuses segments at
+  mixed prior versions); polygon positions must be finite and rings must hold at least 4 positions; the dry run counts
+  exactly what a reset deletes. A reset commit holds at most 500 writes, so a grid of up to about 400 segments resets
+  and a larger one is refused rather than split (kept on purpose: atomic, and the largest drill grid has 338
+  segments). Verified test first: 2 new tests failed, then passed; 15 judge_drill tests; the live --check and dry run
+  exit 0.
 - seed_drill.py --expires accepts ASCII digits only and refuses an impossible date the same way, never repeating the
   value. Source: review round 2 (low). Verified test first: three new bad values failed, then passed; 15 seed_drill
   tests.
