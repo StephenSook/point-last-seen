@@ -76,10 +76,10 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
     }
 
-    /** Search information made of digits stays: coordinates, ordinals and units, grouped counts. */
+    /** Search information made of digits stays: coordinates, ordinals and units, a short count. */
     @Test fun coordinatesOrdinalsUnitsAndCountsStay() {
         for (text in listOf(
-            "GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 1,234,567 steps",
+            "GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 12,345 steps",
             "about 2 5km loops", "Atlanta, GA 30301-1234",
         )) {
             assertEquals(text, PhoneNumbers.remove(text))
@@ -172,7 +172,6 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
         assertEquals("GA 30301-1234 [number removed]", PhoneNumbers.remove("GA 30301-1234 555 0142"))
         assertEquals("14:03 [number removed]", PhoneNumbers.remove("14:03 five five five zero one four two"))
-        assertEquals("1,234,567 [number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
     }
 
     /** A removed run keeps its line breaks, so two lines never become one. */
@@ -257,5 +256,13 @@ class PhoneNumbersTest {
             val out = PhoneNumbers.remove(text)
             assertEquals("$text -> $out", false, out.any { it.isDigit() })
         }
+    }
+
+    /** A count of seven or more digits with thousands commas is a number like any other: it can be a phone number. */
+    @Test fun aGroupedCountOfSevenOrMoreDigitsIsRemoved() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 4,045,550,142"))
+        assertEquals("walked [number removed] steps", PhoneNumbers.remove("walked 1,234,567 steps"))
+        assertEquals("[number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
+        assertEquals("walked 12,345 steps", PhoneNumbers.remove("walked 12,345 steps"))
     }
 }

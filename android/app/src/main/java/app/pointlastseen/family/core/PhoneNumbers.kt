@@ -11,7 +11,7 @@ import java.text.Normalizer
  * segments, searchers, percents) are far shorter, so they stay.
  *
  * Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a
- * grouped count, a ZIP+4 code after a state, a month-name date. It stays only when the rest of
+ * ZIP+4 code after a state, a month-name date. It stays only when the rest of
  * the run is nothing or whole numbers of seven or more digits (which are removed); when any other piece of 1 to 6
  * digits is left beside it, the whole run is removed, since that piece could be part of a number. A number with an
  * ordinal ending (67th) never joins others. A removed run keeps its line breaks.
@@ -140,14 +140,15 @@ object PhoneNumbers {
     /**
      * The parts that are search information, found on the text as it is: a written date (three groups joined by one
      * / - . or dash that read as a date, with no digits joined to it by its own separator), a time (14:03), a
-     * coordinate pair in range (33.7490, -84.3880), a grouped count (1,234,567), a ZIP+4 code after a state
-     * (GA 30301-1234) and a month-name date (Nov 19 2026, 19 November 2026). A number with a unit (5km) is not one:
-     * glued to the last group of a phone number it would shield those digits.
+     * coordinate pair in range (33.7490, -84.3880), a ZIP+4 code after a state (GA 30301-1234) and a month-name date
+     * (Nov 19 2026, 19 November 2026). A number with a unit (5km) is not one: glued to the last group of a phone number
+     * it would shield those digits. Nor is a grouped count of seven or more digits (1,234,567), which can be a phone
+     * number written with thousands commas; a shorter count (12,345) never reaches seven digits, so it stays.
      */
     private fun searchSpans(s: String, parts: List<Part>): Set<Int> {
         fun gap(a: Int, b: Int) = s.substring(parts[a].end, parts[b].start)
-        // Length in UTF-16 units: a digit outside the BMP counts twice, so such digits never read as a day, a year, a
-        // count's group or a ZIP code, and stay in the run (removing more is the safe side).
+        // Length in UTF-16 units: a digit outside the BMP counts twice, so such digits never read as a day, a year or a
+        // ZIP code, and stay in the run (removing more is the safe side).
         fun len(i: Int) = parts[i].end - parts[i].start
         fun text(i: Int) = s.substring(parts[i].start, parts[i].end)
         fun value(i: Int): Int? = text(i).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
@@ -184,11 +185,6 @@ object PhoneNumbers {
             }
             if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true))) {
                 kept += i..(i + 3)
-            }
-            if (len(i) <= 3 && !(i > 0 && gap(i - 1, i) == ",")) {
-                var j = i + 1
-                while (written(j) && gap(j - 1, j) == "," && len(j) == 3) j++
-                if (j - i - 1 >= 2) kept += i until j
             }
             if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&
                 text(i - 1) in STATES && gap(i - 1, i) == " "
