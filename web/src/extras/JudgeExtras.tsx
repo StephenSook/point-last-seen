@@ -25,7 +25,7 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
     <>
       {replay && (
         <section aria-labelledby="extras-replay-h" className="extras-judge-replay">
-          <h2 id="extras-replay-h" className="label">Watch the run over time</h2>
+          <h2 id="extras-replay-h" className="label">Watch the drill replay</h2>
           {label && <p className="extras-run-label" data-testid="run-label">{label}</p>}
           {replay.ok ? (
             <ExtrasBoundary>
