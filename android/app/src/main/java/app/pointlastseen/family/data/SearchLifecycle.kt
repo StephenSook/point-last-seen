@@ -1,6 +1,10 @@
 package app.pointlastseen.family.data
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Which join a result belongs to: it changes on every join, leave and drop, and with the signed-in user. */
@@ -64,5 +68,23 @@ object Departure {
             }
         }
         finish()
+    }
+}
+
+/** At most one pending wait: scheduling again replaces the earlier one, so retries for one purpose never stack. */
+class OneTimer(private val scope: CoroutineScope) {
+    private var job: Job? = null
+
+    fun schedule(delayMs: Long, action: () -> Unit) {
+        job?.cancel()
+        job = scope.launch {
+            delay(delayMs)
+            action()
+        }
+    }
+
+    fun cancel() {
+        job?.cancel()
+        job = null
     }
 }

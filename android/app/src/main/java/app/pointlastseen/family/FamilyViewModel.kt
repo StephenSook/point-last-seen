@@ -43,6 +43,7 @@ import app.pointlastseen.family.data.JoinGeneration
 import app.pointlastseen.family.data.JoinedStart
 import app.pointlastseen.family.data.Membership
 import app.pointlastseen.family.data.MembershipCheck
+import app.pointlastseen.family.data.OneTimer
 import app.pointlastseen.family.data.StillJoined
 import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
@@ -81,7 +82,6 @@ import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.firestore
@@ -104,6 +104,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val watch = IncidentWatch(onDenied = { checkMembership() })
     // Tries at watching again after a refused read kept the search; reset by a join or the foreground.
     private var reattachTries = 0
+    // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
+    private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
     private val telemetry = Telemetry(FirebaseTelemetrySink())
@@ -242,6 +244,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         questionCheck?.cancel()
         openQuestion = null
         stopJoinedWork()
+        reattach.cancel()
         viewModelScope.launch {
             Departure.leave(
                 // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
@@ -279,8 +282,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun reattachWatch(incidentId: String, ticket: app.pointlastseen.family.data.JoinTicket) {
         val wait = IncidentWatch.reattachDelay(reattachTries++) ?: return
-        viewModelScope.launch {
-            delay(wait)
+        reattach.schedule(wait) {
             if (joins.isCurrent(ticket) && session.incidentId() == incidentId && !watch.attached) watch.watch(incidentId)
         }
     }
@@ -289,6 +291,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun onForeground() {
         val incidentId = session.incidentId() ?: return
         if (watch.attached) return
+        reattach.cancel()
         reattachTries = 0
         watch.watch(incidentId)
     }
@@ -303,6 +306,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         questionCheck?.cancel()
         openQuestion = null
         stopJoinedWork()
+        reattach.cancel()
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()

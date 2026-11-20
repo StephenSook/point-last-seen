@@ -51,6 +51,26 @@ class SearchLifecycleTest {
         assertFalse(g.isCurrent(second))
     }
 
+    /** One timer per purpose: scheduling it again replaces the earlier wait, so retries cannot stack. */
+    @Test fun aTimerScheduledAgainReplacesTheEarlierOne() = runTest {
+        val log = mutableListOf<String>()
+        val timer = OneTimer(this)
+        timer.schedule(5_000) { log += "first" }
+        timer.schedule(30_000) { log += "second" }
+        advanceUntilIdle()
+        assertEquals(listOf("second"), log)
+        assertEquals(30_000L, testScheduler.currentTime)
+    }
+
+    @Test fun aCancelledTimerNeverFires() = runTest {
+        val log = mutableListOf<String>()
+        val timer = OneTimer(this)
+        timer.schedule(5_000) { log += "fired" }
+        timer.cancel()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), log)
+    }
+
     /** Leaving forgets the search first (so no new write starts), lets sent writes settle, then finishes. */
     @Test fun leavingForgetsFirstThenSettlesThenFinishes() = runTest {
         val log = mutableListOf<String>()
