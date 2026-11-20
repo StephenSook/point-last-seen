@@ -86,7 +86,6 @@
         "Call"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -99,7 +98,6 @@
         "Call"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -112,7 +110,6 @@
         "Call"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -125,7 +122,6 @@
         "Call"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -138,7 +134,6 @@
         "Call"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -152,7 +147,6 @@
         "tonight"
       ],
       "pendingOn": [
-        "ios",
         "web"
       ]
     }
@@ -198,7 +192,6 @@
       "name": "gps_pair",
       "input": "GPS 33.7490, -84.3880",
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -206,7 +199,6 @@
       "name": "zip_plus_four",
       "input": "Atlanta, GA 30301-1234",
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -214,7 +206,6 @@
       "name": "grouped_count",
       "input": "walked 1,234,567 steps",
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -222,7 +213,6 @@
       "name": "street_address",
       "input": "12345 67th Ave",
       "pendingOn": [
-        "ios",
         "web"
       ]
     },
@@ -230,7 +220,6 @@
       "name": "number_with_unit",
       "input": "5km",
       "pendingOn": [
-        "ios",
         "web"
       ]
     }
@@ -241,7 +230,6 @@
       "input": "Seen at 14:03, 404-555-0142",
       "output": "Seen at 14:03, [number removed]",
       "pendingOn": [
-        "ios",
         "web"
       ]
     }
