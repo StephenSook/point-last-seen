@@ -265,4 +265,12 @@ class PhoneNumbersTest {
         assertEquals("[number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
         assertEquals("walked 12,345 steps", PhoneNumbers.remove("walked 12,345 steps"))
     }
+
+    /** A mark or format character outside the BMP (a tag character, a supplementary variation selector) between groups counts as nothing too. */
+    @Test fun aMarkOutsideTheBmpBetweenGroupsJoinsThem() {
+        for (sep in listOf("\uDB40\uDC20", "\uDB40\uDD00", "\u0903")) {
+            val out = PhoneNumbers.remove("Call 404${sep}555${sep}0142")
+            assertEquals(out, false, out.any { it.isDigit() })
+        }
+    }
 }

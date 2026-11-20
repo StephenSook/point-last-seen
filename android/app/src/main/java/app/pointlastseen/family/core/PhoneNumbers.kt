@@ -265,16 +265,23 @@ object PhoneNumbers {
     private fun onlySeparators(s: String): Boolean = flat(s).all { it == ' ' || it == '\n' || it in "-.,()/" || it in DASHES }
 
     /**
-     * A gap as read: combining marks and format characters dropped (NFKC turns a spacing accent such as ´ into a
+     * A gap as read: combining marks (spacing ones too) and format characters dropped (NFKC turns a spacing accent such as ´ into a
      * space and a combining mark; a joiner or a keycap mark is invisible), each line break (CRLF, LF, CR, NEL, or the
      * Unicode line or paragraph separator) with any indent after it made one "\n", and every other space " ". With
      * [keepIndent] the indent stays as spaces (a coordinate pair allows only two spaces around its comma, so a number
      * pasted across indented lines is never read as one).
      */
     private fun flat(gap: String, keepIndent: Boolean = false): String {
-        val visible = gap.filter { c ->
-            val type = Character.getType(c).toByte()
-            type != Character.NON_SPACING_MARK && type != Character.ENCLOSING_MARK && type != Character.FORMAT
+        // By code point, so a mark or format character outside the BMP (a tag character) is dropped too.
+        val visible = buildString {
+            gap.codePoints().forEach { cp ->
+                val type = Character.getType(cp).toByte()
+                if (type != Character.NON_SPACING_MARK && type != Character.ENCLOSING_MARK && type != Character.COMBINING_SPACING_MARK &&
+                    type != Character.FORMAT
+                ) {
+                    appendCodePoint(cp)
+                }
+            }
         }
         return (if (keepIndent) BREAK else LINE_BREAK).replace(visible, "\n").map { if (it != '\n' && it.isWhitespace()) ' ' else it }.joinToString("")
     }
