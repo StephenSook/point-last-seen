@@ -109,6 +109,11 @@ each line says what the limit is and why.
   +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
   with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
   removed too; without the "+" it stays.
+- Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
+  47 and the web 29. Each platform's runner runs every case not marked pending for it; the web's runner is being
+  added, and its 29 were measured against `web/src/data/sightings.ts` on 2026-11-20. The web misses spaced digits
+  ("4 0 4 5 5 5 0 1 4 2"), spoken digits, international numbers ("+44 20 7946 0958") and slashes ("404/555/0142")
+  until it takes the Android rule (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## On-device safety (Android)
 
@@ -217,6 +222,19 @@ each line says what the limit is and why.
 - The reader parses the whole file before its size checks (at most 1,000 reports, over at most 7 days), so an
   oversized file costs the browser a parse before it is refused.
 - The judge replay's check compares each segment's percent and centroid with the run, not its polygon.
+
+## Command post extras
+
+- The replay shows no map before the current prior: a moment from an earlier prior reads "Earlier prior. The map for
+  this time is not stored."
+- Reports still sending are not in the replay.
+- The assignment sheet's names and numbers are handwritten.
+- The names the person answers to and the approach notes print only when command ticks the box, and paper leaves the
+  app: once printed, nothing in the app controls it.
+- The GeoJSON export was checked in MapLibre only.
+- Terrain ships only where stream links mostly run downhill. The development site has no terrain, so neither does the
+  judge practice search. The 3 m "about level" band is ours, and the vertical accuracy of the 3DEP data is unverified.
+- Reloading the extras panels offline is not verified on the deployed app.
 
 ## Push notifications
 

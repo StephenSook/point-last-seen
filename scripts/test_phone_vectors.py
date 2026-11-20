@@ -140,3 +140,16 @@ def test_a_leftover_digit_in_any_script_is_caught():
     assert remove_violations(case, "call \u2776 now") == ["a digit is left"]
     assert remove_violations(case, "Call [number removed]") == []
 
+
+
+def test_the_limits_pass_counts_match_the_file():
+    # docs/LIMITS.md states each platform's pass count; a platform passes every case not marked pending for it.
+    import re
+    d = load()
+    cases = d["mustRemove"] + d["mustKeep"] + d["exact"]
+    runs = {p: sum(1 for c in cases if p not in c.get("pendingOn", [])) for p in PLATFORMS}
+    text = " ".join((ROOT / "docs/LIMITS.md").read_text().split())
+    m = re.search(r"Of the (\d+) shared phone-number test cases .*?"
+                  r"Android passes (\d+), the iPhone (\d+) and the web (\d+)\.", text)
+    assert m, "LIMITS has no phone-number pass-count line"
+    assert [int(x) for x in m.groups()] == [len(cases), runs["android"], runs["ios"], runs["web"]]

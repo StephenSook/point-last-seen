@@ -5,6 +5,23 @@ import routeSchema from "../../../shared/schemas/route-record.schema.json";
 import { AUTHOR_PSEUDONYM, DEVICE_PSEUDONYM, MAX_RUN_EVENTS, RUN_FIELDS } from "./contract";
 
 const ROUTE_FIELDS = Object.keys(routeSchema.properties);
+// A route is the read's provenance (which path, stage and model ran, why, and how long it took). Its values must be the
+// route record's own, so no note text can ride along in one: enums from the schema, a short model id, numbers.
+const RP = routeSchema.properties as unknown as Record<string, { enum?: string[]; maxLength?: number; anyOf?: { enum?: string[] }[] }>;
+const enumOf = (k: string) => RP[k]!.enum!;
+const BLOCKED = RP.blocked!.anyOf!.flatMap(x => x.enum ?? []);
+const finiteAtLeast0 = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+
+function routeValueProblems(id: string, r: Record<string, unknown>): string[] {
+  const bad: string[] = [];
+  for (const k of ["platform", "path", "stage", "reason"]) if (!enumOf(k).includes(r[k] as string)) bad.push(k);
+  if (typeof r.model !== "string" || r.model.length > RP.model!.maxLength!) bad.push("model");
+  if (!finiteAtLeast0(r.latencyMs)) bad.push("latencyMs");
+  if (typeof r.sdkReported !== "boolean") bad.push("sdkReported");
+  if (r.blocked !== null && !BLOCKED.includes(r.blocked as string)) bad.push("blocked");
+  if (!finiteAtLeast0(r.decidedAtMs)) bad.push("decidedAtMs");
+  return bad.length === 0 ? [] : [`${id}: route has values a route record cannot hold (${bad.join(", ")})`];
+}
 const UNSAFE_IDS = new Set(["__proto__", "constructor", "prototype"]);
 const YEAR_2000 = Date.UTC(2000, 0, 1), YEAR_2100 = Date.UTC(2100, 0, 1);
 const MAX_SPAN_MS = 7 * 86_400_000, MAX_EVENTS = MAX_RUN_EVENTS;
@@ -92,7 +109,10 @@ export function checkRun(run: unknown): string[] {
     if (typeof e.serverTimeMs !== "number") problems.push(`${id}: serverTimeMs is not a number`);
     if (e.type === "destination" && e.position !== null) problems.push(`${id}: a destination must have no position`);
     if (e.positionSource === "camera_pin" && e.position !== null) problems.push(`${id}: a camera pin must have no position`);
-    if (e.route !== null && e.route !== undefined && !sameKeys(e.route, ROUTE_FIELDS)) problems.push(`${id}: route is not an exact route record`);
+    if (e.route !== null && e.route !== undefined) {
+      if (!sameKeys(e.route, ROUTE_FIELDS)) problems.push(`${id}: route is not an exact route record`);
+      else problems.push(...routeValueProblems(id, e.route as Record<string, unknown>));
+    }
     if (e.effect !== undefined) problems.push(...effectProblems(id, e.effect, segmentIds));
     if (e.type === "camera_sighting") {
       const reading = e.reading as Doc | null;
