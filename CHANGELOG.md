@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `tools/practice/judge_drill.py`: the shared judge drill `drill-judge-1`, built from the judge seed so it tells the
+  same story as /judge and the iPhone practice pack: the incident fields judgeSession.ts copies, segments, teams,
+  profile/shared and the pack's plan (approvedByUid `judge-drill-baseline`), as a training drill (mode drill, the
+  drill label, "Judge drill" in the name). `--check` compares the baseline docs with the seed and counts what judges
+  added; `--write` applies the baseline; `--reset` lists what a reset deletes (docs judges added, through nested
+  collections, and their media) and `--reset --yes` does it, for drill-judge-1 only and never from 2026-12-10 to
+  2026-12-16. Values are copied as Firestore stores them. Source: review (judge codes). Verified: 4 tests (baseline
+  overrides, drift caught, reset refusals, bad arguments change nothing).
 - Rules tests for a judge drill shared by many judges (`functions/test/rules/judgeDrill.test.ts`): no searcher or
   family member can close, relabel, pause, re-plan or delete the drill, or write its segments, teams or shared profile
   deletion; a searcher cannot change, delete or forge another member's report; a family member cannot change an answer
