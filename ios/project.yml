@@ -71,6 +71,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PLS_BUILD_COMMIT: unknown
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
         ENABLE_USER_SCRIPT_SANDBOXING: YES

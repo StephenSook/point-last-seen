@@ -5,6 +5,39 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### build(ios): archive and check a release build for App Store Connect, uploading nothing
+- What: ios/scripts/archive_release.sh archives a Release build with a given build number and the
+  current commit, exports the .ipa for App Store Connect into a local folder, and checks the
+  exported app itself: push and App Attest entitlements in production, the build number, the
+  recorded commit, the encryption answer, the icon, the privacy manifest, no debug eval screen,
+  and a valid signature. It refuses to run with uncommitted changes under ios/.
+- Source: TestFlight preparation.
+- Verified: a dry run on this branch archived and exported build 1 with the team's distribution
+  certificate. Seven checks passed (App Attest production, build number, encryption answer, icon,
+  privacy manifest, no eval screen, signature). Two failed as expected on this branch: no push
+  entitlement (push comes with the push branch) and no recorded commit (the Info.plist key comes
+  with the eval branch).
+
+### feat(ios): a privacy manifest for the app
+- What: the app now carries PrivacyInfo.xcprivacy, which App Store Connect checks on upload: no
+  tracking and no tracking domains; the data a report sends to the incident (precise location, the
+  anonymous user id and the report's words), each linked to that user, never used for tracking,
+  for the app's own function; and the one required-reason API the app's own code uses, its own
+  UserDefaults (reason CA92.1). The widget uses none. The Firebase and MapLibre packages carry
+  their own manifests.
+- Source: TestFlight preparation.
+- Verified: plutil lint passes; a test reads the manifest from the app bundle and checks each entry;
+  it failed with the file removed and passes with it; 119 app tests pass.
+
+### feat(ios): an app icon, the web app's mark
+- What: the iPhone app had no icon, which App Store Connect refuses on upload. It now has one: the
+  web app's own mark (web/public/favicon.svg: a warm ring and a light centre on the dark ground),
+  rendered at 1024 x 1024 with no alpha channel by ios/scripts/make_app_icon.sh, in a new asset
+  catalog the target names as its icon.
+- Source: TestFlight preparation (an upload needs an icon).
+- Verified: the script wrote a 1024 x 1024 sRGB image with 3 channels; the app builds and the app
+  tests pass; the built app's Info.plist names AppIcon.
+
 ### fix(ios): leaving a search goes through the same account change as any sign-out
 - What: "Leave this search" signed the anonymous user out and dropped the mission itself, apart from
   the path every other Auth change takes. It now ends with that same account change: running
