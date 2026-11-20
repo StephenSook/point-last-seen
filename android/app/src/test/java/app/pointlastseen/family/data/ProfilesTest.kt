@@ -194,4 +194,14 @@ class ProfilesTest {
             Profiles.placeLabels("Old home, call 404-555-0142\n  Grace Church ; the mill\n\n"),
         )
     }
+
+    /** A number split across two lines is still caught, and a saved place keeps its position when its label is cleaned. */
+    @Test fun formPlacesAreCleanedAsAWholeAndKeepTheirPositions() {
+        assertEquals(false, Profiles.placeLabels("Call 404-555\r\n  0142").joinToString(" ").any { it.isDigit() })
+        val saved = listOf(PlaceEntry("Old home, call 404-555-0142", LatLon(33.7, -84.4)))
+        assertEquals(
+            listOf(PlaceEntry("Old home, call [number removed]", LatLon(33.7, -84.4))),
+            Profiles.placeEntries("Old home, call 404-555-0142", saved),
+        )
+    }
 }

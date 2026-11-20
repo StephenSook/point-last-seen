@@ -208,9 +208,23 @@ object Profiles {
      * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
-    /** Address, place or wandering lines from the profile form: one per line (or ;), phone numbers removed as in a note. */
+    /**
+     * Address, place or wandering lines from the profile form: phone numbers removed as in a note, from the whole
+     * text first (so a number split across two lines is still caught), then one label per line (or ;).
+     */
     fun placeLabels(text: String): List<String> =
-        text.split('\n', ';').map { app.pointlastseen.family.core.PhoneNumbers.remove(it.trim()).trim() }.filter { it.isNotEmpty() }
+        app.pointlastseen.family.core.PhoneNumbers.remove(text).split('\n', ';').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /** [placeLabels] as entries: a saved entry whose label cleans to the same line keeps its position. */
+    fun placeEntries(text: String, saved: List<PlaceEntry>): List<PlaceEntry> = placeLabels(text).map { l ->
+        saved.firstOrNull { it.label == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.label) == l }?.copy(label = l) ?: PlaceEntry(l, null)
+    }
+
+    /** [placeLabels] as past wandering entries, keeping a saved entry's position the same way. */
+    fun wanderingEntries(text: String, saved: List<WanderingEntry>): List<WanderingEntry> = placeLabels(text).map { l ->
+        saved.firstOrNull { it.foundWhere == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.foundWhere) == l }?.copy(foundWhere = l)
+            ?: WanderingEntry(l, null)
+    }
 
     fun approachNoteIds(p: SubjectProfile): List<String> {
         val f = p.flags

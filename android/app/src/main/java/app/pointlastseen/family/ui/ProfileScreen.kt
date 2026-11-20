@@ -115,9 +115,9 @@ fun ProfileScreen(
         ageYears = age.trim().toIntOrNull(), heightFt = ft.trim().toIntOrNull(), heightIn = inch.trim().toIntOrNull(),
         weightLb = lb.trim().toIntOrNull(), photoTakenOn = runCatching { LocalDate.parse(photo.trim()) }.getOrNull(),
         // Phone numbers come out here, as from a note: these labels reach command's profile.
-        previousAddresses = Profiles.placeLabels(addresses).map { l -> profile.previousAddresses.firstOrNull { it.label == l } ?: PlaceEntry(l, null) },
-        placesFrequented = Profiles.placeLabels(places).map { l -> profile.placesFrequented.firstOrNull { it.label == l } ?: PlaceEntry(l, null) },
-        pastWandering = Profiles.placeLabels(wandering).map { l -> profile.pastWandering.firstOrNull { it.foundWhere == l } ?: WanderingEntry(l, null) },
+        previousAddresses = Profiles.placeEntries(addresses, profile.previousAddresses),
+        placesFrequented = Profiles.placeEntries(places, profile.placesFrequented),
+        pastWandering = Profiles.wanderingEntries(wandering, profile.pastWandering),
         otherNames = Profiles.otherNames(lines(others)),
     )
 
