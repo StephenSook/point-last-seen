@@ -285,6 +285,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     familyTopic.leaving(incidentId)
                     // The search and, for a found or closed one, the gone flag go in one write.
                     session.leave(alsoRemove = if (keepGone) emptyList() else listOf(GONE))
+                    // The family's edits were for this search: none may reach the next search's first publish.
+                    familyEdits.clear()
                 },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
@@ -357,6 +359,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
+        familyEdits.clear()
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
     }
