@@ -25,6 +25,41 @@ test("the sheet's match code line counts reports, not every event", async ({ pag
   await expect(page.getByText(/Map match code at print time: .* \(plan v\d+, 13 reports\)\./).first()).toBeVisible();
 });
 
+/** Line boxes a text node's first `word` occupies: 1 means the word is not broken across lines. */
+async function linesOf(page: Page, selector: string, word: string): Promise<number> {
+  return page.locator(selector).first().evaluate((el, w) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf(w) ?? -1;
+      if (at === -1) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + w.length);
+      return new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size;
+    }
+    return 0;
+  }, word);
+}
+
+test("at phone width the sheet preview breaks no date or role name in the middle", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(harness);
+  await openExtra(page, "Print assignment sheet");
+  await expect(page.locator("[data-block]").first()).toBeVisible();
+  const dateFrom = page.locator('[data-block="2"] dd').first();
+  const date = (await dateFrom.textContent()) ?? "";
+  expect(date).toMatch(/\d/);
+  expect(await linesOf(page, '[data-block="2"] dd', date)).toBe(1);
+  expect(await linesOf(page, '[data-block="4"]', "Division/Group")).toBe(1);
+  const pageLabel = page.locator(".extras-ics-footer span", { hasText: "IAP Page" }).first();
+  expect(await pageLabel.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size;
+  })).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 /** Pages in a PDF, counted from its page objects. */
 function pdfPages(pdf: Buffer): number {
   return (pdf.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) ?? []).length;

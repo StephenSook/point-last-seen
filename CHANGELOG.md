@@ -17,6 +17,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - `joinIncident` refuses a judge sandbox whose setup is not finished (`setupReady !== true`), as the rules do, so it
   never grants claims that every read would then refuse. Source: review (Codex round 1, low). Verified test first: the
   join test's no-flag and not-ready cases failed, then passed; suite 256 of 256.
+- LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
+  family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
+  the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause
+  harm). Verified: the README, the judge page (JudgePage, judge.ts, JudgeExtras), drill-day.md and SECURITY.md never
+  call push an alert path; the paused notice text is in functions/src/notify.ts.
 
 ## 2026-11-19
 
