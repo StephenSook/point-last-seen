@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the pending marks for the web now match what the web does. Measured against
+  web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
+  spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
+  were still marked and are now unmarked. LIMITS states each platform's pass count (Android 52, the iPhone 47, the web
+  29), and scripts/test_phone_vectors.py checks those counts against the file. Source: review. Verified: a probe of
+  the web function over every case (29 pass, the 23 failures all now pending on web); Android PhoneVectorsTest and the
+  iPhone's PhoneNumberVectorTests pass locally on this file; the count test failed on a planted 51 and passes on 52.
 - README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
   its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
   names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the

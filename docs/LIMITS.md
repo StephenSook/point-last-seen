@@ -109,6 +109,11 @@ each line says what the limit is and why.
   +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
   with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
   removed too; without the "+" it stays.
+- Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
+  47 and the web 29. Each platform's runner runs every case not marked pending for it; the web's runner is being
+  added, and its 29 were measured against `web/src/data/sightings.ts` on 2026-11-20. The web misses spaced digits
+  ("4 0 4 5 5 5 0 1 4 2"), spoken digits, international numbers ("+44 20 7946 0958") and slashes ("404/555/0142")
+  until it takes the Android rule (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## On-device safety (Android)
 
