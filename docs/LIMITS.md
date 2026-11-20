@@ -90,7 +90,7 @@ each line says what the limit is and why.
 
 - The family app removes phone numbers from a note the way the iPhone app does: seven or more digits in a row,
   written in any script or spoken, joined by short separators, even across a line break. Search information inside
-  such a run (a date, a time, coordinates, a grouped count, a ZIP+4 code after a state, a number with a unit) stays
+  such a run (a date, a time, coordinates, a grouped count, a ZIP+4 code after a state) stays
   only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
   (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
 - To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date

@@ -11,7 +11,7 @@ import java.text.Normalizer
  * segments, searchers, percents) are far shorter, so they stay.
  *
  * Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a
- * grouped count, a ZIP+4 code after a state, a month-name date, a number with a unit. It stays only when the rest of
+ * grouped count, a ZIP+4 code after a state, a month-name date. It stays only when the rest of
  * the run is nothing or whole numbers of seven or more digits (which are removed); when any other piece of 1 to 6
  * digits is left beside it, the whole run is removed, since that piece could be part of a number. A number with an
  * ordinal ending (67th) never joins others. A removed run keeps its line breaks.
@@ -45,11 +45,6 @@ object PhoneNumbers {
 
     // A number with one of these endings is an ordinal (67th Ave) and never joins other digits.
     private val ORDINALS = setOf("st", "nd", "rd", "th")
-
-    // Endings glued to a number that make it a quantity (5km, 3pm).
-    private val UNITS = setOf(
-        "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph", "kg", "lb", "lbs", "cm", "mm",
-    )
 
     // US state and territory codes, written in capitals (GA 30301-1234); lower case would match common words.
     private val STATES = setOf(
@@ -146,7 +141,8 @@ object PhoneNumbers {
      * The parts that are search information, found on the text as it is: a written date (three groups joined by one
      * / - . or dash that read as a date, with no digits joined to it by its own separator), a time (14:03), a
      * coordinate pair in range (33.7490, -84.3880), a grouped count (1,234,567), a ZIP+4 code after a state
-     * (GA 30301-1234), a month-name date (Nov 19 2026, 19 November 2026) and a number with a unit (5km).
+     * (GA 30301-1234) and a month-name date (Nov 19 2026, 19 November 2026). A number with a unit (5km) is not one:
+     * glued to the last group of a phone number it would shield those digits.
      */
     private fun searchSpans(s: String, parts: List<Part>): Set<Int> {
         fun gap(a: Int, b: Int) = s.substring(parts[a].end, parts[b].start)
@@ -182,12 +178,6 @@ object PhoneNumbers {
                 !sameSeparatorNeighbour(s, parts, i, i + 2)
             ) {
                 dates += i..(i + 2)
-            }
-            // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
-            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end && word(s, parts[i + 1]) in UNITS &&
-                parts[i].digits < 7
-            ) {
-                kept += i
             }
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
                 kept += i..(i + 1)

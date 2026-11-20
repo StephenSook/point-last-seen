@@ -250,4 +250,12 @@ class PhoneNumbersTest {
             assertEquals(text, "Call [number removed]", PhoneNumbers.remove(text))
         }
     }
+
+    /** A unit glued to the last group of a number does not shield it: the whole number goes. */
+    @Test fun aUnitGluedToTheLastGroupShieldsNothing() {
+        for (text in listOf("Call 1-404-555-0142pm", "Call 1 404 555 0142pm", "Call 404-555-0142 5km")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, out.any { it.isDigit() })
+        }
+    }
 }
