@@ -40,6 +40,12 @@ each line says what the limit is and why.
 - A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
   first share adds only fields the search does not have yet; command or the family fills an empty field by editing
   it.
+- A family's edit made on the phone before its first publish to a search reaches the search for single fields (names,
+  descriptions, the clothing last worn, triggers and the like). For a list or set field (other names, mobility aids,
+  the behaviour flags, places, past addresses and wandering spots, the tracking answer, the vehicle), the edit reaches
+  the search only where command's profile does not have that field yet; where it does, command's entries stay. After
+  the first publish, an edit to such a field sends the phone's whole list, which replaces the entries command added
+  to that field.
 - The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
   the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
   phone that loses its access while offline shows the search until it can check.
