@@ -1739,3 +1739,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `deleteFailure` reads errors through `callableError`, so "Only the incident's command can delete its media." and "Sign in before deleting an incident's media." show as refusals (nothing deleted) instead of "The server did not confirm the delete". A `details.reason` (not_command, not_signed_in) is trusted over the wording when the server sends one.
 - Source: the same SDK status suffix found on the practice search; this mapper used the same exact match.
 - Verified: a new test with the SDK's real " [403]" and " [401]" messages and a reason failed first, then passed; 9 of 9 media tests pass; typecheck clean.
+
+### feat(data): retry a practice search while the server is still setting it up
+- What: `startWithRetry(start, { onWaiting })` in `data/practice.ts`: when the server answers "still being set up" (code unavailable with that sentence, or reason setup_busy), it passes the sentence to `onWaiting` and starts again every 2.5 s for up to 30 s, then gives up with the server's answer. Any other failure, a lost connection included, is thrown at once. Not used by the judge page yet.
+- Source: a second start during setup (a double click) is answered "still being set up"; the person should not have to click again.
+- Verified: 3 new tests with a fake clock (busy twice then success with two 2.5 s waits; busy throughout stops after 13 tries within 30 s; a 503 with no sentence is thrown after one try with nothing said) failed first (no such export), then passed; 10 of 10 practice tests pass; typecheck clean.

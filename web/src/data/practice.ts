@@ -54,3 +54,28 @@ export function practiceErrorMessage(e: unknown): string {
   if (code.endsWith("unauthenticated")) return "This browser could not be checked. Reload and try again.";
   return "The practice search could not start. Try again.";
 }
+
+const RETRY_EVERY_MS = 2_500;
+const RETRY_FOR_MS = 30_000;
+
+type RetryOptions = { onWaiting: (sentence: string) => void; now?: () => number; wait?: (ms: number) => Promise<void> };
+
+/**
+ * Starts a practice search, and while the server says it is still setting this browser's one up (a
+ * second start, say from a double click), says so and starts again every 2.5 s for up to 30 s. Any other
+ * failure, a lost connection included, is thrown at once.
+ */
+export async function startWithRetry(start: () => Promise<string>, o: RetryOptions): Promise<string> {
+  const now = o.now ?? Date.now;
+  const wait = o.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const began = now();
+  for (;;) {
+    try {
+      return await start();
+    } catch (e) {
+      if (!isSettingUp(e) || now() - began + RETRY_EVERY_MS > RETRY_FOR_MS) throw e;
+      o.onWaiting(practiceErrorMessage(e));
+      await wait(RETRY_EVERY_MS);
+    }
+  }
+}
