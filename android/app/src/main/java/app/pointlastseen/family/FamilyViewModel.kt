@@ -37,6 +37,9 @@ import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
 import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.Departure
+import app.pointlastseen.family.data.JoinGeneration
+import app.pointlastseen.family.data.JoinedStart
 import app.pointlastseen.family.data.Membership
 import app.pointlastseen.family.data.MembershipCheck
 import app.pointlastseen.family.data.FamilyQuestions
@@ -76,6 +79,8 @@ import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
@@ -134,14 +139,31 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var questionCheck: Job? = null
     private val membership = Membership.firebase()
     private var membershipCheck: Job? = null
+    // Which join a membership answer belongs to: bumped on every join, leave and drop.
+    private val joins = JoinGeneration { Firebase.auth.currentUser?.uid }
 
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); checkMembership() }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); startJoined(it) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
-        // After a restart in the gone-and-joined state, write the profile again (idempotent).
-        publishIfGone()
+    }
+
+    /**
+     * A start while joined: the membership answer comes first; only when it keeps this same join is the profile
+     * written again (after a restart in the gone-and-joined state, idempotent). A drop writes nothing.
+     */
+    private fun startJoined(incidentId: String) {
+        val ticket = joins.ticket()
+        membershipCheck?.cancel()
+        membershipCheck = viewModelScope.launch {
+            JoinedStart.run(
+                check = { membership.check(incidentId) },
+                isCurrent = { joins.isCurrent(ticket) && session.incidentId() == incidentId },
+                onKeep = { publishIfGone() },
+                onDrop = { dropSearch() },
+            )
+        }
     }
 
     fun warnings(): List<String> = Profiles.warnings(profile, System.currentTimeMillis(), zone)
@@ -179,24 +201,33 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun calledFirst() = apply(Nav.calledFirst(nav))
 
     /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
-    fun leaveSearch() {
-        questionCheck?.cancel()
-        openQuestion = null
-        watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
-        session.leave()
-        prefs.remove(GONE)
-        nav = Nav.leave(nav)
-    }
+    fun leaveSearch() = leave(keepGone = false)
 
     /** The family left a search still open: forget it, keep the profile and its "gone" state, so it can join again. */
-    fun leaveOpenSearch() {
+    fun leaveOpenSearch() = leave(keepGone = true)
+
+    /**
+     * Forget the search at once, so no new write starts (every writer reads the session); give writes already
+     * sent up to [LEAVE_SETTLE_MS] to reach the server; then drop the family topic and report it done.
+     */
+    private fun leave(keepGone: Boolean) {
+        val incidentId = session.incidentId() ?: return
+        joins.next()
+        membershipCheck?.cancel()
         questionCheck?.cancel()
         openQuestion = null
-        watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
-        session.leave()
-        nav = Nav.leftOpen(nav)
+        viewModelScope.launch {
+            Departure.leave(
+                forget = { watch.stop(); session.leave() },
+                settle = { Firebase.firestore.waitForPendingWrites().await() },
+                timeoutMs = LEAVE_SETTLE_MS,
+                finish = {
+                    familyTopic.left(incidentId)
+                    if (!keepGone) prefs.remove(GONE)
+                    nav = if (keepGone) Nav.leftOpen(nav) else Nav.leave(nav)
+                },
+            )
+        }
     }
 
     /**
@@ -206,13 +237,18 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private fun checkMembership() {
         val incidentId = session.incidentId() ?: return
         if (membershipCheck?.isActive == true) return
+        val ticket = joins.ticket()
         membershipCheck = viewModelScope.launch {
-            if (membership.check(incidentId) == MembershipCheck.DROP && session.incidentId() == incidentId) dropSearch()
+            val answer = membership.check(incidentId)
+            if (!joins.isCurrent(ticket) || session.incidentId() != incidentId) return@launch
+            if (answer == MembershipCheck.DROP) dropSearch()
         }
     }
 
     /** This phone is no longer part of the search: forget it, keep the profile, and say so on the join screen. */
     private fun dropSearch() {
+        joins.next()
+        membershipCheck = null
         questionCheck?.cancel()
         openQuestion = null
         watch.stop()
@@ -235,6 +271,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             when (val out = Join(FirebaseJoinBackend()).join(code)) {
                 is JoinOutcome.Joined -> {
                     session.joined(out.incidentId)
+                    joins.next()
+                    membershipCheck?.cancel()
                     watch.watch(out.incidentId)
                     familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
@@ -499,5 +537,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val GONE = "gone"
+        /** How long leaving waits for writes already sent to reach the server. */
+        private const val LEAVE_SETTLE_MS = 5_000L
     }
 }
