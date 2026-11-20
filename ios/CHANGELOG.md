@@ -5,6 +5,29 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the phone-number vectors' no-digit check covers every script's number characters
+- What: the shared contract's "no digit left" check now means any Unicode number character (Nd, Nl,
+  No), not only 0 to 9. The Swift vector runner checks the scrubbed text's every scalar for those
+  categories.
+- Source: review (shared phone-number vector contract).
+- Verified: main's vector file and the coming vector update both pass with the wider check.
+
+### fix(ios): no phone number hides behind something shaped like search information
+- What: the iPhone's phone-number rule now matches the Android rule after its review rounds. Search
+  information (a written date, a time, a coordinate pair, a grouped count, a ZIP+4 code, a month-name
+  date, a number with a unit) is found on the text as written, and stays only when the rest of its
+  run is nothing or whole numbers of seven or more digits; when a piece of 1 to 6 digits is left
+  beside it, the whole run is removed. Coordinates must be in range with 4 to 8 decimals (so
+  "call 555.1234, 555.6789" is no longer kept as a pair), a ZIP+4 needs a capital state code before
+  it, a date joined to more digits by its own separator is not a date, and two dates that share a
+  group cancel. A 7+ digit number with a unit is still a number; "double" and "triple" count their
+  repeats; a line break with indentation is one separator, and a removed run keeps its line breaks.
+  A word stops at a numeral.
+- Source: review (Android phone-number rule, later commits; parity with the iPhone).
+- Verified: the Android rule's test cases, ported to Swift, failed before the change and pass after
+  (with Android main's current expectations); the shared phone-number vectors and all 345 core tests
+  and 191 app tests pass.
+
 ### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
 - What: the line under a refused report said the note "stays on this phone", but the screen only
   refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
