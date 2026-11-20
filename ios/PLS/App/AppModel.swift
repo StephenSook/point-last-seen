@@ -358,10 +358,10 @@ final class AppModel {
             mission.ownerUid = owner
             // A newer join or load started while this one read, or the account changed: they have the say.
             guard generation == missionGeneration, uid() == owner else { return .superseded }
-            // The listener applied a newer plan while this read ran: that plan stays, also when it
-            // took the task away, in the same version order the listener keeps.
+            // The listener applied a plan at least as new while this read ran: that plan stays, also when
+            // it took the task away. Only a strictly newer plan replaces it, as in the listener's order.
             if let held = self.mission, held.incidentId == incidentId, held.teamId == teamId,
-               (held.planVersion ?? Int.min) > (mission.planVersion ?? Int.min) {
+               (held.planVersion ?? Int.min) >= (mission.planVersion ?? Int.min) {
                 mission.planVersion = held.planVersion
                 mission.assignment = held.assignment
                 mission.assignedSegmentIds = held.assignedSegmentIds

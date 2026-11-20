@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a reload of the same plan version keeps the plan on screen
+- What: a reload kept the plan the listener had applied only when that plan was strictly newer. With
+  two copies of one version, a withdrawal the listener applied could be undone by a reload that
+  read the same version with a task. The plan on screen now stays unless the reload read a strictly
+  newer version, as in the listener's own order.
+- Source: review (finding 3, round 3).
+- Verified: a test holds a reload of plan 3 with a task while the listener applies plan 3 with the
+  task taken away; the withdrawal stands. It failed before the change and passes after; 154 app
+  tests pass.
+
 ### fix(ios): a load and a push tap are bound to the user they started for
 - What: a load stamped its mission with the user signed in when the read came back, and a push tap
   checked only the incident and team before opening. A tap could get user A's claims, then finish
