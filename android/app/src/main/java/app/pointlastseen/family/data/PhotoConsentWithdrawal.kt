@@ -10,9 +10,11 @@ interface ConsentLedger {
     fun remove(incidentId: String, sha256: String)
 }
 
+/** Each add or remove reads and writes the list as one step: an upload adds on a worker while a withdrawal removes on Main. */
 class ConsentedPhotos(private val store: KeyValueStore) : ConsentLedger {
     private fun key(incidentId: String) = "consented:$incidentId"
 
+    @Synchronized
     override fun add(incidentId: String, sha256: String) {
         val now = list(incidentId)
         if (sha256 !in now) store.put(key(incidentId), (now + sha256).joinToString(","))
@@ -20,6 +22,7 @@ class ConsentedPhotos(private val store: KeyValueStore) : ConsentLedger {
 
     fun list(incidentId: String): List<String> = store.get(key(incidentId))?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
 
+    @Synchronized
     override fun remove(incidentId: String, sha256: String) {
         val rest = list(incidentId) - sha256
         if (rest.isEmpty()) store.remove(key(incidentId)) else store.put(key(incidentId), rest.joinToString(","))
