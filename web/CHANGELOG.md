@@ -1729,3 +1729,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `data/callableError.ts` gives a failed Cloud Functions call as `{ code, message, reason }`: the server's sentence with the " [503]" the Firebase SDK appends removed, and `details.reason` when the server sends one. Not used by the mappers yet.
 - Source: a live practice search started twice at once showed "No connection" for the server's "still being set up" answer; the SDK had ended the message with " [503]", so an exact match missed.
 - Verified: `src/data/callableError.test.ts` (3 tests, the first two run a real callable through the SDK against a stubbed 503 and 429) failed first (module missing), then passed; the raw SDK message is asserted to end in " [503]".
+
+### fix(data): practice search shows the server's sentences the SDK suffixed
+- What: `practiceErrorMessage` reads errors through `callableError`, so "One new practice search per hour...", "...full for today..." and "...still being set up..." show as the server wrote them instead of "No connection" or "could not start". A `details.reason` (hourly_limit, daily_limit, no_practice, setup_busy) is trusted over the wording when the server sends one. New `isSettingUp(e)` says when a start should be retried.
+- Source: a live double start on the judge page showed "No connection" for the server's "still being set up" answer.
+- Verified: two new tests with the SDK's real " [429]" and " [503]" messages and with reasons failed first, then passed; 7 of 7 practice tests pass; typecheck clean.

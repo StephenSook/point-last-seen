@@ -5,6 +5,7 @@
 import { httpsCallable, type Functions } from "firebase/functions";
 import type { Auth } from "firebase/auth";
 import { MissingConfigError } from "../firebaseConfig";
+import { callableError } from "./callableError";
 
 type Deps = { call: () => Promise<{ data: unknown }>; refresh: () => Promise<unknown> };
 
@@ -25,23 +26,30 @@ export function practiceSearch(functions: Functions, auth: Auth): Promise<string
   });
 }
 
-// The server's refusals are already plain sentences meant for the person; show them as they are.
+// The server's refusals are already plain sentences meant for the person; show them as they are. A
+// stable details.reason marks one when the server sends it; until then the sentence itself does.
 const SERVER_SENTENCES = new Set([
   "One new practice search per hour. Try again later.",
   "Practice searches are full for today. Try again tomorrow.",
   "No practice search is available right now.",
 ]);
+const SERVER_REASONS = new Set(["hourly_limit", "daily_limit", "no_practice"]);
 
 const SETTING_UP = "Your practice search is still being set up. Try again in a moment.";
+
+/** The server is still setting up this browser's practice search (a second start, or a released copy): retry. */
+export function isSettingUp(e: unknown): boolean {
+  const { code, message, reason } = callableError(e);
+  return code.endsWith("unavailable") && (reason === "setup_busy" || message === SETTING_UP);
+}
 
 export function practiceErrorMessage(e: unknown): string {
   // A copy built with no Firebase settings (a fresh clone with no .env) cannot reach the backend at all.
   if (e instanceof MissingConfigError) return "This copy has no Firebase settings, so it cannot start a practice search. Use the live site.";
-  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  const message = e instanceof Error ? e.message : "";
-  if ((code.endsWith("resource-exhausted") || code.endsWith("failed-precondition")) && SERVER_SENTENCES.has(message)) return message;
-  // The server says a setup is still running (or a failed one was released): retrying resumes it.
-  if (code.endsWith("unavailable") && message === SETTING_UP) return message;
+  const { code, message, reason } = callableError(e);
+  const refusal = reason !== null ? SERVER_REASONS.has(reason) : SERVER_SENTENCES.has(message);
+  if ((code.endsWith("resource-exhausted") || code.endsWith("failed-precondition")) && refusal && message !== "") return message;
+  if (isSettingUp(e)) return message || SETTING_UP;
   if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
   if (code.endsWith("unauthenticated")) return "This browser could not be checked. Reload and try again.";
   return "The practice search could not start. Try again.";

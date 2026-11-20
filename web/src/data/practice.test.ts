@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { practiceErrorMessage, startPracticeSearch } from "./practice";
+import { isSettingUp, practiceErrorMessage, startPracticeSearch } from "./practice";
 import { MissingConfigError, readEnv } from "../firebaseConfig";
 
 const fbErr = (code: string, message: string) => Object.assign(new Error(message), { code });
@@ -33,6 +33,23 @@ describe("practiceErrorMessage", () => {
     expect(practiceErrorMessage(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment."))).toBe("Your practice search is still being set up. Try again in a moment.");
     expect(practiceErrorMessage(fbErr("functions/unauthenticated", "x"))).toBe("This browser could not be checked. Reload and try again.");
     expect(practiceErrorMessage(new Error("boom"))).toBe("The practice search could not start. Try again.");
+  });
+});
+
+describe("practiceErrorMessage with the SDK's real messages", () => {
+  // The Firebase SDK ends every callable error message with the HTTP status.
+  it("still shows the server's sentence when the SDK appends the status", () => {
+    expect(practiceErrorMessage(fbErr("functions/resource-exhausted", "One new practice search per hour. Try again later. [429]"))).toBe("One new practice search per hour. Try again later.");
+    expect(practiceErrorMessage(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment. [503]"))).toBe("Your practice search is still being set up. Try again in a moment.");
+    expect(practiceErrorMessage(fbErr("functions/unavailable", "Service Unavailable [503]"))).toBe("No connection. Try again when the link is back.");
+  });
+  it("trusts a stable reason in the details over the exact wording", () => {
+    const withReason = (code: string, message: string, reason: string) => Object.assign(fbErr(code, message), { details: { reason } });
+    expect(practiceErrorMessage(withReason("functions/resource-exhausted", "One practice search an hour. [429]", "hourly_limit"))).toBe("One practice search an hour.");
+    expect(practiceErrorMessage(withReason("functions/unavailable", "Still setting up. [503]", "setup_busy"))).toBe("Still setting up.");
+    expect(isSettingUp(withReason("functions/unavailable", "Still setting up. [503]", "setup_busy"))).toBe(true);
+    expect(isSettingUp(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment. [503]"))).toBe(true);
+    expect(isSettingUp(fbErr("functions/unavailable", "Service Unavailable [503]"))).toBe(false);
   });
 });
 
