@@ -1838,3 +1838,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the ranked list's heading wraps POA in `<abbr title="Probability of area: the engine's estimate for each segment">`, so a reader new to search terms can find out what the column is. The heading's accessible name stays "POA".
 - Source: review finding (unexplained abbreviation on the command post).
 - Verified: a new harness check in `e2e/harness/rank.spec.ts` failed first (no abbr), then passed with the other rank and change harness checks (9); typecheck clean.
+
+### fix(command): a note read on the laptop gives up after 30 seconds, and Save stays available during a read
+- What: `readSightingText` races the laptop model's reply against `NOTE_READ_TIMEOUT_MS` (30 s, the photo read's limit; measured on Chrome's built-in model, a first session took 11.7 s and an image read's 95th percentile was 31 s) and returns `refused: "timeout"` when it is not back in time; the form then says "The read took too long. Fill the fields by hand." In `SightingForm`, saving is tracked apart from reading, so Save stays available while a read runs, and each read takes a number that Save moves past, so a reply that lands after Save fills nothing.
+- Source: review finding (the note read had no time limit and Save waited for it).
+- Verified: two new unit tests (a reply that never comes is refused as a timeout; the limit is 30 s) failed first, then passed; two new harness checks in `e2e/harness/sighting.spec.ts` (a timed-out read says so and fills nothing; Save works during a slow read and the late reply fills nothing) failed first, then passed with the other sighting and sightings harness checks (18/18); 818/818 web unit tests; typecheck clean.

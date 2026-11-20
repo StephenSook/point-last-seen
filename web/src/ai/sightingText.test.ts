@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import template from "../../../shared/templates/pls-sighting-note-v1.json";
 import { InferenceMode } from "firebase/ai";
-import { SIGHTING_CUES_JSON, SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingTextParams, type SightingTextDeps } from "./sightingText";
+import { NOTE_READ_TIMEOUT_MS, SIGHTING_CUES_JSON, SIGHTING_TEXT_OPTS, readSightingText, readSightingTextInCloud, sightingTextParams, type SightingTextDeps } from "./sightingText";
 
 const text = "saw a woman in a blue coat walking north by the creek";
 const goodReply = JSON.stringify({ direction: "n", topColor: "blue", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
@@ -20,11 +20,21 @@ function deps(over: Partial<SightingTextDeps> & { availableAnswer?: boolean | "t
       return availableAnswer;
     },
     generate: async (t) => { calls.push(t); return { text: goodReply, inferenceSource: "on_device" }; },
+    timeoutMs: 1_000,
     ...rest,
   };
 }
 
 describe("readSightingText", () => {
+  it("a reply that does not come within the time limit is not read", async () => {
+    const never = () => new Promise<never>(() => undefined);
+    expect(await readSightingText(text, deps({ generate: never, timeoutMs: 20 }))).toEqual({ refused: "timeout" });
+  });
+
+  it("the note read's limit is the photo read's: 30 seconds", () => {
+    expect(NOTE_READ_TIMEOUT_MS).toBe(30_000);
+  });
+
   it("refuses without the local model and calls nothing", async () => {
     const d = deps({ availableAnswer: false, generate: mustNotBeCalled });
     expect(await readSightingText(text, d)).toEqual({ refused: "no-on-device-model" });

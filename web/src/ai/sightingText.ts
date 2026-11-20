@@ -13,7 +13,14 @@ import { removePhoneNumbers } from "../data/sightings";
 import { onDeviceCreateOptions } from "./gate";
 
 export type SightingCues = { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote: string };
-export type SightingRead = { reading: SightingCues } | { refused: "no-on-device-model" | "not-on-device" | "invalid" | "possible-evidence" };
+export type SightingRead = { reading: SightingCues } | { refused: "no-on-device-model" | "not-on-device" | "invalid" | "possible-evidence" | "timeout" };
+
+/**
+ * How long a note read on this laptop may take before the form gives up and asks for the fields by hand: the photo
+ * read's limit. Measured on Chrome's built-in model: a first session took 11.7 s; an image read's 95th percentile
+ * was 31 s. A model download that is still running is never cancelled; only the reply is given up on.
+ */
+export const NOTE_READ_TIMEOUT_MS = 30_000;
 
 const P = readingSchema.properties;
 
@@ -49,6 +56,8 @@ type Reply = { text: string; inferenceSource: string | undefined };
 export type SightingTextDeps = {
   available: (options: LanguageModelCreateOptions) => Promise<boolean>;
   generate: (text: string) => Promise<Reply>;
+  /** The reply only. */
+  timeoutMs: number;
 };
 
 function checked(replyText: string, note: string): SightingCues | null {
@@ -96,10 +105,19 @@ export async function readSightingText(text: string, deps: SightingTextDeps): Pr
     ok = false;
   }
   if (!ok) return { refused: "no-on-device-model" };
-  const reply = await deps.generate(note);
-  if (reply.inferenceSource !== "on_device") return { refused: "not-on-device" };
-  const cues = checked(reply.text, note);
-  return cues ? { reading: cues } : { refused: "invalid" };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), deps.timeoutMs);
+  });
+  try {
+    const reply = await Promise.race([deps.generate(note), late]);
+    if (reply === "timeout") return { refused: "timeout" };
+    if (reply.inferenceSource !== "on_device") return { refused: "not-on-device" };
+    const cues = checked(reply.text, note);
+    return cues ? { reading: cues } : { refused: "invalid" };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export type CloudConsent = { byUid: string; atMs: number };

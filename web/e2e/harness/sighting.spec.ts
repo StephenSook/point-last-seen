@@ -145,3 +145,24 @@ test("editing the note after a read still saves that read's route, since the fie
   const read = JSON.parse(await page.getByTestId("saved-read").innerText()) as { route: { path: string } };
   expect(read.route.path).toBe("cloud");
 });
+
+test("a read that takes too long says so and leaves the fields to be filled by hand", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=timeout");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "The read took too long. Fill the fields by hand." })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
+});
+
+test("Save works while a read is running, and a reply that lands after Save fills nothing", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  const save = page.getByRole("button", { name: "Save sighting" });
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByTestId("saved")).toHaveText("null");
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
+  await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
+});

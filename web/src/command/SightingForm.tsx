@@ -50,8 +50,12 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [note, setNote] = useState("");
   const [callbackName, setCallbackName] = useState("");
   const [callbackNumber, setCallbackNumber] = useState("");
-  const [busy, setBusy] = useState<"read" | "cloud" | "save" | null>(null);
-  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed">("none");
+  // A read in progress; saving is tracked apart, so Save stays available while a read runs.
+  const [busy, setBusy] = useState<"read" | "cloud" | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Each read takes a number, and Save takes the next: a reply whose number is no longer the latest is dropped.
+  const readSeq = useRef(0);
+  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout">("none");
   // The last read that filled the fields: what was asked for, where it ran and what it sent.
   const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
   // The read that filled the fields, kept for the saved sighting's route even if its receipt is no longer shown.
@@ -87,8 +91,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     setBusy("read");
     setError(null);
     const asked = note;
+    const mine = ++readSeq.current;
     try {
       const r = await readNote(asked);
+      if (readSeq.current !== mine) return;
       if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) {
         fill(r.reading);
@@ -96,9 +102,9 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         setRan(w.route ? { asked: "this laptop only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
         setReadFilled({ route: w.route ?? null });
       }
-      else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : "not-read");
+      else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : r.refused === "timeout" ? "timeout" : "not-read");
     } catch {
-      setReadState("not-read");
+      if (readSeq.current === mine) setReadState("not-read");
     } finally {
       setBusy(null);
     }
@@ -108,8 +114,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     setBusy("cloud");
     setError(null);
     const asked = note;
+    const mine = ++readSeq.current;
     try {
       const r = await readNoteInCloud(asked);
+      if (readSeq.current !== mine) return;
       if (noteNow.current !== asked) return setReadState("changed");
       if ("reading" in r) {
         fill(r.reading);
@@ -118,7 +126,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       }
       else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
-      setReadState("not-read");
+      if (readSeq.current === mine) setReadState("not-read");
     } finally {
       setBusy(null);
     }
@@ -132,7 +140,9 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       setError("Enter the time it was seen.");
       return;
     }
-    setBusy("save");
+    setSaving(true);
+    // A read still running when Save is pressed fills nothing afterwards: what is saved is what was on screen.
+    readSeq.current++;
     try {
       await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note, ...(readFilled ? { readFilled } : {}) });
       setCallbackName("");
@@ -141,7 +151,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     } catch {
       setError("The sighting was not saved. Check the fields and try again.");
     } finally {
-      setBusy(null);
+      setSaving(false);
     }
   }
 
@@ -253,6 +263,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       )}
       {readState === "evidence" && <p role="status">This note may describe evidence. It was not sent to any model. Fill the fields by hand.</p>}
       {readState === "not-read" && <p role="status">The note could not be read. Fill the fields by hand.</p>}
+      {readState === "timeout" && <p role="status">The read took too long. Fill the fields by hand.</p>}
       {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}
       <fieldset className="callback">
         <legend>Callback (stays on this screen, cleared on save)</legend>
@@ -271,10 +282,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         </p>
       )}
       <div className="row">
-        <button type="submit" className="btn" disabled={busy !== null}>
-          {busy === "save" ? "Saving" : "Save sighting"}
+        <button type="submit" className="btn" disabled={saving}>
+          {saving ? "Saving" : "Save sighting"}
         </button>
-        <button type="button" className="btn ghost" onClick={onClose} disabled={busy === "save"}>
+        <button type="button" className="btn ghost" onClick={onClose} disabled={saving}>
           Cancel
         </button>
       </div>

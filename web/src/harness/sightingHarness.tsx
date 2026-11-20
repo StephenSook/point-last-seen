@@ -22,6 +22,8 @@ function Harness() {
   const quote = new URLSearchParams(location.search).get("quote") ?? "";
   // ?read=cloud: no laptop model; after the consent tap the cloud answers (top red) with its route and size.
   const cloud = new URLSearchParams(location.search).get("read") === "cloud";
+  // ?read=timeout: the laptop's model does not answer within the read's time limit.
+  const timeout = new URLSearchParams(location.search).get("read") === "timeout";
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid, not drill data.</p>
@@ -37,7 +39,9 @@ function Harness() {
                 new Promise<SightingRead>((resolve) => {
                   answer.current = () => resolve({ reading: { direction: "unknown", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: quote } });
                 })
-            : async () => ({ refused: "no-on-device-model" })
+            : timeout
+              ? async () => ({ refused: "timeout" as const })
+              : async () => ({ refused: "no-on-device-model" })
         }
         readNoteInCloud={async (text) =>
           cloud
