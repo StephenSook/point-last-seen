@@ -71,7 +71,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | Daily probe workflow (`probe.yml`, 13:23 UTC) | Runs; GitHub cron can start hours late | Both scripts retire after 2026-12-17, pinned by the test |
 | GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public from 2026-11-28, last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |
 | Actions budget ($15, resets monthly on the 1st) | December has its own $15; the repo is public from 2026-11-28, so its minutes are free | Line below |
-| Gemini spend cap ($25 budget) | Judge sandboxes call the cloud; burn rate NOT MEASURED yet | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below measures it |
+| Gemini spend cap ($25 budget) | Judge sandboxes call the cloud. Measured 2026-11-20 (`scripts/ai_spend.py --since 2026-11-13`): $0.05 for every cloud read in the week (all tests, drills and 8 practice searches), so at most $0.0063 per practice search, and a week at the cap of 50 a day at most $2.20. An average cloud read on 2026-11-19 cost about $0.0005 (50 reads, 735 input and 120 output tokens each), so $25 over a week at the cap allows about 140 reads per search. 8 searches cannot show what a real judge reads | Per-uid hourly limit, daily sandbox cap, `kill_cloud`; line below re-measures it |
 | Model versions pinned in prompts and Remote Config | A model shut down inside the window breaks the cloud route | The rules gate pins every id to `shared/constants/models.json` (read 2026-11-18); line below re-reads it |
 | Artifact Registry cleanup (1 day) | Deletes old function images only; running functions keep serving | Nothing; a rollback rebuilds from source |
 
@@ -85,9 +85,10 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
   UTC day across all visitors (`functions/src/judgeSession.ts`, counted in the admin-only `ops/judgeSessions-{YYYY-MM-DD}`,
   one document per day, so the sessions so far are the sum of those counts).
   Lower it there, and redeploy, if the Gemini burn rate line below needs it.
-- [ ] Gemini burn rate: read the project's spend on 2026-11-29, divide by the sandbox sessions recorded so far,
-  and confirm (cost per session) x (daily cap) x 7 days stays under the $25 cap with the drill and film spend
-  already used. If not, lower the daily cap before submit.
+- [ ] Gemini burn rate: on 2026-11-29 run `python3 -I scripts/ai_spend.py --since 2026-11-13`. It prices the
+  token counts at the published rates, divides by the practice searches recorded so far and exits 1 when (cost per
+  search) x (daily cap) x 7 days does not fit under the $25 cap; add the drill and film spend already used. If it
+  does not fit, lower the daily cap before submit.
 - [ ] Re-read https://firebase.google.com/docs/ai-logic/models on 2026-11-28 or later: every id under `models`
   in `shared/constants/models.json` still shows no shutdown date before 2026-12-17, any newly retiring id moves
   to `banned`, and `readOn` is updated. The rules gate then fails on any source that still names a banned or

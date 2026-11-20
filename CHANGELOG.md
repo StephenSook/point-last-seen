@@ -30,6 +30,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
   judging). Verified test first: the expiry field and the refusal of five bad times failed, then passed; 15 seed_drill
   tests pass.
+- LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
+  iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
+  words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,
+  unmeasured, and evidence in another language escapes the pre-screen. Source: review (language scope not stated).
+  Verified against gate.ts, ModelSessionFactory.swift, ReportParser.swift, evidence-terms.json and its three readers,
+  ReadOutcomeBuilder.swift, and the prompt templates (none names a language).
+- Gemini burn rate measured: `scripts/ai_spend.py` reads AI Logic's token counts and the practice searches started
+  (ops/judgeSessions-{day}), prices the tokens at the Gemini Developer API paid rates (source and read date in the
+  file; a model with no price fails the run) and projects a week at the daily cap of 50. 2026-11-13 to 2026-11-20:
+  $0.05 for every cloud read, at most $0.0063 per practice search, a week at the cap at most $2.20 against $25;
+  PRODUCTION-CHECKLIST row and the 2026-11-29 line now use the script. `scripts/test_ai_spend.py` (CI and ci-local
+  lists) checks the arithmetic, that an unpriced model fails, that every model in models.json has a price and that the
+  cap matches judgeSession.ts. Source: review (burn rate not measured). Verified: 5 tests pass; the live run exits 0.
 - `shared/practice/ios-practice-pack.json`: the iPhone's practice drill, so a judge can open the searcher app without
   a code. `tools/practice/export_practice_pack.py --write` exports it from the judge seed (drill-dev-1, read from
   judge-seed.json) with the same overrides `startJudgeSession` applies (NOT_COPIED and the drill label are read from
@@ -60,6 +73,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   call push an alert path; the paused notice text is in functions/src/notify.ts.
 
 ## 2026-11-19
+
+- LIMITS: a write already under way when the family leaves (a photo or clip upload, or the profile's first publish)
+  can still reach the search; each checks the join just before it starts, and only a server-side membership check
+  could stop one already started. Source: review of the Android leave change. Verified against the Android code
+  (`JoinedClipDeps` and `PhotoUpload` check `stillJoined` before each write).
+- LIMITS: leaving a search on the family app. "Leave this search" stops new changes, waits up to 5 seconds for sent
+  ones, then asks the phone to stop following the search's notifications; leaving is local to the phone, whose sign-in
+  still names it as the search's family, so a change made offline just before leaving is accepted when the phone
+  reconnects. After leaving, the app shows no notice for that search while open; a background notice can still arrive
+  until Firebase confirms the topic drop, which is retried at each app start until confirmed. Source: review of the
+  Android leave change. Verified against the Android code (`waitForPendingWrites` bounded at 5,000 ms,
+  `Session.leave()` removes only the local incident id, `FamilyPush.isForCurrentSearch`, `FamilyTopic` pending drops
+  with `retryPending`) and the rules' `isMember`, which reads the sign-in's `inc` claim.
 
 - `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
   touching the incident's primary code: `--add-code <project> <incidentId> <role> <incidentId>-<name>` keeps the code
