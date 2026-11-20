@@ -240,10 +240,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProfile(p: SubjectProfile) {
-        val saved = p.copy(profileUpdatedOn = LocalDate.now(zone))
-        familyEdits.record(profile, saved)
-        profile = saved
+        val before = profile
+        profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
         profileStore.save(profile)
+        // Only after the profile is on disk: a mark kept without its edit could send an old value over command's.
+        familyEdits.record(before, profile)
         publishIfGone()
     }
 
