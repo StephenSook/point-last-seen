@@ -634,26 +634,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
             val me = Firebase.auth.currentUser?.uid
-            val owner: suspend (String, String) -> RecordOwner = { inc, sha ->
-                when (sink.creatorOf(inc, sha)) {
-                    null -> RecordOwner.NONE
-                    me -> RecordOwner.ME
-                    else -> RecordOwner.ANOTHER
-                }
-            }
+            val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
             val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
-            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
-                withdrawNote = listOfNotNull(
-                    when {
-                        r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
-                        r.withdrawn > 0 || r.byAnother == 0 -> "The cloud read is off for ${photos(r.withdrawn)}."
-                        else -> null
-                    },
-                    if (r.byAnother > 0) "Another family member allowed the cloud read for ${photos(r.byAnother)}. Only they can turn it off." else null,
-                ).joinToString(" "),
+                withdrawNote = PhotoConsentWithdrawal.note(r),
             )
         }
     }

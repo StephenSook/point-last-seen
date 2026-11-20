@@ -30,7 +30,18 @@ class ConsentedPhotos(private val store: KeyValueStore) : ConsentLedger {
 }
 
 /** Whose consent record a photo has on the server. */
-enum class RecordOwner { NONE, ME, ANOTHER }
+enum class RecordOwner {
+    NONE, ME, ANOTHER;
+
+    companion object {
+        /** With no signed-in user, a record that exists cannot be told apart from this user's, so it counts as theirs. */
+        fun of(creator: String?, me: String?): RecordOwner = when {
+            creator == null -> NONE
+            me == null || creator == me -> ME
+            else -> ANOTHER
+        }
+    }
+}
 
 /**
  * Withdraws command's cloud read of this phone's photos: deletes each consent record this phone made.
@@ -45,6 +56,24 @@ class PhotoConsentWithdrawal(
     private val delete: suspend (String, String) -> Unit,
 ) {
     data class Result(val withdrawn: Int, val failed: Int, val byAnother: Int = 0)
+
+    companion object {
+        /** What the family reads after withdrawing: every outcome, each with its count. */
+        fun note(r: Result): String {
+            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
+            val parts = mutableListOf<String>()
+            if (r.withdrawn > 0) parts += "The cloud read is off for ${photos(r.withdrawn)}."
+            if (r.failed > 0) {
+                parts += if (r.withdrawn > 0) {
+                    "It could not be turned off for ${photos(r.failed)}. Check the connection and try again."
+                } else {
+                    "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
+                }
+            }
+            if (r.byAnother > 0) parts += "Another family member allowed the cloud read for ${photos(r.byAnother)}. Only they can turn it off."
+            return parts.joinToString(" ").ifEmpty { "No photo from this phone has the cloud read on." }
+        }
+    }
 
     suspend fun withdrawAll(incidentId: String): Result {
         var withdrawn = 0
