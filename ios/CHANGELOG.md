@@ -30,6 +30,37 @@ finding) and how it was verified. Newest first.
   mustRefuse do not, the 1 knownMiss passes as English as on every platform, and a new kind of case
   in the file fails the test. It failed to compile before the change; all 322 core tests pass.
 
+### test(ios): run the phone-number vectors' exact cases, replacement token and pending marks
+- What: the Swift vector runner reads the file's new shape: a top-level replacement token (checked
+  against the one this phone writes), an exact array whose output is compared byte for byte, and an
+  optional pendingOn on any case, which skips the case only when it names ios. The kind guard now
+  allows these keys and also fails on an unknown key inside a case.
+- Source: review (shared phone-number vectors gain exact-output cases).
+- Verified: with the coming vector file (13 mustRemove, 14 mustKeep, 1 exact, none pending on ios)
+  all 6 vector tests pass; a copy with a wrong exact output fails; a copy with an unknown kind fails;
+  with main's file all 325 core tests pass.
+
+### test(ios): fail when the phone-number vectors gain a kind of case the iPhone does not run
+- What: the Swift vector test decoded only mustRemove and mustKeep and would ignore any new kind of
+  case added to shared/test-vectors/phone-numbers.json. A new test asserts the file's top-level keys
+  are exactly the ones the iPhone runs, so a new kind fails Swift core until it is run here.
+- Source: review (shared phone-number vectors gain an exact-output case).
+- Verified: run against a copy of the file with an extra "mustEqual" key it fails; against the real
+  file it passes, with the other 18 phone-number tests.
+
+### fix(ios): phone numbers by the shared rule: no date shields a number; search details stay
+- What: the iPhone's phone-number rule now matches the Android rule. A date carved out of a longer run
+  of digits no longer shields part of a number ("06.12.20.26.19", "404-555-2026-11-19" are removed);
+  a date beside a whole number of its own still stays. Non-breaking, en and em dashes and the minus
+  sign join a number's parts like a hyphen. Search information made of digits counts no digits, so
+  it stays and never joins a number: a time (14:03), a coordinate pair (33.7490, -84.3880), a
+  grouped count (1,234,567), a ZIP+4 code (30301-1234) and a month-name date (Nov 19 2026, 19 November
+  2026); a number glued to a unit or an ordinal ending (67th, 5km) counts alone. Chinese numeral
+  digits, a pasted line break and spoken digits in capitals were already caught; tests now pin them.
+- Source: review (phone-number review of the Android rule; the same gaps were in the iPhone rule).
+- Verified: tests for each case above; the date, dash, time and month-date, and search-information
+  tests failed before the change and pass after; all 322 core tests pass.
+
 ### fix(ios): written dates stay in a report; a slash-joined phone number still goes
 - What: a date is search information (when someone was last seen), not a phone number. The phone
   number rule now keeps three digit groups joined by the same one of / - . that read as a date:
