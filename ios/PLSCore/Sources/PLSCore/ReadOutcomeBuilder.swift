@@ -171,8 +171,8 @@ public enum ReadOutcomeBuilder {
 /// with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are
 /// far shorter, so they stay.
 ///
-/// Search information made of digits can sit inside such a run: a written date, a time, a coordinate
-/// pair in range, a ZIP+4 code after a state, a month-name date, a number with a
+/// Search information made of digits can sit inside such a run: a written date (a month and day with
+/// no year included), a time, a coordinate pair in range (not after a "+"), a ZIP+4 code after a state, a month-name date, a number with a
 /// unit. It stays only when the rest of the run is nothing or whole numbers of seven or more digits
 /// (which are removed); when any other piece of 1 to 6 digits is left beside it, the whole run is
 /// removed, since that piece could be part of a number. A number with an ordinal ending (67th) never
@@ -314,6 +314,12 @@ public enum PhoneNumbers {
                !sameSeparatorNeighbour(s, parts, i, i + 2) {
                 dates.append(i...(i + 2))
             }
+            // A month and day with no year (11/19, or 19/11), joined by a slash.
+            if written(i + 1), gap(i, i + 1) == "/", len(i) <= 2, len(i + 1) <= 2, let x = value(i), let y = value(i + 1),
+               (1...31).contains(x), (1...31).contains(y), (1...12).contains(x) || (1...12).contains(y),
+               !sameSeparatorNeighbour(s, parts, i, i + 1) {
+                dates.append(i...(i + 1))
+            }
             // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
             if i + 1 < parts.count, !parts[i + 1].written, parts[i + 1].range.lowerBound == parts[i].range.upperBound,
                units.contains(word(s, parts[i + 1])), parts[i].digits < 7 {
@@ -322,7 +328,9 @@ public enum PhoneNumbers {
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
                 kept.formUnion([i, i + 1])
             }
-            if degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
+            // A decimal pair after a "+" is an international number, not a coordinate.
+            let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
+            if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
                 kept.formUnion(i...(i + 3))
             }
             if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4, i > 0, !parts[i - 1].written,

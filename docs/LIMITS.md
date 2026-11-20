@@ -105,6 +105,10 @@ each line says what the limit is and why.
   digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
   (as it already is on the iPhone and Android). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark
   each platform that has not followed yet.
+- The web keeps a pair of decimals even when it starts with "+", so a phone number written that way ("Call
+  +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
+  with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
+  removed too; without the "+" it stays.
 
 ## On-device safety (Android)
 
