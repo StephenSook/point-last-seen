@@ -26,6 +26,7 @@ import app.pointlastseen.family.core.ClipFile
 import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.core.EvidenceTerms
 import app.pointlastseen.family.core.JpegEncoder
+import app.pointlastseen.family.core.LanguageWords
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
 import app.pointlastseen.family.core.SharedUris
 import app.pointlastseen.family.core.SightingCheck
@@ -110,6 +111,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
     private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
+    // The shared English-note screen; without its word list it refuses every note for the cloud.
+    private val language = LanguageWords.screen(app)
     // The published fields the family changed on this phone: a first publish sends them even over a value already there.
     // Kept in the session's own store, so leaving forgets the search and the marks in one write.
     private val familyEdits = FamilyEdits(prefs)
@@ -475,7 +478,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
-            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn).read(text, env)
+            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
             noteUi = NoteUi.Done(outcome, text)
         }
