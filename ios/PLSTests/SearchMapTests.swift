@@ -35,6 +35,14 @@ import Testing
         #expect(SearchMap.credit(try mission(gridId: nil, attribution: nil), segments: 0, basemap: false) == nil)
     }
 
+    /// The credit on the map is OpenStreetMap's own short form on one line; a tap shows the full
+    /// sentence above. Nothing when nothing from OpenStreetMap is drawn.
+    @Test func theShortCreditIsOneLine() {
+        #expect(SearchMap.shortCredit(segments: 3, basemap: true) == "© OpenStreetMap contributors · Protomaps")
+        #expect(SearchMap.shortCredit(segments: 3, basemap: false) == "© OpenStreetMap contributors")
+        #expect(SearchMap.shortCredit(segments: 0, basemap: false) == nil)
+    }
+
     /// The numbers are the posterior after this phone's reports, else the pack's prior.
     @Test func theNumbersAreThePosteriorElseThePrior() throws {
         let m = try mission(gridId: nil, attribution: nil)

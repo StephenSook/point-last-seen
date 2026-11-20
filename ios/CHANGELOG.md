@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the map credit is one line in the corner, with the full sentence on a tap
+- What: at Title 3 the OpenStreetMap credit took three lines and covered the bottom of the search
+  area. It is now one line in the bottom corner at 13 points, OpenStreetMap's own short form
+  ("© OpenStreetMap contributors · Protomaps", or without "· Protomaps" when no tiles are drawn);
+  a tap shows the full sentence ("Map data from OpenStreetMap contributors (ODbL). Basemap:
+  Protomaps."), which is also its accessibility label. The field text-size test gains one named
+  exception for this credit only: a fixed size of at least 13 points, allowed only on a line that
+  carries the credit marker, and only once in all the views; every other text keeps the Title 3 floor.
+- Source: map review.
+- Verified: tests for the short line (with tiles, without, and none) and for reading the fixed
+  size; the text-size scan passes with the marked credit; 293 PLSCore and 117 app tests pass.
+
 ### fix(ios): the map draws only helpful plates, in field-size text, with a muted credit
 - What: the search map now uses the plate rule: the team's plate (inverted, light on dark text)
   always shows, another segment's plate shows only at 1% or more and only when it fits inside the

@@ -16,6 +16,13 @@ enum SearchMap {
         return basemap ? line + ". Basemap: Protomaps." : line
     }
 
+    /// OpenStreetMap's own short form, on one line, with the basemap's source when its tiles are drawn;
+    /// a tap shows the full sentence (`credit`).
+    static func shortCredit(segments: Int, basemap: Bool) -> String? {
+        guard segments > 0 || basemap else { return nil }
+        return basemap ? "© OpenStreetMap contributors · Protomaps" : "© OpenStreetMap contributors"
+    }
+
     /// The numbers drawn: the posterior after this phone's reports, else the pack's prior.
     static func poa(_ mission: Mission, posterior: PosteriorResult?) -> [String: Double] {
         posterior?.poa ?? Dictionary(mission.prior.map { ($0.segmentId, $0.priorPoa) }, uniquingKeysWith: { first, _ in first })
@@ -29,6 +36,7 @@ enum SearchMap {
 struct SearchMapScreen: View {
     let mission: Mission
     let posterior: PosteriorResult?
+    @State private var fullCredit = false
     var body: some View {
         let tiles = SearchMap.tiles(gridId: mission.gridId)
         let poa = SearchMap.poa(mission, posterior: posterior)
@@ -37,14 +45,20 @@ struct SearchMapScreen: View {
             SearchMapLayer(segments: shaded, grid: mission.grid, tiles: tiles,
                            plates: MapPlates.plates(shaded, poa: poa, teamId: mission.teamId))
                 .ignoresSafeArea(edges: .bottom)
-            if let credit = SearchMap.credit(mission, segments: shaded.count, basemap: tiles != nil) {
-                Text(credit)
-                    .font(.title3)
+            if let full = SearchMap.credit(mission, segments: shaded.count, basemap: tiles != nil),
+               let short = SearchMap.shortCredit(segments: shaded.count, basemap: tiles != nil) {
+                // One line in the corner, so it never covers the search area; a tap shows the full sentence.
+                Text(fullCredit ? full : short)
+                    .font(.system(size: 13, weight: .semibold)) // Map credit (legal text, never instructions): at least 13 pt.
+                    .lineLimit(fullCredit ? nil : 1)
                     // The map's own muted grey in every screen mode (the night mode's red reads as an alarm).
                     .foregroundStyle(mapColor(MapStyle.fg4))
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(mapColor(MapStyle.bg0).opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
-                    .padding(8)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(mapColor(MapStyle.bg0).opacity(0.85), in: RoundedRectangle(cornerRadius: 5))
+                    .padding(6)
+                    .onTapGesture { fullCredit.toggle() }
+                    .accessibilityLabel(full)
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityIdentifier("map-credit")
             }
         }
