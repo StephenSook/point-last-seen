@@ -11,9 +11,6 @@
       "keep": [
         "Her son is at",
         "call him."
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -28,9 +25,6 @@
       "keep": [
         "Her son is at",
         "call him."
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -41,9 +35,6 @@
       "keep": [
         "Her son is at",
         "call him."
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -54,9 +45,6 @@
       "keep": [
         "Her son is at",
         "call him."
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -67,9 +55,6 @@
       "keep": [
         "Her son is at",
         "call him."
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -99,9 +84,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -111,9 +93,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -123,9 +102,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -135,9 +111,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -147,9 +120,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -169,9 +139,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -181,9 +148,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -193,9 +157,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -206,9 +167,6 @@
       "keep": [
         "call",
         "now"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -219,9 +177,6 @@
       "keep": [
         "call",
         "now"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -232,9 +187,6 @@
       "keep": [
         "call",
         "now"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -245,9 +197,6 @@
       "keep": [
         "call",
         "now"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -257,9 +206,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "web"
       ]
     },
     {
@@ -271,7 +217,6 @@
         "Call"
       ],
       "pendingOn": [
-        "web",
         "ios"
       ]
     },
@@ -284,7 +229,6 @@
         "Call"
       ],
       "pendingOn": [
-        "web",
         "ios"
       ]
     },
@@ -297,7 +241,6 @@
         "Call"
       ],
       "pendingOn": [
-        "web",
         "ios"
       ]
     },
@@ -310,7 +253,6 @@
         "Call"
       ],
       "pendingOn": [
-        "web",
         "ios"
       ]
     },
@@ -323,7 +265,6 @@
         "Call"
       ],
       "pendingOn": [
-        "web",
         "ios"
       ]
     }
