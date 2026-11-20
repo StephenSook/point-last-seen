@@ -1,0 +1,5 @@
+{
+  "description": "The drill every judge practice search is copied from (JUDGE_SEED_INCIDENT in functions/src/judgeSession.ts, which the rules gate checks against this file), and the test-only drill that live and device tests write to instead.",
+  "incidentId": "drill-dev-1",
+  "testIncidentId": "drill-test-1"
+}

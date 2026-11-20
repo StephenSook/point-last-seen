@@ -26,7 +26,8 @@ for (const width of [1440, 390]) {
     test("the joined command post has no WCAG A or AA violation", async ({ page }) => {
       await withDebugToken(page);
       await joinCommand(page);
-      await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
+      // Segment codes always draw; at phone width a plate shows only where it fits its segment, so there may be none.
+      await expect(page.locator(".seg-code:visible").first()).toBeVisible({ timeout: 20_000 });
       // The map canvas and its markers are drawn by MapLibre; the rail, header and forms are ours.
       const r = await new AxeBuilder({ page }).withTags(TAGS).exclude(".maplibregl-canvas").analyze();
       expect(describe(r.violations)).toEqual([]);

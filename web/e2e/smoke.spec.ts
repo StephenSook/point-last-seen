@@ -51,7 +51,7 @@ test.describe("fresh browser", () => {
     // credit must be the line the grid builder stamped on the incident (no credit only on an empty map).
     await expect(page.locator(".map-empty")).toHaveCount(0, { timeout: 15_000 });
     await expect(page.locator(".plate:visible").first()).toBeVisible();
-    await expect(page.getByTestId("map-credit")).toHaveText("Map data from OpenStreetMap contributors (ODbL)");
+    await expect(page.getByTestId("map-credit")).toHaveText("© OpenStreetMap contributors · Protomaps");
     await expect(page.getByText(DRILL)).toBeVisible();
     expect(consoleErrors).toEqual([]);
   });

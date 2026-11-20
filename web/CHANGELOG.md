@@ -1709,3 +1709,102 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the motion sampler seeks the clip, waits for "seeked", and draws the frame to a canvas. Under load "seeked" can fire before the new frame is decoded, so the canvas reads the previous frame again and a moving span reads as still (on-device triage could then decide "no motion" and skip a clip with a person in it). Now a sample that is byte-identical to the previous one is drawn again after a frame (up to 3 times) before it is accepted. A truly still clip settles on the same frame and costs only those waits. A frame-callback approach was tried first and dropped: a clip element that is not on the page never presents frames, so every sample waited its full bound.
 - Source: an intermittent harness failure on CI (two consecutive samples identical on a moving clip).
 - Verified: three new unit tests for the redraw (a stale draw redrawn until the new frame; a still frame accepted after the retries; one draw when the frame differs) failed first, then passed; the frames harness tests pass at their usual speed (0.5 s moving, 0.7 s still), 30 of 30 over 10 repeats with 7 workers; clip and triage harness tests pass; typecheck clean.
+
+### test(e2e): live tests refuse the judge's seeded incident
+- What: the live-test fixtures (`joinCommand` and the family consent helper) now refuse the judge's seeded incident with "This is the judge's seed incident; live tests run on the test drill (PLS_SMOKE_INCIDENT=drill-test-1).", because those tests write sightings, photos, consents and plans. The seed's id comes from one shared constant, `shared/constants/judge-seed.json` (with the test drill's id beside it), so no test types it. A no-backend test checks the refusal and that the test drill is accepted.
+- Source: the judge's seed must stay as judges see it; live writes go to the test drill.
+- Verified: the guard test failed first (no such export), then passed; 29 of 29 no-backend browser checks pass; typecheck clean.
+
+### test(e2e): form-only specs type the test drill's id, not the judge's seed
+- What: four specs that only type an incident id into the join form or a link (sign-in, App Check, the new-build reload and the shared-link note) now use the test drill's id; none of them joins. With this, the judge seed's id appears nowhere in web/e2e.
+- Source: a repository check that the judge seed is never named in test code.
+- Verified: a search of web/e2e (tracked files) for the judge seed's id finds none; 29 of 29 no-backend browser checks pass, including the new-build and shared-link specs.
+
+### test(e2e): the family spec names the Family region exactly
+- What: `family.spec.ts` finds the command post's family channel with `{ name: "Family", exact: true }`. On a post whose family has shared photos, the "Family photos" tray also matched the plain name, and the strict locator failed before checking anything.
+- Source: a deployed-site run on the test drill (the tray is present there).
+- Verified: the spec failed against the live site on the test drill with "strict mode violation ... resolved to 2 elements", then passed with the exact name; typecheck clean.
+
+### fix(data): read callable errors without the SDK's appended status
+- What: `data/callableError.ts` gives a failed Cloud Functions call as `{ code, message, reason }`: the server's sentence with the " [503]" the Firebase SDK appends removed, and `details.reason` when the server sends one. Not used by the mappers yet.
+- Source: a live practice search started twice at once showed "No connection" for the server's "still being set up" answer; the SDK had ended the message with " [503]", so an exact match missed.
+- Verified: `src/data/callableError.test.ts` (3 tests, the first two run a real callable through the SDK against a stubbed 503 and 429) failed first (module missing), then passed; the raw SDK message is asserted to end in " [503]".
+
+### fix(data): practice search shows the server's sentences the SDK suffixed
+- What: `practiceErrorMessage` reads errors through `callableError`, so "One new practice search per hour...", "...full for today..." and "...still being set up..." show as the server wrote them instead of "No connection" or "could not start". A `details.reason` (hourly_limit, daily_limit, no_practice, setup_busy) is trusted over the wording when the server sends one. New `isSettingUp(e)` says when a start should be retried.
+- Source: a live double start on the judge page showed "No connection" for the server's "still being set up" answer.
+- Verified: two new tests with the SDK's real " [429]" and " [503]" messages and with reasons failed first, then passed; 7 of 7 practice tests pass; typecheck clean.
+
+### fix(data): media delete shows the server's refusal the SDK suffixed
+- What: `deleteFailure` reads errors through `callableError`, so "Only the incident's command can delete its media." and "Sign in before deleting an incident's media." show as refusals (nothing deleted) instead of "The server did not confirm the delete". A `details.reason` (not_command, not_signed_in) is trusted over the wording when the server sends one.
+- Source: the same SDK status suffix found on the practice search; this mapper used the same exact match.
+- Verified: a new test with the SDK's real " [403]" and " [401]" messages and a reason failed first, then passed; 9 of 9 media tests pass; typecheck clean.
+
+### feat(data): retry a practice search while the server is still setting it up
+- What: `startWithRetry(start, { onWaiting })` in `data/practice.ts`: when the server answers "still being set up" (code unavailable with that sentence, or reason setup_busy), it passes the sentence to `onWaiting` and starts again every 2.5 s for up to 30 s, then gives up with the server's answer. Any other failure, a lost connection included, is thrown at once. Not used by the judge page yet.
+- Source: a second start during setup (a double click) is answered "still being set up"; the person should not have to click again.
+- Verified: 3 new tests with a fake clock (busy twice then success with two 2.5 s waits; busy throughout stops after 13 tries within 30 s; a 503 with no sentence is thrown after one try with nothing said) failed first (no such export), then passed; 10 of 10 practice tests pass; typecheck clean.
+
+### fix(judge): a practice search still being set up says so and starts again by itself
+- What: the judge page starts a practice search through `startWithRetry`: while the server answers "still being set up", the sentence shows as a status under the button (which stays "Starting" and disabled) and the start repeats every 2.5 s for up to 30 s, then the page opens the incident. A 503 without the server's sentence still says "No connection. Try again when the link is back." and does not repeat. A ref set before the first await keeps a second click in the same moment from starting a second search.
+- Source: a live double start showed "No connection" for the server's "still being set up" answer, and the judge had to click again.
+- Verified: three new browser checks that answer the start callable in the page (so no practice search is used up): busy then a seat shows the sentence and lands on the incident after two calls (failed on the live site before this change: no status line); a bare 503 says No connection with one call after 3.5 s; a double click makes one call. All three pass on a local build, with 16 of 16 other judge checks; typecheck clean.
+
+### fix(data): callable errors also give the HTTP status, 0 for no answer
+- What: `callableError` now returns `status`, the HTTP status the Firebase SDK appended (any one to three digits, so " [0]" too), and strips it from the message. The SDK reports a request that never got an answer (a lost connection) as `functions/internal` with status 0.
+- Source: review of the callable error fix: a real lost connection reached the practice mapper as "internal [0]", not as a 503.
+- Verified: a new test that makes the SDK's fetch fail outright (status 0, code functions/internal, message "internal") and the existing tests updated for the new field failed first, then passed; 23 of 23 helper, practice and media tests pass; typecheck clean.
+
+### fix(data): a practice search with no connection says No connection
+- What: `practiceErrorMessage` returns "No connection. Try again when the link is back." for a request that got no answer (the SDK's status 0) and for a sign-in that could not reach the network (`auth/network-request-failed`). Before, both said "The practice search could not start. Try again."; a server error with a real status (500) still does.
+- Source: review of the callable error fix.
+- Verified: a unit test (status 0, the sign-in network error, a 500) and a browser check that cuts the start callable's connection (No connection, one call after 3.5 s) failed first (the live site said "could not start"), then passed on a local build with the other four practice checks; 11 of 11 practice tests pass; typecheck clean.
+
+### fix(judge): the waiting line says the page opens the practice search itself
+- What: while the server is still setting a practice search up, the status under the button says "Your practice search is still being set up. This page opens it when it is ready." instead of the server's "Try again in a moment.", which asked the judge to do what the page is already doing (the button is disabled meanwhile). After 30 s without a seat, the server's sentence shows as the error and the button comes back.
+- Source: review of the judge page retry.
+- Verified: the busy-then-seat browser check, changed to expect the new line, failed on a build without it, then passed on a local build with the other 16 judge checks; typecheck clean.
+
+### test(e2e): two clicks in the same moment start one practice search
+- What: the double-click check now clicks the start button twice in one task (`b.click(); b.click()`), before React can disable it, so only the page's own guard stops the second start. Playwright's `dblclick` sends the second click after React has already disabled the button, so the old check could not fail.
+- Source: review of the judge page retry.
+- Verified: on a build with the guard's early return removed the check failed (2 calls, expected 1); with the guard it passes, with the other judge checks.
+
+### feat(map): a rule for which probability plates the map draws
+- What: `map/plateRule.ts`: `plateShown` shows a plate only at 1.0% or more and only when the plate fits inside its segment's on-screen box (width and height, no margin); with "every percent" on, every plate of 0.1% or more; never a "<0.1%" or empty plate. `screenBox` is the axis-aligned box around a segment's projected points. Not used by the map yet.
+- Source: the shared map label rule for the phone and web maps (68 plates buried the map in "<0.1%" labels).
+- Verified: `src/map/plateRule.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean.
+
+### feat(map): plates show at 1.0% or more and only where they fit their segment
+- What: `MapView` applies `plateShown` before placing labels and again after every move (zoom or pan): a plate under 1.0%, or wider or taller than its segment's box at the current zoom, is hidden (class `unfit`, visibility hidden, still in the page), never clipped. The labels left still hide by collision, so none overlap. New prop `everyPercent` shows every plate of 0.1% or more. Plates now have 6 px side and 2 px top and bottom padding (12 and 4 in total), as on the phones. The map harness takes `?every` and `?tiny` (cell DF at 0.01%) and exposes its map and cells for tests.
+- Source: the shared map label rule for the phone and web maps.
+- Verified: three harness checks failed first (all 23 plates showed on a roomy map; on a 300 px map AB's plate showed wider than its cell; with every percent a "<0.1%" plate would show), then passed: 17 plates of 1.0% or more on a roomy map, no visible plate wider or taller than its cell on a 300 px map, 23 plates and no "<0.1%" with every percent on. All 125 harness checks pass; typecheck clean.
+
+### feat(map): an Every percent switch on the map
+- What: `MapView` takes `onEveryPercent`; when set (and the map has segments) it shows an "Every percent" checkbox at the map's top right, which turns `everyPercent` on and off. Keyboard-reachable with the page's focus ring. The map harness shows it with `?switch`.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a harness check (unchecked shows 17 plates; checked 23; unchecked 17 again; focusable) failed first (no switch), then passed with the 11 other map checks; typecheck clean.
+
+### feat(command): the command map has the Every percent switch
+- What: the command post keeps an "every percent" view setting for its own screen (off at first) and passes it to the map with its switch. Nothing is written anywhere; other seats are not affected.
+- Source: the shared map label rule (command may show every percent).
+- Verified: a new live check on the test drill, `e2e/plates.spec.ts` (every visible plate is 1.0% or more; Every percent shows more plates and never a "<0.1%" one; off again goes back), passed on a local build: 14 plates by default, 47 with Every percent; typecheck clean. Screenshots of both views were checked by eye.
+
+### test(e2e): phone-width checks wait for segment codes, not plates
+- What: the 390 px phone checks and the joined-post accessibility check wait for a visible segment code before reading the page. Under the plate rule a plate shows only where it fits its segment, and at phone width no plate fits the drill's segments, so waiting for a visible plate timed out.
+- Source: a full local run of the browser checks after the plate rule.
+- Verified: the two phone checks and the 390 px accessibility check timed out on "a visible plate" after the plate rule, then passed with the new wait (10 of 10 phone and accessibility checks).
+
+### feat(map): the map credit is one linked line, "© OpenStreetMap contributors · Protomaps"
+- What: the credit under every map is one short muted line (fg-4, the same on every map view): "© OpenStreetMap contributors", linked to OpenStreetMap's copyright page (their guideline for web maps), and " · Protomaps", linked to Protomaps' attribution guidelines, only when the basemap is drawn. The grid's stamped licence line is the OpenStreetMap link's title. Both links open in a new tab, are reachable by keyboard and show the page's focus ring. `mapCredit` now returns whether Protomaps is credited instead of a sentence.
+- Source: the shared map credit for the phone and web maps.
+- Verified: the credit unit tests and a harness check (one line, link and address, muted colour, keyboard focus with a visible outline) failed first (the old "Map data from OpenStreetMap" line), then passed with 12 other map checks; the judge replay map now also asserts its credit link; the basemap check expects the full line and passes on a local build with the replay, phone and accessibility checks (18 of 18); typecheck clean. The deployed smoke check is updated to the new line and runs after deploy.
+
+### fix(pwa): a first install of the service worker reloads no page
+- What: `public/sw-takeover.js` notes at install whether an older worker was active, and reloads a focused page that did not answer its ping only when it was (an update from an older build). On a first install there is no older build, the page came from the network, and a page slow to answer is only busy; before, it was reloaded, which on a slow machine could lose what someone had just started typing.
+- Source: the local CI mirror under load: three first-visit browser checks (the new-build pair and the 390 px judge page accessibility check) failed with "Execution context was destroyed ... navigation".
+- Verified: a new sandbox test (first install, focused page that does not answer: no reload) failed first (1 reload), then passed with the 4 existing takeover tests, including the update case that still reloads; the new-build and no-backend accessibility browser checks pass on a local build (9 of 9); typecheck clean.
+### test(e2e): the clip form check expects the clip's real size, not a fixed byte count
+- What: `e2e/harness/clip.spec.ts` checks that the form passes `bytes: statSync(CLIP).size`, the size of the clip file the test uses, instead of 4448. The clip is generated on the machine running the test, and its size depends on that ffmpeg build.
+- Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.
+- Verified: with the clip made 20 bytes longer (4468 bytes, still "4 KB"), the old check failed (expected 4448, received 4468) and the new one passed; all 23 clip checks pass on the normal clip; typecheck clean.

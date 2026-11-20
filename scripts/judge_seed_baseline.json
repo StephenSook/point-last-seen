@@ -1,0 +1,145 @@
+{
+  "events": {
+    "count": 30,
+    "sha256": "633fe5ae2105eb2ffa3807a6cfa933b5f5d6fd5d76fa09d6a09af685e9e8f4ae"
+  },
+  "incident": {
+    "engineParams": {
+      "authenticityWeight": {
+        "high": 1,
+        "low": 0,
+        "medium": 0.6
+      },
+      "coveragePercentMax": 300,
+      "coverageRatioMax": 3,
+      "detectionProfile": {
+        "soundCounts": false
+      },
+      "detectionRangeMaxM": 100,
+      "detectionRangeMinM": 1,
+      "hastySpeedMps": 0.53,
+      "iocBase": {
+        "against": 0.4,
+        "for": 0.8,
+        "neutral": 0.6,
+        "strong_against": 0.2,
+        "strong_for": 1
+      },
+      "nearFeature": {
+        "bufferM": 71,
+        "farShare": 0.25,
+        "nearShare": 0.75
+      },
+      "rings": {
+        "masses": [
+          0.25,
+          0.25,
+          0.25,
+          0.2
+        ],
+        "temperate_flat": [
+          0.3,
+          1,
+          2.4,
+          12.8
+        ],
+        "temperate_mountain": [
+          0.3,
+          0.8,
+          1.9,
+          8.3
+        ]
+      },
+      "secondsPerMinute": 60,
+      "sweepSpeedMps": 0.39,
+      "sweepWidthFactor": 1.645,
+      "wedge": {
+        "halfAngleDeg": 66,
+        "inside": 2.045,
+        "outside": 0.395
+      }
+    },
+    "gridAttribution": "Map data from OpenStreetMap contributors (ODbL)",
+    "gridId": "piedmont-park-dev",
+    "ipp": {
+      "lat": 33.786579,
+      "lon": -84.373309
+    },
+    "ippSource": "typed",
+    "plsTimeMs": null,
+    "priorLayers": {
+      "linear": true,
+      "wedge": false
+    },
+    "priorModel": "rings",
+    "priorSeed": 20261122,
+    "priorVersion": 5,
+    "searchState": "searching",
+    "terrain": "temperate_flat"
+  },
+  "profileShared": {
+    "ageYears": null,
+    "answersTo": "Drill subject (synthetic)",
+    "appearance": "",
+    "approachNoteIds": [
+      "may_not_respond",
+      "approach_calm",
+      "stop_calling_name"
+    ],
+    "bestApproach": "",
+    "clothingLastWorn": "blue coat",
+    "dementiaType": null,
+    "eyeColor": "",
+    "flags": {
+      "afraidOfUniforms": false,
+      "carriesMedicalAlertCard": false,
+      "fallRisk": false,
+      "fluctuates": false,
+      "freezing": false,
+      "gaitUnsteady": false,
+      "hallucinationsOrDelusions": false,
+      "likelyToFight": false,
+      "likelyToHide": false,
+      "lookingForHome": false,
+      "mayNotRespond": true,
+      "medicationSensitivity": false,
+      "medicationTimingMatters": false,
+      "seizures": false,
+      "sensitiveToLight": false,
+      "sensitiveToTouch": false,
+      "slowToRespond": false,
+      "softVoice": false
+    },
+    "gender": "",
+    "hair": "",
+    "heightFt": null,
+    "heightIn": null,
+    "mobilityAids": [],
+    "nickname": "",
+    "otherNames": [],
+    "photoTakenOn": null,
+    "primaryLanguage": "",
+    "triggersToAvoid": "",
+    "uniqueDescription": "",
+    "weightLb": null
+  },
+  "seed": "drill-dev-1",
+  "segments": {
+    "count": 68,
+    "sha256": "030b8a9d5a5f4b5c7781446fe860d25a3ae0f0b135c9a3bc26565b4dc55b4269"
+  },
+  "teams": {
+    "T1": {
+      "colorSlot": 1,
+      "createdAt": "2026-11-18T06:44:12.736Z",
+      "name": "Team 1",
+      "teamId": "T1"
+    },
+    "T2": {
+      "colorSlot": 2,
+      "createdAt": "2026-11-18T06:44:13.052Z",
+      "name": "Team 2",
+      "teamId": "T2"
+    }
+  }
+}

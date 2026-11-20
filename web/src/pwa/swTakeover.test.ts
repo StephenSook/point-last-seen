@@ -8,7 +8,8 @@ const source = readFileSync(new URL("../../public/sw-takeover.js", import.meta.u
 
 type FakePage = { id: string; url: string; focused: boolean; visibilityState: string; answers: boolean; navigated: number };
 
-async function activate(pages: FakePage[], msSinceInstall: number): Promise<FakePage[]> {
+// `previous`: an older worker was active when this one installed (an update); false is a first install.
+async function activate(pages: FakePage[], msSinceInstall: number, previous = true): Promise<FakePage[]> {
   const listeners: Record<string, (e: { waitUntil(p: Promise<unknown>): void }) => void> = {};
   let now = 1_000_000;
   const clients = pages.map((p) => ({
@@ -19,6 +20,7 @@ async function activate(pages: FakePage[], msSinceInstall: number): Promise<Fake
   const self = {
     addEventListener: (type: string, fn: (e: { waitUntil(p: Promise<unknown>): void }) => void) => { listeners[type] = fn; },
     clients: { claim: async () => undefined, matchAll: async () => clients },
+    registration: { active: previous ? {} : null },
   };
   const DateFake = { now: () => now };
   runInNewContext(source, { self, MessageChannel, setTimeout, clearTimeout, Date: DateFake, Promise });
@@ -46,6 +48,10 @@ describe("the new worker's takeover of open pages", () => {
   it("leaves pages of this build to themselves (they answer, then reload or ask)", async () => {
     const [current] = await activate([page({ focused: true, answers: true })], 5_000);
     expect(current!.navigated).toBe(0);
+  });
+  it("on a first install reloads nothing: there is no older build, and a slow answer only means a busy page", async () => {
+    const [first] = await activate([page({ focused: true })], 5_000, false);
+    expect(first!.navigated).toBe(0);
   });
   it("leaves even the focused older page alone when the update did not come from it opening just now", async () => {
     const [focused] = await activate([page({ focused: true })], 120_000);

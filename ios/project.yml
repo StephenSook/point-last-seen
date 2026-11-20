@@ -41,6 +41,12 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/urgency.json
         buildPhase: resources
+      - path: ../shared/constants/tracking-aids.json
+        buildPhase: resources
+      - path: ../shared/grid/kennesaw-mountain-drill.pmtiles
+        buildPhase: resources
+      - path: ../shared/grid/piedmont-park-dev.pmtiles
+        buildPhase: resources
     info:
       path: PLS/Info.plist
       properties:
@@ -54,6 +60,8 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         NSSupportsLiveActivities: true
+        # The commit a build was made from (a device build passes PLS_BUILD_COMMIT); the eval records it.
+        PLSBuildCommit: $(PLS_BUILD_COMMIT)
     entitlements:
       path: PLS/PLS.entitlements
       properties:
@@ -63,6 +71,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field
         TARGETED_DEVICE_FAMILY: "1"
+        PLS_BUILD_COMMIT: unknown
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
     postBuildScripts:

@@ -5,6 +5,7 @@
 import { collection, getCountFromServer, type Firestore } from "firebase/firestore";
 import { httpsCallable, type Functions } from "firebase/functions";
 import { listAll, ref, type FirebaseStorage } from "firebase/storage";
+import { callableError } from "./callableError";
 
 /** Files in Storage, and the clip and photo reading records (consent included) the server also deletes. */
 export type MediaCounts = { clips: number; photos: number; records: number };
@@ -50,12 +51,14 @@ export const UNCONFIRMED = "The server did not confirm the delete. This shows wh
 // The server's refusals are plain sentences meant for the person, and it gives them before deleting
 // anything, so they confirm nothing was deleted. Any other failure is unconfirmed: the server deletes
 // files and records in steps, and its reply can be lost after the delete finished.
+// A stable details.reason marks a refusal when the server sends one; until then the sentence itself does.
 const SERVER_SENTENCES = new Set(["Only the incident's command can delete its media.", "Sign in before deleting an incident's media."]);
+const SERVER_REASONS = new Set(["not_command", "not_signed_in"]);
 
 export function deleteFailure(e: unknown): { text: string; unconfirmed: boolean } {
-  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  const message = e instanceof Error ? e.message : "";
-  if ((code.endsWith("permission-denied") || code.endsWith("unauthenticated")) && SERVER_SENTENCES.has(message)) return { text: message, unconfirmed: false };
+  const { code, message, reason } = callableError(e);
+  const refusal = reason !== null ? SERVER_REASONS.has(reason) : SERVER_SENTENCES.has(message);
+  if ((code.endsWith("permission-denied") || code.endsWith("unauthenticated")) && refusal && message !== "") return { text: message, unconfirmed: false };
   return { text: UNCONFIRMED, unconfirmed: true };
 }
 

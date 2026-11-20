@@ -96,4 +96,35 @@ class ProfilePublisherTest {
         ProfilePublisher(FakeSink(), MemoryPublished()).publish("inc-1", p) { ok -> done = ok }
         assertEquals(true, done)
     }
+
+    /** No document yet: the first publish creates it whole. */
+    @Test fun aFirstPublishCreatesAMissingDocument() {
+        val mine = mapOf("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.Create(mine), FirstPublish.of(existing = null, mine = mine))
+    }
+
+    /**
+     * A document already there (a reinstall, a second family phone): a command edit, another phone's tracking
+     * answer and a field this app does not know all stay; only keys the server lacks are added.
+     */
+    @Test fun aFirstPublishKeepsWhatIsAlreadyThere() {
+        val existing = mapOf<String, Any?>(
+            "answersTo" to "Mae (edited by command)",
+            "trackingAids" to mapOf("aids" to listOf("medicalert_id"), "note" to ""), "aFieldFromANewerSchema" to "kept",
+        )
+        val mine = mapOf<String, Any?>("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    /** A field command left empty (null) stays empty: a first publish never fills it; an edit does that explicitly. */
+    @Test fun aNullOnTheServerStaysNullAfterAFirstPublish() {
+        val existing = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to null, "photoTakenOn" to null)
+        val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "photoTakenOn" to "2026-11-01", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    @Test fun aFirstPublishOverACompleteDocumentWritesNothing() {
+        val existing = mapOf<String, Any?>("answersTo" to "Mae (edited by command)", "clothingLastWorn" to "red coat")
+        assertEquals(FirstPublish.Nothing, FirstPublish.of(existing, mapOf("answersTo" to "Mae", "clothingLastWorn" to "blue coat")))
+    }
 }

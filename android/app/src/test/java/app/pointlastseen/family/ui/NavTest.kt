@@ -102,4 +102,15 @@ class NavTest {
         assertEquals(Screen.CALL_FIRST, Nav.back(script).screen)
         assertEquals(Screen.CALL_FIRST, Nav.systemBack(script)?.screen)
     }
+
+    /** A search this phone is no longer part of opens the join screen; a "gone" profile stays gone. */
+    @Test fun aDroppedSearchOpensTheJoinScreenAndKeepsTheProfileState() {
+        assertEquals(NavState(Screen.JOIN, gone = true, joined = false), Nav.dropped(NavState(Screen.STATUS, gone = true, joined = true)))
+        assertEquals(NavState(Screen.JOIN, gone = false, joined = false), Nav.dropped(NavState(Screen.PROFILE, gone = false, joined = true)))
+    }
+
+    /** Leaving an open search returns to the profile, still "gone", so it offers to join again. */
+    @Test fun leavingAnOpenSearchKeepsTheProfileGone() {
+        assertEquals(NavState(Screen.PROFILE, gone = true, joined = false), Nav.leftOpen(NavState(Screen.STATUS, gone = true, joined = true)))
+    }
 }

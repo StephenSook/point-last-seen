@@ -27,6 +27,11 @@ enum BundledConstants {
         try ApproachNotes(json: data("approach-notes"))
     }
 
+    /// Each tracking aid's search-card line (cards only, never sent to a model).
+    static func trackingAids() throws -> TrackingAidCopy {
+        try TrackingAidCopy(json: data("tracking-aids"))
+    }
+
     /// The urgency chip's threshold and its CDC source line.
     static func urgencyRule() throws -> UrgencyRule {
         try UrgencyRule(json: data("urgency"))

@@ -32,4 +32,8 @@ struct Mission: Sendable {
     var priorInputEventIds: [String] = []
     /// The incident's `conditions` typed at command (temperature, wet); nil when not set.
     var conditions: IncidentConditions? = nil
+    /// The incident's grid (`gridId`); the map draws its offline tiles when the app has them.
+    var gridId: String? = nil
+    /// The grid's OpenStreetMap license line (`gridAttribution`), shown on the map.
+    var gridAttribution: String? = nil
 }
