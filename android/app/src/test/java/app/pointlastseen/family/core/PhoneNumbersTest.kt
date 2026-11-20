@@ -325,4 +325,9 @@ class PhoneNumbersTest {
         assertEquals("GPS 33.7490 -84.3880", PhoneNumbers.remove("GPS 33.7490 -84.3880"))
         assertEquals("GPS 33.7490,-84.3880", PhoneNumbers.remove("GPS 33.7490,-84.3880"))
     }
+
+    /** Dropping a date never lets other search information keep a number: a short piece seen before the drop still takes the whole run. */
+    @Test fun droppingADateNeverShieldsTheRestOfTheRun() {
+        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2 2026-11-19"))
+    }
 }
