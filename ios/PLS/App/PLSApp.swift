@@ -17,6 +17,8 @@ final class PLSAppCheckFactory: NSObject, AppCheckProviderFactory {
 
 @main
 struct PLSApp: App {
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
+
     init() {
         AppCheck.setAppCheckProviderFactory(PLSAppCheckFactory())
         FirebaseApp.configure()

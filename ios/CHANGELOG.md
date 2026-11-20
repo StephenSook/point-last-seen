@@ -5,6 +5,339 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: the two account windows the iPhone does not close, and plans without a setup id
+- What: LIMITS.md says what the account sessions leave open: a first join that signs in a new
+  anonymous user binds its session only after the join returns (the security rules still decide what
+  that user may read, and a refused read drops the mission), and a tap that passed every check can
+  reach the task screen just after an account change (it then shows "No mission loaded" and nothing
+  of the old mission). It also says plans carry no setup id, so a practice incident rebuilt under the
+  same id and plan version keeps the old task on a phone until a newer plan or a new join.
+- Source: review (round 4: the residual race and the plan setup id, medium).
+- Verified: read against the session checks in AppModel and the plan document's fields.
+
+### fix(ios): one account session carried through every load, tap and spoken line
+- What: a load or a push tap took its own fresh look at the signed-in user at each step, so one
+  account's claims could be read, installed and spoken under another account (or under none, since
+  "no user" matched "no user"), and Auth's listener ignored the user it reported, so a sign-out and
+  a sign-in again as the same user could go unseen. Now:
+  - The phone keeps one account session: the user Auth last reported and a count of account
+    changes. Auth's listener hands over each reported user in order, and every change of user
+    (signed out, another user, or back to the same user) starts a new session: running checks and
+    loads lose their say, all speech stops, and the old session's mission and membership go at once.
+    The account state is read before any access work starts, and each flow reports the user signed
+    in now through the same path before it begins.
+  - A join, retry, resume or push tap binds the session when it starts and checks it after every
+    wait. The mission it reads is stamped with that session and installed only while it is current.
+    A plan held on screen is kept only when it is from the same session. A tap opens only in its
+    session, and both voices speak only while the mission's session is current. No session (no user)
+    is never current, so nothing is read, installed or spoken without a user.
+- Source: review (findings 1 and 2, round 4). One commit for both: they are the same mechanism.
+- Verified: new tests cover a tap whose claims return after the account switched (nothing installed,
+  opened or spoken), cached claims with no user (nothing read or installed), a sign-out and back as
+  the same user through the listener path (the tap's session ended, nothing opens), and a cloud line
+  still fetching when the account changes (never plays). Test models now name their user instead of
+  taking whatever user the test device stored. 159 app tests pass.
+
+### fix(ios): speech plays only for the mission's own user, and stops when the account changes
+- What: the speech guard checked the mission, team and task, but not who was signed in, so a line
+  still queued, or a cloud voice still fetching audio, could play after a sign-out or an account
+  switch until the mission was dropped; the phone's voice could even play while signed out. Both
+  voices now check, right before any sound, that the mission's user is still the one signed in,
+  and every Auth change stops whatever is playing or queued. Two older speech tests now name the
+  user they run as, instead of taking whatever user the test device had stored.
+- Source: review (finding 2, round 3).
+- Verified: a test switches the account just before a queued line would play: nothing is spoken.
+  It failed before the change and passes after; 155 app tests pass.
+
+### fix(ios): a reload of the same plan version keeps the plan on screen
+- What: a reload kept the plan the listener had applied only when that plan was strictly newer. With
+  two copies of one version, a withdrawal the listener applied could be undone by a reload that
+  read the same version with a task. The plan on screen now stays unless the reload read a strictly
+  newer version, as in the listener's own order.
+- Source: review (finding 3, round 3).
+- Verified: a test holds a reload of plan 3 with a task while the listener applies plan 3 with the
+  task taken away; the withdrawal stands. It failed before the change and passes after; 154 app
+  tests pass.
+
+### fix(ios): a load and a push tap are bound to the user they started for
+- What: a load stamped its mission with the user signed in when the read came back, and a push tap
+  checked only the incident and team before opening. A tap could get user A's claims, then finish
+  its read after A signed out or another account signed in, and install, speak and open A's mission
+  for nobody or for B. Now each load binds the user before it reads and installs nothing unless the
+  same user is still signed in; a tap also opens nothing unless its user is still signed in. Auth's
+  sign-in, sign-out and account changes drop the previous user's mission, membership and the
+  access checks still running.
+- Source: review (finding 1, round 3).
+- Verified: a test holds a tap's read, signs the user out, then lets the read finish: nothing opens
+  and nothing is spoken, and the account change drops the old mission. It failed before the change
+  and passes after; the app tests pass.
+
+### docs: iOS shows a background push as sent, with no service extension
+- What: LIMITS.md now says that on iPhone a push arriving while the app is in the background or
+  closed is shown by iOS from its payload as sent, since there is no notification service
+  extension to hide or reword it; that is one more reason the server text stays fixed and generic.
+  In the foreground the app shows no banner and its plan listener shows and speaks the new task.
+- Source: review (background push exposure, third round): no extension is added.
+- Verified: read against `PushAppDelegate.foregroundPresentation` (empty, covered by a test) and
+  the project, which has no notification service extension target.
+
+### docs: a moved or removed searcher's iPhone keeps its old team's topic until the app runs
+- What: LIMITS.md now says that an iPhone leaves its old team's push topic only when the app runs,
+  so a searcher command moved or removed while the app was suspended still gets that team's pushes
+  until it next opens (a failed leave is tried again at the next sign-in or push token). The push
+  text is fixed, so a former member learns only that a team in that incident got a new task.
+  Server-side sending to current members' device tokens would close the window and is not built.
+- Source: review (finding 4, third round).
+- Verified: read against the topic code (`followTopic` leaves old topics after each sign-in and
+  token arrival) and the server's fixed push text in LIMITS.md.
+
+### fix(ios): a push tap reads the mission from the server and opens only an open incident's newer plan
+- What: a tapped push read the incident and plan with Firestore's default source, which can answer
+  from the cache, and it opened the task whatever plan version it found. The tap now reads only
+  from the server. It opens the task only for an open incident whose plan is at least the push's
+  version. A closed incident, or a read the security rules refuse, drops the mission and opens
+  nothing. When the server cannot be reached, the same user's mission on the phone opens, as with
+  no signal; other reads still use the cache for offline use.
+- Source: review (finding 3, third round).
+- Verified: tests for a tap reading from the server, an unreachable server (same user opens the
+  mission on the phone), a closed incident (dropped, with the reason shown), a refused read
+  (dropped), and a plan older than the push (nothing opens). The push tests' incident now carries
+  the plan version the pushes announce. 152 app tests pass.
+
+### fix(ios): a changed or withdrawn task stops the line playing, and each voice callback is its own line's
+- What: speech stopped only on a new incident or team, so when command changed or took away the
+  team's task, the old line kept playing. Any change to the task now stops the line playing and any
+  line queued after it. The phone's own voice also kept one shared callback: a line handed to the
+  synthesizer while another was playing waited behind it, and was checked only at hand-off. Each
+  line now waits until the one before has ended, is checked again when its turn comes, and only its
+  own start, finish or cancel answers it; a stop ends it at once even if no callback comes.
+- Source: review (finding 5, third round).
+- Verified: a test changes and then withdraws the task on the same team: each stops the voice,
+  and the same task again stops nothing; it failed with the new rule taken out. Tests for the
+  line turns: another line's callback is ignored, a line ended before it started was not heard,
+  the next line waits for the one before, and a stop releases the line and every waiter. 147 app
+  tests pass.
+
+### fix(ios): a push reload keeps a newer plan the listener applied while it read
+- What: a tapped push reads the mission again. If the plan listener applied a newer plan while
+  that read ran, the read's older plan replaced it on screen and its task was spoken again; a newer
+  plan that took the task away was undone the same way. The reload now keeps the plan in the order
+  the listener uses: when the plan already on screen is newer than the one read, its version, task
+  and segments stay, also when it has no task for the team.
+- Source: review (finding 2, third round).
+- Verified: a test holds the tap's read at plan 2, applies plan 3 through the listener, then lets
+  the read finish, once with a new task in plan 3 and once with the task taken away. It failed
+  before the change (plan 2 came back and was spoken again) and passes after; the app tests pass.
+
+### fix(ios): a push tap Auth cannot confirm opens a mission only for the user it was read for
+- What: when a tapped push could not get fresh claims, the phone opened the loaded mission's task
+  for any reason the claims were missing: no user at all (signed out) as well as no signal. The
+  mission now records the user it was read for. Without fresh claims, a tap with no user, or with
+  another user than that one, drops the mission and opens nothing; the same user with no signal
+  still opens the mission on the phone, as offline. A sign-in as another user also drops the old
+  user's mission before the new claims are read.
+- Source: review (finding 1, third round).
+- Verified: tests for a tap with no user, a tap with another user, a tap by the same user with no
+  signal, and a sign-in as another user. The first two failed before the change; the sign-in test
+  failed with its check taken out. 141 app tests pass.
+
+### fix(ios): a phone with no user drops its mission, and the foreground checks access again
+- What: two gaps in following this phone's access. When the phone had no user at all any more
+  (signed out, for example after the account was removed) and signing in failed, the old user's
+  mission stayed loaded. A cached user still counts as signed in, so offline use is unchanged. And
+  coming back to the foreground settled waiting reports but did not check access, so a role or
+  team command changed while the app was away waited for the next reconnect. With signal, the
+  foreground now runs the same sign-in check (claims, team and incident status). This commit
+  covers both parts of review finding 3 that were left, which share a test file.
+- Source: review (finding 3).
+- Verified: tests for a failed sign-in with no user (mission dropped, no retry offered) and for a
+  role removed while the app was away (dropped on return to the foreground). Both failed before
+  the change and pass after; 137 app tests pass.
+
+### fix(ios): a tapped push is checked against the server before the task opens
+- What: a tap on a push that named the loaded mission opened the task with no check, so an old
+  push could reopen the mission of a team the phone had been removed from. A push for another team
+  could also fall back to cached claims and data. Every tap now reads the claims fresh. They must
+  name the push's incident and team; then the incident and plan are read again, and only then the
+  task opens. A push for another team (an old push) or after the role was taken away opens
+  nothing, and the mission follows the claims. With no signal, the mission already on the phone
+  opens for a push that names it, and nothing else does.
+- Source: review (findings 5 and 9).
+- Verified: tests for a tap on the loaded mission (a fresh claims read and one more mission read,
+  then it opens), an old push for another team (opens nothing, the mission follows the claims), a
+  push for the new team (loads it and opens), a push after the role was removed (drops the
+  mission, opens nothing), and no signal (only the mission on the phone opens, with no read). They
+  failed before the change and pass after; 135 app tests pass.
+
+### fix(ios): the phone remembers every push topic it may hold, and a team change always wins
+- What: the followed topic lived only in memory and a failed leave was dropped. Since FCM keeps
+  subscriptions across launches, a team change made while the app was closed could leave the old
+  team's topic active for good. A team change that landed while an old topic was being left could
+  also subscribe to a team no longer wanted. The phone now keeps, across launches, every topic it
+  may hold: listed before the subscription is tried, removed only once FCM confirms the leave.
+  Following leaves every listed topic but the wanted one (all of them with no mission, including
+  at a launch where the role is gone). It reads the wanted topic again after each network call.
+  This change covers review findings 2 and 4, which are the same function.
+- Source: review (findings 2 and 4).
+- Verified: tests for a relaunch after a team change (old topic left), a relaunch after the role is
+  gone (topic left with no mission), a leave that fails and goes through later, and a team change
+  during a leave (ends on the newest team only, and only that topic stays listed). They failed
+  before the change and pass after; 122 app tests pass.
+
+### fix(ios): the team's push topic is followed again once Messaging has its token
+- What: on a fresh install the topic subscription runs right after the mission loads, before the
+  APNs and FCM tokens exist. Firebase 13.2.0 refuses it at once ("No APNS token specified before
+  fetching FCM Token") and does not retry, so a new phone could stay off its team's topic until the
+  next sign-in. The app now listens for Messaging's registration token and follows the topic
+  again when it arrives (a token that comes before the app is ready waits in the inbox). This also
+  corrects two comments that said FCM holds such a subscription until a token exists.
+- Source: review (finding 1).
+- Verified: tests for a refused subscription that goes through when the token arrives, and for a
+  token that arrives before the app is ready; they failed to compile before the change and pass
+  after; the push and join app tests pass.
+
+### docs(ios): plain words for the source of the push entries
+- What: four push entries named a work stream as their source; they now say "the server half of
+  new-assignment pushes (P-06)". The facts are unchanged.
+- Source: review (public hygiene).
+- Verified: no added line on this branch matches the public hygiene patterns; the hygiene guard
+  exits 0.
+
+### fix(ios): a push that arrives with the app open shows nothing
+- What: a push that arrived in the foreground went into Notification Center with the push's own
+  title and body. The app now shows nothing for it, because the plan listener already shows and
+  speaks the new assignment from the plan itself. Background delivery still shows the push's
+  words: the server sends only fixed wording ("New assignment" or "Training drill: new
+  assignment", "Your team has a new task. Open Point Last Seen to see it."); replacing that on the
+  phone would need a notification service extension.
+- Source: review (finding 8).
+- Verified: a test that the foreground presentation is empty failed to compile before the change
+  and passes after; the app tests pass.
+
+### fix(ios): queued speech never speaks an assignment that was replaced while it waited
+- What: a voice waiting behind a slow one spoke the assignment it was given, even when a newer
+  plan or a team change had replaced it meanwhile, so an old team's instruction could be spoken
+  after the new team's mission was showing. When its turn comes, queued speech now checks the
+  loaded mission (incident, team and assignment) and skips anything that was replaced or dropped.
+- Source: review (finding 10).
+- Verified: a test holds the first spoken line, then delivers a newer plan and moves the searcher to
+  T2. Before the change the replaced line ("Search the north field.") was spoken; after it, only
+  the first line and T2's assignment are. 112 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): the alerts question goes with a dropped mission
+- What: the question is drawn outside the mission check, and dropping a mission left it set, so it
+  could stay on screen with no mission. A permission status read still running at the drop could
+  also bring it back, and the button could then open the system prompt. Dropping a mission now
+  clears the question. A status read that finishes after the mission was dropped or replaced
+  changes nothing. An answer with no question on screen asks the system nothing.
+- Source: review (finding 7).
+- Verified: tests for a drop with the question showing (gone, and "Turn on alerts" requests
+  nothing) and for a status read held until after a drop (no question); all three expectations
+  failed before the change and pass after; 111 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
+### test(ios): the "asked once" test now fails when the saved answer is ignored
+- What: the relaunch check ran after "Turn on alerts", when the system already reported alerts
+  allowed, so it passed even with the saved answer removed. The test now relaunches after
+  "Not now", with the system still at "not asked", so only the saved answer keeps the question away.
+  The allowed relaunch checks that the phone only registers again.
+- Source: review (finding 9).
+- Verified: with the saved-answer check replaced by `offersAlerts = true`, the new test fails
+  (AlertOfferTests.swift:73); restored, it passes; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios-core): team ids follow the server's rule, so no two teams can share a push topic
+- What: the phone accepted any id of letters, digits, "-" and "_" up to 128 for a team. Then
+  ("north-east", "T1") and ("north", "east-T1") both named the topic pls-north-east-T1. The server
+  (functions join.ts and notify.ts) allows a team id of letters, digits and "_" only, at most 32,
+  never "family". The phone now checks the same rule for the join, the topic and a tapped push.
+  With no "-" in a team id, the last "-" in a topic always separates incident from team.
+- Source: review (finding 6).
+- Verified: tests for the hyphen case, 32 and 33 characters, "family" in any case, and a push
+  naming such a team; they failed to compile before the change and pass after; 279 PLSCore tests
+  pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): the alerts question keeps every word on a task screen short of height
+- What: on the simulator the task screen cut the alerts sentence to one line ("... a new assignment
+  re..."), because the screen had less height than its content and SwiftUI squeezed that text. The
+  offer now always takes its full height, so the sentence and both buttons stay whole.
+- Source: a simulator check of the push work.
+- Verified: a layout test measures the offer at phone width, unconstrained and squeezed to 40
+  points: it failed before the change and passes after; 109 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): the assignment voice no longer holds up the plan listener, the topic or the alerts question
+- What: loading a mission waited for the assignment to finish speaking before it started the plan
+  listener, followed the team's push topic or asked about alerts. The cloud voice takes seconds, so
+  on the simulator the alerts question arrived late. The voice now runs as its own task, chained so
+  voices keep their order, with the voice settings taken at load time.
+- Source: a simulator check of the push work.
+- Verified: a test whose voice never starts: the listener, the topic and the alerts question are in
+  place at once. Against the old code it failed ("Time limit was exceeded: 60.000 seconds"); with
+  the fix it passes. Tests that count spoken lines now wait for the voice task. Both "never waits"
+  tests carry a one-minute limit, so a regression fails instead of hanging. 108 app tests pass; the
+  CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### fix(ios): a push topic subscription never holds up the join, the mission or the alerts question
+- What: FCM completes a topic subscription only once the phone has its messaging token, which can
+  be never (no APNs key yet, alerts not yet allowed). The mission load waited for it, so on the
+  simulator the alerts question never came and a join would never have finished with its words.
+  Following the topic now runs as its own task, chained so subscriptions and unsubscriptions keep
+  their order, and nothing else waits for it.
+- Source: a simulator check of the push work.
+- Verified: a test holds the subscription open: the join completes and the mission loads before it
+  answers, and the subscription lands when it does; it failed to compile, then passed; the topic
+  tests now wait for the follow task; 107 app tests pass; the CI mirror `bash scripts/ci-local.sh`
+  exit 0. On the simulator the alerts question then showed after the mission loaded.
+
+### feat(ios): hand the APNs token to Firebase Messaging and open the task from a tapped push
+- What: an app delegate hands iOS's APNs token to Firebase Messaging, so the team's topic can reach
+  this phone once the APNs key is in FCM, and routes a tapped new-assignment push by its ids only.
+  A tap that arrives before the app is ready waits in a small inbox. Opening a push brings the task
+  screen back from wherever the searcher was; when the push names another incident or team than
+  the one loaded (a team change, or a tap that launched the app), the mission first follows the
+  token's claims. In the foreground the push only lists in Notification Center, since the plan
+  listener already shows and speaks the assignment. The entitlements gain `aps-environment`
+  (development; an App Store archive signs it for production), and the Ready check link is value
+  based so the task screen can be brought back.
+- Source: the server half of new-assignment pushes (P-06).
+- Verified: three tests (a push for the loaded mission opens the task; a push for another team
+  follows the claims first; a tap before the app is ready waits in the inbox) failed to compile,
+  then passed; 106 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0. Live delivery
+  waits on the APNs key in FCM.
+
+### feat(ios): ask once, after the join, whether new assignments may reach a locked screen
+- What: once a mission loads and the phone has never asked, the task screen shows one sentence,
+  "Turn on alerts so a new assignment reaches you on a locked screen.", with "Turn on alerts" and
+  "Not now". "Turn on alerts" shows iOS's question and, when allowed, registers for pushes; either
+  answer is remembered, so it is asked once. When alerts are already allowed, the phone only
+  registers; when refused, it stays quiet.
+- Source: the server half of new-assignment pushes (P-06).
+- Verified: three tests (the offer shows after a join, registers when allowed and stays answered
+  after a relaunch; "Not now" asks nothing; already allowed only registers) failed to compile, then
+  passed; the text is Title 3; 103 app tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0.
+
+### feat(ios): follow the team's push topic while its mission is loaded
+- What: once a mission loads, the phone subscribes to its team's topic (`pls-{incidentId}-{teamId}`)
+  through Firebase Cloud Messaging; when the team changes it leaves the old topic and joins the new
+  one, and when the mission is dropped it leaves. A subscription that fails (no signal) is tried
+  again at the next sign-in. Adds the FirebaseMessaging product. Delivery to iOS still needs the
+  APNs key in FCM and the token hand-off, which come next.
+- Source: the server half of new-assignment pushes (P-06).
+- Verified: two tests (subscribe on load, no repeat, move on a team change, leave on a drop; a
+  failed subscription is retried) failed to compile, then passed; 100 app tests pass; the CI mirror
+  `bash scripts/ci-local.sh` exit 0.
+
+### feat(ios-core): name the team's push topic and read a new-assignment push by its ids
+- What: `PushTopic.name` gives the team's topic, `pls-{incidentId}-{teamId}`, only for ids that
+  Firestore and FCM both accept. `PushPayload` reads a tapped push's `incidentId`, `teamId` and
+  `planVersion` (FCM sends data as text) and nothing else: the words a person reads come from the
+  plan the phone loads, never from the push.
+- Source: the server half of new-assignment pushes (P-06).
+- Verified: two tests (the topic name and refused ids; the ids read from a payload with text or
+  number versions, and refused when missing or malformed) failed to compile, then passed; 278 core
+  tests pass; the CI mirror `bash scripts/ci-local.sh` exit 0; the app tests pass.
+
 ### feat(ios): a debug-only eval screen that runs both arms on the phone
 - What: debug builds get a Report-reading eval screen (linked from the Ready check). It reads every
   report in the bundled answer key twice with the app's own reader, rules only and on-device, with

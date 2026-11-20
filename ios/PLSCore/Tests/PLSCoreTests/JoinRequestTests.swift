@@ -30,6 +30,10 @@ import Testing
         #expect(throws: SearcherJoin.InputError.team) { try SearcherJoin.make(code: "ABCDEFGH", teamId: "", incidentId: "") }
         #expect(throws: SearcherJoin.InputError.team) { try SearcherJoin.make(code: "ABCDEFGH", teamId: "T 1", incidentId: "") }
         #expect(throws: SearcherJoin.InputError.incident) { try SearcherJoin.make(code: "ABCDEFGH", teamId: "T1", incidentId: "a/b") }
+        // The server's team rule: no "-", at most 32, never "family".
+        for team in ["east-T1", String(repeating: "T", count: 33), "family", "Family"] {
+            #expect(throws: SearcherJoin.InputError.team, "\(team)") { try SearcherJoin.make(code: "ABCDEFGH", teamId: team, incidentId: "") }
+        }
         #expect(SearcherJoin.InputError.code.message == "The join code has 8 letters and numbers.")
         #expect(SearcherJoin.InputError.team.message == "Type the team command gave you, for example T1.")
     }

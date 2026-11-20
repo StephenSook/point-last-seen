@@ -22,6 +22,7 @@ struct TaskView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 12))
             }
+            if model.offersAlerts { AlertOfferView(model: model) }
             if let mission = model.mission {
                 DrillBanner(segments: mission.assignedSegmentIds.sorted().joined(separator: " "), link: model.linkState)
                 Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))

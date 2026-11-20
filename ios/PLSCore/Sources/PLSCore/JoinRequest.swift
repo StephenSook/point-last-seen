@@ -36,7 +36,7 @@ public struct SearcherJoin: Equatable, Sendable {
     public static func make(code: String, teamId: String, incidentId: String) throws -> SearcherJoin {
         guard JoinCode.isWellFormed(code) else { throw InputError.code }
         let team = teamId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isId(team) else { throw InputError.team }
+        guard TeamId.isValid(team) else { throw InputError.team }
         let incident = incidentId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard incident.isEmpty || isId(incident) else { throw InputError.incident }
         return SearcherJoin(joinCode: JoinCode.normalize(code), teamId: team, incidentId: incident.isEmpty ? nil : incident)
