@@ -29,7 +29,7 @@ sealed interface FirstPublish {
             if (existing == null) return Create(mine)
             val send = mine.filterKeys { it !in existing || (it in edited && EditableFields.sendable(it, mine[it], existing[it])) }.toMutableMap()
             keepNamesInStep(existing, send)
-            refreshApproachNotes(existing, mine, send)
+            refreshApproachNotes(existing, mine, send, edited)
             return if (send.isEmpty()) Nothing else Merge(send)
         }
 
@@ -39,7 +39,7 @@ sealed interface FirstPublish {
          * that ends up on the server; every other stored note stays as command left it. A document with no notes
          * gets the merged document's.
          */
-        private fun refreshApproachNotes(existing: Map<String, Any?>, mine: Map<String, Any?>, send: MutableMap<String, Any?>) {
+        private fun refreshApproachNotes(existing: Map<String, Any?>, mine: Map<String, Any?>, send: MutableMap<String, Any?>, edited: Set<String>) {
             if ("approachNoteIds" !in mine) return
             val raw = existing["approachNoteIds"] as? List<*>
             if (raw == null) {
@@ -48,7 +48,8 @@ sealed interface FirstPublish {
             }
             // Only the ids the rules accept are kept from the stored list; anything else is repaired away.
             val stored = raw.filterIsInstance<String>().filter { it in Profiles.NOTE_IDS }
-            val changed = send.keys.filter { it in Profiles.NOTE_INPUT_FIELDS && (it !in existing || send[it] != existing[it]) }.toSet()
+            // Notes follow the family's edits only; a field this publish merely fills in leaves command's notes as they are.
+            val changed = send.keys.filter { it in edited && it in Profiles.NOTE_INPUT_FIELDS && send[it] != existing[it] }.toSet()
             val ids = Profiles.mergeApproachNotes(stored, existing + send, changed)
             if (ids != raw) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
         }

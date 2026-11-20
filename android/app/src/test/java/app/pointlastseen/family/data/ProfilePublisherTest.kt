@@ -224,6 +224,16 @@ class ProfilePublisherTest {
         )
     }
 
+    /** Notes follow only fields the family edited: a field a first publish fills in (absent before) leaves command's notes alone. */
+    @Test fun aFieldOnlyFilledInLeavesTheStoredNotesAlone() {
+        val existing = mapOf<String, Any?>("hair" to "white", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"))
+        val mine = mapOf<String, Any?>("hair" to "grey", "flags" to mapOf("mayNotRespond" to true), "approachNoteIds" to listOf("may_not_respond", "approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "flags" to mapOf("mayNotRespond" to true))),
+            FirstPublish.of(existing, mine, edited = setOf("hair")),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()
