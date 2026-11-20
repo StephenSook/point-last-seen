@@ -234,6 +234,6 @@ class ProfilesTest {
             flags = Profiles.FLAGS.toSet(), dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
             triggersToAvoid = "sirens", bestApproach = "slowly", uniqueDescription = "a red scarf",
         )
-        assertEquals(Profiles.approachNoteIds(p), Profiles.mergeApproachNotes(emptyList(), Profiles.forSearchers(p).toMap(), Profiles.NOTE_INPUT_FIELDS))
+        assertEquals(Profiles.approachNoteIds(p), Profiles.mergeApproachNotes(emptyList(), Profiles.forSearchers(p).toMap(), Profiles.NOTE_INPUT_KEYS))
     }
 }

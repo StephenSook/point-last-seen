@@ -28,8 +28,14 @@ class FamilyEdits(private val store: KeyValueStore) {
 
     fun keys(doc: String): Set<String> = store.get(key(doc))?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
-    private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> =
-        (a.keys + b.keys).filter { a[it] != b[it] && !EditableFields.derived(it) }.toSet()
+    private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> {
+        val fields = (a.keys + b.keys).filter { a[it] != b[it] && !EditableFields.derived(it) }.toSet()
+        // Each flag the family changed is marked as well ("flags.<name>"), so only its own approach notes follow it.
+        val before = a["flags"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        val after = b["flags"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        val flags = (before.keys + after.keys).filter { (before[it] == true) != (after[it] == true) }.map { "flags.$it" }
+        return fields + flags
+    }
 
     private fun mark(doc: String, fields: Set<String>) {
         if (fields.isEmpty()) return
