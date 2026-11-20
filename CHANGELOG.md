@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Judge drill `drill-judge-1` SEEDED in the live project (evidence `docs/evidence/drill/drill-judge-1-seed.md`): made
+  by seed_drill.py, baseline written from the judge seed (73 docs; --check ok; segment contract 68 docs at prior
+  version 5), and one searcher and one family code for judges, each with expiresAt 2026-12-17T23:59:59Z, kept only in
+  the Keychain (account drill-judge-1-judges). PRODUCTION-CHECKLIST: a judging-window row and two lines (check before
+  2026-12-10, revoke after judging). Source: review (a judge cannot reach the phone apps). Verified: the read-back in
+  the evidence file.
 - `tools/practice/judge_drill.py`: the shared judge drill `drill-judge-1`, built from the judge seed so it tells the
   same story as /judge and the iPhone practice pack: the incident fields judgeSession.ts copies, segments, teams,
   profile/shared and the pack's plan (approvedByUid `judge-drill-baseline`), as a training drill (mode drill, the
