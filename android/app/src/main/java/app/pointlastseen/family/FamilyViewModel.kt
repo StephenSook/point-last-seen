@@ -270,14 +270,19 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         writer.forget(incidentId)
         viewModelScope.launch {
             Departure.leave(
-                // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
-                forget = { watch.stop(); familyTopic.leaving(incidentId); session.leave() },
+                // Everything stored about the departure goes on disk before the wait (the topic drop, and for a found or
+                // closed search the gone flag), so a process death or a cleared screen during the wait loses neither.
+                forget = {
+                    watch.stop()
+                    familyTopic.leaving(incidentId)
+                    if (!keepGone) prefs.remove(GONE)
+                    session.leave()
+                },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
                 timeoutMs = LEAVE_SETTLE_MS,
                 finish = {
                     viewModelScope.launch { familyTopic.left(incidentId) }
-                    if (!keepGone) prefs.remove(GONE)
                     nav = if (keepGone) Nav.leftOpen(nav) else Nav.leave(nav)
                 },
             )
