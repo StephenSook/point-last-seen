@@ -74,10 +74,10 @@ jobs:
         working-directory: web
         run: npx playwright test -c e2e/ci.config.ts
       # The clip harnesses make their test clips with ffmpeg (the repository keeps every .mp4 out), and the runner
-      # image does not ship it. The script bounds each apt call and tries twice, since a stalled mirror once held
-      # this step until the job's limit.
+      # image does not ship it. The script installs a pinned static build checked against its SHA-256, and falls
+      # back to one bounded apt install: apt mirrors stalled this step three times.
       - name: Install ffmpeg
-        timeout-minutes: 7
+        timeout-minutes: 9
         run: bash scripts/ci/install-ffmpeg.sh
       # Component harnesses (map, beat, plan, sightings, family, clips, ...) and the extras lane's pages, on the
       # Vite dev server with Playwright's Chromium. The few tests that need Chrome's built-in model are left out.

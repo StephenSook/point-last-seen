@@ -1769,3 +1769,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the double-click check now clicks the start button twice in one task (`b.click(); b.click()`), before React can disable it, so only the page's own guard stops the second start. Playwright's `dblclick` sends the second click after React has already disabled the button, so the old check could not fail.
 - Source: review of the judge page retry.
 - Verified: on a build with the guard's early return removed the check failed (2 calls, expected 1); with the guard it passes, with the other judge checks.
+
+### test(e2e): the clip form check expects the clip's real size, not a fixed byte count
+- What: `e2e/harness/clip.spec.ts` checks that the form passes `bytes: statSync(CLIP).size`, the size of the clip file the test uses, instead of 4448. The clip is generated on the machine running the test, and its size depends on that ffmpeg build.
+- Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.
+- Verified: with the clip made 20 bytes longer (4468 bytes, still "4 KB"), the old check failed (expected 4448, received 4468) and the new one passed; all 23 clip checks pass on the normal clip; typecheck clean.
