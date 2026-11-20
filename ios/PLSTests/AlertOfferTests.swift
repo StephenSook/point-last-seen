@@ -32,7 +32,7 @@ final class FakeAlerts: AlertPermission, @unchecked Sendable {
         let segments = try DrillDocs.segments()
         let docs = MissionDocs(incident: try DrillDocs.incident(), segments: segments, plan: nil, sharedProfile: nil)
         return AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                        speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                        speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { "uid-1" },
                         joinBackend: backend, missionReader: FakeMissionReader(docs: docs), pushTopics: FakePushTopics(),
                         alerts: alerts, defaults: defaults)
     }

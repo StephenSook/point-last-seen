@@ -5,6 +5,29 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): one account session carried through every load, tap and spoken line
+- What: a load or a push tap took its own fresh look at the signed-in user at each step, so one
+  account's claims could be read, installed and spoken under another account (or under none, since
+  "no user" matched "no user"), and Auth's listener ignored the user it reported, so a sign-out and
+  a sign-in again as the same user could go unseen. Now:
+  - The phone keeps one account session: the user Auth last reported and a count of account
+    changes. Auth's listener hands over each reported user in order, and every change of user
+    (signed out, another user, or back to the same user) starts a new session: running checks and
+    loads lose their say, all speech stops, and the old session's mission and membership go at once.
+    The account state is read before any access work starts, and each flow reports the user signed
+    in now through the same path before it begins.
+  - A join, retry, resume or push tap binds the session when it starts and checks it after every
+    wait. The mission it reads is stamped with that session and installed only while it is current.
+    A plan held on screen is kept only when it is from the same session. A tap opens only in its
+    session, and both voices speak only while the mission's session is current. No session (no user)
+    is never current, so nothing is read, installed or spoken without a user.
+- Source: review (findings 1 and 2, round 4). One commit for both: they are the same mechanism.
+- Verified: new tests cover a tap whose claims return after the account switched (nothing installed,
+  opened or spoken), cached claims with no user (nothing read or installed), a sign-out and back as
+  the same user through the listener path (the tap's session ended, nothing opens), and a cloud line
+  still fetching when the account changes (never plays). Test models now name their user instead of
+  taking whatever user the test device stored. 159 app tests pass.
+
 ### fix(ios): speech plays only for the mission's own user, and stops when the account changes
 - What: the speech guard checked the mission, team and task, but not who was signed in, so a line
   still queued, or a cloud voice still fetching audio, could play after a sign-out or an account

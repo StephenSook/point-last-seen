@@ -102,7 +102,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                topics: FakePushTopics = FakePushTopics(),
                defaults: UserDefaults = UserDefaults(suiteName: "join-\(UUID().uuidString)")!) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                 speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                 speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { "uid-1" },
                  joinBackend: backend, missionReader: reader, pushTopics: topics, alerts: FakeAlerts(), defaults: defaults)
     }
 
@@ -430,7 +430,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         final class Account: @unchecked Sendable { var present = true }
         let account = Account()
         let m = AppModel(signIn: SignIn(isSignedIn: { account.present }, attempt: { false }),
-                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { account.present ? "uid-1" : nil },
                          joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: try drillDocs()),
                          pushTopics: FakePushTopics(), alerts: FakeAlerts(),
                          defaults: UserDefaults(suiteName: "signin-\(UUID().uuidString)")!)
@@ -563,7 +563,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         try store.append(event("old-incident", 1))
         try store.append(event("drill-dev-1", 2))
         #expect(m.missionEntries.isEmpty)
-        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1", session: try #require(m.currentSession))
         #expect(m.missionEntries.map(\.doc.incidentId) == ["drill-dev-1"] && store.entries.count == 2)
     }
 
@@ -582,7 +582,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let reader = FakeMissionReader(docs: try drillDocs())
         let topics = FakePushTopics()
         let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
                          joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: topics,
                          alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "voice-\(UUID().uuidString)")!)
         await m.trySignIn()
@@ -610,7 +610,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let backend = FakeJoinBackend()
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
                          joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
                          alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "speech-\(UUID().uuidString)")!)
         await m.trySignIn()
@@ -651,7 +651,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let backend = FakeJoinBackend()
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
                          joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
                          alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "listener-\(UUID().uuidString)")!)
         await m.trySignIn()
@@ -693,8 +693,8 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(FakeJoinBackend(), reader)
-        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
-        await m.loadMission(incidentId: "drill-dev-2", teamId: "T1")
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1", session: try #require(m.currentSession))
+        await m.loadMission(incidentId: "drill-dev-2", teamId: "T1", session: try #require(m.currentSession))
         #expect(reader.watching == ["drill-dev-1", "drill-dev-2"] && reader.stops == 1)
     }
 
