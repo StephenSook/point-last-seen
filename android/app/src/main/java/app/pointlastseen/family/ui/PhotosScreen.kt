@@ -4,7 +4,8 @@ import androidx.compose.runtime.Composable
 
 /**
  * [cloudRead] is the family's tick for command reading these photos in the cloud (off until ticked);
- * [notSaved] counts photos whose consent record the server did not take.
+ * [notSaved] counts photos whose consent record the server did not take; [unconfirmed] counts photos whose
+ * consent the app could not check (a record may exist; it stays withdrawable).
  */
 data class PhotosUi(
     val uploaded: Int,
@@ -12,6 +13,7 @@ data class PhotosUi(
     val error: String?,
     val cloudRead: Boolean = false,
     val notSaved: Int = 0,
+    val unconfirmed: Int = 0,
     /** Photos this phone allowed command to read in the cloud, which the family can withdraw. */
     val consented: Int = 0,
     val withdrawNote: String? = null,
@@ -35,6 +37,9 @@ fun PhotosScreen(
         if (ui.uploaded > 0) Note(if (ui.uploaded == 1) "1 photo sent to command." else "${ui.uploaded} photos sent to command.")
         if (ui.notSaved > 0) {
             Note("The cloud read was not saved for ${if (ui.notSaved == 1) "1 photo" else "${ui.notSaved} photos"}. Command can still see ${if (ui.notSaved == 1) "it" else "them"}.")
+        }
+        if (ui.unconfirmed > 0) {
+            Note("The app could not check whether the cloud read is on for ${if (ui.unconfirmed == 1) "1 photo" else "${ui.unconfirmed} photos"}. You can still stop it below.")
         }
         ui.error?.let { Note(it) }
         ui.withdrawNote?.let { Note(it) }

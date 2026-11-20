@@ -26,6 +26,8 @@ enum class CloudRead {
     NOT_SAVED,
     /** Another family member's consent record already allows it; only that member can withdraw it. */
     ALLOWED_BY_ANOTHER,
+    /** The consent write failed and its read-back failed too: a record may exist; the phone keeps it listed to withdraw. */
+    UNCONFIRMED,
 }
 
 /**
@@ -138,7 +140,7 @@ class PhotoUpload(
             sink.creatorOf(incidentId, sha)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return PhotoOutcome.Uploaded(path, CloudRead.NOT_SAVED)
+            return PhotoOutcome.Uploaded(path, CloudRead.UNCONFIRMED)
         }
         return when (creator) {
             consent.byUid -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)

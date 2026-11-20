@@ -565,6 +565,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                         photosUi = photosUi.copy(
                             uploaded = photosUi.uploaded + 1,
                             notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                            unconfirmed = photosUi.unconfirmed + if (out.cloudRead == CloudRead.UNCONFIRMED) 1 else 0,
                             consented = consentedPhotos.list(incidentId).size,
                         )
                     }

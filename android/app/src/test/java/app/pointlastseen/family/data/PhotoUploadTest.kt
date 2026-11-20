@@ -130,7 +130,10 @@ class PhotoUploadTest {
         assertEquals(setOf(sha), ledger.kept)
     }
 
-    /** A refused consent write whose read-back fails is ambiguous: it stays listed, and withdrawal settles it later. */
+    /**
+     * A refused consent write whose read-back fails is ambiguous: a record may exist, so it is reported as
+     * unconfirmed, not as unsaved, and stays listed for withdrawal to settle.
+     */
     @Test fun aRefusedCreateWhoseReadBackFailsStaysListed() = runTest {
         val ledger = FakeLedger()
         var reads = 0
@@ -139,7 +142,7 @@ class PhotoUploadTest {
             override suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord) = throw RuntimeException("UNAVAILABLE")
         }
         val out = PhotoUpload(FakeBucket(), sink, ledger = ledger).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
-        assertEquals(CloudRead.NOT_SAVED, out.cloudRead)
+        assertEquals(CloudRead.UNCONFIRMED, out.cloudRead)
         assertEquals(setOf(sha), ledger.kept)
     }
 
