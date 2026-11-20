@@ -5,6 +5,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's model gets no tools; position and assignment are plain sentences
+- What: with greedy sampling, Apple's model called the team-assignment tool in a loop: 168 calls on
+  "Found a shoe on the path in segment BP" until its 8,192-token context overflowed at 124 s, and 60
+  calls then a parsing error on another report. The loop held the model, so later reads queued. Apple's
+  model now gets no tools at all. Where the team is and what it was assigned, which the tools gave it,
+  come from code as plain sentences in its instructions ("The phone's GPS fix puts the team in segment
+  BO." or "The phone has no GPS fix, so where the team is standing is not known."; "Command assigned this
+  team segments BO, BP." or "Command has not assigned this team yet."). Segments still come from code.
+  The token count no longer counts tools. The cloud keeps its three tools and its prompt unchanged.
+- Source: review (a tool-call log on the reads that hit the 90 s limit).
+- Verified: tests that the on-device session has zero tool definitions (a session made with a tool shows
+  one), that its instructions carry the two sentences and no tool names, and that a quote of either
+  sentence is rejected failed to compile before the change and pass after; all core and 196 app tests
+  pass. On the simulator, 10 drill reports were each read by Apple's model in 1.9 to 3.0 s, with no
+  timeouts.
+
 ### fix(ios): Apple's answer is capped, and a capped read says so
 - What: on the simulator, reads our code had timed out kept Apple's model busy, and the reads after them
   queued (a one-line prompt took 30 s). Apple's answer is now capped at 512 tokens

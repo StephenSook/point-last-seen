@@ -38,8 +38,9 @@ enum ModelSessionFactory {
     static func estimateTokens(report: String, tools: [any Tool]) async -> Int {
         let model = SystemLanguageModel.default
         do {
-            let parts = try await [model.tokenCount(for: FoundationModelRunner.onDeviceInstructions(tools)), model.tokenCount(for: report),
-                                   model.tokenCount(for: tools), model.tokenCount(for: ReportReadingG.generationSchema)]
+            // Apple's model gets no tools, so none are counted.
+            let parts = try await [model.tokenCount(for: Instructions(FoundationModelRunner.onDeviceInstructionsText(tools))),
+                                   model.tokenCount(for: report), model.tokenCount(for: ReportReadingG.generationSchema)]
             return parts.reduce(0, +)
         } catch {
             return 1200 + report.count / 3
@@ -106,9 +107,7 @@ struct FoundationModelRunner: ReadModelRunner {
     func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
         switch path {
         case .onDevice:
-            // Apple's model reads the report alone: no description tool, and code decides matchesProfile.
-            let session = LanguageModelSession(model: SystemLanguageModel.default, tools: Self.onDeviceTools(tools),
-                                               instructions: Self.onDeviceInstructions(tools))
+            let session = Self.onDeviceSession(tools)
             do {
                 return .success(try await session.respond(to: text, generating: ReportReadingG.self, options: Self.onDeviceOptions).content.reading)
             } catch {
@@ -137,26 +136,21 @@ struct FoundationModelRunner: ReadModelRunner {
     /// The cap, from the longest valid reading: SystemLanguageModel.tokenCount on the JSON of a reading with
     /// every field set, three segments, a 40-character item, footwear and carried, and a 934-character quote
     /// (the report limit is 1,000 characters) measured 323 tokens on the simulator (a typical reading, 117).
-    /// 512 leaves room for the tool calls the model makes in the same answer.
+    /// 512 is that with a margin.
     static let onDeviceResponseTokenCap = 512
 
-    /// The tools Apple's model gets: all but the subject's description, and no segmentHere with no GPS fix
-    /// (its only answer was a sentence the model quoted as the report).
-    static func onDeviceTools(_ tools: [any Tool]) -> [any Tool] {
-        tools.filter { tool in
-            if tool.name == ToolText.subjectDescriptionName { return false }
-            if let here = tool as? SegmentAtTool, here.positionSegmentId == nil { return false }
-            return true
-        }
+    /// Apple's model's session: no tools at all (with greedy sampling it called the team-assignment tool in a
+    /// loop, 168 calls on one report). Where the team is and what it was assigned, which the tools would have
+    /// told it, come from code as plain sentences in its instructions. No description of the subject either.
+    static func onDeviceSession(_ tools: [any Tool]) -> LanguageModelSession {
+        LanguageModelSession(model: SystemLanguageModel.default, tools: [], instructions: Instructions(onDeviceInstructionsText(tools)))
     }
 
-    /// Apple's model's instructions: the no-fix wording when it gets no segmentHere tool.
+    /// Apple's model's instructions, with the position and assignment the cloud gets from its tools.
     static func onDeviceInstructionsText(_ tools: [any Tool]) -> String {
-        onDeviceTools(tools).contains { $0.name == ToolText.segmentHereName } ? PromptText.onDeviceGuided : PromptText.onDeviceGuidedNoFix
-    }
-
-    static func onDeviceInstructions(_ tools: [any Tool]) -> Instructions {
-        onDeviceInstructionsText(tools) == PromptText.onDeviceGuided ? ReportPrompt.onDeviceGuided : ReportPrompt.onDeviceGuidedNoFix
+        let position = tools.lazy.compactMap { $0 as? SegmentAtTool }.first?.positionSegmentId
+        let assigned = tools.lazy.compactMap { $0 as? TeamAssignmentTool }.first?.assignedSegmentIds ?? []
+        return PromptText.onDeviceGuided(positionSegmentId: position, assignedSegmentIds: assigned)
     }
 
     /// Same on-device model with permissive guardrails; string output only (guided generation

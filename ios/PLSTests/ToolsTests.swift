@@ -29,34 +29,26 @@ import Testing
     @Test func theInstructionsAreTheCoreText() {
         #expect(ReportPrompt.guidedText == PromptText.guided)
         #expect(ReportPrompt.permissiveText == PromptText.permissive)
-        #expect(ReportPrompt.onDeviceGuidedText == PromptText.onDeviceGuided)
-        #expect(ReportPrompt.onDeviceGuidedNoFixText == PromptText.onDeviceGuidedNoFix)
     }
 
-    /// With no GPS fix, Apple's model gets no segmentHere tool (its only answer was a sentence the model
-    /// quoted as the report) and is told in its instructions that the phone has no GPS fix. The cloud keeps
-    /// its three tools and its prompt.
-    @Test func withNoFixApplesModelGetsNoSegmentHereTool() {
-        let noFix: [any Tool] = [SegmentAtTool(positionSegmentId: nil), TeamAssignmentTool(assignedSegmentIds: ["BO"]),
+    /// Apple's model gets no tools (with greedy sampling it called the team-assignment tool in a loop). Its
+    /// session is checked through the transcript's tool definitions; a session made with a tool shows one, so
+    /// the check can fail.
+    @Test func applesModelsSessionHasZeroTools() {
+        let tools: [any Tool] = [SegmentAtTool(positionSegmentId: "AC"), TeamAssignmentTool(assignedSegmentIds: ["AC", "AD"]),
                                  SubjectProfileTool(profile: ModelProfile(shared: .null))]
-        #expect(FoundationModelRunner.onDeviceTools(noFix).map(\.name) == [ToolText.teamAssignmentName])
-        #expect(FoundationModelRunner.onDeviceInstructionsText(noFix) == PromptText.onDeviceGuidedNoFix)
-        #expect(PromptText.onDeviceGuidedNoFix.contains("no GPS fix"))
-        #expect(!PromptText.onDeviceGuidedNoFix.contains(ToolText.segmentHereName))
-        #expect(PromptText.onDeviceGuidedNoFix.contains("never leave it empty"))
-        let fix: [any Tool] = [SegmentAtTool(positionSegmentId: "BO"), TeamAssignmentTool(assignedSegmentIds: ["BO"])]
-        #expect(FoundationModelRunner.onDeviceInstructionsText(fix) == PromptText.onDeviceGuided)
-        #expect(PromptText.guided.contains(ToolText.segmentHereName))
+        #expect(Self.toolDefinitions(FoundationModelRunner.onDeviceSession(tools)) == 0)
+        #expect(Self.toolDefinitions(LanguageModelSession(model: SystemLanguageModel.default, tools: [TeamAssignmentTool(assignedSegmentIds: [])],
+                                                          instructions: "x")) == 1)
+        #expect(FoundationModelRunner.onDeviceInstructionsText(tools) == PromptText.onDeviceGuided(positionSegmentId: "AC", assignedSegmentIds: ["AC", "AD"]))
+        let noFix: [any Tool] = [SegmentAtTool(positionSegmentId: nil), TeamAssignmentTool(assignedSegmentIds: ["BO"])]
+        #expect(FoundationModelRunner.onDeviceInstructionsText(noFix) == PromptText.onDeviceGuided(positionSegmentId: nil, assignedSegmentIds: ["BO"]))
+        #expect(PromptText.guided.contains(ToolText.segmentHereName) && PromptText.guided.contains(ToolText.subjectDescriptionName))
     }
 
-    /// Apple's model reads the report alone: no description tool and no instruction to compare with one,
-    /// so it cannot copy the subject's description into a reading. The cloud keeps its three tools.
-    @Test func applesModelGetsNoDescriptionTool() {
-        let tools: [any Tool] = [SegmentAtTool(positionSegmentId: "AC"), TeamAssignmentTool(assignedSegmentIds: ["AC"]),
-                                 SubjectProfileTool(profile: ModelProfile(shared: .null))]
-        #expect(FoundationModelRunner.onDeviceTools(tools).map(\.name) == [ToolText.segmentHereName, ToolText.teamAssignmentName])
-        #expect(!PromptText.onDeviceGuided.contains("subjectDescription"))
-        #expect(PromptText.guided.contains("subjectDescription"))
+    static func toolDefinitions(_ session: LanguageModelSession) -> Int? {
+        guard case let .instructions(i)? = session.transcript.first else { return nil }
+        return i.toolDefinitions.count
     }
 
     /// Apple's model reads with greedy sampling, so the same report gets the same answer every time, and its
@@ -67,7 +59,7 @@ import Testing
 
     /// Apple's model is told the quote may not be empty; the cloud prompt (and its allow-list) is unchanged.
     @Test func applesModelIsToldTheQuoteMayNotBeEmpty() {
-        #expect(PromptText.onDeviceGuided.contains("never leave it empty"))
+        #expect(PromptText.onDeviceGuided(positionSegmentId: nil, assignedSegmentIds: []).contains("never leave it empty"))
         #expect(!PromptText.guided.contains("never leave it empty"))
     }
 }

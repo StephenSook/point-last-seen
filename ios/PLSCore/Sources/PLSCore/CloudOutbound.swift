@@ -12,28 +12,30 @@ public enum PromptText {
     Copy evidenceQuote word for word from the report.
     """
 
-    /// The same for Apple's model on the phone, which reads the report alone: it gets no description of
-    /// the subject (it copied the description into readings), and code decides matchesProfile.
-    public static let onDeviceGuided = """
-    You read one short report from a search team during a training drill. Fill every field from the report only.
-    Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
-    For segmentIds list only ids the report itself names. The segmentHere and teamAssignment tools tell you where the \
-    team is and what it was assigned; use them to understand the report, not to add ids.
-    Set matchesProfile to unknown.
-    Copy evidenceQuote word for word from the report; never leave it empty.
-    """
+    /// The same for Apple's model on the phone. It gets no tools: with greedy sampling it called the
+    /// team-assignment tool in a loop (168 calls on one report, until its context overflowed). Where the team
+    /// is and what it was assigned come from code, as plain sentences. It gets no description of the subject
+    /// (it copied the description into readings), and code decides matchesProfile.
+    public static func onDeviceGuided(positionSegmentId: String?, assignedSegmentIds: [String]) -> String {
+        """
+        You read one short report from a search team during a training drill. Fill every field from the report only.
+        Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
+        For segmentIds list only ids the report itself names. \(onDevicePosition(positionSegmentId)) \
+        \(onDeviceAssignment(assignedSegmentIds)) Use this to understand the report, not to add ids.
+        Set matchesProfile to unknown.
+        Copy evidenceQuote word for word from the report; never leave it empty.
+        """
+    }
 
-    /// The same with no GPS fix: Apple's model gets no segmentHere tool (it quoted that tool's answer as the
-    /// report), so the instructions say in plain words that where the team is standing is not known.
-    public static let onDeviceGuidedNoFix = """
-    You read one short report from a search team during a training drill. Fill every field from the report only.
-    Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
-    For segmentIds list only ids the report itself names. The phone has no GPS fix, so where the team is standing \
-    is not known. The teamAssignment tool tells you what the team was assigned; use it to understand the report, \
-    not to add ids.
-    Set matchesProfile to unknown.
-    Copy evidenceQuote word for word from the report; never leave it empty.
-    """
+    public static func onDevicePosition(_ positionSegmentId: String?) -> String {
+        positionSegmentId.map { "The phone's GPS fix puts the team in segment \($0)." }
+            ?? "The phone has no GPS fix, so where the team is standing is not known."
+    }
+
+    public static func onDeviceAssignment(_ assignedSegmentIds: [String]) -> String {
+        assignedSegmentIds.isEmpty ? "Command has not assigned this team yet."
+            : "Command assigned this team segments \(assignedSegmentIds.joined(separator: ", "))."
+    }
 
     public static let permissive = """
     Rewrite the report as one line in this form and nothing else: KIND|SEGMENTS|COVERAGE
