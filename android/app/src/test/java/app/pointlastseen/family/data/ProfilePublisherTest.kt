@@ -105,15 +105,22 @@ class ProfilePublisherTest {
 
     /**
      * A document already there (a reinstall, a second family phone): a command edit, another phone's tracking
-     * answer and a field this app does not know all stay; only keys the server lacks or holds as null are added.
+     * answer and a field this app does not know all stay; only keys the server lacks are added.
      */
     @Test fun aFirstPublishKeepsWhatIsAlreadyThere() {
         val existing = mapOf<String, Any?>(
-            "answersTo" to "Mae (edited by command)", "ageYears" to null,
+            "answersTo" to "Mae (edited by command)",
             "trackingAids" to mapOf("aids" to listOf("medicalert_id"), "note" to ""), "aFieldFromANewerSchema" to "kept",
         )
-        val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "clothingLastWorn" to "blue coat")
-        assertEquals(FirstPublish.AddMissing(mapOf("ageYears" to 82, "clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+        val mine = mapOf<String, Any?>("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    /** A field command left empty (null) stays empty: a first publish never fills it; an edit does that explicitly. */
+    @Test fun aNullOnTheServerStaysNullAfterAFirstPublish() {
+        val existing = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to null, "photoTakenOn" to null)
+        val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "photoTakenOn" to "2026-11-01", "clothingLastWorn" to "blue coat")
+        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
     }
 
     @Test fun aFirstPublishOverACompleteDocumentWritesNothing() {

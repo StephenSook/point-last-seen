@@ -87,6 +87,19 @@ enum DrillDocs {
         #expect(m.assignment == nil && m.assignedSegmentIds.isEmpty && m.sharedProfile == nil)
     }
 
+    /// The mission keeps the incident's grid id (the map picks its offline tiles by it) and the
+    /// grid's OpenStreetMap line; both are nil when the incident has none.
+    @Test func theMissionKeepsTheGridIdAndItsMapCredit() throws {
+        guard case var .object(incident) = try DrillDocs.incident() else { Issue.record("no incident"); return }
+        let docs = { MissionDocs(incident: .object(incident), segments: try DrillDocs.segments(), plan: nil, sharedProfile: nil) }
+        let none = try MissionBuilder.build(incidentId: "drill-dev-1", teamId: "T1", docs: try docs(), bundledParams: params)
+        #expect(none.gridId == nil && none.gridAttribution == nil)
+        incident["gridId"] = .string("kennesaw-mountain-drill")
+        incident["gridAttribution"] = .string("Map data from OpenStreetMap contributors (ODbL)")
+        let m = try MissionBuilder.build(incidentId: "drill-dev-1", teamId: "T1", docs: try docs(), bundledParams: params)
+        #expect(m.gridId == "kennesaw-mountain-drill" && m.gridAttribution == "Map data from OpenStreetMap contributors (ODbL)")
+    }
+
     /// Only an incident marked exactly "drill" or "judge" may use a model: a missing or mistyped
     /// mode keeps the phone on the rules path.
     @Test func aMissingOrMistypedModeNeverEnablesAModel() throws {
