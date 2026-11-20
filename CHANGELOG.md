@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `shared/test-vectors/phone-numbers.json`: one hand-written set of phone-number cases for every platform that removes
+  numbers from a note. Must remove: spaced digits, spoken digits, +44 and +52 numbers, slashes, parentheses and spaces
+  (7 cases, each in the same sentence); must keep unchanged: 14:03, segment 12, 3 searchers, 45% and a sentence with
+  all four. The contract is in the vectors README; `scripts/test_phone_vectors.py` (in the CI and ci-local pytest
+  lists) pins the required cases and checks that the contract passes a correct scrubber and fails one that does
+  nothing or wipes the note. Source: review (phone patterns differ by platform). Verified: 4 tests pass.
 - SECURITY row 1c: Android release App Check is PASSED, not pending. The release-signed build on a Samsung A16 got a
   Play Integrity token, signed in and made a cloud note read on 2026-11-18
   (`docs/evidence/android/a16-2026-11-18/README.md`, lines 20-21). The row also records the settings read back

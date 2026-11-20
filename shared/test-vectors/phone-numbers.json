@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "note": "Phone-number removal, the same cases on every platform that removes phone numbers from a note before it is stored or read. Hand-written; see README.md, section phone-numbers.json.",
+  "mustRemove": [
+    {
+      "name": "spaced_digits",
+      "input": "Her son is at 4 0 4 5 5 5 0 1 4 2, call him.",
+      "number": "4 0 4 5 5 5 0 1 4 2",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "spoken_digits",
+      "input": "Her son is at four oh four five five five oh one four two, call him.",
+      "number": "four oh four five five five oh one four two",
+      "forbidden": [
+        "four oh four",
+        "five five five",
+        "oh one four two"
+      ],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "uk_international",
+      "input": "Her son is at +44 20 7946 0958, call him.",
+      "number": "+44 20 7946 0958",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "mexico_international",
+      "input": "Her son is at +52 55 1234 5678, call him.",
+      "number": "+52 55 1234 5678",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_slashes",
+      "input": "Her son is at 404/555/0142, call him.",
+      "number": "404/555/0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_parentheses",
+      "input": "Her son is at (404) 555-0142, call him.",
+      "number": "(404) 555-0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_spaces",
+      "input": "Her son is at 404 555 0142, call him.",
+      "number": "404 555 0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    }
+  ],
+  "mustKeep": [
+    {
+      "name": "time",
+      "input": "14:03"
+    },
+    {
+      "name": "segment_number",
+      "input": "segment 12"
+    },
+    {
+      "name": "searcher_count",
+      "input": "3 searchers"
+    },
+    {
+      "name": "percent",
+      "input": "45%"
+    },
+    {
+      "name": "all_together",
+      "input": "Seen at 14:03 by 3 searchers in segment 12; 45% of the prior is north."
+    }
+  ]
+}
