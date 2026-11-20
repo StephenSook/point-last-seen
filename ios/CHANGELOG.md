@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): a debug-only eval screen that runs both arms on the phone
+- What: debug builds get a Report-reading eval screen (linked from the Ready check). It reads every
+  report in the bundled answer key twice with the app's own reader, rules only and on-device, with
+  no network and no cloud, then shows each arm's rows right with a 95% interval, rows read by a
+  model, invalid and blocked rows, and the paired McNemar result, and saves the result file to the
+  app's Documents folder. The file records the answer key's SHA-256, the app version and build,
+  the commit (the Info.plist key PLSBuildCommit, set from PLS_BUILD_COMMIT; "unknown" unless a
+  build passes it), the guided prompt's SHA-256 and the device. Release builds have none of it.
+  With no answer key bundled the screen says so.
+- Source: plan (report-reading evaluation on the phone).
+- Verified: the app builds and 121 app tests pass; the text-size scan passes (Title 3 only); the
+  screen's run is checked on the phone once the answer key is in.
+
 ### feat(ios-core): the eval's result file, both arms and the paired comparison
 - What: an eval run writes one result: the facts that pin it (answer key name and SHA-256, who wrote
   it, grid, app version, build, commit, the guided prompt's SHA-256, device, time), each arm's
