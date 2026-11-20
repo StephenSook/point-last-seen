@@ -1898,3 +1898,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: in `src/extras/replay/runSchema.ts`, a public run's route record must have a model id no longer than the shared route schema allows (80 characters, exported from `src/extras/hostApp.ts` as `ROUTE_MODEL_MAX`, the extras folder's one door to outside code) and a `latencyMs` and `decidedAtMs` of zero or more; before, any text and any number passed. The coded fields keep their lists. The exporter (`tools/export-run`) checks the same values, so the reader stays a second wall: no note text can ride in a route.
 - Source: the run exporter gained a value check on routes; the reader mirrors it.
 - Verified: three new tests in `src/extras/replay/runSchema.test.ts` (a route the exporter would write is taken, an 80-character model id too; an 81-character one, a negative latency and a negative decision time are refused by name) failed first where they should, then passed; the extras import guard passes; 870/870 web unit tests and the exporter's 24 tests pass; typecheck clean.
+
+### fix(ai): a reply's source is typed with the SDK's own InferenceSource
+- What: `src/ai/client.ts` exports `ReplySource` (`InferenceSource | undefined`, from `firebase/ai`) and types the text and template models' `inferenceSource` with it instead of any string, so a branch on a misspelt source ("on-device") no longer compiles.
+- Source: review finding (the inference source was a plain string).
+- Verified: a type test in `src/ai/clientTypes.test.ts` (`@ts-expect-error` on "on-device") failed the typecheck first with the plain string ("Unused '@ts-expect-error'"), then passed with the SDK type; the 141 AI tests and the web unit suite pass; typecheck clean.
