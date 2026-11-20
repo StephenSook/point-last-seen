@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \r\n19 2026" and "GPS 33.7490,\r\n-84.3880"),
+  so a line break inside a date or a coordinate pair never joins its digits into a number on any platform. Pending on
+  web. Source: the iPhone parity sweep against the Android rule. Verified: the vector test passes.
+- Phone-number vector: the new cases are pending on web only; the iPhone port of the reference rule passes them all,
+  so iOS runs them. Source: review. Verified: the vector test passes.
+- Phone-number vector gaps (from the Android port's review): 6 more mustRemove (dotted pairs 06.12.20.26.19, a number
+  glued to a date, U+2011, U+2010 and U+2013 hyphens, a number split by CRLF), 5 more mustKeep (GPS pair, ZIP+4,
+  grouped count 1,234,567, 12345 67th Ave, 5km), and a new exact case type checked byte for byte ("Seen at 14:03,
+  404-555-0142" becomes "Seen at 14:03, [number removed]"; the shared replacement token is now in the file). New cases
+  carry pendingOn [ios, web]: a runner skips cases pending for its platform. The contract and the reference rule (the
+  Android family app's) are in the vectors README. Source: review. Verified: the vector test passes and fails a
+  scrubber that does nothing, wipes the note, or writes a different token.
 - Route reason `not_english` (route-record schema enum and engine-ts RouteReason): the language screen refused the
   cloud read because the note does not look English, so the read went to no cloud model and fell to the platform's own
   path. Distinct from on_device_unavailable, so command sees why. Source: the iPhone language-screen port. Verified:
