@@ -102,9 +102,9 @@ export function JudgePage() {
       <p className="wordmark">Point Last Seen</p>
       <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
       <p data-testid="judge-advice" className="judge-advice">{ADVICE_LINE}</p>
-      {/* The repository and the video join these links once they are public. */}
       <nav aria-label="Links" className="judge-links">
         <a href="/">Command post</a>
+        <a href="https://github.com/StephenSook/point-last-seen" target="_blank" rel="noopener noreferrer">Source code</a>
       </nav>
       {/* The three-minute route, in order; each step jumps to its section on this page. */}
       <ol aria-label="Three minutes, in order" className="judge-route">
