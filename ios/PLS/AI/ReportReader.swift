@@ -57,11 +57,12 @@ struct ReportReader {
                 ? OnDeviceStatus(available: false, localeSupported: false, contextSize: 0, variant: "off for the route check")
                 : deviceStatus(),
             // The count is a call into Apple's model too, so it gets the text without phone numbers.
-            estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), tools) : 0,
+            estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), FoundationModelRunner.onDeviceTools(tools)) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         context.language = language
+        context.profile = situation.profile
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
         recordRoute(outcome.route)

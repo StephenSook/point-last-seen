@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, eventId, posterior, toEngineEvents, type EventDoc } from "@pls/engine";
 import type { GridSegmentDoc } from "../map/geo";
-import { buildConfirmation, buildSightingEvent, placeFamilySighting, removePhoneNumbers, useAsStartPoint, type CommandWriter, type SightingInput } from "./sightings";
+import { buildConfirmation, buildSightingEvent, handEntryRoute, placeFamilySighting, removePhoneNumbers, useAsStartPoint, type CommandWriter, type SightingInput } from "./sightings";
 
 const sq = (lon: number, lat: number) => ({ type: "Polygon" as const, coordinates: [[[lon, lat], [lon + 0.01, lat], [lon + 0.01, lat + 0.01], [lon, lat + 0.01], [lon, lat]]] });
 const segments: GridSegmentDoc[] = [
@@ -92,6 +92,35 @@ describe("buildSightingEvent", () => {
 
   it("refuses a note over 2000 characters", () => {
     expect(() => buildSightingEvent({ ...input, freeText: "x".repeat(2001) }, writer())).toThrow(/2000/);
+  });
+});
+
+describe("a sighting's route: where its reading came from", () => {
+  // The same record the iPhone writes for a picked report: a person entered it, no model ran.
+  it("a sighting typed by hand records the hand-entry route, decided at the write time", () => {
+    expect(handEntryRoute(1795860000000)).toEqual({
+      platform: "web", path: "rules", stage: "picklist", model: "none", reason: "on_device_default",
+      latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs: 1795860000000,
+    });
+    expect(buildSightingEvent(input, writer()).route).toEqual(handEntryRoute(1795860000000));
+  });
+
+  it("a sighting a model read filled records that read's route", () => {
+    const route = { platform: "web" as const, path: "cloud" as const, stage: "sdk" as const, model: "gemini-3.5-flash-lite", reason: "consented_cloud_read" as const, latencyMs: 800, sdkReported: true, blocked: null, decidedAtMs: 1795859900000 };
+    expect(buildSightingEvent({ ...input, readFilled: { route } }, writer()).route).toEqual(route);
+  });
+
+  it("a model read that reported no route is recorded as not reported, never as hand entry", () => {
+    expect(buildSightingEvent({ ...input, readFilled: { route: null } }, writer()).route).toBeNull();
+  });
+
+  it("command placing a family sighting records the hand-entry route: command picked the point", () => {
+    const family = { ...buildSightingEvent({ ...input, position: null, reportedBy: "family" }, writer()), role: "family" as const, route: null };
+    expect(placeFamilySighting(family, { lat: 33.004, lon: -83.996 }, writer()).route).toEqual(handEntryRoute(1795860000000));
+  });
+
+  it("a confirmation records no route: nothing was read", () => {
+    expect(buildConfirmation(buildSightingEvent(input, writer()), "confirmed", writer()).route).toBeNull();
   });
 });
 

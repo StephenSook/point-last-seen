@@ -75,3 +75,73 @@ test("a quote that is not in the note is never shown", async ({ page }) => {
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
   await expect(page.getByText(/blue coat/)).toHaveCount(0);
 });
+
+test("saving after a cloud read hands that read's route to the sighting", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  const read = JSON.parse(await page.getByTestId("saved-read").innerText()) as { route: { path: string; model: string; reason: string } };
+  expect(read.route).toMatchObject({ path: "cloud", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read" });
+});
+
+test("saving a sighting typed by hand hands no read, so it is recorded as hand entry", async ({ page }) => {
+  await page.goto("/harness/sighting.html");
+  await page.getByRole("combobox", { name: "Top" }).selectOption("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByTestId("saved-read")).toHaveText("null");
+});
+
+test("saving after a read that reported no route hands the read with its route not reported", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByTestId("saved-read")).toHaveText('{"route":null}');
+});
+
+test("editing the note after a cloud read clears the read status and its receipt, and keeps the fields", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByText("Suggested from the note. Check every field.")).toBeVisible();
+  await expect(page.getByText("What ran", { exact: true })).toBeVisible();
+  await note.fill("red jacket by the gate, then went left");
+  await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
+  await expect(page.getByText("What ran", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+});
+
+test("editing the note after a read clears the words it came from, even when they are still in the note", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("red jacket")}`);
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByText('From the note: "red jacket"', { exact: true })).toBeVisible();
+  await note.fill("red jacket by the gate, then went left");
+  await expect(page.getByText(/^From the note:/)).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+});
+
+test("editing the note after a read still saves that read's route, since the fields came from it", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await note.fill("red jacket by the gate, then went left");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  const read = JSON.parse(await page.getByTestId("saved-read").innerText()) as { route: { path: string } };
+  expect(read.route.path).toBe("cloud");
+});

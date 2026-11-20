@@ -21,6 +21,30 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   and a blanked case for each of topColor, bottomColor, direction, footwear and carried, including the profile leak
   (blue from the profile). scripts/test_grounding_vectors.py checks both files and runs in CI. Source: review.
   Verified: pytest 4 passed; local gates pass.
+- SECURITY row 14 and the production checklist: App Check is now ENFORCED on Firestore (since 2026-11-20 21:29:29 UTC)
+  as well as Storage (since 01:47:55 UTC), with the verdict read that preceded each and the post-enforcement checks
+  (64 of 64 live web specs, the daily probe run 44824078797, an iPhone read, Firestore VALID-only verdicts, and a REST
+  read with no App Check token refused with 403). Source: the enforcement step. Verified: the enforcement mode read
+  back ENFORCED; Cloud Monitoring verification_count 21:29 to 21:50 UTC showed Firestore iOS VALID 60 and web VALID
+  711 and no denial.
+- README: one line on what a person sees when no model reads (nothing is sent; the web receipt's fixed wording, the
+  iPhone's rules mark, and the web and Android forms asking for the fields by hand), and the judge-page line now says
+  the page replays the development drill's published run instead of "No published run yet". Source: review. Verified:
+  wording copied from web/src/ai/receipt.ts, ios/PLSCore/Sources/PLSCore/Glyphs.swift and
+  web/src/command/SightingForm.tsx; the live /evidence/published-run.json is the Piedmont Park development run.
+- README, How the models are called: the iPhone route cites its basis, Firebase iOS SDK 13.0.0's
+  FirebaseAI/CHANGELOG.md (lines 69 to 74 at tag 13.2.0: SystemLanguageModel and HybridModel removed; use
+  ai.geminiLanguageModel(name:) with Apple's Foundation Models directly). Source: review. Verified: fetched the file
+  at tag 13.2.0 (lines 69 to 74 hold that entry); ios/project.yml pins 13.2.0; ModelSessionFactory.swift builds
+  LanguageModelSession(model: ai.geminiLanguageModel(name:)).
+- SECURITY, Data and media: one paragraph on what Performance Monitoring records: one trace per model read with the
+  route only and its latency, never text (the attributes each platform sends, Android's matching Analytics event, the
+  iPhone's spoken-assignment trace), plus the SDKs' automatic page-load, app-start, screen and network samples.
+  Source: review. Verified against web/src/telemetry/trace.ts, ios/PLS/AI/PerformanceTelemetry.swift,
+  ios/PLS/AI/AssignmentSpeaker.swift and the Android Telemetry.kt.
+- SECURITY: the plan-wording row's mode now matches the code, on-device first with a cloud fallback (PREFER_ON_DEVICE
+  in web/src/ai/replanWording.ts); it said prefer cloud. Source: review. Verified: grep shows replanWording.ts sets
+  InferenceMode.PREFER_ON_DEVICE and no other doc says prefer cloud.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the

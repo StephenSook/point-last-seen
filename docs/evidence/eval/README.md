@@ -21,7 +21,7 @@ cloud. No numbers are recorded here until the first run on the phone.
 | Arm | What reads the report | Network | Cloud |
 |---|---|---|---|
 | Rules only | The app's rules, with no model | Off | Never |
-| On-device | Apple's on-device model through the app's reader (Firebase AI Logic hybrid routing), in a drill incident | Airplane Mode | Never |
+| On-device | Apple's on-device model (Foundation Models), called by the app's own reader, in a drill incident | Airplane Mode | Never |
 
 Each arm reads every row once, in key order, with the team's segments from the drill mission loaded on the
 phone and no position fix. A model read that runs out of time or is refused falls back to the rules, as in the

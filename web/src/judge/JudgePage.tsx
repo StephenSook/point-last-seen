@@ -9,7 +9,7 @@ import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { runNumbers, runNumbersLine } from "../extras/runNumbers";
 import { PURPOSE_LINE } from "../purpose";
-import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 // Said while the server is still setting the practice search up and the page is starting it again by itself.
@@ -32,6 +32,18 @@ export function JudgePage() {
     } catch {
       return undefined;
     }
+  }, []);
+
+  // Back from the practice incident, the browser can show this page from its back/forward cache exactly as it left:
+  // mid-start, button disabled. A page shown again that way gets a ready start button.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      starting.current = false;
+      setPractice({ busy: false, error: null, waiting: null });
+    };
+    addEventListener("pageshow", onShow);
+    return () => removeEventListener("pageshow", onShow);
   }, []);
 
   useEffect(() => {
@@ -89,9 +101,10 @@ export function JudgePage() {
     <main className="judge">
       <p className="wordmark">Point Last Seen</p>
       <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
-      {/* The repository and the video join these links once they are public. */}
+      <p data-testid="judge-advice" className="judge-advice">{ADVICE_LINE}</p>
       <nav aria-label="Links" className="judge-links">
         <a href="/">Command post</a>
+        <a href="https://github.com/StephenSook/point-last-seen" target="_blank" rel="noopener noreferrer">Source code</a>
       </nav>
       {/* The three-minute route, in order; each step jumps to its section on this page. */}
       <ol aria-label="Three minutes, in order" className="judge-route">

@@ -67,6 +67,8 @@ public struct ReadContext: Sendable {
     public var positionSegmentId: String?
     /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
     public var language: LanguageScreen?
+    /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
+    public var profile: ModelProfile?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -108,6 +110,8 @@ public enum ReadOrchestrator {
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
         var notes: [String] = []
+        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once more.
+        var quoteRetried = false
         let limit = context.stageTimeoutSeconds
         let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
@@ -180,10 +184,17 @@ public enum ReadOrchestrator {
                 }
                 switch result {
                 case let .success(modelReading):
-                    let r = withCodeSegments(modelReading)
+                    var r = withCodeSegments(modelReading)
+                    // Apple's model reads the report alone (it never sees the description), so code
+                    // decides whether the report matches the subject.
+                    if guidedPath == .onDevice { r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown }
                     let v = validate(r, context, text)
                     if v.isOK { return finish(r, path: path, stage: .guided) }
-                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))")
+                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
+                    if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
+                        quoteRetried = true
+                        continue
+                    }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
                     if raw != nil { notes.append("guided \(guidedPath.rawValue): \(f.rawValue)") }
@@ -236,6 +247,14 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// What a rejected quote was, for a stage note: "(quote empty)" or the quote cut to 60 characters. Kept
+    /// only in the read outcome and the drill's route-check file, never in the event.
+    static func quoteNote(_ v: ValidationResult, _ quote: String) -> String {
+        guard case let .invalid(reasons) = v, reasons.contains("quote_not_in_text") else { return "" }
+        let q = quote.trimmingCharacters(in: .whitespacesAndNewlines)
+        return q.isEmpty ? " (quote empty)" : " (quote: \"\(q.prefix(60))\")"
     }
 
     /// The validator's reasons, joined for a stage note.

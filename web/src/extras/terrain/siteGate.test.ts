@@ -13,9 +13,9 @@ const terrainDir = fileURLToPath(new URL("../../../public/extras/terrain/", impo
 const gridDir = fileURLToPath(new URL("../../../../shared/grid/", import.meta.url));
 const files = existsSync(terrainDir) ? readdirSync(terrainDir).filter((f) => f.endsWith(".elevation.json")) : [];
 
-it("every shipped site elevation file is checked against its grid (none ships yet)", () => {
-  // Raise this when a site passes and its file ships; the walk must then find it.
-  expect(files.length).toBe(0);
+it("every shipped site elevation file is checked against its grid (one site ships: the Kennesaw drill grid)", () => {
+  // Raise this when another site passes and its file ships; the walk must then find it.
+  expect(files).toEqual(["kennesaw-mountain-drill.elevation.json"]);
 });
 
 for (const name of files) {

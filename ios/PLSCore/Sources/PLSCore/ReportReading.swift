@@ -36,6 +36,24 @@ public enum ClothingColor: String, Codable, Sendable, CaseIterable {
 public enum ProfileMatch: String, Codable, Sendable, CaseIterable {
     case consistent, inconsistent, unknown
 
+    /// Whether a report matches the subject's description, decided in code for readings by Apple's
+    /// model, which reads the report alone. Consistent only when a colour or item word of the report is
+    /// in the description; otherwise unknown, so a clue is never marked down on a guess.
+    public static func decide(_ reading: ReportReading, profile: ModelProfile) -> ProfileMatch {
+        func words(_ s: String) -> Set<String> {
+            Set(s.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init).filter { $0.count >= 3 && !stopWords.contains($0) })
+        }
+        var described: [String] = [profile.clothingLastWorn, profile.appearance, profile.hair].compactMap { $0 }
+        described += profile.mobilityAids ?? []
+        let description = words(described.joined(separator: " "))
+        guard !description.isEmpty else { return .unknown }
+        var seen = words([reading.item, reading.footwear, reading.carried].joined(separator: " "))
+        for color in [reading.topColor, reading.bottomColor] where color != .unknown { seen.insert(color.rawValue) }
+        return seen.isDisjoint(with: description) ? .unknown : .consistent
+    }
+
+    static let stopWords: Set<String> = ["the", "and", "with", "her", "his", "near", "for", "from", "was", "wearing", "unknown"]
+
     /// Authenticity comes from code, never from the model (spec section 8).
     public var authenticity: Authenticity {
         switch self {
