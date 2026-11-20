@@ -196,3 +196,8 @@ with the note. Anything else is blanked (`unknown`, or empty text). The web runs
   it in `note`, and expect that field to equal `expected` and every other field to stay blank. Each of `topColor`,
   `bottomColor`, `direction`, `footwear` and `carried` has a kept case and a blanked case
   (`scripts/test_grounding_vectors.py`).
+
+Where it applies: the web and the iPhone, which read a searcher's or a caller's note into these fields. The Android
+family app has none to ground: its note read fills only kind, label, summary and evidenceQuote; on a family sighting
+the family picks the direction and colours and sends footwear and carried empty; and a camera clip's colours come
+from the video frames, with no note and no profile in the request (no server prompt template names the profile).

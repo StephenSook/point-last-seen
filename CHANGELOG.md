@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Grounding vectors README: where the rule applies. The web and the iPhone read notes into these fields; the Android
+  family app has none to ground (its note read fills kind, label, summary and evidenceQuote; a family sighting's
+  direction and colours are picked by hand; a camera clip's colours come from the frames, with no note or profile in
+  the request). Source: the Android team's check at 720038b4. Verified: no shared/templates/*.json names the profile.
 - Engine: groundReading(reading, note) returns a copy of a reading with each colour, direction, footwear or carried
   value the note does not support blanked (shared/engine-ts/src/ground.ts, rule and words from
   shared/constants/grounding-words.json). Each platform calls it after every read; the web wiring follows in its own
