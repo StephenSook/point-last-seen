@@ -77,10 +77,12 @@ class EventWriter(
 
     private suspend fun handle(r: Pair<String, Throwable?>) {
         val (id, err) = r
-        if (!docs.containsKey(id)) return
+        val doc = docs[id] ?: return
         if (err == null) return mark(id, WriteState.ACKNOWLEDGED)
-        val incidentId = docs[id]?.incidentId ?: return
-        when (store.existsOnServer(incidentId, id)) {
+        val onServer = store.existsOnServer(doc.incidentId, id)
+        // Forgotten (the phone left that search) while the read ran: the answer changes nothing.
+        if (docs[id] !== doc) return
+        when (onServer) {
             true -> mark(id, WriteState.ACKNOWLEDGED)
             false -> mark(id, WriteState.REJECTED)
             null -> mark(id, WriteState.PENDING)

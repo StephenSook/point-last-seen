@@ -1,5 +1,8 @@
 package app.pointlastseen.family.data
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -57,6 +60,26 @@ class EventWriterTest {
         assertEquals(emptyMap<String, WriteState>(), w.states.value)
         w.retry(old.eventId)
         assertEquals(listOf(old.eventId), store.writes)
+    }
+
+    /** A read-back already running when the search is forgotten does not bring the write back when it answers. */
+    @Test fun aReadBackThatEndsAfterForgettingAddsNothing() = runTest {
+        val answer = CompletableDeferred<Boolean?>()
+        val store = object : EventStore {
+            val pending = mutableMapOf<String, (Throwable?) -> Unit>()
+            override fun write(doc: EventDoc, onResult: (Throwable?) -> Unit) { pending[doc.eventId] = onResult }
+            override suspend fun existsOnServer(incidentId: String, eventId: String): Boolean? = answer.await()
+        }
+        val w = EventWriter(store)
+        val old = docIn("inc-old", 7L)
+        w.submit(old)
+        store.pending.getValue(old.eventId).invoke(IllegalStateException("PERMISSION_DENIED"))
+        val handling = launch { w.settle() }
+        runCurrent()
+        w.forget("inc-old")
+        answer.complete(false)
+        handling.join()
+        assertEquals(emptyMap<String, WriteState>(), w.states.value)
     }
 
     @Test fun aWriteIsPendingUntilTheServerAnswers() = runTest {
