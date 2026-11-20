@@ -33,8 +33,9 @@
 
 /* Replay time ruler: marks differ by shape; spans and bands are neutral greys, so the map's colours keep their meaning. */
 .extras-ruler { display: grid; gap: 4px; }
-.extras-ruler-clock { display: flex; gap: 12px; align-items: baseline; }
-.extras-ruler-elapsed { font-family: var(--clock, var(--mono, monospace)); font-size: 1.25rem; color: var(--fg-1, #f8f4f1); }
+.extras-ruler-clock { display: flex; gap: 8px; align-items: baseline; }
+/* Mono, not the 7-segment clock font, whose narrow "1" reads as a gap ("2 1:18:34"). */
+.extras-ruler-elapsed { font-family: var(--mono, monospace); font-variant-numeric: tabular-nums; font-size: 1.25rem; color: var(--fg-1, #f8f4f1); }
 .extras-ruler-track { position: relative; }
 .extras-ruler-track svg { display: block; width: 100%; height: 56px; overflow: visible; }
 .extras-ruler-scale, .extras-ruler-tick { stroke: var(--fg-4, #898583); stroke-width: 1; }
