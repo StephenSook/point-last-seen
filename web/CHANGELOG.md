@@ -1734,3 +1734,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `practiceErrorMessage` reads errors through `callableError`, so "One new practice search per hour...", "...full for today..." and "...still being set up..." show as the server wrote them instead of "No connection" or "could not start". A `details.reason` (hourly_limit, daily_limit, no_practice, setup_busy) is trusted over the wording when the server sends one. New `isSettingUp(e)` says when a start should be retried.
 - Source: a live double start on the judge page showed "No connection" for the server's "still being set up" answer.
 - Verified: two new tests with the SDK's real " [429]" and " [503]" messages and with reasons failed first, then passed; 7 of 7 practice tests pass; typecheck clean.
+
+### fix(data): media delete shows the server's refusal the SDK suffixed
+- What: `deleteFailure` reads errors through `callableError`, so "Only the incident's command can delete its media." and "Sign in before deleting an incident's media." show as refusals (nothing deleted) instead of "The server did not confirm the delete". A `details.reason` (not_command, not_signed_in) is trusted over the wording when the server sends one.
+- Source: the same SDK status suffix found on the practice search; this mapper used the same exact match.
+- Verified: a new test with the SDK's real " [403]" and " [401]" messages and a reason failed first, then passed; 9 of 9 media tests pass; typecheck clean.

@@ -44,6 +44,13 @@ describe("deleteFailure", () => {
     expect(deleteFailure(fbErr("functions/permission-denied", "Only the incident's command can delete its media."))).toEqual({ text: "Only the incident's command can delete its media.", unconfirmed: false });
     expect(deleteFailure(fbErr("functions/unauthenticated", "Sign in before deleting an incident's media."))).toEqual({ text: "Sign in before deleting an incident's media.", unconfirmed: false });
   });
+  it("still shows the refusal when the SDK appends the status, or when the server marks it with a reason", () => {
+    expect(deleteFailure(fbErr("functions/permission-denied", "Only the incident's command can delete its media. [403]"))).toEqual({ text: "Only the incident's command can delete its media.", unconfirmed: false });
+    expect(deleteFailure(fbErr("functions/unauthenticated", "Sign in before deleting an incident's media. [401]"))).toEqual({ text: "Sign in before deleting an incident's media.", unconfirmed: false });
+    const withReason = Object.assign(fbErr("functions/permission-denied", "Only command can delete. [403]"), { details: { reason: "not_command" } });
+    expect(deleteFailure(withReason)).toEqual({ text: "Only command can delete.", unconfirmed: false });
+    expect(deleteFailure(fbErr("functions/unavailable", "Service Unavailable [503]"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
+  });
   it("calls any other failure unconfirmed: the server deletes in steps and its reply can be lost", () => {
     expect(deleteFailure(fbErr("functions/unavailable", "x"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
     expect(deleteFailure(fbErr("functions/internal", "x"))).toEqual({ text: UNCONFIRMED, unconfirmed: true });
