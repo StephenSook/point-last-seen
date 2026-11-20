@@ -10,6 +10,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   pin it ("Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"). Source: the Android and iPhone reviews of the screen.
   Verified: looksEnglish refuses both as written and would pass them after cleaning (checked first); 32 engine
   language tests pass.
+- Phone vectors: a grouped count of seven or more digits is now a number (privacy wins ties): the keep becomes "walked
+  12,345 steps" and mustRemove "Call 4,045,550,142" is added, pending on web, ios and android. Seven more cases from
+  the Android review: mustRemove "Call OH 41234-5678" and an Adlam grouped number (both were keeps that let a phone
+  number through), a spacing accent, NEL, dingbat digits and 幺 inside a number, and mustKeep "Seen Nov\r\n\r\n19
+  2026". The contract's no-digit-left check now catches a number character in any script (Unicode Nd, Nl, No), not
+  only 0-9. README and LIMITS say so, including that a comma-written phone number is kept today. Source: review.
+  Verified: scripts/test_phone_vectors.py 6 passed, including a new test that an Adlam or a dingbat digit left behind
+  fails the contract.
 - Vectors README: the phone-number reference rule names its file,
   android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt (the iPhone's matches it), and states it as
   that file does: seven or more digits in a row, joined by short separators; search information inside a run stays
