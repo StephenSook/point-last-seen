@@ -636,6 +636,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // Which withdrawal owns the photo screen's busy state.
+    private var withdrawals = 0
+
     private val consentedPhotos by lazy { ConsentedPhotos(PrefsStore(getApplication(), "pls-consented")) }
 
     /** Deletes the consent records this phone made, so command can no longer read those photos in the cloud. */
@@ -643,14 +646,19 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
         val still = stillJoined(incidentId)
+        val operation = ++withdrawals
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
             val me = Firebase.auth.currentUser?.uid
             val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
             val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
             // The withdrawal still runs to the end after a leave (it only takes consent away), but its result is for
-            // that search: it must not change the photo screen of a search joined since.
-            if (!still.check()) return@launch
+            // that search: it must not change the photo screen of a search joined since. It still lets go of the busy
+            // screen it set, unless a newer withdrawal has taken it.
+            if (!still.check()) {
+                if (operation == withdrawals) photosUi = photosUi.copy(busy = false)
+                return@launch
+            }
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
