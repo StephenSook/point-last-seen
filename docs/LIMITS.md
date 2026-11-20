@@ -81,14 +81,15 @@ each line says what the limit is and why.
 - Notes are expected in English. The web asks Chrome's on-device model for English text in and out
   (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
   setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
-  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule knows
-  US formats on the web, while the iPhone and Android remove any run of 7 or more digits or English digit words. A
+  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule on
+  every platform removes any run of 7 or more digits, written in any script, or English digit words. A
   note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
   well it reads one. Evidence described in another language is not caught by the pre-screen.
 
-## Phone numbers in notes (Android)
+## Phone numbers in notes
 
-- The family app removes phone numbers from a note the way the iPhone app does: seven or more digits in a row,
+- The family app and the command post remove phone numbers from a note the way the iPhone app does (the web runs a
+  port of the Android rule, `web/src/data/phoneNumbers.ts`): seven or more digits in a row,
   written in any script or spoken, joined by separators (spaces, dashes, dots, commas, brackets, slashes), even across a line break. Search information inside
   such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
   only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
@@ -100,15 +101,15 @@ each line says what the limit is and why.
   St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
   number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
   to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
-- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, which reads it as a
-  grouped count; the iPhone and Android remove it. The shared rule removes any grouped count of seven or more
-  digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
-  (as it already is on the iPhone and Android). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark
-  each platform that has not followed yet.
-- The web keeps a pair of decimals even when it starts with "+", so a phone number written that way ("Call
-  +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
-  with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
-  removed too; without the "+" it stays.
+- A count of a million or more written with commas ("walked 1,234,567 steps") is removed on every platform, because a
+  phone number can be written the same way ("Call 4,045,550,142"); a count under seven digits ("12,345") stays.
+- A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
+  way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
+  Without the "+" a pair stays.
+- Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
+  47 and the web 52. Each platform's runner runs every case not marked pending for it. The iPhone is pending on five
+  (a bare minus between decimals, an ordinal with no street word after it, and three times joined to other digits)
+  until it takes the current Android rule (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## On-device safety (Android)
 

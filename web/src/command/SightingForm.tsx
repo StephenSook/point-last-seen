@@ -2,7 +2,7 @@
 // The place comes from a map click or the Place list. A callback name or number may be typed
 // for the operator, but it stays in this form only and is cleared on save:
 // no field of the stored event holds it, and phone numbers are removed from
-// the note before it is stored or read.
+// the note (by the shared rule, see data/phoneNumbers) before it is stored or read.
 
 import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";

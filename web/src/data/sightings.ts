@@ -14,14 +14,9 @@ import {
 } from "@pls/engine";
 import { effectSegments, segmentContaining, type GridSegmentDoc, type LatLon } from "../map/geo";
 
-const NUMBER_REMOVED = "[number removed]";
-// 10 digits (optional +1, optional brackets around the area code, spaces, dots or hyphens between groups),
-// or a 7-digit local number with a separator. Times like 14:03 use a colon and are left alone.
-const PHONE = /(?:\+?1[\s.-]*)?(?:\(\s*\d{3}\s*\)|\b\d{3})[\s.-]*\d{3}[\s.-]*\d{4}\b|\b\d{3}[.-]\d{4}\b/g;
-
-export function removePhoneNumbers(text: string): string {
-  return text.replace(PHONE, NUMBER_REMOVED);
-}
+// Phone numbers are removed by the shared rule (see ./phoneNumbers): the same cases on every platform.
+export { removePhoneNumbers } from "./phoneNumbers";
+import { removePhoneNumbers } from "./phoneNumbers";
 
 export type SightingInput = {
   observedAtMs: number;

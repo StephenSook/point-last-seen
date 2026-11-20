@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors and LIMITS after the web took the Android phone-number rule (web/src/data/phoneNumbers.ts): "web"
+  leaves pendingOn on all 23 cases it was pending on, so the web now runs every case; LIMITS says every platform
+  removes a run of 7 or more digits, a count of a million or more and a decimal pair that starts with +, renames the
+  section "Phone numbers in notes", and states the counts (Android 52, the iPhone 47, the web 52, the iPhone pending
+  on five until it takes the current Android rule). Source: the web port. Verified: the web runner passes all 52 cases
+  forced (the web team's run); scripts/test_phone_vectors.py checks the LIMITS counts against the file (6 passed).
+- Phone vectors: the pending marks for the web now match what the web does. Measured against
+  web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
+  spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
+  were still marked and are now unmarked. LIMITS states each platform's pass count (Android 52, the iPhone 47, the web
+  29), and scripts/test_phone_vectors.py checks those counts against the file. Source: review. Verified: a probe of
+  the web function over every case (29 pass, the 23 failures all now pending on web); Android PhoneVectorsTest and the
+  iPhone's PhoneNumberVectorTests pass locally on this file; the count test failed on a planted 51 and passes on 52.
 - README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
   its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
   names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the
