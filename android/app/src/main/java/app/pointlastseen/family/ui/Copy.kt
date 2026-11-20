@@ -8,6 +8,7 @@ object Copy {
     const val KILL_CLOUD = "Cloud reading is paused. You can still type everything in."
     const val EVIDENCE = "This may be evidence. Do not touch it. Call command now."
     const val UNJOINED_DRILL_HINT = "In a training drill, call the drill call-taker, not 911."
+    const val NO_LONGER_MEMBER = "You are no longer part of this search. Ask the search lead for a new code."
     /** Advice for the first minutes from a dementia-care expert, quoted as her advice. */
     const val FIRST_MINUTES = "Look in the immediate area now. If you don't find them within 5 minutes, call 911."
     const val FIRST_MINUTES_SOURCE = "Guidance from Kim Franklin, Alzheimer's Association Georgia"

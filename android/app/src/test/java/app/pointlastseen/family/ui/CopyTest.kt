@@ -55,4 +55,8 @@ class CopyTest {
         org.junit.Assert.assertEquals("News about Mae comes from your search lead by phone, never from this app.", Copy.newsByPhone("Mae"))
         org.junit.Assert.assertEquals("News about them comes from your search lead by phone, never from this app.", Copy.newsByPhone("  "))
     }
+
+    @Test fun aDroppedSearchSaysWhyAndWhatToDo() {
+        assertEquals("You are no longer part of this search. Ask the search lead for a new code.", Copy.NO_LONGER_MEMBER)
+    }
 }

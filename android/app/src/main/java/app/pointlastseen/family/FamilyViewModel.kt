@@ -37,6 +37,8 @@ import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
 import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FamilyQuestionStore
+import app.pointlastseen.family.data.Membership
+import app.pointlastseen.family.data.MembershipCheck
 import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
 import app.pointlastseen.family.ui.QuestionOpen
@@ -60,6 +62,7 @@ import app.pointlastseen.family.data.Session
 import app.pointlastseen.family.data.SubjectProfile
 import app.pointlastseen.family.data.WriteState
 import app.pointlastseen.family.ui.ClipCards
+import app.pointlastseen.family.ui.Copy
 import app.pointlastseen.family.ui.ClipForm
 import app.pointlastseen.family.ui.ClipUi
 import app.pointlastseen.family.ui.Nav
@@ -88,7 +91,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     val rc = RcStore(FirebaseRcSource(Firebase.remoteConfig))
     private val ai = AiClient { rc.current() }
     private val writer = EventWriter(FirestoreEventStore())
-    private val watch = IncidentWatch()
+    // A refused read of the incident asks whether this phone is still part of the search.
+    private val watch = IncidentWatch(onDenied = { checkMembership() })
     private val evidence = EvidenceTerms.screen(app)
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
     private val telemetry = Telemetry(FirebaseTelemetrySink())
@@ -128,11 +132,13 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var openQuestion: Pair<String, String>? = null
     private val questions: FamilyQuestionStore = FirestoreFamilyQuestions()
     private var questionCheck: Job? = null
+    private val membership = Membership.firebase()
+    private var membershipCheck: Job? = null
 
     init {
         rc.start()
         viewModelScope.launch { writer.run() }
-        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false) }
+        session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); checkMembership() }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
         // After a restart in the gone-and-joined state, write the profile again (idempotent).
         publishIfGone()
@@ -181,6 +187,29 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         session.leave()
         prefs.remove(GONE)
         nav = Nav.leave(nav)
+    }
+
+    /**
+     * Forgets the search only when a forced token refresh succeeds and its claims no longer name it as this
+     * family's ([Membership]); a refused read alone, a failed refresh or no network keeps it.
+     */
+    private fun checkMembership() {
+        val incidentId = session.incidentId() ?: return
+        if (membershipCheck?.isActive == true) return
+        membershipCheck = viewModelScope.launch {
+            if (membership.check(incidentId) == MembershipCheck.DROP && session.incidentId() == incidentId) dropSearch()
+        }
+    }
+
+    /** This phone is no longer part of the search: forget it, keep the profile, and say so on the join screen. */
+    private fun dropSearch() {
+        questionCheck?.cancel()
+        openQuestion = null
+        watch.stop()
+        session.incidentId()?.let { familyTopic.left(it) }
+        session.leave()
+        nav = Nav.dropped(nav)
+        joinError = Copy.NO_LONGER_MEMBER
     }
 
     /** Keeps what the family typed before leaving the profile for the join screen. */
