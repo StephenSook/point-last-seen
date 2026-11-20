@@ -1769,3 +1769,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the double-click check now clicks the start button twice in one task (`b.click(); b.click()`), before React can disable it, so only the page's own guard stops the second start. Playwright's `dblclick` sends the second click after React has already disabled the button, so the old check could not fail.
 - Source: review of the judge page retry.
 - Verified: on a build with the guard's early return removed the check failed (2 calls, expected 1); with the guard it passes, with the other judge checks.
+
+### feat(map): a rule for which probability plates the map draws
+- What: `map/plateRule.ts`: `plateShown` shows a plate only at 1.0% or more and only when the plate fits inside its segment's on-screen box (width and height, no margin); with "every percent" on, every plate of 0.1% or more; never a "<0.1%" or empty plate. `screenBox` is the axis-aligned box around a segment's projected points. Not used by the map yet.
+- Source: the shared map label rule for the phone and web maps (68 plates buried the map in "<0.1%" labels).
+- Verified: `src/map/plateRule.test.ts` (5 tests) failed first (module missing), then passed; typecheck clean.
