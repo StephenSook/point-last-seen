@@ -52,7 +52,7 @@ test("a start the server is still setting up says so, then opens the practice in
   await page.goto("/judge");
   await page.getByRole("button", { name: "Try a practice search" }).click();
   const practice = page.getByRole("region", { name: "Try a practice search" });
-  await expect(practice.getByRole("status")).toHaveText(SETUP);
+  await expect(practice.getByRole("status")).toHaveText("Your practice search is still being set up. This page opens it when it is ready.");
   await expect(practice.getByRole("button", { name: "Starting" })).toBeDisabled();
   await expect(page).toHaveURL(/\?incident=judge-stubbed-seat/, { timeout: 15_000 });
   expect(posts).toBe(2);

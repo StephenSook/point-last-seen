@@ -1759,3 +1759,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `practiceErrorMessage` returns "No connection. Try again when the link is back." for a request that got no answer (the SDK's status 0) and for a sign-in that could not reach the network (`auth/network-request-failed`). Before, both said "The practice search could not start. Try again."; a server error with a real status (500) still does.
 - Source: review of the callable error fix.
 - Verified: a unit test (status 0, the sign-in network error, a 500) and a browser check that cuts the start callable's connection (No connection, one call after 3.5 s) failed first (the live site said "could not start"), then passed on a local build with the other four practice checks; 11 of 11 practice tests pass; typecheck clean.
+
+### fix(judge): the waiting line says the page opens the practice search itself
+- What: while the server is still setting a practice search up, the status under the button says "Your practice search is still being set up. This page opens it when it is ready." instead of the server's "Try again in a moment.", which asked the judge to do what the page is already doing (the button is disabled meanwhile). After 30 s without a seat, the server's sentence shows as the error and the button comes back.
+- Source: review of the judge page retry.
+- Verified: the busy-then-seat browser check, changed to expect the new line, failed on a build without it, then passed on a local build with the other 16 judge checks; typecheck clean.

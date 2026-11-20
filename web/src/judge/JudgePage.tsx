@@ -11,6 +11,8 @@ import { PURPOSE_LINE } from "../purpose";
 import { d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
+// Said while the server is still setting the practice search up and the page is starting it again by itself.
+const WAITING_LINE = "Your practice search is still being set up. This page opens it when it is ready.";
 
 export function JudgePage() {
   const [run, setRun] = useState<Awaited<ReturnType<typeof loadPublishedRun>> | null>(null);
@@ -63,7 +65,7 @@ export function JudgePage() {
       const p = getPls();
       await ensureSignedIn(p.auth);
       const id = await startWithRetry(() => practiceSearch(p.functions, p.auth), {
-        onWaiting: (sentence) => setPractice({ busy: true, error: null, waiting: sentence }),
+        onWaiting: () => setPractice({ busy: true, error: null, waiting: WAITING_LINE }),
       });
       location.assign(`/?incident=${encodeURIComponent(id)}`);
     } catch (e) {
