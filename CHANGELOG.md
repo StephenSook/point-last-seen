@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Vectors README: the phone-number reference rule names its file,
+  android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt (the iPhone's matches it), and states it as
+  that file does: seven or more digits in a row, joined by short separators; search information inside a run stays
+  only when the rest of the run is nothing or whole numbers of seven or more digits, otherwise the whole run is
+  removed; an ordinal never joins others. Source: review (the Android port is the reference). Verified against the
+  file's header comment on main 3aa206e.
 - Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \r\n19 2026" and "GPS 33.7490,\r\n-84.3880"),
   so a line break inside a date or a coordinate pair never joins its digits into a number on any platform. Pending on
   web. Source: the iPhone parity sweep against the Android rule. Verified: the vector test passes.
