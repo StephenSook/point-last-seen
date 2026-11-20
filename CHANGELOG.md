@@ -5,7 +5,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
-- Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \\r\\n19 2026" and "GPS 33.7490,\\r\\n-84.3880"),
+- Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \r\n19 2026" and "GPS 33.7490,\r\n-84.3880"),
   so a line break inside a date or a coordinate pair never joins its digits into a number on any platform. Pending on
   web. Source: the iPhone parity sweep against the Android rule. Verified: the vector test passes.
 - Phone-number vector: the new cases are pending on web only; the iPhone port of the reference rule passes them all,
@@ -17,6 +17,24 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   carry pendingOn [ios, web]: a runner skips cases pending for its platform. The contract and the reference rule (the
   Android family app's) are in the vectors README. Source: review. Verified: the vector test passes and fails a
   scrubber that does nothing, wipes the note, or writes a different token.
+- Route reason `not_english` (route-record schema enum and engine-ts RouteReason): the language screen refused the
+  cloud read because the note does not look English, so the read went to no cloud model and fell to the platform's own
+  path. Distinct from on_device_unavailable, so command sees why. Source: the iPhone language-screen port. Verified:
+  schema parity ok (13 schemas, 31 platform types), engine typecheck and tests pass; the iPhone already decodes an
+  unknown reason safely.
+- Language screen before a cloud read (row H decision): `shared/constants/language-words.json` holds the rule and two
+  word lists (429 English, 90 Spanish, Portuguese and Vietnamese function words, none shared); a note is refused for
+  the cloud read when more than half its words are non-Latin, or when it has 3 or more foreign words and more than
+  twice as many as English ones. `shared/test-vectors/language.json`: 18 must-allow (including 6 English notes quoting
+  Spanish), 9 must-refuse (es, pt, vi, ko) and 1 known miss ("Ella no está aquí" passes). The web runs `looksEnglish`
+  from shared/engine-ts; iOS and Android port it. Source: review (evidence in another language escapes the English
+  pre-screen). Verified: 30 engine tests pass; the rule refuses 0 of 325 English sentences from the repo's docs, where
+  a one-sided English-share rule refused 22%.
+- LIMITS: a family's edit before its first publish reaches the search for single fields; for a list or set field it
+  reaches the search only where command's profile lacks that field; after the first publish, an edit to such a field
+  sends the phone's whole list, replacing what command added. Source: review of the Android profile publish change.
+  Verified against the Android code on main (EditableFields.sendable passes single values only; FirstPublish.of; the
+  Fields path sends changed values whole with doc.update).
 - judge_drill.py, review round 3 (four medium, one low; the last round): a reset now deletes what judges wrote under a
   team (devices and their measurements) while keeping the team doc; deletes a segment the validated seed no longer
   has, in the same atomic commit as the baseline, and --check flags such a segment (the iPhone refuses segments at

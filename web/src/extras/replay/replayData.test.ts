@@ -387,6 +387,8 @@ describe("fromPublishedRun", () => {
     const base = runEvent(eventDoc({ eventId: "e" }), T0);
     const route = { platform: "web", path: "on_device", stage: "guided", model: "gemini-nano", reason: "on_device_default", latencyMs: 820, sdkReported: true, blocked: null, decidedAtMs: T0 };
     expect(fromPublishedRun(run({ events: [{ ...base, route } as typeof base] })).ok).toBe(true);
+    // A note the language screen refused: the engine's newest route reason.
+    expect(fromPublishedRun(run({ events: [{ ...base, route: { ...route, reason: "not_english" } } as typeof base] })).ok).toBe(true);
     const wrong = (field: string) => ({ ok: false, reason: `The run has a field of the wrong type: ${field}.` });
     const noSegment = { ok: false, reason: "The run has a report about a segment it does not have." };
     const clue = { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" };
