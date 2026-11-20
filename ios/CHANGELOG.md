@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): read an eval report with the app's own reader, forced to one arm
+- What: the app can read one eval report through its real reader, forced to one arm, and journal
+  nothing: rules only (no incident mode that allows a model), or Apple's on-device model (the
+  mission's own mode). Neither arm may reach the cloud: no network, no cloud consent and no live
+  gate. The result keeps the reading, whether it was refused, the path and stage it was read on,
+  and the time it took. With no mission loaded nothing is read.
+- Source: plan (report-reading evaluation, rules-only baseline beside on-device).
+- Verified: tests that each arm sends the reader the situation it should (mode, no network, no
+  consent, no live gate, the team's segments), keeps the path and time, marks a refused read, and
+  reads nothing with no mission. They failed to compile before the change and pass after; 121 app
+  tests pass.
+
 ### feat(ios-core): read the eval's answer key as a person writes it
 - What: the eval reads the answer key format a person fills in: numbered report texts, each with a
   kind, up to two segment ids and a feature ("none" included), with the key's name, who wrote it
