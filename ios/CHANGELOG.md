@@ -5,6 +5,32 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): a release route check that reads one fixed sentence on each route
+- What: on a practice incident (drill or judge mode), the Ready check offers "Check both read
+  routes". It reads one fixed drill sentence about the team's first segment with the app's own
+  reader on each route, journaling nothing: Apple's on-device model with no network and no cloud,
+  then the cloud route with Apple's model turned off for that read and consent for that one
+  sentence. It shows both route records (path, stage, model, reason, time) and what was read, and
+  saves them with the app version, build, commit and device to the app's Documents folder, so the
+  check can run on the TestFlight build. Outside a practice incident it reads nothing: its cloud
+  route would send the drill's sample description, and a real search's words go to the cloud only
+  with the searcher's consent.
+- Source: plan (TestFlight build and the release route check).
+- Verified: tests that each route reads the fixed sentence with the intended situation (on-device:
+  drill mode, no network, no consent; cloud: signal, consent, model off), and that a real search is
+  never checked. They failed to compile before the change and pass after; the text-size scan
+  passes; 176 app tests pass. The screen is run on the TestFlight build.
+
+### feat(ios): the report reader can take the cloud route for one route-check read
+- What: for the coming release route check, a read can say Apple's on-device model is off for that one
+  read (ReportSituation.onDeviceOff), so with signal and consent the router takes the cloud route. A
+  searcher's report never sets it. The reader also takes Apple's model status through a seam, so a
+  test can say the model is available.
+- Source: plan (release build route check: one fixed sentence on each route).
+- Verified: a test with the model available reads the same sentence twice: on-device first, then the
+  cloud route with the model turned off for the check; the runner saw on-device then cloud. It failed
+  to compile before the change and passes after; the reader tests pass.
+
 ### fix(ios): a tapped push's request to show the task carries its session
 - What: a push tap that passed every check raised a request the screen acted on later; if the
   account changed in between, the screen still jumped to the task view (it showed "No mission
