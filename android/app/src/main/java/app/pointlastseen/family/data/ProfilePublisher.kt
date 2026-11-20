@@ -12,7 +12,7 @@ sealed interface ProfileWrite {
 /**
  * A phone's first publish of a document. A missing document is created whole. A document already there
  * (written by command, another family phone, or this phone before a reinstall) keeps every value it has,
- * including fields this app version does not know; only keys it lacks or holds as null are added.
+ * including fields this app version does not know and fields left empty (null); only keys it lacks are added.
  */
 sealed interface FirstPublish {
     data class Create(val data: Map<String, Any?>) : FirstPublish
@@ -22,7 +22,7 @@ sealed interface FirstPublish {
     companion object {
         fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>): FirstPublish {
             if (existing == null) return Create(mine)
-            val missing = mine.filterKeys { existing[it] == null }
+            val missing = mine.filterKeys { it !in existing }
             return if (missing.isEmpty()) Nothing else AddMissing(missing)
         }
     }
@@ -46,7 +46,7 @@ class PrefsPublishedProfiles(private val store: KeyValueStore) : PublishedProfil
 /**
  * After "She's gone": the shared fields to profile/shared (readable by every member, carried in packs)
  * and the history to profile/command (command and family only). This phone's first publish of a document
- * creates it, or adds only what an existing one lacks ([FirstPublish]); after that only the fields that
+ * creates it, or adds only the keys an existing one lacks ([FirstPublish]); after that only the fields that
  * changed on this phone are sent, so a restart sends nothing and a field command edited is not undone.
  * What was published is remembered only after the write.
  */
