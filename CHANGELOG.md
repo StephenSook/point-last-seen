@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- judge_drill.py hardening (review round 1: two high, two medium, two low): the seed is refused unless its segments
+  pass the apps' contract and it has profile/shared; --reset rewrites the baseline first, then deletes extras, then
+  media, and a media file already gone (the clip trigger removes clips with their readings) counts as deleted, so a
+  reset that stops part way never leaves the drill without its baseline; the walker lists parents that were never
+  written (showMissing) and pages collection ids; --check fails on a plan the baseline does not have and on a stale
+  incident field, and --write clears such a field; doc ids are quoted in URLs. Verified test first: 4 new tests
+  failed, then passed (8 judge_drill tests); the live --check still exits 0.
 - Judge drill `drill-judge-1` SEEDED in the live project (evidence `docs/evidence/drill/drill-judge-1-seed.md`): made
   by seed_drill.py, baseline written from the judge seed (73 docs; --check ok; segment contract 68 docs at prior
   version 5), and one searcher and one family code for judges, each with expiresAt 2026-12-17T23:59:59Z, kept only in
