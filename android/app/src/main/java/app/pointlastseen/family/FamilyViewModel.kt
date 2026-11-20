@@ -161,12 +161,14 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         return StillJoined { joins.isCurrent(ticket) && session.incidentId() == incidentId }
     }
 
-    /** Stops the photo and clip work of the join being left; its screens go back to idle. */
+    /** Stops the photo and clip work of the join being left; its screens go back to idle, with no clip card left over. */
     private fun stopJoinedWork() {
         joinedWork.cancel()
         joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
-        if (clipUi is ClipUi.Busy) clipUi = ClipUi.Idle
+        clipUi = ClipUi.Idle
         lastClip = null
+        clipUri = null
+        clipLabel = null
         photosUi = photosUi.copy(busy = false)
     }
 
