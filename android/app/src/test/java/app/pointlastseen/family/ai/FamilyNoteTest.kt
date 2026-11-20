@@ -1,6 +1,7 @@
 package app.pointlastseen.family.ai
 
 import app.pointlastseen.family.core.EvidenceScreen
+import app.pointlastseen.family.core.LanguageScreen
 import app.pointlastseen.family.data.SignIn
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -10,6 +11,12 @@ import org.junit.Test
 
 class FamilyNoteTest {
     private val screen = EvidenceScreen(listOf("blood", "knife"))
+
+    // With no foreign words listed, every note here passes the language screen; the screen's own cases are in
+    // LanguageScreenTest and LanguageVectorsTest.
+    private val english = LanguageScreen(emptySet(), emptySet(), minForeign = 3, foreignOverEnglish = 2)
+    private val spanishOnly = LanguageScreen(emptySet(), setOf("la", "el", "de", "que", "en"), minForeign = 3, foreignOverEnglish = 2)
+    private val spanishNote = "La casa de mi madre que esta en el centro"
 
     private class FakeModel(private val reply: ModelReply) : NoteModel {
         val calls = mutableListOf<Pair<NoteMode, String>>()
@@ -45,7 +52,7 @@ class FamilyNoteTest {
                 return ModelReply(goodJson, Source.IN_CLOUD, 5)
             }
         }
-        val out = FamilyNote(model, screen, FakeSignIn(order)).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, FakeSignIn(order), english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertTrue(out is NoteOutcome.Read)
         assertEquals(listOf("signin", "model:PREFER_ON_DEVICE"), order)
     }
@@ -55,14 +62,14 @@ class FamilyNoteTest {
         val model = object : NoteModel {
             override suspend fun structure(mode: NoteMode, prompt: String): ModelReply = throw RuntimeException("HTTP 500 INTERNAL")
         }
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertEquals(NoteOutcome.Failed, out)
     }
 
     @Test fun aFailedSignInWithNoLocalModelSendsNothing() = runTest {
         val order = mutableListOf<String>()
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, FakeSignIn(order, fails = true)).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, FakeSignIn(order, fails = true), english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertEquals(NoteOutcome.Failed, out)
         assertEquals(listOf("signin"), order)
         assertTrue(model.calls.isEmpty())
@@ -70,7 +77,7 @@ class FamilyNoteTest {
 
     @Test fun aFailedSignInWithALocalModelKeepsTheNoteOnThePhone() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
-        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true)).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true), english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
         assertTrue(out is NoteOutcome.Read)
         assertEquals(NoteMode.ONLY_ON_DEVICE, model.calls.single().first)
     }
@@ -78,52 +85,52 @@ class FamilyNoteTest {
     @Test fun theDeviceOnlyRouteNeverSignsIn() = runTest {
         val order = mutableListOf<String>()
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
-        FamilyNote(model, screen, FakeSignIn(order)).read(note, env(DeviceModelStatus.AVAILABLE, consent = false))
-        FamilyNote(model, screen, FakeSignIn(order)).read(note, env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))
+        FamilyNote(model, screen, FakeSignIn(order), english).read(note, env(DeviceModelStatus.AVAILABLE, consent = false))
+        FamilyNote(model, screen, FakeSignIn(order), english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))
         assertTrue(order.isEmpty())
         assertEquals(listOf(NoteMode.ONLY_ON_DEVICE, NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
     }
 
     @Test fun familyNoteNeedsConsentBeforeFirstCloudCall() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = false))
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = false))
         assertEquals(NoteOutcome.NeedsConsent, out)
         assertTrue(model.calls.isEmpty())
-        val after = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val after = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertTrue(after is NoteOutcome.Read)
         assertEquals(NoteMode.PREFER_ON_DEVICE, model.calls.single().first)
     }
 
     @Test fun withoutConsentALocalModelIsTheOnlyRoute() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = false))
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = false))
         assertTrue(out is NoteOutcome.Read)
         assertEquals(NoteMode.ONLY_ON_DEVICE, model.calls.single().first)
     }
 
     @Test fun killCloudWithNoLocalModelMakesNoCall() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true, killCloud = true))
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true, killCloud = true))
         assertEquals(NoteOutcome.FillByHand, out)
         assertTrue(model.calls.isEmpty())
     }
 
     @Test fun killCloudKeepsALocalModelOnDevice() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
-        FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))
+        FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))
         assertEquals(NoteMode.ONLY_ON_DEVICE, model.calls.single().first)
     }
 
     @Test fun possibleEvidenceGoesToNoModel() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, signedIn).read("there was blood on her coat", env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, signedIn, english).read("there was blood on her coat", env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertEquals(NoteOutcome.PossibleEvidence, out)
         assertTrue(model.calls.isEmpty())
     }
 
     @Test fun theModelNeverSeesAPhoneNumber() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         val prompt = model.calls.single().second
         assertFalse(prompt.contains("404-555-0142"))
         assertTrue(prompt.contains("[number removed]"))
@@ -131,7 +138,7 @@ class FamilyNoteTest {
 
     @Test fun theModelNeverSeesAParenthesizedNumber() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        FamilyNote(model, screen, signedIn).read("She used to walk to the old mill, call +1 (404) 5550142", env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        FamilyNote(model, screen, signedIn, english).read("She used to walk to the old mill, call +1 (404) 5550142", env(DeviceModelStatus.UNAVAILABLE, consent = true))
         val prompt = model.calls.single().second
         assertFalse(prompt.contains("5550142"))
         assertTrue(prompt.contains("[number removed]"))
@@ -139,7 +146,7 @@ class FamilyNoteTest {
 
     @Test fun theRouteRecordsTheSdkReportedSource() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 42))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true)) as NoteOutcome.Read
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true)) as NoteOutcome.Read
         assertEquals("android", out.route.platform)
         assertEquals("cloud", out.route.path)
         assertEquals("sdk", out.route.stage)
@@ -152,7 +159,7 @@ class FamilyNoteTest {
 
     @Test fun aCloudAnswerWithALocalModelIsTheSdkFallback() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
         assertEquals("cloud", out.route.path)
         assertEquals("sdk_fallback", out.route.reason)
     }
@@ -163,35 +170,35 @@ class FamilyNoteTest {
      */
     @Test fun aCloudReplyToAPreferOnDeviceCallRecordsTheCloudModel() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read
         assertEquals(listOf(NoteMode.PREFER_ON_DEVICE), model.calls.map { it.first })
         assertEquals("gemini-3.5-flash-lite", out.route.model)
     }
 
     @Test fun anOnDeviceAnswerIsTheDefault() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
-        val out = FamilyNote(model, screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = false)) as NoteOutcome.Read
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = false)) as NoteOutcome.Read
         assertEquals("on_device", out.route.path)
         assertEquals("on_device_default", out.route.reason)
     }
 
     @Test fun aReadingWhoseQuoteIsNotInTheNoteIsDropped() = runTest {
         val bad = """{"kind":"place","label":"x","summary":"y","evidenceQuote":"walked to the river"}"""
-        val out = FamilyNote(FakeModel(ModelReply(bad, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val out = FamilyNote(FakeModel(ModelReply(bad, Source.IN_CLOUD, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertEquals(NoteOutcome.Invalid, out)
     }
 
     @Test fun anUnknownKindOrBrokenJsonIsDropped() = runTest {
         val badKind = """{"kind":"diagnosis","label":"x","summary":"y","evidenceQuote":"old mill"}"""
-        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply(badKind, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
-        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply("not json", Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
-        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply(null, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
+        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply(badKind, Source.IN_CLOUD, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
+        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply("not json", Source.IN_CLOUD, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
+        assertEquals(NoteOutcome.Invalid, FamilyNote(FakeModel(ModelReply(null, Source.IN_CLOUD, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, true)))
     }
 
     @Test fun anEmptyOrOverlongNoteMakesNoCall() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn).read("   ", env(DeviceModelStatus.UNAVAILABLE, true)))
-        assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn).read("x".repeat(2001), env(DeviceModelStatus.UNAVAILABLE, true)))
+        assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn, english).read("   ", env(DeviceModelStatus.UNAVAILABLE, true)))
+        assertEquals(NoteOutcome.Invalid, FamilyNote(model, screen, signedIn, english).read("x".repeat(2001), env(DeviceModelStatus.UNAVAILABLE, true)))
         assertTrue(model.calls.isEmpty())
     }
 
@@ -202,7 +209,7 @@ class FamilyNoteTest {
     @Test fun aDeviceOnlyReadRefusesAReplyFromTheCloud() = runTest {
         for (e in listOf(env(DeviceModelStatus.AVAILABLE, consent = false), env(DeviceModelStatus.AVAILABLE, consent = true, killCloud = true))) {
             val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-            assertEquals(NoteOutcome.Failed, FamilyNote(model, screen, signedIn).read(note, e))
+            assertEquals(NoteOutcome.Failed, FamilyNote(model, screen, signedIn, english).read(note, e))
             assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
         }
     }
@@ -210,16 +217,31 @@ class FamilyNoteTest {
     /** A failed sign-in that falls back to the device-only route is held to the same rule. */
     @Test fun aSignInFallbackToDeviceOnlyAlsoRefusesACloudReply() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
-        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true)).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        val out = FamilyNote(model, screen, FakeSignIn(mutableListOf(), fails = true), english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
         assertEquals(NoteOutcome.Failed, out)
         assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
     }
 
     /** The route names the model that ran: Gemini Nano through ML Kit on this phone, the cloud model otherwise. */
     @Test fun theRouteNamesTheModelThatRan() = runTest {
-        val onDevice = FamilyNote(FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5)), screen, signedIn).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
+        val onDevice = FamilyNote(FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true))
         assertEquals("gemini-nano (ML Kit Prompt API)", (onDevice as NoteOutcome.Read).route.model)
-        val cloud = FamilyNote(FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5)), screen, signedIn).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        val cloud = FamilyNote(FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5)), screen, signedIn, english).read(note, env(DeviceModelStatus.UNAVAILABLE, consent = true))
         assertEquals("gemini-3.5-flash-lite", (cloud as NoteOutcome.Read).route.model)
+    }
+
+    /** A note that does not look English never goes to the cloud: with no model on the phone it is refused for hand entry. */
+    @Test fun aNonEnglishNoteIsRefusedForTheCloud() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
+        val out = FamilyNote(model, screen, signedIn, spanishOnly).read(spanishNote, env(DeviceModelStatus.UNAVAILABLE, consent = true))
+        assertEquals(NoteOutcome.NotEnglish, out)
+        assertTrue(model.calls.isEmpty())
+    }
+
+    /** With a model on the phone, a note that does not look English is read on the phone only, even with cloud consent. */
+    @Test fun aNonEnglishNoteIsReadOnThePhoneOnly() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.ON_DEVICE, 5))
+        FamilyNote(model, screen, signedIn, spanishOnly).read(spanishNote, env(DeviceModelStatus.AVAILABLE, consent = true))
+        assertEquals(listOf(NoteMode.ONLY_ON_DEVICE), model.calls.map { it.first })
     }
 }
