@@ -20,7 +20,7 @@ public enum PromptText {
     For segmentIds list only ids the report itself names. The segmentHere and teamAssignment tools tell you where the \
     team is and what it was assigned; use them to understand the report, not to add ids.
     Set matchesProfile to unknown.
-    Copy evidenceQuote word for word from the report.
+    Copy evidenceQuote word for word from the report; never leave it empty.
     """
 
     public static let permissive = """
