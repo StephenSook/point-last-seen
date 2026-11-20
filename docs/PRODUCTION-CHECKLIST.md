@@ -63,6 +63,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | Storage lifecycle, 30 days on clips/, photos/, packs/ | Nothing deleted: the project was created 2026-11-17, so the earliest deletion is 2026-12-17 | `test_judging_window.py` pins age x start > Dec 16; daily `media_probe.py` |
 | clipReadings TTL (expiresAt 31 to 33 days out; clients write 32) | Drill readings from the Nov 22 drill expire Dec 23 or later | Rules window and the declared TTL, pinned by the test; Storage takes a clip only while its consent expires 31 or more days after the upload, so the consent outlives the clip; a sandbox copy must get a fresh expiresAt (line below) |
 | Judge sandbox (`startJudgeSession`): expires 24 h after start, one new per visitor per hour, at most 50 new a day | Each judge's sandbox lives 24 h; its media goes within 15 min of the end; the sandbox itself is deleted a day after it ends | `deleteIncidentMedia` every 5 min and `deleteEndedSandboxesJob` every hour (no end date); the cap (line below) |
+| Judge drill `drill-judge-1` (shared; the judges' searcher and family codes) | The two codes work until 2026-12-17T23:59:59Z (`expiresAt` on each code; joinIncident refuses an expired code) | No schedule resets it; `tools/practice/judge_drill.py --reset` refuses 2026-12-10 to 2026-12-16; `--check` (line below) |
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
 | Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
@@ -97,3 +98,9 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
   --jq '.workflows[] | "\(.state) \(.path)"'` shows probe.yml `active`, with its newest run under 26 hours old.
 - [ ] The Actions budget for December is set (Settings > Billing > Budgets) or the repo is public, so the
   daily probe is not blocked by billing during the window.
+- [ ] Judge drill: before 2026-12-10, `python3 -I tools/practice/judge_drill.py --check` exits 0 (its baseline docs
+  match the judge seed). Reset it only on demand before then (`--reset` lists what it deletes, `--reset --yes` does
+  it); never from 2026-12-10 to 2026-12-16, which the tool refuses.
+- [ ] After judging, revoke the judges' two codes: `python3 -I tools/seed/seed_drill.py --revoke-code
+  buildhybridai-2026-yg3m drill-judge-1 searcher drill-judge-1-judges`, then the same with `family`. They also stop
+  working by themselves at 2026-12-17T23:59:59Z.

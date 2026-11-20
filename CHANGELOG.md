@@ -10,6 +10,62 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   sends the phone's whole list, replacing what command added. Source: review of the Android profile publish change.
   Verified against the Android code on main (EditableFields.sendable passes single values only; FirstPublish.of; the
   Fields path sends changed values whole with doc.update).
+- judge_drill.py, review round 3 (four medium, one low; the last round): a reset now deletes what judges wrote under a
+  team (devices and their measurements) while keeping the team doc; deletes a segment the validated seed no longer
+  has, in the same atomic commit as the baseline, and --check flags such a segment (the iPhone refuses segments at
+  mixed prior versions); polygon positions must be finite and rings must hold at least 4 positions; the dry run counts
+  exactly what a reset deletes. A reset commit holds at most 500 writes, so a grid of up to about 400 segments resets
+  and a larger one is refused rather than split (kept on purpose: atomic, and the largest drill grid has 338
+  segments). Verified test first: 2 new tests failed, then passed; 15 judge_drill tests; the live --check and dry run
+  exit 0.
+- seed_drill.py --expires accepts ASCII digits only and refuses an impossible date the same way, never repeating the
+  value. Source: review round 2 (low). Verified test first: three new bad values failed, then passed; 15 seed_drill
+  tests.
+- judge_drill.py, review round 2 (one high, four medium): a reset never deletes under segments or teams, so a seed
+  missing a doc cannot remove one the drill needs; the seed must have every team and segment its plan names, and a
+  gridId, gridAttribution, priorVersion and engineParams; segment numbers must be stored as Firestore numbers (a
+  timestamp is not one) and polygon positions as number pairs; the baseline write and the delete of any stale plan are
+  one atomic commit, so a failed delete can never leave an old plan beside a new baseline; ids from Firestore names
+  are used as they are (never unquoted, so two ids cannot merge). Verified test first: 4 new tests failed, then
+  passed, plus a guard that the real media delete takes 404 as gone and raises otherwise (13 judge_drill tests); the
+  live --check still exits 0.
+- judgeDrill rules tests: the segment refusal now uses a write command may make (prior unchanged), with command making
+  the same write as a control, and the family profile control changes a value the fixture does not already hold, so
+  neither passes for the wrong reason. Source: review round 1 (low). Verified: rules and functions suite 260 of 260.
+- seed_drill.py --expires: an invalid or past value is no longer repeated in the error, so a code pasted into the
+  wrong argument never reaches the screen or a log. Source: review round 1 (low). Verified: 15 seed_drill tests pass.
+- judge_drill.py hardening (review round 1: two high, two medium, two low): the seed is refused unless its segments
+  pass the apps' contract and it has profile/shared; --reset rewrites the baseline first, then deletes extras, then
+  media, and a media file already gone (the clip trigger removes clips with their readings) counts as deleted, so a
+  reset that stops part way never leaves the drill without its baseline; the walker lists parents that were never
+  written (showMissing) and pages collection ids; --check fails on a plan the baseline does not have and on a stale
+  incident field, and --write clears such a field; doc ids are quoted in URLs. Verified test first: 4 new tests
+  failed, then passed (8 judge_drill tests); the live --check still exits 0.
+- Judge drill `drill-judge-1` SEEDED in the live project (evidence `docs/evidence/drill/drill-judge-1-seed.md`): made
+  by seed_drill.py, baseline written from the judge seed (73 docs; --check ok; segment contract 68 docs at prior
+  version 5), and one searcher and one family code for judges, each with expiresAt 2026-12-17T23:59:59Z, kept only in
+  the Keychain (account drill-judge-1-judges). PRODUCTION-CHECKLIST: a judging-window row and two lines (check before
+  2026-12-10, revoke after judging). Source: review (a judge cannot reach the phone apps). Verified: the read-back in
+  the evidence file.
+- `tools/practice/judge_drill.py`: the shared judge drill `drill-judge-1`, built from the judge seed so it tells the
+  same story as /judge and the iPhone practice pack: the incident fields judgeSession.ts copies, segments, teams,
+  profile/shared and the pack's plan (approvedByUid `judge-drill-baseline`), as a training drill (mode drill, the
+  drill label, "Judge drill" in the name). `--check` compares the baseline docs with the seed and counts what judges
+  added; `--write` applies the baseline; `--reset` lists what a reset deletes (docs judges added, through nested
+  collections, and their media) and `--reset --yes` does it, for drill-judge-1 only and never from 2026-12-10 to
+  2026-12-16. Values are copied as Firestore stores them. Source: review (judge codes). Verified: 4 tests (baseline
+  overrides, drift caught, reset refusals, bad arguments change nothing).
+- Rules tests for a judge drill shared by many judges (`functions/test/rules/judgeDrill.test.ts`): no searcher or
+  family member can close, relabel, pause, re-plan or delete the drill, or write its segments, teams or shared profile
+  deletion; a searcher cannot change, delete or forge another member's report; a family member cannot change an answer
+  another gave; a searcher cannot write the profile while a family member's normal edit passes. Each test also has a
+  write that succeeds (the drill's command, a member's own report, the first answer), so a refusal cannot come from a
+  broken setup. Source: review (judge codes). Verified: rules and functions suite 260 of 260.
+- `seed_drill.py --add-code ... --expires <UTC time>`: an extra join code can carry `expiresAt`, after which
+  joinIncident refuses it (the check already existed in join.ts; the tool never wrote the field). The time must be
+  written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
+  judging). Verified test first: the expiry field and the refusal of five bad times failed, then passed; 15 seed_drill
+  tests pass.
 - Phone-number vector: dates are kept on every platform. Four mustKeep cases added ("11/19/2026", "2026-11-19",
   "11/19", "Nov 19"), pinned in `scripts/test_phone_vectors.py`; "404/555/0142" (3-3-4 grouping) stays mustRemove. A
   date in a note is search information, not a phone number. Source: review (a slash fix on one platform began removing
