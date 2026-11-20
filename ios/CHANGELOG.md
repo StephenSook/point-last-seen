@@ -5,6 +5,23 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): a practice drill from a bundled pack, with no join code and nothing sent
+- What: AppModel.startPractice loads a sample search from a bundled pack (PracticePack: the incident,
+  segments, approved plan and shared profile a searcher's phone reads, plus provenance) with no join
+  code and no account. The mission is marked practice. Its reports go to a separate journal whose
+  server never writes (LocalOnlyEventServer), with their own numbering, and their timings are not
+  written; they show "On this phone only" and the link glyph counts none as waiting. Practice reports
+  are written as author "practice", so a phone that never signed in can use it. Its assignment is
+  spoken with no session. No team topic is followed, no plan listener runs, and a sign-in, a change
+  of user or a tapped push leaves it alone. Ending it (the Leave action) deletes its reports, puts the
+  real journal back and signs nothing out. It is refused while a search is joined.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: tests for reading the pack (and refusing another pack version); starting with no server
+  read, no topic and the assignment spoken; a report kept off the real journal, server and timings
+  with no account; a sign-in and a new user keeping the drill; Leave ending it with no sign-out; and
+  a joined search never replaced. They failed to compile before the change and pass after; 182 app
+  tests and the text-size scan pass.
+
 ### fix(ios): a tapped push's request to show the task carries its session
 - What: a push tap that passed every check raised a request the screen acted on later; if the
   account changed in between, the screen still jumped to the task view (it showed "No mission
