@@ -60,14 +60,18 @@ struct RouteCheckView: View {
         defer { running = false }
         var routes: [Result.Route] = []
         for route in AppModel.CheckRoute.allCases {
+            let title = route == .onDevice ? "On this iPhone, no signal" : "In the cloud"
             guard let outcome = await model.routeCheck(route) else {
-                lines.append("\(route.rawValue): not read")
+                lines.append("\(title): not read.")
                 continue
             }
             let r = outcome.route
-            lines.append("\(route.rawValue): read on \(r.path.rawValue) (\(r.stage.rawValue)), model \(r.model), "
-                         + "\(Int(r.latencyMs.rounded())) ms, reason \(r.reason.rawValue). "
-                         + "Kind \(outcome.reading.kind.rawValue), segments \(outcome.reading.segmentIds.joined(separator: " ")).")
+            let who = EchoText.routeLine(r) + (r.path == .rules ? "" : " (\(r.model))")
+            let ids = outcome.reading.segmentIds
+            let segments = ids.isEmpty ? "no segment" : (ids.count == 1 ? "segment " : "segments ") + ids.joined(separator: " ")
+            // Plain words on screen; the saved file keeps the exact route record.
+            lines.append("\(title): \(who). \(EchoText.seconds(r.latencyMs)). Why: \(EchoText.reasonWords(r.reason)). "
+                         + "Read as \(outcome.reading.kind.rawValue), \(segments).")
             routes.append(Result.Route(route: route.rawValue, record: r, kind: outcome.reading.kind.rawValue,
                                        segmentIds: outcome.reading.segmentIds))
         }
