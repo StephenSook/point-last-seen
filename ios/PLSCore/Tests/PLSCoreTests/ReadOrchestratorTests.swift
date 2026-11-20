@@ -168,10 +168,10 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
     /// say it: an answer the validator rejected, a stage that ran out of time, a line that could not be read.
     @Test func aRejectedModelAnswerIsRecordedWithItsReason() async {
         let r = FakeRunner()
-        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat.")), .success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
         #expect(o.route.path == .rules)
-        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
+        #expect(o.stageNotes == Array(repeating: "guided on_device: invalid quote_not_in_text (quote: \"Clothing last worn: blue coat.\")", count: 2))
     }
 
     /// After a guardrail block the phone's second, plain-text stage runs; a line it cannot read is recorded.
@@ -223,9 +223,38 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
     /// says why (the validator is unchanged).
     @Test func anAnswerQuotingTheSubjectsDescriptionIsRejected() async {
         let r = FakeRunner()
-        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat.")), .success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
-        #expect(o.route.path == .rules && o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
+        #expect(o.route.path == .rules && o.stageNotes.count == 2 && o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") })
+    }
+
+    /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
+    /// more; the validator is unchanged, so two rejections still fall to rules.
+    @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "")), .success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
+        #expect(o.route.path == .onDevice && o.route.stage == .guided)
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text (quote empty)"])
+    }
+
+    @Test func twoEmptyQuotesFallToRules() async {
+        let r = FakeRunner()
+        let empty = reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "")
+        r.guidedResults[.onDevice] = [.success(empty), .success(empty), .success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
+        #expect(o.route.path == .rules)
+        #expect(o.stageNotes == Array(repeating: "guided on_device: invalid quote_not_in_text (quote empty)", count: 2))
+    }
+
+    /// Only a rejected quote gets the second try: any other invalid answer goes straight on.
+    @Test func otherInvalidAnswersAreNotAskedAgain() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 400, evidenceQuote: "cleared segment AC")), .success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)] && o.route.path == .rules)
     }
 
     @Test func noConsentMeansRulesNotCloud() async {

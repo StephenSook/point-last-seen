@@ -40,14 +40,14 @@ must give.
   with `--allow KEY`, validates, then publishes with If-Match. `firebase.json` names no template, so a plain
   `firebase deploy` cannot replace it. The template holds every key the three clients read
   (`scripts/test_rc_publish.py`).
-- [ ] Before App Check is enforced on Firestore and Storage (both UNENFORCED, monitoring only, since 2026-11-19
-  01:33 UTC): the 24-hour verdict read (`firebaseappcheck.googleapis.com/services/verification_count` per app) shows
-  no unverified traffic beyond our own probes; the daily probe passes with its App Check token; and every local dev
-  session has an App Check debug token set, because the reCAPTCHA Enterprise key allows only the two hosting
-  origins (live-backend e2e sets it through `web/e2e/fixtures.ts` and fails without it). After enforcing each
-  service, within 15 minutes: the probe, the command post, the Android note and clip, an iOS read and an admin tool
-  read work, and a REST read with no App Check token is refused. To roll back, set the service's enforcement mode
-  back to UNENFORCED.
+- [x] App Check is enforced on Firestore and Storage: Storage since 2026-11-20 01:47:55 UTC, Firestore since
+  2026-11-20 21:29:29 UTC, each read back by GET. Before each, the verdict read (`firebaseappcheck.googleapis.com/
+  services/verification_count` per app) showed no unverified traffic from a real client (for Firestore, including an
+  iPhone release build passing App Attest). Within 15 minutes of enforcing Firestore: 64 of 64 live web specs, the
+  daily probe (run 44824078797), an iPhone read and Firestore VALID-only verdicts (iOS 60, web 711, no denial), and a
+  REST read with no App Check token was refused (403). Local dev sessions need an App Check debug token, because the
+  reCAPTCHA Enterprise key allows only the two hosting origins (live-backend e2e sets it through
+  `web/e2e/fixtures.ts`). To roll back, set the service's enforcement mode back to UNENFORCED.
 - [ ] The clipReadings TTL policy is ACTIVE: `gcloud firestore fields ttls list --project buildhybridai-2026-yg3m`
   lists `clipReadings/fields/expiresAt` as ACTIVE (it is declared in firestore.indexes.json and deployed with
   the indexes).

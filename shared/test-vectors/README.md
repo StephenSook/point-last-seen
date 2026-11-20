@@ -181,3 +181,23 @@ and a short Russian or Chinese note with a number would then pass (both are pinn
 Tuning, 2026-11-20: a one-sided rule (share of common English words) refused 22% of 325 English sentences from this
 repository's docs at its working threshold, so the screen counts foreign function words against English ones instead;
 with `minForeign` 3 and `foreignOverEnglish` 2 it refuses none of those 325 sentences and passes every case here.
+
+## grounding.json (hand-written)
+
+A model can fill a reading field from the subject's profile instead of the note (one read put `blue` in `topColor`
+because the profile said a blue jacket). After every read, each platform grounds the reading in the note it came
+from, with the word lists and rule in `shared/constants/grounding-words.json` (`matching`): a colour or a direction
+other than `unknown` stays only when one of its words is a whole word of the note (the single letters N, E, S and W
+only in capitals), and footwear or carried stays only when it shares a word of three or more letters, not a stopword,
+with the note. Anything else is blanked (`unknown`, or empty text). The web runs `groundReading` from
+`shared/engine-ts`.
+
+- `cases[]`: `{ name, field, note, value, expected }`. Set `field` of an otherwise blank reading to `value`, ground
+  it in `note`, and expect that field to equal `expected` and every other field to stay blank. Each of `topColor`,
+  `bottomColor`, `direction`, `footwear` and `carried` has a kept case and a blanked case
+  (`scripts/test_grounding_vectors.py`).
+
+Where it applies: the web and the iPhone, which read a searcher's or a caller's note into these fields. The Android
+family app has none to ground: its note read fills only kind, label, summary and evidenceQuote; on a family sighting
+the family picks the direction and colours and sends footwear and carried empty; and a camera clip's colours come
+from the video frames, with no note and no profile in the request (no server prompt template names the profile).

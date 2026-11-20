@@ -25,6 +25,22 @@ test("with no published run the page says so once and offers a practice search f
   await expect(page.getByText("Training drill. Nobody is missing.")).toBeVisible();
 });
 
+test("the judge page carries one advice line from a dementia-care expert, by name", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const advice = page.getByTestId("judge-advice");
+  await expect(advice).toBeVisible();
+  await expect(advice).toContainText("Kim Franklin of the Alzheimer's Association Georgia told us");
+  await expect(advice).toContainText("because the longer you wait, the further they can get.");
+  await expect(advice).toHaveCount(1);
+});
+
+test("the judge page links to the public source code", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const link = page.getByRole("navigation", { name: "Links" }).getByRole("link", { name: "Source code" });
+  await expect(link).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+});
+
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");

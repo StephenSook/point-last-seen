@@ -92,6 +92,11 @@ object Events {
             inputMethod = "typed",
             reading = reading,
             effect = Effect.None("needs_command"),
+            // Entered by hand, so no model ran: the hand-entry route, as the iPhone's pick list writes it.
+            route = RouteRecord(
+                platform = "android", path = "rules", stage = "picklist", model = "none", reason = "on_device_default",
+                latencyMs = 0, sdkReported = false, blocked = null, decidedAtMs = ctx.nowMs,
+            ),
         )
     }
 
