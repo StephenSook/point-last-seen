@@ -215,15 +215,27 @@ object Profiles {
     fun placeLabels(text: String): List<String> =
         app.pointlastseen.family.core.PhoneNumbers.remove(text).split('\n', ';').map { it.trim() }.filter { it.isNotEmpty() }
 
-    /** [placeLabels] as entries: a saved entry whose label cleans to the same line keeps its position. */
-    fun placeEntries(text: String, saved: List<PlaceEntry>): List<PlaceEntry> = placeLabels(text).map { l ->
-        saved.firstOrNull { it.label == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.label) == l }?.copy(label = l) ?: PlaceEntry(l, null)
+    /**
+     * [placeLabels] as entries: a saved entry whose label cleans to the same line keeps its position, and each saved
+     * entry gives its position to one row at most (in order), so two rows that clean alike keep their own.
+     */
+    fun placeEntries(text: String, saved: List<PlaceEntry>): List<PlaceEntry> {
+        val left = saved.toMutableList()
+        return placeLabels(text).map { l ->
+            val match = left.firstOrNull { it.label == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.label) == l }
+            if (match != null) left.remove(match)
+            match?.copy(label = l) ?: PlaceEntry(l, null)
+        }
     }
 
-    /** [placeLabels] as past wandering entries, keeping a saved entry's position the same way. */
-    fun wanderingEntries(text: String, saved: List<WanderingEntry>): List<WanderingEntry> = placeLabels(text).map { l ->
-        saved.firstOrNull { it.foundWhere == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.foundWhere) == l }?.copy(foundWhere = l)
-            ?: WanderingEntry(l, null)
+    /** [placeLabels] as past wandering entries, keeping saved positions the same way. */
+    fun wanderingEntries(text: String, saved: List<WanderingEntry>): List<WanderingEntry> {
+        val left = saved.toMutableList()
+        return placeLabels(text).map { l ->
+            val match = left.firstOrNull { it.foundWhere == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.foundWhere) == l }
+            if (match != null) left.remove(match)
+            match?.copy(foundWhere = l) ?: WanderingEntry(l, null)
+        }
     }
 
     fun approachNoteIds(p: SubjectProfile): List<String> {

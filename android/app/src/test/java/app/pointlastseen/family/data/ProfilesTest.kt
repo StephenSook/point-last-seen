@@ -204,4 +204,17 @@ class ProfilesTest {
             Profiles.placeEntries("Old home, call 404-555-0142", saved),
         )
     }
+
+    /** Each form row keeps its own saved position, even when two rows clean to the same label. */
+    @Test fun eachRowKeepsItsOwnSavedPosition() {
+        val saved = listOf(
+            PlaceEntry("East gate, call 404-555-0142", LatLon(33.7, -84.4)),
+            PlaceEntry("East gate, call 404-555-0199", LatLon(33.8, -84.5)),
+        )
+        assertEquals(
+            listOf(PlaceEntry("East gate, call [number removed]", LatLon(33.7, -84.4)), PlaceEntry("East gate, call [number removed]", LatLon(33.8, -84.5))),
+            Profiles.placeEntries("East gate, call 404-555-0142\nEast gate, call 404-555-0199", saved),
+        )
+        assertEquals(listOf("Trail marker [number removed]", "[number removed] Oak Road"), Profiles.placeLabels("Trail marker 1234\n5678 Oak Road"))
+    }
 }
