@@ -5,6 +5,13 @@
 import type { DeviceState } from "../ai/deviceModel";
 import { fromPublishedRun } from "../extras/replay/replayData";
 
+/**
+ * Why the first minutes matter: what a dementia-care expert we spoke to told us, in our words. It is advice she
+ * gave us, never an endorsement of this project, and it carries no quote marks because it is not word for word.
+ */
+export const ADVICE_LINE =
+  "Kim Franklin of the Alzheimer's Association Georgia told us to check the immediate area first and, if the person is not found within five minutes, call police, because the longer you wait, the further they can get.";
+
 /** `replay` is true only when a published run exists, so the line never points at a replay that is not there. */
 export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[]; photoButton: string | null } {
   if (opts.downloadFailed && state !== "text" && state !== "image") {

@@ -1808,3 +1808,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/harness/clip.spec.ts` checks that the form passes `bytes: statSync(CLIP).size`, the size of the clip file the test uses, instead of 4448. The clip is generated on the machine running the test, and its size depends on that ffmpeg build.
 - Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.
 - Verified: with the clip made 20 bytes longer (4468 bytes, still "4 KB"), the old check failed (expected 4448, received 4468) and the new one passed; all 23 clip checks pass on the normal clip; typecheck clean.
+
+### feat(judge): one advice line from a dementia-care expert on the judge page
+- What: under the purpose line, /judge shows `ADVICE_LINE` (in `src/judge/judge.ts`): Kim Franklin of the Alzheimer's Association Georgia told us to check the immediate area first and, if the person is not found within five minutes, call police, because the longer you wait, the further they can get. It is a paraphrase of what she told us, so it has no quote marks, and it is worded as her advice, never as an endorsement. She agreed to be quoted.
+- Source: an expert call with a dementia-care organization's staff member (why the first minutes matter).
+- Verified: two unit tests (the credit wording with no quote marks; plain ASCII only) failed first (no export, then the earlier quoted wording), then passed; a new `@no-backend` check in `e2e/judge.spec.ts` failed against the live site (no such line) and passed on a local build with the other 3 judge checks; a 390 px screenshot reads in one block under the purpose line.
