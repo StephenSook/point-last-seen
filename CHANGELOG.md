@@ -3,6 +3,14 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-20
+
+- LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
+  family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
+  the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause
+  harm). Verified: the README, the judge page (JudgePage, judge.ts, JudgeExtras), drill-day.md and SECURITY.md never
+  call push an alert path; the paused notice text is in functions/src/notify.ts.
+
 ## 2026-11-19
 
 - `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
