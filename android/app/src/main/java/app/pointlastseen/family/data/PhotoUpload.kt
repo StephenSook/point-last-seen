@@ -101,6 +101,11 @@ class PhotoUpload(
             when (sink.creatorOf(incidentId, sha)) {
                 null -> {
                     ledger?.add(incidentId, sha)
+                    // Listing it wrote to disk: check the join again just before the write starts.
+                    if (!stillJoined.check()) {
+                        ledger?.remove(incidentId, sha)
+                        return PhotoOutcome.Left
+                    }
                     try {
                         sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent))
                     } catch (e: Exception) {

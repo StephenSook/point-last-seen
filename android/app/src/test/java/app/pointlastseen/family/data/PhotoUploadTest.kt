@@ -106,6 +106,17 @@ class PhotoUploadTest {
         assertEquals(setOf(sha), ledger.kept)
     }
 
+    /** Leaving while the consent is being listed: its write never starts, and the listing is taken back. */
+    @Test fun leavingBetweenListingAndWritingAConsentWritesNothing() = runTest {
+        val order = mutableListOf<String>()
+        val ledger = FakeLedger(order)
+        var checks = 0
+        val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order), ledger = ledger).upload("inc-1", jpeg, tick) { checks++ < 2 }
+        assertEquals(PhotoOutcome.Left, out)
+        assertEquals(listOf("check $path", "upload $path", "ledger $sha"), order)
+        assertEquals(emptySet<String>(), ledger.kept)
+    }
+
     /** A consent write the server refused is not kept on the phone: there is nothing to withdraw. */
     @Test fun aConsentWriteThatFailsIsNotKeptOnThePhone() = runTest {
         val ledger = FakeLedger()
