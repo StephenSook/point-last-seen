@@ -30,10 +30,13 @@ object PhoneNumbers {
     fun remove(text: String): String {
         val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
         val parts = parts(folded)
-        // A date's three groups count no digits, so they neither make a number nor join one.
+        // A date's three groups count no digits, so they neither make a number nor join one. A date carved out of
+        // a longer run is not one: the digits joined to it on each side must be none, or a number of their own.
         var d = 0
         while (d + 2 < parts.size) {
-            if (parts[d].written && parts[d + 1].written && parts[d + 2].written && isDate(folded, parts[d], parts[d + 1], parts[d + 2])) {
+            if (parts[d].written && parts[d + 1].written && parts[d + 2].written && isDate(folded, parts[d], parts[d + 1], parts[d + 2]) &&
+                joinedDigits(folded, parts, d, -1) !in 1..6 && joinedDigits(folded, parts, d + 2, +1) !in 1..6
+            ) {
                 for (g in d..d + 2) parts[g].digits = 0
                 d += 3
             } else {
@@ -62,6 +65,21 @@ object PhoneNumbers {
             k = start - 1
         }
         return out.toString()
+    }
+
+    /** The digits joined by separators to parts[edge] on one side ([step] -1 before it, +1 after it). */
+    private fun joinedDigits(s: String, parts: List<Part>, edge: Int, step: Int): Int {
+        var total = 0
+        var cur = edge
+        var next = edge + step
+        while (next in parts.indices && parts[next].digits > 0) {
+            val gap = if (step < 0) s.substring(parts[next].end, parts[cur].start) else s.substring(parts[cur].end, parts[next].start)
+            if (!onlySeparators(gap)) break
+            total += parts[next].digits
+            cur = next
+            next += step
+        }
+        return total
     }
 
     private fun parts(s: String): List<Part> {

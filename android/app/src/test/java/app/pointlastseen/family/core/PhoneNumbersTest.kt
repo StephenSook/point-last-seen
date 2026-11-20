@@ -63,4 +63,15 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404\u2013555\u20130142"))
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404\u2212555\u22120142"))
     }
+
+    /**
+     * A date carved out of a longer run is not a date: "06.12.20" inside a dotted number, or "2026-11-19" after a
+     * US number's first groups. A date beside a whole number of its own stays, and the number goes.
+     */
+    @Test fun aDateNeverShieldsPartOfANumber() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 06.12.20.26.19"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404-555-2026-11-19"))
+        assertEquals("Seen 11/19/2026 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
+        assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
+    }
 }
