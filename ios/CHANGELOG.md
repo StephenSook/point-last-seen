@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): an app icon, the web app's mark
+- What: the iPhone app had no icon, which App Store Connect refuses on upload. It now has one: the
+  web app's own mark (web/public/favicon.svg: a warm ring and a light centre on the dark ground),
+  rendered at 1024 x 1024 with no alpha channel by ios/scripts/make_app_icon.sh, in a new asset
+  catalog the target names as its icon.
+- Source: TestFlight preparation (an upload needs an icon).
+- Verified: the script wrote a 1024 x 1024 sRGB image with 3 channels; the app builds and the app
+  tests pass; the built app's Info.plist names AppIcon.
+
 ### fix(ios): the map credit is one line in the corner, with the full sentence on a tap
 - What: at Title 3 the OpenStreetMap credit took three lines and covered the bottom of the search
   area. It is now one line in the bottom corner at 13 points, OpenStreetMap's own short form
