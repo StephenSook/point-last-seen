@@ -164,6 +164,45 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(r.calls == [.guided(.cloud)] && o.route.path == .cloud)
     }
 
+    /// Why each model stage was not used is kept with the read, so a route check on a real phone can
+    /// say it: an answer the validator rejected, a stage that ran out of time, a line that could not be read.
+    @Test func aRejectedModelAnswerIsRecordedWithItsReason() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules)
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
+    }
+
+    /// After a guardrail block the phone's second, plain-text stage runs; a line it cannot read is recorded.
+    @Test func anUnreadablePermissiveLineIsRecorded() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.guardrailBlock)]
+        r.permissiveResults = [.success("no idea")]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.stageNotes == ["guided on_device: guardrail_block", "permissive on_device: unparsed"])
+    }
+
+    @Test func aStageThatRunsOutOfTimeIsRecorded() async {
+        struct Slow: ReadModelRunner {
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                try? await Task.sleep(for: .seconds(5))
+                return .failure(.other)
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.unavailable) }
+        }
+        var c = rctx(online: false)
+        c.stageTimeoutSeconds = 0.05
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: Slow(), clock: clock)
+        #expect(o.stageNotes == ["guided on_device: timed out after 0.05 s"])
+    }
+
+    @Test func aReadTheModelAnswersHasNoNotes() async {
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.stageNotes.isEmpty)
+    }
+
     @Test func noConsentMeansRulesNotCloud() async {
         let r = FakeRunner()
         let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false, consent: false), runner: r, clock: clock)
