@@ -15,6 +15,9 @@ struct ReportSituation {
     /// Connectivity, consent, kill switch and incident mode as they are now; read again by
     /// PLSCore at the moment of any cloud dispatch. Nil means the values above are used.
     var liveGate: (@Sendable () -> LiveGate)? = nil
+    /// The release route check only: Apple's model counts as unavailable for this one read, so the
+    /// router takes the cloud route. Never set for a searcher's report.
+    var onDeviceOff = false
 }
 
 /// Reads one field report and never throws. The decisions live in PLSCore's ReadOrchestrator;
@@ -34,6 +37,8 @@ struct ReportReader {
     }
     /// Records the route of every read, on every path (P-15; a seam for tests).
     var recordRoute: @Sendable (RouteRecord) -> Void = { PerformanceTelemetry.record($0) }
+    /// Apple's model as this phone reports it (a seam for tests).
+    var deviceStatus: @Sendable () -> OnDeviceStatus = { ModelSessionFactory.onDeviceStatus() }
 
     func read(_ text: String, situation: ReportSituation) async -> ReadOutcome {
         // The evidence screen and the drill check come before any call that hands the text to a
@@ -44,7 +49,10 @@ struct ReportReader {
                                  SubjectProfileTool(profile: situation.profile)]
         var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
-            networkOnline: situation.networkOnline, onDevice: ModelSessionFactory.onDeviceStatus(),
+            networkOnline: situation.networkOnline,
+            onDevice: situation.onDeviceOff
+                ? OnDeviceStatus(available: false, localeSupported: false, contextSize: 0, variant: "off for the route check")
+                : deviceStatus(),
             // The count is a call into Apple's model too, so it gets the text without phone numbers.
             estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), tools) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,

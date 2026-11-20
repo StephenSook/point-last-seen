@@ -3,6 +3,27 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-20
+
+- `shared/test-vectors/phone-numbers.json`: one hand-written set of phone-number cases for every platform that removes
+  numbers from a note. Must remove: spaced digits, spoken digits, +44 and +52 numbers, slashes, parentheses and spaces
+  (7 cases, each in the same sentence); must keep unchanged: 14:03, segment 12, 3 searchers, 45% and a sentence with
+  all four. The contract is in the vectors README; `scripts/test_phone_vectors.py` (in the CI and ci-local pytest
+  lists) pins the required cases and checks that the contract passes a correct scrubber and fails one that does
+  nothing or wipes the note. Source: review (phone patterns differ by platform). Verified: 4 tests pass.
+- SECURITY row 1c: Android release App Check is PASSED, not pending. The release-signed build on a Samsung A16 got a
+  Play Integrity token, signed in and made a cloud note read on 2026-11-18
+  (`docs/evidence/android/a16-2026-11-18/README.md`, lines 20-21). The row also records the settings read back
+  2026-11-20 (a sideloaded version is accepted on a device of any integrity level; the release SHA-256 is registered)
+  and that all 14 release-build token exchanges from 2026-11-19 18:00 to 2026-11-20 01:34 UTC succeeded. Source:
+  review. Verified against the evidence file, the App Check config API and the serviceruntime request counts for
+  ExchangePlayIntegrityToken.
+- LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
+  family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
+  the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause
+  harm). Verified: the README, the judge page (JudgePage, judge.ts, JudgeExtras), drill-day.md and SECURITY.md never
+  call push an alert path; the paused notice text is in functions/src/notify.ts.
+
 ## 2026-11-19
 
 - LIMITS: a write already under way when the family leaves (a photo or clip upload, or the profile's first publish)

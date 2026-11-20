@@ -15,6 +15,11 @@ struct ReadyCheckView: View {
     @Environment(ThemeStore.self) private var themeStore
     @Environment(\.fieldTheme) private var theme
     @AppStorage("pls.showSources") private var showSources = false
+    @State private var confirmingLeave = false
+    @State private var leaveRefused = false
+
+    static let leaveLabel = "Leave this search"
+    static let leaveDetail = "This phone stops getting this team's tasks and can join another search. Command still lists you until they remove you."
 
     var body: some View {
         ScrollView {
@@ -55,6 +60,34 @@ struct ReadyCheckView: View {
                     Toggle(Self.cloudLabel, isOn: $model.cloudConsent)
                         .toggleStyle(FieldToggleStyle())
                     Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
+                }
+                if model.mission != nil || model.canRetryMission {
+                    section(Self.leaveLabel) {
+                        Button { confirmingLeave = true } label: {
+                            Label(Self.leaveLabel, systemImage: "rectangle.portrait.and.arrow.right")
+                                .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(theme.accentColor)
+                        .accessibilityIdentifier("leave-search")
+                        if leaveRefused {
+                            Text(AppModel.leaveBlocked).font(.title3.weight(.semibold))
+                        }
+                    }
+                    .confirmationDialog(Self.leaveLabel, isPresented: $confirmingLeave, titleVisibility: .visible) {
+                        Button("Leave", role: .destructive) {
+                            Task { leaveRefused = !(await model.leaveSearch()) }
+                        }
+                        Button("Stay", role: .cancel) {}
+                    } message: {
+                        Text(Self.leaveDetail)
+                    }
+                }
+                if model.canRouteCheck {
+                    section("Route check") {
+                        NavigationLink("Check both read routes") { RouteCheckView(model: model) }
+                            .accessibilityIdentifier("route-check-link")
+                    }
                 }
                 #if DEBUG
                 section("Eval") {

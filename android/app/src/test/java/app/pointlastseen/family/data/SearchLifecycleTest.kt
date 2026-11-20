@@ -1,0 +1,127 @@
+package app.pointlastseen.family.data
+
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class SearchLifecycleTest {
+    /** At start while joined, nothing is published until the membership answer is in, and then only on KEEP. */
+    @Test fun aStartPublishesOnlyAfterTheMembershipAnswerKeepsTheSearch() = runTest {
+        val answer = CompletableDeferred<MembershipCheck>()
+        val log = mutableListOf<String>()
+        val start = launch { JoinedStart.run({ answer.await() }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" }) }
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), log)
+        answer.complete(MembershipCheck.KEEP)
+        start.join()
+        assertEquals(listOf("publish"), log)
+    }
+
+    @Test fun aStartWhoseAnswerDropsNeverPublishes() = runTest {
+        val log = mutableListOf<String>()
+        JoinedStart.run({ MembershipCheck.DROP }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        assertEquals(listOf("drop"), log)
+    }
+
+    /** A failed refresh (UNKNOWN) keeps the search but publishes nothing: only a confirmed answer publishes. */
+    @Test fun anUnconfirmedAnswerKeepsTheSearchButPublishesNothing() = runTest {
+        val log = mutableListOf<String>()
+        JoinedStart.run({ MembershipCheck.UNKNOWN }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        assertEquals(listOf("ask again"), log)
+    }
+
+    /** A join is confirmed by a join that succeeded or a refresh that kept it, and only until the next join, leave or drop. */
+    @Test fun aJoinIsConfirmedOnlyUntilTheNextJoinLeaveOrDrop() {
+        val g = JoinGeneration { "u1" }
+        assertFalse(g.confirmed())
+        g.confirm(g.ticket())
+        assertTrue(g.confirmed())
+        g.next()
+        assertFalse(g.confirmed())
+    }
+
+    /** A confirmation counts only for the join and user that earned it: one applied after either changed is ignored. */
+    @Test fun aConfirmationIsForTheTicketThatEarnedIt() {
+        var uid: String? = "u1"
+        val g = JoinGeneration { uid }
+        val earned = g.ticket()
+        uid = "u2"
+        g.confirm(earned)
+        assertFalse(g.confirmed())
+        uid = "u1"
+        val old = g.ticket()
+        g.next()
+        g.confirm(old)
+        assertFalse(g.confirmed())
+    }
+
+    /** An answer for a join the phone has since left (or rejoined) changes nothing. */
+    @Test fun anAnswerForAnOlderJoinIsDiscarded() = runTest {
+        val log = mutableListOf<String>()
+        JoinedStart.run({ MembershipCheck.DROP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        JoinedStart.run({ MembershipCheck.KEEP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        assertEquals(emptyList<String>(), log)
+    }
+
+    /** Every join, leave and drop makes a new generation; a ticket from before it is no longer current. */
+    @Test fun aTicketIsCurrentOnlyForItsJoinAndItsUser() {
+        var uid: String? = "u1"
+        val g = JoinGeneration { uid }
+        val first = g.ticket()
+        assertTrue(g.isCurrent(first))
+        g.next()
+        assertFalse(g.isCurrent(first))
+        val second = g.ticket()
+        assertTrue(g.isCurrent(second))
+        uid = "u2"
+        assertFalse(g.isCurrent(second))
+    }
+
+    /** One timer per purpose: scheduling it again replaces the earlier wait, so retries cannot stack. */
+    @Test fun aTimerScheduledAgainReplacesTheEarlierOne() = runTest {
+        val log = mutableListOf<String>()
+        val timer = OneTimer(this)
+        timer.schedule(5_000) { log += "first" }
+        timer.schedule(30_000) { log += "second" }
+        advanceUntilIdle()
+        assertEquals(listOf("second"), log)
+        assertEquals(30_000L, testScheduler.currentTime)
+    }
+
+    @Test fun aCancelledTimerNeverFires() = runTest {
+        val log = mutableListOf<String>()
+        val timer = OneTimer(this)
+        timer.schedule(5_000) { log += "fired" }
+        timer.cancel()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), log)
+    }
+
+    /** Leaving forgets the search first (so no new write starts), lets sent writes settle, then finishes. */
+    @Test fun leavingForgetsFirstThenSettlesThenFinishes() = runTest {
+        val log = mutableListOf<String>()
+        Departure.leave(forget = { log += "forget" }, settle = { log += "settle" }, timeoutMs = 5_000, finish = { log += "finish" })
+        assertEquals(listOf("forget", "settle", "finish"), log)
+    }
+
+    /** A settle that fails (the SDK refused the wait) still finishes the leave: the topic drop must not be skipped. */
+    @Test fun leavingFinishesWhenSettlingFails() = runTest {
+        val log = mutableListOf<String>()
+        Departure.leave(forget = { log += "forget" }, settle = { throw IllegalStateException("terminated") }, timeoutMs = 5_000, finish = { log += "finish" })
+        assertEquals(listOf("forget", "finish"), log)
+    }
+
+    /** Offline, the sent writes cannot settle: leaving still finishes after the bound. */
+    @Test fun leavingFinishesAfterTheBoundWhenWritesCannotSettle() = runTest {
+        val log = mutableListOf<String>()
+        Departure.leave(forget = { log += "forget" }, settle = { awaitCancellation() }, timeoutMs = 5_000, finish = { log += "finish" })
+        assertEquals(listOf("forget", "finish"), log)
+        assertEquals(5_000L, testScheduler.currentTime)
+    }
+}

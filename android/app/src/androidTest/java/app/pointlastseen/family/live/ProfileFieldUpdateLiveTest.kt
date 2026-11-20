@@ -8,6 +8,7 @@ import app.pointlastseen.family.data.Join
 import app.pointlastseen.family.data.JoinOutcome
 import app.pointlastseen.family.data.ProfilePublisher
 import app.pointlastseen.family.data.ProfileSink
+import app.pointlastseen.family.data.StillJoined
 import app.pointlastseen.family.data.ProfileWrite
 import app.pointlastseen.family.data.PublishedProfiles
 import app.pointlastseen.family.data.SubjectProfile
@@ -78,8 +79,8 @@ class ProfileFieldUpdateLiveTest {
     /** The real sink, logging only which document failed and the server's error code, never the data. */
     private inner class CodeLoggingSink : ProfileSink {
         private val real = FirestoreProfileSink()
-        override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) =
-            real.write(incidentId, docId, change) { e ->
+        override fun write(incidentId: String, docId: String, change: ProfileWrite, stillJoined: StillJoined, onResult: (Throwable?) -> Unit) =
+            real.write(incidentId, docId, change, stillJoined) { e ->
                 if (e != null) {
                     val code = (e as? FirebaseFirestoreException)?.code?.name ?: e.javaClass.simpleName
                     log("profile write refused doc=$docId kind=${change.javaClass.simpleName} code=$code")

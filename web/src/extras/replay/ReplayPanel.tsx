@@ -69,7 +69,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
         <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
       </div>
       <div className="extras-replay-facts" role={playing ? undefined : "status"}>
-        <span className="num">{clockLabel(tMs, timeZone)}</span>
+        <span>Clock <span className="num">{clockLabel(tMs, timeZone)}</span></span>
         <span>{frame.shown.length === 1 ? "1 report arrived" : `${frame.shown.length} reports arrived`}</span>
         {frame.phase === "replayable" ? (
           <>

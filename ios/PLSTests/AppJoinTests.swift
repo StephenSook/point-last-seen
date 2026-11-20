@@ -21,6 +21,30 @@ final class ReadGate: @unchecked Sendable {
     }
 }
 
+/// Records topic subscriptions instead of calling FCM.
+final class FakePushTopics: PushTopics, @unchecked Sendable {
+    private(set) var ops: [String] = []
+    var fails = false
+    var unsubscribeFails = false
+    /// When set, a subscription waits here, as one can with no signal.
+    var hold: ReadGate?
+    /// When set, the next unsubscription waits here (one only).
+    var holdNextUnsubscribe: ReadGate?
+    func subscribe(_ topic: String) async throws {
+        if let hold { await hold.wait() }
+        if fails { throw URLError(.notConnectedToInternet) }
+        ops.append("+" + topic)
+    }
+    func unsubscribe(_ topic: String) async throws {
+        if let gate = holdNextUnsubscribe {
+            holdNextUnsubscribe = nil
+            await gate.wait()
+        }
+        if unsubscribeFails { throw URLError(.notConnectedToInternet) }
+        ops.append("-" + topic)
+    }
+}
+
 /// Serves the drill incident's documents, or fails as the network does.
 final class FakeMissionReader: MissionReader, @unchecked Sendable {
     var docs: MissionDocs?
@@ -38,8 +62,14 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     /// The next read waits here (one read only).
     var holdNextRead: ReadGate?
 
-    func read(incidentId: String) async throws -> MissionDocs {
+    /// Per read, whether it had to come from the server (true) or could use the cache.
+    private(set) var serverReads: [Bool] = []
+    /// When set, reads are refused as by the security rules (access taken away).
+    var denyReads = false
+    func read(incidentId: String, fromServer: Bool) async throws -> MissionDocs {
         reads.append(incidentId)
+        serverReads.append(fromServer)
+        if denyReads { throw MissionReadError.accessDenied }
         if let gate = holdNextRead {
             holdNextRead = nil
             await gate.wait()
@@ -68,10 +98,177 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                            plan: DrillDocs.plan(segmentIds: [first]), sharedProfile: DrillDocs.shared)
     }
 
-    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice()) -> AppModel {
+    func model(_ backend: FakeJoinBackend, _ reader: FakeMissionReader, voice: FakeVoice = FakeVoice(),
+               topics: FakePushTopics = FakePushTopics(),
+               defaults: UserDefaults = UserDefaults(suiteName: "join-\(UUID().uuidString)")!) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                 speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }),
-                 joinBackend: backend, missionReader: reader)
+                 speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { "uid-1" },
+                 joinBackend: backend, missionReader: reader, pushTopics: topics, alerts: FakeAlerts(), defaults: defaults)
+    }
+
+    /// FCM keeps a subscription across launches, so the phone remembers every topic it may still
+    /// hold: after a relaunch it leaves the old team's topic, also with no mission loaded.
+    @Test func topicsAreRememberedAcrossLaunches() async throws {
+        let defaults = UserDefaults(suiteName: "topics-\(UUID().uuidString)")!
+        let backend = FakeJoinBackend()
+        let first = FakePushTopics()
+        let m1 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: first, defaults: defaults)
+        await m1.trySignIn()
+        await m1.topicFollow?.value
+        #expect(first.ops == ["+pls-drill-dev-1-T1"])
+        // Command moves the searcher to T2 while the app is closed.
+        backend.claims["team"] = .string("T2")
+        let second = FakePushTopics()
+        let m2 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: second, defaults: defaults)
+        await m2.trySignIn()
+        await m2.topicFollow?.value
+        #expect(second.ops == ["-pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        // The role is gone at the next launch: no mission ever loads, and the topic is still left.
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        let third = FakePushTopics()
+        let m3 = model(backend, FakeMissionReader(docs: try drillDocs()), topics: third, defaults: defaults)
+        await m3.trySignIn()
+        await m3.topicFollow?.value
+        #expect(third.ops == ["-pls-drill-dev-1-T2"] && m3.mission == nil)
+    }
+
+    /// A topic FCM could not leave is kept on the list and left at the next chance.
+    @Test func aTopicThatCouldNotBeLeftIsLeftLater() async throws {
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        backend.claims["team"] = .string("T2")
+        topics.unsubscribeFails = true
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        topics.unsubscribeFails = false
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "+pls-drill-dev-1-T2", "-pls-drill-dev-1-T1"])
+    }
+
+    /// A team change that lands while an old topic is being left wins: the phone ends on the newest
+    /// team's topic only, never on the one that was wanted before.
+    @Test func aTeamChangeDuringALeaveEndsOnTheNewestTeam() async throws {
+        let defaults = UserDefaults(suiteName: "topics-\(UUID().uuidString)")!
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics, defaults: defaults)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        let gate = ReadGate()
+        topics.holdNextUnsubscribe = gate
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        backend.claims["team"] = .string("T3")
+        await m.trySignIn()
+        gate.release()
+        await m.topicFollow?.value
+        #expect(topics.ops.last == "+pls-drill-dev-1-T3" && !topics.ops.contains("+pls-drill-dev-1-T2"))
+        #expect(defaults.stringArray(forKey: AppModel.topicsKey) == ["pls-drill-dev-1-T3"])
+    }
+
+    /// The phone follows its team's push topic: it subscribes when the mission loads, moves to the
+    /// new team's topic when the team changes, and leaves when the mission is dropped.
+    @Test func thePhoneFollowsItsTeamsPushTopic() async throws {
+        let backend = FakeJoinBackend()
+        let topics = FakePushTopics()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+        backend.claims["team"] = .string("T2")
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1", "-pls-drill-dev-1-T1", "+pls-drill-dev-1-T2"])
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops.last == "-pls-drill-dev-1-T2")
+    }
+
+    /// A subscription that failed (no signal) is tried again at the next sign-in.
+    @Test func aFailedSubscriptionIsTriedAgain() async throws {
+        let topics = FakePushTopics()
+        topics.fails = true
+        let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops.isEmpty && m.mission != nil)
+        topics.fails = false
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+    }
+
+    /// On a fresh install FCM refuses a subscription made before the APNs token arrives, and does
+    /// not retry it: when Messaging reports its token, the team's topic is followed again.
+    @Test func theTopicIsFollowedWhenThePushTokenArrives() async throws {
+        let topics = FakePushTopics()
+        topics.fails = true
+        let m = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(topics.ops.isEmpty && m.mission != nil)
+        topics.fails = false
+        m.pushTokenArrived()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+    }
+
+    /// A subscription can be slow to answer (no signal): the join, the mission and the alerts
+    /// question never wait for it.
+    @Test(.timeLimit(.minutes(1))) func aSubscriptionThatNeverAnswersNeverHoldsTheJoin() async throws {
+        let topics = FakePushTopics()
+        let gate = ReadGate()
+        topics.hold = gate
+        let m = model(newcomer(), FakeMissionReader(docs: try drillDocs()), topics: topics)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission?.teamId == "T1" && m.joinMessage == nil && topics.ops.isEmpty)
+        gate.release()
+        await m.topicFollow?.value
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+    }
+
+    /// The join signs in before it calls, so it knows whose join it is: if the account changes while
+    /// the callable answers, the joined team is never loaded for the new user.
+    @Test func aJoinWhoseAccountChangesDuringTheCallLoadsNothing() async throws {
+        final class Account: @unchecked Sendable { var uid: String? = "uid-1" }
+        let account = Account(), backend = FakeJoinBackend(), reader = FakeMissionReader(docs: try drillDocs())
+        backend.claims = [:]                                       // not yet in any search
+        backend.claimsAfterJoin = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        backend.duringCall = { account.uid = "uid-2" }
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.uid != nil }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { account.uid }, joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "join-switch-\(UUID().uuidString)")!)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission == nil && reader.reads.isEmpty)
+        #expect(m.joinMessage == AppModel.accountChangedDuringJoin)
+    }
+
+    /// The first join with no user yet (after Leave, say) signs in a new anonymous user and still
+    /// loads the mission at once: the new user's session starts before the join's checks do.
+    @Test func aFirstJoinWithNoUserSignsInAndLoads() async throws {
+        final class Account: @unchecked Sendable { var uid: String? = nil }
+        let account = Account(), backend = FakeJoinBackend(), reader = FakeMissionReader(docs: try drillDocs())
+        backend.claims = [:]
+        backend.claimsAfterJoin = ["inc": .string("drill-dev-1"), "role": .string("searcher"), "team": .string("T1")]
+        backend.onSignIn = { if account.uid == nil { account.uid = "uid-new" } }
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.uid != nil }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { account.uid }, joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "join-first-\(UUID().uuidString)")!)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        #expect(m.mission?.teamId == "T1" && m.mission?.ownerUid == "uid-new" && m.joinMessage == nil)
     }
 
     /// A plan command approves after the mission loaded reaches the phone: the assignment changes
@@ -82,19 +279,44 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let voice = FakeVoice()
         let m = model(FakeJoinBackend(), reader, voice: voice)
         await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
         #expect(reader.watching == ["drill-dev-1"] && voice.spoken.count == 1)
         let segments = try #require(m.mission?.grid.map(\.segmentId))
         let newer = DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3)
         await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Search the north field." && m.mission?.assignedSegmentIds == [segments.last ?? ""])
         #expect(voice.spoken.count == 2)
         await m.planArrived(newer, incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(voice.spoken.count == 2)
         await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 4, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
         #expect(m.mission?.assignment == nil && m.mission?.assignedSegmentIds.isEmpty == true && voice.spoken.count == 2)
         // A plan for another incident is not this mission's.
         await m.planArrived(newer, incidentId: "other", teamId: "T1")
         #expect(m.mission?.assignment == nil)
+    }
+
+    /// Command changes or takes away the team's task while a line is playing: the team stays the
+    /// same, and the old line stops at once. Reading the same task again stops nothing.
+    @Test func aChangedOrWithdrawnTaskStopsTheLinePlaying() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let voice = FakeVoice()
+        let m = model(FakeJoinBackend(), reader, voice: voice)
+        await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        let loaded = try #require(m.mission?.assignedSegmentIds)
+        let stops = voice.stops
+        await m.planArrived(DrillDocs.plan(segmentIds: loaded, task: "Walk the creek bank.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops)
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 4),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops + 1)
+        await m.speech?.value
+        await m.planArrived(DrillDocs.plan(segmentIds: ["X"], version: 5, team: "T2"), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(voice.stops == stops + 2 && m.mission?.assignment == nil)
     }
 
     /// Plans apply in version order only: an older plan (a cache snapshot, or an update handled out
@@ -105,21 +327,26 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let voice = FakeVoice()
         let m = model(FakeJoinBackend(), reader, voice: voice)
         await m.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
+        await m.speech?.value
         let segments = try #require(m.mission?.grid.map(\.segmentId))
         // The loaded mission came from version 2: another copy of version 2 is not newer.
         await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Version two, other words.", version: 2),
                             incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Walk the creek bank." && voice.spoken.count == 1)
         await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3),
                             incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
         await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Old plan.", version: 2),
                             incidentId: "drill-dev-1", teamId: "T1")
         await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Same version, other words.", version: 3),
                             incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Search the north field." && voice.spoken.count == 2)
         await m.planArrived(DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Check the parking deck.", version: 4),
                             incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission?.assignment?.taskText == "Check the parking deck." && voice.spoken.count == 3)
     }
 
@@ -171,6 +398,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(backend, reader, voice: voice)
         await m.trySignIn()
+        await m.speech?.value
         #expect(m.mission?.teamId == "T1" && reader.stops == 0)
         backend.claims["team"] = .string("T2")
         reader.docs = nil
@@ -179,6 +407,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         // A T1 plan that still arrives changes nothing and is not spoken.
         let spoken = voice.spoken.count
         await m.planArrived(DrillDocs.plan(segmentIds: ["X"], task: "Old team task.", version: 9), incidentId: "drill-dev-1", teamId: "T1")
+        await m.speech?.value
         #expect(m.mission == nil && voice.spoken.count == spoken)
         reader.docs = try drillDocs()
         await m.retryMission()
@@ -225,6 +454,38 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         gate.release()
         await resuming.value
         #expect(m.mission == nil && !m.canRetryMission && reader.reads.isEmpty)
+    }
+
+    /// The phone has no user at all any more (signed out, for example after the account was removed)
+    /// and signing in fails: the mission that belonged to the old user is dropped. A cached user
+    /// keeps the mission for offline use, as before.
+    @Test func aFailedSignInWithNoUserDropsTheMission() async throws {
+        final class Account: @unchecked Sendable { var present = true }
+        let account = Account()
+        let m = AppModel(signIn: SignIn(isSignedIn: { account.present }, attempt: { false }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { account.present ? "uid-1" : nil },
+                         joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: try drillDocs()),
+                         pushTopics: FakePushTopics(), alerts: FakeAlerts(),
+                         defaults: UserDefaults(suiteName: "signin-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        account.present = false
+        await m.trySignIn()
+        #expect(m.mission == nil && !m.canRetryMission)
+    }
+
+    /// Back in the foreground with signal, the phone checks its access again, so a role command
+    /// took away while it was suspended is followed at once.
+    @Test func comingBackToTheForegroundChecksAccessAgain() async throws {
+        let backend = FakeJoinBackend()
+        let m = model(backend, FakeMissionReader(docs: try drillDocs()))
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1")
+        m.connectivity.pathChanged(satisfied: true)
+        backend.claims = ["inc": .string("drill-dev-1"), "role": .string("family")]
+        m.becameActive()
+        await m.foregroundCheck?.value
+        #expect(m.mission == nil)
     }
 
     /// An incident command closed, with the claims unchanged: the next sign-in check reads its status
@@ -335,18 +596,87 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         try store.append(event("old-incident", 1))
         try store.append(event("drill-dev-1", 2))
         #expect(m.missionEntries.isEmpty)
-        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1", session: try #require(m.currentSession))
         #expect(m.missionEntries.map(\.doc.incidentId) == ["drill-dev-1"] && store.entries.count == 2)
     }
 
-    /// A load that is still speaking when a newer load takes over never installs its listener
-    /// afterwards: the newer team's listener stays, and its plans keep arriving.
-    @Test(.timeLimit(.minutes(1))) func anOldLoadNeverReplacesTheNewTeamsListener() async throws {
-        final class HeldVoice: AssignmentVoice {
+    /// A voice that is slow to start, or never does, holds nothing up: the plan listener and the
+    /// team's topic start as soon as the mission loads.
+    @Test(.timeLimit(.minutes(1))) func aVoiceThatNeverStartsHoldsNothingUp() async throws {
+        final class SilentVoice: AssignmentVoice {
             let gate = ReadGate()
             func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
                 await gate.wait()
-                return stillWanted() ? 1 : nil
+                return 1
+            }
+            func stop() {}
+        }
+        let voice = SilentVoice()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let topics = FakePushTopics()
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
+                         joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: topics,
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "voice-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(m.mission != nil && reader.watching == ["drill-dev-1"] && topics.ops == ["+pls-drill-dev-1-T1"] && m.offersAlerts)
+        voice.gate.release()
+        await m.speech?.value
+    }
+
+    /// Speech waiting behind a slow voice checks the mission again before it starts: an assignment
+    /// that a newer plan or a team change replaced meanwhile is never spoken.
+    @Test(.timeLimit(.minutes(1))) func queuedSpeechNeverSpeaksASupersededAssignment() async throws {
+        final class FirstHeldVoice: AssignmentVoice, @unchecked Sendable {
+            let gate = ReadGate()
+            private(set) var spoken: [String] = []
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                guard stillWanted() else { return nil }
+                spoken.append(text)
+                if spoken.count == 1 { await gate.wait() }
+                return 1
+            }
+            func stop() {}
+        }
+        let voice = FirstHeldVoice()
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
+                         joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "speech-\(UUID().uuidString)")!)
+        await m.trySignIn()
+        for _ in 0..<1000 where !voice.gate.isWaiting { await Task.yield() }
+        #expect(voice.gate.isWaiting)
+        let segments = try #require(m.mission?.grid.map(\.segmentId))
+        await m.planArrived(DrillDocs.plan(segmentIds: [segments.last ?? ""], task: "Search the north field.", version: 3),
+                            incidentId: "drill-dev-1", teamId: "T1")
+        // Command moves the searcher to T2 while the first line is still being spoken.
+        backend.claims["team"] = .string("T2")
+        reader.docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments(),
+                                  plan: DrillDocs.plan(segmentIds: [segments.first ?? ""], task: "Check the parking deck.", version: 4, team: "T2"),
+                                  sharedProfile: DrillDocs.shared)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T2")
+        voice.gate.release()
+        await m.speech?.value
+        #expect(voice.spoken.count == 2)
+        #expect(voice.spoken.first?.contains("Walk the creek bank.") == true && voice.spoken.last?.contains("Check the parking deck.") == true)
+        #expect(!voice.spoken.contains { $0.contains("north field") })
+    }
+
+    /// A team change while the old team's line is still being spoken leaves the new team's listener
+    /// in place: its plans keep arriving, and the old line never plays.
+    @Test(.timeLimit(.minutes(1))) func anOldLoadNeverReplacesTheNewTeamsListener() async throws {
+        final class HeldVoice: AssignmentVoice {
+            let gate = ReadGate()
+            private(set) var played = 0
+            func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+                await gate.wait()
+                guard stillWanted() else { return nil }
+                played += 1
+                return 1
             }
             func stop() {}
         }
@@ -354,9 +684,10 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         let backend = FakeJoinBackend()
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
-                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }),
-                         joinBackend: backend, missionReader: reader)
-        let firstLoad = Task { await m.trySignIn() }
+                         speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in voice }, record: { _ in }), uid: { "uid-1" },
+                         joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "listener-\(UUID().uuidString)")!)
+        await m.trySignIn()
         for _ in 0..<1000 where !voice.gate.isWaiting { await Task.yield() }
         #expect(voice.gate.isWaiting && m.mission?.teamId == "T1")
         backend.claims["team"] = .string("T2")
@@ -364,11 +695,10 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
                                   plan: DrillDocs.plan(segmentIds: [], task: "No task yet.", version: 2, team: "T9"),
                                   sharedProfile: DrillDocs.shared)
         await m.trySignIn()
-        // The T1 load is still speaking, so only T2's listener exists.
-        #expect(m.mission?.teamId == "T2" && reader.watching.count == 1)
+        #expect(m.mission?.teamId == "T2" && reader.watching.count == 2 && reader.stops == 1)
         voice.gate.release()
-        await firstLoad.value
-        #expect(reader.watching.count == 1 && reader.stops == 0 && m.mission?.teamId == "T2")
+        await m.speech?.value
+        #expect(reader.watching.count == 2 && reader.stops == 1 && m.mission?.teamId == "T2" && voice.played == 0)
         // The listener in place is T2's: its plan reaches the mission.
         reader.onPlan?(DrillDocs.plan(segmentIds: ["X"], task: "T2's new task.", version: 3, team: "T2"))
         for _ in 0..<200 where m.mission?.assignment == nil { await Task.yield() }
@@ -396,8 +726,8 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     @Test func loadingAnotherMissionStopsTheOldPlanListener() async throws {
         let reader = FakeMissionReader(docs: try drillDocs())
         let m = model(FakeJoinBackend(), reader)
-        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1")
-        await m.loadMission(incidentId: "drill-dev-2", teamId: "T1")
+        await m.loadMission(incidentId: "drill-dev-1", teamId: "T1", session: try #require(m.currentSession))
+        await m.loadMission(incidentId: "drill-dev-2", teamId: "T1", session: try #require(m.currentSession))
         #expect(reader.watching == ["drill-dev-1", "drill-dev-2"] && reader.stops == 1)
     }
 

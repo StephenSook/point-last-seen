@@ -1,7 +1,9 @@
 package app.pointlastseen.family.data
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -24,14 +26,28 @@ class MembershipTest {
         assertEquals(MembershipCheck.KEEP, membership { mapOf("inc" to "drill-test-1", "role" to "family", "team" to null) }.check("drill-test-1"))
     }
 
-    /** A refresh that failed (an App Check hiccup, an expired session) proves nothing, so the search stays. */
-    @Test fun aFailedRefreshKeepsTheSearch(): Unit = runBlocking {
-        assertEquals(MembershipCheck.KEEP, membership { throw IllegalStateException("token refresh refused") }.check("drill-test-1"))
+    /**
+     * A refresh that failed (an App Check hiccup, an expired session) proves nothing: the search stays, but the
+     * answer is UNKNOWN, not KEEP, so nothing is published on it.
+     */
+    @Test fun aFailedRefreshKeepsTheSearchUnconfirmed(): Unit = runBlocking {
+        assertEquals(MembershipCheck.UNKNOWN, membership { throw IllegalStateException("token refresh refused") }.check("drill-test-1"))
     }
 
-    /** Offline, the refresh cannot reach the server: the search stays and the next start checks again. */
-    @Test fun offlineKeepsTheSearch(): Unit = runBlocking {
-        assertEquals(MembershipCheck.KEEP, membership { throw IOException("network unreachable") }.check("drill-test-1"))
+    /** Offline, the refresh cannot reach the server: the search stays unconfirmed and the app asks again later. */
+    @Test fun offlineKeepsTheSearchUnconfirmed(): Unit = runBlocking {
+        assertEquals(MembershipCheck.UNKNOWN, membership { throw IOException("network unreachable") }.check("drill-test-1"))
+    }
+
+    /** An unconfirmed answer is asked again after 5 s, 30 s and 2 min, then every 5 min while it stays unconfirmed. */
+    @Test fun anUnconfirmedAnswerIsAskedAgainOnASchedule() {
+        assertEquals(listOf(5_000L, 30_000L, 120_000L, 300_000L, 300_000L), (0..4).map { Membership.retryDelay(it) })
+    }
+
+    /** A refresh that never answers cannot hold the check: after the bound it is UNKNOWN, so the next try can run. */
+    @Test fun aRefreshThatNeverAnswersIsUnknownAfterTheBound() = runTest {
+        assertEquals(MembershipCheck.UNKNOWN, membership { awaitCancellation() }.check("drill-test-1"))
+        assertEquals(30_000L, testScheduler.currentTime)
     }
 
     @Test fun aCancelledCheckIsNotAnAnswer() {
