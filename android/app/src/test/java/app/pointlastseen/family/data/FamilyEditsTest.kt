@@ -47,6 +47,21 @@ class FamilyEditsTest {
         assertTrue(out.toString(), out is FirstPublish.Merge && "seizures" in (out.data["approachNoteIds"] as List<*>))
     }
 
+    /**
+     * Only the notes of the flags the family changed follow the edit: ticking "seizures" into a document with no flags
+     * adds its note and keeps a note command chose for a flag the family never touched (fall risk).
+     */
+    @Test fun aFlagEditMovesOnlyItsOwnNotes() {
+        val edits = FamilyEdits(MemoryStore())
+        val after = before.copy(flags = before.flags + "seizures")
+        edits.record(before, after)
+        assertTrue("flags.seizures" in edits.keys("shared"))
+        assertFalse("flags.fallRisk" in edits.keys("shared"))
+        val existing = mapOf<String, Any?>("answersTo" to "Mae", "approachNoteIds" to listOf("approach_calm", "fall_risk"))
+        val out = FirstPublish.of(existing, Profiles.forSearchers(after).toMap(), edits.keys("shared"))
+        assertTrue(out.toString(), out is FirstPublish.Merge && out.data["approachNoteIds"] == listOf("approach_calm", "fall_risk", "seizures"))
+    }
+
     /** A derived field follows its source: a new other name changes the nickname, but the nickname is not marked. */
     @Test fun aDerivedFieldIsNeverMarked() {
         val edits = FamilyEdits(MemoryStore())
