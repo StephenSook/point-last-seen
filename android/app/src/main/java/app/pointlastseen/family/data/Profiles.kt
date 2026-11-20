@@ -208,6 +208,10 @@ object Profiles {
      * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
+    /** Address, place or wandering lines from the profile form: one per line (or ;), phone numbers removed as in a note. */
+    fun placeLabels(text: String): List<String> =
+        text.split('\n', ';').map { app.pointlastseen.family.core.PhoneNumbers.remove(it.trim()).trim() }.filter { it.isNotEmpty() }
+
     fun approachNoteIds(p: SubjectProfile): List<String> {
         val f = p.flags
         val ids = mutableListOf<String>()

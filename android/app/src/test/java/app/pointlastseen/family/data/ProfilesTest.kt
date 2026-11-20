@@ -186,4 +186,12 @@ class ProfilesTest {
         assertEquals("", note("Unit \uFF14 in his coat"))
         assertEquals("", note("Call 404 555 0142"))
     }
+
+    /** Address, place and wandering lines typed in the profile form lose phone numbers like a note does. */
+    @Test fun placeLinesFromTheFormLosePhoneNumbers() {
+        assertEquals(
+            listOf("Old home, call [number removed]", "Grace Church", "the mill"),
+            Profiles.placeLabels("Old home, call 404-555-0142\n  Grace Church ; the mill\n\n"),
+        )
+    }
 }
