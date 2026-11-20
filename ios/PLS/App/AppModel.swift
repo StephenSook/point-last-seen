@@ -815,6 +815,31 @@ final class AppModel {
                           path: "\(outcome.route.path.rawValue)/\(outcome.route.stage.rawValue)", latencyMs: outcome.route.latencyMs)
     }
 
+    /// The release route check's two routes.
+    enum CheckRoute: String, CaseIterable, Codable { case onDevice = "on_device", cloud }
+
+    /// The route check runs only on a practice incident: its cloud route sends the reader's tools,
+    /// the person's description included, and a real search's words go to the cloud only with consent.
+    var canRouteCheck: Bool { mission.map { ReadPlan.modelModes.contains($0.mode) } ?? false }
+
+    /// The fixed drill sentence the route check reads, about the team's first segment.
+    static func routeCheckSentence(_ mission: Mission) -> String {
+        "Cleared segment \(mission.assignedSegmentIds.first ?? mission.grid.first?.segmentId ?? "AA"), nothing found."
+    }
+
+    /// Reads the route check's fixed sentence on one route with the app's own reader, and journals
+    /// nothing. On-device: no network, no cloud. Cloud: signal as it is now, consent for this one
+    /// fixed sentence, and Apple's model turned off for this read. Nil outside a practice incident.
+    func routeCheck(_ route: CheckRoute) async -> ReadOutcome? {
+        guard canRouteCheck, let mission, let screen = screen ?? (try? BundledConstants.evidenceScreen()) else { return nil }
+        let situation = ReportSituation(
+            incidentMode: mission.mode, knownSegmentIds: mission.grid.map(\.segmentId),
+            assignedSegmentIds: mission.assignedSegmentIds, positionSegmentId: nil, profile: mission.profile,
+            networkOnline: route == .cloud && connectivity.isOnline, cloudConsent: route == .cloud, liveGate: nil,
+            onDeviceOff: route == .cloud)
+        return await readReport(Self.routeCheckSentence(mission), situation, config, screen)
+    }
+
     /// A report the searcher picked from the list: no model runs, the person's choices stand.
     func submitPick(_ choice: PickListChoice) async -> Bool {
         guard !sending else { return false }
