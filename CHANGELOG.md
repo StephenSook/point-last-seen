@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Gemini burn rate measured: `scripts/ai_spend.py` reads AI Logic's token counts and the practice searches started
+  (ops/judgeSessions-{day}), prices the tokens at the Gemini Developer API paid rates (source and read date in the
+  file; a model with no price fails the run) and projects a week at the daily cap of 50. 2026-11-13 to 2026-11-20:
+  $0.05 for every cloud read, at most $0.0063 per practice search, a week at the cap at most $2.20 against $25;
+  PRODUCTION-CHECKLIST row and the 2026-11-29 line now use the script. `scripts/test_ai_spend.py` (CI and ci-local
+  lists) checks the arithmetic, that an unpriced model fails, that every model in models.json has a price and that the
+  cap matches judgeSession.ts. Source: review (burn rate not measured). Verified: 5 tests pass; the live run exits 0.
 - `shared/practice/ios-practice-pack.json`: the iPhone's practice drill, so a judge can open the searcher app without
   a code. `tools/practice/export_practice_pack.py --write` exports it from the judge seed (drill-dev-1, read from
   judge-seed.json) with the same overrides `startJudgeSession` applies (NOT_COPIED and the drill label are read from
