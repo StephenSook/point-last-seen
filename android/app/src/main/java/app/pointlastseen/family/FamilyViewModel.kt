@@ -282,8 +282,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 forget = {
                     watch.stop()
                     familyTopic.leaving(incidentId)
-                    if (!keepGone) prefs.remove(GONE)
-                    session.leave()
+                    // The search and, for a found or closed one, the gone flag go in one write.
+                    session.leave(alsoRemove = if (keepGone) emptyList() else listOf(GONE))
                 },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
