@@ -78,6 +78,18 @@ def test_the_seed_may_appear_in_docs_unit_tests_and_functions_and_other_ids_pass
     assert run_gate(tmp_path).returncode == 0
 
 
+def test_the_shared_seed_constant_must_name_the_functions_seed_and_a_different_test_drill(tmp_path):
+    # shared/constants/judge-seed.json is what the web's live fixtures read; it must agree with the function.
+    write(tmp_path, "functions/src/judgeSession.ts", SEED_TS)
+    seed = lambda inc, test: '{"incidentId": "%s", "testIncidentId": "%s"}' % (inc, test)
+    write(tmp_path, "shared/constants/judge-seed.json", seed("drill-seed-1", "drill-test-1"))
+    assert run_gate(tmp_path).returncode == 0
+    for bad in (seed("drill-other", "drill-test-1"), seed("drill-seed-1", "drill-seed-1"), "{}"):
+        write(tmp_path, "shared/constants/judge-seed.json", bad)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and "judge-seed.json" in out.stdout, bad
+
+
 def test_a_seed_constant_the_gate_cannot_read_fails(tmp_path):
     write(tmp_path, "functions/src/judgeSession.ts", "export const SEED = 1;\n")
     out = run_gate(tmp_path)

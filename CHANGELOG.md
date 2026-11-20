@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate checks that `shared/constants/judge-seed.json`, which the web's live fixtures read, names the same
+  judge seed as `JUDGE_SEED_INCIDENT` and a different test drill, so the two copies of the seed id cannot drift.
+  The file's description now says what it is: the drill every practice search is copied from (judges do not open
+  it) and the test-only drill live tests write to.
+  Source: review (a second copy of the seed id in the shared constants).
+  Verified: the test (a matching file passes; a different seed, a test drill equal to the seed, and an empty file
+  each fail) failed first, now all 39 gate tests pass; the gate over the repository exits 0.
 - The rules gate fails when a live or device test names the judge seed, the drill every judge practice search is
   copied from: its id (read from `JUDGE_SEED_INCIDENT` in `functions/src/judgeSession.ts`, so a renamed seed stays
   guarded) may not appear in `android/app/src/androidTest/`, `android/*.sh`, `web/e2e/` or `ios/PLSUITests/`. Those
