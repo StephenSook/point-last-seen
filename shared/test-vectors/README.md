@@ -149,7 +149,7 @@ are a number: written digits in any script (full-width, circled and Chinese nume
 words count alike, joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
 U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an accent or a joiner inside a gap counts as
 nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
-grouped count under seven digits, a ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
 digits is left beside it the whole run is removed. A number with an ordinal ending (`67th`) never joins others. A
 grouped count of seven or more digits (`1,234,567` and up) is a number like any other run, since a phone number can be

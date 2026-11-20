@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Vectors README: a grouped count is no longer listed as search information that can shield itself inside a run. Under
+  the 7+ digit ruling the grouped-count span always holds 7 or more digits, so it can never apply; the iPhone and
+  Android rules both drop it. "walked 12,345 steps" on its own stays a keep. Source: the iPhone and Android reviews.
+  Verified: local gates pass.
 - Language screen: the shared rule now says to judge the note as the person wrote it, before phone numbers are
   removed, since the [number removed] token adds English-looking words that hid a non-Latin note; two mustRefuse cases
   pin it ("Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"). Source: the Android and iPhone reviews of the screen.
