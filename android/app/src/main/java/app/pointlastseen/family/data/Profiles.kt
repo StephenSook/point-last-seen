@@ -208,8 +208,24 @@ object Profiles {
      * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
-    fun approachNoteIds(p: SubjectProfile): List<String> {
-        val f = p.flags
+    fun approachNoteIds(p: SubjectProfile): List<String> =
+        noteIds(p.flags, sharedDementiaType(p), p.primaryLanguage, p.triggersToAvoid, p.bestApproach, p.uniqueDescription)
+
+    /** The same notes, read from a profile/shared document (for a document merged with what command entered). */
+    fun approachNoteIds(shared: Map<String, Any?>): List<String> {
+        val flags = (shared["flags"] as? Map<*, *>)?.filterValues { it == true }?.keys?.map { it.toString() }?.toSet() ?: emptySet()
+        fun text(key: String) = shared[key] as? String ?: ""
+        return noteIds(flags, shared["dementiaType"] as? String, text("primaryLanguage"), text("triggersToAvoid"), text("bestApproach"), text("uniqueDescription"))
+    }
+
+    private fun noteIds(
+        f: Set<String>,
+        dementiaType: String?,
+        primaryLanguage: String,
+        triggersToAvoid: String,
+        bestApproach: String,
+        uniqueDescription: String,
+    ): List<String> {
         val ids = mutableListOf<String>()
         if ("mayNotRespond" in f) ids += "may_not_respond"
         ids += "approach_calm"
@@ -217,7 +233,7 @@ object Profiles {
         if ("mayNotRespond" in f) ids += "stop_calling_name"
         if ("likelyToHide" in f) ids += "likely_to_hide"
         if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
-        if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"
+        if ("hallucinationsOrDelusions" in f || dementiaType == "lewy_body") ids += "validate_feelings"
         if ("lookingForHome" in f) ids += "looking_for_home"
         if ("gaitUnsteady" in f) ids += "gait_unsteady"
         if ("freezing" in f) ids += "freezing"
@@ -230,10 +246,10 @@ object Profiles {
         if ("seizures" in f) ids += "seizures"
         if ("medicationSensitivity" in f || "carriesMedicalAlertCard" in f) ids += "medication_alert"
         if ("medicationTimingMatters" in f) ids += "medication_timing"
-        if (p.primaryLanguage.isNotBlank()) ids += "language"
-        if (p.triggersToAvoid.isNotBlank()) ids += "triggers"
-        if (p.bestApproach.isNotBlank()) ids += "best_approach"
-        if (p.uniqueDescription.isNotBlank()) ids += "unique"
+        if (primaryLanguage.isNotBlank()) ids += "language"
+        if (triggersToAvoid.isNotBlank()) ids += "triggers"
+        if (bestApproach.isNotBlank()) ids += "best_approach"
+        if (uniqueDescription.isNotBlank()) ids += "unique"
         return ids
     }
 

@@ -36,7 +36,9 @@ import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
+import app.pointlastseen.family.data.RecordOwner
 import app.pointlastseen.family.push.FamilyTopic
+import app.pointlastseen.family.data.FamilyEdits
 import app.pointlastseen.family.data.FamilyQuestionStore
 import app.pointlastseen.family.data.Departure
 import app.pointlastseen.family.data.JoinGeneration
@@ -107,7 +109,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
     private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
-    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
+    // The published fields the family changed on this phone: a first publish sends them even over a value already there.
+    private val familyEdits = FamilyEdits(PrefsStore(app, "pls-edits"))
+    private var publishRequests = 0
+    private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
     val writes = writer.states
@@ -169,7 +174,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         lastClip = null
         clipUri = null
         clipLabel = null
-        photosUi = photosUi.copy(busy = false)
+        // The photo counts and notes were for the search being left.
+        photosUi = PhotosUi(0, false, null)
     }
 
     init {
@@ -236,8 +242,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProfile(p: SubjectProfile) {
+        val before = profile
         profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
-        profileStore.save(profile)
+        // Only after the profile is on disk: a mark kept without its edit could send an old value over command's.
+        if (profileStore.save(profile)) familyEdits.record(before, profile)
         publishIfGone()
     }
 
@@ -277,8 +285,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 forget = {
                     watch.stop()
                     familyTopic.leaving(incidentId)
-                    if (!keepGone) prefs.remove(GONE)
-                    session.leave()
+                    // The search and, for a found or closed one, the gone flag go in one write.
+                    // The family's edits were for this search: none may reach the next search's first publish. Cleared
+                    // before the search is forgotten, so a process exit between the two cannot carry them over.
+                    familyEdits.clear()
+                    session.leave(alsoRemove = if (keepGone) emptyList() else listOf(GONE))
                 },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
@@ -350,6 +361,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         session.incidentId()?.let { writer.forget(it) }
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
+        familyEdits.clear()
         session.leave()
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
@@ -397,8 +409,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val inc = session.incidentId() ?: return
         if (!(nav.gone && nav.joined) || !joins.confirmed()) return
         val still = stillJoined(inc)
-        // A result for a search the phone has since left says nothing about the one it is in now.
-        publisher.publish(inc, profile, still) { ok -> if (still.check()) profileShareFailed = !ok }
+        val request = ++publishRequests
+        // Only the newest publish sets the note: an older one ending later must not hide a newer failure. A result
+        // for a search the phone has since left says nothing about the one it is in now.
+        publisher.publish(inc, profile, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
@@ -555,6 +569,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                         photosUi = photosUi.copy(
                             uploaded = photosUi.uploaded + 1,
                             notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
+                            unconfirmed = photosUi.unconfirmed + if (out.cloudRead == CloudRead.UNCONFIRMED) 1 else 0,
                             consented = consentedPhotos.list(incidentId).size,
                         )
                     }
@@ -623,16 +638,15 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
-            val r = PhotoConsentWithdrawal(consentedPhotos, isOnServer = { inc, sha -> sink.creatorOf(inc, sha) != null }) { inc, sha -> sink.delete(inc, sha) }
-                .withdrawAll(incidentId)
-            fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
+            val me = Firebase.auth.currentUser?.uid
+            val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
+            val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
-                withdrawNote = when {
-                    r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
-                    else -> "The cloud read is off for ${photos(r.withdrawn)}."
-                },
+                // A withdrawal with no failure settled every listed consent, the unconfirmed ones included.
+                unconfirmed = if (r.failed == 0) 0 else photosUi.unconfirmed,
+                withdrawNote = PhotoConsentWithdrawal.note(r),
             )
         }
     }
