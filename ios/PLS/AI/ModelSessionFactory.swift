@@ -107,7 +107,7 @@ struct FoundationModelRunner: ReadModelRunner {
             let session = LanguageModelSession(model: SystemLanguageModel.default, tools: Self.onDeviceTools(tools),
                                                instructions: ReportPrompt.onDeviceGuided)
             do {
-                return .success(try await session.respond(to: text, generating: ReportReadingG.self).content.reading)
+                return .success(try await session.respond(to: text, generating: ReportReadingG.self, options: Self.onDeviceOptions).content.reading)
             } catch {
                 return .failure(ModelSessionFactory.failure(from: error))
             }
@@ -126,6 +126,9 @@ struct FoundationModelRunner: ReadModelRunner {
         }
     }
 
+    /// Apple's model reads with greedy sampling: the same report gets the same answer every time.
+    static let onDeviceOptions = GenerationOptions(samplingMode: .greedy)
+
     /// The tools Apple's model gets: all but the subject's description.
     static func onDeviceTools(_ tools: [any Tool]) -> [any Tool] { tools.filter { $0.name != ToolText.subjectDescriptionName } }
 
@@ -135,7 +138,7 @@ struct FoundationModelRunner: ReadModelRunner {
         let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
         let session = LanguageModelSession(model: model, instructions: ReportPrompt.permissive)
         do {
-            return .success(try await session.respond(to: text).content)
+            return .success(try await session.respond(to: text, options: Self.onDeviceOptions).content)
         } catch {
             return .failure(ModelSessionFactory.failure(from: error))
         }

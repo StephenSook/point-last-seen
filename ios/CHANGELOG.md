@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's model reads with greedy sampling
+- What: Apple's model on the phone (the guided read and the plain-text read) now runs with
+  GenerationOptions(samplingMode: .greedy), so the same report gets the same answer every time instead
+  of a different one from each run's sampling. The cloud read is unchanged.
+- Source: review (simulator eval: the route check's sentence was accepted in one run and rejected in
+  the next).
+- Verified: a test pins the on-device options to greedy sampling; it failed to compile before the change
+  and passes after; 195 app tests pass. The two-run stability eval follows in the PR.
+
 ### fix(ios): Apple's model is told its quote may not be empty
 - What: the on-device instructions now say "Copy evidenceQuote word for word from the report; never
   leave it empty." The cloud instructions and the cloud allow-list are unchanged.

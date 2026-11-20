@@ -42,6 +42,11 @@ import Testing
         #expect(PromptText.guided.contains("subjectDescription"))
     }
 
+    /// Apple's model reads with greedy sampling, so the same report gets the same answer every time.
+    @Test func applesModelReadsWithGreedySampling() {
+        #expect(FoundationModelRunner.onDeviceOptions == GenerationOptions(samplingMode: .greedy))
+    }
+
     /// Apple's model is told the quote may not be empty; the cloud prompt (and its allow-list) is unchanged.
     @Test func applesModelIsToldTheQuoteMayNotBeEmpty() {
         #expect(PromptText.onDeviceGuided.contains("never leave it empty"))
