@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The web workflow installs ffmpeg through `scripts/ci/install-ffmpeg.sh`, which bounds each apt call (60 s for the
+  index, 120 s for the install, with apt's own retries) and tries twice, and the step has a 7-minute limit. A stalled
+  apt mirror once held the old one-line install until the job's 15-minute limit, so the run ended cancelled instead
+  of failing with a reason. The script exits non-zero unless ffmpeg is on PATH. The check that every workflow
+  command runs in `scripts/ci-local.sh` treats the script as runner setup.
+  Source: CI (a web run cancelled at the job limit in the ffmpeg step).
+  Verified: the script passes `bash -n`; the ci-local mirror checks pass (7); rules_gate exits 0. The web job's
+  result is on this change's pull request.
 - Every refusal from `startJudgeSession` and `deleteIncidentMediaNow` carries a stable `details.reason` beside its
   sentence, so a client maps the error code and the reason instead of the text (the web SDK adds the HTTP status to
   the message, which broke an exact match). The practice search: `not_signed_in`, `no_practice`, `hourly_limit`,
