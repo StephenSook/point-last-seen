@@ -542,9 +542,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     photosUi = photosUi.copy(error = "One photo could not be read.")
                     continue
                 }
-                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent, still)) {
+                // The phone lists a consent before its write starts (PhotoUpload), so leaving mid-write keeps it withdrawable.
+                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink(), ledger = consentedPhotos).upload(incidentId, jpeg, consent, still)) {
                     is PhotoOutcome.Uploaded -> {
-                        if (out.cloudRead == CloudRead.ALLOWED) consentedPhotos.add(incidentId, out.path.substringAfterLast('/').removeSuffix(".jpg"))
                         photosUi = photosUi.copy(
                             uploaded = photosUi.uploaded + 1,
                             notSaved = photosUi.notSaved + if (out.cloudRead == CloudRead.NOT_SAVED) 1 else 0,
@@ -615,7 +615,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
         viewModelScope.launch {
-            val r = PhotoConsentWithdrawal(consentedPhotos) { inc, sha -> FirestorePhotoConsentSink().delete(inc, sha) }.withdrawAll(incidentId)
+            val sink = FirestorePhotoConsentSink()
+            val r = PhotoConsentWithdrawal(consentedPhotos, isOnServer = { inc, sha -> sink.creatorOf(inc, sha) != null }) { inc, sha -> sink.delete(inc, sha) }
+                .withdrawAll(incidentId)
             fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
             photosUi = photosUi.copy(
                 busy = false,

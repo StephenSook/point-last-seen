@@ -66,6 +66,8 @@ class PhotoUpload(
     private val bucket: PhotoBucket,
     private val consents: PhotoConsentSink? = null,
     private val worker: CoroutineDispatcher = Dispatchers.Default,
+    /** Where this phone lists the consents it made: written before the record's write starts, so a write cut short is still listed. */
+    private val ledger: ConsentLedger? = null,
 ) {
     /**
      * [consent] is the family's tick for command's cloud read of this photo: its record is written
@@ -97,8 +99,21 @@ class PhotoUpload(
         if (!stillJoined.check()) return PhotoOutcome.Left
         return try {
             when (sink.creatorOf(incidentId, sha)) {
-                null -> sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent)).let { PhotoOutcome.Uploaded(path, CloudRead.ALLOWED) }
-                consent.byUid -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+                null -> {
+                    ledger?.add(incidentId, sha)
+                    try {
+                        sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent))
+                    } catch (e: Exception) {
+                        // Refused or failed: nothing to withdraw. Cancelled: the write may still land, so it stays listed.
+                        if (e !is kotlinx.coroutines.CancellationException) ledger?.remove(incidentId, sha)
+                        throw e
+                    }
+                    PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+                }
+                consent.byUid -> {
+                    ledger?.add(incidentId, sha)
+                    PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+                }
                 else -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED_BY_ANOTHER)
             }
         } catch (e: Exception) {

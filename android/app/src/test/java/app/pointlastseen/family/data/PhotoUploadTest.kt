@@ -48,6 +48,18 @@ class PhotoUploadTest {
         }
     }
 
+    /** This phone's list of consents it made (for withdrawal); [order] records each add. */
+    private class FakeLedger(private val order: MutableList<String> = mutableListOf()) : ConsentLedger {
+        val kept = mutableSetOf<String>()
+        override fun add(incidentId: String, sha256: String) {
+            order += "ledger $sha256"
+            kept += sha256
+        }
+        override fun remove(incidentId: String, sha256: String) {
+            kept -= sha256
+        }
+    }
+
     private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1, 2)
     private val sha = Hashes.sha256Hex(jpeg)
     private val path = "photos/inc-1/$sha.jpg"
@@ -83,6 +95,31 @@ class PhotoUploadTest {
         val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order)).upload("inc-1", jpeg, tick) { checks++ == 0 }
         assertEquals(PhotoOutcome.Left, out)
         assertEquals(listOf("check $path", "upload $path"), order)
+    }
+
+    /** The phone records a consent before its write starts, so leaving mid-write cannot hide a saved one from withdrawal. */
+    @Test fun theConsentIsRecordedOnThePhoneBeforeItsWriteStarts() = runTest {
+        val order = mutableListOf<String>()
+        val ledger = FakeLedger(order)
+        PhotoUpload(FakeBucket(order = order), FakeSink(order = order), ledger = ledger).upload("inc-1", jpeg, tick)
+        assertEquals(listOf("check $path", "upload $path", "ledger $sha", "record inc-1 $sha uid-1"), order)
+        assertEquals(setOf(sha), ledger.kept)
+    }
+
+    /** A consent write the server refused is not kept on the phone: there is nothing to withdraw. */
+    @Test fun aConsentWriteThatFailsIsNotKeptOnThePhone() = runTest {
+        val ledger = FakeLedger()
+        val out = PhotoUpload(FakeBucket(), FakeSink(createFails = true), ledger = ledger).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.NOT_SAVED, out.cloudRead)
+        assertEquals(emptySet<String>(), ledger.kept)
+    }
+
+    /** A record this user made earlier (another try, a restart) is on the phone's list too. */
+    @Test fun aRecordThisUserAlreadyMadeIsKeptOnThePhone() = runTest {
+        val ledger = FakeLedger()
+        val out = PhotoUpload(FakeBucket(), FakeSink(creators = mutableMapOf(sha to "uid-1")), ledger = ledger).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.ALLOWED, out.cloudRead)
+        assertEquals(setOf(sha), ledger.kept)
     }
 
     @Test fun withTheTickTheConsentRecordIsWrittenAfterTheUpload() = runTest {

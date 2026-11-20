@@ -24,6 +24,15 @@ class PhotoConsentWithdrawalTest {
         assertEquals(emptyList<String>(), consented.list("inc-2"))
     }
 
+    /** A consent kept on the phone whose write never reached the server (left mid-write, offline) is cleared, not failed. */
+    @Test fun aRecordThatNeverLandedIsClearedNotCountedAsFailed() = runTest {
+        val consented = ConsentedPhotos(MemoryStore()).apply { add("inc-1", sha1) }
+        val result = PhotoConsentWithdrawal(consented, isOnServer = { _, _ -> false }) { _, _ -> throw RuntimeException("PERMISSION_DENIED") }
+            .withdrawAll("inc-1")
+        assertEquals(PhotoConsentWithdrawal.Result(withdrawn = 1, failed = 0), result)
+        assertEquals(emptyList<String>(), consented.list("inc-1"))
+    }
+
     /** Withdrawing deletes every record this phone made; a record is forgotten only once its delete succeeded. */
     @Test fun withdrawingDeletesEachRecordAndKeepsOnlyTheFailedOnes() = runTest {
         val consented = ConsentedPhotos(MemoryStore()).apply { add("inc-1", sha1); add("inc-1", sha2) }
