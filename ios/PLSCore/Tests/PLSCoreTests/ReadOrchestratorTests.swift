@@ -129,6 +129,17 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .rules && o.route.stage == .deterministicParser && o.route.reason == .notEnglish)
     }
 
+    /// The screen judges the note as written as well as without its phone number: removing a number
+    /// adds the English words "number removed", which must not carry a note over the line.
+    @Test func aRemovedPhoneNumberNeverMakesANoteLookEnglish() async {
+        for note in ["Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"] {
+            let r = FakeRunner(); r.guidedResults[.cloud] = [.success(okReading())]
+            let o = await ReadOrchestrator.read(text: note, context: rctx(onDevice: false), runner: r, clock: clock)
+            #expect(r.calls.isEmpty, "\(note)")
+            #expect(o.route.reason == .notEnglish, "\(note)")
+        }
+    }
+
     @Test func aNoteThatIsNotEnglishIsNotSentToTheCloudAfterTheOnDeviceModelFails() async {
         let spanish = "Vi a una señora mayor con un abrigo azul caminando hacia el río hace diez minutos."
         let r = FakeRunner()

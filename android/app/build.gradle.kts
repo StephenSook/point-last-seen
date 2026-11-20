@@ -56,11 +56,14 @@ val headCommitTime: Int = providers.exec {
     isIgnoreExitValue = true
 }.standardOutput.asText.get().trim().toIntOrNull() ?: 1
 
-// The shared possible-evidence terms ship inside the app. The build fails when the
-// file is missing; at run time the screen also fails closed without it.
+// The shared possible-evidence terms and language word lists ship inside the app. The build fails when a
+// file is missing; at run time each screen also fails closed without it.
 abstract class CopySharedAssets : DefaultTask() {
     @get:InputFile
     abstract val evidenceTerms: RegularFileProperty
+
+    @get:InputFile
+    abstract val languageWords: RegularFileProperty
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -70,11 +73,13 @@ abstract class CopySharedAssets : DefaultTask() {
         val out = outputDir.get().asFile
         out.mkdirs()
         evidenceTerms.get().asFile.copyTo(File(out, "evidence-terms.json"), overwrite = true)
+        languageWords.get().asFile.copyTo(File(out, "language-words.json"), overwrite = true)
     }
 }
 
 val copySharedAssets = tasks.register<CopySharedAssets>("copySharedAssets") {
     evidenceTerms.set(rootProject.layout.projectDirectory.file("../shared/constants/evidence-terms.json"))
+    languageWords.set(rootProject.layout.projectDirectory.file("../shared/constants/language-words.json"))
 }
 
 androidComponents {

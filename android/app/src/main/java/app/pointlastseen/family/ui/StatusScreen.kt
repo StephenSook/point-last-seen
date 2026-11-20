@@ -30,6 +30,8 @@ fun StatusScreen(
     onRetry: () -> Unit,
     onLeave: () -> Unit,
     shareFailed: Boolean = false,
+    /** The family's last profile save failed on this phone, so its changes were not sent. */
+    unsaved: Boolean = false,
     /** The name the person answers to, for the fixed news line. */
     subjectName: String = "",
     /** Leaving a search still open, after the family confirms it. */
@@ -44,6 +46,7 @@ fun StatusScreen(
         }
         Sentence(Copy.status(status))
         Note(Copy.newsByPhone(subjectName))
+        if (unsaved) Note("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
         if (shareFailed) Note("The profile did not reach command. It will be sent again when you save it.")
         if (pending > 0) Note(if (pending == 1) "1 item waiting to send." else "$pending items waiting to send.")
         if (rejected > 0) {

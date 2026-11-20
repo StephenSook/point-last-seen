@@ -227,4 +227,13 @@ class ProfilesTest {
         )
         assertEquals(Profiles.approachNoteIds(p), Profiles.approachNoteIds(Profiles.forSearchers(p).toMap()))
     }
+
+    /** The table of note inputs covers every approach note, in card order: with every input changed, it gives the notes the profile gives. */
+    @Test fun theNoteInputTableMatchesTheNotes() {
+        val p = SubjectProfile(
+            flags = Profiles.FLAGS.toSet(), dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
+            triggersToAvoid = "sirens", bestApproach = "slowly", uniqueDescription = "a red scarf",
+        )
+        assertEquals(Profiles.approachNoteIds(p), Profiles.mergeApproachNotes(emptyList(), Profiles.forSearchers(p).toMap(), Profiles.NOTE_INPUT_FIELDS))
+    }
 }

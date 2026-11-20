@@ -5,9 +5,10 @@ package app.pointlastseen.family.data
  * restarts until the family leaves or is dropped. A phone's first publish of a document sends these fields even
  * where the document already has a value, as any later edit is sent; fields the family never touched are added
  * only where the document lacks them, so command's values are not replaced by this phone's defaults
- * ([FirstPublish]). Only single values are marked (text, numbers, dates): a collection (the flags, a list, the
- * tracking answer, the vehicle) sent whole would replace entries command added, such as a fall-risk flag, so
- * collections stay add-only-if-missing; a derived field follows its source and is never marked.
+ * ([FirstPublish]). Every changed field is marked except a derived one, which follows its source; only single
+ * values (text, numbers, dates) are sent over a value already there ([EditableFields]): a collection (the flags, a
+ * list, the tracking answer, the vehicle) sent whole would replace entries command added, such as a fall-risk flag,
+ * so collections stay add-only-if-missing, and their marks only decide which approach notes follow the family's edits.
  */
 class FamilyEdits(private val store: KeyValueStore) {
     private fun key(doc: String) = "edited:$doc"
@@ -19,16 +20,16 @@ class FamilyEdits(private val store: KeyValueStore) {
         mark("command", changed(Profiles.forCommand(before).toMap(), Profiles.forCommand(after).toMap()))
     }
 
-    /** Leaving or a drop: the edits were for that search, so none reaches the next search's first publish. */
+    /** The edits were for one search: none may reach the next search's first publish. */
     @Synchronized
     fun clear() {
-        store.removeAll(DOCS.map { key(it) })
+        store.removeAll(STORED_KEYS)
     }
 
     fun keys(doc: String): Set<String> = store.get(key(doc))?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
     private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> =
-        (a.keys + b.keys).filter { a[it] != b[it] && EditableFields.sendable(it, a[it], b[it]) }.toSet()
+        (a.keys + b.keys).filter { a[it] != b[it] && !EditableFields.derived(it) }.toSet()
 
     private fun mark(doc: String, fields: Set<String>) {
         if (fields.isEmpty()) return
@@ -36,8 +37,11 @@ class FamilyEdits(private val store: KeyValueStore) {
         store.put(key(doc), all.sorted().joinToString(","))
     }
 
-    private companion object {
-        val DOCS = listOf("shared", "command")
+    companion object {
+        private val DOCS = listOf("shared", "command")
+
+        /** The keys the marks are stored under: leaving removes them in the same write as the search (Session.leave). */
+        val STORED_KEYS: List<String> = DOCS.map { "edited:$it" }
     }
 }
 
@@ -51,7 +55,10 @@ object EditableFields {
     // nickname is the first other name; approachNoteIds come from the flags and a few text fields.
     private val DERIVED = setOf("nickname", "approachNoteIds")
 
-    fun sendable(key: String, vararg values: Any?): Boolean = key !in DERIVED && values.all { single(it) }
+    fun sendable(key: String, vararg values: Any?): Boolean = !derived(key) && values.all { single(it) }
+
+    /** A field computed from others (never marked, never sent on its own). */
+    fun derived(key: String): Boolean = key in DERIVED
 
     private fun single(v: Any?) = v !is Collection<*> && v !is Map<*, *>
 }

@@ -6,6 +6,7 @@ scrubber and fails a scrubber that does nothing or one that wipes the whole note
 """
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -16,13 +17,22 @@ PLATFORMS = {"ios", "web", "android"}
 REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one four two", "+44 20 7946 0958",
                    "+52 55 1234 5678", "404/555/0142", "(404) 555-0142", "404 555 0142",
                    "06.12.20.26.19", "404-555-2026-11-19", "404‑555‑0142", "404‐555‐0142",
-                   "404–555–0142", "404 555\r\n0142"]
+                   "404–555–0142", "404 555\r\n0142",
+                   # A grouped count of seven or more digits is a number too (privacy wins ties).
+                   "4,045,550,142", "OH 41234-5678",
+                   "\U0001E954,\U0001E950\U0001E954\U0001E955,\U0001E955\U0001E955\U0001E950,\U0001E951\U0001E954\U0001E952",
+                   "555\u00b41234", "555\u00851234", "\u2776\u2777\u2778\u2779\u277a\u277b\u277c", "幺三八幺二三四五六七八"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates,
 # a ZIP+4 code, a grouped count, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
-                 "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 1,234,567 steps", "12345 67th Ave", "5km",
-                 "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880"]
+                 "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 12,345 steps", "12345 67th Ave", "5km",
+                 "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880", "Seen Nov\r\n\r\n19 2026"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]")]
+
+
+def number_chars(text: str) -> bool:
+    """Any character Unicode files as a number (Nd, Nl, No): digits in every script, dingbat and circled digits."""
+    return any(unicodedata.category(ch).startswith("N") for ch in text)
 
 
 def load() -> dict:
@@ -34,7 +44,7 @@ def remove_violations(case: dict, output: str) -> list[str]:
     out = []
     if case["number"] in output:
         out.append("number still present")
-    if re.search(r"[0-9]", output):
+    if number_chars(output):
         out.append("a digit is left")
     out += [f"fragment left: {f}" for f in case["forbidden"] if f in output]
     out += [f"lost surrounding text: {k}" for k in case["keep"] if k not in output]
@@ -73,7 +83,7 @@ def test_every_case_is_well_formed():
         assert set(c) - {"pendingOn"} == {"name", "input", "number", "forbidden", "keep"}
         assert c["input"].count(c["number"]) == 1
         # The number is the only digit run, so "no digit is left" tests the scrubber and nothing else.
-        assert not re.search(r"[0-9]", c["input"].replace(c["number"], ""))
+        assert not number_chars(c["input"].replace(c["number"], ""))
         assert all(f in c["number"] for f in c["forbidden"])
         assert c["keep"] and all(k in c["input"] and k not in c["number"] for k in c["keep"])
     for c in d["mustKeep"]:
@@ -105,3 +115,12 @@ def test_the_contract_fails_a_scrubber_that_does_nothing_or_wipes_the_note():
         # Byte for byte: a different token, or an extra space, fails.
         assert exact_violations(c, c["output"].replace(d["replacement"], "[removed]")) != [], c["name"]
         assert exact_violations(c, c["output"] + " ") != [], c["name"]
+
+
+def test_a_leftover_digit_in_any_script_is_caught():
+    # An Adlam or a dingbat digit left behind is still a digit: the check is not limited to 0-9.
+    case = {"number": "x", "forbidden": [], "keep": []}
+    assert remove_violations(case, "Call \U0001E954") == ["a digit is left"]
+    assert remove_violations(case, "call \u2776 now") == ["a digit is left"]
+    assert remove_violations(case, "Call [number removed]") == []
+

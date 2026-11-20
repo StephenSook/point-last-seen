@@ -5,6 +5,58 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the phone-number vectors' no-digit check covers every script's number characters
+- What: the shared contract's "no digit left" check now means any Unicode number character (Nd, Nl,
+  No), not only 0 to 9. The Swift vector runner checks the scrubbed text's every scalar for those
+  categories.
+- Source: review (shared phone-number vector contract).
+- Verified: main's vector file and the coming vector update both pass with the wider check.
+
+### fix(ios): no phone number hides behind something shaped like search information
+- What: the iPhone's phone-number rule now matches the Android rule after its review rounds. Search
+  information (a written date, a time, a coordinate pair, a grouped count, a ZIP+4 code, a month-name
+  date, a number with a unit) is found on the text as written, and stays only when the rest of its
+  run is nothing or whole numbers of seven or more digits; when a piece of 1 to 6 digits is left
+  beside it, the whole run is removed. Coordinates must be in range with 4 to 8 decimals (so
+  "call 555.1234, 555.6789" is no longer kept as a pair), a ZIP+4 needs a capital state code before
+  it, a date joined to more digits by its own separator is not a date, and two dates that share a
+  group cancel. A 7+ digit number with a unit is still a number; "double" and "triple" count their
+  repeats; a line break with indentation is one separator, and a removed run keeps its line breaks.
+  A word stops at a numeral.
+- Source: review (Android phone-number rule, later commits; parity with the iPhone).
+- Verified: the Android rule's test cases, ported to Swift, failed before the change and pass after
+  (with Android main's current expectations); the shared phone-number vectors and all 345 core tests
+  and 191 app tests pass.
+
+### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
+- What: the line under a refused report said the note "stays on this phone", but the screen only
+  refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
+  doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing."
+- Source: review (copy ruling).
+- Verified: the refusal-line test asserts the new sentence; it failed with the old code and passes
+  with the change; no other iPhone text carries the old line.
+
+### fix(ios): a removed phone number never makes a note look English to the language screen
+- What: the language screen judged the note after its phone number was removed, and removing it adds
+  the words "number removed", which diluted the non-Latin share: "Бабушка ушла 404-555-0142" and
+  "奶奶的電話是 一二三四五六七" passed and could go to the cloud read. The read now screens the note
+  as written and as cleaned, and goes to the cloud only when both look English.
+- Source: review (the same defect found in the Android port).
+- Verified: a test with both notes on the cloud route calls no cloud model and records not_english;
+  it failed before the change and passes after; all 339 core tests and the app reader tests pass.
+
+### feat(ios): the route check says each result in plain words
+- What: the route check screen showed code names ("on_device: read on rules (deterministic_parser),
+  model rules, 20692 ms, reason no_network"). Each line now reads like "On this iPhone, no signal:
+  Read by rules, not a model. 20.7 s. Why: no signal. Read as cleared, segment BO." and "In the
+  cloud: Suggested by Gemini in the cloud (gemini-3.5-flash-lite). 1.3 s. Why: Apple's model is not
+  available. ...". Every route reason has plain words (EchoText.reasonWords, an exhaustive switch,
+  so a new reason cannot ship without them). The saved file keeps the exact route record.
+- Source: review (judge-facing screens; simulator walk-through of the route check).
+- Verified: tests that every reason has words with no code names and that times show in seconds;
+  they failed to compile before the change and pass after; the text-size scan and the route check
+  tests pass.
+
 ### feat(ios): a note that does not look English never goes to the cloud read
 - What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
   the router's cloud route and the move to the cloud after Apple's model fails. A note that does not

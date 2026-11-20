@@ -26,9 +26,11 @@ import app.pointlastseen.family.core.ClipFile
 import app.pointlastseen.family.core.ConsentMark
 import app.pointlastseen.family.core.EvidenceTerms
 import app.pointlastseen.family.core.JpegEncoder
+import app.pointlastseen.family.core.LanguageWords
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
 import app.pointlastseen.family.core.SharedUris
 import app.pointlastseen.family.core.SightingCheck
+import app.pointlastseen.family.data.BusyOwner
 import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -109,8 +111,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // The one pending wait before watching again: a new wait, the foreground, a leave or a drop replaces or ends it.
     private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
+    // The shared English-note screen; without its word list it refuses every note for the cloud.
+    private val language = LanguageWords.screen(app)
     // The published fields the family changed on this phone: a first publish sends them even over a value already there.
-    private val familyEdits = FamilyEdits(PrefsStore(app, "pls-edits"))
+    // Kept in the session's own store, so leaving forgets the search and the marks in one write.
+    private val familyEdits = FamilyEdits(prefs)
     private var publishRequests = 0
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
@@ -121,6 +126,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var profile by mutableStateOf(profileStore.load())
         private set
+    // The last profile that reached the disk: edit marks compare against it, so an edit whose save failed is
+    // marked by the next save that works.
+    private var lastSaved: SubjectProfile = profile
     var deviceStatus by mutableStateOf(DeviceModelStatus.UNKNOWN)
         private set
     var joinBusy by mutableStateOf(false)
@@ -138,6 +146,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     var sightingError by mutableStateOf<String?>(null)
         private set
     var profileShareFailed by mutableStateOf(false)
+        private set
+
+    /** The last profile save failed on this phone: its changes were not sent, whatever the share says (cleared by a save that works). */
+    var profileUnsaved by mutableStateOf(false)
         private set
     private var clipUri: Uri? = null
     private var lastClip: Pair<ClipOutcome.Read, ClipForm>? = null
@@ -166,6 +178,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         return StillJoined { joins.isCurrent(ticket) && session.incidentId() == incidentId }
     }
 
+    // Which photo operation (an upload or a withdrawal) owns the photo screen's busy state. Declared before init, which
+    // can reach a drop (and so stopJoinedWork) before later properties are set.
+    private val photoWork = BusyOwner()
+
     /** Stops the photo and clip work of the join being left; its screens go back to idle, with no clip card left over. */
     private fun stopJoinedWork() {
         joinedWork.cancel()
@@ -174,8 +190,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         lastClip = null
         clipUri = null
         clipLabel = null
-        // The photo counts and notes were for the search being left.
+        // The photo counts and notes, and the "not shared" note, were for the search being left; so was any photo
+        // operation still running, which may no longer release the busy state.
+        photoWork.reset()
         photosUi = PhotosUi(0, false, null)
+        profileShareFailed = false
     }
 
     init {
@@ -242,10 +261,16 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProfile(p: SubjectProfile) {
-        val before = profile
         profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
-        // Only after the profile is on disk: a mark kept without its edit could send an old value over command's.
-        if (profileStore.save(profile)) familyEdits.record(before, profile)
+        // Marks and the publish follow only a profile that reached the disk: a mark kept without its edit could send
+        // an old value over command's, and a publish of an unsaved profile could not be repeated after a restart.
+        if (!profileStore.save(profile)) {
+            profileUnsaved = true
+            return
+        }
+        profileUnsaved = false
+        familyEdits.record(lastSaved, profile)
+        lastSaved = profile
         publishIfGone()
     }
 
@@ -286,10 +311,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     watch.stop()
                     familyTopic.leaving(incidentId)
                     // The search and, for a found or closed one, the gone flag go in one write.
-                    // The family's edits were for this search: none may reach the next search's first publish. Cleared
-                    // before the search is forgotten, so a process exit between the two cannot carry them over.
-                    familyEdits.clear()
-                    session.leave(alsoRemove = if (keepGone) emptyList() else listOf(GONE))
+                    // The family's edits were for this search: none may reach the next search's first publish. Forgotten
+                    // in the same write as the search, so a failed or interrupted write cannot keep one without the other.
+                    session.leave(alsoRemove = (if (keepGone) emptyList() else listOf(GONE)) + FamilyEdits.STORED_KEYS)
                 },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
@@ -361,8 +385,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         session.incidentId()?.let { writer.forget(it) }
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
-        familyEdits.clear()
-        session.leave()
+        session.leave(alsoRemove = FamilyEdits.STORED_KEYS)
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
     }
@@ -412,7 +435,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val request = ++publishRequests
         // Only the newest publish sets the note: an older one ending later must not hide a newer failure. A result
         // for a search the phone has since left says nothing about the one it is in now.
-        publisher.publish(inc, profile, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
+        // The profile that reached the disk, not an edit whose save failed: every path that publishes sends that one.
+        publisher.publish(inc, lastSaved, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
@@ -454,7 +478,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
-            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn).read(text, env)
+            val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
             noteUi = NoteUi.Done(outcome, text)
         }
@@ -552,6 +576,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
+        val operation = photoWork.take()
         // The tick, as it stands when the photos are chosen, is the consent for each of them.
         val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
         val still = stillJoined(incidentId)
@@ -578,7 +603,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     PhotoOutcome.Left -> break
                 }
             }
-            photosUi = photosUi.copy(busy = false)
+            if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
         }
     }
 
@@ -636,13 +661,22 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun withdrawCloudRead() {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
+        val still = stillJoined(incidentId)
+        val operation = photoWork.take()
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
             val me = Firebase.auth.currentUser?.uid
             val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
             val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
+            // The withdrawal still runs to the end after a leave (it only takes consent away), but its result is for
+            // that search: it must not change the photo screen of a search joined since. It still lets go of the busy
+            // screen it set, unless a newer photo operation or a leave has taken it.
+            if (!still.check()) {
+                if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
+                return@launch
+            }
             photosUi = photosUi.copy(
-                busy = false,
+                busy = if (photoWork.owns(operation)) false else photosUi.busy,
                 consented = consentedPhotos.list(incidentId).size,
                 // A withdrawal with no failure settled every listed consent, the unconfirmed ones included.
                 unconfirmed = if (r.failed == 0) 0 else photosUi.unconfirmed,
