@@ -229,10 +229,12 @@ object PhoneNumbers {
         // A valid date always stays: when someone was seen is search information, and it leaks nothing once the number
         // beside it is gone.
         do {
-            val inSpans = kept + spans.flatMap { digitsOf(it.first) }
-            // Whether the part [outside] (next to [inside]) joins it and is not search information itself.
+            // A time keeps its place only after a date's digits: after any other digits (a ZIP+4 code too) it could be a
+            // number's last four.
+            val inDates = spans.filter { !it.second }.flatMap { digitsOf(it.first) }.toSet()
+            // Whether the part [outside] (next to [inside]) joins it and is not part of a date.
             fun joinedOutside(inside: Int, outside: Int) = outside in parts.indices &&
-                joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inSpans
+                joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inDates
             val drop = spans.filter { (r, isTime) -> isTime && joinedOutside(r.first, r.first - 1) }
             spans.removeAll(drop)
         } while (drop.isNotEmpty())

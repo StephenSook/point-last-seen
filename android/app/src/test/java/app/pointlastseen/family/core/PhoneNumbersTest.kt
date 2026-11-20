@@ -327,4 +327,11 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404/555/0142"))
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call 12/31/55/0142"))
     }
+
+    /** A time keeps its place only after a date: after a ZIP+4 code (or any other digits) it goes with the number. */
+    @Test fun aTimeAfterAZipCodeGoesWithTheNumber() {
+        val out = PhoneNumbers.remove("Call GA 40455-5014 2:30")
+        assertEquals(out, false, Regex("""\d{3}""").containsMatchIn(out))
+        assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
+    }
 }
