@@ -5,6 +5,95 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the map credit is one line in the corner, with the full sentence on a tap
+- What: at Title 3 the OpenStreetMap credit took three lines and covered the bottom of the search
+  area. It is now one line in the bottom corner at 13 points, OpenStreetMap's own short form
+  ("© OpenStreetMap contributors · Protomaps", or without "· Protomaps" when no tiles are drawn);
+  a tap shows the full sentence ("Map data from OpenStreetMap contributors (ODbL). Basemap:
+  Protomaps."), which is also its accessibility label. The field text-size test gains one named
+  exception for this credit only: a fixed size of at least 13 points, allowed only on a line that
+  carries the credit marker, and only once in all the views; every other text keeps the Title 3 floor.
+- Source: map review.
+- Verified: tests for the short line (with tiles, without, and none) and for reading the fixed
+  size; the text-size scan passes with the marked credit; 293 PLSCore and 117 app tests pass.
+
+### fix(ios): the map draws only helpful plates, in field-size text, with a muted credit
+- What: the search map now uses the plate rule: the team's plate (inverted, light on dark text)
+  always shows, another segment's plate shows only at 1% or more and only when it fits inside the
+  segment at the current zoom, re-checked after every move. Plates and the credit line use Title 3,
+  the field app's smallest text (the credit was footnote size, below the field rule), and the
+  credit is the map's muted grey instead of the night theme's red. The map's delegate is held by a
+  small map view subclass.
+- Source: map review; field text rule (no text below Title 3); public wording rule.
+- Verified: 116 app tests and 292 PLSCore tests pass (the text size scan included); the hygiene
+  guard passes in public mode; on the simulator the Piedmont drill shows the "T1 1.4%" plate on a
+  thick outline, no crowded plates, and the grey credit line.
+
+### fix(ios-core): the team's segments are outlined thick, to find in sunlight
+- What: the team's outline on the search map was a thin light line and hard to find. It is now a
+  4-point light line on a 9-point dark casing.
+- Source: map review.
+- Verified: the style tests pass (the outline keeps its team-only filter); on the simulator the
+  team's segment stands out at the grid-fit zoom.
+
+### feat(ios-core): which number plates the search map draws
+- What: a plate rule for the phone's map, since 68 plates buried the map in "<0.1%" labels. The
+  team's own segments always get a plate with the team id ("T1 1.4%", or "T1" when the number is
+  below 0.1%); any other segment gets one only at 1% or more, and only when the plate fits inside
+  the segment's on-screen box at the current zoom (hidden, never clipped). A "<0.1%" plate is
+  never drawn.
+- Source: map review (a searcher needs their own segment and the likely areas).
+- Verified: tests for the team's plates, the 1% floor, no "<0.1%" text, and the fit check (team
+  plates always shown). They failed to compile before the change and pass after; 292 PLSCore
+  tests pass.
+
+### feat(ios): the search map screen, on the grid's offline tiles
+- What: a Map link (with a mission loaded) opens the team's search map: every grid segment shaded
+  by probability in the web map's ramp (the posterior after this phone's reports, else the pack's
+  prior), the team's own segments outlined, the printed number on a dark plate at each centre,
+  and the OpenStreetMap line at the bottom ("Map data from OpenStreetMap contributors (ODbL).
+  Basemap: Protomaps." when the tiles are drawn). The app bundles both drill grids' PMTiles files
+  (Kennesaw and Piedmont); the map picks them by the incident's grid id, works with no signal, and
+  falls back to plain ground for a grid it does not carry. The map fits the grid once it loads.
+- Source: map screen, step 1 (polygons shaded by posterior, offline base, OpenStreetMap credit).
+- Verified: tests for picking the tiles by grid id (both bundled, unknown and none fall back), the
+  credit line with and without tiles and with no segments, and the numbers (posterior, else prior);
+  they failed to compile before the change and pass after; 116 app tests pass. On the simulator
+  the Piedmont drill drew on the bundled tiles (streets, buildings and water under the fills), and
+  the credit was on screen as element "map-credit".
+
+### feat(ios-core): the search map's style, in the web map's order
+- What: PLSCore builds the MapLibre style for the phone's search map, matching the web map: grey
+  ground, the grid basemap's parks, water and buildings under the probability fills (0.9 opacity,
+  the eight-step ramp by class), its streets, paths and streams over them as thin grey lines, then
+  segment edges (a dark casing under a grey line) and the team's own segments outlined. The
+  basemap comes from the grid's PMTiles file on the phone (`pmtiles://file://...`) and is left out
+  when there is none, so the fills sit on plain ground. No labels: they would need glyphs from a
+  host. Each segment is a GeoJSON feature with its id, class, printed number and team flag.
+- Source: map screen, step 1 (polygons shaded by the posterior, offline base).
+- Verified: tests for the layer order with and without tiles, the basemap source URL, the ramp
+  expression and opacity, the features (Polygon and MultiPolygon, lon then lat), the team outline
+  filter and valid JSON. 289 PLSCore tests pass.
+
+### feat(ios): the mission keeps the incident's grid id and its map credit
+- What: the phone's mission now keeps the incident's `gridId` and `gridAttribution`, so the search
+  map can pick the grid's offline tiles and show the grid's OpenStreetMap line. Both are nil when
+  the incident has none (or an empty value).
+- Source: map screen (offline base by grid, OpenStreetMap credit).
+- Verified: a builder test with and without the two fields; it failed to compile before the change
+  and passes after; 113 app tests pass.
+
+### feat(ios-core): the search map's shading, numbers and OpenStreetMap line, as the web draws them
+- What: the iPhone gets the web map's ink for its coming map screen: each segment's step in the
+  eight-step warm ramp by its share of the largest probability (poaClass8), the printed percent
+  (one decimal, "<0.1%", "0%"), the OpenStreetMap license line (the grid's own line when segments
+  are drawn, else "Map data from OpenStreetMap", none on an empty map), and the grid's segments
+  with their step, number and whether they are the team's.
+- Source: map screen, step 1 (segment polygons shaded by the posterior).
+- Verified: tests with the web's own cases for the step and the percent, the credit rules, the
+  segment list, and a parity test that reads the ramp from web/src/theme/tokens.ts. They failed to
+  compile before the change and pass after; 282 PLSCore tests pass.
+
 ### feat(ios): the approach card shows the tracking aids the family named
 - What: the app bundles `shared/constants/tracking-aids.json`, and the Ready check's approach card
   shows its tracking-aid lines under the names line: one per aid the family named (for example
