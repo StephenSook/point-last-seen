@@ -340,6 +340,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       pinDot = document.createElement("div");
       pinDot.className = "report-pin";
       pinDot.dataset["testid"] = "report-pin";
+      // An image with a name: a name on an element with no role is not allowed and is not read out.
+      pinDot.setAttribute("role", "img");
       pinDot.setAttribute("aria-label", "Report position");
       pinDot.style.transform = reduced.current ? "" : "scale(0)";
       anchor.append(pinDot);
