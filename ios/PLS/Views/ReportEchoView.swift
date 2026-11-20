@@ -25,6 +25,10 @@ struct ReportEchoView: View {
                     if let route = entry.doc.route { RouteGlyph(mark: RouteMark.make(route)) }
                     Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type, practice: practice)).font(.title3.weight(.semibold))
                 }
+                // A route that was refused (the language screen) says so to the searcher, always.
+                if let route = entry.doc.route, let refusal = EchoText.refusalLine(route) {
+                    Text(refusal).font(.title3.weight(.semibold)).accessibilityIdentifier("refusal-line")
+                }
                 // Proof is a glyph; the sentence is for filming and judges only.
                 if showSources, let route = entry.doc.route {
                     Text(EchoText.routeLine(route)).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))

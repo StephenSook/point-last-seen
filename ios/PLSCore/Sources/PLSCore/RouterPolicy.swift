@@ -17,6 +17,8 @@ public enum RouteReason: String, Codable, Sendable, CaseIterable {
     case possibleEvidence = "possible_evidence"
     /// The incident is not a drill or a judge sandbox, so no model is called.
     case notDrillMode = "not_drill_mode"
+    /// The note does not look English, so the language screen kept it off the cloud read.
+    case notEnglish = "not_english"
     /// Decode only: a reason this build does not know. The rules bound the reason by length,
     /// so a newer client's value can reach this phone; the event still counts. Never produced here.
     case unknown

@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): a note that does not look English never goes to the cloud read
+- What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
+  the router's cloud route and the move to the cloud after Apple's model fails. A note that does not
+  look English is read by the phone's rules instead, with route reason not_english, and the report
+  says "This note doesn't look like English, so it stays on this phone. Pick instead of typing."
+  Apple's on-device read and the pick list are unchanged. The app bundles
+  shared/constants/language-words.json; if it cannot be read, no note goes to the cloud.
+- Source: plan (language screen before any cloud read of a note); review (iPhone wording approved).
+- Verified: tests that a Spanish note on the cloud route and after the on-device model fails calls no
+  cloud model and reads by rules with reason not_english, that it still reads on this phone when
+  Apple's model works, that an English note quoting Spanish still goes to the cloud, the app reader
+  with the bundled word lists, and the refusal line. They failed to compile before the change and
+  pass after; 327 core and 191 app tests pass.
+
 ### feat(ios-core): the language screen, by the shared rule and vectors
 - What: PLSCore gains LanguageScreen.looksEnglish, built from shared/constants/language-words.json:
   the note is folded and split as the evidence screen does, words made only of digits are dropped,
