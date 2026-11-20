@@ -233,10 +233,8 @@ class PhoneNumbersTest {
         assertEquals(count, PhoneNumbers.remove(count))
     }
 
-    /** "OH" in capitals before a ZIP+4 code is Ohio, not a spoken zero, so the code stays beside a whole number. */
-    @Test fun ohioBeforeAZipCodeIsAState() {
-        assertEquals("Columbus, OH 43210-1234", PhoneNumbers.remove("Columbus, OH 43210-1234"))
-        assertEquals("Columbus, OH 43210-1234 [number removed]", PhoneNumbers.remove("Columbus, OH 43210-1234 404-555-0142"))
-        assertEquals("call [number removed]", PhoneNumbers.remove("call oh 43210-1234"))
+    /** "OH" before a 5-4 shape is still a spoken zero: read aloud it can be the start of a phone number. */
+    @Test fun aCapitalOhBeforeAZipShapeIsStillASpokenZero() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call OH 41234-5678"))
     }
 }
