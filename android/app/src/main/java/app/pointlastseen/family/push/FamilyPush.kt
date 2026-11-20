@@ -28,6 +28,9 @@ object FamilyPush {
         }
     }
 
+    /** Whether the app may show [n] itself: only for the search this phone is in now, never a former one. */
+    fun isForCurrentSearch(n: FamilyNotice, currentIncident: String?): Boolean = currentIncident != null && n.incidentId == currentIncident
+
     /** The fixed words for each notice, whatever text a push carries. */
     fun body(n: FamilyNotice): String = when (n) {
         is FamilyNotice.Question -> "The search lead has a question."

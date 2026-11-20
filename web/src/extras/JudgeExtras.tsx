@@ -5,6 +5,7 @@ import type { PublishedRun } from "./hostApp";
 import { LazyReplayPanel, LazyScamPanel, LazySpaceTimeCube, prefetchJudgePanels } from "./lazyPanels";
 import { fromPublishedRun, type ReplayData } from "./replay/replayData";
 import { replayWindow } from "./replay/stateAt";
+import { runLabelLine } from "./runLabel";
 import { loadScam } from "./scam/scamModel";
 import "./extras.css";
 
@@ -18,15 +19,14 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   useEffect(() => prefetchJudgePanels(), []);
   const replay = useMemo(() => (run ? fromPublishedRun(run) : null), [run]);
-  // The run's own label (a real drill's export says which drill and when), unless it only repeats the drill line.
-  const label = typeof run?.label === "string" ? run.label.trim() : "";
-  const showLabel = replay?.ok === true && label !== "" && label !== replay.data.drillLabel;
+  // The run's own label (a real drill's export says which drill and when), less the drill line the replay prints.
+  const label = replay?.ok === true ? runLabelLine(run?.label, replay.data.drillLabel) : null;
   return (
     <>
       {replay && (
         <section aria-labelledby="extras-replay-h" className="extras-judge-replay">
-          <h2 id="extras-replay-h" className="label">Watch the run over time</h2>
-          {showLabel && <p className="extras-run-label" data-testid="run-label">{label}</p>}
+          <h2 id="extras-replay-h" className="label">Watch the drill replay</h2>
+          {label && <p className="extras-run-label" data-testid="run-label">{label}</p>}
           {replay.ok ? (
             <ExtrasBoundary>
               <Suspense fallback={<p>Loading.</p>}>

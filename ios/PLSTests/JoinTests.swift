@@ -12,12 +12,17 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
     private(set) var steps: [String] = []
     private(set) var payloads: [[String: String]] = []
 
-    func ensureSignedIn() async -> Bool { steps.append("signIn"); return signedIn }
+    /// Runs when the join signs in (for example, a new anonymous user being made).
+    var onSignIn: (() -> Void)?
+    func ensureSignedIn() async -> Bool { steps.append("signIn"); onSignIn?(); return signedIn }
     /// The claims the server sets when the call succeeds (nil leaves `claims` as they are).
     var claimsAfterJoin: [String: JSONValue]?
+    /// Runs while the callable is answering (for example, the account changing meanwhile).
+    var duringCall: (() -> Void)?
     func callJoin(_ payload: [String: String]) async throws -> JSONValue {
         steps.append("call")
         payloads.append(payload)
+        duringCall?()
         let r = try reply.get()
         if let after = claimsAfterJoin { claims = after }
         return r

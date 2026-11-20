@@ -1,15 +1,22 @@
 package app.pointlastseen.family.data
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
 class ProfilePublisherTest {
     private class FakeSink(var fail: Boolean = false) : ProfileSink {
         val writes = mutableListOf<Triple<String, String, ProfileWrite>>()
-        override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) {
+        val joinChecks = mutableListOf<StillJoined>()
+        override fun write(incidentId: String, docId: String, change: ProfileWrite, stillJoined: StillJoined, onResult: (Throwable?) -> Unit) {
             writes += Triple(incidentId, docId, change)
+            joinChecks += stillJoined
             onResult(if (fail) RuntimeException("offline") else null)
         }
     }
@@ -113,14 +120,203 @@ class ProfilePublisherTest {
             "trackingAids" to mapOf("aids" to listOf("medicalert_id"), "note" to ""), "aFieldFromANewerSchema" to "kept",
         )
         val mine = mapOf<String, Any?>("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
-        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+        assertEquals(FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    /**
+     * Safety field: command set the clothing; the family corrected it on this phone before the phone's first
+     * publish. The correction is sent; a field the family never touched keeps command's value.
+     */
+    @Test fun aFieldTheFamilyEditedBeforeTheFirstPublishIsSent() {
+        val existing = mapOf<String, Any?>("clothingLastWorn" to "red coat", "hair" to "white")
+        val mine = mapOf<String, Any?>("clothingLastWorn" to "blue coat", "hair" to "", "answersTo" to "Mae")
+        assertEquals(
+            FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat", "answersTo" to "Mae")),
+            FirstPublish.of(existing, mine, edited = setOf("clothingLastWorn")),
+        )
+    }
+
+    /** A mark on a collection or a derived field (one an older build stored) never replaces command's value. */
+    @Test fun aMarkOnACollectionOrADerivedFieldSendsNothing() {
+        val existing = mapOf<String, Any?>("flags" to mapOf("fallRisk" to true), "nickname" to "Peggy")
+        val mine = mapOf<String, Any?>("flags" to mapOf("fallRisk" to false, "likelyToHide" to true), "nickname" to "Mom")
+        assertEquals(FirstPublish.Nothing, FirstPublish.of(existing, mine, edited = setOf("flags", "nickname")))
+    }
+
+    /**
+     * The rules want the nickname to be the first other name. A legacy document with a nickname and no list
+     * gets no list that contradicts it; a document with a list gets the nickname that list implies.
+     */
+    @Test fun aFirstPublishKeepsTheNicknameAndTheNamesInStep() {
+        val mine = mapOf<String, Any?>("nickname" to "Mom", "otherNames" to listOf("Mom"), "hair" to "grey")
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey")),
+            FirstPublish.of(mapOf("nickname" to "Peggy"), mine),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("nickname" to "Peggy", "hair" to "grey")),
+            FirstPublish.of(mapOf("otherNames" to listOf("Peggy")), mine),
+        )
+    }
+
+    /**
+     * Safety field: the family adds triggers to avoid before the first publish; command's flags stay. The approach
+     * notes sent are those of the merged document (command's fall risk and the new triggers), not the phone's alone.
+     */
+    @Test fun aFirstPublishSendsTheApproachNotesOfTheMergedDocument() {
+        val existing = mapOf<String, Any?>(
+            "flags" to mapOf("fallRisk" to true, "mayNotRespond" to false), "triggersToAvoid" to "",
+            "approachNoteIds" to listOf("approach_calm", "fall_risk"),
+        )
+        val mine = mapOf<String, Any?>(
+            "flags" to mapOf("fallRisk" to false, "mayNotRespond" to false), "triggersToAvoid" to "sirens",
+            "approachNoteIds" to listOf("approach_calm", "triggers"),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("triggersToAvoid" to "sirens", "approachNoteIds" to listOf("approach_calm", "fall_risk", "triggers"))),
+            FirstPublish.of(existing, mine, edited = setOf("triggersToAvoid")),
+        )
+    }
+
+    /** A first publish that changes no note input leaves command's stored approach notes as they are. */
+    @Test fun aFirstPublishKeepsStoredNotesWhoseInputsDidNotChange() {
+        val existing = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "white", "triggersToAvoid" to "",
+            "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"),
+        )
+        val mine = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "grey", "triggersToAvoid" to "sirens",
+            "approachNoteIds" to listOf("approach_calm", "triggers"),
+        )
+        assertEquals(FirstPublish.Merge(mapOf("hair" to "grey")), FirstPublish.of(existing, mine, edited = setOf("hair")))
+        assertEquals(
+            FirstPublish.Merge(mapOf("triggersToAvoid" to "sirens", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms", "triggers"))),
+            FirstPublish.of(existing, mine, edited = setOf("triggersToAvoid")),
+        )
+    }
+
+    /** A document whose nickname is null (the rules want a name) gets the nickname its names imply, or the phone's pair. */
+    @Test fun aFirstPublishRepairsANullNickname() {
+        val mine = mapOf<String, Any?>("nickname" to "Mom", "otherNames" to listOf("Mom"), "hair" to "grey")
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to null, "otherNames" to listOf("Peggy")), mine),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Mom"), "hair" to "grey", "nickname" to "Mom")),
+            FirstPublish.of(mapOf("nickname" to null), mine),
+        )
+    }
+
+    /**
+     * The rules take only the known note ids. A stored list holding anything else (an id this app does not know, a
+     * number) is repaired, and the always-shown note is added even when no note input changed.
+     */
+    @Test fun aFirstPublishRepairsTheStoredNotesAndAddsTheAlwaysShownOne() {
+        val mine = mapOf<String, Any?>("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm", "fall_risk"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to listOf("fall_risk", "future_note", 5)), mine, edited = setOf("hair")),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to emptyList<String>()), mine, edited = setOf("hair")),
+        )
+    }
+
+    /** Notes follow only fields the family edited: a field a first publish fills in (absent before) leaves command's notes alone. */
+    @Test fun aFieldOnlyFilledInLeavesTheStoredNotesAlone() {
+        val existing = mapOf<String, Any?>("hair" to "white", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"))
+        val mine = mapOf<String, Any?>("hair" to "grey", "flags" to mapOf("mayNotRespond" to true), "approachNoteIds" to listOf("may_not_respond", "approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "flags" to mapOf("mayNotRespond" to true))),
+            FirstPublish.of(existing, mine, edited = setOf("hair")),
+        )
+    }
+
+    /** An empty stored nickname is no name: the family's added other names go up, with the nickname they imply. */
+    @Test fun anEmptyStoredNicknameTakesTheAddedNames() {
+        val mine = mapOf<String, Any?>("nickname" to "Peggy", "otherNames" to listOf("Peggy"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Peggy"), "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to ""), mine),
+        )
+    }
+
+    /** The first publish of each document carries the fields the family edited on this phone. */
+    @Test fun theFirstPublishCarriesTheFamilysEdits() {
+        val sink = FakeSink()
+        ProfilePublisher(sink, MemoryPublished(), edited = { doc -> if (doc == "shared") setOf("clothingLastWorn") else emptySet() })
+            .publish("inc-1", p) {}
+        assertEquals(setOf("clothingLastWorn"), (sink.writes[0].third as ProfileWrite.Whole).edited)
+        assertEquals(emptySet<String>(), (sink.writes[1].third as ProfileWrite.Whole).edited)
+    }
+
+    /**
+     * One write per document at a time: a save while the first publish is in flight waits for it, so an older
+     * first publish retried late can never land over the newer value; the newer save then goes as an edit.
+     */
+    @Test fun aSaveWaitsForTheDocumentsWriteInFlightThenSendsItsChange() {
+        val held = mutableListOf<Pair<ProfileWrite, (Throwable?) -> Unit>>()
+        val publisher = ProfilePublisher({ _, doc, change, _, onResult -> if (doc == "shared") held += change to onResult else onResult(null) }, MemoryPublished())
+        var first: Boolean? = null
+        var second: Boolean? = null
+        publisher.publish("inc-1", p) { first = it }
+        publisher.publish("inc-1", p.copy(clothingLastWorn = "red sweater")) { second = it }
+        assertEquals(1, held.size)
+        assertTrue(held[0].first is ProfileWrite.Whole)
+        held[0].second(null)
+        assertEquals(true, first)
+        assertEquals(2, held.size)
+        assertEquals(ProfileWrite.Fields(mapOf("clothingLastWorn" to "red sweater")), held[1].first)
+        held[1].second(null)
+        assertEquals(true, second)
+    }
+
+    /** A publish for a join the phone has left writes nothing and reports it was not shared. */
+    @Test fun aPublishForASearchThePhoneLeftWritesNothing() {
+        val sink = FakeSink()
+        var done: Boolean? = null
+        ProfilePublisher(sink, MemoryPublished()).publish("inc-1", p, { false }) { done = it }
+        assertEquals(emptyList<Triple<String, String, ProfileWrite>>(), sink.writes)
+        assertEquals(false, done)
+    }
+
+    /** The join check reaches the sink, which checks it again where it stages each write. */
+    @Test fun theSinkGetsTheJoinCheck() {
+        val sink = FakeSink()
+        var joined = true
+        ProfilePublisher(sink, MemoryPublished()).publish("inc-1", p, { joined }) {}
+        joined = false
+        assertEquals(2, sink.joinChecks.size)
+        assertTrue(sink.joinChecks.none { it.check() })
+    }
+
+    /** Inside the first-publish transaction (every attempt): once the phone has left, nothing is staged. */
+    @Test fun aFirstPublishStagesNothingOnceThePhoneHasLeft() {
+        val mine = mapOf<String, Any?>("answersTo" to "Mae")
+        assertEquals(FirstPublish.Create(mine), FirstPublish.staged(null, mine, emptySet()) { true })
+        assertThrows(LeftSearchException::class.java) { FirstPublish.staged(null, mine, emptySet()) { false } }
+    }
+
+    /** Leaving waits for the profile writes already handed to the sink, not only Firestore's pending writes. */
+    @Test fun settleWaitsForProfileWritesInFlight() = runTest {
+        val held = mutableListOf<(Throwable?) -> Unit>()
+        val publisher = ProfilePublisher({ _, _, _, _, onResult -> held += onResult }, MemoryPublished())
+        publisher.publish("inc-1", p) {}
+        val settled = async { publisher.settle() }
+        runCurrent()
+        assertFalse(settled.isCompleted)
+        held.forEach { it(null) }
+        runCurrent()
+        assertTrue(settled.isCompleted)
     }
 
     /** A field command left empty (null) stays empty: a first publish never fills it; an edit does that explicitly. */
     @Test fun aNullOnTheServerStaysNullAfterAFirstPublish() {
         val existing = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to null, "photoTakenOn" to null)
         val mine = mapOf<String, Any?>("answersTo" to "Mae", "ageYears" to 82, "photoTakenOn" to "2026-11-01", "clothingLastWorn" to "blue coat")
-        assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+        assertEquals(FirstPublish.Merge(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
     }
 
     @Test fun aFirstPublishOverACompleteDocumentWritesNothing() {

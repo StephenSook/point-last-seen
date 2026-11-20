@@ -2,19 +2,18 @@ package app.pointlastseen.family.data
 
 import android.util.Log
 import com.google.firebase.Firebase
-import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** The incident fields the family app shows: drill mode, status and the prior version. */
+/** The incident fields the family app shows: drill mode, status and the prior version, for [incidentId]. */
 data class IncidentInfo(
     val mode: String?,
     val status: String,
     val drillLabel: String,
     val name: String,
     val priorVersion: Long,
+    val incidentId: String = "",
 ) {
     companion object {
         fun from(m: Map<String, Any?>?): IncidentInfo? {
@@ -30,33 +29,70 @@ data class IncidentInfo(
     }
 }
 
+/** One listen on incidents/{incidentId}: the document's fields, or an error by its code name; returns a stop. */
+fun interface IncidentListen {
+    fun listen(incidentId: String, onData: (Map<String, Any?>?) -> Unit, onError: (String) -> Unit): () -> Unit
+}
+
 /**
- * Listens to incidents/{incidentId}. A read the server refuses ([onDenied]) may mean this phone is no longer part
- * of the search; the caller checks that before forgetting anything. Errors are logged by code only, never data.
+ * Listens to the incident this phone joined. A read the server refuses ends the listener: the watch is then
+ * detached and [onDenied] asks whether this phone is still part of the search; the caller decides whether to
+ * forget it or to watch again. Stopping, or watching another incident, forgets the last snapshot, so one
+ * search's status never shows for another. Errors are logged by code only, never data.
  */
-class IncidentWatch(private val onDenied: () -> Unit = {}) {
+class IncidentWatch(
+    private val listen: IncidentListen = FIRESTORE,
+    private val onDenied: () -> Unit = {},
+    private val log: (String) -> Unit = { Log.w(TAG, it) },
+) {
     private val state = MutableStateFlow<IncidentInfo?>(null)
     val incident: StateFlow<IncidentInfo?> = state
-    private var reg: ListenerRegistration? = null
+    private var current: String? = null
+    private var stopListen: (() -> Unit)? = null
+
+    /** Whether a listener is running; false after [stop] or after the server ended it. */
+    val attached: Boolean get() = stopListen != null
 
     fun watch(incidentId: String) {
-        reg?.remove()
-        reg = Firebase.firestore.collection("incidents").document(incidentId).addSnapshotListener { snap, err ->
-            if (err != null) {
-                Log.w(TAG, "incident read failed code=${err.code}")
-                if (err.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) onDenied()
-                return@addSnapshotListener
-            }
-            if (snap != null) state.value = IncidentInfo.from(snap.data)
-        }
+        stop()
+        current = incidentId
+        stopListen = listen.listen(
+            incidentId,
+            { m -> if (current == incidentId) state.value = IncidentInfo.from(m)?.copy(incidentId = incidentId) },
+            { code ->
+                if (current == incidentId) {
+                    log("incident read failed code=$code")
+                    stopListen = null
+                    if (code == "PERMISSION_DENIED") onDenied()
+                }
+            },
+        )
     }
 
     fun stop() {
-        reg?.remove()
-        reg = null
+        stopListen?.invoke()
+        stopListen = null
+        current = null
+        state.value = null
     }
 
-    private companion object {
-        const val TAG = "PLS-WATCH"
+    companion object {
+        private const val TAG = "PLS-WATCH"
+        private val REATTACH_DELAYS_MS = listOf(5_000L, 30_000L, 120_000L)
+
+        /** How long to wait before watching again after a refused read kept the search; null: wait for the foreground. */
+        fun reattachDelay(attempt: Int): Long? = REATTACH_DELAYS_MS.getOrNull(attempt)
+
+        /** The status a screen may act on: only a snapshot of the search this phone is in now. */
+        fun statusFor(info: IncidentInfo?, currentIncident: String?): String? =
+            info?.takeIf { currentIncident != null && it.incidentId == currentIncident }?.status
+
+        private val FIRESTORE = IncidentListen { incidentId, onData, onError ->
+            val reg = Firebase.firestore.collection("incidents").document(incidentId).addSnapshotListener { snap, err ->
+                if (err != null) onError(err.code.name) else if (snap != null) onData(snap.data)
+            }
+            val stop: () -> Unit = { reg.remove() }
+            stop
+        }
     }
 }

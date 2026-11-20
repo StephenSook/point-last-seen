@@ -204,12 +204,94 @@ object Profiles {
     )
 
     /**
+     * Address, place or wandering lines from the profile form: phone numbers removed as in a note, from the whole
+     * text first (so a number split across two lines is still caught), then one label per line (or ;).
+     */
+    fun placeLabels(text: String): List<String> =
+        app.pointlastseen.family.core.PhoneNumbers.remove(text).split('\n', ';').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /**
+     * [placeLabels] as entries: a saved entry whose label cleans to the same line keeps its position, and each saved
+     * entry gives its position to one row at most (in order), so two rows that clean alike keep their own.
+     */
+    fun placeEntries(text: String, saved: List<PlaceEntry>): List<PlaceEntry> {
+        val left = saved.toMutableList()
+        return placeLabels(text).map { l ->
+            val match = left.firstOrNull { it.label == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.label) == l }
+            if (match != null) left.remove(match)
+            match?.copy(label = l) ?: PlaceEntry(l, null)
+        }
+    }
+
+    /** [placeLabels] as past wandering entries, keeping saved positions the same way. */
+    fun wanderingEntries(text: String, saved: List<WanderingEntry>): List<WanderingEntry> {
+        val left = saved.toMutableList()
+        return placeLabels(text).map { l ->
+            val match = left.firstOrNull { it.foundWhere == l || app.pointlastseen.family.core.PhoneNumbers.remove(it.foundWhere) == l }
+            if (match != null) left.remove(match)
+            match?.copy(foundWhere = l) ?: WanderingEntry(l, null)
+        }
+    }
+
+    /**
      * Approach note ids: "may_not_respond" and "approach_calm" first (plan Task 35a),
      * then "stop_calling_name", then the rest of the spec 13.3 table in order, each filtered by its "shown when"
      * rule. The dementia type counts only when the family shares it.
      */
-    fun approachNoteIds(p: SubjectProfile): List<String> {
-        val f = p.flags
+    fun approachNoteIds(p: SubjectProfile): List<String> =
+        noteIds(p.flags, sharedDementiaType(p), p.primaryLanguage, p.triggersToAvoid, p.bestApproach, p.uniqueDescription)
+
+    /** Every approach note in card order, with the shared fields it is derived from (none: always shown). */
+    private val NOTE_INPUTS: List<Pair<String, Set<String>>> = listOf(
+        "may_not_respond" to setOf("flags.mayNotRespond"), "approach_calm" to emptySet(),
+        "stop_calling_name" to setOf("flags.mayNotRespond"), "likely_to_hide" to setOf("flags.likelyToHide"),
+        "afraid_of_uniforms" to setOf("flags.afraidOfUniforms"),
+        "validate_feelings" to setOf("flags.hallucinationsOrDelusions", "dementiaType"),
+        "looking_for_home" to setOf("flags.lookingForHome"), "gait_unsteady" to setOf("flags.gaitUnsteady"),
+        "freezing" to setOf("flags.freezing"), "fall_risk" to setOf("flags.fallRisk"),
+        "soft_voice" to setOf("flags.softVoice", "flags.slowToRespond"), "fluctuates" to setOf("flags.fluctuates"),
+        "sensitive_to_touch" to setOf("flags.sensitiveToTouch"), "sensitive_to_light" to setOf("flags.sensitiveToLight"),
+        "may_strike_out" to setOf("flags.likelyToFight"), "seizures" to setOf("flags.seizures"),
+        "medication_alert" to setOf("flags.medicationSensitivity", "flags.carriesMedicalAlertCard"),
+        "medication_timing" to setOf("flags.medicationTimingMatters"), "language" to setOf("primaryLanguage"),
+        "triggers" to setOf("triggersToAvoid"), "best_approach" to setOf("bestApproach"), "unique" to setOf("uniqueDescription"),
+    )
+
+    /** Every input any approach note reads: a field, or one flag as "flags.<name>". */
+    val NOTE_INPUT_KEYS: Set<String> = NOTE_INPUTS.flatMap { it.second }.toSet()
+
+    /** The shared fields any approach note is derived from. */
+    val NOTE_INPUT_FIELDS: Set<String> = NOTE_INPUT_KEYS.map { it.substringBefore('.') }.toSet()
+
+    /** Every approach note id the rules accept. */
+    val NOTE_IDS: Set<String> = NOTE_INPUTS.map { it.first }.toSet()
+
+    /**
+     * Approach notes after a merge that changed [changed] fields, in card order and each once: a note derived from a
+     * changed field follows the merged document, as does a note with no inputs (always shown); every other note keeps
+     * what [stored] says (command may have curated it). Only ids the rules accept come out.
+     */
+    fun mergeApproachNotes(stored: List<String>, merged: Map<String, Any?>, changed: Set<String>): List<String> {
+        val fresh = approachNoteIds(merged).toSet()
+        // A note with no inputs (approach_calm) is always shown, so it always follows the merged document.
+        return NOTE_INPUTS.filter { (id, inputs) -> if (inputs.isEmpty() || inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
+    }
+
+    /** The same notes, read from a profile/shared document (for a document merged with what command entered). */
+    fun approachNoteIds(shared: Map<String, Any?>): List<String> {
+        val flags = (shared["flags"] as? Map<*, *>)?.filterValues { it == true }?.keys?.map { it.toString() }?.toSet() ?: emptySet()
+        fun text(key: String) = shared[key] as? String ?: ""
+        return noteIds(flags, shared["dementiaType"] as? String, text("primaryLanguage"), text("triggersToAvoid"), text("bestApproach"), text("uniqueDescription"))
+    }
+
+    private fun noteIds(
+        f: Set<String>,
+        dementiaType: String?,
+        primaryLanguage: String,
+        triggersToAvoid: String,
+        bestApproach: String,
+        uniqueDescription: String,
+    ): List<String> {
         val ids = mutableListOf<String>()
         if ("mayNotRespond" in f) ids += "may_not_respond"
         ids += "approach_calm"
@@ -217,7 +299,7 @@ object Profiles {
         if ("mayNotRespond" in f) ids += "stop_calling_name"
         if ("likelyToHide" in f) ids += "likely_to_hide"
         if ("afraidOfUniforms" in f) ids += "afraid_of_uniforms"
-        if ("hallucinationsOrDelusions" in f || sharedDementiaType(p) == "lewy_body") ids += "validate_feelings"
+        if ("hallucinationsOrDelusions" in f || dementiaType == "lewy_body") ids += "validate_feelings"
         if ("lookingForHome" in f) ids += "looking_for_home"
         if ("gaitUnsteady" in f) ids += "gait_unsteady"
         if ("freezing" in f) ids += "freezing"
@@ -230,10 +312,10 @@ object Profiles {
         if ("seizures" in f) ids += "seizures"
         if ("medicationSensitivity" in f || "carriesMedicalAlertCard" in f) ids += "medication_alert"
         if ("medicationTimingMatters" in f) ids += "medication_timing"
-        if (p.primaryLanguage.isNotBlank()) ids += "language"
-        if (p.triggersToAvoid.isNotBlank()) ids += "triggers"
-        if (p.bestApproach.isNotBlank()) ids += "best_approach"
-        if (p.uniqueDescription.isNotBlank()) ids += "unique"
+        if (primaryLanguage.isNotBlank()) ids += "language"
+        if (triggersToAvoid.isNotBlank()) ids += "triggers"
+        if (bestApproach.isNotBlank()) ids += "best_approach"
+        if (uniqueDescription.isNotBlank()) ids += "unique"
         return ids
     }
 

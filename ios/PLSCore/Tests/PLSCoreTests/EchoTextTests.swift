@@ -44,4 +44,41 @@ import Testing
         #expect(EchoText.effectLine(effect, type: .sighting) == "Sighting logged in AC. It counts once command confirms it.")
         #expect(EchoText.effectLine(effect, type: .clue) == "Clue logged in AC.")
     }
+
+    /// In the practice drill there is no command to ask: the line says what to do in a real search.
+    /// Every other line, and every real report's line, stays as it is.
+    @Test func practiceReportsSayAskCommandOnlyForARealSearch() {
+        #expect(EchoText.effectLine(.none(why: .needsCommand), type: .clue, practice: true) == "In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .invalid), type: .clue, practice: true)
+            == "Could not read this report. In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .outsideArea), type: .clue, practice: true)
+            == "Outside the search area. In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .soundOnly), type: .clue, practice: true) == "Calling alone is not counted for this person.")
+        #expect(EchoText.effectLine(.none(why: .needsCommand), type: .clue, practice: false) == "Ask command.")
+    }
+
+    /// A note the language screen kept off the cloud says so under the report, and names the hand path.
+    @Test func aNoteKeptOffTheCloudForItsLanguageSaysSo() {
+        func route(_ reason: RouteReason) -> RouteRecord {
+            RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "rules", reason: reason,
+                        latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+        }
+        #expect(EchoText.refusalLine(route(.notEnglish)) == "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing.")
+        #expect(EchoText.refusalLine(route(.onDeviceUnavailable)) == nil)
+    }
+
+    /// Every route reason has plain words for the route check screen, with no code names in them.
+    @Test func everyRouteReasonHasPlainWords() {
+        for reason in RouteReason.allCases {
+            let words = EchoText.reasonWords(reason)
+            #expect(!words.isEmpty && !words.contains("_"), "\(reason)")
+        }
+        #expect(EchoText.reasonWords(.noNetwork) == "no signal")
+        #expect(EchoText.reasonWords(.notEnglish) == "the note does not look English")
+    }
+
+    /// A read's time in seconds with one decimal, as the route check shows it.
+    @Test func readTimesAreShownInSeconds() {
+        #expect(EchoText.seconds(20692) == "20.7 s" && EchoText.seconds(1259) == "1.3 s" && EchoText.seconds(40) == "0.0 s")
+    }
 }

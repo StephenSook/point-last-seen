@@ -7,6 +7,7 @@ import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
 import { practiceErrorMessage, practiceSearch, startWithRetry } from "../data/practice";
 import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
+import { runNumbers, runNumbersLine } from "../extras/runNumbers";
 import { PURPOSE_LINE } from "../purpose";
 import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
 
@@ -79,6 +80,7 @@ export function JudgePage() {
   // A run file that exists (read or refused) gets the replay section from JudgeExtras; this page's own section says
   // why there is nothing to replay, so the page has one replay section either way.
   const runFile = run?.state === "run" || run?.state === "refused" ? run.run : null;
+  const numbers = run?.state === "run" ? runNumbers(run.run) : null;
   // Before Remote Config starts (or if it cannot), the pinned default is still named.
   const [modelLine, sourceLine, ...more] = rc
     ? modelLines({ cloudModelWeb: rc.cloudModelWeb, cloudModelSource: rc.cloudModelSource ?? "default", fetchedAt: rc.fetchedAtMs ? fetchedTime(rc.fetchedAtMs) : null, killCloud: rc.killCloud })
@@ -160,10 +162,10 @@ export function JudgePage() {
       </details>
 
       {/* Only for a run the reader accepted: the replay section already speaks for every other state. */}
-      {run?.state === "run" && (
+      {numbers && (
         <section aria-labelledby="d5-h">
           <h2 id="d5-h" className="label">Numbers</h2>
-          <p>Published run {String(run.run.runId)}.</p>
+          <p>{runNumbersLine(numbers)}</p>
         </section>
       )}
     </main>

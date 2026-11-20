@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 1,
+  "note": "Phone-number removal, the same cases on every platform that removes phone numbers from a note before it is stored or read. Hand-written; see README.md, section phone-numbers.json.",
+  "replacement": "[number removed]",
+  "mustRemove": [
+    {
+      "name": "spaced_digits",
+      "input": "Her son is at 4 0 4 5 5 5 0 1 4 2, call him.",
+      "number": "4 0 4 5 5 5 0 1 4 2",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "spoken_digits",
+      "input": "Her son is at four oh four five five five oh one four two, call him.",
+      "number": "four oh four five five five oh one four two",
+      "forbidden": [
+        "four oh four",
+        "five five five",
+        "oh one four two"
+      ],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "uk_international",
+      "input": "Her son is at +44 20 7946 0958, call him.",
+      "number": "+44 20 7946 0958",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "mexico_international",
+      "input": "Her son is at +52 55 1234 5678, call him.",
+      "number": "+52 55 1234 5678",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_slashes",
+      "input": "Her son is at 404/555/0142, call him.",
+      "number": "404/555/0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_parentheses",
+      "input": "Her son is at (404) 555-0142, call him.",
+      "number": "(404) 555-0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "us_spaces",
+      "input": "Her son is at 404 555 0142, call him.",
+      "number": "404 555 0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        "call him."
+      ]
+    },
+    {
+      "name": "dotted_pairs",
+      "input": "Call 06.12.20.26.19",
+      "number": "06.12.20.26.19",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "number_glued_to_date",
+      "input": "Call 404-555-2026-11-19",
+      "number": "404-555-2026-11-19",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "non_breaking_hyphen",
+      "input": "Call 404\u2011555\u20110142",
+      "number": "404\u2011555\u20110142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "unicode_hyphen",
+      "input": "Call 404\u2010555\u20100142",
+      "number": "404\u2010555\u20100142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "en_dash",
+      "input": "Call 404\u2013555\u20130142",
+      "number": "404\u2013555\u20130142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "crlf_split",
+      "input": "Call 404 555\r\n0142 tonight",
+      "number": "404 555\r\n0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "grouped_phone_number",
+      "input": "Call 4,045,550,142",
+      "number": "4,045,550,142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "state_letters_before_zip_plus_four",
+      "input": "Call OH 41234-5678",
+      "number": "OH 41234-5678",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "adlam_grouped_number",
+      "input": "Call \ud83a\udd54,\ud83a\udd50\ud83a\udd54\ud83a\udd55,\ud83a\udd55\ud83a\udd55\ud83a\udd50,\ud83a\udd51\ud83a\udd54\ud83a\udd52",
+      "number": "\ud83a\udd54,\ud83a\udd50\ud83a\udd54\ud83a\udd55,\ud83a\udd55\ud83a\udd55\ud83a\udd50,\ud83a\udd51\ud83a\udd54\ud83a\udd52",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "spacing_accent_in_number",
+      "input": "call 555\u00b41234 now",
+      "number": "555\u00b41234",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "nel_in_number",
+      "input": "call 555\u00851234 now",
+      "number": "555\u00851234",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "dingbat_digits",
+      "input": "call \u2776\u2777\u2778\u2779\u277a\u277b\u277c now",
+      "number": "\u2776\u2777\u2778\u2779\u277a\u277b\u277c",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "chinese_yao_digits",
+      "input": "call \u5e7a\u4e09\u516b\u5e7a\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b now",
+      "number": "\u5e7a\u4e09\u516b\u5e7a\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "plus_before_decimal_pair",
+      "input": "Call +44.2071, -23.4567",
+      "number": "+44.2071, -23.4567",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "bare_minus_between_decimals",
+      "input": "Call 44.2071-23.4567",
+      "number": "44.2071-23.4567",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
+      ]
+    },
+    {
+      "name": "ordinal_without_street_word",
+      "input": "Call 4550 142nd",
+      "number": "4550 142nd",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
+      ]
+    },
+    {
+      "name": "time_joined_before_its_hour",
+      "input": "Call 1 404 555 01:42",
+      "number": "1 404 555 01:42",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
+      ]
+    },
+    {
+      "name": "time_after_zip_not_date",
+      "input": "Call GA 40455-5014 2:30",
+      "number": "GA 40455-5014 2:30",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
+      ]
+    },
+    {
+      "name": "time_between_zip_and_number",
+      "input": "Call GA 40455-5014 2:30 555-0142",
+      "number": "GA 40455-5014 2:30 555-0142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
+      ]
+    }
+  ],
+  "mustKeep": [
+    {
+      "name": "time",
+      "input": "14:03"
+    },
+    {
+      "name": "segment_number",
+      "input": "segment 12"
+    },
+    {
+      "name": "searcher_count",
+      "input": "3 searchers"
+    },
+    {
+      "name": "percent",
+      "input": "45%"
+    },
+    {
+      "name": "all_together",
+      "input": "Seen at 14:03 by 3 searchers in segment 12; 45% of the prior is north."
+    },
+    {
+      "name": "date_us_slashes",
+      "input": "11/19/2026"
+    },
+    {
+      "name": "date_iso",
+      "input": "2026-11-19"
+    },
+    {
+      "name": "date_month_day",
+      "input": "11/19"
+    },
+    {
+      "name": "date_words",
+      "input": "Nov 19"
+    },
+    {
+      "name": "gps_pair",
+      "input": "GPS 33.7490, -84.3880",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "zip_plus_four",
+      "input": "Atlanta, GA 30301-1234",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "grouped_count_under_seven_digits",
+      "input": "walked 12,345 steps"
+    },
+    {
+      "name": "street_address",
+      "input": "12345 67th Ave",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "number_with_unit",
+      "input": "5km",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_split_by_crlf",
+      "input": "Seen Nov \r\n19 2026",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "gps_pair_split_by_crlf",
+      "input": "GPS 33.7490,\r\n-84.3880",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "month_date_split_by_two_crlf",
+      "input": "Seen Nov\r\n\r\n19 2026",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_then_time",
+      "input": "Seen 11/19/2026 14:03",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "ordinal_before_street_word",
+      "input": "near 4550 142nd St",
+      "pendingOn": [
+        "web"
+      ]
+    }
+  ],
+  "exact": [
+    {
+      "name": "time_then_number",
+      "input": "Seen at 14:03, 404-555-0142",
+      "output": "Seen at 14:03, [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_beside_number",
+      "input": "Seen 11/19/2026 404-555-0142",
+      "output": "Seen 11/19/2026 [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "iso_date_beside_number",
+      "input": "Seen 2026-11-19 404-555-0142",
+      "output": "Seen 2026-11-19 [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "short_date_beside_number",
+      "input": "Seen 11/19 555-0142",
+      "output": "Seen 11/19 [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_word_then_number",
+      "input": "Seen 11/19/2026, call 404-555-0142",
+      "output": "Seen 11/19/2026, call [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "month_name_date_beside_number",
+      "input": "Seen Nov 19 2026 404-555-0142",
+      "output": "Seen Nov 19 2026 [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_time_then_number",
+      "input": "Seen 11/19/2026 14:03 404-555-0142",
+      "output": "Seen 11/19/2026 14:03 [number removed]",
+      "pendingOn": [
+        "web"
+      ]
+    }
+  ]
+}

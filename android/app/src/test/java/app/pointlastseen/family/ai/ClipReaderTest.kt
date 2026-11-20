@@ -52,6 +52,24 @@ class ClipReaderTest {
         killCloud = { killCloud }, templateId = "pls-clip-sighting-v1", uploaderUid = "u1",
     )
 
+    /** A phone that left the search writes nothing for it: no consent record, no upload, no model read, no reading. */
+    @Test fun aReadForASearchThePhoneLeftWritesNothing() = runTest {
+        val inner = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        val out = ClipReader(JoinedClipDeps(inner) { false }).read(request(1000))
+        assertEquals(ClipOutcome.Failed, out)
+        assertEquals(listOf("find"), inner.log)
+    }
+
+    /** Leaving after the upload: the model read and the reading that would follow it never start. */
+    @Test fun leavingDuringAReadStopsBeforeTheNextCloudStep() = runTest {
+        val inner = FakeDeps(reply = ModelReply(readingJson, Source.IN_CLOUD, 900))
+        var checks = 0
+        val out = ClipReader(JoinedClipDeps(inner) { checks++ < 2 }).read(request(1000))
+        assertEquals(ClipOutcome.Failed, out)
+        assertEquals(listOf("find", "consent", "upload"), inner.log)
+        assertTrue(inner.completed.isEmpty())
+    }
+
     @Test fun theReadRunsOnTheGivenWorkerNotTheCallersThread() = runTest {
         val pool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "pls-test-worker") }
         try {

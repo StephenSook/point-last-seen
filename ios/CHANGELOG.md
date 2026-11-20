@@ -3,7 +3,335 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-20
+
+### fix(ios): Apple's model reads the report alone, without the subject's description
+- What: on the phone, Apple's model got the subjectDescription tool and an instruction to compare the
+  report with it, and it copied the description into readings: a quote from the description
+  ("Clothing last worn: blue coat.") that the validator rejected, and the description's colours.
+  The on-device guided read now gets only the segmentHere and teamAssignment tools and its own
+  instructions (PromptText.onDeviceGuided: "Set matchesProfile to unknown."); code decides the match.
+  Its token count uses the same prompt and tools. The cloud read is unchanged: same tools, same prompt,
+  same allow-list.
+- Source: review (Apple's model not used on a real iPhone; simulator probe showed the leak).
+- Verified: tests that Apple's model gets no description tool or comparison instruction while the cloud
+  prompt keeps it, and that the reader hands the description to code (an on-device answer of
+  "inconsistent" becomes "consistent" for a matching colour); they failed to compile before the change
+  and pass after; 356 core and 193 app tests pass.
+
+### feat(ios-core): code decides whether a reading by Apple's model matches the subject
+- What: ProfileMatch.decide compares a reading's colours and item, footwear and carried words with
+  the subject's description: consistent when one of them is in it, otherwise unknown, so a clue is
+  never marked down on a guess. For a reading by Apple's model the read sets matchesProfile
+  this way (ReadContext.profile carries the description); the cloud's answer is kept as it is.
+- Source: review (Apple's model copied the subject's description into readings).
+- Verified: tests for consistent and unknown matches, for the on-device override (and the cloud
+  answer kept), and that an answer quoting the description is rejected with quote_not_in_text; they
+  failed to compile before the change and pass after; all 356 core tests pass.
+
+### feat(ios): the route check file says why each model stage was not used
+- What: each route in the saved route-check file carries the read's stage notes, so a route check
+  run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:
+  invalid quote_not_in_text"). The screen is unchanged.
+- Source: review (Apple's model not used on a real iPhone).
+- Verified: the app builds and all 191 app tests pass; the file is checked on the phone with build 6.
+
+### feat(ios-core): a read records why each model stage was not used
+- What: ReadOutcome.stageNotes lists, in order, why each model stage did not give the reading: an
+  answer the validator rejected ("guided on_device: invalid quote_not_in_text"), a stage that ran
+  out of time ("guided on_device: timed out after 20 s"), a failure the runner reported
+  ("guided on_device: guardrail_block") and a plain-text line that could not be read ("permissive
+  on_device: unparsed"). It is empty when the first stage answered. It is never stored in the event;
+  routing and readings are unchanged.
+- Source: review (Apple's model not used on a real iPhone: the route check must say why).
+- Verified: tests for a rejected answer, a timed-out stage, an unreadable plain-text line and an
+  answered read; they failed to compile before the change and pass after; all 352 core tests pass.
+
+### fix(ios): a decimal pair after a "+" is a phone number, not a coordinate
+- What: per the shared ruling, a decimal pair that starts with "+" is an international number:
+  "Call +44.2071, -23.4567" is removed. "GPS 33.7490, -84.3880" and a southern latitude
+  ("GPS -33.8688, 151.2093") still stay.
+- Source: review (shared ruling: plus before a decimal pair).
+- Verified: a test failed before the change and passes after; the shared vectors pass, also with the
+  plus case's iPhone pending mark removed.
+
+### fix(ios): a month and day with no year stays beside a phone number
+- What: a month and day with no year ("11/19", or "19/11"), two groups joined by a slash, is a date
+  span like a full date: "Seen 11/19 555-0142" now gives "Seen 11/19 [number removed]" instead of
+  removing the date with the number. Joined to more digits by its own slash it is not a date, so
+  "404/555/0142" and "13/45 555 0142" are still removed whole.
+- Source: review (shared ruling: a date beside a phone number stays).
+- Verified: a test of the month/day cases failed before the change and passes after; the shared
+  vectors pass, also with the short-date case's iPhone pending mark removed; all core tests pass.
+
+### fix(ios): a grouped count of seven or more digits is a phone number
+- What: per the shared ruling (privacy wins ties), "Call 4,045,550,142" and the same number in Adlam
+  digits are removed. A grouped count with three or more groups always has seven or more digits, so
+  the grouped-count exception could never hold under the ruling and is gone from the rule. "walked
+  12,345 steps" still stays; "walked 1,234,567 steps" is now removed.
+- Source: review (shared phone-number vectors: grouped counts).
+- Verified: the updated tests failed on the old rule and pass with the change; the shared vectors with
+  the two iPhone pending marks removed pass; all 346 core tests pass.
+
+### test(ios): the phone-number vectors' no-digit check covers every script's number characters
+- What: the shared contract's "no digit left" check now means any Unicode number character (Nd, Nl,
+  No), not only 0 to 9. The Swift vector runner checks the scrubbed text's every scalar for those
+  categories.
+- Source: review (shared phone-number vector contract).
+- Verified: main's vector file and the coming vector update both pass with the wider check.
+
+### fix(ios): no phone number hides behind something shaped like search information
+- What: the iPhone's phone-number rule now matches the Android rule after its review rounds. Search
+  information (a written date, a time, a coordinate pair, a grouped count, a ZIP+4 code, a month-name
+  date, a number with a unit) is found on the text as written, and stays only when the rest of its
+  run is nothing or whole numbers of seven or more digits; when a piece of 1 to 6 digits is left
+  beside it, the whole run is removed. Coordinates must be in range with 4 to 8 decimals (so
+  "call 555.1234, 555.6789" is no longer kept as a pair), a ZIP+4 needs a capital state code before
+  it, a date joined to more digits by its own separator is not a date, and two dates that share a
+  group cancel. A 7+ digit number with a unit is still a number; "double" and "triple" count their
+  repeats; a line break with indentation is one separator, and a removed run keeps its line breaks.
+  A word stops at a numeral.
+- Source: review (Android phone-number rule, later commits; parity with the iPhone).
+- Verified: the Android rule's test cases, ported to Swift, failed before the change and pass after
+  (with Android main's current expectations); the shared phone-number vectors and all 345 core tests
+  and 191 app tests pass.
+
+### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
+- What: the line under a refused report said the note "stays on this phone", but the screen only
+  refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
+  doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing."
+- Source: review (copy ruling).
+- Verified: the refusal-line test asserts the new sentence; it failed with the old code and passes
+  with the change; no other iPhone text carries the old line.
+
+### fix(ios): a removed phone number never makes a note look English to the language screen
+- What: the language screen judged the note after its phone number was removed, and removing it adds
+  the words "number removed", which diluted the non-Latin share: "Бабушка ушла 404-555-0142" and
+  "奶奶的電話是 一二三四五六七" passed and could go to the cloud read. The read now screens the note
+  as written and as cleaned, and goes to the cloud only when both look English.
+- Source: review (the same defect found in the Android port).
+- Verified: a test with both notes on the cloud route calls no cloud model and records not_english;
+  it failed before the change and passes after; all 339 core tests and the app reader tests pass.
+
+### feat(ios): the route check says each result in plain words
+- What: the route check screen showed code names ("on_device: read on rules (deterministic_parser),
+  model rules, 20692 ms, reason no_network"). Each line now reads like "On this iPhone, no signal:
+  Read by rules, not a model. 20.7 s. Why: no signal. Read as cleared, segment BO." and "In the
+  cloud: Suggested by Gemini in the cloud (gemini-3.5-flash-lite). 1.3 s. Why: Apple's model is not
+  available. ...". Every route reason has plain words (EchoText.reasonWords, an exhaustive switch,
+  so a new reason cannot ship without them). The saved file keeps the exact route record.
+- Source: review (judge-facing screens; simulator walk-through of the route check).
+- Verified: tests that every reason has words with no code names and that times show in seconds;
+  they failed to compile before the change and pass after; the text-size scan and the route check
+  tests pass.
+
+### feat(ios): a note that does not look English never goes to the cloud read
+- What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
+  the router's cloud route and the move to the cloud after Apple's model fails. A note that does not
+  look English is read by the phone's rules instead, with route reason not_english, and the report
+  says "This note doesn't look like English, so it stays on this phone. Pick instead of typing."
+  Apple's on-device read and the pick list are unchanged. The app bundles
+  shared/constants/language-words.json; if it cannot be read, no note goes to the cloud.
+- Source: plan (language screen before any cloud read of a note); review (iPhone wording approved).
+- Verified: tests that a Spanish note on the cloud route and after the on-device model fails calls no
+  cloud model and reads by rules with reason not_english, that it still reads on this phone when
+  Apple's model works, that an English note quoting Spanish still goes to the cloud, the app reader
+  with the bundled word lists, and the refusal line. They failed to compile before the change and
+  pass after; 327 core and 191 app tests pass.
+
+### feat(ios-core): the language screen, by the shared rule and vectors
+- What: PLSCore gains LanguageScreen.looksEnglish, built from shared/constants/language-words.json:
+  the note is folded and split as the evidence screen does, words made only of digits are dropped,
+  and a note does not look English when more than half its words are non-Latin, or when its foreign
+  function words plus non-Latin words are at least minForeign and more than foreignOverEnglish times
+  its English words. It is not yet called by the read; that follows.
+- Source: plan (language screen before any cloud read of a note).
+- Verified: shared/test-vectors/language.json runs in a Swift test: 18 mustAllow pass as English, 9
+  mustRefuse do not, the 1 knownMiss passes as English as on every platform, and a new kind of case
+  in the file fails the test. It failed to compile before the change; all 322 core tests pass.
+
+### test(ios): run the phone-number vectors' exact cases, replacement token and pending marks
+- What: the Swift vector runner reads the file's new shape: a top-level replacement token (checked
+  against the one this phone writes), an exact array whose output is compared byte for byte, and an
+  optional pendingOn on any case, which skips the case only when it names ios. The kind guard now
+  allows these keys and also fails on an unknown key inside a case.
+- Source: review (shared phone-number vectors gain exact-output cases).
+- Verified: with the coming vector file (13 mustRemove, 14 mustKeep, 1 exact, none pending on ios)
+  all 6 vector tests pass; a copy with a wrong exact output fails; a copy with an unknown kind fails;
+  with main's file all 325 core tests pass.
+
+### test(ios): fail when the phone-number vectors gain a kind of case the iPhone does not run
+- What: the Swift vector test decoded only mustRemove and mustKeep and would ignore any new kind of
+  case added to shared/test-vectors/phone-numbers.json. A new test asserts the file's top-level keys
+  are exactly the ones the iPhone runs, so a new kind fails Swift core until it is run here.
+- Source: review (shared phone-number vectors gain an exact-output case).
+- Verified: run against a copy of the file with an extra "mustEqual" key it fails; against the real
+  file it passes, with the other 18 phone-number tests.
+
+### fix(ios): phone numbers by the shared rule: no date shields a number; search details stay
+- What: the iPhone's phone-number rule now matches the Android rule. A date carved out of a longer run
+  of digits no longer shields part of a number ("06.12.20.26.19", "404-555-2026-11-19" are removed);
+  a date beside a whole number of its own still stays. Non-breaking, en and em dashes and the minus
+  sign join a number's parts like a hyphen. Search information made of digits counts no digits, so
+  it stays and never joins a number: a time (14:03), a coordinate pair (33.7490, -84.3880), a
+  grouped count (1,234,567), a ZIP+4 code (30301-1234) and a month-name date (Nov 19 2026, 19 November
+  2026); a number glued to a unit or an ordinal ending (67th, 5km) counts alone. Chinese numeral
+  digits, a pasted line break and spoken digits in capitals were already caught; tests now pin them.
+- Source: review (phone-number review of the Android rule; the same gaps were in the iPhone rule).
+- Verified: tests for each case above; the date, dash, time and month-date, and search-information
+  tests failed before the change and pass after; all 322 core tests pass.
+
+### fix(ios): written dates stay in a report; a slash-joined phone number still goes
+- What: a date is search information (when someone was last seen), not a phone number. The phone
+  number rule now keeps three digit groups joined by the same one of / - . that read as a date:
+  year-month-day with a 4-digit year from 1900 to 2100, or month and day in either order with a
+  2-digit year or such a 4-digit year (day 1 to 31, month 1 to 12). A date's groups count no digits,
+  so they never make or join a number. 11/19/2026, 2026-11-19, 19.11.2026 and 11-19-2026 now stay
+  (11/19/2026 and 2026-11-19 were removed before); 404/555/0142, 404-555-0142, 13/45/2026 and
+  5551-12-34 are still removed, and so is a number written next to a date.
+- Source: review (dates are kept on every platform; shared vectors).
+- Verified: a test of dates failed before the change and passes after; a test that date-shaped
+  numbers are still removed passes before and after; the shared vectors with the four new mustKeep
+  dates pass; all 315 core tests pass.
+
+### fix(ios): a claims check or a report in flight never touches the practice drill
+- What: three windows found in review. (1) A claims check already running when the drill started (at
+  launch, back in the foreground, back in signal, or from a tapped push) could load a real mission
+  over the drill, leaving real reports on the drill's journal, or drop the drill and leave the phone
+  with no way to end it. Starting the drill now counts as a newer access check, so a check already
+  running has no say. (2) A join never runs during the drill. (3) A report still being read when the
+  drill ended was journaled onto the drill's deleted journal and left its map behind; a report whose
+  journal changed while it was read is now kept nowhere, and its words stay in the field.
+- Source: review (practice drill).
+- Verified: tests for a running check with searcher claims (no real mission loads) and with no
+  searcher (the drill stays), and for a report being read when the drill ends (nothing journaled, no
+  map). All three failed before the fix and pass after. New tests also pin what already held: the
+  assignment is spoken with no account, End restores the real journal and deletes the drill's
+  folder, and the drill's server writes, reads back and listens to nothing. 190 app tests pass.
+
+### feat(ios): practice reports say to ask command in a real search
+- What: in the practice drill there is no command to ask, so a report line ending "Ask command." ends
+  "In a real search, ask command." instead (for a report that needs command, one that could not be
+  read, and one outside the search area). Every other line, and every real report's line, is
+  unchanged. EchoText.effectLine takes the practice flag; the report list passes the mission's.
+- Source: review (practice wording).
+- Verified: a test checks the three practice lines, an unchanged practice line and an unchanged real
+  line; it failed to compile before the change and passes after; 314 core and 186 app tests pass.
+
 ## 2026-11-19
+
+### build(ios): ship the practice pack, so the Join screen offers the practice drill
+- What: the app bundles shared/practice/ios-practice-pack.json (53,011 bytes), the judge seed's sample
+  search exported for the phone: incident drill-dev-1 as "Practice search" in judge mode, its 68
+  segments, plan 19 with team T1 on segment BO, and the shared sample profile. With it in the build,
+  the Join screen shows "Start the practice drill".
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: a test starts the drill from the bundled pack: practice mission, judge mode, team T1 on BO,
+  the Piedmont Park grid (its tiles are bundled too), the shared profile, and the route check
+  available. It failed without the resource and passes with it; 186 app tests pass. On the
+  simulator, from a fresh install: Start the practice drill, the task screen notice, the map on
+  bundled tiles, a typed report kept "On this phone only", the route check (cloud read 1,271 ms on
+  gemini-3.5-flash-lite), and End the practice drill back to the Join screen with no sign-out.
+
+### feat(ios): the Join screen offers the practice drill, labelled as sample data
+- What: when the build carries a practice pack and no search is joined, the Join screen shows "No join
+  code?", "Try a practice drill with sample data. Nobody is missing. Your reports stay on this phone."
+  and "Start the practice drill". During the drill the task screen says "Practice drill with sample
+  data. Nobody is missing. Reports stay on this phone." in place of the command line, and the Ready
+  check's Leave section becomes "End the practice drill", whose confirmation says its reports are
+  deleted from this phone.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: the text-size scan passes (every new line is Title 3 or larger); 182 app tests pass. The
+  screens are checked on the simulator once the pack is bundled.
+
+### feat(ios): a practice drill from a bundled pack, with no join code and nothing sent
+- What: AppModel.startPractice loads a sample search from a bundled pack (PracticePack: the incident,
+  segments, approved plan and shared profile a searcher's phone reads, plus provenance) with no join
+  code and no account. The mission is marked practice. Its reports go to a separate journal whose
+  server never writes (LocalOnlyEventServer), with their own numbering, and their timings are not
+  written; they show "On this phone only" and the link glyph counts none as waiting. Practice reports
+  are written as author "practice", so a phone that never signed in can use it. Its assignment is
+  spoken with no session. No team topic is followed, no plan listener runs, and a sign-in, a change
+  of user or a tapped push leaves it alone. Ending it (the Leave action) deletes its reports, puts the
+  real journal back and signs nothing out. It is refused while a search is joined.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: tests for reading the pack (and refusing another pack version); starting with no server
+  read, no topic and the assignment spoken; a report kept off the real journal, server and timings
+  with no account; a sign-in and a new user keeping the drill; Leave ending it with no sign-out; and
+  a joined search never replaced. They failed to compile before the change and pass after; 182 app
+  tests and the text-size scan pass.
+
+### fix(ios): run the shared phone-number vectors, and remove numbers written with slashes
+- What: PLSCore's tests now run every case of shared/test-vectors/phone-numbers.json through
+  PhoneNumbers.scrub: each mustRemove number is gone, with no digit and no forbidden spoken part left
+  and the text around it kept; each mustKeep line (a time, a segment number, a count, a percent, all
+  together) comes back unchanged. The first run failed on "404/555/0142": a slash did not join the
+  parts of a number, so the number stayed in the stored note. A slash now joins them like - and . do.
+  A date written 11/19/2026 now reads as a number and is removed, as 2026-11-19 already was.
+- Source: review (shared phone-number vectors).
+- Verified: the vector test failed on the slash case before the fix and passes after; all 313 core
+  tests pass, including the earlier phone-number tests.
+
+### docs: how the iPhone report-reading eval is run and scored
+- What: docs/evidence/eval/README.md describes the eval before any result exists: the answer key (written
+  by one person before any model run, made-up drill reports on the piedmont-park-dev grid, frozen with
+  its SHA-256 pinned in a test, never edited after a run, Sunday's reports as a second fresh set), the two
+  arms (rules only, and Apple's on-device model in Airplane Mode, neither reaching the cloud), the scoring
+  (kind and segment set per row, feature apart, misses listed, Wilson intervals, exact McNemar), how to run
+  it on the phone, and its limits (one labeller unless a second person labels 10 of the 20 rows blind,
+  wide intervals, drill sentences).
+- Source: plan (report-reading evaluation); review (one-labeller wording).
+- Verified: read against EvalScorer, EvalReport, evalRead and the Eval screen; no long dashes.
+
+### feat(ios): a release route check that reads one fixed sentence on each route
+- What: on a practice incident (drill or judge mode), the Ready check offers "Check both read
+  routes". It reads one fixed drill sentence about the team's first segment with the app's own
+  reader on each route, journaling nothing: Apple's on-device model with no network and no cloud,
+  then the cloud route with Apple's model turned off for that read and consent for that one
+  sentence. It shows both route records (path, stage, model, reason, time) and what was read, and
+  saves them with the app version, build, commit and device to the app's Documents folder, so the
+  check can run on the TestFlight build. Outside a practice incident it reads nothing: its cloud
+  route would send the drill's sample description, and a real search's words go to the cloud only
+  with the searcher's consent.
+- Source: plan (TestFlight build and the release route check).
+- Verified: tests that each route reads the fixed sentence with the intended situation (on-device:
+  drill mode, no network, no consent; cloud: signal, consent, model off), and that a real search is
+  never checked. They failed to compile before the change and pass after; the text-size scan
+  passes; 176 app tests pass. The screen is run on the TestFlight build.
+
+### feat(ios): the report reader can take the cloud route for one route-check read
+- What: for the coming release route check, a read can say Apple's on-device model is off for that one
+  read (ReportSituation.onDeviceOff), so with signal and consent the router takes the cloud route. A
+  searcher's report never sets it. The reader also takes Apple's model status through a seam, so a
+  test can say the model is available.
+- Source: plan (release build route check: one fixed sentence on each route).
+- Verified: a test with the model available reads the same sentence twice: on-device first, then the
+  cloud route with the model turned off for the check; the runner saw on-device then cloud. It failed
+  to compile before the change and passes after; the reader tests pass.
+
+### fix(ios): a tapped push's request to show the task carries its session
+- What: a push tap that passed every check raised a request the screen acted on later; if the
+  account changed in between, the screen still jumped to the task view (it showed "No mission
+  loaded"). The request now carries the session it was made in, and the screen acts on it only
+  while that session is still current. LIMITS.md now says both account windows are closed (the join
+  fix in the previous commit and this one), leaving Auth's own reports and the security rules.
+- Source: review (round 4 residual window).
+- Verified: a test makes an open request, then changes the account (before and after Auth reports
+  it): the request no longer counts. It failed to compile before the change and passes after; 176
+  app tests pass.
+
+### fix(ios): a join signs in first, so its session is known before any of its checks
+- What: a join bound its account session only after the callable returned, so an account change in
+  that instant could pair the joined team with another user. It also broke the first join after
+  Leave: that join signs in a new anonymous user, the sign-in counted as an account change in the
+  middle of the join, and the join ended with "Not signed in yet" although it had worked. The join
+  now signs in before anything else, starts the session for that user, and only then takes its
+  check number; if the account changes while the callable answers, it loads nothing and says "This
+  phone's account changed during the join. Join again."
+- Source: review (round 4 residual window); the after-Leave failure was found while closing it.
+- Verified: tests for a first join with no user (it signs in and loads the mission at once) and a
+  join whose account changes during the call (nothing read or loaded, the new message). Both failed
+  before the change and pass after; 175 app tests pass.
 
 ### build(ios): archive and check a release build for App Store Connect, uploading nothing
 - What: ios/scripts/archive_release.sh archives a Release build with a given build number and the

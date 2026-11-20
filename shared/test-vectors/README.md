@@ -121,3 +121,63 @@ Router (Swift only)
 
 Evidence pre-screen
 - See `matching` in `shared/constants/evidence-terms.json`.
+
+## phone-numbers.json (hand-written)
+
+The phone-number cases every platform that removes phone numbers from a note must pass. There is no generator: edit
+the file by hand, and `scripts/test_phone_vectors.py` checks that the required cases are present and well formed.
+
+- `mustRemove[]`: `{ name, input, number, forbidden, keep }`. Run the platform's scrubber on `input`. The output must
+  not contain `number`, must contain no number character in any script (Unicode categories Nd, Nl and No, so an
+  Adlam or a dingbat digit counts; the number is the only digit run in `input`), must contain none of
+  `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
+  the number).
+- `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
+  and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
+  So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code after a state, a grouped count under seven digits
+  (`12,345`), a street number and a number glued to a unit (`5km`).
+- `exact[]`: `{ name, input, output }`. The output must equal `output` byte for byte, with the shared `replacement`
+  (`[number removed]`, the token every platform writes) where the number was.
+- `pendingOn` (optional, on any case): the platforms (`ios`, `web`, `android`) whose rule does not pass that case
+  yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
+  is removed from the list. Every runner checks all three case types.
+
+The rule below is the shared one. Its reference is the Android family app's
+`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`, and the iPhone's matches it; where a
+platform's rule does not follow a case yet, that case names the platform in `pendingOn`. Seven or more digits in a row
+are a number: written digits in any script (full-width, circled and Chinese numerals too) and spoken English digit
+words count alike, joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
+U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an accent or a joiner inside a gap counts as
+nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
+ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
+digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
+follows it (`67th Ave`, `142nd St`: St, Ave, Rd, Blvd, Dr, Ln, Way, Pl, Ct, Pkwy, Hwy or their full forms); otherwise
+it joins the run (`Call 4550 142nd` is removed). A grouped count of seven or more digits (`1,234,567` and up) is a
+number like any other run, since a phone number can be written that way (`4,045,550,142`): privacy wins the tie, so a
+count of a million or more is removed too. A decimal pair that starts with `+` is a phone number, not a coordinate
+(`+44.2071, -23.4567`), since a `+` marks an international number; without the `+` a pair joined by a comma or a
+space stays, while a bare minus with no space or comma (`44.2071-23.4567`) makes it a number. A date beside a phone
+number stays and only the number goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search
+information, and keeping the date leaks nothing once the number is removed. A time keeps its place only after a
+date (`Seen 11/19/2026 14:03`) or on its own beside a number (`Seen at 14:03, [number removed]`); joined to other
+digits before its hour, or after a ZIP+4 code, it goes with the run (`Call 1 404 555 01:42`,
+`Call GA 40455-5014 2:30`).
+
+## language.json (hand-written)
+
+The language screen every platform runs before a note may go to the cloud read. The rule and its two word lists are
+in `shared/constants/language-words.json` (`matching`); the web runs `looksEnglish` from `shared/engine-ts`. Run it on
+the note as the person wrote it, before phone numbers are removed: the replacement token adds English-looking words,
+and a short Russian or Chinese note with a number would then pass (both are pinned in `mustRefuse`).
+
+- `mustAllow[]`: `{ name, input }`. The note looks English and may go to the cloud read: plain field notes, and
+  English notes that quote Spanish names, places or phrases (the families this serves often do).
+- `mustRefuse[]`: `{ name, language, input }`. The note does not look English: whole notes in Spanish, Portuguese,
+  Vietnamese or Korean. The cloud read is refused; the on-device read and hand entry still work.
+- `knownMiss[]`: `{ name, input, why }`. Cases the rule gets wrong on purpose, kept so every platform gets them
+  wrong the same way; each currently passes as English.
+
+Tuning, 2026-11-20: a one-sided rule (share of common English words) refused 22% of 325 English sentences from this
+repository's docs at its working threshold, so the screen counts foreign function words against English ones instead;
+with `minForeign` 3 and `foreignOverEnglish` 2 it refuses none of those 325 sentences and passes every case here.
