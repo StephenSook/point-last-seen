@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the exact case "Seen 11/19 555-0142" is pending on ios too. The iPhone rule reads a date only with
+  three groups, so a month and day beside a number join it into one 11-digit run and the whole run goes. The iPhone
+  team is adding a month/day date. Source: the iPhone team's run of #118's cases. Verified:
+  scripts/test_phone_vectors.py passes; local gates pass.
 - Phone vectors, two shared rulings: a decimal pair that starts with + is a phone number, not a coordinate (mustRemove
   "Call +44.2071, -23.4567", pending on every platform; the keep "GPS 33.7490, -84.3880" stays), and a date beside a
   phone number stays while only the number goes (exact cases for 11/19/2026, 2026-11-19, 11/19 and "Nov 19 2026"

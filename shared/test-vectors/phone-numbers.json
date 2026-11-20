@@ -392,6 +392,7 @@
       "output": "Seen 11/19 [number removed]",
       "pendingOn": [
         "web",
+        "ios",
         "android"
       ]
     },
