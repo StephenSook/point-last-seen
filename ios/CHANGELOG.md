@@ -5,6 +5,35 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
+- What: the line under a refused report said the note "stays on this phone", but the screen only
+  refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
+  doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing."
+- Source: review (copy ruling).
+- Verified: the refusal-line test asserts the new sentence; it failed with the old code and passes
+  with the change; no other iPhone text carries the old line.
+
+### fix(ios): a removed phone number never makes a note look English to the language screen
+- What: the language screen judged the note after its phone number was removed, and removing it adds
+  the words "number removed", which diluted the non-Latin share: "Бабушка ушла 404-555-0142" and
+  "奶奶的電話是 一二三四五六七" passed and could go to the cloud read. The read now screens the note
+  as written and as cleaned, and goes to the cloud only when both look English.
+- Source: review (the same defect found in the Android port).
+- Verified: a test with both notes on the cloud route calls no cloud model and records not_english;
+  it failed before the change and passes after; all 339 core tests and the app reader tests pass.
+
+### feat(ios): the route check says each result in plain words
+- What: the route check screen showed code names ("on_device: read on rules (deterministic_parser),
+  model rules, 20692 ms, reason no_network"). Each line now reads like "On this iPhone, no signal:
+  Read by rules, not a model. 20.7 s. Why: no signal. Read as cleared, segment BO." and "In the
+  cloud: Suggested by Gemini in the cloud (gemini-3.5-flash-lite). 1.3 s. Why: Apple's model is not
+  available. ...". Every route reason has plain words (EchoText.reasonWords, an exhaustive switch,
+  so a new reason cannot ship without them). The saved file keeps the exact route record.
+- Source: review (judge-facing screens; simulator walk-through of the route check).
+- Verified: tests that every reason has words with no code names and that times show in seconds;
+  they failed to compile before the change and pass after; the text-size scan and the route check
+  tests pass.
+
 ### feat(ios): a note that does not look English never goes to the cloud read
 - What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
   the router's cloud route and the move to the cloud after Apple's model fails. A note that does not

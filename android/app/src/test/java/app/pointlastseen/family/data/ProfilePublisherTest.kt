@@ -178,6 +178,71 @@ class ProfilePublisherTest {
         )
     }
 
+    /** A first publish that changes no note input leaves command's stored approach notes as they are. */
+    @Test fun aFirstPublishKeepsStoredNotesWhoseInputsDidNotChange() {
+        val existing = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "white", "triggersToAvoid" to "",
+            "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"),
+        )
+        val mine = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "grey", "triggersToAvoid" to "sirens",
+            "approachNoteIds" to listOf("approach_calm", "triggers"),
+        )
+        assertEquals(FirstPublish.Merge(mapOf("hair" to "grey")), FirstPublish.of(existing, mine, edited = setOf("hair")))
+        assertEquals(
+            FirstPublish.Merge(mapOf("triggersToAvoid" to "sirens", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms", "triggers"))),
+            FirstPublish.of(existing, mine, edited = setOf("triggersToAvoid")),
+        )
+    }
+
+    /** A document whose nickname is null (the rules want a name) gets the nickname its names imply, or the phone's pair. */
+    @Test fun aFirstPublishRepairsANullNickname() {
+        val mine = mapOf<String, Any?>("nickname" to "Mom", "otherNames" to listOf("Mom"), "hair" to "grey")
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to null, "otherNames" to listOf("Peggy")), mine),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Mom"), "hair" to "grey", "nickname" to "Mom")),
+            FirstPublish.of(mapOf("nickname" to null), mine),
+        )
+    }
+
+    /**
+     * The rules take only the known note ids. A stored list holding anything else (an id this app does not know, a
+     * number) is repaired, and the always-shown note is added even when no note input changed.
+     */
+    @Test fun aFirstPublishRepairsTheStoredNotesAndAddsTheAlwaysShownOne() {
+        val mine = mapOf<String, Any?>("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm", "fall_risk"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to listOf("fall_risk", "future_note", 5)), mine, edited = setOf("hair")),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to emptyList<String>()), mine, edited = setOf("hair")),
+        )
+    }
+
+    /** Notes follow only fields the family edited: a field a first publish fills in (absent before) leaves command's notes alone. */
+    @Test fun aFieldOnlyFilledInLeavesTheStoredNotesAlone() {
+        val existing = mapOf<String, Any?>("hair" to "white", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"))
+        val mine = mapOf<String, Any?>("hair" to "grey", "flags" to mapOf("mayNotRespond" to true), "approachNoteIds" to listOf("may_not_respond", "approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "flags" to mapOf("mayNotRespond" to true))),
+            FirstPublish.of(existing, mine, edited = setOf("hair")),
+        )
+    }
+
+    /** An empty stored nickname is no name: the family's added other names go up, with the nickname they imply. */
+    @Test fun anEmptyStoredNicknameTakesTheAddedNames() {
+        val mine = mapOf<String, Any?>("nickname" to "Peggy", "otherNames" to listOf("Peggy"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Peggy"), "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to ""), mine),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

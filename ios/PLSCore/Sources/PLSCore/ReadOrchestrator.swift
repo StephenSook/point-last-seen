@@ -155,9 +155,10 @@ public enum ReadOrchestrator {
                     if !modeOK { decision = RouteDecision(path: .rules, reason: .notDrillMode) }
                     path = .rules
                     stage = .deterministicParser
-                } else if !(context.language?.looksEnglish(text) ?? false) {
-                    // The cloud read would run now, but the note does not look English: it stays on this
-                    // phone, read by rules, and the route says why.
+                } else if !(context.language.map { $0.looksEnglish(spoken) && $0.looksEnglish(text) } ?? false) {
+                    // The cloud read would run now, but the note does not look English, as written or with
+                    // its phone number removed (which adds English words): it is not sent, it is read by
+                    // rules, and the route says why.
                     decision = RouteDecision(path: .rules, reason: .notEnglish)
                     path = .rules
                     stage = .deterministicParser

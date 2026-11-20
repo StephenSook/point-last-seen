@@ -120,6 +120,16 @@
    "name": "korean_short",
    "language": "ko",
    "input": "아무도 못 봤어요"
+  },
+  {
+   "name": "russian_with_phone_number",
+   "language": "ru",
+   "input": "Бабушка ушла 404-555-0142"
+  },
+  {
+   "name": "chinese_with_spoken_number",
+   "language": "zh",
+   "input": "奶奶的電話是 一二三四五六七"
   }
  ],
  "knownMiss": [
