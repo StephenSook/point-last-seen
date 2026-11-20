@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- LIMITS: a write already under way when the family leaves (a photo or clip upload, or the profile's first publish)
+  can still reach the search; each checks the join just before it starts, and only a server-side membership check
+  could stop one already started. Source: review of the Android leave change. Verified against the Android code
+  (`JoinedClipDeps` and `PhotoUpload` check `stillJoined` before each write).
 - LIMITS: leaving a search on the family app. "Leave this search" stops new changes, waits up to 5 seconds for sent
   ones, then asks the phone to stop following the search's notifications; leaving is local to the phone, whose sign-in
   still names it as the search's family, so a change made offline just before leaving is accepted when the phone
