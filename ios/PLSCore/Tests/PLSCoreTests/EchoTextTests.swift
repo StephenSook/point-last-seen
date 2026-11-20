@@ -44,4 +44,16 @@ import Testing
         #expect(EchoText.effectLine(effect, type: .sighting) == "Sighting logged in AC. It counts once command confirms it.")
         #expect(EchoText.effectLine(effect, type: .clue) == "Clue logged in AC.")
     }
+
+    /// In the practice drill there is no command to ask: the line says what to do in a real search.
+    /// Every other line, and every real report's line, stays as it is.
+    @Test func practiceReportsSayAskCommandOnlyForARealSearch() {
+        #expect(EchoText.effectLine(.none(why: .needsCommand), type: .clue, practice: true) == "In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .invalid), type: .clue, practice: true)
+            == "Could not read this report. In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .outsideArea), type: .clue, practice: true)
+            == "Outside the search area. In a real search, ask command.")
+        #expect(EchoText.effectLine(.none(why: .soundOnly), type: .clue, practice: true) == "Calling alone is not counted for this person.")
+        #expect(EchoText.effectLine(.none(why: .needsCommand), type: .clue, practice: false) == "Ask command.")
+    }
 }

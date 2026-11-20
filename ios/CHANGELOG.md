@@ -3,6 +3,17 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-20
+
+### feat(ios): practice reports say to ask command in a real search
+- What: in the practice drill there is no command to ask, so a report line ending "Ask command." ends
+  "In a real search, ask command." instead (for a report that needs command, one that could not be
+  read, and one outside the search area). Every other line, and every real report's line, is
+  unchanged. EchoText.effectLine takes the practice flag; the report list passes the mission's.
+- Source: review (practice wording).
+- Verified: a test checks the three practice lines, an unchanged practice line and an unchanged real
+  line; it failed to compile before the change and passes after; 314 core and 186 app tests pass.
+
 ## 2026-11-19
 
 ### build(ios): ship the practice pack, so the Join screen offers the practice drill
