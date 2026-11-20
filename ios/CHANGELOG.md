@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): a privacy manifest for the app
+- What: the app now carries PrivacyInfo.xcprivacy, which App Store Connect checks on upload: no
+  tracking and no tracking domains; the data a report sends to the incident (precise location, the
+  anonymous user id and the report's words), each linked to that user, never used for tracking,
+  for the app's own function; and the one required-reason API the app's own code uses, its own
+  UserDefaults (reason CA92.1). The widget uses none. The Firebase and MapLibre packages carry
+  their own manifests.
+- Source: TestFlight preparation.
+- Verified: plutil lint passes; a test reads the manifest from the app bundle and checks each entry;
+  it failed with the file removed and passes with it; 119 app tests pass.
+
 ### feat(ios): an app icon, the web app's mark
 - What: the iPhone app had no icon, which App Store Connect refuses on upload. It now has one: the
   web app's own mark (web/public/favicon.svg: a warm ring and a light centre on the dark ground),
