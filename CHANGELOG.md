@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- seed_drill.py --expires: an invalid or past value is no longer repeated in the error, so a code pasted into the
+  wrong argument never reaches the screen or a log. Source: review round 1 (low). Verified: 15 seed_drill tests pass.
 - judge_drill.py hardening (review round 1: two high, two medium, two low): the seed is refused unless its segments
   pass the apps' contract and it has profile/shared; --reset rewrites the baseline first, then deletes extras, then
   media, and a media file already gone (the clip trigger removes clips with their readings) counts as deleted, so a

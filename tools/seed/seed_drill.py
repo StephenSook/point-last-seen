@@ -152,10 +152,10 @@ def check_expires(expires: str) -> str:
     """A UTC time written YYYY-MM-DDTHH:MM:SSZ, in the future."""
     import datetime
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", expires):
-        raise SystemExit(f"--expires must be a UTC time like 2026-12-17T23:59:59Z, not {expires!r}")
+        raise SystemExit("--expires must be a UTC time like 2026-12-17T23:59:59Z (the value given is not repeated here)")
     when = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
     if when <= datetime.datetime.now(datetime.timezone.utc):
-        raise SystemExit(f"--expires {expires} is not in the future")
+        raise SystemExit("--expires must be a time in the future")
     return expires
 
 
