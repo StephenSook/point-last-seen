@@ -2,6 +2,7 @@
 // on a dark plate at each centre, and the OpenStreetMap license line.
 
 import { labelOrder, overlapping } from "./labelDensity";
+import { plateShown, screenBox } from "./plateRule";
 import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { loadBasemap } from "../basemap/load";
@@ -53,6 +54,8 @@ type Props = {
   ripple?: { key: string; origin: LatLon } | null;
   /** The site's self-hosted basemap file (PMTiles), drawn when it exists. */
   basemapUrl?: string | null;
+  /** Command's "every percent": every plate of 0.1% or more, not only those of 1.0% or more that fit their cell. */
+  everyPercent?: boolean;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
   beat?: {
     key: string;
@@ -79,7 +82,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note, everyPercent = false }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -199,19 +202,36 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     };
     // Each cell's labels, by segment id, for placing.
     const labels = new Map<string, HTMLElement[]>();
-    // Place labels in POA order; a cell whose labels would cover one already placed hides its own (labelDensity.ts).
+    // First the plate rule (plateRule.ts): a plate shows only at 1.0% or more and only when it fits inside its
+    // cell's box on screen. Then the labels left are placed in POA order; a cell whose labels would cover one
+    // already placed hides its own (labelDensity.ts).
+    const byId = new Map(segments.map((s) => [s.segmentId, s]));
     const place = () => {
-      const units = labelOrder(poa, segments.map((s) => s.segmentId)).map((id) => labels.get(id) ?? []);
-      for (const el of units.flat()) el.classList.remove("crowded");
+      const ids = labelOrder(poa, segments.map((s) => s.segmentId));
+      for (const id of ids) {
+        const own = labels.get(id) ?? [];
+        for (const el of own) el.classList.remove("crowded", "unfit");
+        const plate = own.find((el) => el.classList.contains("plate"));
+        const seg = byId.get(id);
+        if (!plate || !seg) continue;
+        const rings = seg.geometry.type === "Polygon" ? seg.geometry.coordinates : seg.geometry.coordinates.flat();
+        const box = screenBox(rings.flatMap((ring) => (ring as [number, number][]).map(([x, y]) => {
+          const pt = m.project([x, y]);
+          return [pt.x, pt.y] as const;
+        })));
+        const shown = box !== null && plateShown({ poa: poa[id] ?? 0, label: plate.textContent ?? "", plate: { w: plate.offsetWidth, h: plate.offsetHeight }, box, every: everyPercent });
+        if (!shown) plate.classList.add("unfit");
+      }
+      const units = ids.map((id) => (labels.get(id) ?? []).filter((el) => !el.classList.contains("unfit")));
       for (const i of overlapping(units.map((els) => els.map((el) => el.getBoundingClientRect())))) for (const el of units[i]!) el.classList.add("crowded");
     };
-    m.on("zoomend", place);
+    m.on("moveend", place);
     if (ready.current) draw();
     else m.once("load", draw);
     return () => {
-      m.off("zoomend", place);
+      m.off("moveend", place);
     };
-  }, [segments, poa, beat?.before]);
+  }, [segments, poa, beat?.before, everyPercent]);
 
   useEffect(() => {
     const m = map.current;

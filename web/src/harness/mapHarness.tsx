@@ -39,15 +39,23 @@ const HARNESS_TRACKS: Track[] = Array.from({ length: 300 }, (_, i) => {
   return { pts: [[START.lon, START.lat], [end.lon, end.lat]], releaseMs: cohortReleaseMs(i), durationMs: 1500 };
 });
 
+// ?tiny: cell DF gets 0.01%, so a "<0.1%" plate exists. ?every: the map shows every percent.
+const params = new URLSearchParams(location.search);
+const POA = params.has("tiny") ? { ...HARNESS_POA, DF: 0.0001 } : HARNESS_POA;
+// Tests read each cell's ring and project it with the map, to compare plates with their cells on screen.
+(window as unknown as { harnessCells: unknown }).harnessCells = HARNESS_SEGMENTS.map((s) => ({ segmentId: s.segmentId, ring: s.geometry.coordinates[0] }));
+
 function Harness() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "auto 1fr" }}>
       <p className="drill" style={{ margin: 0, padding: 8 }}>Synthetic test grid, not drill data.</p>
       <MapView
         segments={HARNESS_SEGMENTS}
-        poa={HARNESS_POA}
+        poa={POA}
+        everyPercent={params.has("every")}
         onReady={(m) => {
           document.body.dataset["mapReady"] = m ? "map" : "none";
+          (window as unknown as { harnessMap: unknown }).harnessMap = m;
           // ?ripple: record every dot's grow value in order, so a test reads the ripple's own state, not the clock.
           if (m && new URLSearchParams(location.search).has("ripple")) {
             const log: { id: number; grow: number }[] = [];
