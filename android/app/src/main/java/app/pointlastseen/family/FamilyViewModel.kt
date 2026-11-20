@@ -111,6 +111,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val evidence = EvidenceTerms.screen(app)
     // The published fields the family changed on this phone: a first publish sends them even over a value already there.
     private val familyEdits = FamilyEdits(PrefsStore(app, "pls-edits"))
+    private var publishRequests = 0
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
     val incident = watch.incident
@@ -407,8 +408,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val inc = session.incidentId() ?: return
         if (!(nav.gone && nav.joined) || !joins.confirmed()) return
         val still = stillJoined(inc)
-        // A result for a search the phone has since left says nothing about the one it is in now.
-        publisher.publish(inc, profile, still) { ok -> if (still.check()) profileShareFailed = !ok }
+        val request = ++publishRequests
+        // Only the newest publish sets the note: an older one ending later must not hide a newer failure. A result
+        // for a search the phone has since left says nothing about the one it is in now.
+        publisher.publish(inc, profile, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
