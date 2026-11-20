@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Auth } from "firebase-admin/auth";
 import { Timestamp, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
-import { HttpsError } from "firebase-functions/v2/https";
+import { HttpsError, type FunctionsErrorCode } from "firebase-functions/v2/https";
 
 /** The label every practice incident carries, shown wherever the drill label is shown. */
 export const JUDGE_LABEL = "Training drill. Practice search; nobody is missing.";
@@ -24,8 +24,13 @@ export const JUDGE_SESSION_TIMEOUT_S = 120;
  * than twice the timeout, as a margin; the safety comes from each attempt having its own incident id.
  */
 export const SETUP_STALE_MS = 5 * 60_000;
-const NO_SEED = "No practice search is available right now.";
-const STILL_SETTING_UP = "Your practice search is still being set up. Try again in a moment.";
+/**
+ * Each refusal carries a stable details.reason beside its sentence, so a client maps the code and the reason, never
+ * the text (a client SDK may add to the message). The sentences stay as the words a client shows.
+ */
+const refuse = (code: FunctionsErrorCode, message: string, reason: string) => new HttpsError(code, message, { reason });
+const noSeed = () => refuse("failed-precondition", "No practice search is available right now.", "no_practice");
+const stillSettingUp = () => refuse("unavailable", "Your practice search is still being set up. Try again in a moment.", "setup_busy");
 
 /** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */
 type Writer = { set(ref: DocumentReference, data: DocumentData): Promise<unknown>; close(): Promise<void> };
@@ -45,7 +50,7 @@ async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: s
   const exp = sandbox!.get("expiresAt");
   const current = user!.get("incidentId") === incidentId && sandbox!.get("setupReady") === true
     && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
-  if (!current) throw new HttpsError("unavailable", STILL_SETTING_UP);
+  if (!current) throw stillSettingUp();
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };
 }
@@ -58,7 +63,7 @@ async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: s
  */
 async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
   stillOwner: () => Promise<boolean>): Promise<void> {
-  if (!(await stillOwner())) throw new HttpsError("unavailable", STILL_SETTING_UP);
+  if (!(await stillOwner())) throw stillSettingUp();
   const writer = makeWriter();
   const writes: Promise<unknown>[] = [];
   const set = (ref: DocumentReference, data: DocumentData) => writes.push(writer.set(ref, data).then(() => null, (e: unknown) => e ?? "write failed"));
@@ -80,7 +85,7 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
  * if the seed has one. With no seed there is nothing to check against, so nothing is promoted.
  */
 async function copyIsComplete(seed: DocumentReference, to: DocumentReference): Promise<boolean> {
-  if (!(await seed.get()).exists) throw new HttpsError("failed-precondition", NO_SEED);
+  if (!(await seed.get()).exists) throw noSeed();
   for (const sub of ["segments", "teams"]) {
     const have = new Set((await to.collection(sub).listDocuments()).map(d => d.id));
     if ((await seed.collection(sub).listDocuments()).some(d => !have.has(d.id))) return false;
@@ -102,7 +107,7 @@ async function copyIsComplete(seed: DocumentReference, to: DocumentReference): P
  */
 export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: string | null, nowMs: number,
   cfg: Config = { seedIncidentId: JUDGE_SEED_INCIDENT, perDay: JUDGE_SESSIONS_PER_DAY }): Promise<{ incidentId: string; role: "command" }> {
-  if (uid === null) throw new HttpsError("unauthenticated", "Sign in before starting a practice search.");
+  if (uid === null) throw refuse("unauthenticated", "Sign in before starting a practice search.", "not_signed_in");
   const userRef = db.doc(`judgeUsers/${uid}`), legacyId = `judge-${uid}`, legacyRef = db.doc(`incidents/${legacyId}`);
   const seedRef = db.doc(`incidents/${cfg.seedIncidentId}`);
   const setupId = randomUUID();
@@ -137,7 +142,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
       if (current.get("setupReady") === undefined) return { kind: "legacy", id: current.id };
       const started = current.get("setupStartedAtMs");
       if (typeof started === "number" && nowMs - started < SETUP_STALE_MS) return { kind: "busy" };
-      if (!seed!.exists) throw new HttpsError("failed-precondition", NO_SEED);
+      if (!seed!.exists) throw noSeed();
       tx.update(current.ref, retired);
       tx.set(attemptRef, attempt(seed!.data()!, current.get("createdAt"), exp));
       tx.set(userRef, { incidentId: attemptId, createdAt: current.get("createdAt") });
@@ -145,18 +150,18 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     }
     const created = user!.exists ? user!.get("createdAt") : current?.get("createdAt");
     if (created instanceof Timestamp && nowMs - created.toMillis() < HOUR_MS) {
-      throw new HttpsError("resource-exhausted", "One new practice search per hour. Try again later.");
+      throw refuse("resource-exhausted", "One new practice search per hour. Try again later.", "hourly_limit");
     }
-    if (!seed!.exists) throw new HttpsError("failed-precondition", NO_SEED);
+    if (!seed!.exists) throw noSeed();
     const used = typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
-    if (used >= cfg.perDay) throw new HttpsError("resource-exhausted", "Practice searches are full for today. Try again tomorrow.");
+    if (used >= cfg.perDay) throw refuse("resource-exhausted", "Practice searches are full for today. Try again tomorrow.", "daily_limit");
     tx.set(counter, { count: used + 1 });
     const createdAt = Timestamp.fromMillis(nowMs);
     tx.set(attemptRef, attempt(seed!.data()!, createdAt, Timestamp.fromMillis(nowMs + DAY_MS)));
     tx.set(userRef, { incidentId: attemptId, createdAt });
     return { kind: "build", id: attemptId };
   });
-  if (action.kind === "busy") throw new HttpsError("unavailable", STILL_SETTING_UP);
+  if (action.kind === "busy") throw stillSettingUp();
   if (action.kind === "ready") return giveCommand(db, auth, uid, action.id, nowMs, cfg.beforeClaims);
 
   let buildId = action.id;
@@ -172,13 +177,13 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
         tx.set(userRef, { incidentId: legacyId, createdAt: legacy!.get("createdAt") });
         return "ready" as const;
       }
-      if (!seed!.exists) throw new HttpsError("failed-precondition", NO_SEED);
+      if (!seed!.exists) throw noSeed();
       tx.update(legacyRef, retired);
       tx.set(attemptRef, attempt(seed!.data()!, legacy!.get("createdAt"), legacy!.get("expiresAt")));
       tx.set(userRef, { incidentId: attemptId, createdAt: legacy!.get("createdAt") });
       return "build" as const;
     });
-    if (next === "busy") throw new HttpsError("unavailable", STILL_SETTING_UP);
+    if (next === "busy") throw stillSettingUp();
     if (next === "ready") return giveCommand(db, auth, uid, legacyId, nowMs, cfg.beforeClaims);
     buildId = attemptId;
   }
