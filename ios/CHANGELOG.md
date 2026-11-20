@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): the language screen, by the shared rule and vectors
+- What: PLSCore gains LanguageScreen.looksEnglish, built from shared/constants/language-words.json:
+  the note is folded and split as the evidence screen does, words made only of digits are dropped,
+  and a note does not look English when more than half its words are non-Latin, or when its foreign
+  function words plus non-Latin words are at least minForeign and more than foreignOverEnglish times
+  its English words. It is not yet called by the read; that follows.
+- Source: plan (language screen before any cloud read of a note).
+- Verified: shared/test-vectors/language.json runs in a Swift test: 18 mustAllow pass as English, 9
+  mustRefuse do not, the 1 knownMiss passes as English as on every platform, and a new kind of case
+  in the file fails the test. It failed to compile before the change; all 322 core tests pass.
+
 ### fix(ios): written dates stay in a report; a slash-joined phone number still goes
 - What: a date is search information (when someone was last seen), not a phone number. The phone
   number rule now keeps three digit groups joined by the same one of / - . that read as a date:
