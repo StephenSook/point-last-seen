@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS: a family's edit before its first publish reaches the search for single fields; for a list or set field it
+  reaches the search only where command's profile lacks that field; after the first publish, an edit to such a field
+  sends the phone's whole list, replacing what command added. Source: review of the Android profile publish change.
+  Verified against the Android code on main (EditableFields.sendable passes single values only; FirstPublish.of; the
+  Fields path sends changed values whole with doc.update).
 - Phone-number vector: dates are kept on every platform. Four mustKeep cases added ("11/19/2026", "2026-11-19",
   "11/19", "Nov 19"), pinned in `scripts/test_phone_vectors.py`; "404/555/0142" (3-3-4 grouping) stays mustRemove. A
   date in a note is search information, not a phone number. Source: review (a slash fix on one platform began removing
