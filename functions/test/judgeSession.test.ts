@@ -251,6 +251,33 @@ describe("startJudgeSession when the pointer names a dead attempt", () => {
   });
 });
 
+describe("startJudgeSession refusals carry a stable reason beside their sentence", () => {
+  const why = (e: unknown) => ({ code: (e as { code: string }).code, reason: (e as { details?: { reason?: string } }).details?.reason });
+  it("signed out, no practice drill, the hourly and the daily limit, and a setup still running each name their reason", async () => {
+    expect(await handleStartJudgeSession(admin.db, admin.auth, null, NOW, cfg).then(() => null, why))
+      .toEqual({ code: "unauthenticated", reason: "not_signed_in" });
+    expect(await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, { ...cfg, seedIncidentId: "NONE" }).then(() => null, why))
+      .toEqual({ code: "failed-precondition", reason: "no_practice" });
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    await inc(first).update({ expiresAt: Timestamp.fromMillis(NOW + 60_000) });
+    expect(await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 120_000, cfg).then(() => null, why))
+      .toEqual({ code: "resource-exhausted", reason: "hourly_limit" });
+    await counterAt(NOW).set({ count: 3 });
+    expect(await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg).then(() => null, why))
+      .toEqual({ code: "resource-exhausted", reason: "daily_limit" });
+    const busy = await freshUid();
+    let release!: () => void;
+    const slow = { ...cfg, perDay: 10, copy: (copy: () => Promise<void>) => new Promise<void>(r => { release = r; }).then(copy) };
+    const building = handleStartJudgeSession(admin.db, admin.auth, busy, NOW, slow);
+    while ((await pointer(busy)) === undefined) await new Promise(r => setTimeout(r, 20));
+    expect(await handleStartJudgeSession(admin.db, admin.auth, busy, NOW + 1000, { ...cfg, perDay: 10 }).then(() => null, why))
+      .toEqual({ code: "unavailable", reason: "setup_busy" });
+    release();
+    await building;
+  });
+});
+
 describe("startJudgeSession hands out the role only for the visitor's current attempt", () => {
   it("a start that finds a newer winner by the time it hands out the role leaves that winner's role alone (review round 3)", async () => {
     const uid = await freshUid();
