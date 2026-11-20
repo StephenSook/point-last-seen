@@ -5,6 +5,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- The rules gate checks that `shared/constants/judge-seed.json`, which the web's live fixtures read, names the same
+  judge seed as `JUDGE_SEED_INCIDENT` and a different test drill, so the two copies of the seed id cannot drift.
+  The file's description now says what it is: the drill every practice search is copied from (judges do not open
+  it) and the test-only drill live tests write to.
+  Source: review (a second copy of the seed id in the shared constants).
+  Verified: the test (a matching file passes; a different seed, a test drill equal to the seed, and an empty file
+  each fail) failed first, now all 39 gate tests pass; the gate over the repository exits 0.
+- The rules gate fails when a live or device test names the judge seed, the drill every judge practice search is
+  copied from: its id (read from `JUDGE_SEED_INCIDENT` in `functions/src/judgeSession.ts`, so a renamed seed stays
+  guarded) may not appear in `android/app/src/androidTest/`, `android/*.sh`, `web/e2e/` or `ios/PLSUITests/`. Those
+  tests use the test-only drill `drill-test-1`. Docs, unit tests and the functions may still name the seed, and an
+  unreadable seed constant fails the gate.
+  Source: review (live tests had written into the judge seed).
+  Verified: the tests (a Kotlin device test, a run script, a web e2e spec and an iPhone UI test naming the seed each
+  fail; the same id in a doc, a unit test or the functions and another drill id pass; an unreadable constant fails)
+  failed first, now all 38 gate tests pass.
 - The Android unit-test floor is 304, the suite's real count with the membership and first-publish tests (it was
   293), in `.github/workflows/android.yml` and `scripts/ci-local.sh`.
   Source: the Android app's report of its full suite on this merge.
@@ -17,6 +33,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   Source: the Android app's first-publish and membership changes in this merge.
   Verified: each line matches the Android commits merged here (absent-only first publish; drop after a successful
   forced refresh; Leave this search) and their live test on the test drill.
+- The web job's three browser steps each have a 5-minute limit, about five times their usual time (15 s, 40 s and
+  55 s on recent runs), so a stall is reported as its own step failing instead of the whole job ending cancelled at
+  its 15-minute limit.
+  Source: review (a web run that ended cancelled at the job's limit was hard to read: the stall was in an earlier
+  step).
+  Verified: the ci-local mirror checks pass (7); the web job's result is on this change's pull request.
+- The web workflow installs ffmpeg through `scripts/ci/install-ffmpeg.sh`, which bounds each apt call (60 s for the
+  index, 120 s for the install, with apt's own retries) and tries twice, and the step has a 7-minute limit. A stalled
+  apt mirror once held the old one-line install until the job's 15-minute limit, so the run ended cancelled instead
+  of failing with a reason. The script exits non-zero unless ffmpeg is on PATH. The check that every workflow
+  command runs in `scripts/ci-local.sh` treats the script as runner setup.
+  Source: CI (a web run cancelled at the job limit in the ffmpeg step).
+  Verified: the script passes `bash -n`; the ci-local mirror checks pass (7); rules_gate exits 0. The web job's
+  result is on this change's pull request.
 - Every refusal from `startJudgeSession` and `deleteIncidentMediaNow` carries a stable `details.reason` beside its
   sentence, so a client maps the error code and the reason instead of the text (the web SDK adds the HTTP status to
   the message, which broke an exact match). The practice search: `not_signed_in`, `no_practice`, `hourly_limit`,
