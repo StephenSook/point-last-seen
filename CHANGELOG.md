@@ -5,6 +5,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Grounding vectors README: where the rule applies. The web and the iPhone read notes into these fields; the Android
+  family app has none to ground (its note read fills kind, label, summary and evidenceQuote; a family sighting's
+  direction and colours are picked by hand; a camera clip's colours come from the frames, with no note or profile in
+  the request). Source: the Android team's check at 720038b4. Verified: no shared/templates/*.json names the profile.
+- Engine: groundReading(reading, note) returns a copy of a reading with each colour, direction, footwear or carried
+  value the note does not support blanked (shared/engine-ts/src/ground.ts, rule and words from
+  shared/constants/grounding-words.json). Each platform calls it after every read; the web wiring follows in its own
+  change. Source: review (a read took blue from the subject's profile). Verified: test/grounding.test.ts runs every
+  grounding.json case per field (32 tests, red before the function existed); engine typecheck, lint and all 312 tests
+  pass.
+- Grounding vectors: shared/constants/grounding-words.json holds the word lists and the rule for grounding a reading
+  in its note (a colour or a direction stays only when its word is in the note, footwear or carried only when it
+  shares a word with it; otherwise the field is blanked), and shared/test-vectors/grounding.json pins 26 cases, a kept
+  and a blanked case for each of topColor, bottomColor, direction, footwear and carried, including the profile leak
+  (blue from the profile). scripts/test_grounding_vectors.py checks both files and runs in CI. Source: review.
+  Verified: pytest 4 passed; local gates pass.
 - SECURITY row 14 and the production checklist: App Check is now ENFORCED on Firestore (since 2026-11-20 21:29:29 UTC)
   as well as Storage (since 01:47:55 UTC), with the verdict read that preceded each and the post-enforcement checks
   (64 of 64 live web specs, the daily probe run 44824078797, an iPhone read, Firestore VALID-only verdicts, and a REST
