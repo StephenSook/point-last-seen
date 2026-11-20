@@ -149,6 +149,103 @@
       "pendingOn": [
         "web"
       ]
+    },
+    {
+      "name": "grouped_phone_number",
+      "input": "Call 4,045,550,142",
+      "number": "4,045,550,142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "state_letters_before_zip_plus_four",
+      "input": "Call OH 41234-5678",
+      "number": "OH 41234-5678",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "adlam_grouped_number",
+      "input": "Call \ud83a\udd54,\ud83a\udd50\ud83a\udd54\ud83a\udd55,\ud83a\udd55\ud83a\udd55\ud83a\udd50,\ud83a\udd51\ud83a\udd54\ud83a\udd52",
+      "number": "\ud83a\udd54,\ud83a\udd50\ud83a\udd54\ud83a\udd55,\ud83a\udd55\ud83a\udd55\ud83a\udd50,\ud83a\udd51\ud83a\udd54\ud83a\udd52",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "spacing_accent_in_number",
+      "input": "call 555\u00b41234 now",
+      "number": "555\u00b41234",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "nel_in_number",
+      "input": "call 555\u00851234 now",
+      "number": "555\u00851234",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "dingbat_digits",
+      "input": "call \u2776\u2777\u2778\u2779\u277a\u277b\u277c now",
+      "number": "\u2776\u2777\u2778\u2779\u277a\u277b\u277c",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "chinese_yao_digits",
+      "input": "call \u5e7a\u4e09\u516b\u5e7a\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b now",
+      "number": "\u5e7a\u4e09\u516b\u5e7a\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b",
+      "forbidden": [],
+      "keep": [
+        "call",
+        "now"
+      ],
+      "pendingOn": [
+        "web",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
@@ -203,11 +300,8 @@
       ]
     },
     {
-      "name": "grouped_count",
-      "input": "walked 1,234,567 steps",
-      "pendingOn": [
-        "web"
-      ]
+      "name": "grouped_count_under_seven_digits",
+      "input": "walked 12,345 steps"
     },
     {
       "name": "street_address",
@@ -235,6 +329,14 @@
       "input": "GPS 33.7490,\r\n-84.3880",
       "pendingOn": [
         "web"
+      ]
+    },
+    {
+      "name": "month_date_split_by_two_crlf",
+      "input": "Seen Nov\r\n\r\n19 2026",
+      "pendingOn": [
+        "web",
+        "android"
       ]
     }
   ],

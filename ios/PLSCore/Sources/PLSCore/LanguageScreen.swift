@@ -2,8 +2,9 @@ import Foundation
 
 /// The language screen, run before a note may go to the cloud read. The rule and its word lists come
 /// from shared/constants/language-words.json (`matching`); the shared vectors pin it on every
-/// platform. A note that does not look English stays on this phone: the on-device read and the pick
-/// list still work, the cloud read does not run.
+/// platform. For a note that does not look English the cloud read is refused; the on-device read and
+/// the pick list stay, and the report itself still goes to command. The read screens the note as
+/// written and with its phone number removed, and needs both to pass.
 ///
 /// Matching: fold and split the note as the evidence screen does (NFKD, drop combining marks,
 /// lowercase, split on anything that is not a letter or digit) and drop words made only of digits. A
