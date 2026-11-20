@@ -47,6 +47,31 @@ import Testing
         #expect(groups["seen"]?.n == 1 && groups["seen"]?.kindCorrect == 0)
     }
 
+    /// The answer key as a person writes it: rows numbered from 1, a kind, up to two segments (an
+    /// empty list means no segment is expected) and a feature, "none" included.
+    @Test func theAnswerKeyReadsIntoRows() throws {
+        let json = """
+        {"answerKey":"pls-drill-reports-v1","writtenBy":"person","grid":"piedmont-park-dev","rows":[
+          {"n":1,"text":"Blue coat by the creek in BO.","kind":"clue","segments":["BO"],"feature":"creek_or_drainage"},
+          {"n":2,"text":"Heard nothing, not sure where we are.","kind":"unclear","segments":[],"feature":"none"}]}
+        """
+        let key = try JSONDecoder().decode(EvalAnswerKey.self, from: Data(json.utf8))
+        #expect(key.answerKey == "pls-drill-reports-v1" && key.writtenBy == "person" && key.grid == "piedmont-park-dev")
+        #expect(key.evalRows == [
+            EvalRow(id: "n1", group: "fresh", text: "Blue coat by the creek in BO.", kind: .clue, segmentIds: ["BO"], feature: .creekOrDrainage),
+            EvalRow(id: "n2", group: "fresh", text: "Heard nothing, not sure where we are.", kind: .unclear, segmentIds: [], feature: Feature.none),
+        ])
+    }
+
+    /// No segment expected: right only when the reading names none.
+    @Test func anEmptySegmentListExpectsNoSegment() {
+        let row = EvalRow(id: "n2", group: "fresh", text: "Not sure where we are.", kind: .unclear, segmentIds: [], feature: nil)
+        let none = EvalOutput(reading: .unclear(), blocked: false)
+        let some = EvalOutput(reading: reading(kind: .unclear, segmentIds: ["BO"]), blocked: false)
+        #expect(EvalScorer.score(rows: [row], outputs: ["n2": none]).segmentCorrect == 1)
+        #expect(EvalScorer.score(rows: [row], outputs: ["n2": some]).segmentCorrect == 0)
+    }
+
     @Test func wilsonIntervalForTwentyOfTwenty() {
         let (lo, hi) = EvalScorer.wilson(successes: 20, n: 20)
         #expect(abs(lo - 0.839) < 0.002)

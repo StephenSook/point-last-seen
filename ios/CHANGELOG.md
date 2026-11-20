@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): read the eval's answer key as a person writes it
+- What: the eval reads the answer key format a person fills in: numbered report texts, each with a
+  kind, up to two segment ids and a feature ("none" included), with the key's name, who wrote it
+  and the grid. Every row is in the fresh group (written before any model run). An empty segment
+  list means no segment is expected: a reading is right on segments only when it names none.
+- Source: plan (report-reading evaluation); answer key format.
+- Verified: tests that a key reads into rows and that an empty segment list expects no segment; they
+  failed to compile before the change and pass after; 306 PLSCore tests pass.
+
 ### feat(ios-core): score the report-reading eval against person-written answers
 - What: PLSCore can score one reading arm (on-device, rules-only or cloud) on labelled reports: each
   row's kind and set of segment ids against the answers a person wrote, the place feature where the

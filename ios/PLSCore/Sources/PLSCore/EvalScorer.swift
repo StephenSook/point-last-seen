@@ -115,3 +115,26 @@ public enum EvalScorer {
         return min(1, 2 * tail / pow(2, Double(n)))
     }
 }
+
+/// The answer key a person writes for the eval, before any model run: numbered report texts, each
+/// with its kind, up to two segment ids (an empty list means no segment is expected) and a feature.
+public struct EvalAnswerKey: Codable, Sendable, Equatable {
+    public struct Row: Codable, Sendable, Equatable {
+        public var n: Int
+        public var text: String
+        public var kind: ReportKind
+        public var segments: [String]
+        public var feature: Feature
+    }
+
+    public var answerKey: String
+    /// "person": the answers were written by a person, not a model.
+    public var writtenBy: String
+    public var grid: String
+    public var rows: [Row]
+
+    /// The rows to score, all in the "fresh" group (written before any model run).
+    public var evalRows: [EvalRow] {
+        rows.map { EvalRow(id: "n\($0.n)", group: "fresh", text: $0.text, kind: $0.kind, segmentIds: $0.segments, feature: $0.feature) }
+    }
+}
