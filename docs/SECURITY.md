@@ -79,7 +79,7 @@ except the iOS report read, which streams.
 
 | Surface | What it reads | Template or direct | Mode | Starts when |
 |---|---|---|---|---|
-| Web command post | Suggested wording for a changed plan | Direct | Prefer cloud, on-device fallback | Command clicks Suggest |
+| Web command post | Suggested wording for a changed plan | Direct | On-device first, cloud fallback (`PREFER_ON_DEVICE`, `web/src/ai/replanWording.ts`) | Command clicks Suggest |
 | Web command post | A typed or pasted sighting note | Template `pls-sighting-note-v1` | Cloud only, after the on-device read | Command asks for the cloud read |
 | Web command post | One photo from the tray | Direct (`pls-photo-cues-v1` is published for it) | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
 | Web command post | A camera clip, or the seconds of it that matter | Direct (a template cannot pass the clip window) | Cloud only | Command asks for a clip read |

@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY: the plan-wording row's mode now matches the code, on-device first with a cloud fallback (PREFER_ON_DEVICE
+  in web/src/ai/replanWording.ts); it said prefer cloud. Source: review. Verified: grep shows replanWording.ts sets
+  InferenceMode.PREFER_ON_DEVICE and no other doc says prefer cloud.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
