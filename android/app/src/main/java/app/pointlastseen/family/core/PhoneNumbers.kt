@@ -21,13 +21,21 @@ object PhoneNumbers {
 
     private val DIGIT_WORDS = setOf("zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 
-    // Chinese numeral digits: the iPhone counts them as digits (whole numbers); Java calls them letters.
-    private const val CHINESE_DIGITS = "〇零一二三四五六七八九"
+    // Chinese numeral digits, and the spoken "幺" (one): the iPhone counts them as digits (whole numbers); Java calls
+    // them letters.
+    private const val CHINESE_DIGITS = "〇零一二三四五六七八九幺"
 
     // Dashes besides the plain hyphen, as NFKC leaves them: hyphen, non-breaking hyphen, figure, en and em dash, minus.
     private const val DASHES = "‐‑‒–—−"
 
-    private fun isDigit(cp: Int) = Character.isDigit(cp) || (cp <= 0xFFFF && cp.toChar() in CHINESE_DIGITS)
+    // A digit: a decimal digit in any script, a Chinese numeral digit, or a number character with a value that NFKC
+    // leaves alone (circled dingbat digits such as ❶ and ➀, double circled ⓵, Hangzhou 〡, Ethiopic ፩), as the
+    // iPhone reads them.
+    private fun isDigit(cp: Int): Boolean {
+        if (Character.isDigit(cp) || (cp <= 0xFFFF && cp.toChar() in CHINESE_DIGITS)) return true
+        val type = Character.getType(cp)
+        return (type == Character.OTHER_NUMBER.toInt() || type == Character.LETTER_NUMBER.toInt()) && Character.getNumericValue(cp) >= 0
+    }
 
     private val MONTHS = setOf(
         "jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july",

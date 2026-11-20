@@ -219,4 +219,11 @@ class PhoneNumbersTest {
             assertEquals("U+${"%04X".format(br[0].code)} -> $out", false, out.any { it.isDigit() })
         }
     }
+
+    /** Characters the iPhone reads as digits count here too: the spoken "幺" (one) and circled dingbat digits. */
+    @Test fun spokenYaoAndDingbatDigitsCount() {
+        assertEquals("电话[number removed]", PhoneNumbers.remove("电话幺三八幺二三四五六七八"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u2779\u2777\u2779 \u277A\u277A\u277A \u24FF\u2776\u2779\u2778"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u278D\u278A\u278D-\u278E\u278E\u278E-\u278A\u278B\u278D\u278C"))
+    }
 }
