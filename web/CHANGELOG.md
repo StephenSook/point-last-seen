@@ -1888,3 +1888,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `NOTE_READ_TIMEOUT_MS` moves below `sightingTextParams` in `src/ai/sightingText.ts`, so `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites for the web's on-device sighting-note read.
 - Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
 - Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
+
+### fix(ai): a note read keeps only what the note supports
+- What: `checked` in `src/ai/sightingText.ts` passes each validated reading through `groundReading` (`@pls/engine`) before the form sees it, for the laptop read and the consented cloud read alike: a colour, direction, footwear or carried item the note does not support (filled from the missing person's profile, say) is blanked. `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites.
+- Source: the shared grounding rule (a reading's colour, direction, footwear and carried value must come from its note).
+- Verified: two new tests in `src/ai/sightingText.test.ts` (a reply claiming "red" for a note that says "blue coat" comes back with the top colour blanked and the direction kept, on the laptop and in the cloud) failed first, then passed (19/19); web unit suite and CI's Python gates (the test-matrix check among them) pass; typecheck clean.
