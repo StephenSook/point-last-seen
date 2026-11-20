@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): the map draws only helpful plates, in field-size text, with a muted credit
+- What: the search map now uses the plate rule: the team's plate (inverted, light on dark text)
+  always shows, another segment's plate shows only at 1% or more and only when it fits inside the
+  segment at the current zoom, re-checked after every move. Plates and the credit line use Title 3,
+  the field app's smallest text (the credit was footnote size, below the field rule), and the
+  credit is the map's muted grey instead of the night theme's red. The map's delegate is held by a
+  small map view subclass.
+- Source: map review; field text rule (no text below Title 3); public wording rule.
+- Verified: 116 app tests and 292 PLSCore tests pass (the text size scan included); the hygiene
+  guard passes in public mode; on the simulator the Piedmont drill shows the "T1 1.4%" plate on a
+  thick outline, no crowded plates, and the grey credit line.
+
 ### fix(ios-core): the team's segments are outlined thick, to find in sunlight
 - What: the team's outline on the search map was a thin light line and hard to find. It is now a
   4-point light line on a 9-point dark casing.
