@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): with no GPS fix, Apple's model gets no segmentHere tool
+- What: with no GPS fix the segmentHere tool's only answer was "No GPS fix. Do not guess a segment.", and
+  Apple's model quoted that sentence as the report, so its reading was rejected. With no fix, Apple's
+  model now gets no segmentHere tool, and its instructions say in plain words that the phone has no GPS
+  fix, so where the team is standing is not known. With a fix nothing changes. The cloud keeps its three
+  tools and its prompt. The validator is unchanged: a quote of tool text stays rejected.
+- Source: review (simulator eval: "Not sure where we are, the radio is weak" was quoted as the tool's
+  sentence).
+- Verified: a test that a no-fix read never offers the tool and gets the no-fix instructions failed to
+  compile before the change and passes after; a test pins that a quote of tool text stays rejected;
+  196 app tests and all core tests pass.
+
 ### fix(ios-core): a zero from Apple's model means the number was not stated
 - What: Apple's model fills minutes, searchers and detection range with 0 when the report never states
   them, and the reading was then rejected for out-of-range numbers. Before validation, a 0 from Apple's

@@ -38,7 +38,7 @@ enum ModelSessionFactory {
     static func estimateTokens(report: String, tools: [any Tool]) async -> Int {
         let model = SystemLanguageModel.default
         do {
-            let parts = try await [model.tokenCount(for: ReportPrompt.onDeviceGuided), model.tokenCount(for: report),
+            let parts = try await [model.tokenCount(for: FoundationModelRunner.onDeviceInstructions(tools)), model.tokenCount(for: report),
                                    model.tokenCount(for: tools), model.tokenCount(for: ReportReadingG.generationSchema)]
             return parts.reduce(0, +)
         } catch {
@@ -105,7 +105,7 @@ struct FoundationModelRunner: ReadModelRunner {
         case .onDevice:
             // Apple's model reads the report alone: no description tool, and code decides matchesProfile.
             let session = LanguageModelSession(model: SystemLanguageModel.default, tools: Self.onDeviceTools(tools),
-                                               instructions: ReportPrompt.onDeviceGuided)
+                                               instructions: Self.onDeviceInstructions(tools))
             do {
                 return .success(try await session.respond(to: text, generating: ReportReadingG.self, options: Self.onDeviceOptions).content.reading)
             } catch {
@@ -129,8 +129,24 @@ struct FoundationModelRunner: ReadModelRunner {
     /// Apple's model reads with greedy sampling: the same report gets the same answer every time.
     static let onDeviceOptions = GenerationOptions(samplingMode: .greedy)
 
-    /// The tools Apple's model gets: all but the subject's description.
-    static func onDeviceTools(_ tools: [any Tool]) -> [any Tool] { tools.filter { $0.name != ToolText.subjectDescriptionName } }
+    /// The tools Apple's model gets: all but the subject's description, and no segmentHere with no GPS fix
+    /// (its only answer was a sentence the model quoted as the report).
+    static func onDeviceTools(_ tools: [any Tool]) -> [any Tool] {
+        tools.filter { tool in
+            if tool.name == ToolText.subjectDescriptionName { return false }
+            if let here = tool as? SegmentAtTool, here.positionSegmentId == nil { return false }
+            return true
+        }
+    }
+
+    /// Apple's model's instructions: the no-fix wording when it gets no segmentHere tool.
+    static func onDeviceInstructionsText(_ tools: [any Tool]) -> String {
+        onDeviceTools(tools).contains { $0.name == ToolText.segmentHereName } ? PromptText.onDeviceGuided : PromptText.onDeviceGuidedNoFix
+    }
+
+    static func onDeviceInstructions(_ tools: [any Tool]) -> Instructions {
+        onDeviceInstructionsText(tools) == PromptText.onDeviceGuided ? ReportPrompt.onDeviceGuided : ReportPrompt.onDeviceGuidedNoFix
+    }
 
     /// Same on-device model with permissive guardrails; string output only (guided generation
     /// always runs the default guardrails). Never used on the cloud route.

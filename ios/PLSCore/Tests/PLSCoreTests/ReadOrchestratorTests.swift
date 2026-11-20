@@ -255,6 +255,16 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.stageNotes.first == "guided cloud: invalid minutes_out_of_range")
     }
 
+    /// A quote of a tool's text is not the report's words, so it stays rejected however the tool text reached the model.
+    @Test func aQuoteOfToolTextStaysRejected() async {
+        let r = FakeRunner()
+        let toolQuote = reading(kind: .unclear, segmentIds: [], evidenceQuote: ToolText.segmentHere(nil))
+        r.guidedResults[.onDevice] = [.success(toolQuote), .success(toolQuote)]
+        let o = await ReadOrchestrator.read(text: "Not sure where we are, the radio is weak", context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules)
+        #expect(o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") } && !o.stageNotes.isEmpty)
+    }
+
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
     /// more; the validator is unchanged, so two rejections still fall to rules.
     @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {

@@ -23,6 +23,18 @@ public enum PromptText {
     Copy evidenceQuote word for word from the report; never leave it empty.
     """
 
+    /// The same with no GPS fix: Apple's model gets no segmentHere tool (it quoted that tool's answer as the
+    /// report), so the instructions say in plain words that where the team is standing is not known.
+    public static let onDeviceGuidedNoFix = """
+    You read one short report from a search team during a training drill. Fill every field from the report only.
+    Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
+    For segmentIds list only ids the report itself names. The phone has no GPS fix, so where the team is standing \
+    is not known. The teamAssignment tool tells you what the team was assigned; use it to understand the report, \
+    not to add ids.
+    Set matchesProfile to unknown.
+    Copy evidenceQuote word for word from the report; never leave it empty.
+    """
+
     public static let permissive = """
     Rewrite the report as one line in this form and nothing else: KIND|SEGMENTS|COVERAGE
     KIND is one of cleared, sighting, clue, found, unclear. SEGMENTS is the two-letter segment ids the report names, \

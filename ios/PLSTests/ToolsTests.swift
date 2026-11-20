@@ -30,6 +30,23 @@ import Testing
         #expect(ReportPrompt.guidedText == PromptText.guided)
         #expect(ReportPrompt.permissiveText == PromptText.permissive)
         #expect(ReportPrompt.onDeviceGuidedText == PromptText.onDeviceGuided)
+        #expect(ReportPrompt.onDeviceGuidedNoFixText == PromptText.onDeviceGuidedNoFix)
+    }
+
+    /// With no GPS fix, Apple's model gets no segmentHere tool (its only answer was a sentence the model
+    /// quoted as the report) and is told in its instructions that the phone has no GPS fix. The cloud keeps
+    /// its three tools and its prompt.
+    @Test func withNoFixApplesModelGetsNoSegmentHereTool() {
+        let noFix: [any Tool] = [SegmentAtTool(positionSegmentId: nil), TeamAssignmentTool(assignedSegmentIds: ["BO"]),
+                                 SubjectProfileTool(profile: ModelProfile(shared: .null))]
+        #expect(FoundationModelRunner.onDeviceTools(noFix).map(\.name) == [ToolText.teamAssignmentName])
+        #expect(FoundationModelRunner.onDeviceInstructionsText(noFix) == PromptText.onDeviceGuidedNoFix)
+        #expect(PromptText.onDeviceGuidedNoFix.contains("no GPS fix"))
+        #expect(!PromptText.onDeviceGuidedNoFix.contains(ToolText.segmentHereName))
+        #expect(PromptText.onDeviceGuidedNoFix.contains("never leave it empty"))
+        let fix: [any Tool] = [SegmentAtTool(positionSegmentId: "BO"), TeamAssignmentTool(assignedSegmentIds: ["BO"])]
+        #expect(FoundationModelRunner.onDeviceInstructionsText(fix) == PromptText.onDeviceGuided)
+        #expect(PromptText.guided.contains(ToolText.segmentHereName))
     }
 
     /// Apple's model reads the report alone: no description tool and no instruction to compare with one,
