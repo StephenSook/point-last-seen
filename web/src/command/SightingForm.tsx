@@ -55,7 +55,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [saving, setSaving] = useState(false);
   // Each read takes a number, and Save takes the next: a reply whose number is no longer the latest is dropped.
   const readSeq = useRef(0);
-  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout">("none");
+  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout" | "not-english">("none");
   // The last read that filled the fields: what was asked for, where it ran and what it sent.
   const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
   // The read that filled the fields, kept for the saved sighting's route even if its receipt is no longer shown.
@@ -124,7 +124,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         setRan(r.route ? { asked: "the cloud, after the consent tap", route: r.route, sentBytes: r.sentBytes ?? 0 } : null);
         setReadFilled({ route: r.route ?? null });
       }
-      else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
+      else setReadState(r.refused === "possible-evidence" ? "evidence" : r.refused === "not-english" ? "not-english" : "not-read");
     } catch {
       if (readSeq.current === mine) setReadState("not-read");
     } finally {
@@ -264,6 +264,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {readState === "evidence" && <p role="status">This note may describe evidence. It was not sent to any model. Fill the fields by hand.</p>}
       {readState === "not-read" && <p role="status">The note could not be read. Fill the fields by hand.</p>}
       {readState === "timeout" && <p role="status">The read took too long. Fill the fields by hand.</p>}
+      {readState === "not-english" && <p role="status">This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand.</p>}
       {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}
       <fieldset className="callback">
         <legend>Callback (stays on this screen, cleared on save)</legend>

@@ -168,3 +168,13 @@ test("Save works while a read is running, and a reply that lands after Save fill
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
   await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
 });
+
+test("a note that does not look like English is not sent to the cloud, and the form says so", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud&lang=other");
+  await page.getByRole("textbox", { name: "Note" }).fill("Бабушка ушла к реке");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand." })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
+});

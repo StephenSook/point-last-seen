@@ -99,6 +99,19 @@ describe("readSightingText", () => {
 });
 
 describe("readSightingTextInCloud", () => {
+  // The language screen reads the note exactly as typed: "[number removed]" would add English words to it.
+  it("refuses a note that does not look like English before anything is sent, checked before the number is removed", async () => {
+    for (const note of ["Бабушка ушла 404-555-0142", "奶奶的電話是 一二三四五六七"]) {
+      const r = await readSightingTextInCloud(note, { byUid: "u", atMs: 1 }, { generateCloud: mustNotBeCalled, killCloud: false });
+      expect(r, note).toEqual({ refused: "not-english" });
+    }
+  });
+
+  it("an English note is still read in the cloud", async () => {
+    const r = await readSightingTextInCloud(text, { byUid: "u", atMs: 1 }, { generateCloud: async () => ({ text: goodReply, inferenceSource: "in_cloud" }), killCloud: false });
+    expect(r).toMatchObject({ reading: { topColor: "blue" } });
+  });
+
   it("blanks a colour the note does not support in a cloud read too", async () => {
     const reply = JSON.stringify({ direction: "n", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
     const r = await readSightingTextInCloud(text, { byUid: "u", atMs: 1 }, { generateCloud: async () => ({ text: reply, inferenceSource: "in_cloud" }), killCloud: false });
