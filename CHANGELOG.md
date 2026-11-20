@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `shared/test-vectors/phone-numbers.json`: one hand-written set of phone-number cases for every platform that removes
+  numbers from a note. Must remove: spaced digits, spoken digits, +44 and +52 numbers, slashes, parentheses and spaces
+  (7 cases, each in the same sentence); must keep unchanged: 14:03, segment 12, 3 searchers, 45% and a sentence with
+  all four. The contract is in the vectors README; `scripts/test_phone_vectors.py` (in the CI and ci-local pytest
+  lists) pins the required cases and checks that the contract passes a correct scrubber and fails one that does
+  nothing or wipes the note. Source: review (phone patterns differ by platform). Verified: 4 tests pass.
 - LIMITS: pushes are a convenience, not an alert; delivery can be late or missing, and anything urgent reaches the
   family by the search lead's call, as the paused notice ("The search lead will call you.") says. Source: review of
   the family push design (FCM's documentation says its APIs are not designed for uses where a failure could cause

@@ -121,3 +121,15 @@ Router (Swift only)
 
 Evidence pre-screen
 - See `matching` in `shared/constants/evidence-terms.json`.
+
+## phone-numbers.json (hand-written)
+
+The phone-number cases every platform that removes phone numbers from a note must pass. There is no generator: edit
+the file by hand, and `scripts/test_phone_vectors.py` checks that the required cases are present and well formed.
+
+- `mustRemove[]`: `{ name, input, number, forbidden, keep }`. Run the platform's scrubber on `input`. The output must
+  not contain `number`, must contain no digit 0-9 (the number is the only digit run in `input`), must contain none of
+  `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
+  the number).
+- `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts and percents
+  are not phone numbers.
