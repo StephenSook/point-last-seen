@@ -1869,6 +1869,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: follows the port above; the US-only wording was right only for the old scrubber.
 - Verified: the receipt and consent checks in `e2e/harness/sighting.spec.ts` failed on the US-only wording, then passed (16/16 sighting and sightings harness checks); typecheck clean.
 
+### fix(judge): the laptop check no longer mentions sample photos
+- What: `d2Copy` (Get this laptop ready on /judge) says "It cannot read photos on this laptop." for a model that takes text only, and "ready for the sighting note and photos." for one that takes images; it no longer names "sample photos", since the judge page shows none and a practice search has none. The unused `photoButton` field ("Read sample photos on this laptop"), which nothing rendered, is gone.
+- Source: review finding (judge-page wording about photos that are not there).
+- Verified: the updated `d2Copy` tests and a new one (no line in any state names sample photos) failed first, then passed (19/19 in `src/judge/judge.test.ts`); web unit suite green; typecheck clean.
+
 ### fix(extras): the replay reader checks a report's route values as the exporter does
 - What: in `src/extras/replay/runSchema.ts`, a public run's route record must have a model id no longer than the shared route schema allows (80 characters, exported from `src/extras/hostApp.ts` as `ROUTE_MODEL_MAX`, the extras folder's one door to outside code) and a `latencyMs` and `decidedAtMs` of zero or more; before, any text and any number passed. The coded fields keep their lists. The exporter (`tools/export-run`) checks the same values, so the reader stays a second wall: no note text can ride in a route.
 - Source: the run exporter gained a value check on routes; the reader mirrors it.

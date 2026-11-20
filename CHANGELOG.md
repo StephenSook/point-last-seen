@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors and LIMITS after the web took the Android phone-number rule (web/src/data/phoneNumbers.ts): "web"
+  leaves pendingOn on all 23 cases it was pending on, so the web now runs every case; LIMITS says every platform
+  removes a run of 7 or more digits, a count of a million or more and a decimal pair that starts with +, renames the
+  section "Phone numbers in notes", and states the counts (Android 52, the iPhone 47, the web 52, the iPhone pending
+  on five until it takes the current Android rule). Source: the web port. Verified: the web runner passes all 52 cases
+  forced (the web team's run); scripts/test_phone_vectors.py checks the LIMITS counts against the file (6 passed).
 - Phone vectors: the pending marks for the web now match what the web does. Measured against
   web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
   spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
