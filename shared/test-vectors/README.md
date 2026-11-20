@@ -153,7 +153,9 @@ with an ordinal ending (`67th`) never joins others.
 ## language.json (hand-written)
 
 The language screen every platform runs before a note may go to the cloud read. The rule and its two word lists are
-in `shared/constants/language-words.json` (`matching`); the web runs `looksEnglish` from `shared/engine-ts`.
+in `shared/constants/language-words.json` (`matching`); the web runs `looksEnglish` from `shared/engine-ts`. Run it on
+the note as the person wrote it, before phone numbers are removed: the replacement token adds English-looking words,
+and a short Russian or Chinese note with a number would then pass (both are pinned in `mustRefuse`).
 
 - `mustAllow[]`: `{ name, input }`. The note looks English and may go to the cloud read: plain field notes, and
   English notes that quote Spanish names, places or phrases (the families this serves often do).

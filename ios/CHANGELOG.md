@@ -28,6 +28,23 @@ finding) and how it was verified. Newest first.
   (with Android main's current expectations); the shared phone-number vectors and all 345 core tests
   and 191 app tests pass.
 
+### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
+- What: the line under a refused report said the note "stays on this phone", but the screen only
+  refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
+  doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing."
+- Source: review (copy ruling).
+- Verified: the refusal-line test asserts the new sentence; it failed with the old code and passes
+  with the change; no other iPhone text carries the old line.
+
+### fix(ios): a removed phone number never makes a note look English to the language screen
+- What: the language screen judged the note after its phone number was removed, and removing it adds
+  the words "number removed", which diluted the non-Latin share: "Бабушка ушла 404-555-0142" and
+  "奶奶的電話是 一二三四五六七" passed and could go to the cloud read. The read now screens the note
+  as written and as cleaned, and goes to the cloud only when both look English.
+- Source: review (the same defect found in the Android port).
+- Verified: a test with both notes on the cloud route calls no cloud model and records not_english;
+  it failed before the change and passes after; all 339 core tests and the app reader tests pass.
+
 ### feat(ios): the route check says each result in plain words
 - What: the route check screen showed code names ("on_device: read on rules (deterministic_parser),
   model rules, 20692 ms, reason no_network"). Each line now reads like "On this iPhone, no signal:

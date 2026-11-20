@@ -48,7 +48,7 @@ public enum EchoText {
 
     /// Why a report was kept off a route, shown under it; nil when nothing was refused.
     public static func refusalLine(_ route: RouteRecord) -> String? {
-        route.reason == .notEnglish ? "This note doesn't look like English, so it stays on this phone. Pick instead of typing." : nil
+        route.reason == .notEnglish ? "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing." : nil
     }
 
     /// Why the router chose a route, in plain words for the route check screen.

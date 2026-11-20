@@ -63,7 +63,7 @@ import Testing
             RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "rules", reason: reason,
                         latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
         }
-        #expect(EchoText.refusalLine(route(.notEnglish)) == "This note doesn't look like English, so it stays on this phone. Pick instead of typing.")
+        #expect(EchoText.refusalLine(route(.notEnglish)) == "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing.")
         #expect(EchoText.refusalLine(route(.onDeviceUnavailable)) == nil)
     }
 
