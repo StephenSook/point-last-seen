@@ -92,7 +92,7 @@ object PhoneNumbers {
                 parts[i].alone = true
             }
         }
-        val (found, kept) = searchSpans(folded, parts)
+        val (found, kept, glued) = searchSpans(folded, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         val out = StringBuilder(folded)
         var k = parts.size - 1
@@ -102,7 +102,8 @@ object PhoneNumbers {
                 continue
             }
             var start = k
-            while (start > 0 && joins(folded, parts[start - 1], parts[start])) start--
+            // A dropped time's hour and minutes join each other across the colon, so its minutes go with the run too.
+            while (start > 0 && (joins(folded, parts[start - 1], parts[start]) || (start - 1) in glued)) start--
             if ((start..k).sumOf { parts[it].digits } >= 7) {
                 val pieces = pieces(start, k, kept)
                 // A short piece seen with every span found, or with the spans kept after dropping dates and times,
@@ -151,15 +152,15 @@ object PhoneNumbers {
     private fun word(s: String, p: Part) = s.substring(p.start, p.end).lowercase()
 
     /**
-     * The parts that are search information, found on the text as it is, as two sets: every span found, and the spans
-     * kept once a time joined to other digits is dropped. Spans: a written date (three groups joined by one
+     * The parts that are search information, found on the text as it is, as three sets: every span found, the spans
+     * kept once a time joined to other digits is dropped, and the hour of each dropped time (which joins its minutes). Spans: a written date (three groups joined by one
      * / - . or dash that read as a date, with no digits joined to it by its own separator), a time (14:03), a
      * coordinate pair in range (33.7490, -84.3880), a ZIP+4 code after a state (GA 30301-1234) and a month-name date
      * (Nov 19 2026, 19 November 2026). A number with a unit (5km) is not one: glued to the last group of a phone number
      * it would shield those digits. Nor is a grouped count of seven or more digits (1,234,567), which can be a phone
      * number written with thousands commas; a shorter count (12,345) never reaches seven digits, so it stays.
      */
-    private fun searchSpans(s: String, parts: List<Part>): Pair<Set<Int>, Set<Int>> {
+    private fun searchSpans(s: String, parts: List<Part>): Triple<Set<Int>, Set<Int>, Set<Int>> {
         fun gap(a: Int, b: Int) = s.substring(parts[a].end, parts[b].start)
         // Length in UTF-16 units: a digit outside the BMP counts twice, so such digits never read as a day, a year or a
         // ZIP code, and stay in the run (removing more is the safe side).
@@ -231,6 +232,8 @@ object PhoneNumbers {
         // other. Only the hour's side is checked: the minutes are two digits, and a note says "at 14:03, 404-555-0142".
         // A valid date always stays: when someone was seen is search information, and it leaks nothing once the number
         // beside it is gone.
+        // The hour of each time dropped below: it joins its minutes across the colon.
+        val glued = mutableSetOf<Int>()
         do {
             // A time keeps its place only after a date's digits: after any other digits (a ZIP+4 code too) it could be a
             // number's last four.
@@ -240,8 +243,9 @@ object PhoneNumbers {
                 joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inDates
             val drop = spans.filter { (r, isTime) -> isTime && joinedOutside(r.first, r.first - 1) }
             spans.removeAll(drop)
+            glued += drop.map { it.first.first }
         } while (drop.isNotEmpty())
-        return found to (kept + spans.flatMap { digitsOf(it.first) })
+        return Triple(found, kept + spans.flatMap { digitsOf(it.first) }, glued)
     }
 
     /** Whether digits join the date at parts[first..last] by the date's own separator, on either side. */
