@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Rules tests for a judge drill shared by many judges (`functions/test/rules/judgeDrill.test.ts`): no searcher or
+  family member can close, relabel, pause, re-plan or delete the drill, or write its segments, teams or shared profile
+  deletion; a searcher cannot change, delete or forge another member's report; a family member cannot change an answer
+  another gave; a searcher cannot write the profile while a family member's normal edit passes. Each test also has a
+  write that succeeds (the drill's command, a member's own report, the first answer), so a refusal cannot come from a
+  broken setup. Source: review (judge codes). Verified: rules and functions suite 260 of 260.
 - `seed_drill.py --add-code ... --expires <UTC time>`: an extra join code can carry `expiresAt`, after which
   joinIncident refuses it (the check already existed in join.ts; the tool never wrote the field). The time must be
   written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
