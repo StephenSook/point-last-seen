@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vector gaps (from the Android port's review): 6 more mustRemove (dotted pairs 06.12.20.26.19, a number
+  glued to a date, U+2011, U+2010 and U+2013 hyphens, a number split by CRLF), 5 more mustKeep (GPS pair, ZIP+4,
+  grouped count 1,234,567, 12345 67th Ave, 5km), and a new exact case type checked byte for byte ("Seen at 14:03,
+  404-555-0142" becomes "Seen at 14:03, [number removed]"; the shared replacement token is now in the file). New cases
+  carry pendingOn [ios, web]: a runner skips cases pending for its platform. The contract and the reference rule (the
+  Android family app's) are in the vectors README. Source: review. Verified: the vector test passes and fails a
+  scrubber that does nothing, wipes the note, or writes a different token.
 - judge_drill.py, review round 3 (four medium, one low; the last round): a reset now deletes what judges wrote under a
   team (devices and their measurements) while keeping the team doc; deletes a segment the validated seed no longer
   has, in the same atomic commit as the baseline, and --check flags such a segment (the iPhone refuses segments at
