@@ -41,6 +41,8 @@ test("a cloud note read carries a closed What ran receipt with the bytes of the 
   await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
   await page.getByRole("button", { name: "Read the note" }).click();
   await page.getByRole("button", { name: "Read in the cloud" }).click();
+  // The web removes phone numbers by the shared rule (every shared case passes), so the consent says so plainly.
+  await expect(page.getByText("The note goes to Gemini in the cloud. Phone numbers are removed first.")).toBeVisible();
   await page.getByRole("button", { name: "I consent for this note" }).click();
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
   const receipt = page.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });

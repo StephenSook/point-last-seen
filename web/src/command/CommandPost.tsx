@@ -26,6 +26,8 @@ import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
 import { NOTE_READ_TIMEOUT_MS, readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
+import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
+import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
@@ -242,6 +244,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [everyPercent, setEveryPercent] = useState(false);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
+  // A report the server has not answered yet lives only in this browser until it is sent, so the post says it is
+  // saving and asks before the page closes. Offline, once Firestore shows the report from this browser's own copy,
+  // it is stored here and sends when the post next opens online, so the post says so and does not ask.
+  const online = useOnline();
+  const storedHere = useMemo(() => new Set(events.map((e) => e.eventId)), [events]);
+  const notice = writeNotice(unansweredIds(writes), storedHere, online);
+  const ask = notice?.ask === true;
+  useEffect(() => guardLeave(window, ask), [ask]);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
   const [eventsSynced, setEventsSynced] = useState(false);
@@ -662,6 +672,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
+            </p>
+          )}
+          {notice && (
+            <p className="muted" role="status" data-testid="saving">
+              {notice.line}
             </p>
           )}
           {rejected.length > 0 && (

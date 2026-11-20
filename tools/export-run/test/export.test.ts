@@ -77,6 +77,25 @@ describe("checkRun refuses what must never be public", () => {
       ? { ...e, reading: { ...e.reading!, sighting: { ...e.reading!.sighting, evidence: "red coat" } } } : e)) })).not.toEqual([]);
     expect(checkRun({ ...run, incident: { ...run.incident, ipp: { lat: 1, lon: 2 } } })).not.toEqual([]);
   });
+  it("a report's reading never leaves, while its route (the read's provenance) does", () => {
+    const route = { platform: "ios", path: "on_device", stage: "guided", model: "apple-on-device", reason: "on_device_default",
+      latencyMs: 820, sdkReported: false, blocked: null, decidedAtMs: T0 };
+    const reading = { kind: "sighting", segmentIds: ["AA"], method: "unknown", coverage: null, minutes: null, searchers: null,
+      searchType: "unknown", detectionRangeM: null, item: "glove", feature: "trail", direction: "n", topColor: "red",
+      bottomColor: "blue", footwear: "slippers", carried: "cane", matchesProfile: "consistent", evidenceQuote: "red coat by the trail" };
+    const raw = rawDrill();
+    raw.events[0] = event("a".repeat(32), UID_A, { type: "sighting", reading, route });
+    const out = toPublishedRun(raw, meta);
+    expect(out.events[0]!.reading).toBeNull();
+    expect(out.events[0]!.route).toEqual(route);
+    expect(checkRun(out)).toEqual([]);
+    expect(JSON.stringify(out)).not.toContain("red coat");
+  });
+  it("a planted evidenceQuote, or any reading content, on a report", () => {
+    const run = toPublishedRun(rawDrill(), meta);
+    expect(checkRun({ ...run, events: run.events.map((e, i) => (i === 0 ? { ...e, reading: { evidenceQuote: "red coat" } } : e)) }))
+      .not.toEqual([]);
+  });
   it("a raw device id in the device table", () => {
     const run = toPublishedRun(rawDrill(), meta);
     expect(checkRun({ ...run, devices: run.devices.map((d, i) => (i === 0 ? { ...d, deviceId: "phone-of-sam" } : d)) })).not.toEqual([]);
@@ -96,12 +115,21 @@ describe("checkRun also holds the reader's shape and size rules (extras reader)"
     const { engineParams: _p, ...noParams } = run.incident;
     expect(checkRun({ ...run, incident: noParams })).toEqual([]);
   });
+  const ROUTE = { platform: "ios", path: "cloud", stage: "guided", model: "gemini-3.5-flash-lite", reason: "no_network",
+    latencyMs: 1400, sdkReported: false, blocked: null, decidedAtMs: T0 };
   it("a route is an exact route record or null", () => {
-    const route = { platform: "web", path: "cloud", stage: "read", model: "gemini-3.5-flash-lite", reason: "consented",
-      latencyMs: 900, sdkReported: "in_cloud", blocked: false, decidedAtMs: T0 };
-    expect(checkRun(withEvent(base(), 0, { route }))).toEqual([]);
-    expect(checkRun(withEvent(base(), 0, { route: { ...route, extra: 1 } }))).not.toEqual([]);
+    expect(checkRun(withEvent(base(), 0, { route: ROUTE }))).toEqual([]);
+    expect(checkRun(withEvent(base(), 0, { route: null }))).toEqual([]);
+    expect(checkRun(withEvent(base(), 0, { route: { ...ROUTE, extra: 1 } }))).not.toEqual([]);
     expect(checkRun(withEvent(base(), 0, { route: { platform: "web" } }))).not.toEqual([]);
+  });
+  it("a route carries only the route record's own values, so nothing from a note can ride in it", () => {
+    expect(checkRun(withEvent(base(), 0, { route: { ...ROUTE, blocked: "guardrail" } }))).toEqual([]);
+    for (const bad of [{ stage: "read" }, { reason: "consented" }, { path: "laptop" }, { platform: "watch" },
+      { sdkReported: "in_cloud" }, { blocked: false }, { latencyMs: -1 }, { latencyMs: "fast" }, { decidedAtMs: "today" },
+      { model: "x".repeat(81) }, { model: 7 }]) {
+      expect(checkRun(withEvent(base(), 0, { route: { ...ROUTE, ...bad } })), JSON.stringify(bad)).not.toEqual([]);
+    }
   });
   it("an effect has the engine's exact shape and names only exported segments", () => {
     const run = base(), seg = String(run.segments[0]!.segmentId);
