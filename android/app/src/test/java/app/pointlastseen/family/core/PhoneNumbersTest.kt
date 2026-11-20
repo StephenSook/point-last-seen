@@ -76,10 +76,10 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
     }
 
-    /** Search information made of digits stays: coordinates, ordinals and units, grouped counts. */
+    /** Search information made of digits stays: coordinates, ordinals and units, a short count. */
     @Test fun coordinatesOrdinalsUnitsAndCountsStay() {
         for (text in listOf(
-            "GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 1,234,567 steps",
+            "GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 12,345 steps",
             "about 2 5km loops", "Atlanta, GA 30301-1234",
         )) {
             assertEquals(text, PhoneNumbers.remove(text))
@@ -172,7 +172,6 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
         assertEquals("GA 30301-1234 [number removed]", PhoneNumbers.remove("GA 30301-1234 555 0142"))
         assertEquals("14:03 [number removed]", PhoneNumbers.remove("14:03 five five five zero one four two"))
-        assertEquals("1,234,567 [number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
     }
 
     /** A removed run keeps its line breaks, so two lines never become one. */
@@ -194,5 +193,152 @@ class PhoneNumbersTest {
             val out = PhoneNumbers.remove(input)
             for (g in gone) assertEquals("$input -> $out", false, out.contains(g))
         }
+    }
+
+    /** Search information split by a pasted line break (CRLF, with or without an indent) stays beside a whole number, as on the iPhone. */
+    @Test fun aLineBreakInsideADateOrCoordinatesKeepsThemBesideANumber() {
+        assertEquals("Seen Nov \r\n19 2026 [number removed]", PhoneNumbers.remove("Seen Nov \r\n19 2026 404-555-0142"))
+        assertEquals("Seen Nov 19,\r\n2026 [number removed]", PhoneNumbers.remove("Seen Nov 19,\r\n2026 404-555-0142"))
+        assertEquals("Seen 19\r\n  November 2026 [number removed]", PhoneNumbers.remove("Seen 19\r\n  November 2026 404-555-0142"))
+        assertEquals("GPS 33.7490,\r\n-84.3880 [number removed]", PhoneNumbers.remove("GPS 33.7490,\r\n-84.3880 404-555-0142"))
+    }
+
+    /** A spacing accent between groups (which NFKC turns into a space and a combining mark) still joins them. */
+    @Test fun aSpacingAccentBetweenGroupsJoinsThem() {
+        for (sep in listOf("\u00B4", "\u00A8", "\u02DC", " \u0301", " \u200D")) {
+            val out = PhoneNumbers.remove("Call 404${sep}555${sep}0142")
+            assertEquals("$sep -> $out", false, out.any { it.isDigit() })
+        }
+    }
+
+    /** NEL and the Unicode line and paragraph separators are line breaks between groups, and the break is kept. */
+    @Test fun otherLineBreaksJoinGroups() {
+        for (br in listOf("\u0085", "\u2028", "\u2029")) {
+            val out = PhoneNumbers.remove("Call 404-555-${br}0142")
+            assertEquals("U+${"%04X".format(br[0].code)} -> $out", false, out.any { it.isDigit() })
+        }
+    }
+
+    /** Characters the iPhone reads as digits count here too: the spoken "幺" (one) and circled dingbat digits. */
+    @Test fun spokenYaoAndDingbatDigitsCount() {
+        assertEquals("电话[number removed]", PhoneNumbers.remove("电话幺三八幺二三四五六七八"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u2779\u2777\u2779 \u277A\u277A\u277A \u24FF\u2776\u2779\u2778"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u278D\u278A\u278D-\u278E\u278E\u278E-\u278A\u278B\u278D\u278C"))
+    }
+
+    /** A phone number written in digits outside the BMP (Adlam) with commas is not taken for a grouped count. */
+    @Test fun anAdlamNumberWithCommasIsRemoved() {
+        val adlam = "Call \uD83A\uDD54,\uD83A\uDD50\uD83A\uDD54\uD83A\uDD55,\uD83A\uDD55\uD83A\uDD55\uD83A\uDD50,\uD83A\uDD51\uD83A\uDD54\uD83A\uDD52"
+        assertEquals("Call [number removed]", PhoneNumbers.remove(adlam))
+    }
+
+    /** "OH" before a 5-4 shape is still a spoken zero: read aloud it can be the start of a phone number. */
+    @Test fun aCapitalOhBeforeAZipShapeIsStillASpokenZero() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call OH 41234-5678"))
+    }
+
+    /** An indent after a line break is no coordinate gap: a number split across lines is never read as a pair. */
+    @Test fun anIndentedLineBreakIsNoCoordinateGap() {
+        assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call +44.2071\r\n    -23.4567"))
+        assertEquals("GPS 33.7490,\r\n 84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n 84.3880 x"))
+    }
+
+    /** A wider gap of separators alone (spaces, dashes, dots) still joins the groups of one number. */
+    @Test fun aWideGapOfSeparatorsStillJoins() {
+        for (text in listOf("Call 404-555 -  0142", "Call 404    555    0142", "Call 404 . . 555 . . 0142")) {
+            assertEquals(text, "Call [number removed]", PhoneNumbers.remove(text))
+        }
+    }
+
+    /** A unit glued to the last group of a number does not shield it: the whole number goes. */
+    @Test fun aUnitGluedToTheLastGroupShieldsNothing() {
+        for (text in listOf("Call 1-404-555-0142pm", "Call 1 404 555 0142pm", "Call 404-555-0142 5km")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, out.any { it.isDigit() })
+        }
+    }
+
+    /** A count of seven or more digits with thousands commas is a number like any other: it can be a phone number. */
+    @Test fun aGroupedCountOfSevenOrMoreDigitsIsRemoved() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 4,045,550,142"))
+        assertEquals("walked [number removed] steps", PhoneNumbers.remove("walked 1,234,567 steps"))
+        assertEquals("[number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
+        assertEquals("walked 12,345 steps", PhoneNumbers.remove("walked 12,345 steps"))
+    }
+
+    /** A mark or format character outside the BMP (a tag character, a supplementary variation selector) between groups counts as nothing too. */
+    @Test fun aMarkOutsideTheBmpBetweenGroupsJoinsThem() {
+        for (sep in listOf("\uDB40\uDC20", "\uDB40\uDD00", "\u0903")) {
+            val out = PhoneNumbers.remove("Call 404${sep}555${sep}0142")
+            assertEquals(out, false, out.any { it.isDigit() })
+        }
+    }
+
+    /** Only a number of one to three digits takes an ordinal ending (67th, 125th): a fourth group ending in "th" still joins. */
+    @Test fun aLongGroupWithAnOrdinalEndingStillJoins() {
+        for (text in listOf("Call 404-555-0142th", "Call 404 555 0142nd")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, out.any { it.isDigit() })
+        }
+        assertEquals("12345 67th Ave and 12345 125th St", PhoneNumbers.remove("12345 67th Ave and 12345 125th St"))
+    }
+
+    /**
+     * A valid date beside a number stays and the number goes: when someone was seen is search information. A time
+     * joined before its hour to other digits could be a number's last four, so it goes with them.
+     */
+    @Test fun aDateBesideANumberStaysAndAJoinedTimeGoes() {
+        assertEquals("Seen 11/19/2026 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
+        assertEquals("Seen 2026-11-19 [number removed]", PhoneNumbers.remove("Seen 2026-11-19 404-555-0142"))
+        assertEquals("Seen Nov 19 2026 [number removed]", PhoneNumbers.remove("Seen Nov 19 2026 404-555-0142"))
+        assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
+        assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
+        assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
+        assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
+        val out = PhoneNumbers.remove("Call 1 404 555 01:42")
+        assertEquals(out, false, out.contains("01"))
+    }
+
+    /** An ordinal stays apart only as a street name (67th Ave, 125th St); without a street word it joins the number. */
+    @Test fun anOrdinalStaysApartOnlyAsAStreetName() {
+        for (text in listOf("Call 4550 142nd", "Call 455 0142th please")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, Regex("""\d{4}""").containsMatchIn(out))
+        }
+        assertEquals("12345 67th Ave. and 12345 125th Street", PhoneNumbers.remove("12345 67th Ave. and 12345 125th Street"))
+        assertEquals("near 4550 142nd St", PhoneNumbers.remove("near 4550 142nd St"))
+    }
+
+    /** Two decimals joined by a bare minus are no coordinate pair; a pair has a comma or a space before the minus. */
+    @Test fun twoDecimalsJoinedByABareMinusAreNoCoordinates() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 44.2071-23.4567"))
+        assertEquals("GPS 33.7490 -84.3880", PhoneNumbers.remove("GPS 33.7490 -84.3880"))
+        assertEquals("GPS 33.7490,-84.3880", PhoneNumbers.remove("GPS 33.7490,-84.3880"))
+    }
+
+    /** Dropping a time never lets other search information keep a number: a short piece seen before the drop still takes the whole run. */
+    @Test fun droppingATimeNeverShieldsTheRestOfTheRun() {
+        assertEquals("Call GA [number removed]:42", PhoneNumbers.remove("Call GA 40455-5014 2 01:42"))
+    }
+
+    /** A month and day written with a slash (11/19) is a date: beside a number it stays, and the number goes. */
+    @Test fun aMonthAndDayWithASlashStaysBesideANumber() {
+        assertEquals("Seen 11/19 [number removed]", PhoneNumbers.remove("Seen 11/19 555-0142"))
+        assertEquals("Seen 19/11 [number removed]", PhoneNumbers.remove("Seen 19/11 404-555-0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404/555/0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 12/31/55/0142"))
+    }
+
+    /** A time keeps its place only after a date: after a ZIP+4 code (or any other digits) it goes with the number. */
+    @Test fun aTimeAfterAZipCodeGoesWithTheNumber() {
+        val out = PhoneNumbers.remove("Call GA 40455-5014 2:30")
+        assertEquals(out, false, Regex("""\d{3}""").containsMatchIn(out))
+        assertEquals("Seen 11/19/2026 14:03", PhoneNumbers.remove("Seen 11/19/2026 14:03"))
+    }
+
+    /** A "+" right before the first number makes a pair of decimals a phone number, not coordinates. */
+    @Test fun aPlusBeforeThePairMakesItANumber() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call +44.2071, -23.4567"))
+        assertEquals("GPS 33.7490, -84.3880", PhoneNumbers.remove("GPS 33.7490, -84.3880"))
     }
 }
