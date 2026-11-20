@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- seed_drill.py --expires accepts ASCII digits only and refuses an impossible date the same way, never repeating the
+  value. Source: review round 2 (low). Verified test first: three new bad values failed, then passed; 15 seed_drill
+  tests.
 - judge_drill.py, review round 2 (one high, four medium): a reset never deletes under segments or teams, so a seed
   missing a doc cannot remove one the drill needs; the seed must have every team and segment its plan names, and a
   gridId, gridAttribution, priorVersion and engineParams; segment numbers must be stored as Firestore numbers (a

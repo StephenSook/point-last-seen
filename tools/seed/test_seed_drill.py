@@ -141,6 +141,11 @@ def test_an_expiry_must_be_a_future_utc_time_or_nothing_changes():
         with pytest.raises(SystemExit, match="expires"):
             seed.main(["--add-code", "proj", "drill-judge-1", "family", "drill-judge-1-judges", "--expires", bad])
     assert seed.main(["--add-code", "proj", "drill-judge-1", "family", "drill-judge-1-judges", "--expires"]) == 2
+    # Non-ASCII digits and an impossible date are refused the same way, and the value never reaches the message.
+    for bad in ("2026-0１-01T00:00:00Z", "2026-13-45T00:00:00Z", "AB12CD34"):
+        with pytest.raises(SystemExit) as e:
+            seed.main(["--add-code", "proj", "drill-judge-1", "family", "drill-judge-1-judges", "--expires", bad])
+        assert bad not in str(e.value) and "expires" in str(e.value)
 
 
 def test_the_extra_code_commands_check_their_arguments_before_anything_changes():

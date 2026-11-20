@@ -151,9 +151,13 @@ def add_code_write(project: str, incident_id: str, role: str, code: str, expires
 def check_expires(expires: str) -> str:
     """A UTC time written YYYY-MM-DDTHH:MM:SSZ, in the future."""
     import datetime
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", expires):
-        raise SystemExit("--expires must be a UTC time like 2026-12-17T23:59:59Z (the value given is not repeated here)")
-    when = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    bad = "--expires must be a UTC time like 2026-12-17T23:59:59Z (the value given is not repeated here)"
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", expires):
+        raise SystemExit(bad)
+    try:
+        when = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    except ValueError:
+        raise SystemExit(bad) from None
     if when <= datetime.datetime.now(datetime.timezone.utc):
         raise SystemExit("--expires must be a time in the future")
     return expires
