@@ -75,6 +75,21 @@ test("a run whose shapes trade places keeps the code and the plates' text but no
   expect(f.replay).not.toEqual(f.live);
 });
 
+test("the drill line shows once whether or not the run's label carries it", async ({ page }) => {
+  const once = async () => {
+    const section = page.getByRole("region", { name: "Watch the run over time" });
+    await expect(section.getByTestId("replay-code")).toBeVisible();
+    const text = await section.innerText();
+    return text.split("Training drill. Nobody is missing.").length - 1;
+  };
+  await page.goto(`${harness}?run=labelledDrill`);
+  expect(await once()).toBe(1);
+  await expect(page.getByTestId("run-label")).toHaveText("Development drill, Piedmont Park, Atlanta, 2026-11-18 to 19.");
+  await page.goto(`${harness}?run=labelled`);
+  expect(await once()).toBe(1);
+  await expect(page.getByTestId("run-label")).toHaveText("REAL DRILL, Kennesaw Mountain, 2026-11-22");
+});
+
 test("a run with a label of its own shows it under the replay heading; a label that repeats the drill line is not shown twice", async ({ page }) => {
   await page.goto(`${harness}?run=labelled`);
   const section = page.getByRole("region", { name: "Watch the run over time" });
