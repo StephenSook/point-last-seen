@@ -135,6 +135,16 @@ import Testing
         }
     }
 
+    /// A month and day with no year (11/19) is a date too: beside a phone number it stays, and only the
+    /// number goes. Joined to more digits by its own slash, it is not a date.
+    @Test func aMonthAndDayBesideANumberStays() {
+        #expect(PhoneNumbers.scrub("Seen 11/19 555-0142") == "Seen 11/19 [number removed]")
+        #expect(PhoneNumbers.scrub("Seen 19/11 404 555 0142") == "Seen 19/11 [number removed]")
+        #expect(PhoneNumbers.scrub("Seen 11/19") == "Seen 11/19")
+        #expect(PhoneNumbers.scrub("Call 404/555/0142") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Call 13/45 555 0142") == "Call [number removed]")
+    }
+
     /// Digit groups that only look like a date are still numbers: no month 13, no year 5551.
     @Test func numbersShapedLikeDatesAreStillRemoved() {
         for text in ["404/555/0142", "13/45/2026", "5551-12-34", "404-555-0142"] {

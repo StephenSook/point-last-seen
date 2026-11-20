@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): a month and day with no year stays beside a phone number
+- What: a month and day with no year ("11/19", or "19/11"), two groups joined by a slash, is a date
+  span like a full date: "Seen 11/19 555-0142" now gives "Seen 11/19 [number removed]" instead of
+  removing the date with the number. Joined to more digits by its own slash it is not a date, so
+  "404/555/0142" and "13/45 555 0142" are still removed whole.
+- Source: review (shared ruling: a date beside a phone number stays).
+- Verified: a test of the month/day cases failed before the change and passes after; the shared
+  vectors pass, also with the short-date case's iPhone pending mark removed; all core tests pass.
+
 ### fix(ios): a grouped count of seven or more digits is a phone number
 - What: per the shared ruling (privacy wins ties), "Call 4,045,550,142" and the same number in Adlam
   digits are removed. A grouped count with three or more groups always has seven or more digits, so
