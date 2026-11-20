@@ -171,7 +171,7 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat.")), .success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
         #expect(o.route.path == .rules)
-        #expect(o.stageNotes == Array(repeating: "guided on_device: invalid quote_not_in_text (quote: \"Clothing last worn: blue coat.\")", count: 2))
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text (quote: \"Clothing last worn: blue coat.\")", "guided on_device: retry with a quote reminder took 0 ms", "guided on_device: invalid quote_not_in_text (quote: \"Clothing last worn: blue coat.\")"])
     }
 
     /// After a guardrail block the phone's second, plain-text stage runs; a line it cannot read is recorded.
@@ -225,7 +225,7 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         let r = FakeRunner()
         r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat.")), .success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
-        #expect(o.route.path == .rules && o.stageNotes.count == 2 && o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") })
+        #expect(o.route.path == .rules && o.stageNotes.filter { $0.hasPrefix("guided on_device: invalid quote_not_in_text") }.count == 2)
     }
 
     /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection
@@ -262,7 +262,7 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         r.guidedResults[.onDevice] = [.success(toolQuote), .success(toolQuote)]
         let o = await ReadOrchestrator.read(text: "Not sure where we are, the radio is weak", context: rctx(online: false), runner: r, clock: clock)
         #expect(o.route.path == .rules)
-        #expect(o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") } && !o.stageNotes.isEmpty)
+        #expect(o.stageNotes.filter { $0.hasPrefix("guided on_device: invalid quote_not_in_text") }.count == 2)
     }
 
     /// Apple's model can add a period to its quote. At most one trailing . , ! or ? is dropped, and only when
@@ -289,7 +289,7 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         r.guidedResults[.onDevice] = [.success(wrong), .success(wrong)]
         let o = await ReadOrchestrator.read(text: "Found a shoe on the path in segment AC", context: rctx(online: false), runner: r, clock: clock)
         #expect(o.route.path == .rules && !o.stageNotes.isEmpty)
-        #expect(o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") })
+        #expect(o.stageNotes.filter { $0.hasPrefix("guided on_device: invalid quote_not_in_text") }.count == 2)
     }
 
     @Test func onlyOneTrailingMarkIsDropped() async {
@@ -318,14 +318,26 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
     }
 
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
-    /// more; the validator is unchanged, so two rejections still fall to rules.
-    @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {
+    /// more, with a changed input (the report and a reminder), since greedy sampling gives the same answer
+    /// to the same input. The validator is unchanged, so two rejections still fall to rules. The note says
+    /// how long the retry took.
+    @Test func anEmptyQuoteIsAskedOnceMoreWithAReminderThenAccepted() async {
         let r = FakeRunner()
         r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "")), .success(okReading())]
-        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: FixedClock(ms: [1_000, 1_100, 1_900]))
         #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
+        #expect(r.texts == [report, PromptText.quoteRetry(report)] && r.texts[1] != r.texts[0])
+        #expect(PromptText.quoteRetry(report).hasPrefix(report) && PromptText.quoteRetry(report).contains(PromptText.quoteReminder))
         #expect(o.route.path == .onDevice && o.route.stage == .guided)
-        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text (quote empty)"])
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text (quote empty)", "guided on_device: retry with a quote reminder took 800 ms"])
+    }
+
+    /// Only Apple's model is asked again: the cloud's rejected quote goes straight to rules.
+    @Test func theCloudIsNotAskedAgainForItsQuote() async {
+        let r = FakeRunner()
+        r.guidedResults[.cloud] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "")), .success(okReading())]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.cloud)] && o.route.path == .rules)
     }
 
     @Test func twoEmptyQuotesFallToRules() async {
@@ -335,7 +347,8 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
         #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
         #expect(o.route.path == .rules)
-        #expect(o.stageNotes == Array(repeating: "guided on_device: invalid quote_not_in_text (quote empty)", count: 2))
+        #expect(o.stageNotes == ["guided on_device: invalid quote_not_in_text (quote empty)", "guided on_device: retry with a quote reminder took 0 ms",
+                                 "guided on_device: invalid quote_not_in_text (quote empty)"])
     }
 
     /// Only a rejected quote gets the second try: any other invalid answer goes straight on.

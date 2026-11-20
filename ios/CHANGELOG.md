@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): the quote retry asks Apple's model with a reminder, not the same input
+- What: Apple's model reads with greedy sampling, so asking again with the same input gave the same
+  rejected quote. The one retry for a reading rejected only for its quote now sends the report followed
+  by "Your evidenceQuote was not in the report. Copy words from the report exactly." The quote is still
+  checked against the report alone, there is still one retry at most, the cloud is never asked again,
+  and code never writes a quote. The stage notes say how long the retry took.
+- Source: review (simulator eval: both tries returned the same answer).
+- Verified: tests that the retry's input differs from the first (the report plus the reminder) and that
+  its time is noted failed to compile before the change and pass after; tests pin one retry at most and
+  no retry for the cloud; all core tests and app tests pass.
+
 ### fix(ios): Apple's model gets no tools; position and assignment are plain sentences
 - What: with greedy sampling, Apple's model called the team-assignment tool in a loop: 168 calls on
   "Found a shoe on the path in segment BP" until its 8,192-token context overflowed at 124 s, and 60

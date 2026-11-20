@@ -110,8 +110,10 @@ public enum ReadOrchestrator {
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
         var notes: [String] = []
-        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once more.
+        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once
+        // more, with the report and a reminder (greedy sampling gives the same answer to the same input).
         var quoteRetried = false
+        var retryingQuote = false
         let limit = context.stageTimeoutSeconds
         let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
@@ -176,7 +178,12 @@ public enum ReadOrchestrator {
             switch stage {
             case .guided:
                 let guidedPath = path
-                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
+                let retrying = retryingQuote
+                retryingQuote = false
+                let prompt = retrying ? PromptText.quoteRetry(text) : text
+                let callStart = retrying ? clock.nowMs() : 0
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(prompt, path: guidedPath) }
+                if retrying { notes.append("guided \(guidedPath.rawValue): retry with a quote reminder took \(Int(max(0, clock.nowMs() - callStart))) ms") }
                 if raw == nil { notes.append("guided \(guidedPath.rawValue): timed out after \(limitWords)") }
                 let result = raw ?? .failure(path == .cloud ? .network : .other)
                 if guidedPath == .cloud {
@@ -197,6 +204,7 @@ public enum ReadOrchestrator {
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
                     if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
                         quoteRetried = true
+                        retryingQuote = true
                         continue
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)

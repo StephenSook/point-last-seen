@@ -37,6 +37,13 @@ public enum PromptText {
             : "Command assigned this team segments \(assignedSegmentIds.joined(separator: ", "))."
     }
 
+    /// The retry for a quote that was not in the report. Apple's model reads with greedy sampling, so the
+    /// same input gives the same answer: the retry adds this reminder after the report. The quote is still
+    /// checked against the report alone.
+    public static let quoteReminder = "Your evidenceQuote was not in the report. Copy words from the report exactly."
+
+    public static func quoteRetry(_ report: String) -> String { "\(report)\n\n\(quoteReminder)" }
+
     public static let permissive = """
     Rewrite the report as one line in this form and nothing else: KIND|SEGMENTS|COVERAGE
     KIND is one of cleared, sighting, clue, found, unclear. SEGMENTS is the two-letter segment ids the report names, \
