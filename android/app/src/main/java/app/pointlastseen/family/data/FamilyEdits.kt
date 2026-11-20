@@ -54,8 +54,8 @@ class FamilyEdits(private val store: KeyValueStore) {
 /**
  * Which edited fields a first publish may send over a value already there: single values only (text, numbers,
  * dates), never a collection (sent whole it would replace entries command added) and never a derived field.
- * Checked where marks are made and again where a first publish is staged, so a mark stored by an older build
- * cannot replace a collection either.
+ * Checked where a first publish is staged: a collection is marked too (so the approach notes it drives follow it),
+ * and this check keeps that mark from ever sending it over command's value.
  */
 object EditableFields {
     // nickname is the first other name; approachNoteIds come from the flags and a few text fields.
