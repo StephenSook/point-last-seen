@@ -15,7 +15,7 @@ class SearchLifecycleTest {
     @Test fun aStartPublishesOnlyAfterTheMembershipAnswerKeepsTheSearch() = runTest {
         val answer = CompletableDeferred<MembershipCheck>()
         val log = mutableListOf<String>()
-        val start = launch { JoinedStart.run({ answer.await() }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }) }
+        val start = launch { JoinedStart.run({ answer.await() }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" }) }
         advanceUntilIdle()
         assertEquals(emptyList<String>(), log)
         answer.complete(MembershipCheck.KEEP)
@@ -25,15 +25,32 @@ class SearchLifecycleTest {
 
     @Test fun aStartWhoseAnswerDropsNeverPublishes() = runTest {
         val log = mutableListOf<String>()
-        JoinedStart.run({ MembershipCheck.DROP }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" })
+        JoinedStart.run({ MembershipCheck.DROP }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
         assertEquals(listOf("drop"), log)
+    }
+
+    /** A failed refresh (UNKNOWN) keeps the search but publishes nothing: only a confirmed answer publishes. */
+    @Test fun anUnconfirmedAnswerKeepsTheSearchButPublishesNothing() = runTest {
+        val log = mutableListOf<String>()
+        JoinedStart.run({ MembershipCheck.UNKNOWN }, { true }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        assertEquals(listOf("ask again"), log)
+    }
+
+    /** A join is confirmed by a join that succeeded or a refresh that kept it, and only until the next join, leave or drop. */
+    @Test fun aJoinIsConfirmedOnlyUntilTheNextJoinLeaveOrDrop() {
+        val g = JoinGeneration { "u1" }
+        assertFalse(g.confirmed())
+        g.confirm()
+        assertTrue(g.confirmed())
+        g.next()
+        assertFalse(g.confirmed())
     }
 
     /** An answer for a join the phone has since left (or rejoined) changes nothing. */
     @Test fun anAnswerForAnOlderJoinIsDiscarded() = runTest {
         val log = mutableListOf<String>()
-        JoinedStart.run({ MembershipCheck.DROP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" })
-        JoinedStart.run({ MembershipCheck.KEEP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" })
+        JoinedStart.run({ MembershipCheck.DROP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
+        JoinedStart.run({ MembershipCheck.KEEP }, { false }, onKeep = { log += "publish" }, onDrop = { log += "drop" }, onUnknown = { log += "ask again" })
         assertEquals(emptyList<String>(), log)
     }
 

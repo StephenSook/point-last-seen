@@ -149,6 +149,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var membershipCheck: Job? = null
     // Which join a membership answer belongs to: bumped on every join, leave and drop.
     private val joins = JoinGeneration { Firebase.auth.currentUser?.uid }
+    // Asking again after an UNKNOWN membership answer (a failed refresh): one pending wait at a time.
+    private val confirmRetry = OneTimer(viewModelScope)
+    private var confirmTries = 0
     // Photo uploads and clip reads for the current join: cancelled when the phone leaves or is dropped.
     private var joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
 
@@ -177,8 +180,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * A start while joined: the membership answer comes first; only when it keeps this same join is the profile
-     * written again (after a restart in the gone-and-joined state, idempotent). A drop writes nothing.
+     * A start while joined: the membership answer comes first; only when it keeps this same join is the join
+     * confirmed and the profile written again (after a restart in the gone-and-joined state, idempotent). A drop
+     * writes nothing; an UNKNOWN answer (offline, a failed refresh) publishes nothing and asks again later.
      */
     private fun startJoined(incidentId: String) {
         val ticket = joins.ticket()
@@ -187,9 +191,25 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             JoinedStart.run(
                 check = { membership.check(incidentId) },
                 isCurrent = { joins.isCurrent(ticket) && session.incidentId() == incidentId },
-                onKeep = { publishIfGone(); if (!watch.attached) reattachWatch(incidentId, ticket) },
+                onKeep = { confirmed(); if (!watch.attached) reattachWatch(incidentId, ticket) },
                 onDrop = { dropSearch() },
+                onUnknown = { askAgain(incidentId, ticket) },
             )
+        }
+    }
+
+    /** The server confirmed this join: profile changes kept while it was unconfirmed are published now. */
+    private fun confirmed() {
+        joins.confirm()
+        confirmRetry.cancel()
+        confirmTries = 0
+        publishIfGone()
+    }
+
+    /** No answer yet (offline, a failed refresh): ask again after a wait, while the phone is on the same join. */
+    private fun askAgain(incidentId: String, ticket: app.pointlastseen.family.data.JoinTicket) {
+        confirmRetry.schedule(Membership.retryDelay(confirmTries++)) {
+            if (joins.isCurrent(ticket) && session.incidentId() == incidentId && !joins.confirmed()) startJoined(incidentId)
         }
     }
 
@@ -245,6 +265,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         openQuestion = null
         stopJoinedWork()
         reattach.cancel()
+        confirmRetry.cancel()
         viewModelScope.launch {
             Departure.leave(
                 // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
@@ -272,7 +293,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         membershipCheck = viewModelScope.launch {
             val answer = membership.check(incidentId)
             if (!joins.isCurrent(ticket) || session.incidentId() != incidentId) return@launch
-            if (answer == MembershipCheck.DROP) dropSearch() else reattachWatch(incidentId, ticket)
+            when (answer) {
+                MembershipCheck.DROP -> dropSearch()
+                MembershipCheck.KEEP -> { confirmed(); reattachWatch(incidentId, ticket) }
+                MembershipCheck.UNKNOWN -> reattachWatch(incidentId, ticket)
+            }
         }
     }
 
@@ -290,6 +315,11 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     /** Back in the foreground: a watch the server ended is started again (the next refusal checks membership). */
     fun onForeground() {
         val incidentId = session.incidentId() ?: return
+        // Still unconfirmed (no answer at start): ask now rather than wait for the next scheduled try.
+        if (!joins.confirmed() && membershipCheck?.isActive != true) {
+            confirmRetry.cancel()
+            startJoined(incidentId)
+        }
         if (watch.attached) return
         reattach.cancel()
         reattachTries = 0
@@ -307,6 +337,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         openQuestion = null
         stopJoinedWork()
         reattach.cancel()
+        confirmRetry.cancel()
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
@@ -329,6 +360,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     session.joined(out.incidentId)
                     joins.next()
                     membershipCheck?.cancel()
+                    // The join itself is the server's answer: this join is confirmed.
+                    joins.confirm()
+                    confirmRetry.cancel()
+                    confirmTries = 0
                     reattachTries = 0
                     watch.watch(out.incidentId)
                     familyTopic.joined(out.incidentId)
@@ -347,9 +382,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         if (step.publishProfile) publishIfGone()
     }
 
+    /** Only for a confirmed join; while unconfirmed, profile changes stay saved on the phone until it is. */
     private fun publishIfGone() {
         val inc = session.incidentId() ?: return
-        if (!(nav.gone && nav.joined)) return
+        if (!(nav.gone && nav.joined) || !joins.confirmed()) return
         val still = stillJoined(inc)
         // A result for a search the phone has since left says nothing about the one it is in now.
         publisher.publish(inc, profile, still) { ok -> if (still.check()) profileShareFailed = !ok }

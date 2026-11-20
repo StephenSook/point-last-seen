@@ -23,6 +23,16 @@ class JoinGeneration(private val uid: () -> String?) {
     }
 
     fun isCurrent(t: JoinTicket): Boolean = t.generation == generation && t.uid == uid()
+
+    @Volatile private var confirmedAt: JoinTicket? = null
+
+    /** The server confirmed the current join: a join that just succeeded, or a refresh whose claims keep it. */
+    fun confirm() {
+        confirmedAt = ticket()
+    }
+
+    /** Whether the current join is confirmed; the next join, leave or drop (or another user) ends it. */
+    fun confirmed(): Boolean = confirmedAt?.let { isCurrent(it) } == true
 }
 
 /** Thrown before a cloud write when the phone has left the join the work started for. */
@@ -38,14 +48,25 @@ fun interface StillJoined {
 }
 
 /**
- * A start while joined: the membership answer comes first. Only when it keeps the search, and the phone is
- * still on the same join, is anything published; an answer for an older join changes nothing.
+ * A start while joined: the membership answer comes first. Only when it keeps the search (a refresh that
+ * succeeded), and the phone is still on the same join, is anything published; UNKNOWN keeps the search and
+ * publishes nothing; an answer for an older join changes nothing.
  */
 object JoinedStart {
-    suspend fun run(check: suspend () -> MembershipCheck, isCurrent: () -> Boolean, onKeep: () -> Unit, onDrop: () -> Unit) {
+    suspend fun run(
+        check: suspend () -> MembershipCheck,
+        isCurrent: () -> Boolean,
+        onKeep: () -> Unit,
+        onDrop: () -> Unit,
+        onUnknown: () -> Unit,
+    ) {
         val answer = check()
         if (!isCurrent()) return
-        if (answer == MembershipCheck.DROP) onDrop() else onKeep()
+        when (answer) {
+            MembershipCheck.KEEP -> onKeep()
+            MembershipCheck.DROP -> onDrop()
+            MembershipCheck.UNKNOWN -> onUnknown()
+        }
     }
 }
 
