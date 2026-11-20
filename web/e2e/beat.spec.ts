@@ -34,23 +34,40 @@ async function addSighting(page: import("@playwright/test").Page, text: string):
   await page.getByRole("button", { name: "Save sighting" }).click();
 }
 
-test("a report saved while offline says it is saving, asks before the page closes, and clears once sent", async ({ page, context }) => {
+test("online, a report the server has not answered yet says it is saving, asks before the page closes, and clears once sent", async ({ page }) => {
   await withDebugToken(page);
   await joinCommand(page);
   await expect(page.locator(".seg-code:visible").first()).toBeVisible({ timeout: 20_000 });
-  await context.setOffline(true);
-  await addSighting(page, note("saved offline, page kept open"));
+  // The link is up but Firestore's writes cannot get through, so the report stays unanswered.
+  await page.route("**/google.firestore.v1.Firestore/Write/**", (route) => route.abort());
+  await addSighting(page, note("saved online, writes held back"));
   const saving = page.getByTestId("saving");
   await expect(saving).toHaveText("Saving one report. Keep this page open.");
-  // Closing now would leave the report in this browser only, so the page asks first; staying keeps it.
   const asked = page.waitForEvent("dialog");
   await page.close({ runBeforeUnload: true });
   const dialog = await asked;
   expect(dialog.type()).toBe("beforeunload");
   await dialog.dismiss();
   expect(page.isClosed()).toBe(false);
-  await context.setOffline(false);
-  await expect(saving).toHaveCount(0, { timeout: 30_000 });
+  await page.unrouteAll();
+  await expect(saving).toHaveCount(0, { timeout: 60_000 });
+});
+
+test("offline, a report stored in this browser says so and lets the page close without asking", async ({ page, context }) => {
+  await withDebugToken(page);
+  await joinCommand(page);
+  await expect(page.locator(".seg-code:visible").first()).toBeVisible({ timeout: 20_000 });
+  await context.setOffline(true);
+  await addSighting(page, note("saved offline, page closed without asking"));
+  await expect(page.getByTestId("saving")).toHaveText("Saved in this browser. It sends when you're back online.");
+  let asked = false;
+  page.on("dialog", (d) => {
+    asked = true;
+    void d.dismiss();
+  });
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => page.isClosed()).toBe(true);
+  expect(asked).toBe(false);
 });
 
 test("a report saved offline in a page that then closed reaches the server when the post is opened again", async ({ page, context, browser }) => {
@@ -60,10 +77,8 @@ test("a report saved offline in a page that then closed reaches the server when 
   const text = note("saved offline, page closed");
   await context.setOffline(true);
   await addSighting(page, text);
-  await expect(page.getByTestId("saving")).toBeVisible();
-  // Measured: a page closed within milliseconds of Save once lost the report, before Firestore had stored it;
-  // after 2 s it was stored and sent on the next open. The leave prompt covers that first moment for a person.
-  await page.waitForTimeout(2_000);
+  // The post says so once Firestore has stored the report in this browser; closing then is safe.
+  await expect(page.getByTestId("saving")).toHaveText("Saved in this browser. It sends when you're back online.");
   await page.close({ runBeforeUnload: false });
 
   // The same browser opens the post again with the link back: Firestore sends the queued report from its

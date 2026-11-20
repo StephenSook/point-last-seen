@@ -4,9 +4,26 @@
 
 import type { WriteState } from "./events";
 
-/** Writes still waiting for the server: just sent ("pending") or being read back after an error ("checking"). */
-export function pendingCount(writes: Record<string, { state: WriteState }>): number {
-  return Object.values(writes).filter((w) => w.state === "pending" || w.state === "checking").length;
+/** Ids of writes still waiting for the server: just sent ("pending") or being read back after an error ("checking"). */
+export function unansweredIds(writes: Record<string, { state: WriteState }>): string[] {
+  return Object.entries(writes)
+    .filter(([, w]) => w.state === "pending" || w.state === "checking")
+    .map(([id]) => id);
+}
+
+/**
+ * What the post says about unanswered writes, and whether it asks before the page closes. `storedHere` holds the
+ * ids Firestore already shows from this browser's own copy, which it raises only once the write is stored here.
+ * Offline, a stored report is safe to close on (it sends the next time the post opens here), so the post says so
+ * and does not ask; a person offline for a while would otherwise be asked on every close and learn to ignore it.
+ */
+export function writeNotice(unanswered: readonly string[], storedHere: ReadonlySet<string>, online: boolean): { line: string; ask: boolean } | null {
+  const n = unanswered.length;
+  if (n === 0) return null;
+  if (!online && unanswered.every((id) => storedHere.has(id))) {
+    return { line: n === 1 ? "Saved in this browser. It sends when you're back online." : `${n} reports saved in this browser. They send when you're back online.`, ask: false };
+  }
+  return { line: savingLine(n) ?? "", ask: true };
 }
 
 /** The line the post shows while reports are being saved, or null when there are none. */
