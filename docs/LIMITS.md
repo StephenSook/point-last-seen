@@ -93,9 +93,10 @@ each line says what the limit is and why.
   such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
   only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
   (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
-- To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
-  too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
-  "ga 30301-1234" is removed, while "GA 30301-1234" stays.
+- To keep a phone number out, it removes too much in two cases. A number touching a date removes the date too,
+  since the date's year could be the end of the number: "team 5 11/19/2026" and "Seen 11/19/2026 404-555-0142" lose
+  both, while "Seen 11/19/2026, call 404-555-0142" keeps the date. A state abbreviation written in lower case does
+  not protect its ZIP code: "ga 30301-1234" is removed, while "GA 30301-1234" stays.
 - A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, the iPhone and
   Android, which read it as a grouped count. The shared rule now removes any grouped count of seven or more digits,
   so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too. The

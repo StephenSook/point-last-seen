@@ -164,15 +164,16 @@ object PhoneNumbers {
         val kept = mutableSetOf<Int>()
         // Written dates found below, each as its three parts; two that share a part cancel each other.
         val dates = mutableListOf<IntRange>()
+        // Month-name dates (from the first digit part to the last, the month inside) and times (hour, minutes).
+        val monthDates = mutableListOf<IntRange>()
+        val times = mutableListOf<IntRange>()
         for (i in parts.indices) {
             if (!parts[i].written) {
                 if (word(s, parts[i]) !in MONTHS) continue
                 if (isDay(i + 1) && MONTH_DAY_GAP.matches(flat(gap(i, i + 1)))) {
-                    kept += i + 1
-                    if (isYear(i + 2) && YEAR_GAP.matches(flat(gap(i + 1, i + 2)))) kept += i + 2
+                    monthDates += (i + 1)..(if (isYear(i + 2) && YEAR_GAP.matches(flat(gap(i + 1, i + 2)))) i + 2 else i + 1)
                 } else if (isDay(i - 1) && DAY_MONTH_GAP.matches(flat(gap(i - 1, i)))) {
-                    kept += i - 1
-                    if (isYear(i + 1) && YEAR_GAP.matches(flat(gap(i, i + 1)))) kept += i + 1
+                    monthDates += (i - 1)..(if (isYear(i + 1) && YEAR_GAP.matches(flat(gap(i, i + 1)))) i + 1 else i - 1)
                 }
                 continue
             }
@@ -182,7 +183,7 @@ object PhoneNumbers {
                 dates += i..(i + 2)
             }
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
-                kept += i..(i + 1)
+                times += i..(i + 1)
             }
             if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true))) {
                 kept += i..(i + 3)
@@ -193,10 +194,27 @@ object PhoneNumbers {
                 kept += i..(i + 1)
             }
         }
-        for (d in dates) {
-            if (dates.none { other -> other != d && other.first <= d.last && d.first <= other.last }) kept += d
+        // Dates are found in order, so a date can overlap only the one before or after it in the list.
+        val written = dates.filterIndexed { k, d ->
+            !(k > 0 && dates[k - 1].last >= d.first) && !(k + 1 < dates.size && dates[k + 1].first <= d.last)
         }
-        return kept
+        // Each span with whether it is a time.
+        val spans = (written.map { it to false } + monthDates.map { it to false } + times.map { it to true }).toMutableList()
+        fun digitsOf(r: IntRange) = r.filter { parts[it].written }
+        // A date or a time joined to digits that are not search information could be the end of a phone number, so
+        // it is dropped and goes with them; a date then a time (11/19/2026 14:03) keep each other. A time is checked on
+        // its hour's side only: its minutes are two digits, and a note says "at 14:03, 404-555-0142".
+        do {
+            val inSpans = kept + spans.flatMap { digitsOf(it.first) }
+            // Whether the part [outside] (next to [inside]) joins it and is not search information itself.
+            fun joinedOutside(inside: Int, outside: Int) = outside in parts.indices &&
+                joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inSpans
+            val drop = spans.filter { (r, isTime) ->
+                joinedOutside(r.first, r.first - 1) || (!isTime && joinedOutside(r.last, r.last + 1))
+            }
+            spans.removeAll(drop)
+        } while (drop.isNotEmpty())
+        return kept + spans.flatMap { digitsOf(it.first) }
     }
 
     /** Whether digits join the date at parts[first..last] by the date's own separator, on either side. */
