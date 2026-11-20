@@ -3,6 +3,8 @@
 
 import { labelOrder, overlapping } from "./labelDensity";
 import { plateShown, screenBox } from "./plateRule";
+import { CODE_GAP_PX, cappedDotRadius, codePlace } from "./labelFit";
+import { dotRadiusPx } from "../theme/tokens";
 import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { loadBasemap } from "../basemap/load";
@@ -132,7 +134,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         source: "centres",
         // "grow" (feature state, 0 to 1, absent 1) drives the ripple.
         paint: {
-          "circle-radius": ["*", ["get", "r"], ["coalesce", ["feature-state", "grow"], 1]] as never,
+          // "cap" (feature state, set on every camera move) keeps the dot inside its cell: half its smaller side.
+          "circle-radius": ["*", ["min", ["get", "r"], ["coalesce", ["feature-state", "cap"], ["get", "r"]]], ["coalesce", ["feature-state", "grow"], 1]] as never,
           "circle-stroke-width": ["*", 1.5, ["coalesce", ["feature-state", "grow"], 1]] as never,
           "circle-color": MAP_INK.dot,
           "circle-stroke-color": MAP_INK.dotRing,
@@ -173,18 +176,22 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       (m.getSource("centres") as GeoJSONSource | undefined)?.setData(centreFeatures(segments, poa) as never);
       for (const mk of markers.current) mk.remove();
       labels.clear();
+      codeMarkers.clear();
       markers.current = fc.features.flatMap((f, i) => {
         const seg = segments[i];
         if (!seg) return [];
         const at: [number, number] = [seg.centroid.lon, seg.centroid.lat];
         const own: HTMLElement[] = [];
         labels.set(seg.segmentId, own);
-        // Every cell's code sits left of its dot (the largest is 14 px), so a person can name the cell on a radio.
+        // Every cell's code sits left of its dot where it fits, so a person can name the cell on a radio; place()
+        // moves it onto the centre, or hides it, when the cell is too small on screen (labelFit.ts).
         const code = document.createElement("div");
         code.className = "seg-code";
         code.textContent = f.properties.segmentId;
         own.push(code);
-        const out = [new Marker({ element: code, anchor: "right", offset: [-17, 0] }).setLngLat(at).addTo(m)];
+        const codeMarker = new Marker({ element: code, anchor: "right", offset: [-17, 0] }).setLngLat(at).addTo(m);
+        codeMarkers.set(seg.segmentId, codeMarker);
+        const out = [codeMarker];
         if (f.properties.label === "") return out;
         const plate = document.createElement("div");
         plate.className = "plate";
@@ -202,26 +209,46 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       }
       place();
     };
-    // Each cell's labels, by segment id, for placing.
+    // Each cell's labels, by segment id, for placing, and its code's marker (to move the code).
     const labels = new Map<string, HTMLElement[]>();
+    const codeMarkers = new Map<string, Marker>();
     // First the plate rule (plateRule.ts): a plate shows only at 1.0% or more and only when it fits inside its
     // cell's box on screen. Then the labels left are placed in POA order; a cell whose labels would cover one
     // already placed hides its own (labelDensity.ts).
     const byId = new Map(segments.map((s) => [s.segmentId, s]));
+    // The centre dot's feature id is the segment's index (centreFeatures).
+    const dotId = new Map(segments.map((s, i) => [s.segmentId, i]));
     const place = () => {
       const ids = labelOrder(poa, segments.map((s) => s.segmentId));
+      const maxPoa = Math.max(0, ...segments.map((s) => poa[s.segmentId] ?? 0));
       for (const id of ids) {
         const own = labels.get(id) ?? [];
         for (const el of own) el.classList.remove("crowded", "unfit");
-        const plate = own.find((el) => el.classList.contains("plate"));
         const seg = byId.get(id);
-        if (!plate || !seg) continue;
+        if (!seg) continue;
         const rings = seg.geometry.type === "Polygon" ? seg.geometry.coordinates : seg.geometry.coordinates.flat();
         const box = screenBox(rings.flatMap((ring) => (ring as [number, number][]).map(([x, y]) => {
           const pt = m.project([x, y]);
           return [pt.x, pt.y] as const;
         })));
-        const shown = box !== null && plateShown({ poa: poa[id] ?? 0, label: plate.textContent ?? "", plate: { w: plate.offsetWidth, h: plate.offsetHeight }, box, every: everyPercent });
+        if (box === null) continue;
+        // The dot: never wider than its cell (labelFit.ts).
+        const dotR = cappedDotRadius(dotRadiusPx(poa[id] ?? 0, maxPoa), box);
+        const fid = dotId.get(id);
+        if (fid !== undefined) m.setFeatureState({ source: "centres", id: fid }, { cap: dotR });
+        // The code: left of its dot, else on the centre, else hidden.
+        const code = own.find((el) => el.classList.contains("seg-code"));
+        const marker = codeMarkers.get(id);
+        if (code && marker) {
+          const c = m.project([seg.centroid.lon, seg.centroid.lat]);
+          const where = codePlace({ code: { w: code.offsetWidth, h: code.offsetHeight }, box, centre: { x: c.x, y: c.y }, dotR });
+          if (where === "left") marker.setOffset([-(dotR + CODE_GAP_PX), 0]);
+          else if (where === "centre") marker.setOffset([code.offsetWidth / 2, 0]);
+          else code.classList.add("unfit");
+        }
+        const plate = own.find((el) => el.classList.contains("plate"));
+        if (!plate) continue;
+        const shown = plateShown({ poa: poa[id] ?? 0, label: plate.textContent ?? "", plate: { w: plate.offsetWidth, h: plate.offsetHeight }, box, every: everyPercent });
         if (!shown) plate.classList.add("unfit");
       }
       const units = ids.map((id) => (labels.get(id) ?? []).filter((el) => !el.classList.contains("unfit")));
@@ -340,6 +367,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       pinDot = document.createElement("div");
       pinDot.className = "report-pin";
       pinDot.dataset["testid"] = "report-pin";
+      // An image with a name: a name on an element with no role is not allowed and is not read out.
+      pinDot.setAttribute("role", "img");
       pinDot.setAttribute("aria-label", "Report position");
       pinDot.style.transform = reduced.current ? "" : "scale(0)";
       anchor.append(pinDot);

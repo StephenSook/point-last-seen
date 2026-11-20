@@ -24,7 +24,7 @@ import { readStoredPhotoInCloud } from "../photos/cloudRead";
 import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
-import { readSightingText, readSightingTextInCloud } from "../ai/sightingText";
+import { NOTE_READ_TIMEOUT_MS, readSightingText, readSightingTextInCloud } from "../ai/sightingText";
 import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } from "../data/events";
 import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
 import { useOnline } from "../data/useOnline";
@@ -409,7 +409,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
   const readNote = async (text: string) => {
     const t0 = Date.now();
-    const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t) });
+    const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t), timeoutMs: NOTE_READ_TIMEOUT_MS });
     if (!("reading" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);

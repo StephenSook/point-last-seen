@@ -24,6 +24,13 @@ struct EvalView: View {
 
     static func hex(_ data: Data) -> String { data.map { String(format: "%02x", $0) }.joined() }
 
+    /// The SHA-256 of the instructions Apple's model is given in the eval's reads, built the way the reader
+    /// builds them from the eval's situation.
+    static func promptSha256(_ mission: Mission) -> String {
+        let text = FoundationModelRunner.onDeviceInstructionsText(ReportReader.tools(for: AppModel.evalSituation(mission, arm: .onDevice)))
+        return hex(Data(SHA256.hash(data: Data(text.utf8))))
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
@@ -65,7 +72,7 @@ struct EvalView: View {
             answerKey: key.answerKey, answerKeySha256: sha256, writtenBy: key.writtenBy, grid: key.grid,
             appVersion: info["CFBundleShortVersionString"] as? String ?? "", build: info["CFBundleVersion"] as? String ?? "",
             commit: info["PLSBuildCommit"] as? String ?? "unknown",
-            promptSha256: Self.hex(Data(SHA256.hash(data: Data(PromptText.guided.utf8)))),
+            promptSha256: model.mission.map(Self.promptSha256) ?? "",
             device: "\(UIDevice.current.model) iOS \(UIDevice.current.systemVersion)", ranAtMs: Date().timeIntervalSince1970 * 1000)
         let report = EvalReport.make(rows: rows, facts: facts, onDevice: outputs[.onDevice] ?? [:], rulesOnly: outputs[.rulesOnly] ?? [:])
         for arm in report.arms {

@@ -12,16 +12,37 @@ public enum PromptText {
     Copy evidenceQuote word for word from the report.
     """
 
-    /// The same for Apple's model on the phone, which reads the report alone: it gets no description of
-    /// the subject (it copied the description into readings), and code decides matchesProfile.
-    public static let onDeviceGuided = """
-    You read one short report from a search team during a training drill. Fill every field from the report only.
-    Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
-    For segmentIds list only ids the report itself names. The segmentHere and teamAssignment tools tell you where the \
-    team is and what it was assigned; use them to understand the report, not to add ids.
-    Set matchesProfile to unknown.
-    Copy evidenceQuote word for word from the report; never leave it empty.
-    """
+    /// The same for Apple's model on the phone. It gets no tools: with greedy sampling it called the
+    /// team-assignment tool in a loop (168 calls on one report, until its context overflowed). Where the team
+    /// is and what it was assigned come from code, as plain sentences. It gets no description of the subject
+    /// (it copied the description into readings), and code decides matchesProfile.
+    public static func onDeviceGuided(positionSegmentId: String?, assignedSegmentIds: [String]) -> String {
+        """
+        You read one short report from a search team during a training drill. Fill every field from the report only.
+        Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
+        For segmentIds list only ids the report itself names. \(onDevicePosition(positionSegmentId)) \
+        \(onDeviceAssignment(assignedSegmentIds)) Use this to understand the report, not to add ids.
+        Set matchesProfile to unknown.
+        Copy evidenceQuote word for word from the report; never leave it empty.
+        """
+    }
+
+    public static func onDevicePosition(_ positionSegmentId: String?) -> String {
+        positionSegmentId.map { "The phone's GPS fix puts the team in segment \($0)." }
+            ?? "The phone has no GPS fix, so where the team is standing is not known."
+    }
+
+    public static func onDeviceAssignment(_ assignedSegmentIds: [String]) -> String {
+        assignedSegmentIds.isEmpty ? "Command has not assigned this team yet."
+            : "Command assigned this team segments \(assignedSegmentIds.joined(separator: ", "))."
+    }
+
+    /// The retry for a quote that was not in the report. Apple's model reads with greedy sampling, so the
+    /// same input gives the same answer: the retry adds this reminder after the report. The quote is still
+    /// checked against the report alone.
+    public static let quoteReminder = "Your evidenceQuote was not in the report. Copy words from the report exactly."
+
+    public static func quoteRetry(_ report: String) -> String { "\(report)\n\n\(quoteReminder)" }
 
     public static let permissive = """
     Rewrite the report as one line in this form and nothing else: KIND|SEGMENTS|COVERAGE

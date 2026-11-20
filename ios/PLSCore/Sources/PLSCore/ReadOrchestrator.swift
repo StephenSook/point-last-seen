@@ -110,8 +110,10 @@ public enum ReadOrchestrator {
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
         var notes: [String] = []
-        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once more.
+        // Apple's model sometimes leaves the quote empty: a read rejected only for its quote is asked once
+        // more, with the report and a reminder (greedy sampling gives the same answer to the same input).
         var quoteRetried = false
+        var retryingQuote = false
         let limit = context.stageTimeoutSeconds
         let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
@@ -176,7 +178,12 @@ public enum ReadOrchestrator {
             switch stage {
             case .guided:
                 let guidedPath = path
-                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
+                let retrying = retryingQuote
+                retryingQuote = false
+                let prompt = retrying ? PromptText.quoteRetry(text) : text
+                let callStart = retrying ? clock.nowMs() : 0
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(prompt, path: guidedPath) }
+                if retrying { notes.append("guided \(guidedPath.rawValue): retry with a quote reminder took \(Int(max(0, clock.nowMs() - callStart))) ms") }
                 if raw == nil { notes.append("guided \(guidedPath.rawValue): timed out after \(limitWords)") }
                 let result = raw ?? .failure(path == .cloud ? .network : .other)
                 if guidedPath == .cloud {
@@ -187,12 +194,17 @@ public enum ReadOrchestrator {
                     var r = withCodeSegments(modelReading)
                     // Apple's model reads the report alone (it never sees the description), so code
                     // decides whether the report matches the subject.
-                    if guidedPath == .onDevice { r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown }
+                    if guidedPath == .onDevice {
+                        r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
+                        r = Self.zerosNotStated(r)
+                        r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)
+                    }
                     let v = validate(r, context, text)
                     if v.isOK { return finish(r, path: path, stage: .guided) }
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
                     if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
                         quoteRetried = true
+                        retryingQuote = true
                         continue
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
@@ -247,6 +259,25 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection
+    /// range 0 is never a valid value, so it is read as not stated. Coverage keeps its 0, which can be stated.
+    static func zerosNotStated(_ reading: ReportReading) -> ReportReading {
+        var r = reading
+        if r.minutes == 0 { r.minutes = nil }
+        if r.searchers == 0 { r.searchers = nil }
+        if r.detectionRangeM == 0 { r.detectionRangeM = nil }
+        return r
+    }
+
+    /// Apple's model can add a mark to the end of its quote ("...segment BP." for a report with no period).
+    /// At most one trailing . , ! or ? is dropped, and only when the quote is not in the report as it is
+    /// and what is left is, exactly. The quote stays the report's own words; code never writes one.
+    static func withoutAddedMark(_ quote: String, _ text: String) -> String {
+        guard let last = quote.last, ".,!?".contains(last), !text.contains(quote) else { return quote }
+        let left = String(quote.dropLast())
+        return !left.isEmpty && text.contains(left) ? left : quote
     }
 
     /// What a rejected quote was, for a stage note: "(quote empty)" or the quote cut to 60 characters. Kept
