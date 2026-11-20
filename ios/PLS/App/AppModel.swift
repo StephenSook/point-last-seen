@@ -191,6 +191,10 @@ final class AppModel {
         remoteConfig.start()
         self.remoteConfig = remoteConfig
         Task { await self.trySignIn() }
+        // Every sign-in, sign-out or account switch: the previous user's state goes.
+        accountListener = Auth.auth().addStateDidChangeListener { [weak self] _, _ in
+            Task { @MainActor in await self?.accountChanged() }
+        }
         // Each failure gets its own message, so the person and command know what to fix.
         do { identity = try DeviceIdentity() } catch {
             problem = "This phone could not start its report numbering. Tell command."
@@ -344,13 +348,16 @@ final class AppModel {
     private func readMission(incidentId: String, teamId: String, fromServer: Bool) async -> MissionLoad {
         missionGeneration += 1
         let generation = missionGeneration
+        // The user this read is for, bound before it starts: the mission is theirs only while they
+        // are still the one signed in.
+        let owner = uid()
         do {
             let docs = try await missionReader.read(incidentId: incidentId, fromServer: fromServer)
             var mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
                                                    bundledParams: try BundledConstants.engineParams())
-            mission.ownerUid = uid()
-            // A newer join or load started while this one read: it has the say.
-            guard generation == missionGeneration else { return .superseded }
+            mission.ownerUid = owner
+            // A newer join or load started while this one read, or the account changed: they have the say.
+            guard generation == missionGeneration, uid() == owner else { return .superseded }
             // The listener applied a newer plan while this read ran: that plan stays, also when it
             // took the task away, in the same version order the listener keeps.
             if let held = self.mission, held.incidentId == incidentId, held.teamId == teamId,
@@ -373,6 +380,24 @@ final class AppModel {
         } catch {
             return .unread
         }
+    }
+
+    /// The user Auth last reported; nil before the first report.
+    @ObservationIgnored private var knownAccount: String?? = nil
+    @ObservationIgnored private var accountListener: AuthStateDidChangeListenerHandle?
+
+    /// Auth's user changed (signed in, signed out, or another account): any access check or load
+    /// still running has no say, and the previous user's mission (its listener, its membership and
+    /// its pending loads) goes. The same user reported again changes nothing.
+    func accountChanged() async {
+        let now = uid()
+        defer { knownAccount = .some(now) }
+        guard case let .some(before) = knownAccount, before != now else {
+            if knownAccount == nil, let mission, mission.ownerUid != now { await dropMission() }
+            return
+        }
+        accessCheck += 1
+        if mission?.ownerUid != now || (mission == nil && membership != nil) { await dropMission() }
     }
 
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
@@ -422,6 +447,8 @@ final class AppModel {
         }
         accessCheck += 1
         let check = accessCheck
+        // The user this tap is for, bound before the claims and the read: nothing opens for anyone else.
+        let tapUser = uid()
         let fresh = await joinBackend.currentClaims(forceRefresh: true)
         guard check == accessCheck else { return }
         guard let fresh else {
@@ -435,7 +462,7 @@ final class AppModel {
             if matchesLoaded() { openTaskRequests += 1 }
             return
         }
-        guard let (incidentId, teamId) = Self.searcherTeam(fresh) else {
+        guard let (incidentId, teamId) = Self.searcherTeam(fresh), tapUser != nil else {
             await dropMission()
             return
         }
@@ -447,7 +474,7 @@ final class AppModel {
         if mission != nil, !matchesLoaded() { await dropMission() }
         membership = (incidentId, teamId)
         let outcome = await readMission(incidentId: incidentId, teamId: teamId, fromServer: true)
-        guard check == accessCheck else { return }
+        guard check == accessCheck, uid() == tapUser else { return }
         switch outcome {
         case .loaded:
             joinMessage = nil

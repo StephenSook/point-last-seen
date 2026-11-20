@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a load and a push tap are bound to the user they started for
+- What: a load stamped its mission with the user signed in when the read came back, and a push tap
+  checked only the incident and team before opening. A tap could get user A's claims, then finish
+  its read after A signed out or another account signed in, and install, speak and open A's mission
+  for nobody or for B. Now each load binds the user before it reads and installs nothing unless the
+  same user is still signed in; a tap also opens nothing unless its user is still signed in. Auth's
+  sign-in, sign-out and account changes drop the previous user's mission, membership and the
+  access checks still running.
+- Source: review (finding 1, round 3).
+- Verified: a test holds a tap's read, signs the user out, then lets the read finish: nothing opens
+  and nothing is spoken, and the account change drops the old mission. It failed before the change
+  and passes after; the app tests pass.
+
 ### docs: iOS shows a background push as sent, with no service extension
 - What: LIMITS.md now says that on iPhone a push arriving while the app is in the background or
   closed is shown by iOS from its payload as sent, since there is no notification service
