@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the language refusal says the note is not sent to the cloud, not that it stays
+- What: the line under a refused report said the note "stays on this phone", but the screen only
+  refuses the cloud read: the report, picked or typed, still goes to command. It now says "This note
+  doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing."
+- Source: review (copy ruling).
+- Verified: the refusal-line test asserts the new sentence; it failed with the old code and passes
+  with the change; no other iPhone text carries the old line.
+
 ### fix(ios): a removed phone number never makes a note look English to the language screen
 - What: the language screen judged the note after its phone number was removed, and removing it adds
   the words "number removed", which diluted the non-Latin share: "Бабушка ушла 404-555-0142" and
