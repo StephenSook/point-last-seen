@@ -16,6 +16,14 @@ object PhoneNumbers {
 
     private val DIGIT_WORDS = setOf("zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 
+    // Chinese numeral digits: the iPhone counts them as digits (whole numbers); Java calls them letters.
+    private const val CHINESE_DIGITS = "\u3007\u96f6\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d"
+
+    // Dashes besides the plain hyphen, as NFKC leaves them: hyphen, non-breaking hyphen, figure, en and em dash, minus.
+    private const val DASHES = "\u2010\u2011\u2012\u2013\u2014\u2212"
+
+    private fun isDigit(cp: Int) = Character.isDigit(cp) || (cp <= 0xFFFF && cp.toChar() in CHINESE_DIGITS)
+
     /** A run of digits (counting its digits), a word (one if it is a spoken digit, else none). */
     private class Part(val start: Int, val end: Int, var digits: Int, val written: Boolean)
 
@@ -62,10 +70,10 @@ object PhoneNumbers {
         while (i < s.length) {
             val cp = s.codePointAt(i)
             when {
-                Character.isDigit(cp) -> {
+                isDigit(cp) -> {
                     var j = i
                     var n = 0
-                    while (j < s.length && Character.isDigit(s.codePointAt(j))) {
+                    while (j < s.length && isDigit(s.codePointAt(j))) {
                         j += Character.charCount(s.codePointAt(j))
                         n++
                     }
@@ -106,6 +114,12 @@ object PhoneNumbers {
         return x in day && y in day && (x in month || y in month)
     }
 
-    /** What may sit between the parts of one number: at most three spaces or - . , ( ) /. */
-    private fun onlySeparators(s: String): Boolean = s.length <= 3 && s.all { it.isWhitespace() || it in "-.,()/" }
+    /**
+     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a pasted
+     * line break (CRLF) counts as one, as on the iPhone.
+     */
+    private fun onlySeparators(s: String): Boolean {
+        val gap = s.replace("\r\n", "\n")
+        return gap.length <= 3 && gap.all { it.isWhitespace() || it in "-.,()/" || it in DASHES }
+    }
 }

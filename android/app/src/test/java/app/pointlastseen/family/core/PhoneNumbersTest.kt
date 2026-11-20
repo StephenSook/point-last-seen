@@ -50,4 +50,17 @@ class PhoneNumbersTest {
         val text = "she is one of two, about 300 m north, walked 5 to 6 km, room 1204"
         assertEquals(text, PhoneNumbers.remove(text))
     }
+
+    /** As on the iPhone: Chinese numeral digits are digits, and a pasted line break (CRLF) is one separator. */
+    @Test fun chineseDigitsAndPastedLineBreaksAreCaught() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u56db\u96f6\u56db\u4e94\u4e94\u4e94\u96f6\u4e00\u56db\u4e8c"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404-555\r\n  0142"))
+    }
+
+    /** Dashes other than the plain hyphen (non-breaking, en, minus) join a number's parts too. */
+    @Test fun unicodeDashesJoinANumber() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404\u2011555\u20110142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404\u2013555\u20130142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404\u2212555\u22120142"))
+    }
 }
