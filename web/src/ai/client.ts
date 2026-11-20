@@ -2,7 +2,7 @@
 // instance per app, on the Gemini Developer API, with App Check tokens.
 
 import type { FirebaseApp } from "firebase/app";
-import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type TemplateRequest } from "firebase/ai";
+import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
 import { photoParams, type PhotoDeps } from "./photoCues";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
@@ -25,7 +25,10 @@ export function aiClient(app: FirebaseApp, useLimitedUseAppCheckTokens: boolean)
   return instance;
 }
 
-type TextModel = { generateContent: (text: string) => Promise<{ response: { text: () => string; inferenceSource?: string } }> };
+/** Where the SDK says a reply was made: its own type ("on_device" or "in_cloud"), or nothing when it did not say. */
+export type ReplySource = InferenceSource | undefined;
+
+type TextModel = { generateContent: (text: string) => Promise<{ response: { text: () => string; inferenceSource?: ReplySource } }> };
 
 export function generatorFor(model: TextModel): WordingDeps["generate"] {
   return async (text) => {
@@ -44,7 +47,7 @@ export function sightingTextGenerator(ai: AI): SightingTextDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, sightingTextParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
-type TemplateModel = { generateContent: (r: TemplateRequest) => Promise<{ response: { text: () => string; inferenceSource?: string } }> };
+type TemplateModel = { generateContent: (r: TemplateRequest) => Promise<{ response: { text: () => string; inferenceSource?: ReplySource } }> };
 
 /** A server prompt template call: only the template id and the note leave the laptop. */
 export function templateGeneratorFor(model: TemplateModel, templateId: string): SightingTextDeps["generate"] {
