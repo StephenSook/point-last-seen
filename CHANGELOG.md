@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `docs/LIMITS.md` says what the family app does with a shared profile and a lost search: a second phone's first
+  share adds only fields the search does not have yet, so it never fills a field command left empty; and the app
+  leaves a search only when a refreshed sign-in no longer names it as that search's family or the family taps
+  "Leave this search", so a phone that loses access while offline shows the search until it can check.
+  Source: the Android app's first-publish and membership changes in this merge.
+  Verified: each line matches the Android commits merged here (absent-only first publish; drop after a successful
+  forced refresh; Leave this search) and their live test on the test drill.
 - Every refusal from `startJudgeSession` and `deleteIncidentMediaNow` carries a stable `details.reason` beside its
   sentence, so a client maps the error code and the reason instead of the text (the web SDK adds the HTTP status to
   the message, which broke an exact match). The practice search: `not_signed_in`, `no_practice`, `hourly_limit`,
