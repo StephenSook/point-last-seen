@@ -16,6 +16,10 @@ enum BundledConstants {
         try EvidenceScreen(json: data("evidence-terms"))
     }
 
+    static func languageScreen() throws -> LanguageScreen {
+        try LanguageScreen(json: data("language-words"))
+    }
+
     private struct ParamsFile: Decodable { let params: EngineParams }
 
     static func engineParams() throws -> EngineParams {

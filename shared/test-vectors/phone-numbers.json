@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "note": "Phone-number removal, the same cases on every platform that removes phone numbers from a note before it is stored or read. Hand-written; see README.md, section phone-numbers.json.",
+  "replacement": "[number removed]",
   "mustRemove": [
     {
       "name": "spaced_digits",
@@ -75,6 +76,79 @@
         "Her son is at",
         "call him."
       ]
+    },
+    {
+      "name": "dotted_pairs",
+      "input": "Call 06.12.20.26.19",
+      "number": "06.12.20.26.19",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "number_glued_to_date",
+      "input": "Call 404-555-2026-11-19",
+      "number": "404-555-2026-11-19",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "non_breaking_hyphen",
+      "input": "Call 404\u2011555\u20110142",
+      "number": "404\u2011555\u20110142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "unicode_hyphen",
+      "input": "Call 404\u2010555\u20100142",
+      "number": "404\u2010555\u20100142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "en_dash",
+      "input": "Call 404\u2013555\u20130142",
+      "number": "404\u2013555\u20130142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "crlf_split",
+      "input": "Call 404 555\r\n0142 tonight",
+      "number": "404 555\r\n0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ],
+      "pendingOn": [
+        "web"
+      ]
     }
   ],
   "mustKeep": [
@@ -113,6 +187,65 @@
     {
       "name": "date_words",
       "input": "Nov 19"
+    },
+    {
+      "name": "gps_pair",
+      "input": "GPS 33.7490, -84.3880",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "zip_plus_four",
+      "input": "Atlanta, GA 30301-1234",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "grouped_count",
+      "input": "walked 1,234,567 steps",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "street_address",
+      "input": "12345 67th Ave",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "number_with_unit",
+      "input": "5km",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "date_split_by_crlf",
+      "input": "Seen Nov \r\n19 2026",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "gps_pair_split_by_crlf",
+      "input": "GPS 33.7490,\r\n-84.3880",
+      "pendingOn": [
+        "web"
+      ]
+    }
+  ],
+  "exact": [
+    {
+      "name": "time_then_number",
+      "input": "Seen at 14:03, 404-555-0142",
+      "output": "Seen at 14:03, [number removed]",
+      "pendingOn": [
+        "web"
+      ]
     }
   ]
 }

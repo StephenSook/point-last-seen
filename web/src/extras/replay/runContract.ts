@@ -72,7 +72,7 @@ export const ROUTE_ENUMS = {
   stage: ["guided", "permissive_text", "deterministic_parser", "evidence_protocol", "sdk", "picklist"],
   reason: [
     "on_device_default", "no_network", "on_device_unavailable", "locale_unsupported", "over_token_budget",
-    "possible_evidence", "not_drill_mode", "sdk_prefer_in_cloud", "sdk_prefer_on_device", "sdk_only_in_cloud",
+    "possible_evidence", "not_english", "not_drill_mode", "sdk_prefer_in_cloud", "sdk_prefer_on_device", "sdk_only_in_cloud",
     "sdk_only_on_device", "sdk_fallback", "link_down_fallback", "template_fallback", "consented_cloud_read",
     "on_device_triage_flagged", "on_device_triage_no_person", "triage_no_motion", "user_override_after_triage",
   ],

@@ -133,6 +133,19 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   the number).
 - `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
   and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
+  So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code, a grouped count (`1,234,567`), a street number and a
+  number glued to a unit (`5km`).
+- `exact[]`: `{ name, input, output }`. The output must equal `output` byte for byte, with the shared `replacement`
+  (`[number removed]`, the token every platform writes) where the number was.
+- `pendingOn` (optional, on any case): the platforms (`ios`, `web`, `android`) whose rule does not pass that case
+  yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
+  is removed from the list. Every runner checks all three case types.
+
+The reference rule (the Android family app's): a run of 7 or more digits (written in any script, or English digit words) joined only by short
+separators (spaces, line breaks, and the dash, dot, slash, comma and bracket characters, including U+2010, U+2011 and
+U+2013) is a number. A date shields its digits only when the digits joined on each side are none or a whole number of
+7 or more digits. Times, coordinate pairs, grouped counts, ZIP+4 codes and dates written with a month name are kept,
+and a number glued to a unit or an ordinal (`5km`, `67th`) counts alone.
 
 ## language.json (hand-written)
 
