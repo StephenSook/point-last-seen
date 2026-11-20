@@ -222,6 +222,20 @@
       "pendingOn": [
         "web"
       ]
+    },
+    {
+      "name": "date_split_by_crlf",
+      "input": "Seen Nov \r\n19 2026",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "gps_pair_split_by_crlf",
+      "input": "GPS 33.7490,\r\n-84.3880",
+      "pendingOn": [
+        "web"
+      ]
     }
   ],
   "exact": [

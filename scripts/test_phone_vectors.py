@@ -20,7 +20,8 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates,
 # a ZIP+4 code, a grouped count, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
-                 "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 1,234,567 steps", "12345 67th Ave", "5km"]
+                 "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 1,234,567 steps", "12345 67th Ave", "5km",
+                 "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]")]
 
 

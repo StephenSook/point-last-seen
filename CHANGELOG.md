@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vector: two mustKeep cases split by CRLF ("Seen Nov \\r\\n19 2026" and "GPS 33.7490,\\r\\n-84.3880"),
+  so a line break inside a date or a coordinate pair never joins its digits into a number on any platform. Pending on
+  web. Source: the iPhone parity sweep against the Android rule. Verified: the vector test passes.
 - Phone-number vector: the new cases are pending on web only; the iPhone port of the reference rule passes them all,
   so iOS runs them. Source: review. Verified: the vector test passes.
 - Phone-number vector gaps (from the Android port's review): 6 more mustRemove (dotted pairs 06.12.20.26.19, a number
