@@ -27,7 +27,8 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    # A bare minus between decimals is how a number is written; an ordinal joins unless a street word follows.
                    "44.2071-23.4567", "4550 142nd",
                    # A time shields itself only after a date, never joined to other digits before its hour.
-                   "1 404 555 01:42", "GA 40455-5014 2:30"]
+                   "1 404 555 01:42", "GA 40455-5014 2:30",
+                   "GA 40455-5014 2:30 555-0142"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",

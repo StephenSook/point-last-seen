@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
+  time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
+  between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
+  Android change and its review. Verified: PhoneVectorsTest passes locally on this branch with main at 720038b;
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: the two time cases stay pending on android. Android's rule removes the number but leaves the minutes
   ("Call [number removed]:42", "Call GA [number removed]:30"), which fails the no-digit-left check. Source: this
   branch's Android CI run. Verified: PhoneVectorsTest run locally on this branch: fails on each of the two cases with

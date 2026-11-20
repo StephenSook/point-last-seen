@@ -286,8 +286,7 @@
       ],
       "pendingOn": [
         "web",
-        "ios",
-        "android"
+        "ios"
       ]
     },
     {
@@ -300,8 +299,20 @@
       ],
       "pendingOn": [
         "web",
-        "ios",
-        "android"
+        "ios"
+      ]
+    },
+    {
+      "name": "time_between_zip_and_number",
+      "input": "Call GA 40455-5014 2:30 555-0142",
+      "number": "GA 40455-5014 2:30 555-0142",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios"
       ]
     }
   ],
