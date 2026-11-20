@@ -59,9 +59,10 @@ import Testing
         #expect(PromptText.guided.contains("subjectDescription"))
     }
 
-    /// Apple's model reads with greedy sampling, so the same report gets the same answer every time.
-    @Test func applesModelReadsWithGreedySampling() {
-        #expect(FoundationModelRunner.onDeviceOptions == GenerationOptions(samplingMode: .greedy))
+    /// Apple's model reads with greedy sampling, so the same report gets the same answer every time, and its
+    /// answer is capped, so a read that runs away ends in seconds instead of holding the model.
+    @Test func applesModelReadsWithGreedySamplingAndACap() {
+        #expect(FoundationModelRunner.onDeviceOptions == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 512))
     }
 
     /// Apple's model is told the quote may not be empty; the cloud prompt (and its allow-list) is unchanged.

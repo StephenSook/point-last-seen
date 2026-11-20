@@ -56,7 +56,10 @@ enum ModelSessionFactory {
             case .contextSizeExceeded: return .contextExceeded
             case .unsupportedLanguageOrLocale: return .unavailable
             case .timeout: return .network
-            case .rateLimited, .unsupportedCapability, .unsupportedTranscriptContent, .unsupportedGenerationGuide: return .other
+            // An answer cut off by the response cap comes back as this case ("The model produced an empty
+            // response.", measured on the simulator with a 12-token cap).
+            case .unsupportedTranscriptContent: return .emptyResponse
+            case .rateLimited, .unsupportedCapability, .unsupportedGenerationGuide: return .other
             @unknown default: return .other
             }
         case let e as SystemLanguageModel.Error:
@@ -126,8 +129,16 @@ struct FoundationModelRunner: ReadModelRunner {
         }
     }
 
-    /// Apple's model reads with greedy sampling: the same report gets the same answer every time.
-    static let onDeviceOptions = GenerationOptions(samplingMode: .greedy)
+    /// Apple's model reads with greedy sampling: the same report gets the same answer every time. Its answer
+    /// is capped, so a read that runs away ends in seconds (as empty_response) instead of holding the model
+    /// after our time limit: on the simulator, timed-out reads kept the model busy and later reads queued.
+    static let onDeviceOptions = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: onDeviceResponseTokenCap)
+
+    /// The cap, from the longest valid reading: SystemLanguageModel.tokenCount on the JSON of a reading with
+    /// every field set, three segments, a 40-character item, footwear and carried, and a 934-character quote
+    /// (the report limit is 1,000 characters) measured 323 tokens on the simulator (a typical reading, 117).
+    /// 512 leaves room for the tool calls the model makes in the same answer.
+    static let onDeviceResponseTokenCap = 512
 
     /// The tools Apple's model gets: all but the subject's description, and no segmentHere with no GPS fix
     /// (its only answer was a sentence the model quoted as the report).

@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's answer is capped, and a capped read says so
+- What: on the simulator, reads our code had timed out kept Apple's model busy, and the reads after them
+  queued (a one-line prompt took 30 s). Apple's answer is now capped at 512 tokens
+  (GenerationOptions.maximumResponseTokens), so a read that runs away ends in seconds. The cap comes from
+  the longest valid reading: SystemLanguageModel.tokenCount on the JSON of a reading with every field set
+  and a 934-character quote measured 323 tokens (a typical reading, 117); the rest is room for tool calls.
+  Hitting the cap throws LanguageModelError.unsupportedTranscriptContent ("The model produced an empty
+  response."), which now maps to a new empty_response failure: it falls to rules with the stage note
+  "guided on_device: empty_response". Our timeout already cancels the call; a test now pins that.
+- Source: review (simulator eval after the no-fix change: four reads hit the 90 s limit).
+- Verified: tests for the cap, the mapping, the routing and the stage note failed to compile before the
+  change and pass after; a test pins that a timed-out call is cancelled; 370 core and 197 app tests pass.
+
 ### fix(ios-core): a mark Apple's model adds to the end of its quote is dropped
 - What: Apple's model quoted "Found a shoe on the path in segment BP." for a report with no period, and
   its reading was rejected. For Apple's model, at most one trailing . , ! or ? is now dropped from the

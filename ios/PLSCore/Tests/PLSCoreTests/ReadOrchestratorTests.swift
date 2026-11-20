@@ -308,6 +308,15 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .onDevice && o.reading.evidenceQuote == text)
     }
 
+    /// A read cut off by the response cap falls to rules with a note that says so.
+    @Test func aCappedReadFallsToRulesWithANote() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.emptyResponse)]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)] && o.route.path == .rules)
+        #expect(o.stageNotes == ["guided on_device: empty_response"])
+    }
+
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
     /// more; the validator is unchanged, so two rejections still fall to rules.
     @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {
