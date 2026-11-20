@@ -53,6 +53,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
   judging). Verified test first: the expiry field and the refusal of five bad times failed, then passed; 15 seed_drill
   tests pass.
+- Phone-number vector: dates are kept on every platform. Four mustKeep cases added ("11/19/2026", "2026-11-19",
+  "11/19", "Nov 19"), pinned in `scripts/test_phone_vectors.py`; "404/555/0142" (3-3-4 grouping) stays mustRemove. A
+  date in a note is search information, not a phone number. Source: review (a slash fix on one platform began removing
+  dates). Verified: the vector test passes, and a scrubber that removes any 7-digit run joined by / or - fails the
+  contract on 11/19/2026 and 2026-11-19.
 - `docs/TEST-MATRIX.md`, linked once under the README's ships table: one row per platform and model path (mode and API
   with file:line, the model as recorded, hardware and OS or browser, channel, date, result, tracked evidence). Rows
   that never ran say Not run and why: web on-device note read and plan wording, Android on-device (the A16 has no
