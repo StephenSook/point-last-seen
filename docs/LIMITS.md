@@ -96,8 +96,10 @@ each line says what the limit is and why.
 - To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
   too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
   "ga 30301-1234" is removed, while "GA 30301-1234" stays.
-- It keeps too much in one case: a phone number written like a street address with an ordinal street ("5550 142nd
-  St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart.
+- It keeps too much in two cases. A phone number written like a street address with an ordinal street ("5550 142nd
+  St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
+  number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
+  to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
 - A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, which reads it as a
   grouped count; the iPhone and Android remove it. The shared rule removes any grouped count of seven or more
   digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
