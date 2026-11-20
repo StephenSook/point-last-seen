@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
+  iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
+  words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,
+  unmeasured, and evidence in another language escapes the pre-screen. Source: review (language scope not stated).
+  Verified against gate.ts, ModelSessionFactory.swift, ReportParser.swift, evidence-terms.json and its three readers,
+  ReadOutcomeBuilder.swift, and the prompt templates (none names a language).
 - SECURITY row 1c: Android release App Check is PASSED, not pending. The release-signed build on a Samsung A16 got a
   Play Integrity token, signed in and made a cloud note read on 2026-11-18
   (`docs/evidence/android/a16-2026-11-18/README.md`, lines 20-21). The row also records the settings read back
