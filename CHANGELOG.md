@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README, How the models are called: the iPhone route cites its basis, Firebase iOS SDK 13.0.0's
+  FirebaseAI/CHANGELOG.md (lines 69 to 74 at tag 13.2.0: SystemLanguageModel and HybridModel removed; use
+  ai.geminiLanguageModel(name:) with Apple's Foundation Models directly). Source: review. Verified: fetched the file
+  at tag 13.2.0 (lines 69 to 74 hold that entry); ios/project.yml pins 13.2.0; ModelSessionFactory.swift builds
+  LanguageModelSession(model: ai.geminiLanguageModel(name:)).
 - SECURITY, Data and media: one paragraph on what Performance Monitoring records: one trace per model read with the
   route only and its latency, never text (the attributes each platform sends, Android's matching Analytics event, the
   iPhone's spoken-assignment trace), plus the SDKs' automatic page-load, app-start, screen and network samples.

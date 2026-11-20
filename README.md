@@ -32,6 +32,9 @@ Which model paths ran on which hardware, and which have not run yet: [docs/TEST-
   own model, with the cloud as the fallback where a call allows it).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
+  This follows Firebase iOS SDK 13.0.0, which removed the SDK's own `SystemLanguageModel` and `HybridModel` and says to
+  use `ai.geminiLanguageModel(name:)` directly with Apple's Foundation Models framework (`FirebaseAI/CHANGELOG.md`,
+  lines 69 to 74 at tag 13.2.0, the version this app pins); `ios/PLS/AI/ModelSessionFactory.swift` does exactly that.
 - Speech: the iPhone app speaks an assignment change in a cloud voice from Firebase AI Logic and falls back to the
   phone's own system voice. No app calls a speech recognizer, and the repository's rules gate refuses one on every
   platform. A searcher can dictate a report with the iPhone keyboard's microphone key, which gives the app typed text.
