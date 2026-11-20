@@ -1,0 +1,5 @@
+{
+  "description": "The judge's seeded drill incident. Judges open it from the judge page, so automated tests never write to it: live tests use the test-only drill instead.",
+  "incidentId": "drill-dev-1",
+  "testIncidentId": "drill-test-1"
+}

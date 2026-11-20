@@ -1,4 +1,13 @@
 import { test as base, expect, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+// The judge's seeded incident, from the shared constant (its id is never typed in a test). Live tests write
+// sightings, photos, consents and plans, so they run on the test drill and refuse the judge's seed.
+const JUDGE_SEED = (JSON.parse(readFileSync(new URL("../../shared/constants/judge-seed.json", import.meta.url), "utf8")) as { incidentId: string }).incidentId;
+
+export function refuseJudgeSeed(incidentId: string): void {
+  if (incidentId === JUDGE_SEED) throw new Error("This is the judge's seed incident; live tests run on the test drill (PLS_SMOKE_INCIDENT=drill-test-1).");
+}
 
 /** Sets the registered App Check debug token before the app starts. The token comes from the environment, never from the repo. */
 export async function withDebugToken(page: Page): Promise<void> {
@@ -43,6 +52,7 @@ export async function joinCommand(page: Page): Promise<string> {
   const incident = process.env["PLS_SMOKE_INCIDENT"];
   const code = process.env["PLS_SMOKE_JOIN_CODE"];
   if (!incident || !code) throw new Error("PLS_SMOKE_INCIDENT and PLS_SMOKE_JOIN_CODE are required");
+  refuseJudgeSeed(incident);
   await page.goto(`/?incident=${encodeURIComponent(incident)}`);
   // The run's saved session has usually joined already (auth.setup.ts), so the post opens directly;
   // joinIncident allows 10 joins per user per hour, so tests join only when the form asks.

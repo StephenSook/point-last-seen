@@ -22,13 +22,13 @@ test("when a new build's worker takes over, the page reloads into it", { tag: "@
 
 test("while words are typed the page asks before reloading, so nothing typed is lost", { tag: "@no-backend" }, async ({ page }) => {
   await controlled(page, "/");
-  await page.getByRole("textbox").first().fill("drill-dev-1");
+  await page.getByRole("textbox").first().fill("drill-test-1");
   await page.evaluate(() => { (window as { oldBuild?: boolean }).oldBuild = true; });
   await takeOver(page);
   const bar = page.getByRole("status").filter({ hasText: "A new version of this page is ready." });
   await expect(bar).toBeVisible();
   expect(await page.evaluate(() => (window as { oldBuild?: boolean }).oldBuild)).toBe(true);
-  await expect(page.getByRole("textbox").first()).toHaveValue("drill-dev-1");
+  await expect(page.getByRole("textbox").first()).toHaveValue("drill-test-1");
   await expect(bar.getByRole("button", { name: "Reload" })).toBeVisible();
 });
 
