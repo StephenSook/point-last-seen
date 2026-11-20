@@ -228,6 +228,33 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .rules && o.stageNotes.count == 2 && o.stageNotes.allSatisfy { $0.hasPrefix("guided on_device: invalid quote_not_in_text") })
     }
 
+    /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection
+    /// range 0 is never a valid value, so it is read as not stated before validation; the validator is unchanged.
+    @Test func aZeroFromApplesModelMeansNotStated() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(coverage: 0.8, minutes: 0, searchers: 0, detectionRangeM: 0))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.route.stage == .guided && o.stageNotes.isEmpty)
+        #expect(o.reading.minutes == nil && o.reading.searchers == nil && o.reading.detectionRangeM == nil)
+        #expect(o.reading.coverage == 0.8)
+    }
+
+    /// Only a zero is read as not stated: any other out-of-range number from Apple's model is still rejected.
+    @Test func otherBadNumbersFromApplesModelAreStillRejected() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(coverage: 0.8, minutes: -5))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules && o.stageNotes == ["guided on_device: invalid minutes_out_of_range"])
+    }
+
+    /// The cloud model's zeros are not changed: it is not the one that fills unstated numbers with 0.
+    @Test func aZeroFromTheCloudModelIsStillRejected() async {
+        let r = FakeRunner()
+        r.guidedResults[.cloud] = [.success(reading(coverage: 0.8, minutes: 0))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(o.stageNotes.first == "guided cloud: invalid minutes_out_of_range")
+    }
+
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
     /// more; the validator is unchanged, so two rejections still fall to rules.
     @Test func anEmptyQuoteIsAskedOnceMoreThenAccepted() async {

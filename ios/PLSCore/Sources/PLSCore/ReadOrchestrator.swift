@@ -187,7 +187,10 @@ public enum ReadOrchestrator {
                     var r = withCodeSegments(modelReading)
                     // Apple's model reads the report alone (it never sees the description), so code
                     // decides whether the report matches the subject.
-                    if guidedPath == .onDevice { r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown }
+                    if guidedPath == .onDevice {
+                        r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
+                        r = Self.zerosNotStated(r)
+                    }
                     let v = validate(r, context, text)
                     if v.isOK { return finish(r, path: path, stage: .guided) }
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
@@ -247,6 +250,16 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection
+    /// range 0 is never a valid value, so it is read as not stated. Coverage keeps its 0, which can be stated.
+    static func zerosNotStated(_ reading: ReportReading) -> ReportReading {
+        var r = reading
+        if r.minutes == 0 { r.minutes = nil }
+        if r.searchers == 0 { r.searchers = nil }
+        if r.detectionRangeM == 0 { r.detectionRangeM = nil }
+        return r
     }
 
     /// What a rejected quote was, for a stage note: "(quote empty)" or the quote cut to 60 characters. Kept

@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): a zero from Apple's model means the number was not stated
+- What: Apple's model fills minutes, searchers and detection range with 0 when the report never states
+  them, and the reading was then rejected for out-of-range numbers. Before validation, a 0 from Apple's
+  model in those three fields is read as not stated. Coverage keeps its 0, which a report can state. The
+  validator is unchanged; any other out-of-range number is still rejected, and the cloud model's numbers
+  are not changed.
+- Source: review (simulator eval: "Cleared segment BO, nothing found." came back with zeros).
+- Verified: a test that a reading with zeros is accepted with those fields not stated failed before the
+  change and passes after; tests pin that a negative number and a cloud zero stay rejected; all 362 core
+  tests pass.
+
 ### fix(ios): Apple's model reads with greedy sampling
 - What: Apple's model on the phone (the guided read and the plain-text read) now runs with
   GenerationOptions(samplingMode: .greedy), so the same report gets the same answer every time instead
