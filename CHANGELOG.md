@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
+  its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
+  names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the
+  Kennesaw-only terrain display layer; and a LIMITS section with their seven limits. Source: the extras hand-over at
+  main 7afaee2. Verified: each feature is on main (Ics204View.tsx with v3.1, ExportButton.tsx RFC 7946,
+  LazyRadioCodeCheck, printablePersonLines, ReplayPanel's "Earlier prior" line, and only
+  kennesaw-mountain-drill.elevation.json under web/public/extras/terrain); no camera-read or space-time claim is made.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
