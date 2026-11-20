@@ -43,13 +43,19 @@ struct ReportReader {
     /// Apple's model as this phone reports it (a seam for tests).
     var deviceStatus: @Sendable () -> OnDeviceStatus = { ModelSessionFactory.onDeviceStatus() }
 
+    /// The three read-only tools for one read. The cloud gets all three; Apple's model gets none, and its
+    /// instructions are built from the first two.
+    static func tools(for situation: ReportSituation) -> [any Tool] {
+        [SegmentAtTool(positionSegmentId: situation.positionSegmentId),
+         TeamAssignmentTool(assignedSegmentIds: situation.assignedSegmentIds),
+         SubjectProfileTool(profile: situation.profile)]
+    }
+
     func read(_ text: String, situation: ReportSituation) async -> ReadOutcome {
         // The evidence screen and the drill check come before any call that hands the text to a
         // model API, the token count included; then no count is needed at all.
         let modelAllowed = !screen.isPossibleEvidence(text) && situation.incidentMode.map(ReadPlan.modelModes.contains) == true
-        let tools: [any Tool] = [SegmentAtTool(positionSegmentId: situation.positionSegmentId),
-                                 TeamAssignmentTool(assignedSegmentIds: situation.assignedSegmentIds),
-                                 SubjectProfileTool(profile: situation.profile)]
+        let tools = Self.tools(for: situation)
         var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
             networkOnline: situation.networkOnline,

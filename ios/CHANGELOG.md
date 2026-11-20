@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the eval records the hash of the prompt Apple's model was given
+- What: the eval's result file recorded the SHA-256 of the cloud prompt as the on-device arm's prompt.
+  Apple's model has had its own instructions since the on-device prompt split, and they now carry the
+  team's position and assignment. The file now records the SHA-256 of the exact instructions the eval's
+  reads give Apple's model, built the way the reader builds them from the eval's situation (no position
+  fix, the team's assignment). The eval's situation and the reader's tools are each built in one place.
+- Source: review.
+- Verified: a test that the recorded hash is the on-device instructions' hash, not the cloud prompt's,
+  failed to compile before the change and passes after; 197 app tests pass.
+
 ### fix(ios-core): the quote retry asks Apple's model with a reminder, not the same input
 - What: Apple's model reads with greedy sampling, so asking again with the same input gave the same
   rejected quote. The one retry for a reading rejected only for its quote now sends the report followed
