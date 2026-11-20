@@ -104,3 +104,44 @@ test("saving after a read that reported no route hands the read with its route n
   await page.getByRole("button", { name: "Save sighting" }).click();
   await expect(page.getByTestId("saved-read")).toHaveText('{"route":null}');
 });
+
+test("editing the note after a cloud read clears the read status and its receipt, and keeps the fields", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByText("Suggested from the note. Check every field.")).toBeVisible();
+  await expect(page.getByText("What ran", { exact: true })).toBeVisible();
+  await note.fill("red jacket by the gate, then went left");
+  await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
+  await expect(page.getByText("What ran", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+});
+
+test("editing the note after a read clears the words it came from, even when they are still in the note", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("red jacket")}`);
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByText('From the note: "red jacket"', { exact: true })).toBeVisible();
+  await note.fill("red jacket by the gate, then went left");
+  await expect(page.getByText(/^From the note:/)).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+});
+
+test("editing the note after a read still saves that read's route, since the fields came from it", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await note.fill("red jacket by the gate, then went left");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  const read = JSON.parse(await page.getByTestId("saved-read").innerText()) as { route: { path: string } };
+  expect(read.route.path).toBe("cloud");
+});
