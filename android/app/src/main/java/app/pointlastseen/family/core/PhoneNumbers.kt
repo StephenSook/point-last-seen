@@ -24,12 +24,31 @@ object PhoneNumbers {
 
     private fun isDigit(cp: Int) = Character.isDigit(cp) || (cp <= 0xFFFF && cp.toChar() in CHINESE_DIGITS)
 
-    /** A run of digits (counting its digits), a word (one if it is a spoken digit, else none). */
-    private class Part(val start: Int, val end: Int, var digits: Int, val written: Boolean)
+    private val MONTHS = setOf(
+        "jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july",
+        "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december",
+    )
+
+    // Endings glued to a number that make it a quantity or an ordinal (67th, 5km, 3pm), never part of a phone number.
+    private val UNITS = setOf(
+        "st", "nd", "rd", "th", "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph",
+        "kg", "lb", "lbs", "cm", "mm",
+    )
+
+    private val COORDINATE_GAP = Regex("""\s{0,2},?\s{0,2}-?""")
+    private val MONTH_DAY_GAP = Regex("""\.?\s{1,2}""")
+    private val YEAR_GAP = Regex(""",?\s{1,2}""")
+
+    /**
+     * A run of digits (counting its digits), a word (one if it is a spoken digit, else none). An [alone] run
+     * counts by itself and never joins its neighbours.
+     */
+    private class Part(val start: Int, val end: Int, var digits: Int, val written: Boolean, var alone: Boolean = false)
 
     fun remove(text: String): String {
         val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
         val parts = parts(folded)
+        protect(folded, parts)
         // A date's three groups count no digits, so they neither make a number nor join one. A date carved out of
         // a longer run is not one: the digits joined to it on each side must be none, or a number of their own.
         var d = 0
@@ -53,7 +72,7 @@ object PhoneNumbers {
             }
             var start = k
             var total = parts[k].digits
-            while (start > 0 && parts[start - 1].digits > 0 && onlySeparators(folded.substring(parts[start - 1].end, parts[start].start))) {
+            while (start > 0 && joins(folded, parts[start - 1], parts[start])) {
                 start--
                 total += parts[start].digits
             }
@@ -72,14 +91,70 @@ object PhoneNumbers {
         var total = 0
         var cur = edge
         var next = edge + step
-        while (next in parts.indices && parts[next].digits > 0) {
-            val gap = if (step < 0) s.substring(parts[next].end, parts[cur].start) else s.substring(parts[cur].end, parts[next].start)
-            if (!onlySeparators(gap)) break
+        while (next in parts.indices) {
+            if (!(if (step < 0) joins(s, parts[next], parts[cur]) else joins(s, parts[cur], parts[next]))) break
             total += parts[next].digits
             cur = next
             next += step
         }
         return total
+    }
+
+    /** Whether part [a] joins the part [b] right after it into one number. */
+    private fun joins(s: String, a: Part, b: Part): Boolean =
+        a.digits > 0 && b.digits > 0 && !a.alone && !b.alone && onlySeparators(s.substring(a.end, b.start))
+
+    /**
+     * Search information made of digits counts no digits, so it neither makes a number nor joins one: a time
+     * (14:03), a coordinate pair (33.7490, -84.3880), a grouped count (1,234,567), a ZIP+4 code (30301-1234) and a
+     * month-name date (Nov 19 2026, 19 November 2026). A number glued to a unit or an ordinal ending (67th, 5km)
+     * counts alone.
+     */
+    private fun protect(s: String, parts: List<Part>) {
+        fun gap(a: Part, b: Part) = s.substring(a.end, b.start)
+        fun len(p: Part) = p.end - p.start
+        fun value(p: Part): Int? = s.substring(p.start, p.end).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
+        fun written(i: Int) = i in parts.indices && parts[i].written
+        fun word(i: Int) = s.substring(parts[i].start, parts[i].end).lowercase()
+        fun zero(vararg idx: Int) = idx.forEach { parts[it].digits = 0 }
+        fun isDay(i: Int) = written(i) && len(parts[i]) <= 2 && (value(parts[i]) ?: 0) in 1..31
+        fun isYear(i: Int) = written(i) && len(parts[i]) == 4 && (value(parts[i]) ?: 0) in 1900..2100
+        for (i in parts.indices) {
+            val p = parts[i]
+            if (!p.written) {
+                if (word(i) !in MONTHS) continue
+                if (isDay(i + 1) && MONTH_DAY_GAP.matches(gap(p, parts[i + 1]))) {
+                    zero(i + 1)
+                    if (isYear(i + 2) && YEAR_GAP.matches(gap(parts[i + 1], parts[i + 2]))) zero(i + 2)
+                } else if (isDay(i - 1) && Regex("""\s{1,2}""").matches(gap(parts[i - 1], p))) {
+                    zero(i - 1)
+                    if (isYear(i + 1) && YEAR_GAP.matches(gap(p, parts[i + 1]))) zero(i + 1)
+                }
+                continue
+            }
+            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == p.end && word(i + 1) in UNITS) p.alone = true
+            if (written(i + 1) && gap(p, parts[i + 1]) == ":" && len(p) <= 2 && len(parts[i + 1]) == 2 &&
+                (value(p) ?: 99) <= 23 && (value(parts[i + 1]) ?: 99) <= 59
+            ) {
+                zero(i, i + 1)
+            }
+            if (written(i + 1) && written(i + 2) && written(i + 3) && gap(p, parts[i + 1]) == "." && gap(parts[i + 2], parts[i + 3]) == "." &&
+                len(p) <= 3 && len(parts[i + 2]) <= 3 && len(parts[i + 1]) >= 4 && len(parts[i + 3]) >= 4 &&
+                COORDINATE_GAP.matches(gap(parts[i + 1], parts[i + 2]))
+            ) {
+                zero(i, i + 1, i + 2, i + 3)
+            }
+            if (len(p) <= 3 && (i == 0 || gap(parts[i - 1], p) != ",")) {
+                var j = i + 1
+                while (written(j) && gap(parts[j - 1], parts[j]) == "," && len(parts[j]) == 3) j++
+                if (j - i - 1 >= 2) zero(*(i until j).toList().toIntArray())
+            }
+            if (len(p) == 5 && written(i + 1) && gap(p, parts[i + 1]) == "-" && len(parts[i + 1]) == 4 &&
+                (i == 0 || !joins(s, parts[i - 1], p)) && (i + 2 >= parts.size || !joins(s, parts[i + 1], parts[i + 2]))
+            ) {
+                zero(i, i + 1)
+            }
+        }
     }
 
     private fun parts(s: String): List<Part> {

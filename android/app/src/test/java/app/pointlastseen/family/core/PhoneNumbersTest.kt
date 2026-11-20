@@ -74,4 +74,32 @@ class PhoneNumbersTest {
         assertEquals("Seen 11/19/2026 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 404-555-0142"))
         assertEquals("Seen 11/19/2026, call [number removed]", PhoneNumbers.remove("Seen 11/19/2026, call 404-555-0142"))
     }
+
+    /** Search information made of digits stays: coordinates, ordinals and units, grouped counts. */
+    @Test fun coordinatesOrdinalsUnitsAndCountsStay() {
+        for (text in listOf(
+            "GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 1,234,567 steps",
+            "about 2 5km loops", "Atlanta, GA 30301-1234",
+        )) {
+            assertEquals(text, PhoneNumbers.remove(text))
+        }
+    }
+
+    /** A time or a month-name date beside a number stays; only the number goes. */
+    @Test fun aTimeOrMonthDateBesideANumberStays() {
+        assertEquals("Seen at 14:03, [number removed]", PhoneNumbers.remove("Seen at 14:03, 404-555-0142"))
+        assertEquals("Nov 19 2026 [number removed]", PhoneNumbers.remove("Nov 19 2026 404-555-0142"))
+        assertEquals("19 November 2026, [number removed]", PhoneNumbers.remove("19 November 2026, 404-555-0142"))
+    }
+
+    /** Spoken digits are read the same on a phone set to Turkish (root casing, not the device's). */
+    @Test fun spokenDigitsInCapitalsAreCaughtOnATurkishPhone() {
+        val before = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            assertEquals("call [number removed]", PhoneNumbers.remove("call FOUR OH FOUR FIVE FIVE FIVE OH ONE FOUR TWO"))
+        } finally {
+            java.util.Locale.setDefault(before)
+        }
+    }
 }
