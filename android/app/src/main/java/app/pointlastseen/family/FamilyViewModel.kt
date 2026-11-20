@@ -417,7 +417,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val request = ++publishRequests
         // Only the newest publish sets the note: an older one ending later must not hide a newer failure. A result
         // for a search the phone has since left says nothing about the one it is in now.
-        publisher.publish(inc, profile, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
+        // The profile that reached the disk, not an edit whose save failed: every path that publishes sends that one.
+        publisher.publish(inc, lastSaved, still) { ok -> if (request == publishRequests && still.check()) profileShareFailed = !ok }
     }
 
     /** Throws IllegalStateException when the family has not joined or is not signed in. */
