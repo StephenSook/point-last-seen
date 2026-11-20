@@ -38,6 +38,35 @@ finding) and how it was verified. Newest first.
 - Verified: the script wrote a 1024 x 1024 sRGB image with 3 channels; the app builds and the app
   tests pass; the built app's Info.plist names AppIcon.
 
+### fix(ios): leaving a search goes through the same account change as any sign-out
+- What: "Leave this search" signed the anonymous user out and dropped the mission itself, apart from
+  the path every other Auth change takes. It now ends with that same account change: running
+  access checks lose their say, speech stops, and Auth's own later report of the sign-out finds
+  nothing left to do.
+- Source: review (round 3: the leave action must use the account-change path).
+- Verified: a test leaves after Auth has reported the user, then has Auth report the sign-out: no
+  second stop and nothing dropped. It failed before the change and passes after; the app tests pass.
+
+### docs: leaving a search on the iPhone changes only the phone
+- What: LIMITS.md says that "Leave this search" leaves the team's topic, drops the mission and
+  signs the anonymous account out, while the old user's claims stay on the server and command
+  still lists that member until command removes them; leaving waits until every report is settled.
+- Source: drill planning (leave action).
+- Verified: read against `AppModel.leaveSearch` and its tests.
+
+### feat(ios): a searcher can leave the search from the Ready check
+- What: the iPhone had no way to leave a search: the join form shows only with no mission
+  loaded, so a phone stayed on its incident until command changed its claims. The Ready check now
+  has "Leave this search", with a confirm. Leaving stops speech, leaves the team's push topic,
+  drops the mission and signs the anonymous account out, so the next join is a new user and the
+  join form shows again. While any report is not yet settled with the server, leaving is refused
+  with the reason, since signing out would strand that report's write.
+- Source: drill planning (one phone joins several searches; volunteers leave at the end).
+- Verified: tests that leaving shows the join form (mission gone, topic left, signed out, speech
+  stopped), that a push for the old team afterwards opens nothing (with no user and with a new
+  user), and that an unsettled report blocks leaving. They failed to compile before the change
+  and pass after; 155 app tests pass.
+
 ### docs: the two account windows the iPhone does not close, and plans without a setup id
 - What: LIMITS.md says what the account sessions leave open: a first join that signs in a new
   anonymous user binds its session only after the join returns (the security rules still decide what
