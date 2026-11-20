@@ -109,7 +109,17 @@ object PhoneNumbers {
                 // A short piece seen with every span found, or with the spans kept after dropping dates and times,
                 // takes the whole run: dropping a date must never make the rest of the run look like a whole number.
                 fun short(ps: List<List<Int>>) = ps.any { p -> p.sumOf { parts[it].digits } in 1..6 }
-                if (short(pieces) || short(pieces(start, k, found))) {
+                // The pieces again with each dropped time's colon still a break: joining the minutes to the run must
+                // not hide the short piece the hour leaves (GA 40455-5014 2:30 555-0142).
+                val split = pieces.flatMap { p ->
+                    val out = mutableListOf(mutableListOf<Int>())
+                    for (i in p) {
+                        if (out.last().isNotEmpty() && (i - 1) in glued) out += mutableListOf<Int>()
+                        out.last() += i
+                    }
+                    out
+                }
+                if (short(pieces) || short(pieces(start, k, found)) || short(split)) {
                     replace(out, folded, parts, start, k)
                 } else {
                     for (p in pieces.reversed()) replace(out, folded, parts, p.first(), p.last())

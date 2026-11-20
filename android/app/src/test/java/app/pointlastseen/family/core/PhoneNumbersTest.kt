@@ -339,4 +339,9 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call +44.2071, -23.4567"))
         assertEquals("GPS 33.7490, -84.3880", PhoneNumbers.remove("GPS 33.7490, -84.3880"))
     }
+
+    /** Joining a dropped time's minutes never hides the short piece its hour leaves: the whole run still goes. */
+    @Test fun aJoinedTimeStillLeavesItsHourAShortPiece() {
+        assertEquals("Call GA [number removed]", PhoneNumbers.remove("Call GA 40455-5014 2:30 555-0142"))
+    }
 }
