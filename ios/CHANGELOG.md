@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the approach card shows the tracking aids the family named
+- What: the app bundles `shared/constants/tracking-aids.json`, and the Ready check's approach card
+  shows its tracking-aid lines under the names line: one per aid the family named (for example
+  "Carries a GPS tracker: ask the family for its last location."), the family's note, or "No
+  tracker or medical ID, as the family said.", as on the web's card. Nothing shows when the family
+  has not said.
+- Source: shared profile change (tracking aids), approach card row.
+- Verified: a test reads the file from the app bundle (every aid id in order, the none line); it
+  failed to compile before the change and passes after; 113 app tests pass.
+
 ### feat(ios-core): the search card's tracking-aid lines, from the shared constants
 - What: the iPhone reads `shared/constants/tracking-aids.json` and builds the card's tracking-aid
   lines the way the engine's `trackingAidLines` does: one line per aid the family named, in the
