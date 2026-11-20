@@ -49,9 +49,11 @@ object PhoneNumbers {
         "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR", "GU", "VI",
     )
 
-    private val COORDINATE_GAP = Regex("""\s{0,2}(,\s{0,2}-?|-)""")
-    private val MONTH_DAY_GAP = Regex("""\.?\s{1,2}""")
-    private val YEAR_GAP = Regex(""",?\s{1,2}""")
+    // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2}(,[ \n]{0,2}-?|-)""")
+    private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
+    private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
+    private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
 
     /**
      * A run of digits (counting its digits), a word (one if it is a spoken digit, else none). An [alone] run
@@ -121,7 +123,7 @@ object PhoneNumbers {
         var lower = parts[first].start
         while (lower > 0 && s[lower - 1] in "+(") lower--
         val upper = parts[last].end
-        val breaks = s.substring(lower, upper).replace("\r\n", "\n").count { it == '\n' || it == '\r' }
+        val breaks = LINE_BREAK.findAll(s.substring(lower, upper)).count()
         out.replace(lower, upper, List(breaks + 1) { REPLACEMENT }.joinToString("\n"))
     }
 
@@ -156,12 +158,12 @@ object PhoneNumbers {
         for (i in parts.indices) {
             if (!parts[i].written) {
                 if (word(s, parts[i]) !in MONTHS) continue
-                if (isDay(i + 1) && MONTH_DAY_GAP.matches(gap(i, i + 1))) {
+                if (isDay(i + 1) && MONTH_DAY_GAP.matches(flat(gap(i, i + 1)))) {
                     kept += i + 1
-                    if (isYear(i + 2) && YEAR_GAP.matches(gap(i + 1, i + 2))) kept += i + 2
-                } else if (isDay(i - 1) && Regex("""\s{1,2}""").matches(gap(i - 1, i))) {
+                    if (isYear(i + 2) && YEAR_GAP.matches(flat(gap(i + 1, i + 2)))) kept += i + 2
+                } else if (isDay(i - 1) && DAY_MONTH_GAP.matches(flat(gap(i - 1, i)))) {
                     kept += i - 1
-                    if (isYear(i + 1) && YEAR_GAP.matches(gap(i, i + 1))) kept += i + 1
+                    if (isYear(i + 1) && YEAR_GAP.matches(flat(gap(i, i + 1)))) kept += i + 1
                 }
                 continue
             }
@@ -179,7 +181,7 @@ object PhoneNumbers {
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
                 kept += i..(i + 1)
             }
-            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(gap(i + 1, i + 2))) {
+            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2)))) {
                 kept += i..(i + 3)
             }
             if (len(i) <= 3 && !(i > 0 && gap(i - 1, i) == ",")) {
@@ -259,13 +261,26 @@ object PhoneNumbers {
     }
 
     /**
-     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a line break
-     * (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number split across lines.
+     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes, read after [flat]
+     * (so a line break with its indent counts as one, and an accent or joiner adds nothing).
      */
     private fun onlySeparators(s: String): Boolean {
-        val gap = LINE_BREAK.replace(s, "\n")
-        return gap.length <= 3 && gap.all { it.isWhitespace() || it in "-.,()/" || it in DASHES }
+        val gap = flat(s)
+        return gap.length <= 3 && gap.all { it == ' ' || it == '\n' || it in "-.,()/" || it in DASHES }
     }
 
-    private val LINE_BREAK = Regex("""(\r\n|\n|\r)[ \t]*""")
+    /**
+     * A gap as read: combining marks and format characters dropped (NFKC turns a spacing accent such as ´ into a
+     * space and a combining mark; a joiner or a keycap mark is invisible), each line break (CRLF, LF, CR, NEL, or the
+     * Unicode line or paragraph separator) with any indent after it made one "\n", and every other space " ".
+     */
+    private fun flat(gap: String): String {
+        val visible = gap.filter { c ->
+            val type = Character.getType(c).toByte()
+            type != Character.NON_SPACING_MARK && type != Character.ENCLOSING_MARK && type != Character.FORMAT
+        }
+        return LINE_BREAK.replace(visible, "\n").map { if (it != '\n' && it.isWhitespace()) ' ' else it }.joinToString("")
+    }
+
+    private val LINE_BREAK = Regex("""(\r\n|\n|\r|\u0085|\u2028|\u2029)[ \t]*""")
 }

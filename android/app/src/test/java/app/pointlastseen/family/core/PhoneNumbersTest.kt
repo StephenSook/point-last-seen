@@ -195,4 +195,28 @@ class PhoneNumbersTest {
             for (g in gone) assertEquals("$input -> $out", false, out.contains(g))
         }
     }
+
+    /** Search information split by a pasted line break (CRLF, with or without an indent) stays beside a whole number, as on the iPhone. */
+    @Test fun aLineBreakInsideADateOrCoordinatesKeepsThemBesideANumber() {
+        assertEquals("Seen Nov \r\n19 2026 [number removed]", PhoneNumbers.remove("Seen Nov \r\n19 2026 404-555-0142"))
+        assertEquals("Seen Nov 19,\r\n2026 [number removed]", PhoneNumbers.remove("Seen Nov 19,\r\n2026 404-555-0142"))
+        assertEquals("Seen 19\r\n  November 2026 [number removed]", PhoneNumbers.remove("Seen 19\r\n  November 2026 404-555-0142"))
+        assertEquals("GPS 33.7490,\r\n-84.3880 [number removed]", PhoneNumbers.remove("GPS 33.7490,\r\n-84.3880 404-555-0142"))
+    }
+
+    /** A spacing accent between groups (which NFKC turns into a space and a combining mark) still joins them. */
+    @Test fun aSpacingAccentBetweenGroupsJoinsThem() {
+        for (sep in listOf("\u00B4", "\u00A8", "\u02DC", " \u0301", " \u200D")) {
+            val out = PhoneNumbers.remove("Call 404${sep}555${sep}0142")
+            assertEquals("$sep -> $out", false, out.any { it.isDigit() })
+        }
+    }
+
+    /** NEL and the Unicode line and paragraph separators are line breaks between groups, and the break is kept. */
+    @Test fun otherLineBreaksJoinGroups() {
+        for (br in listOf("\u0085", "\u2028", "\u2029")) {
+            val out = PhoneNumbers.remove("Call 404-555-${br}0142")
+            assertEquals("U+${"%04X".format(br[0].code)} -> $out", false, out.any { it.isDigit() })
+        }
+    }
 }
