@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { mapCredit } from "./credit";
+import { mapCredit, OSM_COPYRIGHT_URL, PROTOMAPS_ATTRIBUTION_URL } from "./credit";
 
 describe("mapCredit", () => {
-  it("shows no OpenStreetMap credit while nothing derived from OpenStreetMap is drawn", () => {
+  it("shows no credit while nothing derived from OpenStreetMap is drawn", () => {
     expect(mapCredit({ segments: 0, basemap: false })).toBeNull();
   });
 
-  it("credits OpenStreetMap when segments from the OSM-derived grid are drawn", () => {
-    expect(mapCredit({ segments: 12, basemap: false })).toBe("Map data from OpenStreetMap");
+  it("credits the OpenStreetMap contributors when the OSM-derived grid is drawn", () => {
+    expect(mapCredit({ segments: 12, basemap: false })).toEqual({ protomaps: false });
   });
 
-  it("credits OpenStreetMap when the basemap is drawn", () => {
-    expect(mapCredit({ segments: 0, basemap: true })).toBe("Map data from OpenStreetMap");
+  it("credits Protomaps too when the basemap is drawn", () => {
+    expect(mapCredit({ segments: 0, basemap: true })).toEqual({ protomaps: true });
+    expect(mapCredit({ segments: 67, basemap: true })).toEqual({ protomaps: true });
   });
 
-  it("shows the grid's own attribution when the grid declares one", () => {
-    const gridAttribution = "Map data from OpenStreetMap contributors (ODbL)";
-    expect(mapCredit({ segments: 67, basemap: false, gridAttribution })).toBe(gridAttribution);
-    expect(mapCredit({ segments: 0, basemap: false, gridAttribution })).toBeNull();
+  it("links the OpenStreetMap credit to its copyright page and Protomaps to its attribution guidelines", () => {
+    expect(OSM_COPYRIGHT_URL).toBe("https://www.openstreetmap.org/copyright");
+    expect(PROTOMAPS_ATTRIBUTION_URL).toBe("https://github.com/protomaps/basemaps#licensing-and-attribution-guidelines");
   });
 });

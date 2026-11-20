@@ -24,6 +24,12 @@ import Testing
         #expect(notes.footer.hasSuffix("Not medical advice."))
     }
 
+    @Test func theAppBundleCarriesTheTrackingAidLines() throws {
+        let aids = try BundledConstants.trackingAids()
+        #expect(aids.aids.map(\.id) == ["project_lifesaver", "medicalert_id", "gps_tracker", "phone_location"])
+        #expect(aids.noneLine == "No tracker or medical ID, as the family said.")
+    }
+
     @Test func theAppBundleCarriesTheUrgencyRule() throws {
         let rule = try BundledConstants.urgencyRule()
         #expect(rule.coldF == 40)

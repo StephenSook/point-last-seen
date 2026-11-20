@@ -8,7 +8,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var path = NavigationPath()
 
-    enum Route: Hashable { case readyCheck }
+    enum Route: Hashable { case readyCheck, map }
 
     var body: some View {
         // Re-checked each minute so Auto turns to night at civil dusk without a restart.
@@ -18,9 +18,22 @@ struct RootView: View {
             NavigationStack(path: $path) {
                 TaskView(model: model)
                     .toolbar {
+                        if model.mission != nil {
+                            NavigationLink("Map", value: Route.map)
+                        }
                         NavigationLink("Ready check", value: Route.readyCheck)
                     }
-                    .navigationDestination(for: Route.self) { _ in ReadyCheckView(model: model) }
+                    .navigationDestination(for: Route.self) { route in
+                        switch route {
+                        case .readyCheck: ReadyCheckView(model: model)
+                        case .map:
+                            if let mission = model.mission {
+                                SearchMapScreen(mission: mission, posterior: model.posterior)
+                            } else {
+                                ContentUnavailableView("No mission loaded", systemImage: "map", description: Text(TaskView.noMissionHint))
+                            }
+                        }
+                    }
             }
             .environment(\.fieldTheme, theme)
             .environment(themeStore)

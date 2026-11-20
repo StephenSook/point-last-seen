@@ -10,7 +10,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectDeleted } from "firebase-functions/v2/storage";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { deleteEndedSandboxes, handleStartJudgeSession } from "./judgeSession.js";
+import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
 
@@ -64,7 +64,7 @@ export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
  * (see judgeSession.ts). App Check enforced; capped per visitor and per day.
  */
 export const startJudgeSession = onCall(
-  { enforceAppCheck: true, region: "us-central1", maxInstances: 5, timeoutSeconds: 120 },
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5, timeoutSeconds: JUDGE_SESSION_TIMEOUT_S },
   request => handleStartJudgeSession(getFirestore(), getAuth(), request.auth?.uid ?? null, Date.now()),
 );
 

@@ -105,3 +105,35 @@ def test_team_ids_must_be_ones_a_push_reaches_and_at_most_eight():
     for bad in ([f"T{i}" for i in range(9)], [], ["T-1"], ["family"], ["Family"], ["x" * 33], ["T1", "T1"]):
         with pytest.raises(SystemExit):
             seed.check_teams(bad)
+
+
+def test_an_extra_code_lives_under_its_own_account_and_never_the_incidents_primary_one():
+    # An extra code (for example an app reviewer's) is revocable on its own, so it must never be the primary code,
+    # whose account is the incident id; that one changes only by --rotate.
+    assert seed.extra_account_ok("drill-test-1", "drill-test-1-reviewer")
+    for bad in ("drill-test-1", "drill-test-1.next", "other-reviewer", "drill-test-1-", "drill-test-1-Reviewer", "drill-test-1-a b"):
+        assert not seed.extra_account_ok("drill-test-1", bad), bad
+
+
+def test_an_extra_code_is_created_only_if_absent_and_revoked_only_if_present():
+    add = seed.add_code_write("proj", "drill-test-1", "searcher", "ABCD2345")
+    assert add["update"]["name"].endswith(f"/joinCodes/{seed.code_hash('ABCD2345')}")
+    assert add["update"]["fields"] == {"incidentId": {"stringValue": "drill-test-1"},
+                                       "roles": {"arrayValue": {"values": [{"stringValue": "searcher"}]}}}
+    assert add["currentDocument"] == {"exists": False}
+    assert add["updateTransforms"] == [{"fieldPath": "createdAt", "setToServerValue": "REQUEST_TIME"}]
+    rev = seed.revoke_code_write("proj", "ABCD2345")
+    assert rev == {"delete": f"projects/proj/databases/(default)/documents/joinCodes/{seed.code_hash('ABCD2345')}",
+                   "currentDocument": {"exists": True}}
+
+
+def test_the_extra_code_commands_check_their_arguments_before_anything_changes():
+    import pytest
+    assert seed.main(["--add-code", "proj", "drill-test-1"]) == 2
+    assert seed.main(["--revoke-code", "proj"]) == 2
+    with pytest.raises(SystemExit, match="account"):
+        seed.main(["--add-code", "proj", "drill-test-1", "searcher", "drill-test-1"])
+    with pytest.raises(SystemExit, match="role"):
+        seed.main(["--add-code", "proj", "drill-test-1", "pilot", "drill-test-1-reviewer"])
+    with pytest.raises(SystemExit, match="account"):
+        seed.main(["--revoke-code", "proj", "drill-test-1", "searcher", "drill-test-1"])

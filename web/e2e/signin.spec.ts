@@ -11,11 +11,11 @@ test("a failed sign-in disables the join form, says why, and Try again signs in"
   await page.goto("/");
   await expect(page.getByRole("alert")).toHaveText("No connection. Try again when the link is back.", { timeout: 20_000 });
   await expect(page.getByRole("button", { name: "Join as command" })).toBeDisabled();
-  await page.getByLabel("Incident id").fill("drill-dev-1");
+  await page.getByLabel("Incident id").fill("drill-test-1");
   await page.unroute(/accounts:signUp/);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("button", { name: "Join as command" })).toBeEnabled({ timeout: 20_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
-  await expect(page.getByLabel("Incident id")).toHaveValue("drill-dev-1");
+  await expect(page.getByLabel("Incident id")).toHaveValue("drill-test-1");
 });

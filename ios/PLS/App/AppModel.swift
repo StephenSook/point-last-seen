@@ -762,6 +762,24 @@ final class AppModel {
                        identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
     }
 
+    /// The report-reading eval's arms: the rules alone, or Apple's on-device model.
+    enum EvalArm: String, CaseIterable { case rulesOnly = "rules_only", onDevice = "on_device" }
+
+    /// Reads one eval report with the app's own reader, forced to one arm, and journals nothing. Neither
+    /// arm may reach the cloud: no network, no cloud consent, no live gate. Rules only: no incident mode
+    /// that allows a model. On-device: the mission's own mode, so the router takes Apple's model.
+    /// Nil with no mission loaded.
+    func evalRead(_ text: String, arm: EvalArm) async -> EvalOutput? {
+        guard let mission, let screen = screen ?? (try? BundledConstants.evidenceScreen()) else { return nil }
+        let situation = ReportSituation(
+            incidentMode: arm == .onDevice ? mission.mode : nil, knownSegmentIds: mission.grid.map(\.segmentId),
+            assignedSegmentIds: mission.assignedSegmentIds, positionSegmentId: nil, profile: mission.profile,
+            networkOnline: false, cloudConsent: false, liveGate: nil)
+        let outcome = await readReport(text, situation, config, screen)
+        return EvalOutput(reading: outcome.reading, blocked: outcome.route.blocked != nil,
+                          path: "\(outcome.route.path.rawValue)/\(outcome.route.stage.rawValue)", latencyMs: outcome.route.latencyMs)
+    }
+
     /// A report the searcher picked from the list: no model runs, the person's choices stand.
     func submitPick(_ choice: PickListChoice) async -> Bool {
         guard !sending else { return false }

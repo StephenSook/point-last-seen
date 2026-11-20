@@ -9,6 +9,25 @@ sealed interface ProfileWrite {
     data class Fields(val data: Map<String, Any?>) : ProfileWrite
 }
 
+/**
+ * A phone's first publish of a document. A missing document is created whole. A document already there
+ * (written by command, another family phone, or this phone before a reinstall) keeps every value it has,
+ * including fields this app version does not know and fields left empty (null); only keys it lacks are added.
+ */
+sealed interface FirstPublish {
+    data class Create(val data: Map<String, Any?>) : FirstPublish
+    data class AddMissing(val data: Map<String, Any?>) : FirstPublish
+    data object Nothing : FirstPublish
+
+    companion object {
+        fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>): FirstPublish {
+            if (existing == null) return Create(mine)
+            val missing = mine.filterKeys { it !in existing }
+            return if (missing.isEmpty()) Nothing else AddMissing(missing)
+        }
+    }
+}
+
 fun interface ProfileSink {
     fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit)
 }
@@ -26,9 +45,10 @@ class PrefsPublishedProfiles(private val store: KeyValueStore) : PublishedProfil
 
 /**
  * After "She's gone": the shared fields to profile/shared (readable by every member, carried in packs)
- * and the history to profile/command (command and family only). The first publish of a document writes
- * it whole; after that only the fields that changed on this phone are sent, so a restart sends nothing
- * and a field command edited is not undone. What was published is remembered only after the write.
+ * and the history to profile/command (command and family only). This phone's first publish of a document
+ * creates it, or adds only the keys an existing one lacks ([FirstPublish]); after that only the fields that
+ * changed on this phone are sent, so a restart sends nothing and a field command edited is not undone.
+ * What was published is remembered only after the write.
  */
 class ProfilePublisher(private val sink: ProfileSink, private val published: PublishedProfiles) {
     fun publish(incidentId: String, p: SubjectProfile, onDone: (Boolean) -> Unit) {
@@ -79,7 +99,16 @@ class FirestoreProfileSink : ProfileSink {
     override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) {
         val doc = Firebase.firestore.collection("incidents").document(incidentId).collection("profile").document(docId)
         when (change) {
-            is ProfileWrite.Whole -> doc.set(change.data).addOnCompleteListener { onResult(it.exception) }
+            // Read and write in one transaction, so a value written meanwhile is never replaced.
+            is ProfileWrite.Whole -> Firebase.firestore.runTransaction { tx ->
+                val snap = tx.get(doc)
+                when (val w = FirstPublish.of(if (snap.exists()) snap.data else null, change.data)) {
+                    is FirstPublish.Create -> tx.set(doc, w.data)
+                    is FirstPublish.AddMissing -> tx.update(doc, w.data)
+                    FirstPublish.Nothing -> Unit
+                }
+                null
+            }.addOnCompleteListener { onResult(it.exception) }
             is ProfileWrite.Fields -> doc.update(change.data).addOnCompleteListener { onResult(it.exception) }
         }
     }

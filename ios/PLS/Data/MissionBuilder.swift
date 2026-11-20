@@ -58,6 +58,13 @@ enum MissionBuilder {
                        profile: ModelProfile(shared: shared ?? .null), sharedProfile: try? shared?.decode(SharedProfile.self),
                        visualDetectionRangeM: nil, rdBasis: .default, assignment: assignment, planVersion: plan?.version,
                        priorInputEventIds: priorInputs,
-                       conditions: IncidentConditions(incidentField: docs.incident["conditions"]))
+                       conditions: IncidentConditions(incidentField: docs.incident["conditions"]),
+                       gridId: text(docs.incident["gridId"]), gridAttribution: text(docs.incident["gridAttribution"]))
+    }
+
+    /// A non-empty string field; nil otherwise.
+    private static func text(_ value: JSONValue?) -> String? {
+        guard case let .string(s)? = value, !s.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return s
     }
 }

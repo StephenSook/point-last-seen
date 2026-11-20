@@ -29,7 +29,7 @@ struct ReadyCheckView: View {
                             UrgencyChip(text: text, source: rule.sourceLine)
                         }
                         if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
-                            ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes))
+                            ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes, aids: try? BundledConstants.trackingAids()))
                         }
                     }
                 }
@@ -56,6 +56,12 @@ struct ReadyCheckView: View {
                         .toggleStyle(FieldToggleStyle())
                     Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
                 }
+                #if DEBUG
+                section("Eval") {
+                    NavigationLink("Report-reading eval") { EvalView(model: model) }
+                        .accessibilityIdentifier("eval-link")
+                }
+                #endif
             }
             .padding()
         }
