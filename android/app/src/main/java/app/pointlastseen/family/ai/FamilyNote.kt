@@ -35,7 +35,7 @@ data class FamilyNoteReading(val kind: String, val label: String, val summary: S
 
 sealed class NoteOutcome {
     data object NeedsConsent : NoteOutcome()
-    /** The note does not look English, so it stays on this phone; with no model here it is filled by hand. */
+    /** The note does not look English, so it is not sent to the cloud to be read; with no model here it is filled by hand. */
     data object NotEnglish : NoteOutcome()
     data object FillByHand : NoteOutcome()
     data object PossibleEvidence : NoteOutcome()
