@@ -38,8 +38,7 @@ import Testing
         let tools: [any Tool] = [SegmentAtTool(positionSegmentId: "AC"), TeamAssignmentTool(assignedSegmentIds: ["AC", "AD"]),
                                  SubjectProfileTool(profile: ModelProfile(shared: .null))]
         #expect(Self.toolDefinitions(FoundationModelRunner.onDeviceSession(tools)) == 0)
-        #expect(Self.toolDefinitions(LanguageModelSession(model: SystemLanguageModel.default, tools: [TeamAssignmentTool(assignedSegmentIds: [])],
-                                                          instructions: "x")) == 1)
+        #expect(Self.toolDefinitions(LanguageModelSession(tools: [TeamAssignmentTool(assignedSegmentIds: [])], instructions: "x")) == 1)
         #expect(FoundationModelRunner.onDeviceInstructionsText(tools) == PromptText.onDeviceGuided(positionSegmentId: "AC", assignedSegmentIds: ["AC", "AD"]))
         let noFix: [any Tool] = [SegmentAtTool(positionSegmentId: nil), TeamAssignmentTool(assignedSegmentIds: ["BO"])]
         #expect(FoundationModelRunner.onDeviceInstructionsText(noFix) == PromptText.onDeviceGuided(positionSegmentId: nil, assignedSegmentIds: ["BO"]))

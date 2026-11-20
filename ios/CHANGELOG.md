@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the zero-tools test names no model builder
+- What: the zero-tools test's control session named SystemLanguageModel, which the rules gate allows
+  only in its client file. The control now uses the session's default model.
+- Source: the rules gate.
+- Verified: the rules gate passes and the tool tests pass; the control still reports one tool definition.
+
 ### fix(ios): the eval records the hash of the prompt Apple's model was given
 - What: the eval's result file recorded the SHA-256 of the cloud prompt as the on-device arm's prompt.
   Apple's model has had its own instructions since the on-device prompt split, and they now carry the
