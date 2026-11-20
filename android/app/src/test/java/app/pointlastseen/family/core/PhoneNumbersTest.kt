@@ -319,4 +319,12 @@ class PhoneNumbersTest {
     @Test fun droppingATimeNeverShieldsTheRestOfTheRun() {
         assertEquals("Call GA [number removed]:42", PhoneNumbers.remove("Call GA 40455-5014 2 01:42"))
     }
+
+    /** A month and day written with a slash (11/19) is a date: beside a number it stays, and the number goes. */
+    @Test fun aMonthAndDayWithASlashStaysBesideANumber() {
+        assertEquals("Seen 11/19 [number removed]", PhoneNumbers.remove("Seen 11/19 555-0142"))
+        assertEquals("Seen 19/11 [number removed]", PhoneNumbers.remove("Seen 19/11 404-555-0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404/555/0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 12/31/55/0142"))
+    }
 }

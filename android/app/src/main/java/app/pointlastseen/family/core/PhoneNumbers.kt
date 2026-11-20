@@ -195,6 +195,13 @@ object PhoneNumbers {
             ) {
                 dates += i..(i + 2)
             }
+            // A month and day with a slash (11/19 or 19/11), with no other slash group on either side.
+            if (written(i + 1) && gap(i, i + 1) == "/" && len(i) <= 2 && len(i + 1) <= 2 &&
+                !(written(i + 2) && gap(i + 1, i + 2) == "/") && !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == "/")
+            ) {
+                val (x, y) = (value(i) ?: 0) to (value(i + 1) ?: 0)
+                if ((x in 1..12 && y in 1..31) || (x in 1..31 && y in 1..12)) dates += i..(i + 1)
+            }
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
                 times += i..(i + 1)
             }
