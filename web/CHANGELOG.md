@@ -1888,3 +1888,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `NOTE_READ_TIMEOUT_MS` moves below `sightingTextParams` in `src/ai/sightingText.ts`, so `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites for the web's on-device sighting-note read.
 - Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
 - Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
+
+### fix(command): a note read keeps the fields a person changed by hand
+- What: `SightingForm` remembers which of Going, Top, Bottom, Footwear and Carrying the person changed by hand, and `fill` sets only the others, so a model's guess never overwrites what a person picked or typed. When a read kept an edit, the status reads "Suggested from the note. Check every field. Your edits were kept."
+- Source: review finding (a read overwrote hand edits).
+- Verified: a new harness check in `e2e/harness/sighting.spec.ts` (Top set to green and Footwear typed by hand, then a read that answers red: Top stays green, Footwear stays, and the status says the edits were kept) failed first, then passed; a second (no edits: every field fills and the status says nothing about edits) guards the plain case; 20/20 sighting and sightings harness checks; web unit suite and CI's Python gates pass; typecheck clean.
