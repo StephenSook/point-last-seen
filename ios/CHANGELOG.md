@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): which number plates the search map draws
+- What: a plate rule for the phone's map, since 68 plates buried the map in "<0.1%" labels. The
+  team's own segments always get a plate with the team id ("T1 1.4%", or "T1" when the number is
+  below 0.1%); any other segment gets one only at 1% or more, and only when the plate fits inside
+  the segment's on-screen box at the current zoom (hidden, never clipped). A "<0.1%" plate is
+  never drawn.
+- Source: map review (a searcher needs their own segment and the likely areas).
+- Verified: tests for the team's plates, the 1% floor, no "<0.1%" text, and the fit check (team
+  plates always shown). They failed to compile before the change and pass after; 292 PLSCore
+  tests pass.
+
 ### feat(ios): the search map screen, on the grid's offline tiles
 - What: a Map link (with a mission loaded) opens the team's search map: every grid segment shaded
   by probability in the web map's ramp (the posterior after this phone's reports, else the pack's
