@@ -122,6 +122,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var profile by mutableStateOf(profileStore.load())
         private set
+    // The last profile that reached the disk: edit marks compare against it, so an edit whose save failed is
+    // marked by the next save that works.
+    private var lastSaved: SubjectProfile = profile
     var deviceStatus by mutableStateOf(DeviceModelStatus.UNKNOWN)
         private set
     var joinBusy by mutableStateOf(false)
@@ -243,10 +246,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProfile(p: SubjectProfile) {
-        val before = profile
         profile = p.copy(profileUpdatedOn = LocalDate.now(zone))
-        // Only after the profile is on disk: a mark kept without its edit could send an old value over command's.
-        if (profileStore.save(profile)) familyEdits.record(before, profile)
+        // Marks and the publish follow only a profile that reached the disk: a mark kept without its edit could send
+        // an old value over command's, and a publish of an unsaved profile could not be repeated after a restart.
+        if (!profileStore.save(profile)) return
+        familyEdits.record(lastSaved, profile)
+        lastSaved = profile
         publishIfGone()
     }
 
