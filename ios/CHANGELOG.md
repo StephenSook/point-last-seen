@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios-core): score the report-reading eval against person-written answers
+- What: PLSCore can score one reading arm (on-device, rules-only or cloud) on labelled reports: each
+  row's kind and set of segment ids against the answers a person wrote, the place feature where the
+  person gave one, invalid replies and refused reads, and the list of misses; scores per group keep
+  fresh sentences apart from seen ones. It also gives 95% Wilson intervals, the rows only one of two
+  arms got right, and the exact two-sided McNemar test on those.
+- Source: plan (report-reading evaluation with a rules-only baseline).
+- Verified: tests for the counts and misses, invalid and blocked rows, segment order, the groups,
+  the Wilson interval (20 of 20 gives 0.839 to 1), McNemar (equal counts give 1, 6 to 0 gives 2/64)
+  and the paired counts. They failed to compile before the change and pass after; 304 PLSCore tests pass.
+
 ### fix(ios): the map credit is one line in the corner, with the full sentence on a tap
 - What: at Title 3 the OpenStreetMap credit took three lines and covered the bottom of the search
   area. It is now one line in the bottom corner at 13 points, OpenStreetMap's own short form
