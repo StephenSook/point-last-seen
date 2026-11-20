@@ -128,27 +128,32 @@ The phone-number cases every platform that removes phone numbers from a note mus
 the file by hand, and `scripts/test_phone_vectors.py` checks that the required cases are present and well formed.
 
 - `mustRemove[]`: `{ name, input, number, forbidden, keep }`. Run the platform's scrubber on `input`. The output must
-  not contain `number`, must contain no digit 0-9 (the number is the only digit run in `input`), must contain none of
+  not contain `number`, must contain no number character in any script (Unicode categories Nd, Nl and No, so an
+  Adlam or a dingbat digit counts; the number is the only digit run in `input`), must contain none of
   `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
   the number).
 - `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
   and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
-  So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code, a grouped count (`1,234,567`), a street number and a
-  number glued to a unit (`5km`).
+  So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code after a state, a grouped count under seven digits
+  (`12,345`), a street number and a number glued to a unit (`5km`).
 - `exact[]`: `{ name, input, output }`. The output must equal `output` byte for byte, with the shared `replacement`
   (`[number removed]`, the token every platform writes) where the number was.
 - `pendingOn` (optional, on any case): the platforms (`ios`, `web`, `android`) whose rule does not pass that case
   yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
   is removed from the list. Every runner checks all three case types.
 
-The reference rule is the Android family app's, `android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`
-(the iPhone's matches it). Seven or more digits in a row are a number: written digits in any script (full-width and
-Chinese numerals too) and spoken English digit words count alike, joined only by short separators (at most three
-spaces, or `- . , ( ) /` or a dash such as U+2010 to U+2014 and U+2212; a CRLF counts as one). Search information made
-of digits can sit inside such a run (a written date, a time, a coordinate pair, a grouped count, a ZIP+4 code after a
-state, a month-name date, a number with a unit); it stays only when the rest of the run is nothing or whole numbers
-of seven or more digits, and when any other piece of 1 to 6 digits is left beside it the whole run is removed. A number
-with an ordinal ending (`67th`) never joins others.
+The rule below is the shared one. Its reference is the Android family app's
+`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`, and the iPhone's matches it; where a
+platform's rule does not follow a case yet, that case names the platform in `pendingOn`. Seven or more digits in a row
+are a number: written digits in any script (full-width, circled and Chinese numerals too) and spoken English digit
+words count alike, joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
+U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an accent or a joiner inside a gap counts as
+nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
+ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
+digits is left beside it the whole run is removed. A number with an ordinal ending (`67th`) never joins others. A
+grouped count of seven or more digits (`1,234,567` and up) is a number like any other run, since a phone number can be
+written that way (`4,045,550,142`): privacy wins the tie, so a count of a million or more is removed too.
 
 ## language.json (hand-written)
 
