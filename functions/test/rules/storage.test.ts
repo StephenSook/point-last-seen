@@ -36,7 +36,8 @@ describe("storage rules (spec section 7)", () => {
     await assertFails(uploadBytes(ref(storageAs("searcher-uid", searcherClaims), `photos/I1/${SHA}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
   });
   it("an expired judge sandbox takes no uploads (storage reads the incident from Firestore)", async () => {
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
+      setupReady: true });
     await assertFails(uploadBytes(ref(storageAs("family-uid", { inc: "J1", role: "family", team: null }), `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
   it("command and family list a search's photos, as the command post's tray does; a searcher cannot (review)", async () => {
@@ -61,7 +62,7 @@ describe("storage rules (spec section 7)", () => {
   });
   it("a judge sandbox without a timestamp expiry takes no uploads; an unexpired one does", async () => {
     const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open" });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", setupReady: true });
     await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000),
       setupReady: true });

@@ -51,7 +51,8 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
   const ev = (uid: string, over: Record<string, unknown> = {}) => validEvent(uid, { incidentId: "J1", ...over });
   const at = (inc: string, e: Record<string, unknown>) => `incidents/${inc}/events/${e.eventId as string}`;
   it("an expired judge sandbox locks every member out of reads and writes", async () => {
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
+      setupReady: true });
     const seeded = ev(S, { seq: 1, serverTime: null });
     await admin.db.doc(at("J1", seeded)).set(seeded);
     await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
@@ -99,7 +100,8 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1/plans/0009"), validPlan(C, 9)));
   });
   it("command cannot change mode or expiresAt, so a sandbox cannot be extended or a drill relabelled", async () => {
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000),
+      setupReady: true });
     const db = dbAs(C, J);
     await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: null }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: new Date(Date.now() + 365 * 86400_000) }, { merge: true }));
