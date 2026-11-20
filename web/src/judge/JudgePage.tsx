@@ -33,6 +33,18 @@ export function JudgePage() {
     }
   }, []);
 
+  // Back from the practice incident, the browser can show this page from its back/forward cache exactly as it left:
+  // mid-start, button disabled. A page shown again that way gets a ready start button.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      starting.current = false;
+      setPractice({ busy: false, error: null, waiting: null });
+    };
+    addEventListener("pageshow", onShow);
+    return () => removeEventListener("pageshow", onShow);
+  }, []);
+
   useEffect(() => {
     document.title = "Judge's door: Point Last Seen";
     void loadPublishedRun().then(setRun);
