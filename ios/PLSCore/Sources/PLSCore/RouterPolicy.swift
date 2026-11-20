@@ -53,6 +53,8 @@ public enum ReadFailure: String, Codable, Sendable, CaseIterable, Error {
     case network
     case appCheckRefused = "app_check_refused"
     case cancelled
+    /// The model gave no answer; for Apple's model, an answer cut off by the response cap.
+    case emptyResponse = "empty_response"
     case other
 }
 
@@ -208,7 +210,7 @@ public enum RouterPolicy {
             return path == .onDevice && stage == .guided ? .stage(.permissiveText) : .stage(.deterministicParser)
         case .unavailable, .contextExceeded:
             return path == .onDevice && stage == .guided ? .rerouteWithoutOnDevice : .stage(.deterministicParser)
-        case .parseFailed, .network, .appCheckRefused, .cancelled, .other:
+        case .parseFailed, .network, .appCheckRefused, .cancelled, .emptyResponse, .other:
             return .stage(.deterministicParser)
         }
     }

@@ -908,13 +908,17 @@ final class AppModel {
     /// arm may reach the cloud: no network, no cloud consent, no live gate. Rules only: no incident mode
     /// that allows a model. On-device: the mission's own mode, so the router takes Apple's model.
     /// Nil with no mission loaded.
-    func evalRead(_ text: String, arm: EvalArm) async -> EvalOutput? {
-        guard let mission, let screen = screen ?? (try? BundledConstants.evidenceScreen()) else { return nil }
-        let situation = ReportSituation(
+    /// The situation the eval reads every row in: no network, no cloud, no position fix, the team's assignment.
+    static func evalSituation(_ mission: Mission, arm: EvalArm) -> ReportSituation {
+        ReportSituation(
             incidentMode: arm == .onDevice ? mission.mode : nil, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds, positionSegmentId: nil, profile: mission.profile,
             networkOnline: false, cloudConsent: false, liveGate: nil)
-        let outcome = await readReport(text, situation, config, screen)
+    }
+
+    func evalRead(_ text: String, arm: EvalArm) async -> EvalOutput? {
+        guard let mission, let screen = screen ?? (try? BundledConstants.evidenceScreen()) else { return nil }
+        let outcome = await readReport(text, Self.evalSituation(mission, arm: arm), config, screen)
         return EvalOutput(reading: outcome.reading, blocked: outcome.route.blocked != nil,
                           path: "\(outcome.route.path.rawValue)/\(outcome.route.stage.rawValue)", latencyMs: outcome.route.latencyMs)
     }

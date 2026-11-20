@@ -5,6 +5,104 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the zero-tools test names no model builder
+- What: the zero-tools test's control session named SystemLanguageModel, which the rules gate allows
+  only in its client file. The control now uses the session's default model.
+- Source: the rules gate.
+- Verified: the rules gate passes and the tool tests pass; the control still reports one tool definition.
+
+### fix(ios): the eval records the hash of the prompt Apple's model was given
+- What: the eval's result file recorded the SHA-256 of the cloud prompt as the on-device arm's prompt.
+  Apple's model has had its own instructions since the on-device prompt split, and they now carry the
+  team's position and assignment. The file now records the SHA-256 of the exact instructions the eval's
+  reads give Apple's model, built the way the reader builds them from the eval's situation (no position
+  fix, the team's assignment). The eval's situation and the reader's tools are each built in one place.
+- Source: review.
+- Verified: a test that the recorded hash is the on-device instructions' hash, not the cloud prompt's,
+  failed to compile before the change and passes after; 197 app tests pass.
+
+### fix(ios-core): the quote retry asks Apple's model with a reminder, not the same input
+- What: Apple's model reads with greedy sampling, so asking again with the same input gave the same
+  rejected quote. The one retry for a reading rejected only for its quote now sends the report followed
+  by "Your evidenceQuote was not in the report. Copy words from the report exactly." The quote is still
+  checked against the report alone, there is still one retry at most, the cloud is never asked again,
+  and code never writes a quote. The stage notes say how long the retry took.
+- Source: review (simulator eval: both tries returned the same answer).
+- Verified: tests that the retry's input differs from the first (the report plus the reminder) and that
+  its time is noted failed to compile before the change and pass after; tests pin one retry at most and
+  no retry for the cloud; all core tests and app tests pass.
+
+### fix(ios): Apple's model gets no tools; position and assignment are plain sentences
+- What: with greedy sampling, Apple's model called the team-assignment tool in a loop: 168 calls on
+  "Found a shoe on the path in segment BP" until its 8,192-token context overflowed at 124 s, and 60
+  calls then a parsing error on another report. The loop held the model, so later reads queued. Apple's
+  model now gets no tools at all. Where the team is and what it was assigned, which the tools gave it,
+  come from code as plain sentences in its instructions ("The phone's GPS fix puts the team in segment
+  BO." or "The phone has no GPS fix, so where the team is standing is not known."; "Command assigned this
+  team segments BO, BP." or "Command has not assigned this team yet."). Segments still come from code.
+  The token count no longer counts tools. The cloud keeps its three tools and its prompt unchanged.
+- Source: review (a tool-call log on the reads that hit the 90 s limit).
+- Verified: tests that the on-device session has zero tool definitions (a session made with a tool shows
+  one), that its instructions carry the two sentences and no tool names, and that a quote of either
+  sentence is rejected failed to compile before the change and pass after; all core and 196 app tests
+  pass. On the simulator, 10 drill reports were each read by Apple's model in 1.9 to 3.0 s, with no
+  timeouts.
+
+### fix(ios): Apple's answer is capped, and a capped read says so
+- What: on the simulator, reads our code had timed out kept Apple's model busy, and the reads after them
+  queued (a one-line prompt took 30 s). Apple's answer is now capped at 512 tokens
+  (GenerationOptions.maximumResponseTokens), so a read that runs away ends in seconds. The cap comes from
+  the longest valid reading: SystemLanguageModel.tokenCount on the JSON of a reading with every field set
+  and a 934-character quote measured 323 tokens (a typical reading, 117); the rest is room for tool calls.
+  Hitting the cap throws LanguageModelError.unsupportedTranscriptContent ("The model produced an empty
+  response."), which now maps to a new empty_response failure: it falls to rules with the stage note
+  "guided on_device: empty_response". Our timeout already cancels the call; a test now pins that.
+- Source: review (simulator eval after the no-fix change: four reads hit the 90 s limit).
+- Verified: tests for the cap, the mapping, the routing and the stage note failed to compile before the
+  change and pass after; a test pins that a timed-out call is cancelled; 370 core and 197 app tests pass.
+
+### fix(ios-core): a mark Apple's model adds to the end of its quote is dropped
+- What: Apple's model quoted "Found a shoe on the path in segment BP." for a report with no period, and
+  its reading was rejected. For Apple's model, at most one trailing . , ! or ? is now dropped from the
+  quote, and only when the quote is not in the report as it is and what is left is, exactly. A report
+  that has the mark keeps it in the quote. The validator is unchanged; code never writes a quote.
+- Source: review (simulator eval).
+- Verified: tests that a quote with an added period, comma, exclamation or question mark is accepted
+  failed before the change and pass after; tests pin that a quote still not in the report stays rejected,
+  that only one mark is dropped, and that a report with the period keeps it; all core tests pass.
+
+### fix(ios): with no GPS fix, Apple's model gets no segmentHere tool
+- What: with no GPS fix the segmentHere tool's only answer was "No GPS fix. Do not guess a segment.", and
+  Apple's model quoted that sentence as the report, so its reading was rejected. With no fix, Apple's
+  model now gets no segmentHere tool, and its instructions say in plain words that the phone has no GPS
+  fix, so where the team is standing is not known. With a fix nothing changes. The cloud keeps its three
+  tools and its prompt. The validator is unchanged: a quote of tool text stays rejected.
+- Source: review (simulator eval: "Not sure where we are, the radio is weak" was quoted as the tool's
+  sentence).
+- Verified: a test that a no-fix read never offers the tool and gets the no-fix instructions failed to
+  compile before the change and passes after; a test pins that a quote of tool text stays rejected;
+  196 app tests and all core tests pass.
+
+### fix(ios-core): a zero from Apple's model means the number was not stated
+- What: Apple's model fills minutes, searchers and detection range with 0 when the report never states
+  them, and the reading was then rejected for out-of-range numbers. Before validation, a 0 from Apple's
+  model in those three fields is read as not stated. Coverage keeps its 0, which a report can state. The
+  validator is unchanged; any other out-of-range number is still rejected, and the cloud model's numbers
+  are not changed.
+- Source: review (simulator eval: "Cleared segment BO, nothing found." came back with zeros).
+- Verified: a test that a reading with zeros is accepted with those fields not stated failed before the
+  change and passes after; tests pin that a negative number and a cloud zero stay rejected; all 362 core
+  tests pass.
+
+### fix(ios): Apple's model reads with greedy sampling
+- What: Apple's model on the phone (the guided read and the plain-text read) now runs with
+  GenerationOptions(samplingMode: .greedy), so the same report gets the same answer every time instead
+  of a different one from each run's sampling. The cloud read is unchanged.
+- Source: review (simulator eval: the route check's sentence was accepted in one run and rejected in
+  the next).
+- Verified: a test pins the on-device options to greedy sampling; it failed to compile before the change
+  and passes after; 195 app tests pass. The two-run stability eval follows in the PR.
+
 ### fix(ios): Apple's model is told its quote may not be empty
 - What: the on-device instructions now say "Copy evidenceQuote word for word from the report; never
   leave it empty." The cloud instructions and the cloud allow-list are unchanged.

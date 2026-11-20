@@ -48,9 +48,10 @@ import Testing
     }
 
     @Test func cloudFailuresFallToTheParser() {
-        for f in [ReadFailure.network, .appCheckRefused, .other, .parseFailed, .cancelled] {
+        for f in [ReadFailure.network, .appCheckRefused, .other, .parseFailed, .cancelled, .emptyResponse] {
             #expect(RouterPolicy.afterFailure(f, path: .cloud, stage: .guided) == .stage(.deterministicParser))
         }
+        #expect(RouterPolicy.afterFailure(.emptyResponse, path: .onDevice, stage: .guided) == .stage(.deterministicParser))
         #expect(RouterPolicy.afterFailure(.other, path: .rules, stage: .evidenceProtocol) == .pickList)
     }
 

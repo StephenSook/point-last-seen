@@ -1879,6 +1879,26 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the judge replay map at 390 px showed codes outside the outline and dots past their cells.
 - Verified: seven unit tests in `src/map/labelFit.test.ts` failed first (no module), then passed. Two new map harness checks (on a 300 px map every dot's cap is at most half its cell's smaller side and every shown code sits inside its own cell, with some moved or hidden; zooming in brings codes back left of their dots) and the updated code check (on a roomy map every code sits left of its own dot) failed on the old drawing code, then passed; all 135 harness checks pass; web unit suite green; typecheck clean.
 
+### fix(command): a note read on the laptop gives up after 30 seconds, and Save stays available during a read
+- What: `readSightingText` races the laptop model's reply against `NOTE_READ_TIMEOUT_MS` (30 s, the photo read's limit; measured on Chrome's built-in model, a first session took 11.7 s and an image read's 95th percentile was 31 s) and returns `refused: "timeout"` when it is not back in time; the form then says "The read took too long. Fill the fields by hand." In `SightingForm`, saving is tracked apart from reading, so Save stays available while a read runs, and each read takes a number that Save moves past, so a reply that lands after Save fills nothing.
+- Source: review finding (the note read had no time limit and Save waited for it).
+- Verified: two new unit tests (a reply that never comes is refused as a timeout; the limit is 30 s) failed first, then passed; two new harness checks in `e2e/harness/sighting.spec.ts` (a timed-out read says so and fills nothing; Save works during a slow read and the late reply fills nothing) failed first, then passed with the other sighting and sightings harness checks (18/18); 818/818 web unit tests; typecheck clean.
+
+### fix(command): the note read's time limit sits below the on-device mode line the test matrix cites
+- What: `NOTE_READ_TIMEOUT_MS` moves below `sightingTextParams` in `src/ai/sightingText.ts`, so `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites for the web's on-device sighting-note read.
+- Source: CI's matrix check (`scripts/test_test_matrix.py`) failed on the moved line.
+- Verified: CI's whole Python gate list (257 tests, `scripts/test_test_matrix.py` among them) and the rules gate (39) pass locally; typecheck clean.
+
+### fix(map): the report pin is a labelled image, so it passes the accessibility check
+- What: the pin the beat drops at a new report's position (`MapView`, `.report-pin`) gets `role="img"` beside its `aria-label="Report position"`. A name on an element with no role is not allowed (axe `aria-prohibited-attr`) and is not read out; the pin stays on screen after the beat, so the defect showed whenever a report had arrived.
+- Source: the live accessibility check at 390 px failed with `aria-prohibited-attr: [".report-pin"]` once live checks wrote reports during it.
+- Verified: a new harness check in `e2e/harness/change.spec.ts` (after a report, the pin is an image named "Report position", and axe with the live check's WCAG tags finds no violation on it) failed first (no such image), then passed with the other change and map harness checks (18/18); typecheck clean.
+
+### fix(extras): the replay reader checks a report's route values as the exporter does
+- What: in `src/extras/replay/runSchema.ts`, a public run's route record must have a model id no longer than the shared route schema allows (80 characters, exported from `src/extras/hostApp.ts` as `ROUTE_MODEL_MAX`, the extras folder's one door to outside code) and a `latencyMs` and `decidedAtMs` of zero or more; before, any text and any number passed. The coded fields keep their lists. The exporter (`tools/export-run`) checks the same values, so the reader stays a second wall: no note text can ride in a route.
+- Source: the run exporter gained a value check on routes; the reader mirrors it.
+- Verified: three new tests in `src/extras/replay/runSchema.test.ts` (a route the exporter would write is taken, an 80-character model id too; an 81-character one, a negative latency and a negative decision time are refused by name) failed first where they should, then passed; the extras import guard passes; 870/870 web unit tests and the exporter's 24 tests pass; typecheck clean.
+
 ### fix(ai): a reply's source is typed with the SDK's own InferenceSource
 - What: `src/ai/client.ts` exports `ReplySource` (`InferenceSource | undefined`, from `firebase/ai`) and types the text and template models' `inferenceSource` with it instead of any string, so a branch on a misspelt source ("on-device") no longer compiles.
 - Source: review finding (the inference source was a plain string).
