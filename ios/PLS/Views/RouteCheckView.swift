@@ -18,6 +18,8 @@ struct RouteCheckView: View {
             var record: RouteRecord
             var kind: String
             var segmentIds: [String]
+            /// Why each model stage was not used (empty when the first stage answered).
+            var notes: [String]
         }
         var appVersion: String
         var build: String
@@ -73,7 +75,7 @@ struct RouteCheckView: View {
             lines.append("\(title): \(who). \(EchoText.seconds(r.latencyMs)). Why: \(EchoText.reasonWords(r.reason)). "
                          + "Read as \(outcome.reading.kind.rawValue), \(segments).")
             routes.append(Result.Route(route: route.rawValue, record: r, kind: outcome.reading.kind.rawValue,
-                                       segmentIds: outcome.reading.segmentIds))
+                                       segmentIds: outcome.reading.segmentIds, notes: outcome.stageNotes))
         }
         let info = Bundle.main.infoDictionary ?? [:]
         let result = Result(appVersion: info["CFBundleShortVersionString"] as? String ?? "", build: info["CFBundleVersion"] as? String ?? "",

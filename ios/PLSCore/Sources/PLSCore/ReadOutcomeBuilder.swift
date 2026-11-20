@@ -10,12 +10,17 @@ public struct ReadOutcome: Sendable, Equatable {
     public var route: RouteRecord
     public var validation: ValidationResult
     public var cloudTransport: CloudTransport
+    /// Why each model stage was not used, in order ("guided on_device: invalid quote_not_in_text",
+    /// "guided on_device: timed out after 20 s", "permissive on_device: unparsed"); empty when the first
+    /// stage answered. Kept with the read for the route check; never stored in the event.
+    public var stageNotes: [String]
 
-    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed) {
+    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed, stageNotes: [String] = []) {
         self.reading = reading
         self.route = route
         self.validation = validation
         self.cloudTransport = cloudTransport
+        self.stageNotes = stageNotes
     }
 }
 

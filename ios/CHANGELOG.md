@@ -5,6 +5,24 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): the route check file says why each model stage was not used
+- What: each route in the saved route-check file carries the read's stage notes, so a route check
+  run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:
+  invalid quote_not_in_text"). The screen is unchanged.
+- Source: review (Apple's model not used on a real iPhone).
+- Verified: the app builds and all 191 app tests pass; the file is checked on the phone with build 6.
+
+### feat(ios-core): a read records why each model stage was not used
+- What: ReadOutcome.stageNotes lists, in order, why each model stage did not give the reading: an
+  answer the validator rejected ("guided on_device: invalid quote_not_in_text"), a stage that ran
+  out of time ("guided on_device: timed out after 20 s"), a failure the runner reported
+  ("guided on_device: guardrail_block") and a plain-text line that could not be read ("permissive
+  on_device: unparsed"). It is empty when the first stage answered. It is never stored in the event;
+  routing and readings are unchanged.
+- Source: review (Apple's model not used on a real iPhone: the route check must say why).
+- Verified: tests for a rejected answer, a timed-out stage, an unreadable plain-text line and an
+  answered read; they failed to compile before the change and pass after; all 352 core tests pass.
+
 ### fix(ios): a decimal pair after a "+" is a phone number, not a coordinate
 - What: per the shared ruling, a decimal pair that starts with "+" is an international number:
   "Call +44.2071, -23.4567" is removed. "GPS 33.7490, -84.3880" and a southern latitude
