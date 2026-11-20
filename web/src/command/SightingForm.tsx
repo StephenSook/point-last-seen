@@ -73,6 +73,16 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     setReadState("filled");
   }
 
+  // A read's status, its receipt and the words it came from belong to the note it read. Once the note is edited
+  // they no longer describe it, so they go; the fields it filled stay, since they may have been checked by hand.
+  function changeNote(text: string) {
+    setNote(text);
+    if (readState === "none") return;
+    setReadState("none");
+    setRan(null);
+    setQuote("");
+  }
+
   async function readOnLaptop() {
     setBusy("read");
     setError(null);
@@ -206,7 +216,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       </label>
       <label>
         Note
-        <textarea value={note} maxLength={2000} rows={3} onChange={(e) => setNote(e.target.value)} aria-describedby="note-hint" />
+        <textarea value={note} maxLength={2000} rows={3} onChange={(e) => changeNote(e.target.value)} aria-describedby="note-hint" />
       </label>
       <p id="note-hint" className="muted">Do not type the caller's name.</p>
       <div className="row">
