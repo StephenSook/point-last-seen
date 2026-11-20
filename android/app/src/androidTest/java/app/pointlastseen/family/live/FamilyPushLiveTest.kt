@@ -22,6 +22,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -37,6 +38,11 @@ class FamilyPushLiveTest {
     private fun log(s: String) = Log.i("PLS-E2E", s)
 
     @Test fun theFamilyGetsTheQuestionAndTheStatesAndAnswersOnce(): Unit = runBlocking {
+        val prefs = PrefsStore(InstrumentationRegistry.getInstrumentation().targetContext, "pls")
+        val session = Session(prefs)
+        // The drill join changes this install's sign-in claims, so an install already in another search would be
+        // left with a search its claims no longer name: run only on an install that is in no search.
+        assumeTrue("needs an install that is in no search", session.incidentId() == null)
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         val incidentId = (joined as JoinOutcome.Joined).incidentId
@@ -44,16 +50,13 @@ class FamilyPushLiveTest {
         val topic = PlanPush.familyTopic(incidentId)!!
         // The app shows (and hands the test) only notices for the search it is in, so the test joins it in the
         // app's own session too, without the gone flag (nothing is published), and puts both back afterwards.
-        val prefs = PrefsStore(InstrumentationRegistry.getInstrumentation().targetContext, "pls")
-        val session = Session(prefs)
-        val incidentBefore = session.incidentId()
         val goneBefore = prefs.get(GONE_KEY)
         prefs.remove(GONE_KEY)
         session.joined(incidentId)
         try {
             launchAndWait(incidentId, uid, topic)
         } finally {
-            if (incidentBefore == null) session.leave() else session.joined(incidentBefore)
+            session.leave()
             if (goneBefore == null) prefs.remove(GONE_KEY) else prefs.put(GONE_KEY, goneBefore)
             log("app session put back")
         }
