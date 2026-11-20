@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### build(ios): archive and check a release build for App Store Connect, uploading nothing
+- What: ios/scripts/archive_release.sh archives a Release build with a given build number and the
+  current commit, exports the .ipa for App Store Connect into a local folder, and checks the
+  exported app itself: push and App Attest entitlements in production, the build number, the
+  recorded commit, the encryption answer, the icon, the privacy manifest, no debug eval screen,
+  and a valid signature. It refuses to run with uncommitted changes under ios/.
+- Source: TestFlight preparation.
+- Verified: a dry run on this branch archived and exported build 1 with the team's distribution
+  certificate. Seven checks passed (App Attest production, build number, encryption answer, icon,
+  privacy manifest, no eval screen, signature). Two failed as expected on this branch: no push
+  entitlement (push comes with the push branch) and no recorded commit (the Info.plist key comes
+  with the eval branch).
+
 ### feat(ios): a privacy manifest for the app
 - What: the app now carries PrivacyInfo.xcprivacy, which App Store Connect checks on upload: no
   tracking and no tracking domains; the data a report sends to the incident (precise location, the
