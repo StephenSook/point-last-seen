@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- judgeDrill rules tests: the segment refusal now uses a write command may make (prior unchanged), with command making
+  the same write as a control, and the family profile control changes a value the fixture does not already hold, so
+  neither passes for the wrong reason. Source: review round 1 (low). Verified: rules and functions suite 260 of 260.
 - seed_drill.py --expires: an invalid or past value is no longer repeated in the error, so a code pasted into the
   wrong argument never reaches the screen or a log. Source: review round 1 (low). Verified: 15 seed_drill tests pass.
 - judge_drill.py hardening (review round 1: two high, two medium, two low): the seed is refused unless its segments

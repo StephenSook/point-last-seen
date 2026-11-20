@@ -34,12 +34,15 @@ describe("a judge drill shared by many judges", () => {
       await assertFails(deleteDoc(doc(db, `incidents/${D}`)));
       await assertFails(setDoc(doc(db, `incidents/${D}/plans/0020`), { ...validPlan(uid, 20), priorVersion: 5 }));
       await assertFails(deleteDoc(doc(db, `incidents/${D}/plans/0019`)));
-      await assertFails(setDoc(doc(db, `incidents/${D}/segments/BO`), { segmentId: "BO", priorPoa: 0.9 }));
+      // A write command may make (the prior unchanged), so only the role can refuse it.
+      await assertFails(setDoc(doc(db, `incidents/${D}/segments/BO`), { segmentId: "BO", priorPoa: 0.1, areaM2: 5 }));
       await assertFails(setDoc(doc(db, `incidents/${D}/teams/T9`), { teamId: "T9", name: "Team 9", colorSlot: 9 }));
       await assertFails(deleteDoc(doc(db, `incidents/${D}/profile/shared`)));
     }
-    // Control: the drill's command can change it, so the refusals above come from the role, not a broken setup.
-    await assertSucceeds(updateDoc(doc(dbAs("drill-command", { inc: D, role: "command", team: null }), `incidents/${D}`), { searchState: "paused" }));
+    // Controls: the drill's command can make these writes, so the refusals above come from the role, not a broken setup.
+    const command = dbAs("drill-command", { inc: D, role: "command", team: null });
+    await assertSucceeds(updateDoc(doc(command, `incidents/${D}`), { searchState: "paused" }));
+    await assertSucceeds(setDoc(doc(command, `incidents/${D}/segments/BO`), { segmentId: "BO", priorPoa: 0.1, areaM2: 5 }));
   });
   it("a searcher judge makes its own reports, and cannot change or delete another judge's", async () => {
     const mine = ev(S1);
@@ -62,6 +65,7 @@ describe("a judge drill shared by many judges", () => {
   });
   it("a searcher judge cannot write the profile; a family judge's normal profile edit is allowed", async () => {
     await assertFails(setDoc(doc(searcher(S1), `incidents/${D}/profile/shared`), sharedProfile({ hair: "red" })));
-    await assertSucceeds(setDoc(doc(family(F1), `incidents/${D}/profile/shared`), sharedProfile({ hair: "white" })));
+    // A value the fixture does not already hold, so the control proves a real change is allowed.
+    await assertSucceeds(setDoc(doc(family(F1), `incidents/${D}/profile/shared`), sharedProfile({ hair: "silver" })));
   });
 });
