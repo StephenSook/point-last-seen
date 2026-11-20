@@ -107,6 +107,9 @@ public enum ReadOrchestrator {
         var decision = plan.decision
         var blocked: BlockKind?
         var transport = CloudTransport.notUsed
+        var notes: [String] = []
+        let limit = context.stageTimeoutSeconds
+        let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
         func finish(_ reading: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
             let model: String
@@ -118,7 +121,8 @@ public enum ReadOrchestrator {
             }
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
-            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport)
+            return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport,
+                               stageNotes: notes)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -168,31 +172,42 @@ public enum ReadOrchestrator {
             switch stage {
             case .guided:
                 let guidedPath = path
-                let result = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
-                    ?? .failure(path == .cloud ? .network : .other)
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.guided(text, path: guidedPath) }
+                if raw == nil { notes.append("guided \(guidedPath.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(path == .cloud ? .network : .other)
                 if guidedPath == .cloud {
                     if case .failure(.network) = result { transport = .failed } else if transport != .failed { transport = .succeeded }
                 }
                 switch result {
                 case let .success(modelReading):
                     let r = withCodeSegments(modelReading)
-                    if validate(r, context, text).isOK { return finish(r, path: path, stage: .guided) }
+                    let v = validate(r, context, text)
+                    if v.isOK { return finish(r, path: path, stage: .guided) }
+                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))")
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
+                    if raw != nil { notes.append("guided \(guidedPath.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     lastFailure = f
                     next = RouterPolicy.afterFailure(f, path: path, stage: .guided)
                 }
             case .permissiveText:
-                let result = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) } ?? .failure(.other)
+                let raw = await timed(context.stageTimeoutSeconds) { await runner.permissive(text) }
+                if raw == nil { notes.append("permissive \(path.rawValue): timed out after \(limitWords)") }
+                let result = raw ?? .failure(.other)
                 switch result {
                 case let .success(line):
                     if let line = PermissiveLine.parse(line, known: context.knownSegmentIds) {
                         let merged = withCodeSegments(line.merged(into: parse(text, context)))
-                        if validate(merged, context, text).isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        let v = validate(merged, context, text)
+                        if v.isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        notes.append("permissive \(path.rawValue): invalid \(Self.reasons(v))")
+                    } else {
+                        notes.append("permissive \(path.rawValue): unparsed")
                     }
                     next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .permissiveText)
                 case let .failure(f):
+                    if raw != nil { notes.append("permissive \(path.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
                     next = RouterPolicy.afterFailure(f, path: path, stage: .permissiveText)
                 }
@@ -221,6 +236,12 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// The validator's reasons, joined for a stage note.
+    static func reasons(_ v: ValidationResult) -> String {
+        if case let .invalid(reasons) = v { return reasons.joined(separator: ",") }
+        return ""
     }
 
     static func note(_ failure: ReadFailure, _ blocked: inout BlockKind?) {
