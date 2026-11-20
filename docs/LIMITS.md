@@ -190,6 +190,8 @@ each line says what the limit is and why.
   "Teams are searching now." twice, a question's notice can arrive after the family has answered it, and the search
   can end between the check and the send. A notice only says to open the app, which shows the current state and the
   questions still waiting from Firestore.
+- Pushes are a convenience, not an alert: delivery can be late or missing. Anything urgent reaches the family by the
+  search lead's call, as the paused notice says.
 - Anyone who knows an incident id can subscribe to its topics, since topic membership is not checked. That is why
   every push carries only fixed wording and ids, never a name, a place, a task or a question's text. Such a
   subscriber can still see when a search's teams get new tasks, when it starts or pauses, and when the family is
