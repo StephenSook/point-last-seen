@@ -96,10 +96,11 @@ each line says what the limit is and why.
 - To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
   too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
   "ga 30301-1234" is removed, while "GA 30301-1234" stays.
-- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, the iPhone and
-  Android, which read it as a grouped count. The shared rule now removes any grouped count of seven or more digits,
-  so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too. The
-  shared test cases (`shared/test-vectors/phone-numbers.json`) mark each platform that has not followed yet.
+- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web and Android, which
+  read it as a grouped count; the iPhone removes it. The shared rule removes any grouped count of seven or more
+  digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
+  (as it already is on the iPhone). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark each
+  platform that has not followed yet.
 
 ## On-device safety (Android)
 
