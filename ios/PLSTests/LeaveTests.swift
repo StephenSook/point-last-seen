@@ -54,6 +54,19 @@ import Testing
         #expect(m.openTaskRequests == 0 && m.mission == nil)
     }
 
+    /// Leaving goes through the same account change as any sign-out: once it has, Auth's own later
+    /// report of that sign-out finds nothing left to do (no second stop, no drop).
+    @Test func leavingIsTheSameAccountChangeAsAnySignOut() async throws {
+        let account = Account(), backend = FakeJoinBackend(), voice = FakeVoice()
+        let m = try model(account, backend, voice: voice)
+        await m.trySignIn()
+        await m.accountChanged()                                  // Auth reports the user at launch
+        #expect(await m.leaveSearch())
+        let stops = voice.stops
+        await m.accountChanged()                                  // Auth reports the sign-out
+        #expect(voice.stops == stops && m.mission == nil)
+    }
+
     /// A report not yet settled with the server belongs to this user's write queue: leaving now
     /// would strand it, so the phone says why and stays.
     @Test func leavingWaitsForEveryReportToReachCommand() async throws {

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): leaving a search goes through the same account change as any sign-out
+- What: "Leave this search" signed the anonymous user out and dropped the mission itself, apart from
+  the path every other Auth change takes. It now ends with that same account change: running
+  access checks lose their say, speech stops, and Auth's own later report of the sign-out finds
+  nothing left to do.
+- Source: review (round 3: the leave action must use the account-change path).
+- Verified: a test leaves after Auth has reported the user, then has Auth report the sign-out: no
+  second stop and nothing dropped. It failed before the change and passes after; the app tests pass.
+
 ### docs: leaving a search on the iPhone changes only the phone
 - What: LIMITS.md says that "Leave this search" leaves the team's topic, drops the mission and
   signs the anonymous account out, while the old user's claims stay on the server and command

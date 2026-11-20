@@ -410,6 +410,8 @@ final class AppModel {
         await topicFollow?.value
         signIn.signOut()
         signedIn = false
+        // The same path as any other sign-out: speech stops and nothing of the old user stays.
+        await accountChanged()
         joinMessage = nil
         problem = nil
         return true
