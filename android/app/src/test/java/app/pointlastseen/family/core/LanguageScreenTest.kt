@@ -33,4 +33,11 @@ class LanguageScreenTest {
             assertEquals(bad, true, runCatching { LanguageScreen.parse(bad) }.isFailure)
         }
     }
+
+    /** A character this phone's Unicode tables do not know cannot be read, so the note is refused for the cloud. */
+    @Test fun aCharacterThisPhoneDoesNotKnowIsRefused() {
+        val screen = LanguageScreen(setOf("she", "walks"), emptySet(), 3, 2)
+        assertEquals(true, screen.looksEnglish("She walks"))
+        assertEquals(false, screen.looksEnglish("She walks \u0378"))
+    }
 }

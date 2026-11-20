@@ -22,6 +22,8 @@ class LanguageScreen(
 ) {
     fun looksEnglish(text: String): Boolean {
         val englishWords = english ?: return false
+        // A character this phone's Unicode tables do not know cannot be split or read, so the note is refused.
+        if (text.codePoints().anyMatch { Character.getType(it) == Character.UNASSIGNED.toInt() }) return false
         val w = words(text)
         if (w.isEmpty()) return true
         val nonLatin = w.count { word -> word.any { it !in 'a'..'z' && it !in '0'..'9' } }
