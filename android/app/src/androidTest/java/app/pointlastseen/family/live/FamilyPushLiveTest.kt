@@ -22,7 +22,6 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -41,8 +40,9 @@ class FamilyPushLiveTest {
         val prefs = PrefsStore(InstrumentationRegistry.getInstrumentation().targetContext, "pls")
         val session = Session(prefs)
         // The drill join changes this install's sign-in claims, so an install already in another search would be
-        // left with a search its claims no longer name: run only on an install that is in no search.
-        assumeTrue("needs an install that is in no search", session.incidentId() == null)
+        // left with a search its claims no longer name. Fail (not skip) before joining, so a run asked for is
+        // never reported as passed without its checks.
+        assertTrue("Run this test on a clean test install: this install is in a search.", session.incidentId() == null)
         val joined = withTimeout(30_000) { Join(FirebaseJoinBackend()).join(DrillCode.read()!!) }
         assertTrue("join: $joined", joined is JoinOutcome.Joined)
         val incidentId = (joined as JoinOutcome.Joined).incidentId
