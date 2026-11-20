@@ -35,6 +35,61 @@ test("a practice search opens a labelled training incident on the real park map,
   await expect(page.locator(".post-head")).toContainText("MATCH");
 });
 
+// The start callable answered here instead of by the server, so these checks never use up practice searches.
+const SETUP = "Your practice search is still being set up. Try again in a moment.";
+const CORS = { "access-control-allow-origin": "*", "content-type": "application/json" };
+const busyReply = { status: 503, headers: CORS, body: JSON.stringify({ error: { status: "UNAVAILABLE", message: SETUP, details: { reason: "setup_busy" } } }) };
+const seatReply = { status: 200, headers: CORS, body: JSON.stringify({ result: { incidentId: "judge-stubbed-seat", role: "command" } }) };
+
+test("a start the server is still setting up says so, then opens the practice incident when it answers", async ({ page }) => {
+  await withDebugToken(page);
+  let posts = 0;
+  await page.route("**/startJudgeSession", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts++;
+    return route.fulfill(posts === 1 ? busyReply : seatReply);
+  });
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).click();
+  const practice = page.getByRole("region", { name: "Try a practice search" });
+  await expect(practice.getByRole("status")).toHaveText(SETUP);
+  await expect(practice.getByRole("button", { name: "Starting" })).toBeDisabled();
+  await expect(page).toHaveURL(/\?incident=judge-stubbed-seat/, { timeout: 15_000 });
+  expect(posts).toBe(2);
+});
+
+test("a 503 without the server's sentence says No connection and does not start again", async ({ page }) => {
+  await withDebugToken(page);
+  let posts = 0;
+  await page.route("**/startJudgeSession", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts++;
+    return route.fulfill({ status: 503, headers: CORS, body: JSON.stringify({ error: { status: "UNAVAILABLE", message: "Service Unavailable" } }) });
+  });
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).click();
+  const practice = page.getByRole("region", { name: "Try a practice search" });
+  await expect(practice.getByRole("alert")).toHaveText("No connection. Try again when the link is back.");
+  await page.waitForTimeout(3_500);
+  expect(posts).toBe(1);
+  await expect(practice.getByRole("button", { name: "Try a practice search" })).toBeEnabled();
+});
+
+test("a double click starts one practice search", async ({ page }) => {
+  await withDebugToken(page);
+  let posts = 0;
+  await page.route("**/startJudgeSession", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts++;
+    await new Promise((r) => setTimeout(r, 800));
+    return route.fulfill(seatReply);
+  });
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).dblclick();
+  await expect(page).toHaveURL(/\?incident=judge-stubbed-seat/, { timeout: 15_000 });
+  expect(posts).toBe(1);
+});
+
 test("the judge page names the cloud model Remote Config selects right now", async ({ page }) => {
   await page.goto("/judge");
   const s = page.getByRole("region", { name: "Cloud model" });

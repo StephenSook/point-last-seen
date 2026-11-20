@@ -1,10 +1,10 @@
 // /judge: no login, no key. What a judge can check from this page alone.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { aiClient, deviceModelInitializer } from "../ai/client";
 import { deviceState as readDeviceState, getLaptopReady, type DeviceState } from "../ai/deviceModel";
 import { RC_DEFAULTS, startRemoteConfig, type WebRc } from "../config/rc";
-import { practiceErrorMessage, practiceSearch } from "../data/practice";
+import { practiceErrorMessage, practiceSearch, startWithRetry } from "../data/practice";
 import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { PURPOSE_LINE } from "../purpose";
@@ -19,7 +19,9 @@ export function JudgePage() {
   const [downloadFailed, setDownloadFailed] = useState(false);
   const [pct, setPct] = useState<number | null>(null);
   const [rc, setRc] = useState<WebRc | null>(null);
-  const [practice, setPractice] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const [practice, setPractice] = useState<{ busy: boolean; error: string | null; waiting: string | null }>({ busy: false, error: null, waiting: null });
+  // Set before the first await, so a second click in the same moment cannot start a second search.
+  const starting = useRef(false);
   // Remote Config picks the cloud model; the real-time listener shows a swap as it happens (C2).
   useEffect(() => {
     try {
@@ -52,15 +54,21 @@ export function JudgePage() {
 
   // A practice search: sign in, ask the server for this browser's own capped training incident
   // (a command seat on it), then open the command post on it. No code is needed.
+  // While the server is still setting it up, the page says so and starts again by itself.
   async function startPractice() {
-    setPractice({ busy: true, error: null });
+    if (starting.current) return;
+    starting.current = true;
+    setPractice({ busy: true, error: null, waiting: null });
     try {
       const p = getPls();
       await ensureSignedIn(p.auth);
-      const id = await practiceSearch(p.functions, p.auth);
+      const id = await startWithRetry(() => practiceSearch(p.functions, p.auth), {
+        onWaiting: (sentence) => setPractice({ busy: true, error: null, waiting: sentence }),
+      });
       location.assign(`/?incident=${encodeURIComponent(id)}`);
     } catch (e) {
-      setPractice({ busy: false, error: practiceErrorMessage(e) });
+      starting.current = false;
+      setPractice({ busy: false, error: practiceErrorMessage(e), waiting: null });
     }
   }
 
@@ -98,6 +106,7 @@ export function JudgePage() {
         <button type="button" className="btn" onClick={() => void startPractice()} disabled={practice.busy}>
           {practice.busy ? "Starting" : "Try a practice search"}
         </button>
+        {practice.waiting && <p role="status">{practice.waiting}</p>}
         {practice.error && (
           <p className="error" role="alert">
             {practice.error}
