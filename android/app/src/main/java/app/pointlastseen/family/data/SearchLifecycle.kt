@@ -26,9 +26,12 @@ class JoinGeneration(private val uid: () -> String?) {
 
     @Volatile private var confirmedAt: JoinTicket? = null
 
-    /** The server confirmed the current join: a join that just succeeded, or a refresh whose claims keep it. */
-    fun confirm() {
-        confirmedAt = ticket()
+    /**
+     * The server confirmed the join [t] stands for: a join that just succeeded, or a refresh whose claims keep it.
+     * It counts only while [t] is still current, for the same user that earned it.
+     */
+    fun confirm(t: JoinTicket) {
+        if (isCurrent(t)) confirmedAt = t
     }
 
     /** Whether the current join is confirmed; the next join, leave or drop (or another user) ends it. */

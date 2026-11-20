@@ -191,7 +191,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             JoinedStart.run(
                 check = { membership.check(incidentId) },
                 isCurrent = { joins.isCurrent(ticket) && session.incidentId() == incidentId },
-                onKeep = { confirmed(); if (!watch.attached) reattachWatch(incidentId, ticket) },
+                onKeep = { confirmed(ticket); if (!watch.attached) reattachWatch(incidentId, ticket) },
                 onDrop = { dropSearch() },
                 onUnknown = { askAgain(incidentId, ticket) },
             )
@@ -199,8 +199,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The server confirmed this join: profile changes kept while it was unconfirmed are published now. */
-    private fun confirmed() {
-        joins.confirm()
+    private fun confirmed(ticket: app.pointlastseen.family.data.JoinTicket) {
+        joins.confirm(ticket)
         confirmRetry.cancel()
         confirmTries = 0
         publishIfGone()
@@ -302,7 +302,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             if (!joins.isCurrent(ticket) || session.incidentId() != incidentId) return@launch
             when (answer) {
                 MembershipCheck.DROP -> dropSearch()
-                MembershipCheck.KEEP -> { confirmed(); reattachWatch(incidentId, ticket) }
+                MembershipCheck.KEEP -> { confirmed(ticket); reattachWatch(incidentId, ticket) }
                 MembershipCheck.UNKNOWN -> reattachWatch(incidentId, ticket)
             }
         }
@@ -368,8 +368,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     session.joined(out.incidentId)
                     joins.next()
                     membershipCheck?.cancel()
-                    // The join itself is the server's answer: this join is confirmed.
-                    joins.confirm()
+                    // The join itself is the server's answer: this join is confirmed, for the user that joined.
+                    joins.ticket().takeIf { it.uid == out.uid }?.let { joins.confirm(it) }
                     confirmRetry.cancel()
                     confirmTries = 0
                     reattachTries = 0

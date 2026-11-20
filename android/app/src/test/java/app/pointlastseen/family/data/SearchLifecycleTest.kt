@@ -40,9 +40,24 @@ class SearchLifecycleTest {
     @Test fun aJoinIsConfirmedOnlyUntilTheNextJoinLeaveOrDrop() {
         val g = JoinGeneration { "u1" }
         assertFalse(g.confirmed())
-        g.confirm()
+        g.confirm(g.ticket())
         assertTrue(g.confirmed())
         g.next()
+        assertFalse(g.confirmed())
+    }
+
+    /** A confirmation counts only for the join and user that earned it: one applied after either changed is ignored. */
+    @Test fun aConfirmationIsForTheTicketThatEarnedIt() {
+        var uid: String? = "u1"
+        val g = JoinGeneration { uid }
+        val earned = g.ticket()
+        uid = "u2"
+        g.confirm(earned)
+        assertFalse(g.confirmed())
+        uid = "u1"
+        val old = g.ticket()
+        g.next()
+        g.confirm(old)
         assertFalse(g.confirmed())
     }
 

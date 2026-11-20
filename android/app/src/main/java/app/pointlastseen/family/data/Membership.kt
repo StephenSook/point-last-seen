@@ -4,6 +4,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** KEEP and DROP come from a refresh that succeeded; UNKNOWN means it could not run, so nothing is proven. */
 enum class MembershipCheck { KEEP, DROP, UNKNOWN }
@@ -17,7 +18,8 @@ enum class MembershipCheck { KEEP, DROP, UNKNOWN }
 class Membership(private val refreshClaims: suspend () -> Map<String, Any?>) {
     suspend fun check(incidentId: String): MembershipCheck {
         val claims = try {
-            refreshClaims()
+            // A refresh that never answers would hold the check and every later try behind it.
+            withTimeoutOrNull(REFRESH_TIMEOUT_MS) { refreshClaims() } ?: return MembershipCheck.UNKNOWN
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -29,6 +31,7 @@ class Membership(private val refreshClaims: suspend () -> Map<String, Any?>) {
     companion object {
         private val RETRY_MS = listOf(5_000L, 30_000L, 120_000L)
         private const val THEN_EVERY_MS = 300_000L
+        private const val REFRESH_TIMEOUT_MS = 30_000L
 
         /** How long to wait before asking again after an UNKNOWN answer: 5 s, 30 s, 2 min, then every 5 min. */
         fun retryDelay(attempt: Int): Long = RETRY_MS.getOrNull(attempt) ?: THEN_EVERY_MS

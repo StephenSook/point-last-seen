@@ -1,7 +1,9 @@
 package app.pointlastseen.family.data
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -40,6 +42,12 @@ class MembershipTest {
     /** An unconfirmed answer is asked again after 5 s, 30 s and 2 min, then every 5 min while it stays unconfirmed. */
     @Test fun anUnconfirmedAnswerIsAskedAgainOnASchedule() {
         assertEquals(listOf(5_000L, 30_000L, 120_000L, 300_000L, 300_000L), (0..4).map { Membership.retryDelay(it) })
+    }
+
+    /** A refresh that never answers cannot hold the check: after the bound it is UNKNOWN, so the next try can run. */
+    @Test fun aRefreshThatNeverAnswersIsUnknownAfterTheBound() = runTest {
+        assertEquals(MembershipCheck.UNKNOWN, membership { awaitCancellation() }.check("drill-test-1"))
+        assertEquals(30_000L, testScheduler.currentTime)
     }
 
     @Test fun aCancelledCheckIsNotAnAnswer() {
