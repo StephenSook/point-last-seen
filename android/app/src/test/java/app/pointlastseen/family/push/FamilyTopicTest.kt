@@ -1,7 +1,11 @@
 package app.pointlastseen.family.push
 
 import app.pointlastseen.family.data.KeyValueStore
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -60,6 +64,45 @@ class FamilyTopicTest {
         afterRestart.retryPending()
         assertEquals(listOf("retry pls-drill-test-1-family"), calls)
         assertEquals(emptyList<String>(), afterRestart.pendingTopics())
+    }
+
+    /** Drops FCM never confirmed, left on disk for the next start. */
+    private fun unconfirmed(vararg incidents: String) = runBlocking {
+        val offline = FamilyTopic(subscribe = {}, unsubscribe = { throw IllegalStateException("offline") }, pending = store)
+        incidents.forEach { offline.left(it) }
+    }
+
+    /** A retry checks each drop is still wanted just before sending it: a search joined meanwhile is not dropped. */
+    @Test fun aRetryDoesNotDropASearchJoinedWhileItRuns() = runTest {
+        unconfirmed("inc-a", "inc-b")
+        val gate = CompletableDeferred<Unit>()
+        val sent = mutableListOf<String>()
+        val t = FamilyTopic(subscribe = { sent += "sub $it" }, unsubscribe = { sent += "unsub $it"; if (it == "pls-inc-a-family") gate.await() }, pending = store)
+        val retry = launch { t.retryPending() }
+        runCurrent()
+        t.joined("inc-b")
+        gate.complete(Unit)
+        retry.join()
+        assertEquals(listOf("unsub pls-inc-a-family", "sub pls-inc-b-family"), sent)
+        assertEquals(emptyList<String>(), t.pendingTopics())
+    }
+
+    /** A confirmation for an older drop cannot clear a newer drop of the same topic that is still unconfirmed. */
+    @Test fun anOlderConfirmationCannotClearANewerDrop() = runTest {
+        val first = CompletableDeferred<Unit>()
+        var sends = 0
+        val t = FamilyTopic(
+            subscribe = {},
+            unsubscribe = { sends++; if (sends == 1) first.await() else throw IllegalStateException("offline") },
+            pending = store,
+        )
+        val older = launch { t.left("inc-b") }
+        runCurrent()
+        t.joined("inc-b")
+        assertFalse(t.left("inc-b"))
+        first.complete(Unit)
+        older.join()
+        assertEquals(listOf("pls-inc-b-family"), t.pendingTopics())
     }
 
     /** Joining the same search again cancels a pending unsubscribe, so a later retry cannot drop the new join. */
