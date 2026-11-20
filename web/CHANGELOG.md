@@ -1863,3 +1863,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: new `src/data/phoneNumbers.test.ts` carries the 17 checks from the Android rule's test file that are lists of inputs rather than single pairs: notes that must come back unchanged (times, dates, coordinates, counts, a ZIP+4 code, street ordinals), numbers whose every piece must be gone (written against dates, times, units, coordinates or a ZIP shape, spoken repeats, indented line breaks), and separators that must still join a number (spacing accents, joiners, marks outside the BMP, NEL and the Unicode line and paragraph separators, wide gaps, an Adlam number with commas).
 - Source: parity check of the port against the Android rule beyond the shared cases.
 - Verified: 12 tests (17 Android assertions) pass on the port; typecheck clean. With the 74 single-pair assertions run earlier, all 91 of the Android rule's assertions pass on the web port.
+
+### fix(command): with the shared rule in place, the cloud consent and receipt say phone numbers are removed
+- What: the consent line reads "The note goes to Gemini in the cloud. Phone numbers are removed first." again, and the receipt "the note, with phone numbers removed": the web now removes phone numbers by the shared rule (every one of the 52 shared cases and all 91 of the Android rule's own assertions pass), so the US-only wording would understate it.
+- Source: follows the port above; the US-only wording was right only for the old scrubber.
+- Verified: the receipt and consent checks in `e2e/harness/sighting.spec.ts` failed on the US-only wording, then passed (16/16 sighting and sightings harness checks); typecheck clean.
