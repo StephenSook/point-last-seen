@@ -78,6 +78,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.firestore
@@ -98,6 +99,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val writer = EventWriter(FirestoreEventStore())
     // A refused read of the incident asks whether this phone is still part of the search.
     private val watch = IncidentWatch(onDenied = { checkMembership() })
+    // Tries at watching again after a refused read kept the search; reset by a join or the foreground.
+    private var reattachTries = 0
     private val evidence = EvidenceTerms.screen(app)
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")))
     private val telemetry = Telemetry(FirebaseTelemetrySink())
@@ -160,7 +163,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             JoinedStart.run(
                 check = { membership.check(incidentId) },
                 isCurrent = { joins.isCurrent(ticket) && session.incidentId() == incidentId },
-                onKeep = { publishIfGone() },
+                onKeep = { publishIfGone(); if (!watch.attached) reattachWatch(incidentId, ticket) },
                 onDrop = { dropSearch() },
             )
         }
@@ -241,9 +244,32 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         membershipCheck = viewModelScope.launch {
             val answer = membership.check(incidentId)
             if (!joins.isCurrent(ticket) || session.incidentId() != incidentId) return@launch
-            if (answer == MembershipCheck.DROP) dropSearch()
+            if (answer == MembershipCheck.DROP) dropSearch() else reattachWatch(incidentId, ticket)
         }
     }
+
+    /**
+     * A refused read ended the watch but the search stays (the refresh kept it, or could not run): watch again
+     * after a short wait, a few times at most; after that the next foreground tries again.
+     */
+    private fun reattachWatch(incidentId: String, ticket: app.pointlastseen.family.data.JoinTicket) {
+        val wait = IncidentWatch.reattachDelay(reattachTries++) ?: return
+        viewModelScope.launch {
+            delay(wait)
+            if (joins.isCurrent(ticket) && session.incidentId() == incidentId && !watch.attached) watch.watch(incidentId)
+        }
+    }
+
+    /** Back in the foreground: a watch the server ended is started again (the next refusal checks membership). */
+    fun onForeground() {
+        val incidentId = session.incidentId() ?: return
+        if (watch.attached) return
+        reattachTries = 0
+        watch.watch(incidentId)
+    }
+
+    /** The search this phone is in now, for screens that must not act on another search's snapshot. */
+    fun currentIncidentId(): String? = session.incidentId()
 
     /** This phone is no longer part of the search: forget it, keep the profile, and say so on the join screen. */
     private fun dropSearch() {
@@ -273,6 +299,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     session.joined(out.incidentId)
                     joins.next()
                     membershipCheck?.cancel()
+                    reattachTries = 0
                     watch.watch(out.incidentId)
                     familyTopic.joined(out.incidentId)
                     apply(Nav.joined(nav))
