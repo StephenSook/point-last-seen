@@ -8,7 +8,8 @@ data class JoinTicket(val generation: Long, val uid: String?)
 
 /** Hands out [JoinTicket]s; a result whose ticket is no longer current is for a join the phone has left. */
 class JoinGeneration(private val uid: () -> String?) {
-    private var generation = 0L
+    // Moved on the main thread; read by work on other threads too (photo, clip and profile writes).
+    @Volatile private var generation = 0L
 
     fun ticket(): JoinTicket = JoinTicket(generation, uid())
 
@@ -18,6 +19,18 @@ class JoinGeneration(private val uid: () -> String?) {
     }
 
     fun isCurrent(t: JoinTicket): Boolean = t.generation == generation && t.uid == uid()
+}
+
+/** Thrown before a cloud write when the phone has left the join the work started for. */
+class LeftSearchException : IllegalStateException("this phone left the search")
+
+/** Whether the phone is still on the join a piece of work started for; checked just before each cloud write. */
+fun interface StillJoined {
+    fun check(): Boolean
+
+    fun require() {
+        if (!check()) throw LeftSearchException()
+    }
 }
 
 /**

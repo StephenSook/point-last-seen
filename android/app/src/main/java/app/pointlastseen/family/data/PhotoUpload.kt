@@ -53,6 +53,8 @@ sealed class PhotoOutcome {
     data class Uploaded(val path: String, val cloudRead: CloudRead = CloudRead.NOT_ASKED) : PhotoOutcome()
     data class Refused(val message: String) : PhotoOutcome()
     data class Failed(val message: String) : PhotoOutcome()
+    /** The phone left the search before this photo's next write; nothing more was sent. */
+    data object Left : PhotoOutcome()
 }
 
 /**
@@ -67,16 +69,22 @@ class PhotoUpload(
 ) {
     /**
      * [consent] is the family's tick for command's cloud read of this photo: its record is written
-     * only after the photo uploads, and never without the tick.
+     * only after the photo uploads, and never without the tick. [stillJoined] is checked before the
+     * upload and before the consent record; once the phone has left the search, nothing more is sent.
      */
-    suspend fun upload(incidentId: String, jpeg: ByteArray, consent: ConsentMark? = null): PhotoOutcome =
-        withContext(worker) { uploadOnWorker(incidentId, jpeg, consent) }
+    suspend fun upload(
+        incidentId: String,
+        jpeg: ByteArray,
+        consent: ConsentMark? = null,
+        stillJoined: StillJoined = StillJoined { true },
+    ): PhotoOutcome = withContext(worker) { uploadOnWorker(incidentId, jpeg, consent, stillJoined) }
 
-    private suspend fun uploadOnWorker(incidentId: String, jpeg: ByteArray, consent: ConsentMark?): PhotoOutcome {
+    private suspend fun uploadOnWorker(incidentId: String, jpeg: ByteArray, consent: ConsentMark?, stillJoined: StillJoined): PhotoOutcome {
         if (jpeg.size < 2 || jpeg[0] != 0xFF.toByte() || jpeg[1] != 0xD8.toByte()) return PhotoOutcome.Refused("This is not a photo.")
         if (jpeg.size > MAX_PHOTO_BYTES) return PhotoOutcome.Refused("This photo is too large.")
         val sha = Hashes.sha256Hex(jpeg)
         val path = "photos/$incidentId/$sha.jpg"
+        if (!stillJoined.check()) return PhotoOutcome.Left
         try {
             // A check that cannot run proves neither, so it fails like an upload would.
             if (!bucket.exists(path)) bucket.put(path, jpeg, "image/jpeg")
@@ -86,6 +94,7 @@ class PhotoUpload(
         }
         val sink = consents
         if (consent == null || sink == null) return PhotoOutcome.Uploaded(path, CloudRead.NOT_ASKED)
+        if (!stillJoined.check()) return PhotoOutcome.Left
         return try {
             when (sink.creatorOf(incidentId, sha)) {
                 null -> sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent)).let { PhotoOutcome.Uploaded(path, CloudRead.ALLOWED) }

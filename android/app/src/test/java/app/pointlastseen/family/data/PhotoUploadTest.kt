@@ -68,6 +68,23 @@ class PhotoUploadTest {
         )
     }
 
+    /** A phone that left the search sends nothing for it: no upload and no consent record. */
+    @Test fun aPhotoForASearchThePhoneLeftIsNotSent() = runTest {
+        val order = mutableListOf<String>()
+        val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order)).upload("inc-1", jpeg, tick) { false }
+        assertEquals(PhotoOutcome.Left, out)
+        assertEquals(emptyList<String>(), order)
+    }
+
+    /** Leaving while a photo uploads: the consent record that would follow it is not written. */
+    @Test fun leavingDuringTheUploadWritesNoConsentRecord() = runTest {
+        val order = mutableListOf<String>()
+        var checks = 0
+        val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order)).upload("inc-1", jpeg, tick) { checks++ == 0 }
+        assertEquals(PhotoOutcome.Left, out)
+        assertEquals(listOf("check $path", "upload $path"), order)
+    }
+
     @Test fun withTheTickTheConsentRecordIsWrittenAfterTheUpload() = runTest {
         val order = mutableListOf<String>()
         val out = PhotoUpload(FakeBucket(order = order), FakeSink(order = order)).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded

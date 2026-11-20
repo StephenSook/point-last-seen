@@ -17,6 +17,7 @@ import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
 import app.pointlastseen.family.ai.FirebaseClipDeps
+import app.pointlastseen.family.ai.JoinedClipDeps
 import app.pointlastseen.family.ai.NoteEnv
 import app.pointlastseen.family.config.FirebaseRcSource
 import app.pointlastseen.family.config.RcStore
@@ -42,6 +43,7 @@ import app.pointlastseen.family.data.JoinGeneration
 import app.pointlastseen.family.data.JoinedStart
 import app.pointlastseen.family.data.Membership
 import app.pointlastseen.family.data.MembershipCheck
+import app.pointlastseen.family.data.StillJoined
 import app.pointlastseen.family.data.FamilyQuestions
 import app.pointlastseen.family.data.FirestoreFamilyQuestions
 import app.pointlastseen.family.ui.QuestionOpen
@@ -78,6 +80,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -144,6 +147,23 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private var membershipCheck: Job? = null
     // Which join a membership answer belongs to: bumped on every join, leave and drop.
     private val joins = JoinGeneration { Firebase.auth.currentUser?.uid }
+    // Photo uploads and clip reads for the current join: cancelled when the phone leaves or is dropped.
+    private var joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
+
+    /** Checked just before each cloud write of work started now: the same join, and the session still on it. */
+    private fun stillJoined(incidentId: String): StillJoined {
+        val ticket = joins.ticket()
+        return StillJoined { joins.isCurrent(ticket) && session.incidentId() == incidentId }
+    }
+
+    /** Stops the photo and clip work of the join being left; its screens go back to idle. */
+    private fun stopJoinedWork() {
+        joinedWork.cancel()
+        joinedWork = SupervisorJob(viewModelScope.coroutineContext[Job])
+        if (clipUi is ClipUi.Busy) clipUi = ClipUi.Idle
+        lastClip = null
+        photosUi = photosUi.copy(busy = false)
+    }
 
     init {
         rc.start()
@@ -221,6 +241,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         membershipCheck?.cancel()
         questionCheck?.cancel()
         openQuestion = null
+        stopJoinedWork()
         viewModelScope.launch {
             Departure.leave(
                 // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
@@ -280,6 +301,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         membershipCheck = null
         questionCheck?.cancel()
         openQuestion = null
+        stopJoinedWork()
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
@@ -396,9 +418,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         val uid = Firebase.auth.currentUser?.uid ?: return
         clipUi = ClipUi.Busy
-        viewModelScope.launch {
+        val still = stillJoined(incidentId)
+        viewModelScope.launch(joinedWork) {
             clipUi = try {
-                readClipOrFail(uri, incidentId, uid, form)
+                readClipOrFail(uri, incidentId, uid, form, still)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 ClipUi.Done(ClipOutcome.Failed)
@@ -406,7 +429,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun readClipOrFail(uri: Uri, incidentId: String, uid: String, form: ClipForm): ClipUi {
+    private suspend fun readClipOrFail(uri: Uri, incidentId: String, uid: String, form: ClipForm, still: StillJoined): ClipUi {
         val app = getApplication<Application>()
         val bytes = withContext(Dispatchers.IO) { ClipFile.readUpTo(app.contentResolver, uri, MAX_CLIP_BYTES + 1) }
             ?: return ClipUi.Done(ClipOutcome.Refused("This clip could not be opened. Choose it again."))
@@ -422,7 +445,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             consent = consent, killCloud = { rc.current().killCloud }, templateId = rc.current().clipTemplateId,
             uploaderUid = uid,
         )
-        return when (val out = ClipReader(FirebaseClipDeps(incidentId, ai)).read(request)) {
+        return when (val out = ClipReader(JoinedClipDeps(FirebaseClipDeps(incidentId, ai), still)).read(request)) {
             is ClipOutcome.Read -> {
                 if (!out.cached) out.route?.let { telemetry.record(it) }
                 lastClip = out to form
@@ -462,7 +485,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         photosUi = photosUi.copy(busy = true, error = null)
         // The tick, as it stands when the photos are chosen, is the consent for each of them.
         val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
-        viewModelScope.launch {
+        val still = stillJoined(incidentId)
+        viewModelScope.launch(joinedWork) {
             val resolver = getApplication<Application>().contentResolver
             for (uri in uris) {
                 val jpeg = withContext(Dispatchers.Default) { runCatching { JpegEncoder.encode(resolver, uri) }.getOrNull() }
@@ -470,7 +494,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     photosUi = photosUi.copy(error = "One photo could not be read.")
                     continue
                 }
-                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent)) {
+                when (val out = PhotoUpload(FirebasePhotoBucket(), FirestorePhotoConsentSink()).upload(incidentId, jpeg, consent, still)) {
                     is PhotoOutcome.Uploaded -> {
                         if (out.cloudRead == CloudRead.ALLOWED) consentedPhotos.add(incidentId, out.path.substringAfterLast('/').removeSuffix(".jpg"))
                         photosUi = photosUi.copy(
@@ -481,6 +505,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     is PhotoOutcome.Refused -> photosUi = photosUi.copy(error = out.message)
                     is PhotoOutcome.Failed -> photosUi = photosUi.copy(error = out.message)
+                    PhotoOutcome.Left -> break
                 }
             }
             photosUi = photosUi.copy(busy = false)
