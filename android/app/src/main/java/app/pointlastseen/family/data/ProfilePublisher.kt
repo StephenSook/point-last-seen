@@ -71,20 +71,44 @@ class ProfilePublisher(
 ) {
     private val inFlight = MutableStateFlow(0)
 
+    // One write per incident and document at a time (called on one thread, the main one): a newer publish waits
+    // for the write in flight and is planned when it ends, so an older first publish retried late can never land
+    // over a newer value. Only the newest waiting data is kept; every waiting caller hears its result.
+    private val busy = mutableSetOf<String>()
+    private val waiting = mutableMapOf<String, Waiting>()
+
+    private class Waiting(val data: Map<String, Any?>, val stillJoined: StillJoined, val dones: MutableList<(Boolean) -> Unit>)
+
     fun publish(incidentId: String, p: SubjectProfile, stillJoined: StillJoined = StillJoined { true }, onDone: (Boolean) -> Unit) {
         if (!stillJoined.check()) return onDone(false)
-        val writes = listOf("shared" to Profiles.forSearchers(p).toMap(), "command" to Profiles.forCommand(p).toMap())
-            .mapNotNull { (doc, data) -> plan(incidentId, doc, data)?.let { Triple(doc, data, it) } }
-        if (writes.isEmpty()) return onDone(true)
-        val left = AtomicInteger(writes.size)
-        var ok = true
-        inFlight.update { it + writes.size }
-        for ((doc, data, change) in writes) {
-            sink.write(incidentId, doc, change, stillJoined) { err ->
-                if (err == null) published.put(key(incidentId, doc), DocJson.of(data).toString()) else ok = false
-                inFlight.update { it - 1 }
-                if (left.decrementAndGet() == 0) onDone(ok)
+        val docs = listOf("shared" to Profiles.forSearchers(p).toMap(), "command" to Profiles.forCommand(p).toMap())
+        val left = AtomicInteger(docs.size)
+        val ok = java.util.concurrent.atomic.AtomicBoolean(true)
+        for ((doc, data) in docs) {
+            writeDoc(incidentId, doc, data, stillJoined) { success ->
+                if (!success) ok.set(false)
+                if (left.decrementAndGet() == 0) onDone(ok.get())
             }
+        }
+    }
+
+    private fun writeDoc(incidentId: String, doc: String, data: Map<String, Any?>, stillJoined: StillJoined, done: (Boolean) -> Unit) {
+        val key = key(incidentId, doc)
+        if (key in busy) {
+            waiting[key] = Waiting(data, stillJoined, (waiting[key]?.dones ?: mutableListOf()).apply { add(done) })
+            return
+        }
+        if (!stillJoined.check()) return done(false)
+        val change = plan(incidentId, doc, data) ?: return done(true)
+        busy += key
+        inFlight.update { it + 1 }
+        sink.write(incidentId, doc, change, stillJoined) { err ->
+            if (err == null) published.put(key, DocJson.of(data).toString())
+            busy -= key
+            // The waiting write starts before this one counts as settled, so leaving's wait covers it too.
+            waiting.remove(key)?.let { w -> writeDoc(incidentId, doc, w.data, w.stillJoined) { r -> w.dones.forEach { it(r) } } }
+            inFlight.update { it - 1 }
+            done(err == null)
         }
     }
 

@@ -145,6 +145,27 @@ class ProfilePublisherTest {
         assertEquals(emptySet<String>(), (sink.writes[1].third as ProfileWrite.Whole).edited)
     }
 
+    /**
+     * One write per document at a time: a save while the first publish is in flight waits for it, so an older
+     * first publish retried late can never land over the newer value; the newer save then goes as an edit.
+     */
+    @Test fun aSaveWaitsForTheDocumentsWriteInFlightThenSendsItsChange() {
+        val held = mutableListOf<Pair<ProfileWrite, (Throwable?) -> Unit>>()
+        val publisher = ProfilePublisher({ _, doc, change, _, onResult -> if (doc == "shared") held += change to onResult else onResult(null) }, MemoryPublished())
+        var first: Boolean? = null
+        var second: Boolean? = null
+        publisher.publish("inc-1", p) { first = it }
+        publisher.publish("inc-1", p.copy(clothingLastWorn = "red sweater")) { second = it }
+        assertEquals(1, held.size)
+        assertTrue(held[0].first is ProfileWrite.Whole)
+        held[0].second(null)
+        assertEquals(true, first)
+        assertEquals(2, held.size)
+        assertEquals(ProfileWrite.Fields(mapOf("clothingLastWorn" to "red sweater")), held[1].first)
+        held[1].second(null)
+        assertEquals(true, second)
+    }
+
     /** A publish for a join the phone has left writes nothing and reports it was not shared. */
     @Test fun aPublishForASearchThePhoneLeftWritesNothing() {
         val sink = FakeSink()
