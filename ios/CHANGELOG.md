@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the mission keeps the incident's grid id and its map credit
+- What: the phone's mission now keeps the incident's `gridId` and `gridAttribution`, so the search
+  map can pick the grid's offline tiles and show the grid's OpenStreetMap line. Both are nil when
+  the incident has none (or an empty value).
+- Source: map screen (offline base by grid, OpenStreetMap credit).
+- Verified: a builder test with and without the two fields; it failed to compile before the change
+  and passes after; 113 app tests pass.
+
 ### feat(ios-core): the search map's shading, numbers and OpenStreetMap line, as the web draws them
 - What: the iPhone gets the web map's ink for its coming map screen: each segment's step in the
   eight-step warm ramp by its share of the largest probability (poaClass8), the printed percent
