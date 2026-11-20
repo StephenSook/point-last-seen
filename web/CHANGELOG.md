@@ -1809,6 +1809,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.
 - Verified: with the clip made 20 bytes longer (4468 bytes, still "4 KB"), the old check failed (expected 4448, received 4468) and the new one passed; all 23 clip checks pass on the normal clip; typecheck clean.
 
+### fix(judge): a judge page shown again from the back/forward cache has its start button ready
+- What: `JudgePage` listens for `pageshow`; when the browser shows the page again from its back/forward cache (`persisted`), the practice start is reset: the guard is cleared and the button reads "Try a practice search" again. Before, coming Back from the practice incident could show the page exactly as it left, mid-start, with the button disabled on "Starting".
+- Source: review finding (start button stuck after a back/forward cache restore).
+- Verified: a new check in `e2e/judge.spec.ts` (start pending, then the restore event fired by hand, since Playwright's Chromium restored the page from its cache in only 1 of 6 real tries) failed against the live site (button still "Starting") and passed on a local build with the 4 other start checks; typecheck clean. A start cancelled by stopping the navigation is not covered.
+
 ### feat(judge): one advice line from a dementia-care expert on the judge page
 - What: under the purpose line, /judge shows `ADVICE_LINE` (in `src/judge/judge.ts`): Kim Franklin of the Alzheimer's Association Georgia told us to check the immediate area first and, if the person is not found within five minutes, call police, because the longer you wait, the further they can get. It is a paraphrase of what she told us, so it has no quote marks, and it is worded as her advice, never as an endorsement. She agreed to be quoted.
 - Source: an expert call with a dementia-care organization's staff member (why the first minutes matter).
