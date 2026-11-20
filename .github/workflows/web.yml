@@ -67,21 +67,28 @@ jobs:
       - name: Install the Playwright browser
         working-directory: web
         run: npx playwright install --with-deps chromium
+      # Each browser step has its own limit (about 5 times its usual time), so a stall is named by its step instead
+      # of ending the job as cancelled at the job's limit.
       - name: Browser checks with no backend
+        timeout-minutes: 5
         working-directory: web
         run: npx playwright test -c e2e/ci.config.ts
       # The clip harnesses make their test clips with ffmpeg (the repository keeps every .mp4 out), and the runner
-      # image does not ship it.
+      # image does not ship it. The script bounds each apt call and tries twice, since a stalled mirror once held
+      # this step until the job's limit.
       - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+        timeout-minutes: 7
+        run: bash scripts/ci/install-ffmpeg.sh
       # Component harnesses (map, beat, plan, sightings, family, clips, ...) and the extras lane's pages, on the
       # Vite dev server with Playwright's Chromium. The few tests that need Chrome's built-in model are left out.
       - name: Component harness checks
+        timeout-minutes: 5
         working-directory: web
         env:
           CI: "true"
         run: npx playwright test -c e2e/harness.config.ts --grep-invert "built-in model"
       - name: Extras harness checks
+        timeout-minutes: 5
         working-directory: web
         env:
           CI: "true"
