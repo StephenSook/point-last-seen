@@ -97,6 +97,22 @@
     {
       "name": "all_together",
       "input": "Seen at 14:03 by 3 searchers in segment 12; 45% of the prior is north."
+    },
+    {
+      "name": "date_us_slashes",
+      "input": "11/19/2026"
+    },
+    {
+      "name": "date_iso",
+      "input": "2026-11-19"
+    },
+    {
+      "name": "date_month_day",
+      "input": "11/19"
+    },
+    {
+      "name": "date_words",
+      "input": "Nov 19"
     }
   ]
 }
