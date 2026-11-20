@@ -243,4 +243,11 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call +44.2071\r\n    -23.4567"))
         assertEquals("GPS 33.7490,\r\n 84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n 84.3880 x"))
     }
+
+    /** A wider gap of separators alone (spaces, dashes, dots) still joins the groups of one number. */
+    @Test fun aWideGapOfSeparatorsStillJoins() {
+        for (text in listOf("Call 404-555 -  0142", "Call 404    555    0142", "Call 404 . . 555 . . 0142")) {
+            assertEquals(text, "Call [number removed]", PhoneNumbers.remove(text))
+        }
+    }
 }

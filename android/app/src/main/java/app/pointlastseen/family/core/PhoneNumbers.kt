@@ -5,9 +5,9 @@ import java.text.Normalizer
 /**
  * Removes anything shaped like a phone number before a note is stored or read (the iPhone app's rule, and a little
  * stricter). Seven or more digits in a row are a number: written digits (any script, full-width folded, Chinese
- * numerals, circled and other number characters) and spoken digit words count alike, joined only by short
- * separators (at most three spaces or - . , ( ) / or a dash; a line break with its indent counts as one, and accents
- * or joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes,
+ * numerals, circled and other number characters) and spoken digit words count alike, joined only by separators
+ * (spaces, - . , ( ) / or a dash, any number of them; a line break with its indent counts as one, and accents or
+ * joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes,
  * segments, searchers, percents) are far shorter, so they stay.
  *
  * Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a
@@ -272,13 +272,11 @@ object PhoneNumbers {
     }
 
     /**
-     * What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes, read after [flat]
-     * (so a line break with its indent counts as one, and an accent or joiner adds nothing).
+     * What may sit between the parts of one number: spaces or - . , ( ) / or dashes, any number of them, read after
+     * [flat] (so a line break with its indent counts as one, and an accent or joiner adds nothing). A wider gap of
+     * separators alone still joins: a cap would let "404-555 -  0142" split into two short runs.
      */
-    private fun onlySeparators(s: String): Boolean {
-        val gap = flat(s)
-        return gap.length <= 3 && gap.all { it == ' ' || it == '\n' || it in "-.,()/" || it in DASHES }
-    }
+    private fun onlySeparators(s: String): Boolean = flat(s).all { it == ' ' || it == '\n' || it in "-.,()/" || it in DASHES }
 
     /**
      * A gap as read: combining marks and format characters dropped (NFKC turns a spacing accent such as ´ into a
