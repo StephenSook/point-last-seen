@@ -23,6 +23,17 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
+- The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
+  plus a count of account changes, where every change of user starts a new session. Two narrow windows
+  remain. A first join that signs in a new anonymous user can only bind its session after the join returns,
+  so an account change in that last instant could pair the join's team with the new user; the security
+  rules still decide what that user may read, and a refused read drops the mission. And a push tap that
+  passed every check can still land on the task screen just after an account change; the old mission is
+  gone by then, so the screen says "No mission loaded" and nothing of it is shown or spoken.
+- Plans carry no setup id. A practice incident rebuilt under the same id could publish the same plan
+  version again; while the old copy is on an iPhone, a reload of the same version keeps the plan on screen
+  (only a strictly newer version replaces it), so that phone keeps the old task until a newer plan arrives
+  or it joins again.
 - A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
   first share adds only fields the search does not have yet; command or the family fills an empty field by editing
   it.
@@ -179,4 +190,13 @@ each line says what the limit is and why.
   subscriber can still see when a search's teams get new tasks, when it starts or pauses, and when the family is
   asked a question. A real search's incident id is never published (people join with a code); the drills' ids are
   in this repository, and they are drills.
+- An iPhone leaves its old team's topic only when the app runs: when command moves or removes a searcher while the
+  app is suspended, that phone still gets the old team's pushes until the app next opens and leaves the topic (a
+  leave that fails is tried again at the next sign-in or push token). Because the push text is fixed, a former member
+  learns only that a team in that incident got a new task. Sending to device tokens chosen from current membership on
+  the server would close this window; it is not built.
+- On iPhone, a push that arrives while the app is in the background or closed is shown by iOS from its payload as
+  sent: there is no notification service extension, so the app cannot hide or reword it. That is one more reason the
+  server text stays fixed and generic. In the foreground the app shows no banner at all; its plan listener shows and
+  speaks the new task instead.
 - iPhone delivery needs an APNs key in Firebase Cloud Messaging; until one is added, pushes reach Android only.

@@ -14,9 +14,17 @@ rules do not apply). Synthetic drill data only: no real person, place or case.
 Usage: python3 -I tools/seed/seed_drill.py <project> <incidentId> "<name>" <teamId> [<teamId> ...]
        python3 -I tools/seed/seed_drill.py --rotate <project> <incidentId> <role>
 
+       python3 -I tools/seed/seed_drill.py --add-code <project> <incidentId> <role> <incidentId>-<name>
+       python3 -I tools/seed/seed_drill.py --revoke-code <project> <incidentId> <role> <incidentId>-<name>
+
 --rotate replaces one role's code: the new code is kept in the Keychain (account <incidentId>.next) before
 anything changes, then one atomic commit creates the new joinCodes doc (only if absent) and deletes the old one
 (only if present), then the new code becomes the role's Keychain entry. No code is printed.
+
+--add-code makes an extra code for one role (for example an app reviewer's) that can be revoked on its own: it is
+kept in the Keychain under the role's service and its own account, <incidentId>-<name>, then its joinCodes doc is
+created (only if absent). --revoke-code checks that the code's doc names this incident and role, deletes it (only
+if present) and removes the Keychain entry. Neither ever touches the primary code (account = the incident id).
 """
 
 import hashlib
@@ -118,6 +126,78 @@ def rotate(project: str, incident_id: str, role: str) -> int:
     return 0
 
 
+EXTRA_ACCOUNT = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
+
+def extra_account_ok(incident_id: str, account: str) -> bool:
+    """An extra code's Keychain account: the incident id, "-" and a lower-case name; never the primary account."""
+    prefix = f"{incident_id}-"
+    return account.startswith(prefix) and EXTRA_ACCOUNT.fullmatch(account[len(prefix):]) is not None
+
+
+def add_code_write(project: str, incident_id: str, role: str, code: str) -> dict:
+    """Create the code's doc, only if no doc has that hash."""
+    base = f"projects/{project}/databases/(default)/documents/joinCodes"
+    doc = {"incidentId": incident_id, "roles": [role]}
+    return {"update": {"name": f"{base}/{code_hash(code)}", "fields": to_value(doc)["mapValue"]["fields"]},
+            "currentDocument": {"exists": False},
+            "updateTransforms": [{"fieldPath": "createdAt", "setToServerValue": "REQUEST_TIME"}]}
+
+
+def revoke_code_write(project: str, code: str) -> dict:
+    """Delete the code's doc, only if it is there."""
+    return {"delete": f"projects/{project}/databases/(default)/documents/joinCodes/{code_hash(code)}",
+            "currentDocument": {"exists": True}}
+
+
+def _check_extra(incident_id: str, role: str, account: str) -> None:
+    if role not in ROLES:
+        raise SystemExit(f"role must be one of {', '.join(ROLES)}")
+    if not extra_account_ok(incident_id, account):
+        raise SystemExit(f"account must be {incident_id}-<name> (lower-case letters, digits and -), never the primary "
+                         f"account {incident_id}")
+
+
+def _commit(project: str, writes: list[dict]) -> None:
+    url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents:commit"
+    req = urllib.request.Request(url, data=json.dumps({"writes": writes}).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {_token()}", "Content-Type": "application/json",
+                                          "x-goog-user-project": project})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        r.read()
+
+
+def add_code(project: str, incident_id: str, role: str, account: str) -> int:
+    _check_extra(incident_id, role, account)
+    service = KEYCHAIN_SERVICES[role]
+    code = make_rotated_code({keychain_read(KEYCHAIN_SERVICES[r], incident_id) for r in ROLES})
+    keychain_store(service, account, code)
+    try:
+        _commit(project, [add_code_write(project, incident_id, role, code)])
+    except urllib.error.HTTPError as e:
+        subprocess.run(["security", "delete-generic-password", "-s", service, "-a", account], capture_output=True)
+        raise SystemExit(f"creating the code failed: HTTP {e.code} {e.read().decode()[:200]}; nothing was kept") from None
+    print(f"added a {role} code for {incident_id}; it is in the Keychain ({service}, account {account}); not printed")
+    return 0
+
+
+def revoke_code(project: str, incident_id: str, role: str, account: str) -> int:
+    _check_extra(incident_id, role, account)
+    service = KEYCHAIN_SERVICES[role]
+    code = keychain_read(service, account)
+    url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/joinCodes/{code_hash(code)}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {_token()}", "x-goog-user-project": project})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        fields = json.loads(r.read()).get("fields", {})
+    roles = [v.get("stringValue") for v in fields.get("roles", {}).get("arrayValue", {}).get("values", [])]
+    if fields.get("incidentId", {}).get("stringValue") != incident_id or roles != [role]:
+        raise SystemExit(f"the code under {account} is not a {role} code of {incident_id}; nothing was changed")
+    _commit(project, [revoke_code_write(project, code)])
+    subprocess.run(["security", "delete-generic-password", "-s", service, "-a", account], capture_output=True, check=True)
+    print(f"revoked the {role} code under {account} for {incident_id}; its doc and Keychain entry are gone")
+    return 0
+
+
 def to_value(v):
     if v is None:
         return {"nullValue": None}
@@ -186,6 +266,12 @@ def check_teams(teams: list[str]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] in (["--add-code"], ["--revoke-code"]):
+        if len(argv) != 5:
+            print(__doc__)
+            return 2
+        _check_extra(argv[2], argv[3], argv[4])
+        return (add_code if argv[0] == "--add-code" else revoke_code)(argv[1], argv[2], argv[3], argv[4])
     if argv[:1] == ["--rotate"]:
         if len(argv) != 4:
             print(__doc__)

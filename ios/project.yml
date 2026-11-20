@@ -60,15 +60,19 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         NSSupportsLiveActivities: true
+        # The commit a build was made from (a device build passes PLS_BUILD_COMMIT); the eval records it.
+        PLSBuildCommit: $(PLS_BUILD_COMMIT)
     entitlements:
       path: PLS/PLS.entitlements
       properties:
         com.apple.developer.devicecheck.appattest-environment: production
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.pointlastseen.field
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PLS_BUILD_COMMIT: unknown
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
     postBuildScripts:
@@ -98,6 +102,8 @@ targets:
         product: FirebaseFirestore
       - package: Firebase
         product: FirebaseFunctions
+      - package: Firebase
+        product: FirebaseMessaging
       - package: Firebase
         product: FirebaseRemoteConfig
       - package: Firebase

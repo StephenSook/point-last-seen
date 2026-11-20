@@ -32,6 +32,27 @@ final class AppModel {
     /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
     private let joinBackend: JoinBackend
     private let missionReader: MissionReader
+    /// The team's push topic this phone follows; nil until a subscription has gone through.
+    private let pushTopics: PushTopics
+    @ObservationIgnored private var subscribedTopic: String?
+    /// The latest topic change in flight. FCM refuses a subscription made before the phone has its
+    /// token (it is tried again when the token arrives), and a subscription can be slow with no
+    /// signal, so nothing else ever waits for it.
+    @ObservationIgnored private(set) var topicFollow: Task<Void, Never>?
+    /// The access check started by a return to the foreground.
+    @ObservationIgnored private(set) var foregroundCheck: Task<Void, Never>?
+    /// The assignment voice in flight. Speaking takes seconds (longer on the cloud voice), so the plan
+    /// listener, the topic and the alerts question never wait for it; voices keep their order.
+    @ObservationIgnored private(set) var speech: Task<Void, Never>?
+    /// Notification permission, and where "asked once" is kept.
+    private let alerts: AlertPermission
+    private let defaults: UserDefaults
+    static let alertsAskedKey = "pls.alertsAsked"
+    static let topicsKey = "pls.pushTopics"
+    /// True while the one-time alerts question should show (after a join, before an answer).
+    private(set) var offersAlerts = false
+    /// Counts taps on new-assignment pushes; the screen returns to the task on each.
+    private(set) var openTaskRequests = 0
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
@@ -58,10 +79,18 @@ final class AppModel {
          measurements: MeasurementWriter? = nil,
          readReport: ReadReport? = nil,
          joinBackend: JoinBackend? = nil,
-         missionReader: MissionReader? = nil) {
+         missionReader: MissionReader? = nil,
+         pushTopics: PushTopics? = nil,
+         alerts: AlertPermission? = nil,
+         defaults: UserDefaults = .standard,
+         accountEvents: AccountEvents? = nil) {
+        self.accountEvents = accountEvents ?? FirebaseAccountEvents()
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
+        self.pushTopics = pushTopics ?? FirebasePushTopics()
+        self.alerts = alerts ?? SystemAlerts()
+        self.defaults = defaults
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -163,6 +192,8 @@ final class AppModel {
         remoteConfig.onChange = { [weak self] in self?.config = $0 }
         remoteConfig.start()
         self.remoteConfig = remoteConfig
+        // Auth's reports are followed before any access work starts.
+        watchAccount()
         Task { await self.trySignIn() }
         // Each failure gets its own message, so the person and command know what to fix.
         do { identity = try DeviceIdentity() } catch {
@@ -197,7 +228,16 @@ final class AppModel {
 
     func trySignIn() async {
         signedIn = await signIn.ensure()
-        if signedIn { await resumeMission() }
+        // The user signed in now (after a sign-out, a new anonymous user): a change ends the old session.
+        noteAccount(uid())
+        if signedIn {
+            await resumeMission()
+            return
+        }
+        // No user at all (signed out, for example after the account was removed) and the sign-in
+        // failed: what this phone holds belonged to a user that is gone. A cached user (offline)
+        // counts as signed in, so offline use keeps its mission.
+        if !signIn.signedIn, mission != nil || membership != nil { await dropMission() }
     }
 
     /// Counts the join, retry and sign-in checks of this phone's access. Each takes a number when it
@@ -221,13 +261,15 @@ final class AppModel {
             return
         }
         // Already in this team (and incident, when named): read the mission, do not spend the code.
+        noteAccount(uid())
+        let before = currentSession
         let current = await joinBackend.currentClaims(forceRefresh: true)
         guard check == accessCheck else { return }
-        if let claims = current, claims["role"] == .string("searcher"),
+        if let session = before, isCurrent(session), let claims = current, claims["role"] == .string("searcher"),
            claims["team"] == .string(request.teamId), case let .string(held)? = claims["inc"],
            request.incidentId == nil || request.incidentId == held {
             membership = (held, request.teamId)
-            let message = await loadMission(incidentId: held, teamId: request.teamId)
+            let message = await loadMission(incidentId: held, teamId: request.teamId, session: session)
             if check == accessCheck { joinMessage = message }
             return
         }
@@ -236,8 +278,11 @@ final class AppModel {
         switch result {
         case let .failed(message): joinMessage = message
         case let .joined(incidentId, teamId):
+            // The join signs in when needed: the claims it checked are this user's.
+            noteAccount(uid())
+            guard let session = currentSession, check == accessCheck else { joinMessage = Joiner.notSignedIn; return }
             membership = (incidentId, teamId)
-            let message = await loadMission(incidentId: incidentId, teamId: teamId)
+            let message = await loadMission(incidentId: incidentId, teamId: teamId, session: session)
             if check == accessCheck { joinMessage = message }
         }
     }
@@ -246,20 +291,28 @@ final class AppModel {
     /// The claims are checked first: a role command took away reads nothing and drops the membership.
     func retryMission() async {
         guard membership != nil else { return }
+        noteAccount(uid())
         accessCheck += 1
         let check = accessCheck
+        guard let session = currentSession else { joinMessage = Self.missionUnread; return }
         let claims = await latestClaims()
-        // A newer check (or a drop) came first: this one has no say.
-        guard check == accessCheck, membership != nil else { return }
+        // A newer check, a drop or another session came first: this one has no say.
+        guard check == accessCheck, isCurrent(session), membership != nil else { return }
         guard let claims else { joinMessage = Self.missionUnread; return }
         guard let held = Self.searcherTeam(claims) else {
-            dropMission()
+            await dropMission()
             joinMessage = Self.notOnATeam
             return
         }
         membership = held
-        let message = await loadMission(incidentId: held.incidentId, teamId: held.teamId)
+        let message = await loadMission(incidentId: held.incidentId, teamId: held.teamId, session: session)
         if check == accessCheck { joinMessage = message }
+    }
+
+    /// True when a session is current and any loaded mission was read in that same session.
+    private var heldByThisUser: Bool {
+        guard let session = currentSession else { return false }
+        return mission.map { $0.owner == session } ?? true
     }
 
     /// The claims read fresh from the server, or the cached ones with no signal; nil with no token.
@@ -275,40 +328,274 @@ final class AppModel {
         return (incidentId, teamId)
     }
 
-    /// Reads the team's mission and loads it; says why not, or nil when it loaded.
+    /// Reads the team's mission for `session` and loads it; says why not, or nil when it loaded.
     @discardableResult
-    func loadMission(incidentId: String, teamId: String) async -> String? {
-        missionGeneration += 1
-        let generation = missionGeneration
-        do {
-            let docs = try await missionReader.read(incidentId: incidentId)
-            let mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
-                                                   bundledParams: try BundledConstants.engineParams())
-            // A newer join or load started while this one read: it has the say.
-            guard generation == missionGeneration else { return nil }
-            await load(mission)
-            // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
-            guard generation == missionGeneration else { return nil }
-            watchPlans(incidentId: incidentId, teamId: teamId)
-            return nil
-        } catch let failure as MissionBuilder.Failure {
-            return failure.message
-        } catch {
-            return Self.missionUnread
+    func loadMission(incidentId: String, teamId: String, session: AccountSession) async -> String? {
+        switch await readMission(incidentId: incidentId, teamId: teamId, fromServer: false, session: session) {
+        case .loaded, .superseded: nil
+        case let .failed(failure): failure.message
+        case .unread: Self.missionUnread
+        case .denied: Self.notOnATeam
         }
     }
 
+    /// How a mission read ended.
+    enum MissionLoad: Equatable {
+        case loaded
+        /// A newer join, load or drop started meanwhile and has the say.
+        case superseded
+        case failed(MissionBuilder.Failure)
+        /// Not read: no signal, or (from the server only) the server could not be reached.
+        case unread
+        /// The security rules refused the read.
+        case denied
+    }
+
+    /// Reads the team's mission (`fromServer`: never from the cache) and loads it for `session`, the
+    /// session its caller bound when it started.
+    private func readMission(incidentId: String, teamId: String, fromServer: Bool, session: AccountSession) async -> MissionLoad {
+        missionGeneration += 1
+        let generation = missionGeneration
+        guard isCurrent(session) else { return .superseded }
+        do {
+            let docs = try await missionReader.read(incidentId: incidentId, fromServer: fromServer)
+            var mission = try MissionBuilder.build(incidentId: incidentId, teamId: teamId, docs: docs,
+                                                   bundledParams: try BundledConstants.engineParams())
+            mission.owner = session
+            // A newer join or load started while this one read, or the session ended: they have the say.
+            guard generation == missionGeneration, isCurrent(session) else { return .superseded }
+            // The listener applied a plan at least as new, in this same session, while this read ran: that
+            // plan stays, also when it took the task away. Only a strictly newer plan replaces it.
+            if let held = self.mission, held.owner == session, held.incidentId == incidentId, held.teamId == teamId,
+               (held.planVersion ?? Int.min) >= (mission.planVersion ?? Int.min) {
+                mission.planVersion = held.planVersion
+                mission.assignment = held.assignment
+                mission.assignedSegmentIds = held.assignedSegmentIds
+            }
+            await load(mission)
+            // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
+            guard generation == missionGeneration else { return .superseded }
+            watchPlans(incidentId: incidentId, teamId: teamId)
+            followTopicSoon()
+            await refreshAlerts()
+            return .loaded
+        } catch let failure as MissionBuilder.Failure {
+            return .failed(failure)
+        } catch MissionReadError.accessDenied {
+            return .denied
+        } catch {
+            return .unread
+        }
+    }
+
+    private let accountEvents: AccountEvents
+    /// The account state: the user of the current session and how many account changes the phone has
+    /// seen. Read from Auth the first time anything needs it, before any access work.
+    @ObservationIgnored private var sessionKnown = false
+    @ObservationIgnored private var sessionUid: String?
+    @ObservationIgnored private var sessionGeneration = 0
+
+    private func knowSession() {
+        guard !sessionKnown else { return }
+        sessionKnown = true
+        sessionUid = uid()
+    }
+
+    /// The session in force: the last user Auth reported, while that user is still the one signed
+    /// in. Nil with no user, and while a change of user has not been followed yet.
+    var currentSession: AccountSession? {
+        knowSession()
+        guard let user = sessionUid, uid() == user else { return nil }
+        return AccountSession(uid: user, generation: sessionGeneration)
+    }
+
+    /// True only for the session in force; no session (nil) is never current.
+    func isCurrent(_ session: AccountSession?) -> Bool {
+        guard let session else { return false }
+        return session == currentSession
+    }
+
+    /// Follows Auth's reports, each with the user it carries, in order.
+    func watchAccount() {
+        accountEvents.observe { [weak self] reported in self?.noteAccount(reported) }
+    }
+
+    /// One user Auth reported (the listener, or the user signed in now). Every change of user, a
+    /// sign-out and a sign-in again as the same user included, starts a new session: access checks
+    /// and loads still running lose their say, all speech stops, and the previous session's mission
+    /// and membership go at once. The same user reported again changes nothing.
+    @discardableResult
+    func noteAccount(_ reported: String?) -> Bool {
+        knowSession()
+        guard reported != sessionUid else { return false }
+        sessionUid = reported
+        sessionGeneration += 1
+        accessCheck += 1
+        speaker.stop()
+        if mission != nil || membership != nil { dropMissionNow() }
+        return true
+    }
+
+    /// The user signed in now, followed as if Auth had reported it.
+    func accountChanged() async { noteAccount(uid()) }
+
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
-    private func dropMission() {
+    private func dropMission() async { dropMissionNow() }
+
+    private func dropMissionNow() {
         missionGeneration += 1
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
         planWatchId += 1
         mission = nil
+        offersAlerts = false
         // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
         speaker.stop()
         refreshGate()
+        followTopicSoon()
+    }
+
+    /// With a mission loaded: alerts already allowed only register; not yet asked shows the one-time
+    /// question; refused stays quiet. A status read that finishes after the mission was dropped or
+    /// replaced changes nothing.
+    private func refreshAlerts() async {
+        guard mission != nil else { offersAlerts = false; return }
+        let generation = missionGeneration
+        let status = await alerts.current()
+        guard generation == missionGeneration, mission != nil else { return }
+        switch status {
+        case .allowed:
+            offersAlerts = false
+            await alerts.registerForPushes()
+        case .refused:
+            offersAlerts = false
+        case .notAsked:
+            offersAlerts = !defaults.bool(forKey: Self.alertsAskedKey)
+        }
+    }
+
+    /// A tapped new-assignment push. Every tap is checked against the server, also when the push
+    /// names the loaded mission: the claims are read fresh, and they must name the push's incident
+    /// and team; then the incident and plan are read again from the server (never the cache), and
+    /// the task screen opens only for an open incident whose plan is at least the push's. A push
+    /// for another team (an old push) or after the role was taken away opens nothing, and the
+    /// mission follows the claims; a closed incident or a refused read drops the mission. With no
+    /// signal, or no server, the same user's mission already on this phone is the offline path.
+    func openedPush(_ payload: PushPayload) async {
+        let matchesLoaded = { [weak self] in
+            self?.mission?.incidentId == payload.incidentId && self?.mission?.teamId == payload.teamId
+        }
+        noteAccount(uid())
+        accessCheck += 1
+        let check = accessCheck
+        // The session this tap is for, bound before the claims and the read: nothing installs or opens
+        // for any other session, or for none.
+        let session = currentSession
+        let fresh = await joinBackend.currentClaims(forceRefresh: true)
+        guard check == accessCheck else { return }
+        guard let fresh else {
+            // Auth could not confirm access. With no user, or a mission read for another user, what
+            // the phone holds is not this user's: it goes and nothing opens. The same user with no
+            // signal: the mission on this phone is the offline path.
+            guard heldByThisUser else {
+                if mission != nil || membership != nil { await dropMission() }
+                return
+            }
+            if matchesLoaded() { openTaskRequests += 1 }
+            return
+        }
+        guard let session, isCurrent(session) else { return }
+        guard let (incidentId, teamId) = Self.searcherTeam(fresh) else {
+            await dropMission()
+            return
+        }
+        guard incidentId == payload.incidentId, teamId == payload.teamId else {
+            // An old push: the claims name another team, which the mission follows; nothing opens.
+            await resumeMission()
+            return
+        }
+        if mission != nil, !matchesLoaded() { await dropMission() }
+        membership = (incidentId, teamId)
+        let outcome = await readMission(incidentId: incidentId, teamId: teamId, fromServer: true, session: session)
+        guard check == accessCheck, isCurrent(session) else { return }
+        switch outcome {
+        case .loaded:
+            joinMessage = nil
+            // The plan the push announces must be the one on screen, or a newer one.
+            if matchesLoaded(), (mission?.planVersion ?? Int.min) >= payload.planVersion { openTaskRequests += 1 }
+        case .unread:
+            // The server could not be reached: the offline path, for the same user only.
+            if heldByThisUser, matchesLoaded() { openTaskRequests += 1 } else { joinMessage = Self.missionUnread }
+        case .failed(.notOpen):
+            await dropMission()
+            joinMessage = MissionBuilder.Failure.notOpen.message
+        case let .failed(failure):
+            joinMessage = failure.message
+        case .denied:
+            await dropMission()
+            joinMessage = Self.notOnATeam
+        case .superseded:
+            break
+        }
+    }
+
+    /// The searcher's answer to the alerts question; asked once, whatever the answer. With no
+    /// question on screen (the mission was dropped), it asks the system nothing.
+    func answerAlerts(_ allow: Bool) async {
+        guard offersAlerts, mission != nil else { offersAlerts = false; return }
+        defaults.set(true, forKey: Self.alertsAskedKey)
+        offersAlerts = false
+        if allow, await alerts.request() { await alerts.registerForPushes() }
+    }
+
+    /// Messaging has its token: a subscription it refused before can go through now.
+    func pushTokenArrived() { followTopicSoon() }
+
+    /// Starts following the topic after any change still in flight, so changes keep their order.
+    private func followTopicSoon() {
+        let previous = topicFollow
+        topicFollow = Task { [weak self] in
+            await previous?.value
+            await self?.followTopic()
+        }
+    }
+
+    /// The topic the loaded mission's team gets pushes on; nil with no mission.
+    private var wantedTopic: String? { mission.flatMap { PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) } }
+
+    /// Every topic this phone may still be subscribed to: a topic is listed before its subscription
+    /// is tried and stays listed until FCM confirms it was left. Kept across launches, because FCM
+    /// keeps subscriptions across them.
+    private var heldTopics: Set<String> {
+        get { Set(defaults.stringArray(forKey: Self.topicsKey) ?? []) }
+        set { defaults.set(newValue.sorted(), forKey: Self.topicsKey) }
+    }
+
+    /// Follows the loaded mission's team topic: leaves every other topic the phone may hold (with no
+    /// mission, all of them), then subscribes to the wanted one. A leave or a subscription that
+    /// fails is tried again at the next sign-in or token arrival. The wanted topic is read again
+    /// after each network call, so a team change made meanwhile always wins.
+    private func followTopic() async {
+        var settled: String?
+        repeat {
+            let want = wantedTopic
+            for old in heldTopics.sorted() where old != want {
+                guard (try? await pushTopics.unsubscribe(old)) != nil else { continue }
+                heldTopics.remove(old)
+                if subscribedTopic == old { subscribedTopic = nil }
+            }
+            if let want, wantedTopic == want, subscribedTopic != want {
+                heldTopics.insert(want)
+                do {
+                    try await pushTopics.subscribe(want)
+                    subscribedTopic = want
+                } catch {
+                    return
+                }
+            }
+            settled = want
+        } while wantedTopic != settled
     }
 
     /// Listens for plans command approves after the mission loaded, so a new assignment reaches
@@ -348,42 +635,50 @@ final class AppModel {
     /// command changed gets the new team's mission, and claims that no longer name a searcher's
     /// incident drop it. With no signal the cached token answers; with no token, nothing changes.
     private func resumeMission() async {
+        noteAccount(uid())
         accessCheck += 1
         let check = accessCheck
+        // No session (no user): nothing is read or installed.
+        guard let session = currentSession else { return }
         let latest = await latestClaims()
-        // A newer check came first: this one's claims may be older, so it changes nothing.
-        guard check == accessCheck, let claims = latest else { return }
+        // A newer check or another session came first: these claims may be older, so they change nothing.
+        guard check == accessCheck, isCurrent(session), let claims = latest else { return }
         // Not a searcher any more: drop whatever is held, a loaded mission or only a membership
         // whose mission never loaded (and any load still running).
         guard let (incidentId, teamId) = Self.searcherTeam(claims) else {
-            dropMission()
+            await dropMission()
             return
         }
-        if mission?.incidentId == incidentId, mission?.teamId == teamId {
+        if mission?.incidentId == incidentId, mission?.teamId == teamId, mission?.owner == session {
             membership = (incidentId, teamId)
+            followTopicSoon()
             // The claims are unchanged, but command may have closed the incident: when its status
             // can be read and is no longer open, the mission goes. With no signal it stays.
             let generation = missionGeneration
             guard let status = try? await missionReader.incidentStatus(incidentId: incidentId),
-                  check == accessCheck, generation == missionGeneration, status != "open" else { return }
-            dropMission()
+                  check == accessCheck, isCurrent(session), generation == missionGeneration, status != "open" else { return }
+            await dropMission()
             joinMessage = MissionBuilder.Failure.notOpen.message
             return
         }
         // Another incident or team now: the old mission, its plan listener and its spoken updates
         // stop before the new one is read, so a failed read leaves nothing of the old team, and
         // the membership kept below offers reading the new team's mission again.
-        if mission != nil { dropMission() }
+        if mission != nil { await dropMission() }
         membership = (incidentId, teamId)
         let before = missionGeneration
-        let message = await loadMission(incidentId: incidentId, teamId: teamId)
+        let message = await loadMission(incidentId: incidentId, teamId: teamId, session: session)
         // Superseded by a join or a newer check meanwhile: their words stay.
         if missionGeneration == before + 1, check == accessCheck { joinMessage = message }
     }
 
-    /// Back in the foreground: the same check, in case the reconnect happened while suspended.
+    /// Back in the foreground: the same checks, in case the reconnect happened while suspended. With
+    /// signal it settles waiting reports and checks this phone's access again, so a role or team
+    /// command changed (or an incident it closed) while the app was away is followed at once.
     func becameActive() {
-        if connectivity.isOnline { store?.reconcileUnresolved() }
+        guard connectivity.isOnline else { return }
+        store?.reconcileUnresolved()
+        foregroundCheck = Task { [weak self] in await self?.trySignIn() }
     }
 
     func retry(_ eventId: String) {
@@ -391,25 +686,37 @@ final class AppModel {
     }
 
     /// Loads a pack, then speaks the team's approved assignment if it is new (eyes stay on the ground).
-    /// The line is spoken only while it is still this mission's assignment: a drop, a newer load or
-    /// a newer plan meanwhile keeps it silent.
+    /// The voice runs after any voice still speaking, and loading does not wait for it. The line is
+    /// spoken only while it is still this mission's assignment, checked when its turn comes, before
+    /// any sound and before the phone's own voice stands in: a drop, a newer load or a newer plan
+    /// meanwhile keeps it silent.
     func load(_ mission: Mission) async {
         let newIncident = self.mission?.incidentId != mission.incidentId
         let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
-        // Another incident or team: whatever the old one was saying stops, and its lines are forgotten.
-        if newTeam { speaker.stop() }
+        // Another incident or team, or a task that changed or was taken away: whatever was being said
+        // stops, queued lines included, and its lines are forgotten.
+        let newTask = self.mission != nil && self.mission?.assignment != mission.assignment
+        if newTeam || newTask { speaker.stop() }
         self.mission = mission
         refreshGate()
         if newIncident { store?.listen(incidentId: mission.incidentId) }
-        let generation = missionGeneration, assignment = mission.assignment
-        let incidentId = mission.incidentId, teamId = mission.teamId
-        await speaker.update(assignment, voiceTemplate: config.voiceTemplateId, online: connectivity.isOnline,
-                             killCloud: config.killCloud, signedIn: signIn.signedIn,
-                             isCurrent: { [weak self] in
-                                 guard let self, let current = self.mission else { return false }
-                                 return self.missionGeneration == generation && current.incidentId == incidentId
-                                     && current.teamId == teamId && current.assignment == assignment
-                             })
+        let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
+        let generation = missionGeneration, incidentId = mission.incidentId, teamId = mission.teamId
+        let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
+        let owner = mission.owner
+        // Checked right before any sound, on both voices: still this mission's task, and the session it
+        // was read in is still the current one (a mission read in no session is never spoken).
+        let isCurrent: @MainActor () -> Bool = { [weak self] in
+            guard let self, let current = self.mission else { return false }
+            return self.missionGeneration == generation && current.incidentId == incidentId
+                && current.teamId == teamId && current.assignment == assignment && self.isCurrent(owner)
+        }
+        speech = Task { [weak self] in
+            await previous?.value
+            guard let self, isCurrent() else { return }
+            await self.speaker.update(assignment, voiceTemplate: template, online: online,
+                                      killCloud: killCloud, signedIn: signedIn, isCurrent: isCurrent)
+        }
     }
 
     func refreshGate() {
@@ -453,6 +760,24 @@ final class AppModel {
 
         return journal(outcome, rawText: text, inputMethod: inputMethod, position: position, mission: mission, uid: uid,
                        identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
+    }
+
+    /// The report-reading eval's arms: the rules alone, or Apple's on-device model.
+    enum EvalArm: String, CaseIterable { case rulesOnly = "rules_only", onDevice = "on_device" }
+
+    /// Reads one eval report with the app's own reader, forced to one arm, and journals nothing. Neither
+    /// arm may reach the cloud: no network, no cloud consent, no live gate. Rules only: no incident mode
+    /// that allows a model. On-device: the mission's own mode, so the router takes Apple's model.
+    /// Nil with no mission loaded.
+    func evalRead(_ text: String, arm: EvalArm) async -> EvalOutput? {
+        guard let mission, let screen = screen ?? (try? BundledConstants.evidenceScreen()) else { return nil }
+        let situation = ReportSituation(
+            incidentMode: arm == .onDevice ? mission.mode : nil, knownSegmentIds: mission.grid.map(\.segmentId),
+            assignedSegmentIds: mission.assignedSegmentIds, positionSegmentId: nil, profile: mission.profile,
+            networkOnline: false, cloudConsent: false, liveGate: nil)
+        let outcome = await readReport(text, situation, config, screen)
+        return EvalOutput(reading: outcome.reading, blocked: outcome.route.blocked != nil,
+                          path: "\(outcome.route.path.rawValue)/\(outcome.route.stage.rawValue)", latencyMs: outcome.route.latencyMs)
     }
 
     /// A report the searcher picked from the list: no model runs, the person's choices stand.

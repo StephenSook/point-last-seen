@@ -12,6 +12,6 @@ test("the drill map draws its self-hosted basemap, with no tile request to anoth
   await joinCommand(page);
   const wrap = page.getByTestId("map").locator("xpath=..");
   await expect(wrap).toHaveAttribute("data-basemap", "drawn", { timeout: 20_000 });
-  await expect(page.getByTestId("map-credit")).toHaveText(/OpenStreetMap/);
+  await expect(page.getByTestId("map-credit")).toHaveText("© OpenStreetMap contributors · Protomaps");
   expect(foreign).toEqual([]);
 });

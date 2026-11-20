@@ -103,9 +103,87 @@ test("on a crowded map no two visible labels overlap, and the most likely cell k
   await expect(page.locator(".seg-code")).toHaveCount(24);
 });
 
-test("on a roomy map every label shows", async ({ page }) => {
+test("on a roomy map every code shows, and a plate for each cell of 1.0% or more", async ({ page }) => {
   await page.goto("/harness/map.html");
   await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
   await expect(page.locator(".seg-code:visible")).toHaveCount(24);
+  // 17 of the 23 cells in the POA hold 1.0% or more; the other six keep their plate in the page, hidden.
+  await expect(page.locator(".plate:visible")).toHaveCount(17);
+  await expect(page.locator(".plate")).toHaveCount(23);
+  const shown = await page.locator(".plate:visible").allTextContents();
+  expect(shown.every((t) => parseFloat(t) >= 1)).toBe(true);
+});
+
+// Each visible plate against its own cell's box on screen, projected by the map itself.
+async function platesAgainstCells(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const m = (window as unknown as { harnessMap: { project: (p: [number, number]) => { x: number; y: number } } }).harnessMap;
+    const cells = (window as unknown as { harnessCells: { segmentId: string; ring: [number, number][] }[] }).harnessCells;
+    const mapBox = document.querySelector("[data-testid=map]")!.getBoundingClientRect();
+    const out: { id: string; fits: boolean }[] = [];
+    for (const plate of document.querySelectorAll<HTMLElement>(".plate")) {
+      if (getComputedStyle(plate).visibility === "hidden") continue;
+      const pr = plate.getBoundingClientRect();
+      const at = { x: pr.left + pr.width / 2 - mapBox.left, y: pr.top - 16 - mapBox.top };
+      // The plate hangs 16 px below its cell's centre: find the cell whose box holds that point.
+      const boxes = cells.map((c) => {
+        const pts = c.ring.map((p) => m.project(p));
+        return { id: c.segmentId, l: Math.min(...pts.map((q) => q.x)), r: Math.max(...pts.map((q) => q.x)), t: Math.min(...pts.map((q) => q.y)), b: Math.max(...pts.map((q) => q.y)) };
+      });
+      const cell = boxes.find((b) => at.x >= b.l && at.x <= b.r && at.y >= b.t && at.y <= b.b)!;
+      out.push({ id: cell.id, fits: pr.width <= cell.r - cell.l && pr.height <= cell.b - cell.t });
+    }
+    return out;
+  });
+}
+
+test("on a small map a plate wider than its cell is hidden, never clipped", async ({ page }) => {
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const shown = await platesAgainstCells(page);
+  expect(shown.length).toBeLessThan(17);
+  expect(shown.filter((p) => !p.fits)).toEqual([]);
+});
+
+test("with every percent on, every plate of 0.1% or more shows, and never a <0.1% one", async ({ page }) => {
+  await page.goto("/harness/map.html?every&tiny");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  await expect(page.locator(".plate")).toHaveCount(24);
+  await expect(page.locator(".plate", { hasText: "<0.1%" })).toHaveCount(1);
+  await expect(page.locator(".plate:visible", { hasText: "<0.1%" })).toHaveCount(0);
   await expect(page.locator(".plate:visible")).toHaveCount(23);
+});
+
+test("command's Every percent switch shows every plate of 0.1% or more, and turning it off goes back", async ({ page }) => {
+  await page.goto("/harness/map.html?switch");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const every = page.getByRole("checkbox", { name: "Every percent" });
+  await expect(every).not.toBeChecked();
+  await expect(page.locator(".plate:visible")).toHaveCount(17);
+  await every.check();
+  await expect(page.locator(".plate:visible")).toHaveCount(23);
+  await every.uncheck();
+  await expect(page.locator(".plate:visible")).toHaveCount(17);
+  // It is reachable by keyboard, with a visible focus ring.
+  await every.focus();
+  await expect(every).toBeFocused();
+});
+
+test("the credit is one muted line linking to OpenStreetMap's copyright page, reachable by keyboard with a focus ring", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const credit = page.getByTestId("map-credit");
+  // The harness draws the grid and no basemap, so the line has no Protomaps part.
+  await expect(credit).toHaveText("© OpenStreetMap contributors");
+  const osm = credit.getByRole("link", { name: "© OpenStreetMap contributors" });
+  await expect(osm).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
+  await expect(credit).toHaveCSS("color", "rgb(137, 133, 131)");
+  const box = (await credit.boundingBox())!;
+  expect(box.height).toBeLessThan(24); // one line
+  await osm.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(osm).toBeFocused();
+  await expect(osm).not.toHaveCSS("outline-style", "none");
 });

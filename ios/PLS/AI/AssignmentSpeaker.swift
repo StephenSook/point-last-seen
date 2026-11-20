@@ -93,40 +93,93 @@ final class AssignmentSpeaker {
 @MainActor
 final class OnDeviceVoice: NSObject, AssignmentVoice, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
-    private var started: CheckedContinuation<Double?, Never>?
-    private var requestedAt = Date()
+    private let turns = SpeechTurns()
 
     override init() {
         super.init()
         synthesizer.delegate = self
     }
 
+    /// Waits for any line still playing to end, then asks again whether this one is wanted, so a
+    /// line that waited behind another never plays once it is no longer the mission's.
     func speak(_ text: String, ifStillWanted stillWanted: @MainActor () -> Bool) async -> Double? {
+        await turns.waitForTurn()
         guard stillWanted() else { return nil }
         AssignmentSpeaker.activateAudio()
-        requestedAt = Date()
-        return await withCheckedContinuation { c in
-            started = c
-            synthesizer.speak(AVSpeechUtterance(string: text))
-        }
+        let utterance = AVSpeechUtterance(string: text)
+        let requested = Date()
+        let heard = await turns.run(utterance) { synthesizer.speak(utterance) }
+        return heard ? Date().timeIntervalSince(requested) * 1000 : nil
     }
 
-    /// Stops the line playing and every line queued after it.
+    /// Stops the line playing and every line queued after it, also when the synthesizer never
+    /// calls back.
     func stop() {
         synthesizer.stopSpeaking(at: .immediate)
+        turns.endAll()
     }
 
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.finish(Date().timeIntervalSince(self.requestedAt) * 1000) }
+        let id = ObjectIdentifier(utterance)
+        Task { @MainActor in self.turns.didStart(id) }
+    }
+
+    nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        let id = ObjectIdentifier(utterance)
+        Task { @MainActor in self.turns.didEnd(id) }
     }
 
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.finish(nil) }
+        let id = ObjectIdentifier(utterance)
+        Task { @MainActor in self.turns.didEnd(id) }
+    }
+}
+
+/// Which line the phone's voice is on: each synthesizer callback answers only its own line, and a
+/// new line waits until the one before has ended. The line is held until it ends, so its identity
+/// is never reused meanwhile.
+@MainActor
+final class SpeechTurns {
+    private var current: AnyObject?
+    private var started: CheckedContinuation<Bool, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    /// True while a line is playing or waiting to start.
+    var busy: Bool { current != nil }
+
+    /// Returns once no line is playing or waiting to start.
+    func waitForTurn() async {
+        while current != nil { await withCheckedContinuation { waiters.append($0) } }
     }
 
-    private func finish(_ ms: Double?) {
-        started?.resume(returning: ms)
+    /// Starts a line; true once it is heard, false when it ended before it started.
+    func run(_ line: AnyObject, start: () -> Void) async -> Bool {
+        current = line
+        return await withCheckedContinuation { c in
+            started = c
+            start()
+        }
+    }
+
+    func didStart(_ id: ObjectIdentifier) {
+        guard let current, ObjectIdentifier(current) == id else { return }
+        started?.resume(returning: true)
         started = nil
+    }
+
+    func didEnd(_ id: ObjectIdentifier) {
+        guard let current, ObjectIdentifier(current) == id else { return }
+        endAll()
+    }
+
+    /// Ends the line on the spot and lets every waiting line take its turn.
+    func endAll() {
+        started?.resume(returning: false)
+        started = nil
+        current = nil
+        let waiting = waiters
+        waiters = []
+        waiting.forEach { $0.resume() }
     }
 }
 
