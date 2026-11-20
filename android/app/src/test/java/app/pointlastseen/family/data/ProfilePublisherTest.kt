@@ -143,6 +143,22 @@ class ProfilePublisherTest {
         assertEquals(FirstPublish.Nothing, FirstPublish.of(existing, mine, edited = setOf("flags", "nickname")))
     }
 
+    /**
+     * The rules want the nickname to be the first other name. A legacy document with a nickname and no list
+     * gets no list that contradicts it; a document with a list gets the nickname that list implies.
+     */
+    @Test fun aFirstPublishKeepsTheNicknameAndTheNamesInStep() {
+        val mine = mapOf<String, Any?>("nickname" to "Mom", "otherNames" to listOf("Mom"), "hair" to "grey")
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey")),
+            FirstPublish.of(mapOf("nickname" to "Peggy"), mine),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("nickname" to "Peggy", "hair" to "grey")),
+            FirstPublish.of(mapOf("otherNames" to listOf("Peggy")), mine),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

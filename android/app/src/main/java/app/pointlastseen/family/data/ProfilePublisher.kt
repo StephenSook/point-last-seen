@@ -27,8 +27,28 @@ sealed interface FirstPublish {
     companion object {
         fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>, edited: Set<String> = emptySet()): FirstPublish {
             if (existing == null) return Create(mine)
-            val send = mine.filterKeys { it !in existing || (it in edited && EditableFields.sendable(it, mine[it], existing[it])) }
+            val send = mine.filterKeys { it !in existing || (it in edited && EditableFields.sendable(it, mine[it], existing[it])) }.toMutableMap()
+            keepNamesInStep(existing, send)
             return if (send.isEmpty()) Nothing else Merge(send)
+        }
+
+        /**
+         * The rules want the nickname to be the first other name. A list added to a document whose nickname
+         * contradicts it is left out (a legacy document keeps its nickname alone); a document that has a list
+         * gets the nickname that list implies.
+         */
+        private fun keepNamesInStep(existing: Map<String, Any?>, send: MutableMap<String, Any?>) {
+            if ("nickname" !in send && "otherNames" !in send) return
+            val names = (if ("otherNames" in send) send["otherNames"] else existing["otherNames"]) as? List<*> ?: return
+            val first = names.firstOrNull() as? String ?: ""
+            val nickname = if ("nickname" in send) send["nickname"] else existing["nickname"]
+            if (nickname == first) return
+            if ("otherNames" in send && "otherNames" !in existing && "nickname" in existing) {
+                send.remove("otherNames")
+                send.remove("nickname")
+            } else {
+                send["nickname"] = first
+            }
         }
 
         /** [of], staged only while the phone is still on the join: checked inside the transaction, on every attempt. */
