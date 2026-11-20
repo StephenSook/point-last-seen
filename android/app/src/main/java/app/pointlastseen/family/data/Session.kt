@@ -8,6 +8,12 @@ interface KeyValueStore {
     fun put(key: String, value: String)
     fun remove(key: String)
 
+    /** Writes [value] and says whether it reached the disk (PrefsStore reports its commit; others always succeed). */
+    fun putChecked(key: String, value: String): Boolean {
+        put(key, value)
+        return true
+    }
+
     /** Removes every key in one write where the store can (PrefsStore does), so none survives without the others. */
     fun removeAll(keys: Collection<String>) {
         keys.forEach { remove(it) }
@@ -26,6 +32,8 @@ class PrefsStore(context: Context, name: String) : KeyValueStore {
     override fun remove(key: String) {
         prefs.edit().remove(key).commit()
     }
+
+    override fun putChecked(key: String, value: String): Boolean = prefs.edit().putString(key, value).commit()
 
     override fun removeAll(keys: Collection<String>) {
         val edit = prefs.edit()
