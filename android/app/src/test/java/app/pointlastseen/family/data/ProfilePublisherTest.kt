@@ -1,15 +1,22 @@
 package app.pointlastseen.family.data
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
 class ProfilePublisherTest {
     private class FakeSink(var fail: Boolean = false) : ProfileSink {
         val writes = mutableListOf<Triple<String, String, ProfileWrite>>()
-        override fun write(incidentId: String, docId: String, change: ProfileWrite, onResult: (Throwable?) -> Unit) {
+        val joinChecks = mutableListOf<StillJoined>()
+        override fun write(incidentId: String, docId: String, change: ProfileWrite, stillJoined: StillJoined, onResult: (Throwable?) -> Unit) {
             writes += Triple(incidentId, docId, change)
+            joinChecks += stillJoined
             onResult(if (fail) RuntimeException("offline") else null)
         }
     }
@@ -114,6 +121,45 @@ class ProfilePublisherTest {
         )
         val mine = mapOf<String, Any?>("answersTo" to "Mae", "clothingLastWorn" to "blue coat")
         assertEquals(FirstPublish.AddMissing(mapOf("clothingLastWorn" to "blue coat")), FirstPublish.of(existing, mine))
+    }
+
+    /** A publish for a join the phone has left writes nothing and reports it was not shared. */
+    @Test fun aPublishForASearchThePhoneLeftWritesNothing() {
+        val sink = FakeSink()
+        var done: Boolean? = null
+        ProfilePublisher(sink, MemoryPublished()).publish("inc-1", p, { false }) { done = it }
+        assertEquals(emptyList<Triple<String, String, ProfileWrite>>(), sink.writes)
+        assertEquals(false, done)
+    }
+
+    /** The join check reaches the sink, which checks it again where it stages each write. */
+    @Test fun theSinkGetsTheJoinCheck() {
+        val sink = FakeSink()
+        var joined = true
+        ProfilePublisher(sink, MemoryPublished()).publish("inc-1", p, { joined }) {}
+        joined = false
+        assertEquals(2, sink.joinChecks.size)
+        assertTrue(sink.joinChecks.none { it.check() })
+    }
+
+    /** Inside the first-publish transaction (every attempt): once the phone has left, nothing is staged. */
+    @Test fun aFirstPublishStagesNothingOnceThePhoneHasLeft() {
+        val mine = mapOf<String, Any?>("answersTo" to "Mae")
+        assertEquals(FirstPublish.Create(mine), FirstPublish.staged(null, mine) { true })
+        assertThrows(LeftSearchException::class.java) { FirstPublish.staged(null, mine) { false } }
+    }
+
+    /** Leaving waits for the profile writes already handed to the sink, not only Firestore's pending writes. */
+    @Test fun settleWaitsForProfileWritesInFlight() = runTest {
+        val held = mutableListOf<(Throwable?) -> Unit>()
+        val publisher = ProfilePublisher({ _, _, _, _, onResult -> held += onResult }, MemoryPublished())
+        publisher.publish("inc-1", p) {}
+        val settled = async { publisher.settle() }
+        runCurrent()
+        assertFalse(settled.isCompleted)
+        held.forEach { it(null) }
+        runCurrent()
+        assertTrue(settled.isCompleted)
     }
 
     /** A field command left empty (null) stays empty: a first publish never fills it; an edit does that explicitly. */
