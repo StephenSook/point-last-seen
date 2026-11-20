@@ -237,4 +237,10 @@ class PhoneNumbersTest {
     @Test fun aCapitalOhBeforeAZipShapeIsStillASpokenZero() {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call OH 41234-5678"))
     }
+
+    /** An indent after a line break is no coordinate gap: a number split across lines is never read as a pair. */
+    @Test fun anIndentedLineBreakIsNoCoordinateGap() {
+        assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call +44.2071\r\n    -23.4567"))
+        assertEquals("GPS 33.7490,\r\n 84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n 84.3880 x"))
+    }
 }

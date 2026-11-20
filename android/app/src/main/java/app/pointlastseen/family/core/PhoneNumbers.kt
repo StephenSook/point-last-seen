@@ -192,7 +192,7 @@ object PhoneNumbers {
             if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 && (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59) {
                 kept += i..(i + 1)
             }
-            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2)))) {
+            if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true))) {
                 kept += i..(i + 3)
             }
             if (len(i) <= 3 && !(i > 0 && gap(i - 1, i) == ",")) {
@@ -283,15 +283,19 @@ object PhoneNumbers {
     /**
      * A gap as read: combining marks and format characters dropped (NFKC turns a spacing accent such as ´ into a
      * space and a combining mark; a joiner or a keycap mark is invisible), each line break (CRLF, LF, CR, NEL, or the
-     * Unicode line or paragraph separator) with any indent after it made one "\n", and every other space " ".
+     * Unicode line or paragraph separator) with any indent after it made one "\n", and every other space " ". With
+     * [keepIndent] the indent stays as spaces (a coordinate pair allows only two spaces around its comma, so a number
+     * pasted across indented lines is never read as one).
      */
-    private fun flat(gap: String): String {
+    private fun flat(gap: String, keepIndent: Boolean = false): String {
         val visible = gap.filter { c ->
             val type = Character.getType(c).toByte()
             type != Character.NON_SPACING_MARK && type != Character.ENCLOSING_MARK && type != Character.FORMAT
         }
-        return LINE_BREAK.replace(visible, "\n").map { if (it != '\n' && it.isWhitespace()) ' ' else it }.joinToString("")
+        return (if (keepIndent) BREAK else LINE_BREAK).replace(visible, "\n").map { if (it != '\n' && it.isWhitespace()) ' ' else it }.joinToString("")
     }
+
+    private val BREAK = Regex("""\r\n|\n|\r|\u0085|\u2028|\u2029""")
 
     private val LINE_BREAK = Regex("""(\r\n|\n|\r|\u0085|\u2028|\u2029)[ \t]*""")
 }
