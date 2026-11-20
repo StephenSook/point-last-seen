@@ -25,6 +25,15 @@ test("with no published run the page says so once and offers a practice search f
   await expect(page.getByText("Training drill. Nobody is missing.")).toBeVisible();
 });
 
+test("the judge page carries one advice line from a dementia-care expert, by name", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const advice = page.getByTestId("judge-advice");
+  await expect(advice).toBeVisible();
+  await expect(advice).toContainText("Kim Franklin of the Alzheimer's Association Georgia told us");
+  await expect(advice).toContainText("because the longer you wait, the further they can get.");
+  await expect(advice).toHaveCount(1);
+});
+
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
