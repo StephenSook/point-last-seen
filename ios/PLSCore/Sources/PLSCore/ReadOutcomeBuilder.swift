@@ -172,7 +172,7 @@ public enum ReadOutcomeBuilder {
 /// far shorter, so they stay.
 ///
 /// Search information made of digits can sit inside such a run: a written date (a month and day with
-/// no year included), a time, a coordinate pair in range, a ZIP+4 code after a state, a month-name date, a number with a
+/// no year included), a time, a coordinate pair in range (not after a "+"), a ZIP+4 code after a state, a month-name date, a number with a
 /// unit. It stays only when the rest of the run is nothing or whole numbers of seven or more digits
 /// (which are removed); when any other piece of 1 to 6 digits is left beside it, the whole run is
 /// removed, since that piece could be part of a number. A number with an ordinal ending (67th) never
@@ -328,7 +328,9 @@ public enum PhoneNumbers {
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
                 kept.formUnion([i, i + 1])
             }
-            if degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
+            // A decimal pair after a "+" is an international number, not a coordinate.
+            let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
+            if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
                 kept.formUnion(i...(i + 3))
             }
             if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4, i > 0, !parts[i - 1].written,

@@ -145,6 +145,13 @@ import Testing
         #expect(PhoneNumbers.scrub("Call 13/45 555 0142") == "Call [number removed]")
     }
 
+    /// A decimal pair that starts with "+" is a phone number (an international prefix), not a coordinate.
+    @Test func aDecimalPairAfterAPlusIsANumber() {
+        #expect(PhoneNumbers.scrub("Call +44.2071, -23.4567") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("GPS 33.7490, -84.3880") == "GPS 33.7490, -84.3880")
+        #expect(PhoneNumbers.scrub("GPS -33.8688, 151.2093") == "GPS -33.8688, 151.2093")
+    }
+
     /// Digit groups that only look like a date are still numbers: no month 13, no year 5551.
     @Test func numbersShapedLikeDatesAreStillRemoved() {
         for text in ["404/555/0142", "13/45/2026", "5551-12-34", "404-555-0142"] {
