@@ -56,6 +56,12 @@ struct ReadyCheckView: View {
                         .toggleStyle(FieldToggleStyle())
                     Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
                 }
+                #if DEBUG
+                section("Eval") {
+                    NavigationLink("Report-reading eval") { EvalView(model: model) }
+                        .accessibilityIdentifier("eval-link")
+                }
+                #endif
             }
             .padding()
         }
