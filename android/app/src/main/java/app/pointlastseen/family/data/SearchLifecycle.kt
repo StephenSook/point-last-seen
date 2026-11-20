@@ -95,6 +95,23 @@ object Departure {
     }
 }
 
+/**
+ * Which operation owns a screen's busy state. Each operation takes a turn; only the newest may release busy, and a
+ * reset (leaving or being dropped) ends every turn taken before it, so a late result for a search left cannot unlock
+ * the screen while a search joined since is busy.
+ */
+class BusyOwner {
+    private var turn = 0
+
+    @Synchronized fun take(): Int = ++turn
+
+    @Synchronized fun owns(operation: Int): Boolean = operation == turn
+
+    @Synchronized fun reset() {
+        turn++
+    }
+}
+
 /** At most one pending wait: scheduling again replaces the earlier one, so retries for one purpose never stack. */
 class OneTimer(private val scope: CoroutineScope) {
     private var job: Job? = null

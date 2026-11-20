@@ -29,6 +29,7 @@ import app.pointlastseen.family.core.JpegEncoder
 import app.pointlastseen.family.core.MAX_CLIP_BYTES
 import app.pointlastseen.family.core.SharedUris
 import app.pointlastseen.family.core.SightingCheck
+import app.pointlastseen.family.data.BusyOwner
 import app.pointlastseen.family.data.EventWriter
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -170,6 +171,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         return StillJoined { joins.isCurrent(ticket) && session.incidentId() == incidentId }
     }
 
+    // Which photo operation (an upload or a withdrawal) owns the photo screen's busy state. Declared before init, which
+    // can reach a drop (and so stopJoinedWork) before later properties are set.
+    private val photoWork = BusyOwner()
+
     /** Stops the photo and clip work of the join being left; its screens go back to idle, with no clip card left over. */
     private fun stopJoinedWork() {
         joinedWork.cancel()
@@ -178,7 +183,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         lastClip = null
         clipUri = null
         clipLabel = null
-        // The photo counts and notes, and the "not shared" note, were for the search being left.
+        // The photo counts and notes, and the "not shared" note, were for the search being left; so was any photo
+        // operation still running, which may no longer release the busy state.
+        photoWork.reset()
         photosUi = PhotosUi(0, false, null)
         profileShareFailed = false
     }
@@ -558,6 +565,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
+        val operation = photoWork.take()
         // The tick, as it stands when the photos are chosen, is the consent for each of them.
         val consent = if (photosUi.cloudRead) Firebase.auth.currentUser?.uid?.let { ConsentMark(it, System.currentTimeMillis()) } else null
         val still = stillJoined(incidentId)
@@ -584,7 +592,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     PhotoOutcome.Left -> break
                 }
             }
-            photosUi = photosUi.copy(busy = false)
+            if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
         }
     }
 
@@ -636,9 +644,6 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // Which withdrawal owns the photo screen's busy state.
-    private var withdrawals = 0
-
     private val consentedPhotos by lazy { ConsentedPhotos(PrefsStore(getApplication(), "pls-consented")) }
 
     /** Deletes the consent records this phone made, so command can no longer read those photos in the cloud. */
@@ -646,7 +651,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
         val still = stillJoined(incidentId)
-        val operation = ++withdrawals
+        val operation = photoWork.take()
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
             val me = Firebase.auth.currentUser?.uid
@@ -654,13 +659,13 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
             // The withdrawal still runs to the end after a leave (it only takes consent away), but its result is for
             // that search: it must not change the photo screen of a search joined since. It still lets go of the busy
-            // screen it set, unless a newer withdrawal has taken it.
+            // screen it set, unless a newer photo operation or a leave has taken it.
             if (!still.check()) {
-                if (operation == withdrawals) photosUi = photosUi.copy(busy = false)
+                if (photoWork.owns(operation)) photosUi = photosUi.copy(busy = false)
                 return@launch
             }
             photosUi = photosUi.copy(
-                busy = false,
+                busy = if (photoWork.owns(operation)) false else photosUi.busy,
                 consented = consentedPhotos.list(incidentId).size,
                 // A withdrawal with no failure settled every listed consent, the unconfirmed ones included.
                 unconfirmed = if (r.failed == 0) 0 else photosUi.unconfirmed,
