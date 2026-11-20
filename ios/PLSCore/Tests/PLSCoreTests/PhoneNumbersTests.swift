@@ -14,6 +14,48 @@ import Testing
         #expect(PhoneNumbers.scrub("Seen 11/19/2026 404/555/0142") == "Seen 11/19/2026 [number removed]")
     }
 
+    /// Chinese numeral digits are digits, and a pasted line break (CRLF) is one separator.
+    @Test func chineseDigitsAndPastedLineBreaksAreCaught() {
+        #expect(PhoneNumbers.scrub("Call \u{56db}\u{96f6}\u{56db}\u{4e94}\u{4e94}\u{4e94}\u{96f6}\u{4e00}\u{56db}\u{4e8c}") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Call 404-555\r\n  0142") == "Call [number removed]")
+    }
+
+    /// Dashes other than the plain hyphen (non-breaking, hyphen, en, minus) join a number's parts too.
+    @Test func unicodeDashesJoinANumber() {
+        for dash in ["\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2212}"] {
+            #expect(PhoneNumbers.scrub("Call 404\(dash)555\(dash)0142") == "Call [number removed]", "\(dash.unicodeScalars.first!.value)")
+        }
+    }
+
+    /// A date carved out of a longer run is not a date: "06.12.20" inside a dotted number, or "2026-11-19"
+    /// after a US number's first groups. A date beside a whole number of its own stays, and the number goes.
+    @Test func aDateNeverShieldsPartOfANumber() {
+        #expect(PhoneNumbers.scrub("Call 06.12.20.26.19") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Call 404-555-2026-11-19") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Seen 11/19/2026 404-555-0142") == "Seen 11/19/2026 [number removed]")
+        #expect(PhoneNumbers.scrub("Seen 11/19/2026, call 404-555-0142") == "Seen 11/19/2026, call [number removed]")
+    }
+
+    /// Search information made of digits stays: coordinates, ordinals and units, grouped counts, ZIP+4.
+    @Test func coordinatesOrdinalsUnitsCountsAndZipCodesStay() {
+        for text in ["GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 1,234,567 steps",
+                     "about 2 5km loops", "Atlanta, GA 30301-1234"] {
+            #expect(PhoneNumbers.scrub(text) == text, "\(text)")
+        }
+    }
+
+    /// A time or a month-name date beside a number stays; only the number goes.
+    @Test func aTimeOrMonthDateBesideANumberStays() {
+        #expect(PhoneNumbers.scrub("Seen at 14:03, 404-555-0142") == "Seen at 14:03, [number removed]")
+        #expect(PhoneNumbers.scrub("Nov 19 2026 404-555-0142") == "Nov 19 2026 [number removed]")
+        #expect(PhoneNumbers.scrub("19 November 2026, 404-555-0142") == "19 November 2026, [number removed]")
+    }
+
+    /// Spoken digits in capitals are caught whatever the phone's language (casing is not the device's).
+    @Test func spokenDigitsInCapitalsAreCaught() {
+        #expect(PhoneNumbers.scrub("call FOUR OH FOUR FIVE FIVE FIVE OH ONE FOUR TWO") == "call [number removed]")
+    }
+
     /// Digit groups that only look like a date are still numbers: no month 13, no year 5551.
     @Test func numbersShapedLikeDatesAreStillRemoved() {
         for text in ["404/555/0142", "13/45/2026", "5551-12-34", "404-555-0142"] {

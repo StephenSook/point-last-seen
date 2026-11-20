@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): phone numbers by the shared rule: no date shields a number; search details stay
+- What: the iPhone's phone-number rule now matches the Android rule. A date carved out of a longer run
+  of digits no longer shields part of a number ("06.12.20.26.19", "404-555-2026-11-19" are removed);
+  a date beside a whole number of its own still stays. Non-breaking, en and em dashes and the minus
+  sign join a number's parts like a hyphen. Search information made of digits counts no digits, so
+  it stays and never joins a number: a time (14:03), a coordinate pair (33.7490, -84.3880), a
+  grouped count (1,234,567), a ZIP+4 code (30301-1234) and a month-name date (Nov 19 2026, 19 November
+  2026); a number glued to a unit or an ordinal ending (67th, 5km) counts alone. Chinese numeral
+  digits, a pasted line break and spoken digits in capitals were already caught; tests now pin them.
+- Source: review (phone-number review of the Android rule; the same gaps were in the iPhone rule).
+- Verified: tests for each case above; the date, dash, time and month-date, and search-information
+  tests failed before the change and pass after; all 322 core tests pass.
+
 ### fix(ios): written dates stay in a report; a slash-joined phone number still goes
 - What: a date is search information (when someone was last seen), not a phone number. The phone
   number rule now keeps three digit groups joined by the same one of / - . that read as a date:
