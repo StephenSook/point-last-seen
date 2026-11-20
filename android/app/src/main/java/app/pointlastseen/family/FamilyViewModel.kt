@@ -178,8 +178,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         lastClip = null
         clipUri = null
         clipLabel = null
-        // The photo counts and notes were for the search being left.
+        // The photo counts and notes, and the "not shared" note, were for the search being left.
         photosUi = PhotosUi(0, false, null)
+        profileShareFailed = false
     }
 
     init {
@@ -640,11 +641,15 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun withdrawCloudRead() {
         val incidentId = session.incidentId() ?: return
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
+        val still = stillJoined(incidentId)
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
             val me = Firebase.auth.currentUser?.uid
             val owner: suspend (String, String) -> RecordOwner = { inc, sha -> RecordOwner.of(sink.creatorOf(inc, sha), me) }
             val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
+            // The withdrawal still runs to the end after a leave (it only takes consent away), but its result is for
+            // that search: it must not change the photo screen of a search joined since.
+            if (!still.check()) return@launch
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
