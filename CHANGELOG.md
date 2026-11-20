@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
+  iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
+  words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,
+  unmeasured, and evidence in another language escapes the pre-screen. Source: review (language scope not stated).
+  Verified against gate.ts, ModelSessionFactory.swift, ReportParser.swift, evidence-terms.json and its three readers,
+  ReadOutcomeBuilder.swift, and the prompt templates (none names a language).
 - Gemini burn rate measured: `scripts/ai_spend.py` reads AI Logic's token counts and the practice searches started
   (ops/judgeSessions-{day}), prices the tokens at the Gemini Developer API paid rates (source and read date in the
   file; a model with no price fails the run) and projects a week at the daily cap of 50. 2026-11-13 to 2026-11-20:

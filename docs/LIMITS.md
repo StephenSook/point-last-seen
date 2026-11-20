@@ -70,6 +70,16 @@ each line says what the limit is and why.
   also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
   is not a plan.
 
+## Language
+
+- Notes are expected in English. The web asks Chrome's on-device model for English text in and out
+  (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
+  setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
+  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule knows
+  US formats on the web and Android, while the iPhone removes any run of 7 or more digits or English digit words. A
+  note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
+  well it reads one. Evidence described in another language is not caught by the pre-screen.
+
 ## On-device safety (Android)
 
 - The family app's note read asks for the on-device model first (PREFER_ON_DEVICE). Firebase AI Logic's
