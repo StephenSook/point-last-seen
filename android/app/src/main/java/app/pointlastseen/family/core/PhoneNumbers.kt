@@ -76,7 +76,8 @@ object PhoneNumbers {
             if (!parts[i].written && parts[i + 1].digits > 0 && onlySeparators(folded.substring(parts[i].end, parts[i + 1].start))) parts[i].digits = repeat
         }
         for (i in parts.indices) {
-            if (parts[i].written && i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end &&
+            // An ordinal is a number of one to three digits (67th, 125th); a longer group ending in "th" is still part of a number.
+            if (parts[i].written && parts[i].digits <= 3 && i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end &&
                 word(folded, parts[i + 1]) in ORDINALS
             ) {
                 parts[i].alone = true

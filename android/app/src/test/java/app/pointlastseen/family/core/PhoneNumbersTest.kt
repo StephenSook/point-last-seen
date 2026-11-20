@@ -273,4 +273,13 @@ class PhoneNumbersTest {
             assertEquals(out, false, out.any { it.isDigit() })
         }
     }
+
+    /** Only a number of one to three digits takes an ordinal ending (67th, 125th): a fourth group ending in "th" still joins. */
+    @Test fun aLongGroupWithAnOrdinalEndingStillJoins() {
+        for (text in listOf("Call 404-555-0142th", "Call 404 555 0142nd")) {
+            val out = PhoneNumbers.remove(text)
+            assertEquals("$text -> $out", false, out.any { it.isDigit() })
+        }
+        assertEquals("12345 67th Ave and 12345 125th St", PhoneNumbers.remove("12345 67th Ave and 12345 125th St"))
+    }
 }
