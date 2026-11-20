@@ -74,6 +74,26 @@ describe("handlePlanCreated", () => {
     expect(await handlePlanCreated(admin.db, messaging, "judge-u1", "0001", NOW)).toEqual({ teams: [] });
     expect(sent).toHaveLength(0);
   });
+  it("a redelivered plan event sends nothing more: each team's notice for a plan version is claimed once (review)", async () => {
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW)).teams).toEqual(["T1", "T2"]);
+    expect(await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW + 1000)).toEqual({ teams: [] });
+    expect(sent).toHaveLength(2);
+  });
+  it("a plan that a newer plan has already replaced announces nothing (review)", async () => {
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"])] });
+    await admin.db.doc("incidents/I1/plans/0002").set({ version: 2, assignments: [a("T1", ["AB"])] });
+    expect(await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW)).toEqual({ teams: [] });
+    expect(sent).toHaveLength(0);
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0002", NOW)).teams).toEqual(["T1"]);
+  });
+  it("a send that fails gives its claim back, so a redelivery sends it (review)", async () => {
+    await admin.db.doc("incidents/I1/plans/0001").set({ version: 1, assignments: [a("T1", ["AA"]), a("T2", ["AB"])] });
+    const failing = { send: async () => { throw new Error("FCM unavailable"); } };
+    await expect(handlePlanCreated(admin.db, failing, "I1", "0001", NOW)).rejects.toThrow("FCM unavailable");
+    expect((await handlePlanCreated(admin.db, messaging, "I1", "0001", NOW + 1000)).teams).toEqual(["T1", "T2"]);
+    expect(sent).toHaveLength(2);
+  });
   it("is registered on plan creation", async () => {
     const { notifyPlanApproved } = await import("../src/index");
     const ep = (notifyPlanApproved as unknown as { __endpoint: { eventTrigger?: { eventType: string; eventFilters?: unknown } } }).__endpoint;
