@@ -1838,3 +1838,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the ranked list's heading wraps POA in `<abbr title="Probability of area: the engine's estimate for each segment">`, so a reader new to search terms can find out what the column is. The heading's accessible name stays "POA".
 - Source: review finding (unexplained abbreviation on the command post).
 - Verified: a new harness check in `e2e/harness/rank.spec.ts` failed first (no abbr), then passed with the other rank and change harness checks (9); typecheck clean.
+
+### fix(judge): the laptop check no longer mentions sample photos
+- What: `d2Copy` (Get this laptop ready on /judge) says "It cannot read photos on this laptop." for a model that takes text only, and "ready for the sighting note and photos." for one that takes images; it no longer names "sample photos", since the judge page shows none and a practice search has none. The unused `photoButton` field ("Read sample photos on this laptop"), which nothing rendered, is gone.
+- Source: review finding (judge-page wording about photos that are not there).
+- Verified: the updated `d2Copy` tests and a new one (no line in any state names sample photos) failed first, then passed (19/19 in `src/judge/judge.test.ts`); web unit suite green; typecheck clean.
