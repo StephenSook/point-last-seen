@@ -1724,3 +1724,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `family.spec.ts` finds the command post's family channel with `{ name: "Family", exact: true }`. On a post whose family has shared photos, the "Family photos" tray also matched the plain name, and the strict locator failed before checking anything.
 - Source: a deployed-site run on the test drill (the tray is present there).
 - Verified: the spec failed against the live site on the test drill with "strict mode violation ... resolved to 2 elements", then passed with the exact name; typecheck clean.
+
+### fix(data): read callable errors without the SDK's appended status
+- What: `data/callableError.ts` gives a failed Cloud Functions call as `{ code, message, reason }`: the server's sentence with the " [503]" the Firebase SDK appends removed, and `details.reason` when the server sends one. Not used by the mappers yet.
+- Source: a live practice search started twice at once showed "No connection" for the server's "still being set up" answer; the SDK had ended the message with " [503]", so an exact match missed.
+- Verified: `src/data/callableError.test.ts` (3 tests, the first two run a real callable through the SDK against a stubbed 503 and 429) failed first (module missing), then passed; the raw SDK message is asserted to end in " [503]".
