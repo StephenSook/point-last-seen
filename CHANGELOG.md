@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
+  touching the incident's primary code: `--add-code <project> <incidentId> <role> <incidentId>-<name>` keeps the code
+  in the Keychain under the role's service and its own account and then creates its joinCodes doc (only if absent);
+  `--revoke-code` checks that the doc names this incident and role, deletes it (only if present) and removes the
+  Keychain entry. An account that is not `<incidentId>-<name>`, such as the primary account, is refused before
+  anything changes. A searcher code for the test drill was added this way for Apple's Beta App Review, under
+  account `drill-test-1-reviewer`.
+  Source: the iPhone app's TestFlight review needs a join code that can be revoked after the review.
+  Verified: the tests (the account rule; the create-only and delete-only writes; argument checks before any change)
+  failed first, now all 35 seed tests pass; live, the reviewer code is 8 characters in the Keychain, differs from the
+  primary code, and its doc reads back as a searcher code of drill-test-1.
 - The web workflow's ffmpeg comes first from a pinned static build in a GitHub release (BtbN FFmpeg-Builds, the
   month-end autobuild of 2026-10-31, release 8.1), checked against its SHA-256 before use, and only falls back to one
   bounded apt install. Ubuntu's apt mirrors stalled this step three times, the last on main after the bounded apt
