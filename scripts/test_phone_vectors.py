@@ -14,7 +14,8 @@ VECTOR = ROOT / "shared/test-vectors/phone-numbers.json"
 # The cases the review asked for, in these exact spellings; a removal or rewording must be deliberate.
 REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one four two", "+44 20 7946 0958",
                    "+52 55 1234 5678", "404/555/0142", "(404) 555-0142", "404 555 0142"]
-REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%"]
+# A date in a note is search information, not a phone number, so every platform keeps it.
+REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19"]
 
 
 def load() -> dict:
