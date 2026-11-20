@@ -15,6 +15,9 @@ struct RootView: View {
             NavigationStack {
                 TaskView(model: model)
                     .toolbar {
+                        if let mission = model.mission {
+                            NavigationLink("Map") { SearchMapScreen(mission: mission, posterior: model.posterior) }
+                        }
                         NavigationLink("Ready check") { ReadyCheckView(model: model) }
                     }
             }

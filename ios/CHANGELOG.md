@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the search map screen, on the grid's offline tiles
+- What: a Map link (with a mission loaded) opens the team's search map: every grid segment shaded
+  by probability in the web map's ramp (the posterior after this phone's reports, else the pack's
+  prior), the team's own segments outlined, the printed number on a dark plate at each centre,
+  and the OpenStreetMap line at the bottom ("Map data from OpenStreetMap contributors (ODbL).
+  Basemap: Protomaps." when the tiles are drawn). The app bundles both drill grids' PMTiles files
+  (Kennesaw and Piedmont); the map picks them by the incident's grid id, works with no signal, and
+  falls back to plain ground for a grid it does not carry. The map fits the grid once it loads.
+- Source: map screen, step 1 (polygons shaded by posterior, offline base, OpenStreetMap credit).
+- Verified: tests for picking the tiles by grid id (both bundled, unknown and none fall back), the
+  credit line with and without tiles and with no segments, and the numbers (posterior, else prior);
+  they failed to compile before the change and pass after; 116 app tests pass. On the simulator
+  the Piedmont drill drew on the bundled tiles (streets, buildings and water under the fills), and
+  the credit was on screen as element "map-credit".
+
 ### feat(ios-core): the search map's style, in the web map's order
 - What: PLSCore builds the MapLibre style for the phone's search map, matching the web map: grey
   ground, the grid basemap's parks, water and buildings under the probability fills (0.9 opacity,
