@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: exact case "Seen 11/19/2026 14:03 404-555-0142" -> "Seen 11/19/2026 14:03 [number removed]" (a date
+  and a time both stay beside a removed number), pending on web and android; the iPhone gives this output today.
+  Source: the iPhone team's run. Verified: scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: a time keeps its place only after a date or on its own beside a number; joined to other digits before
   its hour, or after a ZIP+4 code, it goes with the run (mustRemove "Call 1 404 555 01:42" and "Call GA 40455-5014
   2:30", pending on web, ios and android). LIMITS: a phone number written like a street address ("Call 5550 142nd St")

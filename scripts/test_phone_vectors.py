@@ -41,7 +41,8 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   ("Seen 2026-11-19 404-555-0142", "Seen 2026-11-19 [number removed]"),
                   ("Seen 11/19 555-0142", "Seen 11/19 [number removed]"),
                   ("Seen 11/19/2026, call 404-555-0142", "Seen 11/19/2026, call [number removed]"),
-                  ("Seen Nov 19 2026 404-555-0142", "Seen Nov 19 2026 [number removed]")]
+                  ("Seen Nov 19 2026 404-555-0142", "Seen Nov 19 2026 [number removed]"),
+                  ("Seen 11/19/2026 14:03 404-555-0142", "Seen 11/19/2026 14:03 [number removed]")]
 
 
 def number_chars(text: str) -> bool:
