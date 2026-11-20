@@ -57,9 +57,18 @@ class PhotoConsentWithdrawalTest {
     /** A consent kept on the phone whose write never reached the server (left mid-write, offline) is cleared, not failed. */
     @Test fun aRecordThatNeverLandedIsClearedNotCountedAsFailed() = runTest {
         val consented = ConsentedPhotos(MemoryStore()).apply { add("inc-1", sha1) }
-        val result = PhotoConsentWithdrawal(consented, isOnServer = { _, _ -> false }) { _, _ -> throw RuntimeException("PERMISSION_DENIED") }
+        val result = PhotoConsentWithdrawal(consented, recordOwner = { _, _ -> RecordOwner.NONE }) { _, _ -> throw RuntimeException("PERMISSION_DENIED") }
             .withdrawAll("inc-1")
         assertEquals(PhotoConsentWithdrawal.Result(withdrawn = 1, failed = 0), result)
+        assertEquals(emptyList<String>(), consented.list("inc-1"))
+    }
+
+    /** A listed consent whose record another family member made: only they can withdraw it, so it leaves this list and is reported. */
+    @Test fun aRecordAnotherMemberMadeLeavesThisListAndIsReported() = runTest {
+        val consented = ConsentedPhotos(MemoryStore()).apply { add("inc-1", sha1) }
+        val result = PhotoConsentWithdrawal(consented, recordOwner = { _, _ -> RecordOwner.ANOTHER }) { _, _ -> throw RuntimeException("PERMISSION_DENIED") }
+            .withdrawAll("inc-1")
+        assertEquals(PhotoConsentWithdrawal.Result(withdrawn = 0, failed = 0, byAnother = 1), result)
         assertEquals(emptyList<String>(), consented.list("inc-1"))
     }
 

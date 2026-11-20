@@ -36,6 +36,7 @@ import app.pointlastseen.family.data.FirebaseJoinBackend
 import app.pointlastseen.family.data.CloudRead
 import app.pointlastseen.family.data.ConsentedPhotos
 import app.pointlastseen.family.data.PhotoConsentWithdrawal
+import app.pointlastseen.family.data.RecordOwner
 import app.pointlastseen.family.push.FamilyTopic
 import app.pointlastseen.family.data.FamilyEdits
 import app.pointlastseen.family.data.FamilyQuestionStore
@@ -628,16 +629,27 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         photosUi = photosUi.copy(busy = true, withdrawNote = null)
         viewModelScope.launch {
             val sink = FirestorePhotoConsentSink()
-            val r = PhotoConsentWithdrawal(consentedPhotos, isOnServer = { inc, sha -> sink.creatorOf(inc, sha) != null }) { inc, sha -> sink.delete(inc, sha) }
-                .withdrawAll(incidentId)
+            val me = Firebase.auth.currentUser?.uid
+            val owner: suspend (String, String) -> RecordOwner = { inc, sha ->
+                when (sink.creatorOf(inc, sha)) {
+                    null -> RecordOwner.NONE
+                    me -> RecordOwner.ME
+                    else -> RecordOwner.ANOTHER
+                }
+            }
+            val r = PhotoConsentWithdrawal(consentedPhotos, recordOwner = owner) { inc, sha -> sink.delete(inc, sha) }.withdrawAll(incidentId)
             fun photos(n: Int) = if (n == 1) "1 photo" else "$n photos"
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
-                withdrawNote = when {
-                    r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
-                    else -> "The cloud read is off for ${photos(r.withdrawn)}."
-                },
+                withdrawNote = listOfNotNull(
+                    when {
+                        r.failed > 0 -> "The cloud read could not be turned off for ${photos(r.failed)}. Check the connection and try again."
+                        r.withdrawn > 0 || r.byAnother == 0 -> "The cloud read is off for ${photos(r.withdrawn)}."
+                        else -> null
+                    },
+                    if (r.byAnother > 0) "Another family member allowed the cloud read for ${photos(r.byAnother)}. Only they can turn it off." else null,
+                ).joinToString(" "),
             )
         }
     }

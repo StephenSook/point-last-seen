@@ -69,6 +69,7 @@ class PhotoUpload(
     /** Where this phone lists the consents it made: written before the record's write starts, so a write cut short is still listed. */
     private val ledger: ConsentLedger? = null,
 ) {
+
     /**
      * [consent] is the family's tick for command's cloud read of this photo: its record is written
      * only after the photo uploads, and never without the tick. [stillJoined] is checked before the
@@ -109,9 +110,9 @@ class PhotoUpload(
                     try {
                         sink.create(incidentId, sha, PhotoConsentRecord.of(incidentId, sha, consent))
                     } catch (e: Exception) {
-                        // Refused or failed: nothing to withdraw. Cancelled: the write may still land, so it stays listed.
-                        if (e !is kotlinx.coroutines.CancellationException) ledger?.remove(incidentId, sha)
-                        throw e
+                        // Cancelled: the write may still land, so it stays listed. Refused or failed: read back whose it is.
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        return afterRefusedCreate(incidentId, sha, consent, path, sink)
                     }
                     PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
                 }
@@ -124,6 +125,25 @@ class PhotoUpload(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             PhotoOutcome.Uploaded(path, CloudRead.NOT_SAVED)
+        }
+    }
+
+    /**
+     * A refused or failed consent write is read back: this user's record (another attempt of theirs landed) stays
+     * listed; no record, or another member's, is taken off this phone's list; a read that fails proves nothing, so
+     * the consent stays listed and withdrawal settles it later.
+     */
+    private suspend fun afterRefusedCreate(incidentId: String, sha: String, consent: ConsentMark, path: String, sink: PhotoConsentSink): PhotoOutcome {
+        val creator = try {
+            sink.creatorOf(incidentId, sha)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return PhotoOutcome.Uploaded(path, CloudRead.NOT_SAVED)
+        }
+        return when (creator) {
+            consent.byUid -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED)
+            null -> PhotoOutcome.Uploaded(path, CloudRead.NOT_SAVED).also { ledger?.remove(incidentId, sha) }
+            else -> PhotoOutcome.Uploaded(path, CloudRead.ALLOWED_BY_ANOTHER).also { ledger?.remove(incidentId, sha) }
         }
     }
 }

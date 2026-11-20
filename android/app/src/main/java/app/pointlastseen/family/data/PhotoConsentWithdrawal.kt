@@ -29,22 +29,27 @@ class ConsentedPhotos(private val store: KeyValueStore) : ConsentLedger {
     }
 }
 
+/** Whose consent record a photo has on the server. */
+enum class RecordOwner { NONE, ME, ANOTHER }
+
 /**
  * Withdraws command's cloud read of this phone's photos: deletes each consent record this phone made.
- * A record is forgotten only once its delete succeeded, or once [isOnServer] says it never reached the server
- * (the phone lists a consent before its write starts, so a write cut short can leave one that never landed);
- * a failed one can be withdrawn again.
+ * When a delete fails, [recordOwner] says why: no record (the phone lists a consent before its write starts,
+ * so a write cut short can leave one that never landed) clears it as withdrawn; another member's record clears
+ * it from this phone's list and is reported in [Result.byAnother], since only that member can withdraw it; this
+ * user's own record (or a read that fails) stays listed, to be withdrawn again.
  */
 class PhotoConsentWithdrawal(
     private val consented: ConsentedPhotos,
-    private val isOnServer: suspend (String, String) -> Boolean = { _, _ -> true },
+    private val recordOwner: suspend (String, String) -> RecordOwner = { _, _ -> RecordOwner.ME },
     private val delete: suspend (String, String) -> Unit,
 ) {
-    data class Result(val withdrawn: Int, val failed: Int)
+    data class Result(val withdrawn: Int, val failed: Int, val byAnother: Int = 0)
 
     suspend fun withdrawAll(incidentId: String): Result {
         var withdrawn = 0
         var failed = 0
+        var byAnother = 0
         for (sha in consented.list(incidentId)) {
             try {
                 delete(incidentId, sha)
@@ -52,22 +57,21 @@ class PhotoConsentWithdrawal(
                 withdrawn++
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                if (neverLanded(incidentId, sha)) {
-                    consented.remove(incidentId, sha)
-                    withdrawn++
-                } else {
-                    failed++
+                when (ownerOrNull(incidentId, sha)) {
+                    RecordOwner.NONE -> { consented.remove(incidentId, sha); withdrawn++ }
+                    RecordOwner.ANOTHER -> { consented.remove(incidentId, sha); byAnother++ }
+                    RecordOwner.ME, null -> failed++
                 }
             }
         }
-        return Result(withdrawn, failed)
+        return Result(withdrawn, failed, byAnother)
     }
 
-    /** True only when the server answers that no record exists; a check that cannot run proves nothing. */
-    private suspend fun neverLanded(incidentId: String, sha: String): Boolean = try {
-        !isOnServer(incidentId, sha)
+    /** Null when the check cannot run: that proves nothing. */
+    private suspend fun ownerOrNull(incidentId: String, sha: String): RecordOwner? = try {
+        recordOwner(incidentId, sha)
     } catch (e: Exception) {
         if (e is kotlinx.coroutines.CancellationException) throw e
-        false
+        null
     }
 }

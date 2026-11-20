@@ -117,6 +117,32 @@ class PhotoUploadTest {
         assertEquals(emptySet<String>(), ledger.kept)
     }
 
+    /** A consent write refused because this user's record is already there (another attempt landed): it stays listed. */
+    @Test fun aRefusedCreateWhoseRecordThisUserAlreadyMadeStaysListed() = runTest {
+        val ledger = FakeLedger()
+        var reads = 0
+        val sink = object : PhotoConsentSink {
+            override suspend fun creatorOf(incidentId: String, sha256: String): String? = if (reads++ == 0) null else "uid-1"
+            override suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord) = throw RuntimeException("PERMISSION_DENIED")
+        }
+        val out = PhotoUpload(FakeBucket(), sink, ledger = ledger).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.ALLOWED, out.cloudRead)
+        assertEquals(setOf(sha), ledger.kept)
+    }
+
+    /** A refused consent write whose read-back fails is ambiguous: it stays listed, and withdrawal settles it later. */
+    @Test fun aRefusedCreateWhoseReadBackFailsStaysListed() = runTest {
+        val ledger = FakeLedger()
+        var reads = 0
+        val sink = object : PhotoConsentSink {
+            override suspend fun creatorOf(incidentId: String, sha256: String): String? = if (reads++ == 0) null else throw IllegalStateException("offline")
+            override suspend fun create(incidentId: String, sha256: String, record: PhotoConsentRecord) = throw RuntimeException("UNAVAILABLE")
+        }
+        val out = PhotoUpload(FakeBucket(), sink, ledger = ledger).upload("inc-1", jpeg, tick) as PhotoOutcome.Uploaded
+        assertEquals(CloudRead.NOT_SAVED, out.cloudRead)
+        assertEquals(setOf(sha), ledger.kept)
+    }
+
     /** A consent write the server refused is not kept on the phone: there is nothing to withdraw. */
     @Test fun aConsentWriteThatFailsIsNotKeptOnThePhone() = runTest {
         val ledger = FakeLedger()
