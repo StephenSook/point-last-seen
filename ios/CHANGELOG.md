@@ -13,6 +13,30 @@ finding) and how it was verified. Newest first.
 - Source: review (claims audit).
 - Verified: read against ModelSessionFactory.swift; no other "hybrid" claim in the eval README.
 
+### fix(ios): Apple's model reads the report alone, without the subject's description
+- What: on the phone, Apple's model got the subjectDescription tool and an instruction to compare the
+  report with it, and it copied the description into readings: a quote from the description
+  ("Clothing last worn: blue coat.") that the validator rejected, and the description's colours.
+  The on-device guided read now gets only the segmentHere and teamAssignment tools and its own
+  instructions (PromptText.onDeviceGuided: "Set matchesProfile to unknown."); code decides the match.
+  Its token count uses the same prompt and tools. The cloud read is unchanged: same tools, same prompt,
+  same allow-list.
+- Source: review (Apple's model not used on a real iPhone; simulator probe showed the leak).
+- Verified: tests that Apple's model gets no description tool or comparison instruction while the cloud
+  prompt keeps it, and that the reader hands the description to code (an on-device answer of
+  "inconsistent" becomes "consistent" for a matching colour); they failed to compile before the change
+  and pass after; 356 core and 193 app tests pass.
+
+### feat(ios-core): code decides whether a reading by Apple's model matches the subject
+- What: ProfileMatch.decide compares a reading's colours and item, footwear and carried words with
+  the subject's description: consistent when one of them is in it, otherwise unknown, so a clue is
+  never marked down on a guess. For a reading by Apple's model the read sets matchesProfile
+  this way (ReadContext.profile carries the description); the cloud's answer is kept as it is.
+- Source: review (Apple's model copied the subject's description into readings).
+- Verified: tests for consistent and unknown matches, for the on-device override (and the cloud
+  answer kept), and that an answer quoting the description is rejected with quote_not_in_text; they
+  failed to compile before the change and pass after; all 356 core tests pass.
+
 ### feat(ios): the route check file says why each model stage was not used
 - What: each route in the saved route-check file carries the read's stage notes, so a route check
   run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:

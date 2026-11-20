@@ -9,6 +9,12 @@ tile extract in shared/grid/ are made available under the Open Database License
 was made. The basemap tiles are Protomaps Basemap layers from OpenStreetMap and
 Natural Earth (public domain).
 
+Ground elevation for the drill site (web/public/extras/terrain/) is from the
+U.S. Geological Survey 3D Elevation Program, read through the Elevation Point
+Query Service; USGS data are in the U.S. public domain. Credit: U.S. Geological
+Survey. It is a display layer only; the search prior has no elevation term.
+tools/extras/SOURCE.md says how it was read.
+
 Search distances: the dementia distance rings (the 25, 50, 75 and 95 percent
 distances from the point last seen, with each column's case count) are ISRID
 figures from R. J. Koester, Lost Person Behavior, "Dementia (Alzheimer's)",

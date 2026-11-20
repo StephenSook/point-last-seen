@@ -12,6 +12,17 @@ public enum PromptText {
     Copy evidenceQuote word for word from the report.
     """
 
+    /// The same for Apple's model on the phone, which reads the report alone: it gets no description of
+    /// the subject (it copied the description into readings), and code decides matchesProfile.
+    public static let onDeviceGuided = """
+    You read one short report from a search team during a training drill. Fill every field from the report only.
+    Numbers spoken as words are numbers: "point eight" is 0.8, "forty five" is 45.
+    For segmentIds list only ids the report itself names. The segmentHere and teamAssignment tools tell you where the \
+    team is and what it was assigned; use them to understand the report, not to add ids.
+    Set matchesProfile to unknown.
+    Copy evidenceQuote word for word from the report.
+    """
+
     public static let permissive = """
     Rewrite the report as one line in this form and nothing else: KIND|SEGMENTS|COVERAGE
     KIND is one of cleared, sighting, clue, found, unclear. SEGMENTS is the two-letter segment ids the report names, \

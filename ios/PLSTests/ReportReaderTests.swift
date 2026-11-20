@@ -84,6 +84,28 @@ import Testing
         #expect(english.route.path == .cloud)
     }
 
+    /// The reader hands the subject's description to code, which decides the match for Apple's model.
+    @Test func onThePhoneTheMatchWithTheSubjectComesFromCode() async throws {
+        struct Answer: ReadModelRunner {
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                var r = ReportReading.unclear(quote: text)
+                r.kind = .clue
+                r.topColor = .blue
+                r.matchesProfile = .inconsistent
+                return .success(r)
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Answer() }
+        r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        var s = situation(mode: "drill")
+        s.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat")]))
+        let o = await r.read("Saw someone in blue by the creek in AC", situation: s)
+        #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
+    }
+
     @Test func remoteConfigDefaultsMatchTheSpec() {
         let d = RemoteConfigValues.defaults
         #expect(d.cloudModelIOS == "gemini-3.5-flash-lite")
