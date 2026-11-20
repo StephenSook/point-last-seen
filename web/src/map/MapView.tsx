@@ -17,7 +17,7 @@ import { rippleDelays } from "../motion/ripple";
 import { reportBeatPlan } from "../motion/plan";
 import type { Track } from "../motion/walkerCanvas";
 import { WalkerLayer } from "../command/WalkerLayer";
-import { mapCredit } from "./credit";
+import { mapCredit, OSM_COPYRIGHT_URL, PROTOMAPS_ATTRIBUTION_URL } from "./credit";
 import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "./geo";
 import { centreFeatures, MAP_INK, POA_RAMP, segmentFeatures, type MapSegment } from "./poaStyle";
@@ -403,7 +403,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   }, [pin]);
 
   // The credit shows when the OSM-derived grid or basemap is actually drawn.
-  const credit = mapCredit({ segments: segments.length, basemap: basemap === "drawn", gridAttribution: attribution });
+  const credit = mapCredit({ segments: segments.length, basemap: basemap === "drawn" });
   return (
     <div className={onMapClick ? "map-wrap picking" : "map-wrap"} data-basemap={basemap}>
       <div ref={el} className="map" data-testid="map" />
@@ -425,7 +425,18 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       )}
       {credit && (
         <div className="map-credit" data-testid="map-credit">
-          {credit}
+          {/* The grid's own stamped line (with its licence) is the link's title; the copyright page has the rest. */}
+          <a href={OSM_COPYRIGHT_URL} target="_blank" rel="noopener noreferrer" title={attribution}>
+            © OpenStreetMap contributors
+          </a>
+          {credit.protomaps && (
+            <>
+              {" · "}
+              <a href={PROTOMAPS_ATTRIBUTION_URL} target="_blank" rel="noopener noreferrer">
+                Protomaps
+              </a>
+            </>
+          )}
         </div>
       )}
     </div>

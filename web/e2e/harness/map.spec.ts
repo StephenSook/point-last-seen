@@ -169,3 +169,21 @@ test("command's Every percent switch shows every plate of 0.1% or more, and turn
   await every.focus();
   await expect(every).toBeFocused();
 });
+
+test("the credit is one muted line linking to OpenStreetMap's copyright page, reachable by keyboard with a focus ring", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const credit = page.getByTestId("map-credit");
+  // The harness draws the grid and no basemap, so the line has no Protomaps part.
+  await expect(credit).toHaveText("© OpenStreetMap contributors");
+  const osm = credit.getByRole("link", { name: "© OpenStreetMap contributors" });
+  await expect(osm).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
+  await expect(credit).toHaveCSS("color", "rgb(137, 133, 131)");
+  const box = (await credit.boundingBox())!;
+  expect(box.height).toBeLessThan(24); // one line
+  await osm.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(osm).toBeFocused();
+  await expect(osm).not.toHaveCSS("outline-style", "none");
+});
