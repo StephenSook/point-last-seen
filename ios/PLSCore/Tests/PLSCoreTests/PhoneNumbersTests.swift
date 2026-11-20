@@ -39,7 +39,7 @@ import Testing
 
     /// Search information made of digits stays: coordinates, ordinals and units, grouped counts, ZIP+4.
     @Test func coordinatesOrdinalsUnitsCountsAndZipCodesStay() {
-        for text in ["GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 1,234,567 steps",
+        for text in ["GPS 33.7490, -84.3880", "GPS 33.7490 -84.3880", "12345 67th Ave and 12345 68th Ave", "walked 12,345 steps",
                      "about 2 5km loops", "Atlanta, GA 30301-1234"] {
             #expect(PhoneNumbers.scrub(text) == text, "\(text)")
         }
@@ -110,7 +110,10 @@ import Testing
         #expect(PhoneNumbers.scrub("Seen 11/19/2026 14:03 404-555-0142") == "Seen 11/19/2026 14:03 [number removed]")
         #expect(PhoneNumbers.scrub("GA 30301-1234 555 0142") == "GA 30301-1234 [number removed]")
         #expect(PhoneNumbers.scrub("14:03 five five five zero one four two") == "14:03 [number removed]")
-        #expect(PhoneNumbers.scrub("1,234,567 555 0142") == "1,234,567 [number removed]")
+        #expect(PhoneNumbers.scrub("walked 12,345 steps, call 404 555 0142") == "walked 12,345 steps, call [number removed]")
+        // A grouped count of seven or more digits is a phone number itself (privacy wins ties).
+        #expect(PhoneNumbers.scrub("Call 4,045,550,142") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("walked 1,234,567 steps") == "walked [number removed] steps")
     }
 
     /// A removed run keeps its line breaks, so two lines never become one.
