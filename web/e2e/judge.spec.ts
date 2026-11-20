@@ -34,6 +34,13 @@ test("the judge page carries one advice line from a dementia-care expert, by nam
   await expect(advice).toHaveCount(1);
 });
 
+test("the judge page links to the public source code", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const link = page.getByRole("navigation", { name: "Links" }).getByRole("link", { name: "Source code" });
+  await expect(link).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+});
+
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
