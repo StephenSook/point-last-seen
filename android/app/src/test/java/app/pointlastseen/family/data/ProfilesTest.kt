@@ -236,4 +236,21 @@ class ProfilesTest {
         )
         assertEquals(Profiles.approachNoteIds(p), Profiles.mergeApproachNotes(emptyList(), Profiles.forSearchers(p).toMap(), Profiles.NOTE_INPUT_KEYS))
     }
+
+    /** Each input of a note that reads two moves it on its own, and a change to some other input leaves it as stored. */
+    @Test fun eachInputOfATwoInputNoteMovesItAlone() {
+        val cases = listOf(
+            Triple("validate_feelings", mapOf<String, Any?>("flags" to mapOf("hallucinationsOrDelusions" to true)), "flags.hallucinationsOrDelusions"),
+            Triple("validate_feelings", mapOf<String, Any?>("dementiaType" to "lewy_body"), "dementiaType"),
+            Triple("soft_voice", mapOf<String, Any?>("flags" to mapOf("softVoice" to true)), "flags.softVoice"),
+            Triple("soft_voice", mapOf<String, Any?>("flags" to mapOf("slowToRespond" to true)), "flags.slowToRespond"),
+            Triple("medication_alert", mapOf<String, Any?>("flags" to mapOf("medicationSensitivity" to true)), "flags.medicationSensitivity"),
+            Triple("medication_alert", mapOf<String, Any?>("flags" to mapOf("carriesMedicalAlertCard" to true)), "flags.carriesMedicalAlertCard"),
+        )
+        for ((note, merged, input) in cases) {
+            assertTrue("$input adds $note", note in Profiles.mergeApproachNotes(emptyList(), merged, setOf(input)))
+            assertFalse("$input drops $note", note in Profiles.mergeApproachNotes(listOf(note), emptyMap(), setOf(input)))
+            assertTrue("another input keeps $note", note in Profiles.mergeApproachNotes(listOf(note), emptyMap(), setOf("flags.seizures")))
+        }
+    }
 }
