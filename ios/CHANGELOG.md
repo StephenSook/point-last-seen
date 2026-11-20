@@ -31,6 +31,30 @@ finding) and how it was verified. Newest first.
   cloud route with the model turned off for the check; the runner saw on-device then cloud. It failed
   to compile before the change and passes after; the reader tests pass.
 
+### fix(ios): a tapped push's request to show the task carries its session
+- What: a push tap that passed every check raised a request the screen acted on later; if the
+  account changed in between, the screen still jumped to the task view (it showed "No mission
+  loaded"). The request now carries the session it was made in, and the screen acts on it only
+  while that session is still current. LIMITS.md now says both account windows are closed (the join
+  fix in the previous commit and this one), leaving Auth's own reports and the security rules.
+- Source: review (round 4 residual window).
+- Verified: a test makes an open request, then changes the account (before and after Auth reports
+  it): the request no longer counts. It failed to compile before the change and passes after; 176
+  app tests pass.
+
+### fix(ios): a join signs in first, so its session is known before any of its checks
+- What: a join bound its account session only after the callable returned, so an account change in
+  that instant could pair the joined team with another user. It also broke the first join after
+  Leave: that join signs in a new anonymous user, the sign-in counted as an account change in the
+  middle of the join, and the join ended with "Not signed in yet" although it had worked. The join
+  now signs in before anything else, starts the session for that user, and only then takes its
+  check number; if the account changes while the callable answers, it loads nothing and says "This
+  phone's account changed during the join. Join again."
+- Source: review (round 4 residual window); the after-Leave failure was found while closing it.
+- Verified: tests for a first join with no user (it signs in and loads the mission at once) and a
+  join whose account changes during the call (nothing read or loaded, the new message). Both failed
+  before the change and pass after; 175 app tests pass.
+
 ### build(ios): archive and check a release build for App Store Connect, uploading nothing
 - What: ios/scripts/archive_release.sh archives a Release build with a given build number and the
   current commit, exports the .ipa for App Store Connect into a local folder, and checks the
