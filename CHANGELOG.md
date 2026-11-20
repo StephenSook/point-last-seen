@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Public run export: a report's route is its read's provenance (path, stage, model, reason, latencyMs and the rest of
+  the route record), and the export's check now refuses a route whose values a route record cannot hold (enums from
+  shared/schemas/route-record.schema.json, a model id of at most 80 characters, numbers for the times, a boolean
+  sdkReported), so no note text can ride in one. The reading's content still never leaves on a report. Source: review
+  (the replay's per-report provenance). Verified: tools/export-run tests 24 passed (the new route-values test failed
+  first; a full reading with evidenceQuote exports only its route; a planted evidenceQuote is refused); typecheck
+  passes.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
