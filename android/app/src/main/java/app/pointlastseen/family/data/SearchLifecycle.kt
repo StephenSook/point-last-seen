@@ -1,5 +1,6 @@
 package app.pointlastseen.family.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Which join a result belongs to: it changes on every join, leave and drop, and with the signed-in user. */
@@ -33,13 +34,22 @@ object JoinedStart {
 
 /**
  * Leaving a search. [forget] runs first, so no new write can start (every writer reads the session); the
- * writes already sent then get up to [timeoutMs] to settle; then [finish] reports it done. Offline, a write
- * sent before leaving is still delivered when the phone reconnects (a stated limit).
+ * writes already sent then get up to [timeoutMs] to settle; then [finish] reports it done, also when the wait
+ * fails, so the clean-up after it always runs. Offline, a write sent before leaving is still delivered when
+ * the phone reconnects (a stated limit).
  */
 object Departure {
     suspend fun leave(forget: () -> Unit, settle: suspend () -> Unit, timeoutMs: Long, finish: () -> Unit) {
         forget()
-        withTimeoutOrNull(timeoutMs) { settle() }
+        withTimeoutOrNull(timeoutMs) {
+            try {
+                settle()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A wait that failed proves nothing about the writes; leaving goes on.
+            }
+        }
         finish()
     }
 }

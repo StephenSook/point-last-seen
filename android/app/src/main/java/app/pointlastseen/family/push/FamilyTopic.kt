@@ -22,6 +22,15 @@ class FamilyTopic(
         subscribe(topic)
     }
 
+    /**
+     * Records the drop at once, with no network: leaving calls this before it forgets the search, so a process
+     * death while the leave waits still has the drop on disk for the next start.
+     */
+    fun leaving(incidentId: String) {
+        val topic = PlanPush.familyTopic(incidentId) ?: return
+        setPending(pendingTopics() + topic)
+    }
+
     /** Drops the topic; true once FCM confirmed it, false when it stays pending for a later try. */
     suspend fun left(incidentId: String): Boolean {
         val topic = PlanPush.familyTopic(incidentId) ?: return true

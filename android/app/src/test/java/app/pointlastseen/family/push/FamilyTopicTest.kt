@@ -51,6 +51,17 @@ class FamilyTopicTest {
         assertEquals(emptyList<String>(), afterRestart.pendingTopics())
     }
 
+    /** Leaving records the drop before anything waits, so a process death before it is sent still retries it. */
+    @Test fun aDropIsRecordedBeforeItIsSent(): Unit = runBlocking {
+        topic.leaving("drill-test-1")
+        assertEquals(listOf("pls-drill-test-1-family"), topic.pendingTopics())
+        assertEquals(emptyList<String>(), calls)
+        val afterRestart = FamilyTopic(subscribe = {}, unsubscribe = { calls += "retry $it" }, pending = store)
+        afterRestart.retryPending()
+        assertEquals(listOf("retry pls-drill-test-1-family"), calls)
+        assertEquals(emptyList<String>(), afterRestart.pendingTopics())
+    }
+
     /** Joining the same search again cancels a pending unsubscribe, so a later retry cannot drop the new join. */
     @Test fun rejoiningCancelsAPendingUnsubscribe(): Unit = runBlocking {
         unsubscribeFails = true

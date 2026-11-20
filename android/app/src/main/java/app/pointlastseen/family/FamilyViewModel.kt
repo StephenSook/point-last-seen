@@ -223,7 +223,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         openQuestion = null
         viewModelScope.launch {
             Departure.leave(
-                forget = { watch.stop(); session.leave() },
+                // The topic drop goes on disk before the search is forgotten, so a process death during the wait keeps it.
+                forget = { watch.stop(); familyTopic.leaving(incidentId); session.leave() },
                 settle = { Firebase.firestore.waitForPendingWrites().await() },
                 timeoutMs = LEAVE_SETTLE_MS,
                 finish = {
@@ -280,7 +281,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         questionCheck?.cancel()
         openQuestion = null
         watch.stop()
-        session.incidentId()?.let { viewModelScope.launch { familyTopic.left(it) } }
+        session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER

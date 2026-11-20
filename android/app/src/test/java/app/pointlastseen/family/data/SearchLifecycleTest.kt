@@ -58,6 +58,13 @@ class SearchLifecycleTest {
         assertEquals(listOf("forget", "settle", "finish"), log)
     }
 
+    /** A settle that fails (the SDK refused the wait) still finishes the leave: the topic drop must not be skipped. */
+    @Test fun leavingFinishesWhenSettlingFails() = runTest {
+        val log = mutableListOf<String>()
+        Departure.leave(forget = { log += "forget" }, settle = { throw IllegalStateException("terminated") }, timeoutMs = 5_000, finish = { log += "finish" })
+        assertEquals(listOf("forget", "finish"), log)
+    }
+
     /** Offline, the sent writes cannot settle: leaving still finishes after the bound. */
     @Test fun leavingFinishesAfterTheBoundWhenWritesCannotSettle() = runTest {
         val log = mutableListOf<String>()
