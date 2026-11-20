@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Grounding vectors: shared/constants/grounding-words.json holds the word lists and the rule for grounding a reading
+  in its note (a colour or a direction stays only when its word is in the note, footwear or carried only when it
+  shares a word with it; otherwise the field is blanked), and shared/test-vectors/grounding.json pins 26 cases, a kept
+  and a blanked case for each of topColor, bottomColor, direction, footwear and carried, including the profile leak
+  (blue from the profile). scripts/test_grounding_vectors.py checks both files and runs in CI. Source: review.
+  Verified: pytest 4 passed; local gates pass.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
