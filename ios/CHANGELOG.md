@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: the two account windows the iPhone does not close, and plans without a setup id
+- What: LIMITS.md says what the account sessions leave open: a first join that signs in a new
+  anonymous user binds its session only after the join returns (the security rules still decide what
+  that user may read, and a refused read drops the mission), and a tap that passed every check can
+  reach the task screen just after an account change (it then shows "No mission loaded" and nothing
+  of the old mission). It also says plans carry no setup id, so a practice incident rebuilt under the
+  same id and plan version keeps the old task on a phone until a newer plan or a new join.
+- Source: review (round 4: the residual race and the plan setup id, medium).
+- Verified: read against the session checks in AppModel and the plan document's fields.
+
 ### fix(ios): one account session carried through every load, tap and spoken line
 - What: a load or a push tap took its own fresh look at the signed-in user at each step, so one
   account's claims could be read, installed and spoken under another account (or under none, since
