@@ -6,6 +6,7 @@ import app.pointlastseen.family.AppCheckSetup
 import app.pointlastseen.family.ai.AiClient
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.NoteMode
+import app.pointlastseen.family.ai.Source
 import app.pointlastseen.family.config.RcValues
 import app.pointlastseen.family.data.FirebaseSignIn
 import com.google.firebase.Firebase
@@ -19,8 +20,8 @@ import org.junit.runner.RunWith
 
 /**
  * Release only (-Ppls.testBuildType=release): does the release provider pass on this device? Logs
- * PLS-PROBE lines with the outcome and error text, never a token. Then one cloud note call, which
- * App Check enforcement on AI Logic accepts only with a valid token.
+ * PLS-PROBE lines with the outcome and error text, never a token. Then one note call, which passes only
+ * as a cloud reply: App Check enforcement on AI Logic accepts it only with a valid token.
  */
 @RunWith(AndroidJUnit4::class)
 class ReleaseAppCheckProbeTest {
@@ -42,6 +43,7 @@ class ReleaseAppCheckProbeTest {
             onSuccess = { log("cloud note ok source=${it.source} latencyMs=${it.latencyMs} hasText=${it.text != null}") },
             onFailure = { log("cloud note error=${it::class.simpleName}: ${it.message?.take(300)}") },
         )
-        check(token.isSuccess && reply.isSuccess) { "the release provider did not pass on this device" }
+        // Only a cloud reply proves App Check let the call through: an on-device reply never reaches the server.
+        check(token.isSuccess && reply.getOrNull()?.source == Source.IN_CLOUD) { "the release provider did not pass on this device" }
     }
 }
