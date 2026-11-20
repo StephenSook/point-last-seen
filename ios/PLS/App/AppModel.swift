@@ -127,14 +127,14 @@ final class AppModel {
     /// True for 5 seconds after this phone sent a report, until it is undone.
     func canUndo(_ eventId: String) -> Bool {
         guard let entries = store?.entries, let entry = entries.first(where: { $0.eventId == eventId }),
-              entry.doc.type != .retraction, entry.doc.authorUid == uid(),
+              entry.doc.type != .retraction, entry.doc.authorUid == authorUid,
               !entries.contains(where: { $0.doc.type == .retraction && $0.doc.targetEventId == eventId }) else { return false }
         return ReadOutcomeBuilder.canUndo(sentAtMs: entry.doc.clientTimeMs, nowMs: nowMs())
     }
 
     /// Undo is a new `retraction` event that targets the report; the report itself is never edited.
     func undo(_ eventId: String) {
-        guard canUndo(eventId), let store, let identity, let uid = uid(),
+        guard canUndo(eventId), let store, let identity, let uid = authorUid,
               let entry = store.entries.first(where: { $0.eventId == eventId }) else { return }
         do {
             let retraction = try ReadOutcomeBuilder.retraction(of: entry.doc, authorUid: uid, deviceId: uid,
@@ -154,7 +154,7 @@ final class AppModel {
 
     /// The header's link glyph: signal and reports still on this phone.
     var linkState: LinkState {
-        let waiting = store?.entries.filter { $0.state == .pending || $0.state == .checking }.count ?? 0
+        let waiting = practice != nil ? 0 : store?.entries.filter { $0.state == .pending || $0.state == .checking }.count ?? 0
         return LinkState.make(online: connectivity.isOnline, waiting: waiting)
     }
 
@@ -244,6 +244,8 @@ final class AppModel {
             await resumeMission()
             return
         }
+        // A practice drill belongs to no account: it stays.
+        guard practice == nil else { return }
         // No user at all (signed out, for example after the account was removed) and the sign-in
         // failed: what this phone holds belonged to a user that is gone. A cached user (offline)
         // counts as signed in, so offline use keeps its mission.
@@ -257,6 +259,8 @@ final class AppModel {
 
     /// Joins as a searcher with the code and team command gave, then loads the team's mission.
     func join(code: String, teamId: String, incidentId: String) async {
+        // The Join screen is not offered during the practice drill; a join never lands on its journal.
+        guard practice == nil else { return }
         joining = true
         defer { joining = false }
         // A join is the newest wish: any load or check still running from before must not replace it.
@@ -400,12 +404,85 @@ final class AppModel {
         }
     }
 
+    // MARK: Practice drill
+
+    /// The practice drill in progress: its own folder, and the real journal and numbering it set
+    /// aside, put back when it ends.
+    private struct Practice {
+        let directory: URL
+        let realStore: EventStore?
+        let realIdentity: DeviceIdentity?
+    }
+    @ObservationIgnored private var practice: Practice?
+
+    /// The author and device id on practice reports: no account, so a phone that never signed in
+    /// can run the practice drill. These reports never leave the phone.
+    static let practiceUid = "practice"
+
+    /// The user a report or undo is written as: the practice author during a practice drill.
+    private var authorUid: String? { practice != nil ? Self.practiceUid : uid() }
+
+    static let practiceUnavailable = "This build has no practice drill."
+    static let practiceUnread = "The practice drill could not be opened. Reinstall the app."
+
+    /// True when this build carries a practice drill and no search is joined.
+    var canStartPractice: Bool { PracticePack.bundledURL != nil && mission == nil && membership == nil }
+
+    /// Starts the practice drill from the bundled pack, with no join code and no account: the
+    /// sample search loads, its assignment is spoken, and every report goes to a separate journal
+    /// that never leaves the phone. Nothing is read from or written to the server and no team
+    /// topic is followed. Returns why it did not start (also shown as the join message), or nil. While
+    /// a search is joined or a drill is running it does nothing and returns nil: the Join screen, the
+    /// only place that offers it, is not shown then.
+    func startPractice(packURL: URL? = PracticePack.bundledURL, directory: URL = PracticePack.defaultDirectory()) async -> String? {
+        guard mission == nil, membership == nil, practice == nil else { return nil }
+        guard let packURL else { joinMessage = Self.practiceUnavailable; return Self.practiceUnavailable }
+        do {
+            let pack = try PracticePack.load(from: packURL)
+            var mission = try MissionBuilder.build(incidentId: pack.incidentId, teamId: pack.teamId, docs: pack.docs,
+                                                   bundledParams: try BundledConstants.engineParams())
+            mission.isPractice = true
+            // A fresh folder each time: no earlier practice report is counted.
+            try? FileManager.default.removeItem(at: directory)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let store = try EventStore(server: LocalOnlyEventServer(), outboxURL: directory.appendingPathComponent("outbox.json"))
+            let identity = try DeviceIdentity(directory: directory)
+            if screen == nil { screen = try BundledConstants.evidenceScreen() }
+            practice = Practice(directory: directory, realStore: self.store, realIdentity: self.identity)
+            self.store = store
+            self.identity = identity
+            posterior = nil
+            // Any access check or mission read still running has no say over the drill.
+            accessCheck += 1
+            missionGeneration += 1
+            joinMessage = nil
+            await load(mission)
+            return nil
+        } catch {
+            joinMessage = Self.practiceUnread
+            return Self.practiceUnread
+        }
+    }
+
+    /// Ends the practice drill: its reports are deleted and the real journal comes back.
+    private func endPractice() {
+        guard let practice else { return }
+        self.practice = nil
+        store = practice.realStore
+        identity = practice.realIdentity
+        posterior = nil
+        try? FileManager.default.removeItem(at: practice.directory)
+        dropMissionNow()
+    }
+
     static let leaveBlocked = "Some reports have not reached command yet. Stay in signal until each one says Delivered, then leave."
 
     /// True while a report from this phone is not settled with the server. Its write waits in this
     /// user's queue, so signing out now would strand it.
     var hasUnsettledReports: Bool {
-        store?.entries.contains { entry in
+        // Practice reports never go anywhere, so none is waiting to settle.
+        guard practice == nil else { return false }
+        return store?.entries.contains { entry in
             switch entry.state {
             case .pending, .checking: true
             case let .rejected(reason): Outbox.isRetryable(reason: reason)
@@ -421,6 +498,12 @@ final class AppModel {
     /// while a report is not yet settled.
     @discardableResult
     func leaveSearch() async -> Bool {
+        if practice != nil {
+            endPractice()
+            joinMessage = nil
+            problem = nil
+            return true
+        }
         guard !hasUnsettledReports else { problem = Self.leaveBlocked; return false }
         // Any access check still running has no say after this.
         accessCheck += 1
@@ -478,6 +561,8 @@ final class AppModel {
         sessionUid = reported
         sessionGeneration += 1
         accessCheck += 1
+        // A practice drill belongs to no account, so a change of user leaves it and its voice alone.
+        guard practice == nil else { return true }
         speaker.stop()
         if mission != nil || membership != nil { dropMissionNow() }
         return true
@@ -530,6 +615,8 @@ final class AppModel {
     /// mission follows the claims; a closed incident or a refused read drops the mission. With no
     /// signal, or no server, the same user's mission already on this phone is the offline path.
     func openedPush(_ payload: PushPayload) async {
+        // A practice drill follows no team topic; a stale push changes nothing in it.
+        guard practice == nil else { return }
         let matchesLoaded = { [weak self] in
             self?.mission?.incidentId == payload.incidentId && self?.mission?.teamId == payload.teamId
         }
@@ -609,7 +696,9 @@ final class AppModel {
     }
 
     /// The topic the loaded mission's team gets pushes on; nil with no mission.
-    private var wantedTopic: String? { mission.flatMap { PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) } }
+    private var wantedTopic: String? {
+        mission.flatMap { $0.isPractice ? nil : PushTopic.name(incidentId: $0.incidentId, teamId: $0.teamId) }
+    }
 
     /// Every topic this phone may still be subscribed to: a topic is listed before its subscription
     /// is tried and stays listed until FCM confirms it was left. Kept across launches, because FCM
@@ -682,6 +771,8 @@ final class AppModel {
     /// command changed gets the new team's mission, and claims that no longer name a searcher's
     /// incident drop it. With no signal the cached token answers; with no token, nothing changes.
     private func resumeMission() async {
+        // A practice drill is not a membership: the claims have nothing to say about it.
+        guard practice == nil else { return }
         noteAccount(uid())
         accessCheck += 1
         let check = accessCheck
@@ -756,7 +847,8 @@ final class AppModel {
         let isCurrent: @MainActor () -> Bool = { [weak self] in
             guard let self, let current = self.mission else { return false }
             return self.missionGeneration == generation && current.incidentId == incidentId
-                && current.teamId == teamId && current.assignment == assignment && self.isCurrent(owner)
+                && current.teamId == teamId && current.assignment == assignment
+                && (current.isPractice || self.isCurrent(owner))
         }
         speech = Task { [weak self] in
             await previous?.value
@@ -782,8 +874,8 @@ final class AppModel {
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
         guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
-        await trySignIn()
-        guard let uid = self.uid() else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        if !mission.isPractice { await trySignIn() }
+        guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         refreshGate()
@@ -856,8 +948,8 @@ final class AppModel {
     func submitPick(_ choice: PickListChoice) async -> Bool {
         guard !sending else { return false }
         guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
-        await trySignIn()
-        guard let uid = self.uid() else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        if !mission.isPractice { await trySignIn() }
+        guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         let submittedAt = nowMs()
@@ -872,6 +964,8 @@ final class AppModel {
     private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
                          mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
                          submittedAt: Double, readDone: Double) -> Bool {
+        // The journal changed while the report was read (the practice drill ended): it goes nowhere.
+        guard store === self.store else { return false }
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,
@@ -885,6 +979,8 @@ final class AppModel {
             try store.append(event)
             problem = nil
             recomputePosterior(mission)
+            // A practice report's timings stay off the server, like the report.
+            guard !mission.isPractice else { return true }
             let measurement = ReadMeasurement(submittedAtMs: submittedAt, readDoneAtMs: readDone, redrawnAtMs: nowMs())
             (measurements ?? FirestoreMeasurementWriter()).write(
                 measurement, path: ReadMeasurement.path(incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid,
