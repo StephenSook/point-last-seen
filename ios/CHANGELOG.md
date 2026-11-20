@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): the grounding rule, pinned by the shared vectors
+- What: a Swift port of the shared grounding rule (shared/constants/grounding-words.json, reference
+  shared/engine-ts/src/ground.ts). A colour or a direction other than unknown stays only when one of its
+  words is a whole word of the note (N, E, S and W only in capitals; "north-east" and "north east" count
+  as "northeast"); footwear or carried stays only when it shares a word of three or more letters, not a
+  stopword, with the note. Words are runs of letters by code point, as in the reference.
+- Source: the grounding rule (shared vectors).
+- Verified: the vector runner over all 26 cases of shared/test-vectors/grounding.json failed to compile
+  before the change and passes after; it also checks every field has a kept and a blanked case and that
+  every key in the file is read.
+
 ### test(ios): the zero-tools test names no model builder
 - What: the zero-tools test's control session named SystemLanguageModel, which the rules gate allows
   only in its client file. The control now uses the session's default model.
