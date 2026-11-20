@@ -306,6 +306,7 @@ class PhoneNumbersTest {
             assertEquals("$text -> $out", false, Regex("""\d{4}""").containsMatchIn(out))
         }
         assertEquals("12345 67th Ave. and 12345 125th Street", PhoneNumbers.remove("12345 67th Ave. and 12345 125th Street"))
+        assertEquals("near 4550 142nd St", PhoneNumbers.remove("near 4550 142nd St"))
     }
 
     /** Two decimals joined by a bare minus are no coordinate pair; a pair has a comma or a space before the minus. */
