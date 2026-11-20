@@ -89,24 +89,26 @@ each line says what the limit is and why.
 ## Phone numbers in notes (Android)
 
 - The family app removes phone numbers from a note the way the iPhone app does: seven or more digits in a row,
-  written in any script or spoken, joined by short separators, even across a line break. Search information inside
-  such a run (a date, a time, coordinates, a grouped count, a ZIP+4 code after a state, a number with a unit) stays
+  written in any script or spoken, joined by separators (spaces, dashes, dots, commas, brackets, slashes), even across a line break. Search information inside
+  such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
   only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
   (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
 - To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
   too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
   "ga 30301-1234" is removed, while "GA 30301-1234" stays.
-- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web and Android, which
-  read it as a grouped count; the iPhone removes it. The shared rule removes any grouped count of seven or more
+- It keeps too much in two cases. A phone number written like a street address with an ordinal street ("5550 142nd
+  St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
+  number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
+  to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
+- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, which reads it as a
+  grouped count; the iPhone and Android remove it. The shared rule removes any grouped count of seven or more
   digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
-  (as it already is on the iPhone). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark each
-  platform that has not followed yet.
-- Today the web and Android keep a pair of decimals even when it starts with "+", so a phone number written that
-  way ("Call +44.2071, -23.4567") stays there; the iPhone removes it. The shared rule removes a pair that starts
-  with "+", so once each platform follows it, a coordinate written with a leading "+" ("+33.7490, -84.3880") is
+  (as it already is on the iPhone and Android). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark
+  each platform that has not followed yet.
+- The web keeps a pair of decimals even when it starts with "+", so a phone number written that way ("Call
+  +44.2071, -23.4567") stays there; the iPhone and Android remove it. The shared rule removes a pair that starts
+  with "+", so on every platform that follows it a coordinate written with a leading "+" ("+33.7490, -84.3880") is
   removed too; without the "+" it stays.
-- A phone number written like a street address, a house number and a numbered street ("Call 5550 142nd St"), is
-  kept on the iPhone and Android, since a house number on a numbered street is real search information.
 
 ## On-device safety (Android)
 

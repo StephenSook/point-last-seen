@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: Android's rule (#109) now passes every case it was pending on, so "android" leaves pendingOn on 19
+  cases (the grouped, Unicode-digit, two-CRLF, date, + pair, bare minus, ordinal and time cases); the web stays
+  pending on all of them and the iPhone on the bare minus, the ordinal and the two time cases. LIMITS takes the
+  Android branch's wording (the + bullet, the street-address and colon limits), so this branch's own street-address
+  line is dropped as a duplicate. Source: the Android change. Verified: the Android team ran every pending case
+  against #109; scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: the iPhone now reads a month and day as a date and removes a decimal pair that starts with + (#119),
   so "ios" leaves pendingOn on plus_before_decimal_pair and short_date_beside_number; LIMITS says the + pair is kept
   today on the web and Android only. Source: the iPhone change. Verified: the iPhone team ran the file with both marks
