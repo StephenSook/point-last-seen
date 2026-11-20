@@ -133,3 +133,19 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   the number).
 - `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
   and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
+
+## language.json (hand-written)
+
+The language screen every platform runs before a note may go to the cloud read. The rule and its two word lists are
+in `shared/constants/language-words.json` (`matching`); the web runs `looksEnglish` from `shared/engine-ts`.
+
+- `mustAllow[]`: `{ name, input }`. The note looks English and may go to the cloud read: plain field notes, and
+  English notes that quote Spanish names, places or phrases (the families this serves often do).
+- `mustRefuse[]`: `{ name, language, input }`. The note does not look English: whole notes in Spanish, Portuguese,
+  Vietnamese or Korean. The cloud read is refused; the on-device read and hand entry still work.
+- `knownMiss[]`: `{ name, input, why }`. Cases the rule gets wrong on purpose, kept so every platform gets them
+  wrong the same way; each currently passes as English.
+
+Tuning, 2026-11-20: a one-sided rule (share of common English words) refused 22% of 325 English sentences from this
+repository's docs at its working threshold, so the screen counts foreign function words against English ones instead;
+with `minForeign` 3 and `foreignOverEnglish` 2 it refuses none of those 325 sentences and passes every case here.
