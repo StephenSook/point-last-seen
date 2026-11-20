@@ -18,4 +18,19 @@ class LanguageScreenTest {
     @Test fun wordsAreFoldedAndSplit() {
         assertEquals(listOf("cafe", "naive", "x2"), LanguageScreen.words("Café, NAÏVE; x2 42"))
     }
+
+    /** A word list that is empty or a threshold below 1 is broken: the file is refused, so the screen stays unloaded. */
+    @Test fun aBrokenWordListIsRefused() {
+        val good = """{"schemaVersion":1,"minForeign":3,"foreignOverEnglish":2,"english":["the"],"foreign":["la"]}"""
+        LanguageScreen.parse(good)
+        for (bad in listOf(
+            good.replace(""""foreign":["la"]""", """"foreign":[]"""),
+            good.replace(""""english":["the"]""", """"english":[]"""),
+            good.replace(""""minForeign":3""", """"minForeign":0"""),
+            good.replace(""""foreignOverEnglish":2""", """"foreignOverEnglish":0"""),
+            good.replace(""""schemaVersion":1""", """"schemaVersion":2"""),
+        )) {
+            assertEquals(bad, true, runCatching { LanguageScreen.parse(bad) }.isFailure)
+        }
+    }
 }

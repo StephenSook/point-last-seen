@@ -45,11 +45,16 @@ class LanguageScreen(
             return SPLIT.split(folded).filter { it.isNotEmpty() && !ONLY_DIGITS.matches(it) }
         }
 
-        /** Reads shared/constants/language-words.json. */
+        /**
+         * Reads shared/constants/language-words.json (schema version 1). A file with an empty word list or a threshold
+         * below 1 would let notes through, so it is refused ([LanguageWords] then keeps the screen unloaded).
+         */
         fun parse(json: String): LanguageScreen {
             val o = Json.parseToJsonElement(json).jsonObject
-            fun list(key: String) = o[key]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
-            return LanguageScreen(list("english"), list("foreign"), o["minForeign"]!!.jsonPrimitive.int, o["foreignOverEnglish"]!!.jsonPrimitive.int)
+            require(o["schemaVersion"]!!.jsonPrimitive.int == 1) { "unknown language-words schema" }
+            fun list(key: String) = o[key]!!.jsonArray.map { it.jsonPrimitive.content }.toSet().also { require(it.isNotEmpty()) { "empty $key list" } }
+            fun threshold(key: String) = o[key]!!.jsonPrimitive.int.also { require(it >= 1) { "$key below 1" } }
+            return LanguageScreen(list("english"), list("foreign"), threshold("minForeign"), threshold("foreignOverEnglish"))
         }
     }
 }
