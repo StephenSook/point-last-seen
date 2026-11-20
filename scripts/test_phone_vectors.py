@@ -23,13 +23,15 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    "\U0001E954,\U0001E950\U0001E954\U0001E955,\U0001E955\U0001E955\U0001E950,\U0001E951\U0001E954\U0001E952",
                    "555\u00b41234", "555\u00851234", "\u2776\u2777\u2778\u2779\u277a\u277b\u277c", "幺三八幺二三四五六七八",
                    # A + right before a decimal pair marks a phone number, not a coordinate.
-                   "+44.2071, -23.4567"]
+                   "+44.2071, -23.4567",
+                   # A bare minus between decimals is how a number is written; an ordinal joins unless a street word follows.
+                   "44.2071-23.4567", "4550 142nd"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
                  "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 12,345 steps", "12345 67th Ave", "5km",
                  "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880", "Seen Nov\r\n\r\n19 2026",
-                 "Seen 11/19/2026 14:03"]
+                 "Seen 11/19/2026 14:03", "near 4550 142nd St"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.

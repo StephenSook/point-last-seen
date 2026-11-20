@@ -258,6 +258,34 @@
         "ios",
         "android"
       ]
+    },
+    {
+      "name": "bare_minus_between_decimals",
+      "input": "Call 44.2071-23.4567",
+      "number": "44.2071-23.4567",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "ordinal_without_street_word",
+      "input": "Call 4550 142nd",
+      "number": "4550 142nd",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
@@ -354,6 +382,13 @@
     {
       "name": "date_then_time",
       "input": "Seen 11/19/2026 14:03",
+      "pendingOn": [
+        "web"
+      ]
+    },
+    {
+      "name": "ordinal_before_street_word",
+      "input": "near 4550 142nd St",
       "pendingOn": [
         "web"
       ]

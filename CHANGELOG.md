@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors, two more shared rulings: a bare minus between decimals with no space or comma is a number (mustRemove
+  "Call 44.2071-23.4567"; the comma and space GPS keeps stay), and an ordinal stays apart only when a street word
+  follows it (mustRemove "Call 4550 142nd"; keeps "12345 67th Ave" and "near 4550 142nd St"). Both removes are pending
+  on web, ios and android (Android's rule for them is on its open branch). README says so. Source: review. Verified:
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: the exact case "Seen 11/19 555-0142" is pending on ios too. The iPhone rule reads a date only with
   three groups, so a month and day beside a number join it into one 11-digit run and the whole run goes. The iPhone
   team is adding a month/day date. Source: the iPhone team's run of #118's cases. Verified:
