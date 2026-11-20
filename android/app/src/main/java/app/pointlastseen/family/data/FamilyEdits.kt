@@ -28,9 +28,7 @@ class FamilyEdits(private val store: KeyValueStore) {
     fun keys(doc: String): Set<String> = store.get(key(doc))?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
     private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> =
-        (a.keys + b.keys).filter { it !in DERIVED && a[it] != b[it] && single(a[it]) && single(b[it]) }.toSet()
-
-    private fun single(v: Any?) = v !is Collection<*> && v !is Map<*, *>
+        (a.keys + b.keys).filter { a[it] != b[it] && EditableFields.sendable(it, a[it], b[it]) }.toSet()
 
     private fun mark(doc: String, fields: Set<String>) {
         if (fields.isEmpty()) return
@@ -40,7 +38,20 @@ class FamilyEdits(private val store: KeyValueStore) {
 
     private companion object {
         val DOCS = listOf("shared", "command")
-        // nickname is the first other name; approachNoteIds come from the flags.
-        val DERIVED = setOf("nickname", "approachNoteIds")
     }
+}
+
+/**
+ * Which edited fields a first publish may send over a value already there: single values only (text, numbers,
+ * dates), never a collection (sent whole it would replace entries command added) and never a derived field.
+ * Checked where marks are made and again where a first publish is staged, so a mark stored by an older build
+ * cannot replace a collection either.
+ */
+object EditableFields {
+    // nickname is the first other name; approachNoteIds come from the flags and a few text fields.
+    private val DERIVED = setOf("nickname", "approachNoteIds")
+
+    fun sendable(key: String, vararg values: Any?): Boolean = key !in DERIVED && values.all { single(it) }
+
+    private fun single(v: Any?) = v !is Collection<*> && v !is Map<*, *>
 }

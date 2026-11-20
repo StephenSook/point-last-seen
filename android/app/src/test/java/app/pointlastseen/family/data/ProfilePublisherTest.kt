@@ -136,6 +136,13 @@ class ProfilePublisherTest {
         )
     }
 
+    /** A mark on a collection or a derived field (one an older build stored) never replaces command's value. */
+    @Test fun aMarkOnACollectionOrADerivedFieldSendsNothing() {
+        val existing = mapOf<String, Any?>("flags" to mapOf("fallRisk" to true), "nickname" to "Peggy")
+        val mine = mapOf<String, Any?>("flags" to mapOf("fallRisk" to false, "likelyToHide" to true), "nickname" to "Mom")
+        assertEquals(FirstPublish.Nothing, FirstPublish.of(existing, mine, edited = setOf("flags", "nickname")))
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

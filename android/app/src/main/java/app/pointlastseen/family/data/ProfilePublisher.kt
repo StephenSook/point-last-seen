@@ -27,7 +27,7 @@ sealed interface FirstPublish {
     companion object {
         fun of(existing: Map<String, Any?>?, mine: Map<String, Any?>, edited: Set<String> = emptySet()): FirstPublish {
             if (existing == null) return Create(mine)
-            val send = mine.filterKeys { it !in existing || it in edited }
+            val send = mine.filterKeys { it !in existing || (it in edited && EditableFields.sendable(it, mine[it], existing[it])) }
             return if (send.isEmpty()) Nothing else Merge(send)
         }
 
