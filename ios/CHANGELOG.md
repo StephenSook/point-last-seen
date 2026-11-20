@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the test matrix records the iPhone runs on build 7
+- What: the iPhone rows of docs/TEST-MATRIX.md now say Run: Apple's on-device model and the cloud model
+  each read the route check's drill sentence on an iPhone 17 Pro, iOS 27.2.1, on build 7 (commit
+  a158b6fe), with the model, time and reading as recorded, citing the tracked evidence.
+- Source: the phone route check on build 7.
+- Verified: scripts/test_test_matrix.py passes (every cited file is tracked and every cited code line
+  still holds its call).
+
 ### docs(evidence): the iPhone route check on build 7
 - What: docs/evidence/ios/iphone-2026-11-20-build7 holds the route-check file build 7 wrote on an
   iPhone 17 Pro (iOS 27.2.1), copied off the phone, with a README. One fixed drill sentence was read on
