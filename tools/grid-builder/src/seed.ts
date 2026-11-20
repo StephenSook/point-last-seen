@@ -5,6 +5,8 @@ type Terrain = Parameters<typeof buildPrior>[2];
 export interface SegmentSeedDoc {
   segmentId: string;
   priorPoa: number;
+  /** The ring prior (layers off), the baseline the command post's rebuild keeps beside the layered prior. */
+  ringPoa: number;
   geometryJson: string;
   centroid: LatLon;
   areaM2: number;
@@ -18,15 +20,17 @@ export interface RowSeedDoc { segmentId: "ROW"; priorPoa: number }
 
 /**
  * The docs the apps read under incidents/{id}/segments: one per segment (geometry as a GeoJSON string, the
- * engine's prior) and ROW last with the mass outside the mapped area. The prior is the engine's own
- * buildPrior, so the seeded numbers are the numbers every client would compute.
+ * engine's prior and its ring prior as ringPoa) and ROW last with the mass outside the mapped area. The prior is the
+ * engine's own buildPrior, so the seeded numbers are the numbers every client would compute; the seed tool adds the
+ * prior version.
  */
 export function priorDocs(grid: Grid, ipp: LatLon, terrain: Terrain, layers: PriorLayers, travelBearingDeg: number | null):
   (SegmentSeedDoc | RowSeedDoc)[] {
   const prior = buildPrior(grid, ipp, terrain, layers, travelBearingDeg);
   const poa = new Map(prior.segments.map(p => [p.segmentId, p.priorPoa]));
+  const ring = new Map(buildPrior(grid, ipp, terrain, { linear: false, wedge: false }, null).segments.map(p => [p.segmentId, p.priorPoa]));
   const docs: (SegmentSeedDoc | RowSeedDoc)[] = grid.segments.map(s => ({
-    segmentId: s.segmentId, priorPoa: poa.get(s.segmentId) ?? 0, geometryJson: JSON.stringify(s.geometry),
+    segmentId: s.segmentId, priorPoa: poa.get(s.segmentId) ?? 0, ringPoa: ring.get(s.segmentId) ?? 0, geometryJson: JSON.stringify(s.geometry),
     centroid: s.centroid, areaM2: s.areaM2, neighbors: s.neighbors, upstream: s.upstream, downstream: s.downstream,
     nearFrac: s.nearFrac, featureClasses: s.featureClasses,
   }));

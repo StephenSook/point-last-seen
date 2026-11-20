@@ -41,6 +41,12 @@ targets:
         buildPhase: resources
       - path: ../shared/constants/urgency.json
         buildPhase: resources
+      - path: ../shared/constants/tracking-aids.json
+        buildPhase: resources
+      - path: ../shared/grid/kennesaw-mountain-drill.pmtiles
+        buildPhase: resources
+      - path: ../shared/grid/piedmont-park-dev.pmtiles
+        buildPhase: resources
     info:
       path: PLS/Info.plist
       properties:

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Auth } from "firebase-admin/auth";
 import { Timestamp, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
-import { HttpsError } from "firebase-functions/v2/https";
+import { HttpsError, type FunctionsErrorCode } from "firebase-functions/v2/https";
 
 /** The label every practice incident carries, shown wherever the drill label is shown. */
 export const JUDGE_LABEL = "Training drill. Practice search; nobody is missing.";
@@ -17,134 +17,193 @@ const DAY_MS = 24 * HOUR_MS;
 const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabel", "status", "priorInputEventIds",
   "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty", "mediaRevokedAt",
   "setupReady", "setupId", "setupStartedAtMs"]);
-/** A setup that has not finished in this long is taken to have died, and the next start redoes it. */
+/** startJudgeSession's timeout (index.ts). A 2nd gen function can keep running after it, so it is not a kill switch. */
+export const JUDGE_SESSION_TIMEOUT_S = 120;
+/**
+ * A setup that has not finished in this long is taken to have died, and the next start builds a fresh attempt. More
+ * than twice the timeout, as a margin; the safety comes from each attempt having its own incident id.
+ */
 export const SETUP_STALE_MS = 5 * 60_000;
+/**
+ * Each refusal carries a stable details.reason beside its sentence, so a client maps the code and the reason, never
+ * the text (a client SDK may add to the message). The sentences stay as the words a client shows.
+ */
+const refuse = (code: FunctionsErrorCode, message: string, reason: string) => new HttpsError(code, message, { reason });
+const noSeed = () => refuse("failed-precondition", "No practice search is available right now.", "no_practice");
+const stillSettingUp = () => refuse("unavailable", "Your practice search is still being set up. Try again in a moment.", "setup_busy");
 
 /** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */
 type Writer = { set(ref: DocumentReference, data: DocumentData): Promise<unknown>; close(): Promise<void> };
 /** copy: tests wrap the real copy step to delay it or make it fail; writer: tests make single writes fail. */
-type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer };
+type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer;
+  beforeClaims?: () => Promise<void> };
 
-async function giveCommand(auth: Auth, uid: string, incidentId: string): Promise<{ incidentId: string; role: "command" }> {
+/**
+ * Gives the command role on a practice search, but only while it is still the visitor's attempt (judgeUsers/{uid}),
+ * ready and not ended, read right before the role is written. A start that paused and finds a newer winner leaves
+ * that winner's role alone. (A pause between this read and the write itself is the gap left; docs/LIMITS.md.)
+ */
+async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: string, nowMs: number,
+  beforeClaims?: () => Promise<void>): Promise<{ incidentId: string; role: "command" }> {
+  await beforeClaims?.();
+  const [user, sandbox] = await db.getAll(db.doc(`judgeUsers/${uid}`), db.doc(`incidents/${incidentId}`));
+  const exp = sandbox!.get("expiresAt");
+  const current = user!.get("incidentId") === incidentId && sandbox!.get("setupReady") === true
+    && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
+  if (!current) throw stillSettingUp();
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };
 }
 
 /**
- * Clears whatever an earlier sandbox or a failed setup left under it, then copies the seed's subcollections in. Each
- * phase first checks that this build still owns the setup, so a builder that stalled while another took over never
- * clears or writes the newer sandbox; and every write's own result is checked, since BulkWriter.close() resolves
- * even when a write failed.
+ * Copies the seed's segments, teams and shared profile into a new attempt's own, empty incident. Nothing is cleared:
+ * no other attempt ever writes under this id, so a builder that stalls and resumes late can touch only its own
+ * attempt. Every write's own result is checked (BulkWriter.close() resolves even when a write failed), and the writer
+ * is closed before any error leaves, so no write is still in flight once the setup is let go.
  */
-async function copyFrom(db: Firestore, seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
+async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
   stillOwner: () => Promise<boolean>): Promise<void> {
-  const owned = async () => {
-    if (!(await stillOwner())) throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
-  };
-  await owned();
-  for (const c of await to.listCollections()) await db.recursiveDelete(c);
-  await owned();
+  if (!(await stillOwner())) throw stillSettingUp();
   const writer = makeWriter();
-  // Each write's failure is caught as it happens (never left unhandled) and the first one is thrown after close().
   const writes: Promise<unknown>[] = [];
   const set = (ref: DocumentReference, data: DocumentData) => writes.push(writer.set(ref, data).then(() => null, (e: unknown) => e ?? "write failed"));
-  for (const sub of ["segments", "teams"]) {
-    for (const d of (await seed.collection(sub).get()).docs) set(to.collection(sub).doc(d.id), d.data());
+  try {
+    for (const sub of ["segments", "teams"]) {
+      for (const d of (await seed.collection(sub).get()).docs) set(to.collection(sub).doc(d.id), d.data());
+    }
+    const shared = await seed.collection("profile").doc("shared").get();
+    if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
+  } finally {
+    await writer.close();
   }
-  const shared = await seed.collection("profile").doc("shared").get();
-  if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
-  await writer.close();
   const failed = (await Promise.all(writes)).find(e => e !== null);
   if (failed !== undefined) throw failed;
 }
 
-/** Whether a sandbox holds the seed's whole copy: as many segments and teams, and the shared profile if the seed has one. */
+/**
+ * Whether a sandbox holds the seed's whole copy: every one of the seed's segment and team ids, and the shared profile
+ * if the seed has one. With no seed there is nothing to check against, so nothing is promoted.
+ */
 async function copyIsComplete(seed: DocumentReference, to: DocumentReference): Promise<boolean> {
-  const count = async (ref: DocumentReference, sub: string) => (await ref.collection(sub).count().get()).data().count;
-  for (const sub of ["segments", "teams"]) if ((await count(seed, sub)) !== (await count(to, sub))) return false;
+  if (!(await seed.get()).exists) throw noSeed();
+  for (const sub of ["segments", "teams"]) {
+    const have = new Set((await to.collection(sub).listDocuments()).map(d => d.id));
+    if ((await seed.collection(sub).listDocuments()).some(d => !have.has(d.id))) return false;
+  }
   const [a, b] = await Promise.all([seed.collection("profile").doc("shared").get(), to.collection("profile").doc("shared").get()]);
-  return a.exists === b.exists;
+  return !a.exists || b.exists;
 }
 
 /**
- * startJudgeSession (callable): a signed-in visitor gets their own practice incident, incidents/judge-{uid},
- * copied from the seed drill (its grid, prior, teams and shared profile; never its events, command profile or
- * consent records), labelled as a training drill, ending 24 hours after it starts, with the command role on it.
- * A visitor who returns while it is live gets the same one. A new one is allowed once an hour per visitor and
- * within a daily cap across all visitors.
+ * startJudgeSession (callable): a signed-in visitor gets their own practice incident, copied from the seed drill (its
+ * grid, prior, teams and shared profile; never its events, command profile or consent records), labelled as a training
+ * drill, ending 24 hours after it starts, with the command role on it. A visitor who returns while it is live gets the
+ * same one. A new one is allowed once an hour per visitor and within a daily cap across all visitors.
+ *
+ * Each build gets a fresh incident id, judge-{uid}-{12 hex}, and judgeUsers/{uid} names the attempt that won. A setup
+ * that died is replaced by a fresh attempt for the same session (same window, same slot) and the dead one is ended,
+ * so a builder that resumes late, the cleanup job and the media sweep each act only on ids no other attempt uses. A
+ * sandbox made before attempts had ids (incidents/judge-{uid}) is checked against the seed and kept when whole.
  */
 export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: string | null, nowMs: number,
   cfg: Config = { seedIncidentId: JUDGE_SEED_INCIDENT, perDay: JUDGE_SESSIONS_PER_DAY }): Promise<{ incidentId: string; role: "command" }> {
-  if (uid === null) throw new HttpsError("unauthenticated", "Sign in before starting a practice search.");
-  const id = `judge-${uid}`, ref = db.doc(`incidents/${id}`);
+  if (uid === null) throw refuse("unauthenticated", "Sign in before starting a practice search.", "not_signed_in");
+  const userRef = db.doc(`judgeUsers/${uid}`), legacyId = `judge-${uid}`, legacyRef = db.doc(`incidents/${legacyId}`);
   const seedRef = db.doc(`incidents/${cfg.seedIncidentId}`);
   const setupId = randomUUID();
+  const attemptId = `judge-${uid}-${randomUUID().replace(/-/g, "").slice(0, 12)}`, attemptRef = db.doc(`incidents/${attemptId}`);
   const today = new Date(nowMs).toISOString().slice(0, 10);
-  const counter = db.doc("ops/judgeSessions");
+  // One counter per UTC day: a call that started before midnight and commits after it counts on its own day only.
+  const counter = db.doc(`ops/judgeSessions-${today}`);
+  // A new attempt: the seed's settings, this session's window, and a setup this call owns.
+  const attempt = (seed: DocumentData, createdAt: Timestamp, expiresAt: Timestamp) => ({
+    ...Object.fromEntries(Object.entries(seed).filter(([k]) => !NOT_COPIED.has(k))),
+    name: "Practice search", mode: "judge", drillLabel: JUDGE_LABEL, status: "open", priorInputEventIds: [],
+    createdAt, expiresAt, setupReady: false, setupId, setupStartedAtMs: nowMs });
+  // An attempt replaced by a newer one ends now: the rules refuse it, its builder can no longer finish it, and the
+  // cleanup job and the media sweep remove it.
+  const retired = { setupId: "retired", setupStartedAtMs: 0, expiresAt: Timestamp.fromMillis(nowMs) };
+
   // One transaction decides, so two starts at once cannot both take a slot or both build: a live, ready sandbox is
-  // handed back; one still being set up makes the caller wait; a missing or ended one (or a setup that died) is
-  // claimed by this call, and only the claim's owner builds it. Only a new sandbox uses a slot of the daily cap.
-  const action = await db.runTransaction(async tx => {
-    const [existing, seed, count] = await tx.getAll(ref, seedRef, counter);
-    const exp = existing!.get("expiresAt"), created = existing!.get("createdAt");
-    const live = existing!.exists && exp instanceof Timestamp && exp.toMillis() > nowMs;
-    if (live) {
-      if (existing!.get("setupReady") === true) return "ready";
-      // A sandbox made before setup was tracked has no flag: checked against the seed below.
-      if (existing!.get("setupReady") === undefined) return "legacy";
-      const started = existing!.get("setupStartedAtMs");
-      if (typeof started === "number" && nowMs - started < SETUP_STALE_MS) return "busy";
-      tx.update(ref, { setupId, setupStartedAtMs: nowMs });
-      return "build";
+  // handed back; one still being set up makes the caller wait; a setup that died is replaced by a fresh attempt for
+  // the same session; a missing or ended one gives a new session. Only a new session uses a slot of the daily cap.
+  type Action = { kind: "ready" | "legacy"; id: string } | { kind: "busy" } | { kind: "build"; id: string };
+  const action: Action = await db.runTransaction(async tx => {
+    const [user, seed, count, legacy] = await tx.getAll(userRef, seedRef, counter, legacyRef);
+    const currentId: string | null = user!.exists ? (user!.get("incidentId") as string) : legacy!.exists ? legacyId : null;
+    const current = currentId === null ? null : currentId === legacyId ? legacy! : await tx.get(db.doc(`incidents/${currentId}`));
+    const exp = current?.get("expiresAt");
+    if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs) {
+      if (current.get("setupReady") === true) {
+        if (!user!.exists) tx.set(userRef, { incidentId: current.id, createdAt: current.get("createdAt") });
+        return { kind: "ready", id: current.id };
+      }
+      // Only a sandbox made before setup was tracked has no flag: checked against the seed below.
+      if (current.get("setupReady") === undefined) return { kind: "legacy", id: current.id };
+      const started = current.get("setupStartedAtMs");
+      if (typeof started === "number" && nowMs - started < SETUP_STALE_MS) return { kind: "busy" };
+      if (!seed!.exists) throw noSeed();
+      tx.update(current.ref, retired);
+      tx.set(attemptRef, attempt(seed!.data()!, current.get("createdAt"), exp));
+      tx.set(userRef, { incidentId: attemptId, createdAt: current.get("createdAt") });
+      return { kind: "build", id: attemptId };
     }
-    if (existing!.exists && created instanceof Timestamp && nowMs - created.toMillis() < HOUR_MS) {
-      throw new HttpsError("resource-exhausted", "One new practice search per hour. Try again later.");
+    const created = user!.exists ? user!.get("createdAt") : current?.get("createdAt");
+    if (created instanceof Timestamp && nowMs - created.toMillis() < HOUR_MS) {
+      throw refuse("resource-exhausted", "One new practice search per hour. Try again later.", "hourly_limit");
     }
-    if (!seed!.exists) throw new HttpsError("failed-precondition", "No practice search is available right now.");
-    const used = count!.get("day") === today && typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
-    if (used >= cfg.perDay) throw new HttpsError("resource-exhausted", "Practice searches are full for today. Try again tomorrow.");
-    tx.set(counter, { day: today, count: used + 1 });
-    const fields = Object.fromEntries(Object.entries(seed!.data()!).filter(([k]) => !NOT_COPIED.has(k)));
-    tx.set(ref, { ...fields, name: "Practice search", mode: "judge", drillLabel: JUDGE_LABEL, status: "open", priorInputEventIds: [],
-      createdAt: Timestamp.fromMillis(nowMs), expiresAt: Timestamp.fromMillis(nowMs + DAY_MS),
-      setupReady: false, setupId, setupStartedAtMs: nowMs });
-    return "build";
+    if (!seed!.exists) throw noSeed();
+    const used = typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
+    if (used >= cfg.perDay) throw refuse("resource-exhausted", "Practice searches are full for today. Try again tomorrow.", "daily_limit");
+    tx.set(counter, { count: used + 1 });
+    const createdAt = Timestamp.fromMillis(nowMs);
+    tx.set(attemptRef, attempt(seed!.data()!, createdAt, Timestamp.fromMillis(nowMs + DAY_MS)));
+    tx.set(userRef, { incidentId: attemptId, createdAt });
+    return { kind: "build", id: attemptId };
   });
-  if (action === "busy") throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
-  let next: "ready" | "build" = action === "legacy" ? "ready" : action;
-  if (action === "legacy") {
-    // A complete legacy copy gets its flag; a short one is claimed and rebuilt, on the slot it already used.
-    const complete = await copyIsComplete(seedRef, ref);
-    next = await db.runTransaction(async tx => {
-      const fresh = await tx.get(ref);
-      if (fresh.get("setupReady") !== undefined) return fresh.get("setupReady") === true ? "ready" : "build";
-      tx.update(ref, complete ? { setupReady: true } : { setupReady: false, setupId, setupStartedAtMs: nowMs });
-      return complete ? "ready" : "build";
+  if (action.kind === "busy") throw stillSettingUp();
+  if (action.kind === "ready") return giveCommand(db, auth, uid, action.id, nowMs, cfg.beforeClaims);
+
+  let buildId = action.id;
+  if (action.kind === "legacy") {
+    // A whole legacy copy gets its flag and the pointer; a short one is replaced by a fresh attempt for the same
+    // session, on the slot it already used, and never rebuilt in place.
+    const complete = await copyIsComplete(seedRef, legacyRef);
+    const next = await db.runTransaction(async tx => {
+      const [user, legacy, seed] = await tx.getAll(userRef, legacyRef, seedRef);
+      if (user!.exists || legacy!.get("setupReady") !== undefined) return "busy" as const;
+      if (complete) {
+        tx.update(legacyRef, { setupReady: true });
+        tx.set(userRef, { incidentId: legacyId, createdAt: legacy!.get("createdAt") });
+        return "ready" as const;
+      }
+      if (!seed!.exists) throw noSeed();
+      tx.update(legacyRef, retired);
+      tx.set(attemptRef, attempt(seed!.data()!, legacy!.get("createdAt"), legacy!.get("expiresAt")));
+      tx.set(userRef, { incidentId: attemptId, createdAt: legacy!.get("createdAt") });
+      return "build" as const;
     });
-    if (next === "build" && (await ref.get()).get("setupId") !== setupId) {
-      throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
-    }
+    if (next === "busy") throw stillSettingUp();
+    if (next === "ready") return giveCommand(db, auth, uid, legacyId, nowMs, cfg.beforeClaims);
+    buildId = attemptId;
   }
-  if (next === "build") {
-    const stillOwner = async () => (await ref.get()).get("setupId") === setupId;
-    const copy = () => copyFrom(db, seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner);
-    // Finishes or releases the claim, but only while this call still owns it (a later start may have taken over).
-    const settle = (fields: Record<string, unknown>) => db.runTransaction(async tx => {
-      if ((await tx.get(ref)).get("setupId") === setupId) tx.update(ref, fields);
-    });
-    try {
-      await (cfg.copy ? cfg.copy(copy) : copy());
-    } catch (e) {
-      await settle({ setupStartedAtMs: 0 });
-      throw e;
-    }
-    await settle({ setupReady: true });
-    if ((await ref.get()).get("setupReady") !== true) {
-      throw new HttpsError("unavailable", "Your practice search is still being set up. Try again in a moment.");
-    }
-    console.log(JSON.stringify({ event: "startJudgeSession", incidentId: id, seed: cfg.seedIncidentId }));
+
+  const ref = db.doc(`incidents/${buildId}`);
+  const stillOwner = async () => (await ref.get()).get("setupId") === setupId;
+  const copy = () => copyFrom(seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner);
+  // Finishes or lets go of the setup, but only while this call still owns it (a later start may have replaced it).
+  const settle = (fields: Record<string, unknown>) => db.runTransaction(async tx => {
+    if ((await tx.get(ref)).get("setupId") === setupId) tx.update(ref, fields);
+  });
+  try {
+    await (cfg.copy ? cfg.copy(copy) : copy());
+  } catch (e) {
+    await settle({ setupStartedAtMs: 0 });
+    throw e;
   }
-  return giveCommand(auth, uid, id);
+  await settle({ setupReady: true });
+  console.log(JSON.stringify({ event: "startJudgeSession", incidentId: buildId, seed: cfg.seedIncidentId }));
+  return giveCommand(db, auth, uid, buildId, nowMs, cfg.beforeClaims);
 }
 
 /** Deletes each judge sandbox, with everything under it, once it ended more than a day ago. Returns the ids. */
