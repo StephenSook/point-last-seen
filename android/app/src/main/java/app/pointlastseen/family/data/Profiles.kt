@@ -226,17 +226,18 @@ object Profiles {
     /** The shared fields any approach note is derived from. */
     val NOTE_INPUT_FIELDS: Set<String> = NOTE_INPUTS.flatMap { it.second }.toSet()
 
+    /** Every approach note id the rules accept. */
+    val NOTE_IDS: Set<String> = NOTE_INPUTS.map { it.first }.toSet()
+
     /**
-     * Approach notes after a merge that changed [changed] fields: a note derived from a changed field follows the
-     * merged document, as does a note with no inputs (always shown); every other note keeps what [stored] says
-     * (command may have curated it), and a stored note this app version does not know stays at the end.
+     * Approach notes after a merge that changed [changed] fields, in card order and each once: a note derived from a
+     * changed field follows the merged document, as does a note with no inputs (always shown); every other note keeps
+     * what [stored] says (command may have curated it). Only ids the rules accept come out.
      */
     fun mergeApproachNotes(stored: List<String>, merged: Map<String, Any?>, changed: Set<String>): List<String> {
         val fresh = approachNoteIds(merged).toSet()
-        val known = NOTE_INPUTS.map { it.first }.toSet()
         // A note with no inputs (approach_calm) is always shown, so it always follows the merged document.
-        val notes = NOTE_INPUTS.filter { (id, inputs) -> if (inputs.isEmpty() || inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
-        return notes + stored.filter { it !in known }
+        return NOTE_INPUTS.filter { (id, inputs) -> if (inputs.isEmpty() || inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
     }
 
     /** The same notes, read from a profile/shared document (for a document merged with what command entered). */

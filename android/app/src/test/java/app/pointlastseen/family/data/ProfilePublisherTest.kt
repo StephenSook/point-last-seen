@@ -208,6 +208,22 @@ class ProfilePublisherTest {
         )
     }
 
+    /**
+     * The rules take only the known note ids. A stored list holding anything else (an id this app does not know, a
+     * number) is repaired, and the always-shown note is added even when no note input changed.
+     */
+    @Test fun aFirstPublishRepairsTheStoredNotesAndAddsTheAlwaysShownOne() {
+        val mine = mapOf<String, Any?>("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm", "fall_risk"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to listOf("fall_risk", "future_note", 5)), mine, edited = setOf("hair")),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("hair" to "grey", "approachNoteIds" to listOf("approach_calm"))),
+            FirstPublish.of(mapOf("hair" to "white", "approachNoteIds" to emptyList<String>()), mine, edited = setOf("hair")),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

@@ -41,14 +41,16 @@ sealed interface FirstPublish {
          */
         private fun refreshApproachNotes(existing: Map<String, Any?>, mine: Map<String, Any?>, send: MutableMap<String, Any?>) {
             if ("approachNoteIds" !in mine) return
-            val stored = (existing["approachNoteIds"] as? List<*>)?.map { it.toString() }
-            if (stored == null) {
+            val raw = existing["approachNoteIds"] as? List<*>
+            if (raw == null) {
                 send["approachNoteIds"] = Profiles.approachNoteIds(existing + send)
                 return
             }
-            val changed = send.keys.filter { it in Profiles.NOTE_INPUT_FIELDS && send[it] != existing[it] }.toSet()
-            val ids = if (changed.isEmpty()) stored else Profiles.mergeApproachNotes(stored, existing + send, changed)
-            if (ids != stored) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
+            // Only the ids the rules accept are kept from the stored list; anything else is repaired away.
+            val stored = raw.filterIsInstance<String>().filter { it in Profiles.NOTE_IDS }
+            val changed = send.keys.filter { it in Profiles.NOTE_INPUT_FIELDS && (it !in existing || send[it] != existing[it]) }.toSet()
+            val ids = Profiles.mergeApproachNotes(stored, existing + send, changed)
+            if (ids != raw) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
         }
 
         /**
