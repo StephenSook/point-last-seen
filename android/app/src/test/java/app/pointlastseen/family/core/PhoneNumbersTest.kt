@@ -318,4 +318,11 @@ class PhoneNumbersTest {
         }
         assertEquals("12345 67th Ave. and 12345 125th Street", PhoneNumbers.remove("12345 67th Ave. and 12345 125th Street"))
     }
+
+    /** Two decimals joined by a bare minus are no coordinate pair; a pair has a comma or a space before the minus. */
+    @Test fun twoDecimalsJoinedByABareMinusAreNoCoordinates() {
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 44.2071-23.4567"))
+        assertEquals("GPS 33.7490 -84.3880", PhoneNumbers.remove("GPS 33.7490 -84.3880"))
+        assertEquals("GPS 33.7490,-84.3880", PhoneNumbers.remove("GPS 33.7490,-84.3880"))
+    }
 }

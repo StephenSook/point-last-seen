@@ -59,7 +59,9 @@ object PhoneNumbers {
     )
 
     // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
-    private val COORDINATE_GAP = Regex("""[ \n]{0,2}(,[ \n]{0,2}-?|-)""")
+    // A comma (with up to two spaces around it, and a minus after), or a minus with a space before it: a bare minus
+    // between two decimals (44.2071-23.4567) is a dotted number, not a pair.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{1,2}-""")
     private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
     private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
     private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
