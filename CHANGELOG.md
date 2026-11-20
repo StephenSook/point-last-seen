@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-19
 
+- `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
+  touching the incident's primary code: `--add-code <project> <incidentId> <role> <incidentId>-<name>` keeps the code
+  in the Keychain under the role's service and its own account and then creates its joinCodes doc (only if absent);
+  `--revoke-code` checks that the doc names this incident and role, deletes it (only if present) and removes the
+  Keychain entry. An account that is not `<incidentId>-<name>`, such as the primary account, is refused before
+  anything changes. A searcher code for the test drill was added this way for Apple's Beta App Review, under
+  account `drill-test-1-reviewer`.
+  Source: the iPhone app's TestFlight review needs a join code that can be revoked after the review.
+  Verified: the tests (the account rule; the create-only and delete-only writes; argument checks before any change)
+  failed first, now all 35 seed tests pass; live, the reviewer code is 8 characters in the Keychain, differs from the
+  primary code, and its doc reads back as a searcher code of drill-test-1.
 - The rules gate checks that `shared/constants/judge-seed.json`, which the web's live fixtures read, names the same
   judge seed as `JUDGE_SEED_INCIDENT` and a different test drill, so the two copies of the seed id cannot drift.
   The file's description now says what it is: the drill every practice search is copied from (judges do not open
