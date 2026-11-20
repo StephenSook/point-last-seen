@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): Apple's model reads the report alone, without the subject's description
+- What: on the phone, Apple's model got the subjectDescription tool and an instruction to compare the
+  report with it, and it copied the description into readings: a quote from the description
+  ("Clothing last worn: blue coat.") that the validator rejected, and the description's colours.
+  The on-device guided read now gets only the segmentHere and teamAssignment tools and its own
+  instructions (PromptText.onDeviceGuided: "Set matchesProfile to unknown."); code decides the match.
+  Its token count uses the same prompt and tools. The cloud read is unchanged: same tools, same prompt,
+  same allow-list.
+- Source: review (Apple's model not used on a real iPhone; simulator probe showed the leak).
+- Verified: tests that Apple's model gets no description tool or comparison instruction while the cloud
+  prompt keeps it, and that the reader hands the description to code (an on-device answer of
+  "inconsistent" becomes "consistent" for a matching colour); they failed to compile before the change
+  and pass after; 356 core and 193 app tests pass.
+
 ### feat(ios-core): code decides whether a reading by Apple's model matches the subject
 - What: ProfileMatch.decide compares a reading's colours and item, footwear and carried words with
   the subject's description: consistent when one of them is in it, otherwise unknown, so a clue is

@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import PLSCore
 import Testing
 @testable import PLS
@@ -28,5 +29,16 @@ import Testing
     @Test func theInstructionsAreTheCoreText() {
         #expect(ReportPrompt.guidedText == PromptText.guided)
         #expect(ReportPrompt.permissiveText == PromptText.permissive)
+        #expect(ReportPrompt.onDeviceGuidedText == PromptText.onDeviceGuided)
+    }
+
+    /// Apple's model reads the report alone: no description tool and no instruction to compare with one,
+    /// so it cannot copy the subject's description into a reading. The cloud keeps its three tools.
+    @Test func applesModelGetsNoDescriptionTool() {
+        let tools: [any Tool] = [SegmentAtTool(positionSegmentId: "AC"), TeamAssignmentTool(assignedSegmentIds: ["AC"]),
+                                 SubjectProfileTool(profile: ModelProfile(shared: .null))]
+        #expect(FoundationModelRunner.onDeviceTools(tools).map(\.name) == [ToolText.segmentHereName, ToolText.teamAssignmentName])
+        #expect(!PromptText.onDeviceGuided.contains("subjectDescription"))
+        #expect(PromptText.guided.contains("subjectDescription"))
     }
 }
