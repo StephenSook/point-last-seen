@@ -1,0 +1,188 @@
+{
+ "schemaVersion": 1,
+ "note": "Grounding a reading in its note (shared/constants/grounding-words.json). Each case sets one field of an otherwise blank reading to value, grounds it in note, and expects that field to equal expected; every other field stays blank.",
+ "cases": [
+  {
+   "name": "top_color_in_note",
+   "field": "topColor",
+   "note": "Wearing a red jacket, seen 14:03",
+   "value": "red",
+   "expected": "red"
+  },
+  {
+   "name": "top_color_from_profile",
+   "field": "topColor",
+   "note": "Wearing a jacket, seen 14:03",
+   "value": "blue",
+   "expected": "unknown"
+  },
+  {
+   "name": "top_color_other_spelling",
+   "field": "topColor",
+   "note": "Grey sweater near the bench",
+   "value": "gray",
+   "expected": "gray"
+  },
+  {
+   "name": "top_color_upper_case",
+   "field": "topColor",
+   "note": "RED jacket by the gate",
+   "value": "red",
+   "expected": "red"
+  },
+  {
+   "name": "top_color_inside_a_name",
+   "field": "topColor",
+   "note": "Fred said he left the park",
+   "value": "red",
+   "expected": "unknown"
+  },
+  {
+   "name": "top_color_unknown_stays",
+   "field": "topColor",
+   "note": "Seen by the pond",
+   "value": "unknown",
+   "expected": "unknown"
+  },
+  {
+   "name": "bottom_color_in_note",
+   "field": "bottomColor",
+   "note": "Black pants and a cap",
+   "value": "black",
+   "expected": "black"
+  },
+  {
+   "name": "bottom_color_from_profile",
+   "field": "bottomColor",
+   "note": "Pants and a cap",
+   "value": "brown",
+   "expected": "unknown"
+  },
+  {
+   "name": "direction_word",
+   "field": "direction",
+   "note": "Headed north on the trail",
+   "value": "n",
+   "expected": "n"
+  },
+  {
+   "name": "direction_two_letters",
+   "field": "direction",
+   "note": "Went NE toward the creek",
+   "value": "ne",
+   "expected": "ne"
+  },
+  {
+   "name": "direction_hyphenated",
+   "field": "direction",
+   "note": "Walking north-east past the lot",
+   "value": "ne",
+   "expected": "ne"
+  },
+  {
+   "name": "direction_spaced",
+   "field": "direction",
+   "note": "Last seen north east of the lot",
+   "value": "ne",
+   "expected": "ne"
+  },
+  {
+   "name": "direction_capital_letter",
+   "field": "direction",
+   "note": "Heading S on the path",
+   "value": "s",
+   "expected": "s"
+  },
+  {
+   "name": "direction_lowercase_letter_is_not_a_direction",
+   "field": "direction",
+   "note": "It's by the bridge",
+   "value": "s",
+   "expected": "unknown"
+  },
+  {
+   "name": "direction_bound",
+   "field": "direction",
+   "note": "Northbound on the greenway",
+   "value": "n",
+   "expected": "n"
+  },
+  {
+   "name": "direction_downstream",
+   "field": "direction",
+   "note": "Went downstream along the creek",
+   "value": "downstream",
+   "expected": "downstream"
+  },
+  {
+   "name": "direction_not_in_note",
+   "field": "direction",
+   "note": "Walking along the creek",
+   "value": "upstream",
+   "expected": "unknown"
+  },
+  {
+   "name": "direction_other_compass_word",
+   "field": "direction",
+   "note": "Headed west on the trail",
+   "value": "e",
+   "expected": "unknown"
+  },
+  {
+   "name": "footwear_shares_a_word",
+   "field": "footwear",
+   "note": "White sneakers, slow walk",
+   "value": "white sneakers",
+   "expected": "white sneakers"
+  },
+  {
+   "name": "footwear_shares_one_word",
+   "field": "footwear",
+   "note": "Wore slippers",
+   "value": "house slippers",
+   "expected": "house slippers"
+  },
+  {
+   "name": "footwear_from_profile",
+   "field": "footwear",
+   "note": "In a blue coat by the pond",
+   "value": "brown boots",
+   "expected": ""
+  },
+  {
+   "name": "footwear_only_a_stopword_shared",
+   "field": "footwear",
+   "note": "The man was here at noon",
+   "value": "the boots",
+   "expected": ""
+  },
+  {
+   "name": "carried_shares_a_word",
+   "field": "carried",
+   "note": "Carrying a brown purse",
+   "value": "brown purse",
+   "expected": "brown purse"
+  },
+  {
+   "name": "carried_shares_one_word",
+   "field": "carried",
+   "note": "Had a cane, slow walk",
+   "value": "walking cane",
+   "expected": "walking cane"
+  },
+  {
+   "name": "carried_from_profile",
+   "field": "carried",
+   "note": "Walked past the store",
+   "value": "umbrella",
+   "expected": ""
+  },
+  {
+   "name": "carried_empty_stays",
+   "field": "carried",
+   "note": "Seen by the pond",
+   "value": "",
+   "expected": ""
+  }
+ ]
+}
