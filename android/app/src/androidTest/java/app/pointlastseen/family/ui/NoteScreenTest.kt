@@ -61,6 +61,13 @@ class NoteScreenTest {
         rule.onNodeWithText("Add to profile").assertDoesNotExist()
     }
 
+    /** A note that does not look English says it is not sent to the cloud, and the family picks the kind by hand. */
+    @Test fun aNoteThatDoesNotLookEnglishIsNotSentAndIsFilledByHand() {
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(NoteOutcome.NotEnglish, "Abuela salio de la casa"), onSort = { _, _ -> }, onAdd = {}, onBack = {}) } }
+        rule.onNodeWithText("This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand.").assertIsDisplayed()
+        rule.onNodeWithText("Add to profile").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun whenItCannotBeSortedTheFamilyPicksTheKind() {
         var added: FamilyNoteReading? = null
         rule.setContent { PaperTheme { NoteScreen(null, true, NoteUi.Done(NoteOutcome.FillByHand, "red scarf"), onSort = { _, _ -> }, onAdd = { added = it }, onBack = {}) } }
