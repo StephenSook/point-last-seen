@@ -9,6 +9,7 @@ export { deriveClearedEffect, deriveClueEffect, isWellFormedEffect, malformedEve
 export { validateReading } from "./validate";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
+export { looksEnglish } from "./language";
 export { buildPrior, linearWeights } from "./prior";
 export { urgencyFromConditions, urgencyLevel } from "./urgency";
 export type { UrgencyLevel } from "./urgency";

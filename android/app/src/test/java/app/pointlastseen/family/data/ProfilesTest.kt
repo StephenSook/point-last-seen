@@ -217,4 +217,14 @@ class ProfilesTest {
         )
         assertEquals(listOf("Trail marker [number removed]", "[number removed] Oak Road"), Profiles.placeLabels("Trail marker 1234\n5678 Oak Road"))
     }
+
+    /** The approach notes read from a shared document are the ones the profile itself gives, so a merged document can be checked. */
+    @Test fun approachNotesFromTheSharedDocumentMatchTheProfile() {
+        val p = SubjectProfile(
+            flags = setOf("mayNotRespond", "fallRisk", "softVoice", "medicationTimingMatters"),
+            dementiaType = "lewy_body", shareDementiaType = true, primaryLanguage = "Spanish",
+            triggersToAvoid = "sirens", bestApproach = "", uniqueDescription = "a red scarf",
+        )
+        assertEquals(Profiles.approachNoteIds(p), Profiles.approachNoteIds(Profiles.forSearchers(p).toMap()))
+    }
 }
