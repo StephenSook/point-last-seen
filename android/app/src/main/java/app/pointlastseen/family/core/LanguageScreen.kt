@@ -49,19 +49,24 @@ class LanguageScreen(
 
         /**
          * Reads shared/constants/language-words.json (schema version 1). A file with an empty word list, an entry that
-         * is not one folded word, or a threshold below 1 would let notes through, so it is refused ([LanguageWords]
+         * is not a string holding one folded word, a number written as text, or a threshold below 1 would let notes
+         * through, so it is refused ([LanguageWords]
          * then keeps the screen unloaded). Thresholds out of tune are caught at build time instead: LanguageVectorsTest
          * runs the shared refuse cases against the same file the build ships.
          */
         fun parse(json: String): LanguageScreen {
             val o = Json.parseToJsonElement(json).jsonObject
-            require(o["schemaVersion"]!!.jsonPrimitive.int == 1) { "unknown language-words schema" }
+            // A number must be a JSON number, and a word a JSON string: true or 3 in a list would read as a word.
+            fun number(key: String) = o[key]!!.jsonPrimitive.also { require(!it.isString) { "$key is not a number" } }.int
+            require(number("schemaVersion") == 1) { "unknown language-words schema" }
             // Each entry must be one word as the screen folds a note, or it could never match (an empty entry, a phrase).
-            fun list(key: String) = o[key]!!.jsonArray.map { it.jsonPrimitive.content }.toSet().also { words ->
+            fun list(key: String) = o[key]!!.jsonArray.map { e ->
+                e.jsonPrimitive.also { require(it.isString) { "an entry in $key is not a string" } }.content
+            }.toSet().also { words ->
                 require(words.isNotEmpty()) { "empty $key list" }
                 require(words.all { words(it) == listOf(it) }) { "an entry in $key is not one folded word" }
             }
-            fun threshold(key: String) = o[key]!!.jsonPrimitive.int.also { require(it >= 1) { "$key below 1" } }
+            fun threshold(key: String) = number(key).also { require(it >= 1) { "$key below 1" } }
             return LanguageScreen(list("english"), list("foreign"), threshold("minForeign"), threshold("foreignOverEnglish"))
         }
     }

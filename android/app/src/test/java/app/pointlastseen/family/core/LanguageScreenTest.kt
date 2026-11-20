@@ -32,6 +32,9 @@ class LanguageScreenTest {
             good.replace(""""foreign":["la"]""", """"foreign":[""]"""),
             good.replace(""""foreign":["la"]""", """"foreign":["la casa"]"""),
             good.replace(""""english":["the"]""", """"english":["The"]"""),
+            good.replace(""""foreign":["la"]""", """"foreign":["la",true]"""),
+            good.replace(""""foreign":["la"]""", """"foreign":["la",3]"""),
+            good.replace(""""minForeign":3""", """"minForeign":"3""""),
         )) {
             assertEquals(bad, true, runCatching { LanguageScreen.parse(bad) }.isFailure)
         }
