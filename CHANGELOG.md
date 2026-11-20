@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README: one line on what a person sees when no model reads (nothing is sent; the web receipt's fixed wording, the
+  iPhone's rules mark, and the web and Android forms asking for the fields by hand), and the judge-page line now says
+  the page replays the development drill's published run instead of "No published run yet". Source: review. Verified:
+  wording copied from web/src/ai/receipt.ts, ios/PLSCore/Sources/PLSCore/Glyphs.swift and
+  web/src/command/SightingForm.tsx; the live /evidence/published-run.json is the Piedmont Park development run.
 - README, How the models are called: the iPhone route cites its basis, Firebase iOS SDK 13.0.0's
   FirebaseAI/CHANGELOG.md (lines 69 to 74 at tag 13.2.0: SystemLanguageModel and HybridModel removed; use
   ai.geminiLanguageModel(name:) with Apple's Foundation Models directly). Source: review. Verified: fetched the file
