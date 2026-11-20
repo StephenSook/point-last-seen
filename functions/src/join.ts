@@ -105,10 +105,13 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   if (incidentId !== undefined && incidentId !== id) denied();
   if (!inviteUsable(code)) denied();
   const incident = await db.doc(`incidents/${id}`).get();
-  // A judge sandbox needs a future timestamp expiry; any other incident may have none, but a set one counts.
+  // A judge sandbox needs a future timestamp expiry and a finished setup (setupReady === true), as the security
+  // rules' liveFor requires; any other incident may have no expiry, but a set one counts.
   const expiresAt = incident.get("expiresAt");
   const live = expiresAt instanceof Timestamp && expiresAt.toMillis() > Date.now();
-  const expired = incident.get("mode") === "judge" ? !live : expiresAt != null && !live;
+  const expired = incident.get("mode") === "judge"
+    ? !live || incident.get("setupReady") !== true
+    : expiresAt != null && !live;
   if (!incident.exists || incident.get("status") !== "open" || expired) denied();
   let team: string | null = null;
   if (role === "searcher") {

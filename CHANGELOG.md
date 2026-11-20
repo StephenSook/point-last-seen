@@ -14,6 +14,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Tests: the expired, no-expiry and expiry-edit judge sandbox tests (rules, storage, delete media) now give their
   sandbox `setupReady: true`, so each fails only for the reason it names and would catch a removed expiry check.
   Source: review (Codex round 1, low). Verified: suite 256 of 256.
+- `joinIncident` refuses a judge sandbox whose setup is not finished (`setupReady !== true`), as the rules do, so it
+  never grants claims that every read would then refuse. Source: review (Codex round 1, low). Verified test first: the
+  join test's no-flag and not-ready cases failed, then passed; suite 256 of 256.
 
 ## 2026-11-19
 
