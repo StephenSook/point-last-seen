@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Engine: groundReading(reading, note) returns a copy of a reading with each colour, direction, footwear or carried
+  value the note does not support blanked (shared/engine-ts/src/ground.ts, rule and words from
+  shared/constants/grounding-words.json). Each platform calls it after every read; the web wiring follows in its own
+  change. Source: review (a read took blue from the subject's profile). Verified: test/grounding.test.ts runs every
+  grounding.json case per field (32 tests, red before the function existed); engine typecheck, lint and all 312 tests
+  pass.
 - Grounding vectors: shared/constants/grounding-words.json holds the word lists and the rule for grounding a reading
   in its note (a colour or a direction stays only when its word is in the note, footwear or carried only when it
   shares a word with it; otherwise the field is blanked), and shared/test-vectors/grounding.json pins 26 cases, a kept
