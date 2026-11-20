@@ -7,6 +7,9 @@ struct JoinView: View {
     static let codeLabel = "Join code"
     static let teamLabel = "Team, for example T1"
     static let retryLabel = "Read the mission again"
+    static let practiceTitle = "No join code?"
+    static let practiceDetail = "Try a practice drill with sample data. Nobody is missing. Your reports stay on this phone."
+    static let practiceLabel = "Start the practice drill"
 
     @Bindable var model: AppModel
     @Environment(\.fieldTheme) private var theme
@@ -47,6 +50,17 @@ struct JoinView: View {
                     .font(.title3.bold()).frame(maxWidth: .infinity, minHeight: 60)
                     .disabled(model.joining)
                     .accessibilityIdentifier("join-retry-mission")
+            }
+            if model.canStartPractice {
+                Divider().padding(.vertical, 8)
+                Text(Self.practiceTitle).font(.title3.bold())
+                Text(Self.practiceDetail).font(.title3).foregroundStyle(theme.text(.secondary))
+                Button { Task { await model.startPractice() } } label: {
+                    Text(Self.practiceLabel).font(.title3.bold()).frame(maxWidth: .infinity, minHeight: 60)
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.joining)
+                .accessibilityIdentifier("practice-start")
             }
         }
         .textFieldStyle(.roundedBorder)

@@ -3,7 +3,87 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-20
+
+### fix(ios): written dates stay in a report; a slash-joined phone number still goes
+- What: a date is search information (when someone was last seen), not a phone number. The phone
+  number rule now keeps three digit groups joined by the same one of / - . that read as a date:
+  year-month-day with a 4-digit year from 1900 to 2100, or month and day in either order with a
+  2-digit year or such a 4-digit year (day 1 to 31, month 1 to 12). A date's groups count no digits,
+  so they never make or join a number. 11/19/2026, 2026-11-19, 19.11.2026 and 11-19-2026 now stay
+  (11/19/2026 and 2026-11-19 were removed before); 404/555/0142, 404-555-0142, 13/45/2026 and
+  5551-12-34 are still removed, and so is a number written next to a date.
+- Source: review (dates are kept on every platform; shared vectors).
+- Verified: a test of dates failed before the change and passes after; a test that date-shaped
+  numbers are still removed passes before and after; the shared vectors with the four new mustKeep
+  dates pass; all 315 core tests pass.
+
+### fix(ios): a claims check or a report in flight never touches the practice drill
+- What: three windows found in review. (1) A claims check already running when the drill started (at
+  launch, back in the foreground, back in signal, or from a tapped push) could load a real mission
+  over the drill, leaving real reports on the drill's journal, or drop the drill and leave the phone
+  with no way to end it. Starting the drill now counts as a newer access check, so a check already
+  running has no say. (2) A join never runs during the drill. (3) A report still being read when the
+  drill ended was journaled onto the drill's deleted journal and left its map behind; a report whose
+  journal changed while it was read is now kept nowhere, and its words stay in the field.
+- Source: review (practice drill).
+- Verified: tests for a running check with searcher claims (no real mission loads) and with no
+  searcher (the drill stays), and for a report being read when the drill ends (nothing journaled, no
+  map). All three failed before the fix and pass after. New tests also pin what already held: the
+  assignment is spoken with no account, End restores the real journal and deletes the drill's
+  folder, and the drill's server writes, reads back and listens to nothing. 190 app tests pass.
+
+### feat(ios): practice reports say to ask command in a real search
+- What: in the practice drill there is no command to ask, so a report line ending "Ask command." ends
+  "In a real search, ask command." instead (for a report that needs command, one that could not be
+  read, and one outside the search area). Every other line, and every real report's line, is
+  unchanged. EchoText.effectLine takes the practice flag; the report list passes the mission's.
+- Source: review (practice wording).
+- Verified: a test checks the three practice lines, an unchanged practice line and an unchanged real
+  line; it failed to compile before the change and passes after; 314 core and 186 app tests pass.
+
 ## 2026-11-19
+
+### build(ios): ship the practice pack, so the Join screen offers the practice drill
+- What: the app bundles shared/practice/ios-practice-pack.json (53,011 bytes), the judge seed's sample
+  search exported for the phone: incident drill-dev-1 as "Practice search" in judge mode, its 68
+  segments, plan 19 with team T1 on segment BO, and the shared sample profile. With it in the build,
+  the Join screen shows "Start the practice drill".
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: a test starts the drill from the bundled pack: practice mission, judge mode, team T1 on BO,
+  the Piedmont Park grid (its tiles are bundled too), the shared profile, and the route check
+  available. It failed without the resource and passes with it; 186 app tests pass. On the
+  simulator, from a fresh install: Start the practice drill, the task screen notice, the map on
+  bundled tiles, a typed report kept "On this phone only", the route check (cloud read 1,271 ms on
+  gemini-3.5-flash-lite), and End the practice drill back to the Join screen with no sign-out.
+
+### feat(ios): the Join screen offers the practice drill, labelled as sample data
+- What: when the build carries a practice pack and no search is joined, the Join screen shows "No join
+  code?", "Try a practice drill with sample data. Nobody is missing. Your reports stay on this phone."
+  and "Start the practice drill". During the drill the task screen says "Practice drill with sample
+  data. Nobody is missing. Reports stay on this phone." in place of the command line, and the Ready
+  check's Leave section becomes "End the practice drill", whose confirmation says its reports are
+  deleted from this phone.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: the text-size scan passes (every new line is Title 3 or larger); 182 app tests pass. The
+  screens are checked on the simulator once the pack is bundled.
+
+### feat(ios): a practice drill from a bundled pack, with no join code and nothing sent
+- What: AppModel.startPractice loads a sample search from a bundled pack (PracticePack: the incident,
+  segments, approved plan and shared profile a searcher's phone reads, plus provenance) with no join
+  code and no account. The mission is marked practice. Its reports go to a separate journal whose
+  server never writes (LocalOnlyEventServer), with their own numbering, and their timings are not
+  written; they show "On this phone only" and the link glyph counts none as waiting. Practice reports
+  are written as author "practice", so a phone that never signed in can use it. Its assignment is
+  spoken with no session. No team topic is followed, no plan listener runs, and a sign-in, a change
+  of user or a tapped push leaves it alone. Ending it (the Leave action) deletes its reports, puts the
+  real journal back and signs nothing out. It is refused while a search is joined.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: tests for reading the pack (and refusing another pack version); starting with no server
+  read, no topic and the assignment spoken; a report kept off the real journal, server and timings
+  with no account; a sign-in and a new user keeping the drill; Leave ending it with no sign-out; and
+  a joined search never replaced. They failed to compile before the change and pass after; 182 app
+  tests and the text-size scan pass.
 
 ### fix(ios): run the shared phone-number vectors, and remove numbers written with slashes
 - What: PLSCore's tests now run every case of shared/test-vectors/phone-numbers.json through
