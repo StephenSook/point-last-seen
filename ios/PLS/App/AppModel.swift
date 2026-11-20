@@ -53,6 +53,15 @@ final class AppModel {
     private(set) var offersAlerts = false
     /// Counts taps on new-assignment pushes; the screen returns to the task on each.
     private(set) var openTaskRequests = 0
+    /// The session the newest open request was made in; the screen acts on a request only while it
+    /// is still the current one.
+    @ObservationIgnored private var openTaskSession: AccountSession?
+    var openTaskStillCurrent: Bool { isCurrent(openTaskSession) }
+
+    private func requestTaskOpen(in session: AccountSession?) {
+        openTaskSession = session
+        openTaskRequests += 1
+    }
     /// The join screen's words after a try; nil while there is nothing to say.
     private(set) var joinMessage: String?
     private(set) var joining = false
@@ -540,7 +549,7 @@ final class AppModel {
                 if mission != nil || membership != nil { await dropMission() }
                 return
             }
-            if matchesLoaded() { openTaskRequests += 1 }
+            if matchesLoaded() { requestTaskOpen(in: currentSession) }
             return
         }
         guard let session, isCurrent(session) else { return }
@@ -561,10 +570,10 @@ final class AppModel {
         case .loaded:
             joinMessage = nil
             // The plan the push announces must be the one on screen, or a newer one.
-            if matchesLoaded(), (mission?.planVersion ?? Int.min) >= payload.planVersion { openTaskRequests += 1 }
+            if matchesLoaded(), (mission?.planVersion ?? Int.min) >= payload.planVersion { requestTaskOpen(in: session) }
         case .unread:
             // The server could not be reached: the offline path, for the same user only.
-            if heldByThisUser, matchesLoaded() { openTaskRequests += 1 } else { joinMessage = Self.missionUnread }
+            if heldByThisUser, matchesLoaded() { requestTaskOpen(in: session) } else { joinMessage = Self.missionUnread }
         case .failed(.notOpen):
             await dropMission()
             joinMessage = MissionBuilder.Failure.notOpen.message

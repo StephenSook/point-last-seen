@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): a tapped push's request to show the task carries its session
+- What: a push tap that passed every check raised a request the screen acted on later; if the
+  account changed in between, the screen still jumped to the task view (it showed "No mission
+  loaded"). The request now carries the session it was made in, and the screen acts on it only
+  while that session is still current. LIMITS.md now says both account windows are closed (the join
+  fix in the previous commit and this one), leaving Auth's own reports and the security rules.
+- Source: review (round 4 residual window).
+- Verified: a test makes an open request, then changes the account (before and after Auth reports
+  it): the request no longer counts. It failed to compile before the change and passes after; 176
+  app tests pass.
+
 ### fix(ios): a join signs in first, so its session is known before any of its checks
 - What: a join bound its account session only after the callable returned, so an account change in
   that instant could pair the joined team with another user. It also broke the first join after
