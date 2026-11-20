@@ -202,6 +202,8 @@ object PhoneNumbers {
                 text(i - 1) in STATES && gap(i - 1, i) == " "
             ) {
                 kept += i..(i + 1)
+                // "OH" in capitals before the code is Ohio, not a spoken zero.
+                if (parts[i - 1].digits > 0) kept += i - 1
             }
         }
         for (d in dates) {

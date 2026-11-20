@@ -232,4 +232,11 @@ class PhoneNumbersTest {
         val count = "walked \uD83A\uDD51,\uD83A\uDD52\uD83A\uDD53\uD83A\uDD54,\uD83A\uDD55\uD83A\uDD56\uD83A\uDD57 steps"
         assertEquals(count, PhoneNumbers.remove(count))
     }
+
+    /** "OH" in capitals before a ZIP+4 code is Ohio, not a spoken zero, so the code stays beside a whole number. */
+    @Test fun ohioBeforeAZipCodeIsAState() {
+        assertEquals("Columbus, OH 43210-1234", PhoneNumbers.remove("Columbus, OH 43210-1234"))
+        assertEquals("Columbus, OH 43210-1234 [number removed]", PhoneNumbers.remove("Columbus, OH 43210-1234 404-555-0142"))
+        assertEquals("call [number removed]", PhoneNumbers.remove("call oh 43210-1234"))
+    }
 }
