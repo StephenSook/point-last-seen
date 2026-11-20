@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `seed_drill.py --add-code ... --expires <UTC time>`: an extra join code can carry `expiresAt`, after which
+  joinIncident refuses it (the check already existed in join.ts; the tool never wrote the field). The time must be
+  written YYYY-MM-DDTHH:MM:SSZ and lie in the future, or nothing changes. Source: review (judge codes that end after
+  judging). Verified test first: the expiry field and the refusal of five bad times failed, then passed; 15 seed_drill
+  tests pass.
 - `shared/practice/ios-practice-pack.json`: the iPhone's practice drill, so a judge can open the searcher app without
   a code. `tools/practice/export_practice_pack.py --write` exports it from the judge seed (drill-dev-1, read from
   judge-seed.json) with the same overrides `startJudgeSession` applies (NOT_COPIED and the drill label are read from

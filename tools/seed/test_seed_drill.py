@@ -127,6 +127,22 @@ def test_an_extra_code_is_created_only_if_absent_and_revoked_only_if_present():
                    "currentDocument": {"exists": True}}
 
 
+def test_an_extra_code_can_carry_an_expiry_that_join_enforces():
+    # joinIncident refuses a code whose expiresAt has passed (functions/src/join.ts inviteUsable).
+    add = seed.add_code_write("proj", "drill-judge-1", "family", "ABCD2345", expires="2026-12-17T23:59:59Z")
+    assert add["update"]["fields"]["expiresAt"] == {"timestampValue": "2026-12-17T23:59:59Z"}
+    assert set(add["update"]["fields"]) == {"incidentId", "roles", "expiresAt"}
+    assert seed.add_code_write("proj", "drill-judge-1", "family", "ABCD2345")["update"]["fields"].keys() == {"incidentId", "roles"}
+
+
+def test_an_expiry_must_be_a_future_utc_time_or_nothing_changes():
+    import pytest
+    for bad in ("2026-12-17", "2026-12-17T23:59:59", "2026-12-17 23:59:59Z", "tomorrow", "2020-01-01T00:00:00Z"):
+        with pytest.raises(SystemExit, match="expires"):
+            seed.main(["--add-code", "proj", "drill-judge-1", "family", "drill-judge-1-judges", "--expires", bad])
+    assert seed.main(["--add-code", "proj", "drill-judge-1", "family", "drill-judge-1-judges", "--expires"]) == 2
+
+
 def test_the_extra_code_commands_check_their_arguments_before_anything_changes():
     import pytest
     assert seed.main(["--add-code", "proj", "drill-test-1"]) == 2
