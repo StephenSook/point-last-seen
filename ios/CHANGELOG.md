@@ -25,6 +25,40 @@ finding) and how it was verified. Newest first.
   user), and that an unsettled report blocks leaving. They failed to compile before the change
   and pass after; 155 app tests pass.
 
+### fix(ios): speech plays only for the mission's own user, and stops when the account changes
+- What: the speech guard checked the mission, team and task, but not who was signed in, so a line
+  still queued, or a cloud voice still fetching audio, could play after a sign-out or an account
+  switch until the mission was dropped; the phone's voice could even play while signed out. Both
+  voices now check, right before any sound, that the mission's user is still the one signed in,
+  and every Auth change stops whatever is playing or queued. Two older speech tests now name the
+  user they run as, instead of taking whatever user the test device had stored.
+- Source: review (finding 2, round 3).
+- Verified: a test switches the account just before a queued line would play: nothing is spoken.
+  It failed before the change and passes after; 155 app tests pass.
+
+### fix(ios): a reload of the same plan version keeps the plan on screen
+- What: a reload kept the plan the listener had applied only when that plan was strictly newer. With
+  two copies of one version, a withdrawal the listener applied could be undone by a reload that
+  read the same version with a task. The plan on screen now stays unless the reload read a strictly
+  newer version, as in the listener's own order.
+- Source: review (finding 3, round 3).
+- Verified: a test holds a reload of plan 3 with a task while the listener applies plan 3 with the
+  task taken away; the withdrawal stands. It failed before the change and passes after; 154 app
+  tests pass.
+
+### fix(ios): a load and a push tap are bound to the user they started for
+- What: a load stamped its mission with the user signed in when the read came back, and a push tap
+  checked only the incident and team before opening. A tap could get user A's claims, then finish
+  its read after A signed out or another account signed in, and install, speak and open A's mission
+  for nobody or for B. Now each load binds the user before it reads and installs nothing unless the
+  same user is still signed in; a tap also opens nothing unless its user is still signed in. Auth's
+  sign-in, sign-out and account changes drop the previous user's mission, membership and the
+  access checks still running.
+- Source: review (finding 1, round 3).
+- Verified: a test holds a tap's read, signs the user out, then lets the read finish: nothing opens
+  and nothing is spoken, and the account change drops the old mission. It failed before the change
+  and passes after; the app tests pass.
+
 ### docs: iOS shows a background push as sent, with no service extension
 - What: LIMITS.md now says that on iPhone a push arriving while the app is in the background or
   closed is shown by iOS from its payload as sent, since there is no notification service
