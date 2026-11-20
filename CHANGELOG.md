@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the two time cases stay pending on android. Android's rule removes the number but leaves the minutes
+  ("Call [number removed]:42", "Call GA [number removed]:30"), which fails the no-digit-left check. Source: this
+  branch's Android CI run. Verified: PhoneVectorsTest run locally on this branch: fails on each of the two cases with
+  android unmarked, passes with both pending (all other cases run).
 - Phone vectors: Android's rule (#109) now passes every case it was pending on, so "android" leaves pendingOn on 19
   cases (the grouped, Unicode-digit, two-CRLF, date, + pair, bare minus, ordinal and time cases); the web stays
   pending on all of them and the iPhone on the bare minus, the ordinal and the two time cases. LIMITS takes the

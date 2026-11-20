@@ -286,7 +286,8 @@
       ],
       "pendingOn": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ]
     },
     {
@@ -299,7 +300,8 @@
       ],
       "pendingOn": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ]
     }
   ],
