@@ -1868,3 +1868,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the consent line reads "The note goes to Gemini in the cloud. Phone numbers are removed first." again, and the receipt "the note, with phone numbers removed": the web now removes phone numbers by the shared rule (every one of the 52 shared cases and all 91 of the Android rule's own assertions pass), so the US-only wording would understate it.
 - Source: follows the port above; the US-only wording was right only for the old scrubber.
 - Verified: the receipt and consent checks in `e2e/harness/sighting.spec.ts` failed on the US-only wording, then passed (16/16 sighting and sightings harness checks); typecheck clean.
+
+### fix(judge): the laptop check no longer mentions sample photos
+- What: `d2Copy` (Get this laptop ready on /judge) says "It cannot read photos on this laptop." for a model that takes text only, and "ready for the sighting note and photos." for one that takes images; it no longer names "sample photos", since the judge page shows none and a practice search has none. The unused `photoButton` field ("Read sample photos on this laptop"), which nothing rendered, is gone.
+- Source: review finding (judge-page wording about photos that are not there).
+- Verified: the updated `d2Copy` tests and a new one (no line in any state names sample photos) failed first, then passed (19/19 in `src/judge/judge.test.ts`); web unit suite green; typecheck clean.
