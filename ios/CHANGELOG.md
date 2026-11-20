@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the phone-number vectors' no-digit check covers every script's number characters
+- What: the shared contract's "no digit left" check now means any Unicode number character (Nd, Nl,
+  No), not only 0 to 9. The Swift vector runner checks the scrubbed text's every scalar for those
+  categories.
+- Source: review (shared phone-number vector contract).
+- Verified: main's vector file and the coming vector update both pass with the wider check.
+
 ### fix(ios): no phone number hides behind something shaped like search information
 - What: the iPhone's phone-number rule now matches the Android rule after its review rounds. Search
   information (a written date, a time, a coordinate pair, a grouped count, a ZIP+4 code, a month-name

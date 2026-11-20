@@ -201,6 +201,13 @@ import Testing
         "exact": ["name", "input", "output", "pendingOn"],
     ]
 
+    static func isNumber(_ s: Unicode.Scalar) -> Bool {
+        switch s.properties.generalCategory {
+        case .decimalNumber, .letterNumber, .otherNumber: true
+        default: false
+        }
+    }
+
     /// A case marked pending on the iPhone is skipped here (the contract); every other case runs.
     static func runsHere(_ pendingOn: [String]?) -> Bool { !(pendingOn ?? []).contains("ios") }
 
@@ -234,7 +241,8 @@ import Testing
         for c in try file().mustRemove where Self.runsHere(c.pendingOn) {
             let out = PhoneNumbers.scrub(c.input)
             #expect(!out.contains(c.number), "\(c.name): \(out)")
-            #expect(!out.contains { $0.isASCII && $0.isNumber }, "\(c.name): \(out)")
+            // No number character of any script is left (Unicode Nd, Nl, No), not only 0 to 9.
+            #expect(!out.unicodeScalars.contains(where: Self.isNumber), "\(c.name): \(out)")
             for word in c.forbidden { #expect(!out.lowercased().contains(word.lowercased()), "\(c.name): \(word) in \(out)") }
             for part in c.keep { #expect(out.contains(part), "\(c.name): \(part) missing from \(out)") }
         }
