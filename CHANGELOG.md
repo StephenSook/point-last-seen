@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- `docs/TEST-MATRIX.md`, linked once under the README's ships table: one row per platform and model path (mode and API
+  with file:line, the model as recorded, hardware and OS or browser, channel, date, result, tracked evidence). Rows
+  that never ran say Not run and why: web on-device note read and plan wording, Android on-device (the A16 has no
+  AICore), and both iPhone paths (no docs/evidence/ios yet). `scripts/test_test_matrix.py` (CI and ci-local lists)
+  fails on an untracked evidence file, a code line that no longer holds its call, a Not run with no reason, or a Not
+  run row once its evidence folder exists. Writing it found that the clip-read row's measurement page was removed
+  after its run (9db2ddb); the row now says so. Source: review (no test matrix). Verified: 3 tests pass.
 - LIMITS, new Language section: notes are expected in English; what each check knows (web on-device asks for English,
   iPhone on-device only for a supported phone language, the iPhone parser and the evidence pre-screen know English
   words, phone numbers US formats on web and Android); a note in another language can still go to the cloud model,
