@@ -102,4 +102,29 @@ class PhoneNumbersTest {
             java.util.Locale.setDefault(before)
         }
     }
+
+    /** A phone number written up against something shaped like search information still goes: nothing of it is left. */
+    @Test fun aNumberShapedLikeSearchInformationStillGoes() {
+        val cases = mapOf(
+            "404.5550142, -84.3880" to listOf("5550142", "404"),
+            "Call 1,404,555,0142" to listOf("0142", "555"),
+            "Call 91234-5678" to listOf("91234", "5678"),
+            "May 4 2026-555-142" to listOf("555", "142"),
+            "Call 404-555-19 May" to listOf("404", "555"),
+            "Call 404-555-01:42" to listOf("404", "555"),
+            "call 404-555-0142m" to listOf("404", "0142"),
+            "Call 1-404-555-2026-11-19" to listOf("404", "555"),
+        )
+        for ((input, gone) in cases) {
+            val out = PhoneNumbers.remove(input)
+            for (g in gone) assertEquals("$input -> $out", false, out.contains(g))
+        }
+        assertEquals("\u7535\u8bdd[number removed]", PhoneNumbers.remove("\u7535\u8bdd\u56db\u96f6\u56db\u4e94\u4e94\u4e94\u96f6\u4e00\u56db\u4e8c"))
+    }
+
+    /** Dates written with en dashes, and a date followed by a quantity, stay; a ZIP after a state stays beside a number. */
+    @Test fun datesAndAddressedZipCodesStay() {
+        for (text in listOf("Seen 2026\u201311\u201319", "Seen 11/19/2026, 3 miles north")) assertEquals(text, PhoneNumbers.remove(text))
+        assertEquals("Atlanta, GA 30301-1234 [number removed]", PhoneNumbers.remove("Atlanta, GA 30301-1234 404-555-0142"))
+    }
 }

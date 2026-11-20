@@ -3,12 +3,15 @@ package app.pointlastseen.family.core
 import java.text.Normalizer
 
 /**
- * Removes anything shaped like a phone number before a note is stored or read (the same rule as the iPhone
- * app). Seven or more digits in a row are a number: written digits (any script, full-width folded) and spoken
- * digit words count alike, joined only by short separators (at most three spaces or - . , ( ) /) and with an
- * optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so
- * they stay, and so does a written date (when someone was last seen), which is search information: three
- * groups joined by one / - or . that read as month and day with a year.
+ * Removes anything shaped like a phone number before a note is stored or read (the iPhone app's rule, and a little
+ * stricter). Seven or more digits in a row are a number: written digits (any script, full-width folded, Chinese
+ * numerals) and spoken digit words count alike, joined only by short separators (at most three spaces or
+ * - . , ( ) / or a dash; a CRLF counts as one) and with an optional leading + or (. Report numbers (times, minutes,
+ * segments, searchers, percents) are far shorter, so they stay. Search information made of digits stays too
+ * when it stands on its own: a written date (three groups joined by one / - . or dash that read as month and day
+ * with a year), a time, a coordinate pair, a grouped count, a ZIP+4 code after a state, a month-name date, and a
+ * number with a unit or an ordinal ending. Anything tightly joined (by - . / with no space) to more digits is
+ * treated as part of a number instead.
  * Code cannot detect a name inside a note, so the form tells people not to type one.
  */
 object PhoneNumbers {
@@ -36,6 +39,7 @@ object PhoneNumbers {
     )
 
     private val COORDINATE_GAP = Regex("""\s{0,2},?\s{0,2}-?""")
+    private val STATE = Regex("""[A-Z]{2}""")
     private val MONTH_DAY_GAP = Regex("""\.?\s{1,2}""")
     private val YEAR_GAP = Regex(""",?\s{1,2}""")
 
@@ -50,11 +54,11 @@ object PhoneNumbers {
         val parts = parts(folded)
         protect(folded, parts)
         // A date's three groups count no digits, so they neither make a number nor join one. A date carved out of
-        // a longer run is not one: the digits joined to it on each side must be none, or a number of their own.
+        // a longer run is not one: no digits may join it by its own separator on either side.
         var d = 0
         while (d + 2 < parts.size) {
             if (parts[d].written && parts[d + 1].written && parts[d + 2].written && isDate(folded, parts[d], parts[d + 1], parts[d + 2]) &&
-                joinedDigits(folded, parts, d, -1) !in 1..6 && joinedDigits(folded, parts, d + 2, +1) !in 1..6
+                !sameSeparatorNeighbour(folded, parts, d, d + 2)
             ) {
                 for (g in d..d + 2) parts[g].digits = 0
                 d += 3
@@ -86,18 +90,12 @@ object PhoneNumbers {
         return out.toString()
     }
 
-    /** The digits joined by separators to parts[edge] on one side ([step] -1 before it, +1 after it). */
-    private fun joinedDigits(s: String, parts: List<Part>, edge: Int, step: Int): Int {
-        var total = 0
-        var cur = edge
-        var next = edge + step
-        while (next in parts.indices) {
-            if (!(if (step < 0) joins(s, parts[next], parts[cur]) else joins(s, parts[cur], parts[next]))) break
-            total += parts[next].digits
-            cur = next
-            next += step
-        }
-        return total
+    /** Whether digits join the date at parts[first..last] by the date's own separator, on either side. */
+    private fun sameSeparatorNeighbour(s: String, parts: List<Part>, first: Int, last: Int): Boolean {
+        val sep = s.substring(parts[first].end, parts[first + 1].start)
+        val before = first > 0 && parts[first - 1].digits > 0 && s.substring(parts[first - 1].end, parts[first].start) == sep
+        val after = last + 1 < parts.size && parts[last + 1].digits > 0 && s.substring(parts[last].end, parts[last + 1].start) == sep
+        return before || after
     }
 
     /** Whether part [a] joins the part [b] right after it into one number. */
@@ -106,55 +104,70 @@ object PhoneNumbers {
 
     /**
      * Search information made of digits counts no digits, so it neither makes a number nor joins one: a time
-     * (14:03), a coordinate pair (33.7490, -84.3880), a grouped count (1,234,567), a ZIP+4 code (30301-1234) and a
-     * month-name date (Nov 19 2026, 19 November 2026). A number glued to a unit or an ordinal ending (67th, 5km)
-     * counts alone.
+     * (14:03), a coordinate pair (33.7490, -84.3880, in range), a grouped count (1,234,567), a ZIP+4 code after a
+     * state (GA 30301-1234) and a month-name date (Nov 19 2026, 19 November 2026). A number glued to a unit or an
+     * ordinal ending (67th, 5km) counts alone. Each holds only when the span is not tightly joined (by - . / with
+     * no space) to more digits, so a number written against it is still caught. Every span is found on the text
+     * as it is, before any is applied, so the order of the spans changes nothing.
      */
     private fun protect(s: String, parts: List<Part>) {
-        fun gap(a: Part, b: Part) = s.substring(a.end, b.start)
-        fun len(p: Part) = p.end - p.start
-        fun value(p: Part): Int? = s.substring(p.start, p.end).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
+        fun gap(a: Int, b: Int) = s.substring(parts[a].end, parts[b].start)
+        fun len(i: Int) = parts[i].end - parts[i].start
+        fun value(i: Int): Int? = s.substring(parts[i].start, parts[i].end).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
         fun written(i: Int) = i in parts.indices && parts[i].written
         fun word(i: Int) = s.substring(parts[i].start, parts[i].end).lowercase()
-        fun zero(vararg idx: Int) = idx.forEach { parts[it].digits = 0 }
-        fun isDay(i: Int) = written(i) && len(parts[i]) <= 2 && (value(parts[i]) ?: 0) in 1..31
-        fun isYear(i: Int) = written(i) && len(parts[i]) == 4 && (value(parts[i]) ?: 0) in 1900..2100
+        // Tightly joined: separators with no whitespace between two digit parts.
+        fun tight(a: Int, b: Int) = a in parts.indices && b in parts.indices && parts[a].digits > 0 && parts[b].digits > 0 &&
+            gap(a, b).let { g -> g.isNotEmpty() && g.none { it.isWhitespace() } && onlySeparators(g) }
+        fun joined(a: Int, b: Int) = a in parts.indices && b in parts.indices && joins(s, parts[a], parts[b])
+        fun free(first: Int, last: Int) = !tight(first - 1, first) && !tight(last, last + 1)
+        fun isDay(i: Int) = written(i) && len(i) <= 2 && (value(i) ?: 0) in 1..31
+        fun isYear(i: Int) = written(i) && len(i) == 4 && (value(i) ?: 0) in 1900..2100
+        fun decimal(whole: Int, frac: Int, max: Int) = written(whole) && written(frac) && gap(whole, frac) == "." &&
+            len(whole) <= 3 && len(frac) in 4..8 && (value(whole) ?: Int.MAX_VALUE) <= max
+        val zeroed = mutableSetOf<Int>()
+        val alone = mutableSetOf<Int>()
         for (i in parts.indices) {
-            val p = parts[i]
-            if (!p.written) {
+            if (!parts[i].written) {
                 if (word(i) !in MONTHS) continue
-                if (isDay(i + 1) && MONTH_DAY_GAP.matches(gap(p, parts[i + 1]))) {
-                    zero(i + 1)
-                    if (isYear(i + 2) && YEAR_GAP.matches(gap(parts[i + 1], parts[i + 2]))) zero(i + 2)
-                } else if (isDay(i - 1) && Regex("""\s{1,2}""").matches(gap(parts[i - 1], p))) {
-                    zero(i - 1)
-                    if (isYear(i + 1) && YEAR_GAP.matches(gap(p, parts[i + 1]))) zero(i + 1)
+                if (isDay(i + 1) && MONTH_DAY_GAP.matches(gap(i, i + 1))) {
+                    val last = if (isYear(i + 2) && YEAR_GAP.matches(gap(i + 1, i + 2))) i + 2 else i + 1
+                    if (free(i + 1, last)) zeroed += (i + 1)..last
+                } else if (isDay(i - 1) && Regex("""\s{1,2}""").matches(gap(i - 1, i))) {
+                    val year = isYear(i + 1) && YEAR_GAP.matches(gap(i, i + 1))
+                    if (!tight(i - 2, i - 1) && (!year || !tight(i + 1, i + 2))) {
+                        zeroed += i - 1
+                        if (year) zeroed += i + 1
+                    }
                 }
                 continue
             }
-            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == p.end && word(i + 1) in UNITS) p.alone = true
-            if (written(i + 1) && gap(p, parts[i + 1]) == ":" && len(p) <= 2 && len(parts[i + 1]) == 2 &&
-                (value(p) ?: 99) <= 23 && (value(parts[i + 1]) ?: 99) <= 59
-            ) {
-                zero(i, i + 1)
+            // A unit or ordinal ending: the run counts alone, unless it is joined to more digits by any separator.
+            if (i + 1 < parts.size && !parts[i + 1].written && parts[i + 1].start == parts[i].end && word(i + 1) in UNITS && !tight(i - 1, i)) {
+                alone += i
             }
-            if (written(i + 1) && written(i + 2) && written(i + 3) && gap(p, parts[i + 1]) == "." && gap(parts[i + 2], parts[i + 3]) == "." &&
-                len(p) <= 3 && len(parts[i + 2]) <= 3 && len(parts[i + 1]) >= 4 && len(parts[i + 3]) >= 4 &&
-                COORDINATE_GAP.matches(gap(parts[i + 1], parts[i + 2]))
+            // A time: the hour must not be joined to digits before it (by any separator), the minutes not tightly after.
+            if (written(i + 1) && gap(i, i + 1) == ":" && len(i) <= 2 && len(i + 1) == 2 &&
+                (value(i) ?: 99) <= 23 && (value(i + 1) ?: 99) <= 59 && !joined(i - 1, i) && !tight(i + 1, i + 2)
             ) {
-                zero(i, i + 1, i + 2, i + 3)
+                zeroed += i..(i + 1)
             }
-            if (len(p) <= 3 && (i == 0 || gap(parts[i - 1], p) != ",")) {
+            if (decimal(i, i + 1, 90) && decimal(i + 2, i + 3, 180) && COORDINATE_GAP.matches(gap(i + 1, i + 2)) && free(i, i + 3)) {
+                zeroed += i..(i + 3)
+            }
+            if (len(i) <= 3 && !(i > 0 && gap(i - 1, i) == ",")) {
                 var j = i + 1
-                while (written(j) && gap(parts[j - 1], parts[j]) == "," && len(parts[j]) == 3) j++
-                if (j - i - 1 >= 2) zero(*(i until j).toList().toIntArray())
+                while (written(j) && gap(j - 1, j) == "," && len(j) == 3) j++
+                if (j - i - 1 >= 2 && free(i, j - 1)) zeroed += i until j
             }
-            if (len(p) == 5 && written(i + 1) && gap(p, parts[i + 1]) == "-" && len(parts[i + 1]) == 4 &&
-                (i == 0 || !joins(s, parts[i - 1], p)) && (i + 2 >= parts.size || !joins(s, parts[i + 1], parts[i + 2]))
+            if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&
+                STATE.matches(s.substring(parts[i - 1].start, parts[i - 1].end)) && gap(i - 1, i) == " " && free(i, i + 1)
             ) {
-                zero(i, i + 1)
+                zeroed += i..(i + 1)
             }
         }
+        for (i in zeroed) parts[i].digits = 0
+        for (i in alone) parts[i].alone = true
     }
 
     private fun parts(s: String): List<Part> {
@@ -175,7 +188,8 @@ object PhoneNumbers {
                 }
                 Character.isLetter(cp) -> {
                     var j = i
-                    while (j < s.length && Character.isLetter(s.codePointAt(j))) j += Character.charCount(s.codePointAt(j))
+                    // A word stops at a Chinese numeral, which is a digit here.
+                    while (j < s.length && Character.isLetter(s.codePointAt(j)) && !isDigit(s.codePointAt(j))) j += Character.charCount(s.codePointAt(j))
                     parts += Part(i, j, if (s.substring(i, j).lowercase() in DIGIT_WORDS) 1 else 0, written = false)
                     i = j
                 }
@@ -186,14 +200,14 @@ object PhoneNumbers {
     }
 
     /**
-     * Three written digit groups joined by the same one of / - . that read as a date: year-month-day (a 4-digit
+     * Three written digit groups joined by the same one of / - . or a dash that read as a date: year-month-day (a 4-digit
      * year from 1900 to 2100), or month and day in either order then a 2-digit year or such a 4-digit year. Each
      * day is 1 to 31 and a month 1 to 12.
      */
     private fun isDate(s: String, a: Part, b: Part, c: Part): Boolean {
         val gap1 = s.substring(a.end, b.start)
         val gap2 = s.substring(b.end, c.start)
-        if (gap1.length != 1 || gap1 != gap2 || gap1[0] !in "/-.") return false
+        if (gap1.length != 1 || gap1 != gap2 || (gap1[0] !in "/-." && gap1[0] !in DASHES)) return false
         fun number(p: Part): Int? = s.substring(p.start, p.end).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
         val x = number(a) ?: return false
         val y = number(b) ?: return false
