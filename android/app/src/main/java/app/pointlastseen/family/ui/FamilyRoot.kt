@@ -31,7 +31,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             )
             Screen.JOIN -> JoinScreen(vm.joinBusy, vm.joinError, onJoin = vm::join, onBack = vm::back)
             Screen.STATUS -> StatusScreen(
-                status = incident?.status, mode = mode, killCloud = rc.killCloud,
+                status = app.pointlastseen.family.data.IncidentWatch.statusFor(incident, vm.currentIncidentId()), mode = mode, killCloud = rc.killCloud,
                 pending = vm.pendingCount(writes), rejected = vm.rejectedCount(writes),
                 onOpen = vm::open, onRetry = vm::retryRejected, onLeave = vm::leaveSearch, shareFailed = vm.profileShareFailed, onLeaveOpen = vm::leaveOpenSearch,
                 subjectName = vm.profile.answersTo,

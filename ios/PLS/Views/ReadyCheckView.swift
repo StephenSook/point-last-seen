@@ -87,6 +87,12 @@ struct ReadyCheckView: View {
                         Text(inPractice ? Self.endPracticeDetail : Self.leaveDetail)
                     }
                 }
+                if model.canRouteCheck {
+                    section("Route check") {
+                        NavigationLink("Check both read routes") { RouteCheckView(model: model) }
+                            .accessibilityIdentifier("route-check-link")
+                    }
+                }
                 #if DEBUG
                 section("Eval") {
                     NavigationLink("Report-reading eval") { EvalView(model: model) }

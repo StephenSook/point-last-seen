@@ -1,6 +1,8 @@
 package app.pointlastseen.family.push
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -52,4 +54,12 @@ class FamilyPushTest {
         assertNull(PlanPush.topic("drill-dev-1", "Family"))
         assertEquals("pls-drill-dev-1-family", PlanPush.familyTopic("drill-dev-1"))
     }
+
+    /** A notice the app shows itself is for the search this phone is in now; any other is not shown. */
+    @Test fun aNoticeIsShownOnlyForTheCurrentSearch() {
+        assertTrue(FamilyPush.isForCurrentSearch(FamilyNotice.Paused("drill-test-1"), currentIncident = "drill-test-1"))
+        assertFalse(FamilyPush.isForCurrentSearch(FamilyNotice.Paused("drill-test-1"), currentIncident = "drill-other"))
+        assertFalse(FamilyPush.isForCurrentSearch(FamilyNotice.Question("drill-test-1"), currentIncident = null))
+    }
 }
+

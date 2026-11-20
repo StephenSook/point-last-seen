@@ -61,7 +61,7 @@ The judge page replays the published run. To replace the development run with th
    match. If they do not, stop: a report may have arrived after the export, or one may still be on its way.
 4. Commit the two files on a branch, open a pull request, run `bash scripts/ci-local.sh`, merge, and deploy hosting.
 5. On the judge page, check:
-   - The replay shows "REAL DRILL, Kennesaw Mountain, 2026-11-22" under "Watch the run over time".
+   - The replay shows "REAL DRILL, Kennesaw Mountain, 2026-11-22" under "Watch the drill replay".
    - Its last frame shows the same match code.
    - The space-time view appears only if the run passes its gate: four or more positioned reports, and one report
      that waited a minute or more for signal.
