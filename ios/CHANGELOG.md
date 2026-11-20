@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the report reader can take the cloud route for one route-check read
+- What: for the coming release route check, a read can say Apple's on-device model is off for that one
+  read (ReportSituation.onDeviceOff), so with signal and consent the router takes the cloud route. A
+  searcher's report never sets it. The reader also takes Apple's model status through a seam, so a
+  test can say the model is available.
+- Source: plan (release build route check: one fixed sentence on each route).
+- Verified: a test with the model available reads the same sentence twice: on-device first, then the
+  cloud route with the model turned off for the check; the runner saw on-device then cloud. It failed
+  to compile before the change and passes after; the reader tests pass.
+
 ### build(ios): archive and check a release build for App Store Connect, uploading nothing
 - What: ios/scripts/archive_release.sh archives a Release build with a given build number and the
   current commit, exports the .ipa for App Store Connect into a local folder, and checks the
