@@ -5,6 +5,38 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
+  time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
+  between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
+  Android change and its review. Verified: PhoneVectorsTest passes locally on this branch with main at 720038b;
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: the two time cases stay pending on android. Android's rule removes the number but leaves the minutes
+  ("Call [number removed]:42", "Call GA [number removed]:30"), which fails the no-digit-left check. Source: this
+  branch's Android CI run. Verified: PhoneVectorsTest run locally on this branch: fails on each of the two cases with
+  android unmarked, passes with both pending (all other cases run).
+- Phone vectors: Android's rule (#109) now passes every case it was pending on, so "android" leaves pendingOn on 19
+  cases (the grouped, Unicode-digit, two-CRLF, date, + pair, bare minus, ordinal and time cases); the web stays
+  pending on all of them and the iPhone on the bare minus, the ordinal and the two time cases. LIMITS takes the
+  Android branch's wording (the + bullet, the street-address and colon limits), so this branch's own street-address
+  line is dropped as a duplicate. Source: the Android change. Verified: the Android team ran every pending case
+  against #109; scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: the iPhone now reads a month and day as a date and removes a decimal pair that starts with + (#119),
+  so "ios" leaves pendingOn on plus_before_decimal_pair and short_date_beside_number; LIMITS says the + pair is kept
+  today on the web and Android only. Source: the iPhone change. Verified: the iPhone team ran the file with both marks
+  removed before #119 merged; scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: exact case "Seen 11/19/2026 14:03 404-555-0142" -> "Seen 11/19/2026 14:03 [number removed]" (a date
+  and a time both stay beside a removed number), pending on web and android; the iPhone gives this output today.
+  Source: the iPhone team's run. Verified: scripts/test_phone_vectors.py 5 passed; local gates pass.
+- Phone vectors: a time keeps its place only after a date or on its own beside a number; joined to other digits before
+  its hour, or after a ZIP+4 code, it goes with the run (mustRemove "Call 1 404 555 01:42" and "Call GA 40455-5014
+  2:30", pending on web, ios and android). LIMITS: a phone number written like a street address ("Call 5550 142nd St")
+  is kept on the iPhone and Android. Source: review. Verified: scripts/test_phone_vectors.py 5 passed; local gates
+  pass.
+- Phone vectors, two more shared rulings: a bare minus between decimals with no space or comma is a number (mustRemove
+  "Call 44.2071-23.4567"; the comma and space GPS keeps stay), and an ordinal stays apart only when a street word
+  follows it (mustRemove "Call 4550 142nd"; keeps "12345 67th Ave" and "near 4550 142nd St"). Both removes are pending
+  on web, ios and android (Android's rule for them is on its open branch). README says so. Source: review. Verified:
+  scripts/test_phone_vectors.py 5 passed; local gates pass.
 - Phone vectors: the exact case "Seen 11/19 555-0142" is pending on ios too. The iPhone rule reads a date only with
   three groups, so a month and day beside a number join it into one 11-digit run and the whole run goes. The iPhone
   team is adding a month/day date. Source: the iPhone team's run of #118's cases. Verified:

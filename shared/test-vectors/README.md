@@ -151,13 +151,18 @@ U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an ac
 nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
 ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
-digits is left beside it the whole run is removed. A number with an ordinal ending (`67th`) never joins others. A
-grouped count of seven or more digits (`1,234,567` and up) is a number like any other run, since a phone number can be
-written that way (`4,045,550,142`): privacy wins the tie, so a count of a million or more is removed too.
-A decimal pair that starts with `+` is a phone number, not a coordinate (`+44.2071, -23.4567`), since a
-`+` marks an international number; without the `+` a pair stays. A date beside a phone number stays and only the number
-goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search information, and keeping the date leaks
-nothing once the number is removed.
+digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
+follows it (`67th Ave`, `142nd St`: St, Ave, Rd, Blvd, Dr, Ln, Way, Pl, Ct, Pkwy, Hwy or their full forms); otherwise
+it joins the run (`Call 4550 142nd` is removed). A grouped count of seven or more digits (`1,234,567` and up) is a
+number like any other run, since a phone number can be written that way (`4,045,550,142`): privacy wins the tie, so a
+count of a million or more is removed too. A decimal pair that starts with `+` is a phone number, not a coordinate
+(`+44.2071, -23.4567`), since a `+` marks an international number; without the `+` a pair joined by a comma or a
+space stays, while a bare minus with no space or comma (`44.2071-23.4567`) makes it a number. A date beside a phone
+number stays and only the number goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search
+information, and keeping the date leaks nothing once the number is removed. A time keeps its place only after a
+date (`Seen 11/19/2026 14:03`) or on its own beside a number (`Seen at 14:03, [number removed]`); joined to other
+digits before its hour, or after a ZIP+4 code, it goes with the run (`Call 1 404 555 01:42`,
+`Call GA 40455-5014 2:30`).
 
 ## language.json (hand-written)
 
