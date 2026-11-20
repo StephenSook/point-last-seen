@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // The synthetic clip is generated, not committed (the repo keeps every .mp4 out); this needs ffmpeg.
@@ -27,7 +27,8 @@ test("the clip form reads only after the three required consents and passes on w
   await expect(page.getByTestId("asked")).not.toHaveText("");
   const asked = JSON.parse(await page.getByTestId("asked").innerText()) as Record<string, unknown>;
   expect(asked).toMatchObject({
-    bytes: 4448, mimeType: "video/mp4", durationS: 6, clockConfirmed: true, cameraFacingDeg: 90,
+    // The clip is encoded on the machine running the test, and its size depends on that ffmpeg build.
+    bytes: statSync(CLIP).size, mimeType: "video/mp4", durationS: 6, clockConfirmed: true, cameraFacingDeg: 90,
     consents: { personInClip: true, footageOwner: true, cloudProcessing: true, publicUse: false },
   });
   expect(asked["clipStartMs"]).toBe(await page.evaluate(() => new Date("2026-11-22T14:05:00").getTime()));
