@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- judge_drill.py, review round 2 (one high, four medium): a reset never deletes under segments or teams, so a seed
+  missing a doc cannot remove one the drill needs; the seed must have every team and segment its plan names, and a
+  gridId, gridAttribution, priorVersion and engineParams; segment numbers must be stored as Firestore numbers (a
+  timestamp is not one) and polygon positions as number pairs; the baseline write and the delete of any stale plan are
+  one atomic commit, so a failed delete can never leave an old plan beside a new baseline; ids from Firestore names
+  are used as they are (never unquoted, so two ids cannot merge). Verified test first: 4 new tests failed, then
+  passed, plus a guard that the real media delete takes 404 as gone and raises otherwise (13 judge_drill tests); the
+  live --check still exits 0.
 - judgeDrill rules tests: the segment refusal now uses a write command may make (prior unchanged), with command making
   the same write as a control, and the family profile control changes a value the fixture does not already hold, so
   neither passes for the wrong reason. Source: review round 1 (low). Verified: rules and functions suite 260 of 260.

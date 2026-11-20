@@ -61,9 +61,15 @@ def baseline(seed: dict, ts: str) -> dict[str, dict]:
     sum to 1, a missing field) or it has no shared profile."""
     if not seed.get("shared"):
         raise ValueError("the seed has no profile/shared")
-    prior = pack.plain(seed["incident"]["priorVersion"]) if "priorVersion" in seed["incident"] else None
+    inc_raw = seed["incident"]
+    for k, kind in (("gridId", "stringValue"), ("gridAttribution", "stringValue"), ("priorVersion", "integerValue"),
+                    ("engineParams", "mapValue")):
+        if kind not in inc_raw.get(k, {}) or inc_raw[k][kind] in ("", None):
+            raise ValueError(f"the seed incident has no {k}")
+    prior = pack.plain(inc_raw["priorVersion"])
+    problems = raw_segment_problems(seed["segments"])
     plain_segs = {k: {f: pack.plain(v) for f, v in d.items()} for k, d in seed["segments"].items()}
-    problems = segment_contract.check(plain_segs, prior)
+    problems += segment_contract.check(plain_segs, prior)
     if problems:
         raise ValueError(f"the seed's segments fail the contract: {problems[:3]}")
     not_copied, _ = pack.judge_rules(ts)
@@ -71,11 +77,54 @@ def baseline(seed: dict, ts: str) -> dict[str, dict]:
     inc.update({"name": s(NAME), "mode": s("drill"), "drillLabel": s(seed_drill.DRILL_LABEL), "status": s("open"),
                 "priorInputEventIds": {"arrayValue": {}}})
     plain_plans = {k: {f: pack.plain(v) for f, v in p.items()} for k, p in seed["plans"].items()}
-    pid, _ = pack.pick_plan(plain_plans, prior)
+    pid, chosen = pack.pick_plan(plain_plans, prior)
+    for a in chosen.get("assignments", []):
+        if a.get("teamId") not in seed["teams"]:
+            raise ValueError(f"the seed's plan {pid} assigns team {a.get('teamId')!r}, which the seed does not have")
+        if any(sid not in seed["segments"] for sid in a.get("segmentIds", [])):
+            raise ValueError(f"the seed's plan {pid} names a segment the seed does not have")
     plan = {**seed["plans"][pid], "approvedByUid": s(BASELINE_APPROVER)}
     out = {"": inc, "profile/shared": seed["shared"], f"plans/{pid}": plan}
     out.update({f"segments/{k}": v for k, v in seed["segments"].items()})
     out.update({f"teams/{k}": v for k, v in seed["teams"].items()})
+    return out
+
+
+NUMBER_KINDS = ("integerValue", "doubleValue")
+
+
+def _number(raw: dict | None) -> bool:
+    return isinstance(raw, dict) and any(k in raw for k in NUMBER_KINDS)
+
+
+def _positions_ok(coords, depth: int) -> bool:
+    """A GeoJSON coordinates array at the given nesting depth whose positions are [number, number, ...]."""
+    if not isinstance(coords, list) or not coords:
+        return False
+    if depth == 0:
+        return len(coords) >= 2 and all(isinstance(c, (int, float)) and not isinstance(c, bool) for c in coords)
+    return all(_positions_ok(c, depth - 1) for c in coords)
+
+
+def raw_segment_problems(segments: dict[str, dict]) -> list[str]:
+    """What the contract check cannot see after plain(): numbers stored as Firestore numbers (a timestamp is not
+    one), and polygons whose positions are number pairs, as the apps parse them."""
+    out = []
+    for sid, f in sorted(segments.items()):
+        numeric = ("priorPoa", "priorVersion") if sid == "ROW" else ("priorPoa", "priorVersion", "ringPoa", "areaM2", "nearFrac")
+        out += [f"{sid}: {k} is not stored as a number" for k in numeric if not _number(f.get(k))]
+        if sid == "ROW":
+            continue
+        c = f.get("centroid", {}).get("mapValue", {}).get("fields", {})
+        if not (_number(c.get("lat")) and _number(c.get("lon"))):
+            out.append(f"{sid}: centroid lat and lon are not stored as numbers")
+        try:
+            geom = json.loads(f.get("geometryJson", {}).get("stringValue", ""))
+        except ValueError:
+            geom = None
+        depth = {"Polygon": 2, "MultiPolygon": 3}.get(geom.get("type") if isinstance(geom, dict) else None)
+        if depth is None or not _positions_ok(geom.get("coordinates"), depth):
+            out.append(f"{sid}: geometryJson positions are not number pairs")
     return out
 
 
@@ -129,18 +178,28 @@ def extras(api, want: dict[str, dict]) -> list[str]:
     return [p for p in api.all_docs(f"incidents/{DRILL}") if p[len(prefix):] not in want]
 
 
+KEPT = ("segments/", "teams/")  # a reset never deletes here: the seed may lack a doc the drill still needs
+
+
 def run_reset(api, want: dict[str, dict]) -> tuple[int, int]:
-    """Rewrite the baseline first, so a reset that stops part way never leaves the drill without it; then delete
-    every doc judges added and their media. A media file already gone (a trigger removed it) counts as deleted."""
-    docs, media = extras(api, want), api.media(DRILL)
-    writes = baseline_writes(want)
-    for i in range(0, len(writes), 400):
-        api.commit(writes[i:i + 400])
-    for i in range(0, len(docs), 400):
-        api.commit([{"delete": f"{DOCS}/{p}"} for p in docs[i:i + 400]])
+    """One atomic commit rewrites the baseline and deletes any other plan (the iPhone reads the highest version, so a
+    stale plan must never outlive a new baseline). Then the docs judges added are deleted, never under segments or
+    teams, then their media; a media file already gone (a trigger removed it) counts as deleted. A reset that stops
+    part way leaves the baseline in place; run it again."""
+    prefix = f"incidents/{DRILL}/"
+    found = extras(api, want)
+    plans = [p for p in found if p[len(prefix):].startswith("plans/")]
+    rest = [p for p in found if p not in plans and not p[len(prefix):].startswith(KEPT)]
+    media = api.media(DRILL)
+    first = baseline_writes(want) + [{"delete": f"{DOCS}/{p}"} for p in plans]
+    if len(first) > 500:
+        raise ValueError(f"the baseline and stale plans need {len(first)} writes, more than one commit holds")
+    api.commit(first)
+    for i in range(0, len(rest), 400):
+        api.commit([{"delete": f"{DOCS}/{p}"} for p in rest[i:i + 400]])
     for name in media:
         api.delete_media(name)
-    return len(docs), len(media)
+    return len(plans) + len(rest), len(media)
 
 
 class Api:
@@ -172,7 +231,7 @@ class Api:
             q = {"pageSize": 300, **({"showMissing": "true"} if show_missing else {}), **({"pageToken": page} if page else {})}
             r = self.call(f"{doc_url(path)}?{urllib.parse.urlencode(q)}")
             for d in r.get("documents", []):
-                docs[urllib.parse.unquote(d["name"].rsplit("/", 1)[1])] = d.get("fields", {})
+                docs[d["name"].rsplit("/", 1)[1]] = d.get("fields", {})  # a resource name holds the id as it is
             page = r.get("nextPageToken", "")
             if not page:
                 return docs

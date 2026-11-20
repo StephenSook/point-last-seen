@@ -26,11 +26,15 @@ def sample_segments() -> tuple[dict[str, dict], int]:
 
 def raw_seed() -> dict:
     segs, v = sample_segments()
+    seg = next(k for k in segs if k != "ROW")
+    assign = {"mapValue": {"fields": {"teamId": S("T1"), "segmentIds": {"arrayValue": {"values": [S(seg)]}},
+                                      "taskText": S("Search."), "reason": S("POA.")}}}
     plan = lambda n, by: {"version": I(n), "priorVersion": I(v), "approvedByUid": S(by), "basedOnEventSetHash": S("h"),
                           "createdClientTimeMs": I(1), "approvedAt": {"timestampValue": "2026-11-19T12:19:47.626Z"},
-                          "assignments": {"arrayValue": {"values": []}}}
+                          "assignments": {"arrayValue": {"values": [assign]}}}
     return {
         "incident": {"name": S("Seed"), "mode": S("drill"), "drillLabel": S("x"), "status": S("open"), "gridId": S("piedmont-park-dev"),
+                     "gridAttribution": S("OpenStreetMap"), "engineParams": {"mapValue": {"fields": {"a": I(1)}}},
                      "priorVersion": I(v), "createdAt": {"timestampValue": "2026-11-17T00:00:00Z"}, "joinCodeHash": S("h"),
                      "searchState": S("searching"), "priorInputEventIds": {"arrayValue": {"values": [S("e1")]}}},
         "segments": segs,
@@ -53,6 +57,9 @@ class FakeApi:
         return list(self.files)
 
     def commit(self, writes):
+        self.commits = getattr(self, "commits", []) + [[("delete:" + w["delete"]) if "delete" in w else "write" for w in writes]]
+        self.commits[-1] = [x.split(":", 1)[0] if x.startswith("delete:") else x for x in self.commits[-1]] + \
+            [w["delete"] for w in writes if "delete" in w]
         for w in writes:
             self.log.append(("delete", w["delete"]) if "delete" in w else ("write", w["update"]["name"]))
 
@@ -121,6 +128,68 @@ def test_the_reset_writes_the_baseline_before_it_deletes_and_takes_a_missing_fil
     assert kinds.index("delete") > max(i for i, k in enumerate(kinds) if k == "write"), "baseline first"
     assert deleted_docs == 3 and deleted_media == 1
     assert not any(n.endswith("/plans/0017") for k, n in api.log if k == "delete"), "the baseline plan is never deleted"
+
+
+def test_a_seed_missing_a_planned_team_or_a_grid_field_is_refused():
+    import pytest
+    for spoil in (lambda s: s["teams"].pop("T1"), lambda s: s["incident"].pop("gridId"),
+                  lambda s: s["incident"].pop("gridAttribution"), lambda s: s["incident"].pop("engineParams")):
+        seed = raw_seed()
+        spoil(seed)
+        with pytest.raises(ValueError):
+            jd.baseline(seed, TS)
+
+
+def test_segment_numbers_must_be_stored_as_numbers_and_polygons_as_number_pairs():
+    import json as _json
+    import pytest
+    seg = next(k for k in raw_seed()["segments"] if k != "ROW")
+    seed = raw_seed()
+    seed["segments"][seg]["areaM2"] = {"timestampValue": "2026-11-17T00:00:00Z"}
+    with pytest.raises(ValueError):
+        jd.baseline(seed, TS)
+    seed = raw_seed()
+    geom = _json.loads(seed["segments"][seg]["geometryJson"]["stringValue"])
+    ring = geom["coordinates"][0] if geom["type"] == "Polygon" else geom["coordinates"][0][0]
+    ring[0] = [str(ring[0][0]), ring[0][1]]
+    seed["segments"][seg]["geometryJson"] = S(_json.dumps(geom))
+    with pytest.raises(ValueError):
+        jd.baseline(seed, TS)
+
+
+def test_the_reset_never_deletes_segments_or_teams_and_drops_a_stale_plan_with_the_baseline():
+    want = jd.baseline(raw_seed(), TS)
+    api = FakeApi(extra_docs=["teams/T9", "segments/ZZ", "plans/0020", "events/e1"], media=[])
+    deleted_docs, _ = jd.run_reset(api, want)
+    deletes = [n for k, n in api.log if k == "delete"]
+    assert not any("/teams/" in n or "/segments/" in n for n in deletes)
+    assert api.commits[0].count("delete") == 1 and any("plans/0020" in n for n in api.commits[0] if n), \
+        "the stale plan goes in the same commit as the baseline"
+    assert deleted_docs == 2
+
+
+def test_ids_from_firestore_names_are_used_as_given():
+    api = object.__new__(jd.Api)
+    api.call = lambda url, body=None, method=None: {"documents": [
+        {"name": f"{jd.DOCS}/incidents/drill-judge-1/events/a%23b", "fields": {}},
+        {"name": f"{jd.DOCS}/incidents/drill-judge-1/events/a#b", "fields": {}}]}
+    assert set(api.collection("incidents/drill-judge-1/events")) == {"a%23b", "a#b"}
+
+
+def test_the_real_media_delete_takes_404_as_gone_and_raises_on_other_errors():
+    import io
+    import pytest
+    import urllib.error
+    api = object.__new__(jd.Api)
+    def fail(code):
+        def call(url, body=None, method=None):
+            raise urllib.error.HTTPError(url, code, "x", {}, io.BytesIO(b""))
+        return call
+    api.call = fail(404)
+    assert api.delete_media("clips/drill-judge-1/a.mp4") is False
+    api.call = fail(403)
+    with pytest.raises(urllib.error.HTTPError):
+        api.delete_media("clips/drill-judge-1/a.mp4")
 
 
 def test_doc_paths_are_quoted_so_a_hash_stays_in_the_path():
