@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios-core): the team's segments are outlined thick, to find in sunlight
+- What: the team's outline on the search map was a thin light line and hard to find. It is now a
+  4-point light line on a 9-point dark casing.
+- Source: map review.
+- Verified: the style tests pass (the outline keeps its team-only filter); on the simulator the
+  team's segment stands out at the grid-fit zoom.
+
 ### feat(ios-core): which number plates the search map draws
 - What: a plate rule for the phone's map, since 68 plates buried the map in "<0.1%" labels. The
   team's own segments always get a plate with the team id ("T1 1.4%", or "T1" when the number is

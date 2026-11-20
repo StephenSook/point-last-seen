@@ -48,8 +48,9 @@ public enum MapStyle {
         layers += [
             edge("seg-casing", color: bg0, width: 3, filter: nil),
             edge("seg-line", color: fg4, width: 1, filter: nil),
-            edge("team-casing", color: bg0, width: 6, filter: team),
-            edge("team-line", color: fg2, width: 2.5, filter: team),
+            // The team's segments: a thick light line on a dark casing, to find in sunlight.
+            edge("team-casing", color: bg0, width: 9, filter: team),
+            edge("team-line", color: fg2, width: 4, filter: team),
         ]
         return .object(["version": .number(8), "sources": .object(sources), "layers": .array(layers)])
     }
