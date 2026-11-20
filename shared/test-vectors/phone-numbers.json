@@ -244,6 +244,20 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "plus_before_decimal_pair",
+      "input": "Call +44.2071, -23.4567",
+      "number": "+44.2071, -23.4567",
+      "forbidden": [],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "web",
+        "ios",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
@@ -336,6 +350,13 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "date_then_time",
+      "input": "Seen 11/19/2026 14:03",
+      "pendingOn": [
+        "web"
+      ]
     }
   ],
   "exact": [
@@ -345,6 +366,51 @@
       "output": "Seen at 14:03, [number removed]",
       "pendingOn": [
         "web"
+      ]
+    },
+    {
+      "name": "date_beside_number",
+      "input": "Seen 11/19/2026 404-555-0142",
+      "output": "Seen 11/19/2026 [number removed]",
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "iso_date_beside_number",
+      "input": "Seen 2026-11-19 404-555-0142",
+      "output": "Seen 2026-11-19 [number removed]",
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "short_date_beside_number",
+      "input": "Seen 11/19 555-0142",
+      "output": "Seen 11/19 [number removed]",
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "date_word_then_number",
+      "input": "Seen 11/19/2026, call 404-555-0142",
+      "output": "Seen 11/19/2026, call [number removed]",
+      "pendingOn": [
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "month_name_date_beside_number",
+      "input": "Seen Nov 19 2026 404-555-0142",
+      "output": "Seen Nov 19 2026 [number removed]",
+      "pendingOn": [
+        "web",
+        "android"
       ]
     }
   ]
