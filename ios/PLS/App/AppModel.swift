@@ -387,8 +387,8 @@ final class AppModel {
     @ObservationIgnored private var accountListener: AuthStateDidChangeListenerHandle?
 
     /// Auth's user changed (signed in, signed out, or another account): any access check or load
-    /// still running has no say, and the previous user's mission (its listener, its membership and
-    /// its pending loads) goes. The same user reported again changes nothing.
+    /// still running has no say, all speech stops, and the previous user's mission (its listener,
+    /// its membership and its pending loads) goes. The same user reported again changes nothing.
     func accountChanged() async {
         let now = uid()
         defer { knownAccount = .some(now) }
@@ -397,6 +397,8 @@ final class AppModel {
             return
         }
         accessCheck += 1
+        // Whatever was being said, or waits to be said, stops.
+        speaker.stop()
         if mission?.ownerUid != now || (mission == nil && membership != nil) { await dropMission() }
     }
 
@@ -656,10 +658,13 @@ final class AppModel {
         let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
         let generation = missionGeneration, incidentId = mission.incidentId, teamId = mission.teamId
         let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
+        let owner = mission.ownerUid
+        // Checked right before any sound, on both voices: still this mission's task, and its user is
+        // still the one signed in.
         let isCurrent: @MainActor () -> Bool = { [weak self] in
             guard let self, let current = self.mission else { return false }
             return self.missionGeneration == generation && current.incidentId == incidentId
-                && current.teamId == teamId && current.assignment == assignment
+                && current.teamId == teamId && current.assignment == assignment && self.uid() == owner
         }
         speech = Task { [weak self] in
             await previous?.value

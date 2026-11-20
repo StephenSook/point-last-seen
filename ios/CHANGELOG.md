@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### fix(ios): speech plays only for the mission's own user, and stops when the account changes
+- What: the speech guard checked the mission, team and task, but not who was signed in, so a line
+  still queued, or a cloud voice still fetching audio, could play after a sign-out or an account
+  switch until the mission was dropped; the phone's voice could even play while signed out. Both
+  voices now check, right before any sound, that the mission's user is still the one signed in,
+  and every Auth change stops whatever is playing or queued. Two older speech tests now name the
+  user they run as, instead of taking whatever user the test device had stored.
+- Source: review (finding 2, round 3).
+- Verified: a test switches the account just before a queued line would play: nothing is spoken.
+  It failed before the change and passes after; 155 app tests pass.
+
 ### fix(ios): a reload of the same plan version keeps the plan on screen
 - What: a reload kept the plan the listener had applied only when that plan was strictly newer. With
   two copies of one version, a withdrawal the listener applied could be undone by a reload that

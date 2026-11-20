@@ -38,7 +38,7 @@ import Testing
     @Test func loadingAPackSpeaksTheApprovedAssignmentOnce() async throws {
         let voice = FakeVoice()
         let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }),
-                             speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }))
+                             speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { nil })
         let mission = Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
                               assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
                               profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
@@ -79,11 +79,14 @@ import Testing
     @Test func theCloudVoiceWaitsForSignIn() async throws {
         for signedIn in [false, true] {
             let onDevice = FakeVoice(), cloud = FakeVoice()
+            let user: String? = signedIn ? "uid-1" : nil
             let model = AppModel(signIn: SignIn(isSignedIn: { signedIn }, attempt: { false }),
-                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }))
+                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }), uid: { user })
             model.config.voiceTemplateId = "voice-template"
             model.connectivity.pathChanged(satisfied: true)
-            await model.load(try spokenMission())
+            var mission = try spokenMission()
+            mission.ownerUid = user                      // a mission is spoken only for the user it was read for
+            await model.load(mission)
             await model.speech?.value
             // Signed in is the control: it proves this setup does reach the cloud voice.
             #expect(cloud.spoken.count == (signedIn ? 1 : 0))
