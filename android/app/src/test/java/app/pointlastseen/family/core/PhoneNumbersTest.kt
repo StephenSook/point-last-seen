@@ -227,10 +227,10 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u278D\u278A\u278D-\u278E\u278E\u278E-\u278A\u278B\u278D\u278C"))
     }
 
-    /** A grouped count written in digits outside the BMP (Adlam) is read by its characters, not its UTF-16 units. */
-    @Test fun aGroupedCountInAdlamDigitsStays() {
-        val count = "walked \uD83A\uDD51,\uD83A\uDD52\uD83A\uDD53\uD83A\uDD54,\uD83A\uDD55\uD83A\uDD56\uD83A\uDD57 steps"
-        assertEquals(count, PhoneNumbers.remove(count))
+    /** A phone number written in digits outside the BMP (Adlam) with commas is not taken for a grouped count. */
+    @Test fun anAdlamNumberWithCommasIsRemoved() {
+        val adlam = "Call \uD83A\uDD54,\uD83A\uDD50\uD83A\uDD54\uD83A\uDD55,\uD83A\uDD55\uD83A\uDD55\uD83A\uDD50,\uD83A\uDD51\uD83A\uDD54\uD83A\uDD52"
+        assertEquals("Call [number removed]", PhoneNumbers.remove(adlam))
     }
 
     /** "OH" before a 5-4 shape is still a spoken zero: read aloud it can be the start of a phone number. */
