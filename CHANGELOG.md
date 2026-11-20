@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Route reason `not_english` (route-record schema enum and engine-ts RouteReason): the language screen refused the
+  cloud read because the note does not look English, so the read went to no cloud model and fell to the platform's own
+  path. Distinct from on_device_unavailable, so command sees why. Source: the iPhone language-screen port. Verified:
+  schema parity ok (13 schemas, 31 platform types), engine typecheck and tests pass; the iPhone already decodes an
+  unknown reason safely.
 - Language screen before a cloud read (row H decision): `shared/constants/language-words.json` holds the rule and two
   word lists (429 English, 90 Spanish, Portuguese and Vietnamese function words, none shared); a note is refused for
   the cloud read when more than half its words are non-Latin, or when it has 3 or more foreign words and more than

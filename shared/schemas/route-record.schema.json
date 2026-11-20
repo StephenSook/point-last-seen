@@ -53,7 +53,7 @@
         "on_device_unavailable",
         "locale_unsupported",
         "over_token_budget",
-        "possible_evidence",
+        "possible_evidence", "not_english",
         "not_drill_mode",
         "sdk_prefer_in_cloud",
         "sdk_prefer_on_device",
