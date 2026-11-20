@@ -159,6 +159,25 @@ class ProfilePublisherTest {
         )
     }
 
+    /**
+     * Safety field: the family adds triggers to avoid before the first publish; command's flags stay. The approach
+     * notes sent are those of the merged document (command's fall risk and the new triggers), not the phone's alone.
+     */
+    @Test fun aFirstPublishSendsTheApproachNotesOfTheMergedDocument() {
+        val existing = mapOf<String, Any?>(
+            "flags" to mapOf("fallRisk" to true, "mayNotRespond" to false), "triggersToAvoid" to "",
+            "approachNoteIds" to listOf("approach_calm", "fall_risk"),
+        )
+        val mine = mapOf<String, Any?>(
+            "flags" to mapOf("fallRisk" to false, "mayNotRespond" to false), "triggersToAvoid" to "sirens",
+            "approachNoteIds" to listOf("approach_calm", "triggers"),
+        )
+        assertEquals(
+            FirstPublish.Merge(mapOf("triggersToAvoid" to "sirens", "approachNoteIds" to listOf("approach_calm", "fall_risk", "triggers"))),
+            FirstPublish.of(existing, mine, edited = setOf("triggersToAvoid")),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()

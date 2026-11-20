@@ -29,7 +29,18 @@ sealed interface FirstPublish {
             if (existing == null) return Create(mine)
             val send = mine.filterKeys { it !in existing || (it in edited && EditableFields.sendable(it, mine[it], existing[it])) }.toMutableMap()
             keepNamesInStep(existing, send)
+            refreshApproachNotes(existing, mine, send)
             return if (send.isEmpty()) Nothing else Merge(send)
+        }
+
+        /**
+         * profile/shared only: the approach notes follow the merged document (command's flags kept, the family's
+         * edits sent), so the searchers' card shows a note for every field that ends up on the server.
+         */
+        private fun refreshApproachNotes(existing: Map<String, Any?>, mine: Map<String, Any?>, send: MutableMap<String, Any?>) {
+            if ("approachNoteIds" !in mine) return
+            val ids = Profiles.approachNoteIds(existing + send)
+            if (ids != existing["approachNoteIds"]) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
         }
 
         /**
