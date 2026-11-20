@@ -67,6 +67,8 @@ public struct ReadContext: Sendable {
     public var positionSegmentId: String?
     /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
     public var language: LanguageScreen?
+    /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
+    public var profile: ModelProfile?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -180,7 +182,10 @@ public enum ReadOrchestrator {
                 }
                 switch result {
                 case let .success(modelReading):
-                    let r = withCodeSegments(modelReading)
+                    var r = withCodeSegments(modelReading)
+                    // Apple's model reads the report alone (it never sees the description), so code
+                    // decides whether the report matches the subject.
+                    if guidedPath == .onDevice { r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown }
                     let v = validate(r, context, text)
                     if v.isOK { return finish(r, path: path, stage: .guided) }
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))")

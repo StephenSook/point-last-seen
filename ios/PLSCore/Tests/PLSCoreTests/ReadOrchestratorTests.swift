@@ -203,6 +203,31 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.route.path == .onDevice && o.stageNotes.isEmpty)
     }
 
+    /// Apple's model reads the report alone, so its matchesProfile is not used: code decides it from the
+    /// description. The cloud's answer is kept as it is.
+    @Test func onThePhoneCodeDecidesWhetherAReportMatchesTheSubject() async {
+        var c = rctx()
+        c.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("blue coat")]))
+        var answer = okReading()
+        answer.topColor = .blue
+        answer.matchesProfile = .inconsistent
+        let r = FakeRunner(); r.guidedResults[.onDevice] = [.success(answer)]
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.matchesProfile == .consistent)
+        let cloud = FakeRunner(); cloud.guidedResults[.cloud] = [.success(answer)]
+        let oc = await ReadOrchestrator.read(text: report, context: { var x = c; x.onDevice.available = false; return x }(), runner: cloud, clock: clock)
+        #expect(oc.route.path == .cloud && oc.reading.matchesProfile == .inconsistent)
+    }
+
+    /// A model that quotes the subject's description instead of the report is rejected, and the read
+    /// says why (the validator is unchanged).
+    @Test func anAnswerQuotingTheSubjectsDescriptionIsRejected() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AC"], coverage: 0.8, evidenceQuote: "Clothing last worn: blue coat."))]
+        let o = await ReadOrchestrator.read(text: report, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .rules && o.stageNotes == ["guided on_device: invalid quote_not_in_text"])
+    }
+
     @Test func noConsentMeansRulesNotCloud() async {
         let r = FakeRunner()
         let o = await ReadOrchestrator.read(text: report, context: rctx(onDevice: false, consent: false), runner: r, clock: clock)
