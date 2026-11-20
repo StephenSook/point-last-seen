@@ -49,10 +49,12 @@ describe("storage rules (spec section 7)", () => {
     await assertFails(listAll(ref(storageAs("searcher-uid", searcherClaims), "photos/I1")));
     await assertSucceeds(listAll(ref(storageAs("searcher-uid", searcherClaims), "clips/I1")));
   });
-  it("a judge sandbox still being set up takes no uploads; once ready it does", async () => {
+  it("a judge sandbox still being set up, or with no setup flag, takes no uploads; once ready it does", async () => {
     const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });
     const live = { name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) };
     await admin.db.doc("incidents/J1").set({ ...live, setupReady: false });
+    await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc("incidents/J1").set(live);
     await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
     await admin.db.doc("incidents/J1").set({ ...live, setupReady: true });
     await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
@@ -61,7 +63,8 @@ describe("storage rules (spec section 7)", () => {
     const fam = storageAs("family-uid", { inc: "J1", role: "family", team: null });
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open" });
     await assertFails(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000),
+      setupReady: true });
     await assertSucceeds(uploadBytes(ref(fam, `clips/J1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
   });
   it("media are create-only: an existing clip or photo cannot be replaced at its hash path", async () => {

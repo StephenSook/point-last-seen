@@ -60,12 +60,13 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
   it("a judge sandbox before its expiry works as usual", async () => {
-    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000),
+      setupReady: true });
     await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
     const e2 = ev(S, { seq: 2 });
     await assertSucceeds(setDoc(doc(dbAs(S, JS), at("J1", e2)), e2));
   });
-  it("a judge sandbox still being set up locks its members out, even with live claims; a ready or legacy one does not", async () => {
+  it("a judge sandbox still being set up, or with no setup flag, locks its members out, even with live claims; a ready one does not", async () => {
     // Review: a returning judge keeps claims for judge-{uid}, so access must wait for the copy to finish.
     const live = { name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) };
     await admin.db.doc("incidents/J1").set({ ...live, setupReady: false, setupId: "s1", setupStartedAtMs: 1 });
@@ -77,8 +78,10 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await admin.db.doc("incidents/J1").update({ setupReady: true });
     await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
     await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1/segments/AA")));
+    // A sandbox with no flag at all (made before setup was tracked) is not counted as ready.
     await admin.db.doc("incidents/J1").set(live);
-    await assertSucceeds(getDoc(doc(dbAs(C, J), "incidents/J1")));
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1")));
+    await assertFails(getDoc(doc(dbAs(C, J), "incidents/J1/segments/AA")));
   });
   it("only the server sets a sandbox's setup state", async () => {
     await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000), setupReady: true });
@@ -176,7 +179,8 @@ describe("devices and measurements", () => {
 describe("a judge's practice incident (startJudgeSession)", () => {
   it("a judge reads and writes only their own sandbox, never another incident", async () => {
     const J = "judge-uid", claims = { inc: `judge-${J}`, role: "command", team: null };
-    await admin.db.doc(`incidents/judge-${J}`).set({ name: "Practice search", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) });
+    await admin.db.doc(`incidents/judge-${J}`).set({ name: "Practice search", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000),
+      setupReady: true });
     await admin.db.doc(`incidents/judge-${J}/segments/AC`).set({ segmentId: "AC", priorPoa: 0.1 });
     await assertSucceeds(getDoc(doc(dbAs(J, claims), `incidents/judge-${J}/segments/AC`)));
     await assertFails(getDoc(doc(dbAs(J, claims), "incidents/I1")));

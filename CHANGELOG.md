@@ -3,6 +3,15 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-20
+
+- A judge sandbox now counts as live only with an explicit `setupReady == true`: `firestore.rules` liveFor and
+  `storage.rules` notExpired read `get('setupReady', false)`, and `deleteIncidentMediaNow` requires `setupReady ===
+  true`. Before, a sandbox with no flag (made before setup was tracked) counted as ready; every such sandbox has
+  expired, and `startJudgeSession` always writes the flag. Source: review (setup gate, medium 3). Verified test first:
+  three new no-flag assertions (rules, storage, deleteIncidentMediaNow) failed, then passed with the change;
+  live-judge fixtures now carry the flag; rules and functions suite 256 of 256.
+
 ## 2026-11-19
 
 - `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
