@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): a claims check or a report in flight never touches the practice drill
+- What: three windows found in review. (1) A claims check already running when the drill started (at
+  launch, back in the foreground, back in signal, or from a tapped push) could load a real mission
+  over the drill, leaving real reports on the drill's journal, or drop the drill and leave the phone
+  with no way to end it. Starting the drill now counts as a newer access check, so a check already
+  running has no say. (2) A join never runs during the drill. (3) A report still being read when the
+  drill ended was journaled onto the drill's deleted journal and left its map behind; a report whose
+  journal changed while it was read is now kept nowhere, and its words stay in the field.
+- Source: review (practice drill).
+- Verified: tests for a running check with searcher claims (no real mission loads) and with no
+  searcher (the drill stays), and for a report being read when the drill ends (nothing journaled, no
+  map). All three failed before the fix and pass after. New tests also pin what already held: the
+  assignment is spoken with no account, End restores the real journal and deletes the drill's
+  folder, and the drill's server writes, reads back and listens to nothing. 190 app tests pass.
+
 ### feat(ios): practice reports say to ask command in a real search
 - What: in the practice drill there is no command to ask, so a report line ending "Ask command." ends
   "In a real search, ask command." instead (for a report that needs command, one that could not be

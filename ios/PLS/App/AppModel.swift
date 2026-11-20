@@ -259,6 +259,8 @@ final class AppModel {
 
     /// Joins as a searcher with the code and team command gave, then loads the team's mission.
     func join(code: String, teamId: String, incidentId: String) async {
+        // The Join screen is not offered during the practice drill; a join never lands on its journal.
+        guard practice == nil else { return }
         joining = true
         defer { joining = false }
         // A join is the newest wish: any load or check still running from before must not replace it.
@@ -450,6 +452,8 @@ final class AppModel {
             self.store = store
             self.identity = identity
             posterior = nil
+            // Any access check or mission read still running has no say over the drill.
+            accessCheck += 1
             missionGeneration += 1
             joinMessage = nil
             await load(mission)
@@ -960,6 +964,8 @@ final class AppModel {
     private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
                          mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
                          submittedAt: Double, readDone: Double) -> Bool {
+        // The journal changed while the report was read (the practice drill ended): it goes nowhere.
+        guard store === self.store else { return false }
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,

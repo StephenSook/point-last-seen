@@ -29,13 +29,17 @@ import Testing
         return dir
     }
 
+    /// Runs while a report is being read, so a test can act in the middle of a send.
+    final class ReadHook: @unchecked Sendable { var action: (@MainActor () async -> Void)? }
+
     func model(voice: FakeVoice = FakeVoice(), reader: FakeMissionReader, topics: FakePushTopics,
                backend: FakeJoinBackend = FakeJoinBackend(), measurements: FakeMeasurementWriter = FakeMeasurementWriter(),
-               uid: String? = "uid-1") -> AppModel {
+               uid: String? = "uid-1", readHook: ReadHook = ReadHook()) -> AppModel {
         AppModel(signIn: SignIn(isSignedIn: { uid != nil }, attempt: { uid != nil }),
                  speaker: AssignmentSpeaker(onDevice: voice, makeCloud: { _ in FakeVoice() }, record: { _ in }), uid: { uid },
                  measurements: measurements,
                  readReport: { text, _, _, _ in
+                     await readHook.action?()
                      let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "rules",
                                              reason: .notDrillMode, latencyMs: 2, sdkReported: false, blocked: nil, decidedAtMs: 0)
                      return ReadOutcome(reading: ReportReading.unclear(quote: text), route: route, validation: .ok)
@@ -85,7 +89,8 @@ import Testing
     /// document never see it, and it needs no account (a phone that never signed in can run the practice drill).
     @Test func aPracticeReportNeverLeavesThePhone() async throws {
         let reader = FakeMissionReader(docs: nil), topics = FakePushTopics(), measurements = FakeMeasurementWriter()
-        let m = model(reader: reader, topics: topics, measurements: measurements, uid: nil)
+        let voice = FakeVoice()
+        let m = model(voice: voice, reader: reader, topics: topics, measurements: measurements, uid: nil)
         let dir = try tempDir()
         let server = FakeEventServer()
         let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -93,6 +98,9 @@ import Testing
         #expect(await m.startPractice(packURL: try packFile(), directory: try tempDir()) == nil)
         #expect(await m.submit("Found a blue coat by the creek", inputMethod: .typed) == "")
         #expect(server.writes.isEmpty && store.entries.isEmpty && measurements.written.isEmpty)
+        // The assignment is spoken with no account at all.
+        await m.speech?.value
+        #expect(voice.spoken.count == 1)
         #expect(m.missionEntries.count == 1 && m.missionEntries.first?.state == .pending)
         // Nothing is waiting to send: the link glyph never shows practice reports as on their way.
         #expect(m.linkState == LinkState.make(online: m.connectivity.isOnline, waiting: 0))
@@ -130,11 +138,74 @@ import Testing
                          speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
                          uid: { "uid-1" }, joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: FakePushTopics(),
                          alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "practice-leave-\(UUID().uuidString)")!)
+        let dir = try tempDir(), practiceDir = try tempDir()
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        #expect(await m.startPractice(packURL: try packFile(), directory: practiceDir) == nil)
+        #expect(m.store !== store)
+        #expect(await m.submit("Cleared segment BO, nothing found", inputMethod: .typed) == "")
+        #expect(await m.leaveSearch())
+        #expect(m.mission == nil && count.signOuts == 0)
+        // The real journal is back, untouched, and the drill's reports are gone from the phone.
+        #expect(m.store === store && store.entries.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: practiceDir.path))
+    }
+
+    /// A claims check already running when the drill starts (at launch, back in the foreground, or
+    /// back in signal) has no say over it: claims naming a searcher load nothing over it.
+    @Test(.timeLimit(.minutes(1))) func aCheckRunningWhenTheDrillStartsNeverReplacesIt() async throws {
+        let docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments())
+        let backend = FakeJoinBackend(), reader = FakeMissionReader(docs: docs)
+        let m = model(reader: reader, topics: FakePushTopics(), backend: backend)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let checking = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        #expect(await m.startPractice(packURL: try packFile(), directory: try tempDir()) == nil)
+        gate.release()
+        await checking.value
+        #expect(m.mission?.isPractice == true && reader.reads.isEmpty)
+    }
+
+    /// The same check with claims that name no searcher (a fresh anonymous user) never drops it.
+    @Test(.timeLimit(.minutes(1))) func aCheckRunningWhenTheDrillStartsNeverDropsIt() async throws {
+        let backend = FakeJoinBackend()
+        backend.claims = [:]
+        let m = model(reader: FakeMissionReader(docs: nil), topics: FakePushTopics(), backend: backend)
+        let gate = ReadGate()
+        backend.holdNextClaims = gate
+        let checking = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        #expect(await m.startPractice(packURL: try packFile(), directory: try tempDir()) == nil)
+        gate.release()
+        await checking.value
+        #expect(m.mission?.isPractice == true && m.canStartPractice == false)
+    }
+
+    /// A report still being read when the drill ends is not journaled anywhere: not in the real
+    /// journal, and it leaves no map behind. Its words stay in the field.
+    @Test func aReportBeingReadWhenTheDrillEndsIsKeptNowhere() async throws {
+        let hook = ReadHook()
+        let m = model(reader: FakeMissionReader(docs: nil), topics: FakePushTopics(), readHook: hook)
         let dir = try tempDir()
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
-        m.attach(store: store, identity: try DeviceIdentity(directory: dir))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
         #expect(await m.startPractice(packURL: try packFile(), directory: try tempDir()) == nil)
-        #expect(await m.leaveSearch())
-        #expect(m.mission == nil && count.signOuts == 0 && m.missionEntries.isEmpty)
+        hook.action = { [weak m] in _ = await m?.leaveSearch() }
+        #expect(await m.submit("Cleared segment BO, nothing found", inputMethod: .typed) == "Cleared segment BO, nothing found")
+        #expect(m.mission == nil && m.store === store && store.entries.isEmpty && m.posterior == nil)
+    }
+
+    /// The drill's server: a write never completes, a read-back finds no server, nothing is listened to.
+    @Test func theLocalOnlyServerSendsNothing() {
+        let server = LocalOnlyEventServer()
+        let doc = EventStoreStateTests().event(1)
+        var wrote = false
+        server.write(doc) { _ in wrote = true }
+        var copy: ServerCopy?
+        server.readBack(doc) { copy = $0 }
+        #expect(!wrote && copy == .unknownOffline && server.listen(incidentId: "x", onSnapshot: { _ in }) == nil)
     }
 }
