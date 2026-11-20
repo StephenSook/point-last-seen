@@ -54,6 +54,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed">("none");
   // The last read that filled the fields: what was asked for, where it ran and what it sent.
   const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
+  // The read that filled the fields, kept for the saved sighting's route even if its receipt is no longer shown.
+  const [readFilled, setReadFilled] = useState<{ route: RouteRecord | null } | null>(null);
   // The note as it is now: a reply for an older note is dropped rather than filled in.
   const noteNow = useRef(note);
   noteNow.current = note;
@@ -82,6 +84,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         fill(r.reading);
         const w = r as Ran;
         setRan(w.route ? { asked: "this laptop only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
+        setReadFilled({ route: w.route ?? null });
       }
       else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
@@ -101,6 +104,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       if ("reading" in r) {
         fill(r.reading);
         setRan(r.route ? { asked: "the cloud, after the consent tap", route: r.route, sentBytes: r.sentBytes ?? 0 } : null);
+        setReadFilled({ route: r.route ?? null });
       }
       else setReadState(r.refused === "possible-evidence" ? "evidence" : "not-read");
     } catch {
@@ -120,7 +124,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     }
     setBusy("save");
     try {
-      await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note });
+      await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note, ...(readFilled ? { readFilled } : {}) });
       setCallbackName("");
       setCallbackNumber("");
       onClose();

@@ -10,6 +10,7 @@ import {
   type Direction,
   type EventDoc,
   type ReportReading,
+  type RouteRecord,
 } from "@pls/engine";
 import { effectSegments, segmentContaining, type GridSegmentDoc, type LatLon } from "../map/geo";
 
@@ -32,7 +33,17 @@ export type SightingInput = {
   carried: string;
   reportedBy: "stranger" | "neighbour" | "staff" | "family";
   freeText: string;
+  /** The model read that filled the fields, with its route (null when the read reported none). Absent: typed by hand. */
+  readFilled?: { route: RouteRecord | null };
 };
+
+/**
+ * The route of a report a person entered with no model: the same record the iPhone writes for a picked report.
+ * `decidedAtMs` is the time it was written.
+ */
+export function handEntryRoute(decidedAtMs: number): RouteRecord {
+  return { platform: "web", path: "rules", stage: "picklist", model: "none", reason: "on_device_default", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs };
+}
 
 /** Who is writing and what the incident looks like right now. `seq` must never repeat for this uid. */
 export type CommandWriter = {
@@ -98,6 +109,8 @@ export function buildSightingEvent(input: SightingInput, w: CommandWriter): Even
   });
   return {
     ...commandEventBase(w),
+    // Where the reading came from, so a drill run's replay can say which reports a model read.
+    route: input.readFilled ? input.readFilled.route : handEntryRoute(w.clientTimeMs),
     type: "sighting",
     reporter: input.reportedBy === "family" ? "family" : "public_caller",
     observedAtMs: input.observedAtMs,
