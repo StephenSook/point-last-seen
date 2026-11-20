@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Public run export: a report's route is its read's provenance (path, stage, model, reason, latencyMs and the rest of
+  the route record), and the export's check now refuses a route whose values a route record cannot hold (enums from
+  shared/schemas/route-record.schema.json, a model id of at most 80 characters, numbers for the times, a boolean
+  sdkReported), so no note text can ride in one. The reading's content still never leaves on a report. Source: review
+  (the replay's per-report provenance). Verified: tools/export-run tests 24 passed (the new route-values test failed
+  first; a full reading with evidenceQuote exports only its route; a planted evidenceQuote is refused); typecheck
+  passes.
 - Grounding vectors README: where the rule applies. The web and the iPhone read notes into these fields; the Android
   family app has none to ground (its note read fills kind, label, summary and evidenceQuote; a family sighting's
   direction and colours are picked by hand; a camera clip's colours come from the frames, with no note or profile in
