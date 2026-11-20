@@ -67,6 +67,8 @@ public struct ReadContext: Sendable {
     public var positionSegmentId: String?
     /// The language screen run before any cloud read. Without one no note goes to the cloud (fails closed).
     public var language: LanguageScreen?
+    /// The grounding rule run on every read's reading. Without it the fields it checks are blanked (fails closed).
+    public var grounding: Grounding?
     /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
     public var profile: ModelProfile?
 
@@ -117,7 +119,13 @@ public enum ReadOrchestrator {
         let limit = context.stageTimeoutSeconds
         let limitWords = limit == limit.rounded() ? "\(Int(limit)) s" : "\(limit) s"
 
-        func finish(_ reading: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
+        /// A colour, direction, footwear or carried item the note does not support is blanked after every read.
+        func grounded(_ r: ReportReading) -> ReportReading {
+            context.grounding.map { $0.ground(r, note: text) } ?? Grounding.blanked(r)
+        }
+
+        func finish(_ unGrounded: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
+            let reading = grounded(unGrounded)
             let model: String
             switch (path, stage) {
             case (_, .evidenceProtocol): model = "none"
@@ -195,6 +203,8 @@ public enum ReadOrchestrator {
                     // Apple's model reads the report alone (it never sees the description), so code
                     // decides whether the report matches the subject.
                     if guidedPath == .onDevice {
+                        // Grounded first, so a colour copied from the profile is no match.
+                        r = grounded(r)
                         r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
                         r = Self.zerosNotStated(r)
                         r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)

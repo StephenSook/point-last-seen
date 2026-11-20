@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): every reading is grounded in its note
+- What: after every read, on every route, a colour, direction, footwear or carried item the note does
+  not support is blanked (the shared grounding rule), so a reading never claims what nobody wrote. On
+  the phone path the reading is grounded before code decides whether it matches the subject, so a
+  colour Apple's model copied from the profile is no match. The word list is bundled with the app;
+  if it cannot be loaded, the fields it checks are blanked (the read fails closed).
+- Source: the grounding rule (shared vectors).
+- Verified: tests that a colour the note does not say is blanked before the profile match, on the phone
+  and in the cloud, that a colour the note says is kept and can match, that no word list blanks the
+  fields, and that the reader loads the bundled list failed to compile before the change and pass after;
+  a test whose report never said blue had expected a blue profile match and now says blue; 380 core and
+  197 app tests pass.
+
 ### feat(ios-core): the grounding rule, pinned by the shared vectors
 - What: a Swift port of the shared grounding rule (shared/constants/grounding-words.json, reference
   shared/engine-ts/src/ground.ts). A colour or a direction other than unknown stays only when one of its
