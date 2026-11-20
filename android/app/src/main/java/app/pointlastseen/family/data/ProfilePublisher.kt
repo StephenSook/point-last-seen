@@ -34,13 +34,21 @@ sealed interface FirstPublish {
         }
 
         /**
-         * profile/shared only: the approach notes follow the merged document (command's flags kept, the family's
-         * edits sent), so the searchers' card shows a note for every field that ends up on the server.
+         * profile/shared only: a note derived from a field this publish changes follows the merged document
+         * (command's flags kept, the family's edits sent), so the searchers' card shows a note for every field
+         * that ends up on the server; every other stored note stays as command left it. A document with no notes
+         * gets the merged document's.
          */
         private fun refreshApproachNotes(existing: Map<String, Any?>, mine: Map<String, Any?>, send: MutableMap<String, Any?>) {
             if ("approachNoteIds" !in mine) return
-            val ids = Profiles.approachNoteIds(existing + send)
-            if (ids != existing["approachNoteIds"]) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
+            val stored = (existing["approachNoteIds"] as? List<*>)?.map { it.toString() }
+            if (stored == null) {
+                send["approachNoteIds"] = Profiles.approachNoteIds(existing + send)
+                return
+            }
+            val changed = send.keys.filter { it in Profiles.NOTE_INPUT_FIELDS && send[it] != existing[it] }.toSet()
+            val ids = if (changed.isEmpty()) stored else Profiles.mergeApproachNotes(stored, existing + send, changed)
+            if (ids != stored) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
         }
 
         /**

@@ -211,6 +211,33 @@ object Profiles {
     fun approachNoteIds(p: SubjectProfile): List<String> =
         noteIds(p.flags, sharedDementiaType(p), p.primaryLanguage, p.triggersToAvoid, p.bestApproach, p.uniqueDescription)
 
+    /** Every approach note in card order, with the shared fields it is derived from (none: always shown). */
+    private val NOTE_INPUTS: List<Pair<String, Set<String>>> = listOf(
+        "may_not_respond" to setOf("flags"), "approach_calm" to emptySet(), "stop_calling_name" to setOf("flags"),
+        "likely_to_hide" to setOf("flags"), "afraid_of_uniforms" to setOf("flags"),
+        "validate_feelings" to setOf("flags", "dementiaType"), "looking_for_home" to setOf("flags"),
+        "gait_unsteady" to setOf("flags"), "freezing" to setOf("flags"), "fall_risk" to setOf("flags"),
+        "soft_voice" to setOf("flags"), "fluctuates" to setOf("flags"), "sensitive_to_touch" to setOf("flags"),
+        "sensitive_to_light" to setOf("flags"), "may_strike_out" to setOf("flags"), "seizures" to setOf("flags"),
+        "medication_alert" to setOf("flags"), "medication_timing" to setOf("flags"), "language" to setOf("primaryLanguage"),
+        "triggers" to setOf("triggersToAvoid"), "best_approach" to setOf("bestApproach"), "unique" to setOf("uniqueDescription"),
+    )
+
+    /** The shared fields any approach note is derived from. */
+    val NOTE_INPUT_FIELDS: Set<String> = NOTE_INPUTS.flatMap { it.second }.toSet()
+
+    /**
+     * Approach notes after a merge that changed [changed] fields: a note derived from a changed field follows the
+     * merged document; every other note keeps what [stored] says (command may have curated it), and a stored note
+     * this app version does not know stays at the end.
+     */
+    fun mergeApproachNotes(stored: List<String>, merged: Map<String, Any?>, changed: Set<String>): List<String> {
+        val fresh = approachNoteIds(merged).toSet()
+        val known = NOTE_INPUTS.map { it.first }.toSet()
+        val notes = NOTE_INPUTS.filter { (id, inputs) -> if (inputs.any { it in changed }) id in fresh else id in stored }.map { it.first }
+        return notes + stored.filter { it !in known }
+    }
+
     /** The same notes, read from a profile/shared document (for a document merged with what command entered). */
     fun approachNoteIds(shared: Map<String, Any?>): List<String> {
         val flags = (shared["flags"] as? Map<*, *>)?.filterValues { it == true }?.keys?.map { it.toString() }?.toSet() ?: emptySet()

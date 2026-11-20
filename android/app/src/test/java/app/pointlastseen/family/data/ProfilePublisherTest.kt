@@ -178,6 +178,23 @@ class ProfilePublisherTest {
         )
     }
 
+    /** A first publish that changes no note input leaves command's stored approach notes as they are. */
+    @Test fun aFirstPublishKeepsStoredNotesWhoseInputsDidNotChange() {
+        val existing = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "white", "triggersToAvoid" to "",
+            "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms"),
+        )
+        val mine = mapOf<String, Any?>(
+            "flags" to mapOf("afraidOfUniforms" to false), "hair" to "grey", "triggersToAvoid" to "sirens",
+            "approachNoteIds" to listOf("approach_calm", "triggers"),
+        )
+        assertEquals(FirstPublish.Merge(mapOf("hair" to "grey")), FirstPublish.of(existing, mine, edited = setOf("hair")))
+        assertEquals(
+            FirstPublish.Merge(mapOf("triggersToAvoid" to "sirens", "approachNoteIds" to listOf("approach_calm", "afraid_of_uniforms", "triggers"))),
+            FirstPublish.of(existing, mine, edited = setOf("triggersToAvoid")),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()
