@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the eval's on-device arm is Apple's model through the app's own reader
+- What: docs/evidence/eval/README.md said the iPhone's on-device arm ran through "Firebase AI Logic
+  hybrid routing". It doesn't: the app's own reader calls Apple's on-device model (Foundation Models,
+  ios/PLS/AI/ModelSessionFactory.swift), and only the cloud route goes through Firebase AI Logic
+  (geminiLanguageModel). The line now says so.
+- Source: review (claims audit).
+- Verified: read against ModelSessionFactory.swift; no other "hybrid" claim in the eval README.
+
 ### feat(ios): the route check file says why each model stage was not used
 - What: each route in the saved route-check file carries the read's stage notes, so a route check
   run on a real iPhone names why Apple's model's answer was not used (for example "guided on_device:
