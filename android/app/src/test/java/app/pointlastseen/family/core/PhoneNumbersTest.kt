@@ -54,7 +54,8 @@ class PhoneNumbersTest {
     /** As on the iPhone: Chinese numeral digits are digits, and a pasted line break (CRLF) is one separator. */
     @Test fun chineseDigitsAndPastedLineBreaksAreCaught() {
         assertEquals("Call [number removed]", PhoneNumbers.remove("Call \u56db\u96f6\u56db\u4e94\u4e94\u4e94\u96f6\u4e00\u56db\u4e8c"))
-        assertEquals("Call [number removed]", PhoneNumbers.remove("Call 404-555\r\n  0142"))
+        // The line break is kept (each line gets its own mark), so two lines never become one.
+        assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call 404-555\r\n  0142"))
     }
 
     /** Dashes other than the plain hyphen (non-breaking, en, minus) join a number's parts too. */
@@ -124,17 +125,58 @@ class PhoneNumbersTest {
 
     /** Dates written with en dashes, and a date followed by a quantity, stay; a ZIP after a state stays beside a number. */
     @Test fun datesAndAddressedZipCodesStay() {
-        for (text in listOf("Seen 2026\u201311\u201319", "Seen 11/19/2026, 3 miles north")) assertEquals(text, PhoneNumbers.remove(text))
+        assertEquals("Seen 2026\u201311\u201319", PhoneNumbers.remove("Seen 2026\u201311\u201319"))
         assertEquals("Atlanta, GA 30301-1234 [number removed]", PhoneNumbers.remove("Atlanta, GA 30301-1234 404-555-0142"))
     }
 
-    /** A short number before a written date stays with the date; a 5-4 number with no state before it goes. */
-    @Test fun aShortNumberBeforeADateStaysAndAnUnaddressedFiveFourNumberGoes() {
-        for (text in listOf("team 5 11/19/2026", "zone 2 2026-11-19", "route 66 11/19/2026", "room 1204 11/19/2026")) {
-            assertEquals(text, PhoneNumbers.remove(text))
+    /**
+     * A short number touching a written date could be part of a number, so the whole run goes (privacy first; the
+     * date is lost with it). A 5-4 number with no state before it goes.
+     */
+    @Test fun aShortNumberTouchingADateTakesTheDateWithItAndAnUnaddressedFiveFourNumberGoes() {
+        for (text in listOf("team 5 11/19/2026", "zone 2 2026-11-19", "route 66 11/19/2026", "room 1204 11/19/2026", "Seen 11/19/2026, 3 miles north")) {
+            assertEquals("$text -> ${PhoneNumbers.remove(text)}", false, PhoneNumbers.remove(text).any { it.isDigit() })
         }
         assertEquals("call [number removed]", PhoneNumbers.remove("call 40455-0142"))
         assertEquals("call [number removed]", PhoneNumbers.remove("call 08001-1234"))
         assertEquals("call [number removed]ft", PhoneNumbers.remove("call 404-555-0142ft"))
+    }
+
+    /**
+     * A search span with a short piece of digits beside it takes the whole run with it: nothing of a number written
+     * around a ZIP, a count, a date, a time or a unit is left.
+     */
+    @Test fun aSpanBesideAShortPieceTakesTheWholeRun() {
+        val cases = mapOf(
+            "Call GA 40455-5014 2" to listOf("40455", "5014"),
+            "Call 404,555,014 two" to listOf("404", "014", "two"),
+            "Call 4.0455 5.0142" to listOf("0455", "0142"),
+            "Call Nov 20 1955 0142" to listOf("1955", "0142"),
+            "Call four zero four five five five 0142ft" to listOf("four", "0142"),
+            "Call 404 5-15-2026" to listOf("404", "2026"),
+            "Call 25/12/26-9-1-26" to listOf("25/12", "9-1"),
+            "call 555 0142m" to listOf("555", "0142"),
+            "Call 06.12.20-26-19" to listOf("06.12", "26-19"),
+            "Call 404-555-2026/11/19" to listOf("404", "555"),
+            "Call 404.555.2026-11-19" to listOf("404", "555"),
+            "Meet in Atlanta, ga 30301-1234" to listOf("30301"),
+        )
+        for ((input, gone) in cases) {
+            val out = PhoneNumbers.remove(input)
+            for (g in gone) assertEquals("$input -> $out", false, out.contains(g))
+        }
+    }
+
+    /** Search information beside a whole number stays, and only the number goes. */
+    @Test fun searchInformationBesideAWholeNumberStays() {
+        assertEquals("Seen 11/19/2026 14:03 [number removed]", PhoneNumbers.remove("Seen 11/19/2026 14:03 404-555-0142"))
+        assertEquals("GA 30301-1234 [number removed]", PhoneNumbers.remove("GA 30301-1234 555 0142"))
+        assertEquals("14:03 [number removed]", PhoneNumbers.remove("14:03 five five five zero one four two"))
+        assertEquals("1,234,567 [number removed]", PhoneNumbers.remove("1,234,567 555 0142"))
+    }
+
+    /** A removed run keeps its line breaks, so two lines never become one. */
+    @Test fun aRemovedRunKeepsItsLineBreaks() {
+        assertEquals("Trail marker [number removed]\n[number removed] Oak Road", PhoneNumbers.remove("Trail marker 1234\n5678 Oak Road"))
     }
 }
