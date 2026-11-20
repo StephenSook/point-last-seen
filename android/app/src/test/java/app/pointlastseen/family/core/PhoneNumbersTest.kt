@@ -127,4 +127,14 @@ class PhoneNumbersTest {
         for (text in listOf("Seen 2026\u201311\u201319", "Seen 11/19/2026, 3 miles north")) assertEquals(text, PhoneNumbers.remove(text))
         assertEquals("Atlanta, GA 30301-1234 [number removed]", PhoneNumbers.remove("Atlanta, GA 30301-1234 404-555-0142"))
     }
+
+    /** A short number before a written date stays with the date; a 5-4 number with no state before it goes. */
+    @Test fun aShortNumberBeforeADateStaysAndAnUnaddressedFiveFourNumberGoes() {
+        for (text in listOf("team 5 11/19/2026", "zone 2 2026-11-19", "route 66 11/19/2026", "room 1204 11/19/2026")) {
+            assertEquals(text, PhoneNumbers.remove(text))
+        }
+        assertEquals("call [number removed]", PhoneNumbers.remove("call 40455-0142"))
+        assertEquals("call [number removed]", PhoneNumbers.remove("call 08001-1234"))
+        assertEquals("call [number removed]ft", PhoneNumbers.remove("call 404-555-0142ft"))
+    }
 }
