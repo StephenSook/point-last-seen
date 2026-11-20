@@ -7,6 +7,8 @@ struct ReportEchoView: View {
     @Environment(\.fieldTheme) private var theme
     @AppStorage("pls.showSources") private var showSources = false
     let entry: OutboxEntry
+    /// The practice drill: lines that say to ask command say so for a real search.
+    var practice = false
     let retry: () -> Void
     var canUndo = false
     var undo: () -> Void = {}
@@ -21,7 +23,7 @@ struct ReportEchoView: View {
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     if let route = entry.doc.route { RouteGlyph(mark: RouteMark.make(route)) }
-                    Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type)).font(.title3.weight(.semibold))
+                    Text(EchoText.effectLine(entry.doc.effect, type: entry.doc.type, practice: practice)).font(.title3.weight(.semibold))
                 }
                 // Proof is a glyph; the sentence is for filming and judges only.
                 if showSources, let route = entry.doc.route {

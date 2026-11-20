@@ -36,4 +36,7 @@ struct Mission: Sendable {
     var gridId: String? = nil
     /// The grid's OpenStreetMap license line (`gridAttribution`), shown on the map.
     var gridAttribution: String? = nil
+    /// The practice drill: sample data from the app's bundled pack, read in no session, with every
+    /// report kept on this phone.
+    var isPractice = false
 }
