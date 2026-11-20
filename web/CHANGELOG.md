@@ -1809,6 +1809,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: CI with a pinned static ffmpeg 8.1 encoded the same clip to 4434 bytes, and the fixed count failed; apt's ffmpeg and a local ffmpeg 9.0.2 both give 4448.
 - Verified: with the clip made 20 bytes longer (4468 bytes, still "4 KB"), the old check failed (expected 4448, received 4468) and the new one passed; all 23 clip checks pass on the normal clip; typecheck clean.
 
+### fix(judge): a judge page shown again from the back/forward cache has its start button ready
+- What: `JudgePage` listens for `pageshow`; when the browser shows the page again from its back/forward cache (`persisted`), the practice start is reset: the guard is cleared and the button reads "Try a practice search" again. Before, coming Back from the practice incident could show the page exactly as it left, mid-start, with the button disabled on "Starting".
+- Source: review finding (start button stuck after a back/forward cache restore).
+- Verified: a new check in `e2e/judge.spec.ts` (start pending, then the restore event fired by hand, since Playwright's Chromium restored the page from its cache in only 1 of 6 real tries) failed against the live site (button still "Starting") and passed on a local build with the 4 other start checks; typecheck clean. A start cancelled by stopping the navigation is not covered.
+
 ### feat(command): a sighting saved at the command post records where its reading came from
 - What: `buildSightingEvent` writes the event's `route` instead of null. When a model read filled the form, it is that read's RouteRecord (on the laptop or in the cloud), passed by `SightingForm` as `readFilled`; a read that reported no route is stored as null (not reported), never as hand entry. When command typed it by hand, it is `handEntryRoute(writeTime)`: platform web, path rules, stage picklist, model none, reason on_device_default, the same record the iPhone writes for a picked report. Command placing a family sighting gets the hand-entry route, since command picks the point. Other command events keep a null route.
 - Source: the drill run's replay needs each report's provenance; every command-typed sighting so far was stored with a null route.

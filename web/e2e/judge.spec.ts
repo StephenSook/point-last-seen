@@ -107,6 +107,19 @@ test("two clicks in the same moment start one practice search", async ({ page })
   expect(posts).toBe(1);
 });
 
+// Back from the practice incident, the browser can show this page from its back/forward cache, as it was when it
+// left: mid-start. The restore event is fired here by hand, because Playwright's Chromium rarely restores a page.
+test("a page shown again from the back/forward cache has the start button ready", async ({ page }) => {
+  await withDebugToken(page);
+  await page.route("**/startJudgeSession", (route) => (route.request().method() === "POST" ? undefined : route.continue()));
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).click();
+  const practice = page.getByRole("region", { name: "Try a practice search" });
+  await expect(practice.getByRole("button", { name: "Starting" })).toBeDisabled();
+  await page.evaluate(() => dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  await expect(practice.getByRole("button", { name: "Try a practice search" })).toBeEnabled();
+});
+
 test("the judge page names the cloud model Remote Config selects right now", async ({ page }) => {
   await page.goto("/judge");
   const s = page.getByRole("region", { name: "Cloud model" });
