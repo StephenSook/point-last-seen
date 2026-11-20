@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README and LIMITS: the command post's extras, as available features (whether the drill used each is filled in after
+  its debrief): the ICS 204-shaped assignment sheet, GeoJSON export, radio cards and a match code check, the opt-in
+  names and approach notes on the sheet and cards, the event-log replay from the current prior onward, and the
+  Kennesaw-only terrain display layer; and a LIMITS section with their seven limits. Source: the extras hand-over at
+  main 7afaee2. Verified: each feature is on main (Ics204View.tsx with v3.1, ExportButton.tsx RFC 7946,
+  LazyRadioCodeCheck, printablePersonLines, ReplayPanel's "Earlier prior" line, and only
+  kennesaw-mountain-drill.elevation.json under web/public/extras/terrain); no camera-read or space-time claim is made.
 - Public run export: a report's route is its read's provenance (path, stage, model, reason, latencyMs and the rest of
   the route record), and the export's check now refuses a route whose values a route record cannot hold (enums from
   shared/schemas/route-record.schema.json, a model id of at most 80 characters, numbers for the times, a boolean

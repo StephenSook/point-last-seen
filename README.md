@@ -24,6 +24,17 @@ profile, notes, photos and camera clips from their own app, and decides which of
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 
+Also available on the command post (from its extras menu). Whether the drill used each one is filled in after the
+drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-extras).
+
+- ICS 204-shaped assignment sheet (layout follows FEMA ICS Form 204 v3.1; not an official form)
+- GeoJSON export of segments and assignments (RFC 7946)
+- Radio cards and a match code check
+- The sheet and radio cards can print the names the person answers to and the approach notes (one box, off by
+  default)
+- Replay of the event log over time, from the current prior onward
+- Terrain display layer (USGS 3DEP; display only; the prior has no elevation term), for the Kennesaw drill grid only
+
 ## How the models are called
 
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Three calls
