@@ -1754,3 +1754,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `callableError` now returns `status`, the HTTP status the Firebase SDK appended (any one to three digits, so " [0]" too), and strips it from the message. The SDK reports a request that never got an answer (a lost connection) as `functions/internal` with status 0.
 - Source: review of the callable error fix: a real lost connection reached the practice mapper as "internal [0]", not as a 503.
 - Verified: a new test that makes the SDK's fetch fail outright (status 0, code functions/internal, message "internal") and the existing tests updated for the new field failed first, then passed; 23 of 23 helper, practice and media tests pass; typecheck clean.
+
+### fix(data): a practice search with no connection says No connection
+- What: `practiceErrorMessage` returns "No connection. Try again when the link is back." for a request that got no answer (the SDK's status 0) and for a sign-in that could not reach the network (`auth/network-request-failed`). Before, both said "The practice search could not start. Try again."; a server error with a real status (500) still does.
+- Source: review of the callable error fix.
+- Verified: a unit test (status 0, the sign-in network error, a 500) and a browser check that cuts the start callable's connection (No connection, one call after 3.5 s) failed first (the live site said "could not start"), then passed on a local build with the other four practice checks; 11 of 11 practice tests pass; typecheck clean.

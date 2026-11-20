@@ -43,6 +43,11 @@ describe("practiceErrorMessage with the SDK's real messages", () => {
     expect(practiceErrorMessage(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment. [503]"))).toBe("Your practice search is still being set up. Try again in a moment.");
     expect(practiceErrorMessage(fbErr("functions/unavailable", "Service Unavailable [503]"))).toBe("No connection. Try again when the link is back.");
   });
+  it("names a lost connection: the SDK's status 0, or a sign-in that could not reach the network", () => {
+    expect(practiceErrorMessage(fbErr("functions/internal", "internal [0]"))).toBe("No connection. Try again when the link is back.");
+    expect(practiceErrorMessage(fbErr("auth/network-request-failed", "Firebase: Error (auth/network-request-failed)."))).toBe("No connection. Try again when the link is back.");
+    expect(practiceErrorMessage(fbErr("functions/internal", "internal [500]"))).toBe("The practice search could not start. Try again.");
+  });
   it("trusts a stable reason in the details over the exact wording", () => {
     const withReason = (code: string, message: string, reason: string) => Object.assign(fbErr(code, message), { details: { reason } });
     expect(practiceErrorMessage(withReason("functions/resource-exhausted", "One practice search an hour. [429]", "hourly_limit"))).toBe("One practice search an hour.");

@@ -75,6 +75,22 @@ test("a 503 without the server's sentence says No connection and does not start 
   await expect(practice.getByRole("button", { name: "Try a practice search" })).toBeEnabled();
 });
 
+test("with no connection the start says No connection and does not start again", async ({ page }) => {
+  await withDebugToken(page);
+  let posts = 0;
+  await page.route("**/startJudgeSession", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts++;
+    return route.abort("internetdisconnected");
+  });
+  await page.goto("/judge");
+  await page.getByRole("button", { name: "Try a practice search" }).click();
+  const practice = page.getByRole("region", { name: "Try a practice search" });
+  await expect(practice.getByRole("alert")).toHaveText("No connection. Try again when the link is back.");
+  await page.waitForTimeout(3_500);
+  expect(posts).toBe(1);
+});
+
 test("a double click starts one practice search", async ({ page }) => {
   await withDebugToken(page);
   let posts = 0;

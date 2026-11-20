@@ -36,6 +36,7 @@ const SERVER_SENTENCES = new Set([
 const SERVER_REASONS = new Set(["hourly_limit", "daily_limit", "no_practice"]);
 
 const SETTING_UP = "Your practice search is still being set up. Try again in a moment.";
+const NO_CONNECTION = "No connection. Try again when the link is back.";
 
 /** The server is still setting up this browser's practice search (a second start, or a released copy): retry. */
 export function isSettingUp(e: unknown): boolean {
@@ -46,11 +47,13 @@ export function isSettingUp(e: unknown): boolean {
 export function practiceErrorMessage(e: unknown): string {
   // A copy built with no Firebase settings (a fresh clone with no .env) cannot reach the backend at all.
   if (e instanceof MissingConfigError) return "This copy has no Firebase settings, so it cannot start a practice search. Use the live site.";
-  const { code, message, reason } = callableError(e);
+  const { code, message, reason, status } = callableError(e);
+  // The SDK gives status 0 when the request got no answer, and sign-in fails this way when offline.
+  if (status === 0 || code === "auth/network-request-failed") return NO_CONNECTION;
   const refusal = reason !== null ? SERVER_REASONS.has(reason) : SERVER_SENTENCES.has(message);
   if ((code.endsWith("resource-exhausted") || code.endsWith("failed-precondition")) && refusal && message !== "") return message;
   if (isSettingUp(e)) return message || SETTING_UP;
-  if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
+  if (code.endsWith("unavailable")) return NO_CONNECTION;
   if (code.endsWith("unauthenticated")) return "This browser could not be checked. Reload and try again.";
   return "The practice search could not start. Try again.";
 }
