@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### docs: how the iPhone report-reading eval is run and scored
+- What: docs/evidence/eval/README.md describes the eval before any result exists: the answer key (written
+  by one person before any model run, made-up drill reports on the piedmont-park-dev grid, frozen with
+  its SHA-256 pinned in a test, never edited after a run, Sunday's reports as a second fresh set), the two
+  arms (rules only, and Apple's on-device model in Airplane Mode, neither reaching the cloud), the scoring
+  (kind and segment set per row, feature apart, misses listed, Wilson intervals, exact McNemar), how to run
+  it on the phone, and its limits (one labeller unless a second person labels 10 of the 20 rows blind,
+  wide intervals, drill sentences).
+- Source: plan (report-reading evaluation); review (one-labeller wording).
+- Verified: read against EvalScorer, EvalReport, evalRead and the Eval screen; no long dashes.
+
 ### fix(ios): a tapped push's request to show the task carries its session
 - What: a push tap that passed every check raised a request the screen acted on later; if the
   account changed in between, the screen still jumped to the task view (it showed "No mission
