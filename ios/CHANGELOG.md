@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs(evidence): the iPhone route check on build 7
+- What: docs/evidence/ios/iphone-2026-11-20-build7 holds the route-check file build 7 wrote on an
+  iPhone 17 Pro (iOS 27.2.1), copied off the phone, with a README. One fixed drill sentence was read on
+  each route by the app's own reader: by Apple's on-device model (guided, 1,875 ms) and in the cloud by
+  gemini-3.5-flash-lite (guided, 2,749 ms), both as cleared, segment BO, with no stage notes.
+- Source: the phone route check on build 7 (commit a158b6fe).
+- Verified: the file is the one copied off the phone and parses as JSON; it holds no name, account,
+  phone number or uid; the README's numbers match the file.
+
 ### feat(ios): every reading is grounded in its note
 - What: after every read, on every route, a colour, direction, footwear or carried item the note does
   not support is blanked (the shared grounding rule), so a reading never claims what nobody wrote. On
