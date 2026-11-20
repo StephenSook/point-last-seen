@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): run the phone-number vectors' exact cases, replacement token and pending marks
+- What: the Swift vector runner reads the file's new shape: a top-level replacement token (checked
+  against the one this phone writes), an exact array whose output is compared byte for byte, and an
+  optional pendingOn on any case, which skips the case only when it names ios. The kind guard now
+  allows these keys and also fails on an unknown key inside a case.
+- Source: review (shared phone-number vectors gain exact-output cases).
+- Verified: with the coming vector file (13 mustRemove, 14 mustKeep, 1 exact, none pending on ios)
+  all 6 vector tests pass; a copy with a wrong exact output fails; a copy with an unknown kind fails;
+  with main's file all 325 core tests pass.
+
 ### test(ios): fail when the phone-number vectors gain a kind of case the iPhone does not run
 - What: the Swift vector test decoded only mustRemove and mustKeep and would ignore any new kind of
   case added to shared/test-vectors/phone-numbers.json. A new test asserts the file's top-level keys

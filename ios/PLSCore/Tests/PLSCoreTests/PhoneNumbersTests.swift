@@ -107,29 +107,55 @@ import Testing
 /// Runs every case of shared/test-vectors/phone-numbers.json, the phone-number cases every platform
 /// that removes numbers from a note must pass (contract: shared/test-vectors/README.md).
 @Suite struct PhoneNumberVectorTests {
-    struct Remove: Decodable { var name: String; var input: String; var number: String; var forbidden: [String]; var keep: [String] }
-    struct Keep: Decodable { var name: String; var input: String }
-    struct File: Decodable { var schemaVersion: Int; var mustRemove: [Remove]; var mustKeep: [Keep] }
-
-    func file() throws -> File {
-        try JSONDecoder().decode(File.self, from: Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("test-vectors/phone-numbers.json")))
+    struct Remove: Decodable { var name: String; var input: String; var number: String; var forbidden: [String]; var keep: [String]; var pendingOn: [String]? }
+    struct Keep: Decodable { var name: String; var input: String; var pendingOn: [String]? }
+    struct Exact: Decodable { var name: String; var input: String; var output: String; var pendingOn: [String]? }
+    struct File: Decodable {
+        var schemaVersion: Int
+        var replacement: String?
+        var mustRemove: [Remove]
+        var mustKeep: [Keep]
+        var exact: [Exact]?
     }
+
+    /// The kinds of case the iPhone runs, each with the keys its cases may carry.
+    static let kinds: [String: Set<String>] = [
+        "mustRemove": ["name", "input", "number", "forbidden", "keep", "pendingOn"],
+        "mustKeep": ["name", "input", "pendingOn"],
+        "exact": ["name", "input", "output", "pendingOn"],
+    ]
+
+    /// A case marked pending on the iPhone is skipped here (the contract); every other case runs.
+    static func runsHere(_ pendingOn: [String]?) -> Bool { !(pendingOn ?? []).contains("ios") }
+
+    func data() throws -> Data { try Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("test-vectors/phone-numbers.json")) }
+    func file() throws -> File { try JSONDecoder().decode(File.self, from: data()) }
 
     @Test func theFileHasCasesOfBothKinds() throws {
         let f = try file()
         #expect(f.schemaVersion == 1 && f.mustRemove.count >= 7 && f.mustKeep.count >= 5)
     }
 
-    /// Every kind of case in the file is run here: a new kind fails this test until the iPhone runs it,
-    /// so no case is skipped in silence.
+    /// The token the file expects is the one this phone writes.
+    @Test func theReplacementIsTheOneThisPhoneWrites() throws {
+        if let replacement = try file().replacement { #expect(replacement == PhoneNumbers.replacement) }
+    }
+
+    /// Every kind of case in the file, and every key on a case, is run here: a new kind or key fails this
+    /// test until the iPhone runs it, so no case is skipped in silence.
     @Test func everyKindOfCaseInTheFileIsRun() throws {
-        let data = try Data(contentsOf: VectorFile.sharedDir.appendingPathComponent("test-vectors/phone-numbers.json"))
-        let keys = Set((try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]).keys)
-        #expect(keys == ["schemaVersion", "note", "mustRemove", "mustKeep"], "\(keys.sorted())")
+        let root = try JSONSerialization.jsonObject(with: data()) as? [String: Any] ?? [:]
+        let known: Set<String> = Set(Self.kinds.keys).union(["schemaVersion", "note", "replacement"])
+        #expect(Set(root.keys).isSubset(of: known), "\(root.keys.sorted())")
+        for (kind, allowed) in Self.kinds {
+            for c in root[kind] as? [[String: Any]] ?? [] {
+                #expect(Set(c.keys).isSubset(of: allowed), "\(kind): \(c.keys.sorted())")
+            }
+        }
     }
 
     @Test func everyNumberIsRemovedAndTheTextAroundItStays() throws {
-        for c in try file().mustRemove {
+        for c in try file().mustRemove where Self.runsHere(c.pendingOn) {
             let out = PhoneNumbers.scrub(c.input)
             #expect(!out.contains(c.number), "\(c.name): \(out)")
             #expect(!out.contains { $0.isASCII && $0.isNumber }, "\(c.name): \(out)")
@@ -139,8 +165,16 @@ import Testing
     }
 
     @Test func timesSegmentsCountsAndPercentsStayExactly() throws {
-        for c in try file().mustKeep {
+        for c in try file().mustKeep where Self.runsHere(c.pendingOn) {
             #expect(PhoneNumbers.scrub(c.input) == c.input, "\(c.name)")
+        }
+    }
+
+    /// An exact case's output is compared byte for byte, not by Unicode equivalence.
+    @Test func exactCasesMatchByteForByte() throws {
+        for c in try file().exact ?? [] where Self.runsHere(c.pendingOn) {
+            let out = PhoneNumbers.scrub(c.input)
+            #expect(Array(out.utf8) == Array(c.output.utf8), "\(c.name): \(out)")
         }
     }
 }
