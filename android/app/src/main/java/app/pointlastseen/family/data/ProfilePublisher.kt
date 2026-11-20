@@ -71,7 +71,8 @@ sealed interface FirstPublish {
             val first = names.firstOrNull() as? String ?: ""
             val nickname = if ("nickname" in send) send["nickname"] else existing["nickname"]
             if (nickname == first) return
-            if ("otherNames" in send && "otherNames" !in existing && existing["nickname"] is String) {
+            // A stored real nickname (not empty) stays alone; an empty one is no name and takes the added list's.
+            if ("otherNames" in send && "otherNames" !in existing && (existing["nickname"] as? String)?.isNotEmpty() == true) {
                 send.remove("otherNames")
                 send.remove("nickname")
             } else {

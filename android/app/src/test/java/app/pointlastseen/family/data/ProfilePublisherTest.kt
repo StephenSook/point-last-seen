@@ -234,6 +234,15 @@ class ProfilePublisherTest {
         )
     }
 
+    /** An empty stored nickname is no name: the family's added other names go up, with the nickname they imply. */
+    @Test fun anEmptyStoredNicknameTakesTheAddedNames() {
+        val mine = mapOf<String, Any?>("nickname" to "Peggy", "otherNames" to listOf("Peggy"))
+        assertEquals(
+            FirstPublish.Merge(mapOf("otherNames" to listOf("Peggy"), "nickname" to "Peggy")),
+            FirstPublish.of(mapOf("nickname" to ""), mine),
+        )
+    }
+
     /** The first publish of each document carries the fields the family edited on this phone. */
     @Test fun theFirstPublishCarriesTheFamilysEdits() {
         val sink = FakeSink()
