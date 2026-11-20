@@ -49,6 +49,6 @@ test("the longest bar in the picture is the longest wait in the table", async ({
 
 test("a run below the cube's gate draws no cube, and the replay is still there", async ({ page }) => {
   await page.goto(`${harness}?run=thin`);
-  await expect(page.getByRole("region", { name: "Watch the run over time" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Watch the drill replay" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Space and time" })).toHaveCount(0);
 });

@@ -21,7 +21,9 @@ const shapeOf = (id: string) => good.segments.find((s) => s.segmentId === id) as
 const swap = { ...good, segments: good.segments.map((s) => (s.segmentId === "AA" || s.segmentId === "AB" ? { ...s, geometryJson: shapeOf(s.segmentId === "AA" ? "AB" : "AA").geometryJson, centroid: shapeOf(s.segmentId === "AA" ? "AB" : "AA").centroid } : s)) };
 // ?run=labelled: the same run with a label of its own, as a real drill's export carries.
 const labelled = { ...good, label: "REAL DRILL, Kennesaw Mountain, 2026-11-22" };
-const variants: Record<string, unknown> = { broken, thin, weights, swap, labelled, ok: good };
+// ?run=labelledDrill: a label that already ends with the drill line, as the development run's export does.
+const labelledDrill = { ...good, label: "Development drill, Piedmont Park, Atlanta, 2026-11-18 to 19. Training drill. Nobody is missing." };
+const variants: Record<string, unknown> = { broken, thin, weights, swap, labelled, labelledDrill, ok: good };
 const run = (which === "none" ? null : (variants[which] ?? good)) as unknown as PublishedRun | null;
 
 // ?scam=ok passes the fixture camera check, ?scam=fail one below its gate, ?scam=bad one whose stored verdict lies,
