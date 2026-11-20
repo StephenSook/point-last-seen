@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### feat(ios): the Join screen offers the practice drill, labelled as sample data
+- What: when the build carries a practice pack and no search is joined, the Join screen shows "No join
+  code?", "Try a practice drill with sample data. Nobody is missing. Your reports stay on this phone."
+  and "Start the practice drill". During the drill the task screen says "Practice drill with sample
+  data. Nobody is missing. Reports stay on this phone." in place of the command line, and the Ready
+  check's Leave section becomes "End the practice drill", whose confirmation says its reports are
+  deleted from this phone.
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: the text-size scan passes (every new line is Title 3 or larger); 182 app tests pass. The
+  screens are checked on the simulator once the pack is bundled.
+
 ### feat(ios): a practice drill from a bundled pack, with no join code and nothing sent
 - What: AppModel.startPractice loads a sample search from a bundled pack (PracticePack: the incident,
   segments, approved plan and shared profile a searcher's phone reads, plus provenance) with no join

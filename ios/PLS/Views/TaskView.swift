@@ -6,6 +6,7 @@ import SwiftUI
 /// the app itself calls no speech API.
 struct TaskView: View {
     static let noMissionHint = "Join your team at the Ready check before you leave signal."
+    static let practiceNotice = "Practice drill with sample data. Nobody is missing. Reports stay on this phone."
     @Bindable var model: AppModel
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -25,8 +26,14 @@ struct TaskView: View {
             if model.offersAlerts { AlertOfferView(model: model) }
             if let mission = model.mission {
                 DrillBanner(segments: mission.assignedSegmentIds.sorted().joined(separator: " "), link: model.linkState)
-                Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
-                    .foregroundStyle(theme.text(.secondary))
+                if mission.isPractice {
+                    Text(Self.practiceNotice).font(.title3.weight(.semibold))
+                        .foregroundStyle(theme.text(.primary))
+                        .accessibilityIdentifier("practice-notice")
+                } else {
+                    Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
+                        .foregroundStyle(theme.text(.secondary))
+                }
                 Button { focused = true } label: {
                     Text("Report").font(.largeTitle.bold()).frame(maxWidth: .infinity, minHeight: 120)
                         .foregroundStyle(theme.onAccentColor)
