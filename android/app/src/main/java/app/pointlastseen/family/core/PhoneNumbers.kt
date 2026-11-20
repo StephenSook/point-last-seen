@@ -5,8 +5,9 @@ import java.text.Normalizer
 /**
  * Removes anything shaped like a phone number before a note is stored or read (the iPhone app's rule, and a little
  * stricter). Seven or more digits in a row are a number: written digits (any script, full-width folded, Chinese
- * numerals) and spoken digit words count alike, joined only by short separators (at most three spaces or
- * - . , ( ) / or a dash; a CRLF counts as one) and with an optional leading + or (. Report numbers (times, minutes,
+ * numerals, circled and other number characters) and spoken digit words count alike, joined only by short
+ * separators (at most three spaces or - . , ( ) / or a dash; a line break with its indent counts as one, and accents
+ * or joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes,
  * segments, searchers, percents) are far shorter, so they stay.
  *
  * Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a
