@@ -208,4 +208,29 @@ import Testing
         server.readBack(doc) { copy = $0 }
         #expect(!wrote && copy == .unknownOffline && server.listen(incidentId: "x", onSnapshot: { _ in }) == nil)
     }
+
+    /// Loading a mission warms Apple's on-device model, so the first report is not read cold: a joined
+    /// search and the practice drill both. A newer plan for the same mission does not warm it again.
+    @Test func loadingAMissionWarmsTheOnDeviceModel() async throws {
+        final class Count: @unchecked Sendable { var n = 0 }
+        let count = Count()
+        let docs = MissionDocs(incident: try DrillDocs.incident(), segments: try DrillDocs.segments())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { "uid-1" }, joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: docs),
+                         pushTopics: FakePushTopics(), alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "warm-\(UUID().uuidString)")!,
+                         prewarm: { count.n += 1 })
+        #expect(count.n == 0)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && count.n == 1)
+        await m.planArrived(DrillDocs.plan(segmentIds: ["AC"], version: 9), incidentId: "drill-dev-1", teamId: "T1")
+        #expect(count.n == 1)
+        #expect(await m.leaveSearch())
+        let practice = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" },
+                                joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: nil), pushTopics: FakePushTopics(),
+                                alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "warm-p-\(UUID().uuidString)")!,
+                                prewarm: { count.n += 1 })
+        #expect(await practice.startPractice(packURL: try packFile(), directory: try tempDir()) == nil)
+        #expect(count.n == 2)
+    }
 }

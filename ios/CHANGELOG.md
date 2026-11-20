@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): loading a mission warms the on-device model
+- What: prewarm() existed but was never called, so the first report was read cold. A new mission (a
+  joined search or the practice drill) now warms Apple's on-device model when it is available; a
+  newer plan for the same mission does not warm it again.
+- Source: device evidence (the first on-device read on an iPhone hit the 20 s stage limit).
+- Verified: a test counts the warm-ups on a join, a newer plan and the practice drill; it failed to
+  compile before the change and passes after; 192 app tests pass. Whether it removes the cold first
+  read is measured on the iPhone: on the simulator Apple's model never finished a read (7.9 s and
+  21.2 s, both ending in rules), so the simulator cannot answer it.
+
 ### feat(ios): a note that does not look English never goes to the cloud read
 - What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
   the router's cloud route and the move to the cloud after Apple's model fails. A note that does not

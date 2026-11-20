@@ -33,6 +33,12 @@ enum ModelSessionFactory {
         LanguageModelSession(model: SystemLanguageModel.default, instructions: ReportPrompt.guided).prewarm()
     }
 
+    /// Warms the on-device model when it is available; does nothing otherwise.
+    static func prewarmIfAvailable() {
+        guard unavailableReason() == nil else { return }
+        prewarm()
+    }
+
     /// Tokens for one guided read: instructions, tools, schema and the report. Falls back to
     /// a characters-per-token estimate when the count is not available.
     static func estimateTokens(report: String, tools: [any Tool]) async -> Int {
