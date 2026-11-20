@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): the route check says each result in plain words
+- What: the route check screen showed code names ("on_device: read on rules (deterministic_parser),
+  model rules, 20692 ms, reason no_network"). Each line now reads like "On this iPhone, no signal:
+  Read by rules, not a model. 20.7 s. Why: no signal. Read as cleared, segment BO." and "In the
+  cloud: Suggested by Gemini in the cloud (gemini-3.5-flash-lite). 1.3 s. Why: Apple's model is not
+  available. ...". Every route reason has plain words (EchoText.reasonWords, an exhaustive switch,
+  so a new reason cannot ship without them). The saved file keeps the exact route record.
+- Source: review (judge-facing screens; simulator walk-through of the route check).
+- Verified: tests that every reason has words with no code names and that times show in seconds;
+  they failed to compile before the change and pass after; the text-size scan and the route check
+  tests pass.
+
 ### feat(ios): a note that does not look English never goes to the cloud read
 - What: the language screen runs at the one point where the read dispatches to the cloud, so it covers
   the router's cloud route and the move to the cloud after Apple's model fails. A note that does not

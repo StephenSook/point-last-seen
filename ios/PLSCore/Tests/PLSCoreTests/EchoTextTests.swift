@@ -66,4 +66,19 @@ import Testing
         #expect(EchoText.refusalLine(route(.notEnglish)) == "This note doesn't look like English, so it stays on this phone. Pick instead of typing.")
         #expect(EchoText.refusalLine(route(.onDeviceUnavailable)) == nil)
     }
+
+    /// Every route reason has plain words for the route check screen, with no code names in them.
+    @Test func everyRouteReasonHasPlainWords() {
+        for reason in RouteReason.allCases {
+            let words = EchoText.reasonWords(reason)
+            #expect(!words.isEmpty && !words.contains("_"), "\(reason)")
+        }
+        #expect(EchoText.reasonWords(.noNetwork) == "no signal")
+        #expect(EchoText.reasonWords(.notEnglish) == "the note does not look English")
+    }
+
+    /// A read's time in seconds with one decimal, as the route check shows it.
+    @Test func readTimesAreShownInSeconds() {
+        #expect(EchoText.seconds(20692) == "20.7 s" && EchoText.seconds(1259) == "1.3 s" && EchoText.seconds(40) == "0.0 s")
+    }
 }
