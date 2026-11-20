@@ -62,4 +62,10 @@ object Nav {
 
     /** Leaving a search: this install is free for the next drill or incident; the profile stays. */
     fun leave(@Suppress("UNUSED_PARAMETER") s: NavState): NavState = NavState(Screen.PROFILE, gone = false, joined = false)
+
+    /** The family left a search still open: the profile, still "gone", which offers to join again. */
+    fun leftOpen(s: NavState): NavState = NavState(Screen.PROFILE, gone = s.gone, joined = false)
+
+    /** This phone is no longer part of the search: the join screen, with the profile's "gone" state kept. */
+    fun dropped(s: NavState): NavState = NavState(Screen.JOIN, gone = s.gone, joined = false)
 }

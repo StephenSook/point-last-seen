@@ -23,6 +23,12 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
+- A second family phone (or the same phone after a reinstall) never fills a profile field command left empty. Its
+  first share adds only fields the search does not have yet; command or the family fills an empty field by editing
+  it.
+- The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
+  the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
+  phone that loses its access while offline shows the search until it can check.
 
 ## Search model
 

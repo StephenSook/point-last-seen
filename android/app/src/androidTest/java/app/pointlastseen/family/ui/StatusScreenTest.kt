@@ -67,13 +67,28 @@ class StatusScreenTest {
         rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = { opened += it }, onRetry = {}, onLeave = {}) } }
         rule.onNodeWithText("Edit profile").performScrollTo().performClick()
         assertEquals(listOf(Screen.PROFILE), opened)
-        rule.onNodeWithText("Leave this search").assertDoesNotExist()
+        // Leaving during a search asks first (anOpenSearchAsksBeforeLeaving); the question is not shown until asked.
+        rule.onNodeWithText(Copy.LEAVE_CONFIRM).assertDoesNotExist()
     }
 
     @Test fun aFinishedSearchCanBeLeft() {
         var left = 0
         rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = { left++ }) } }
         rule.onNodeWithText("Leave this search").performScrollTo().performClick()
+        assertEquals(1, left)
+    }
+
+    /** During a search, leaving asks first; Stay keeps it, Leave leaves. */
+    @Test fun anOpenSearchAsksBeforeLeaving() {
+        var left = 0
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = { error("not this one") }, onLeaveOpen = { left++ }) } }
+        rule.onNodeWithText("Leave this search").performScrollTo().performClick()
+        rule.onNodeWithText(Copy.LEAVE_CONFIRM).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Stay").performScrollTo().performClick()
+        rule.onNodeWithText(Copy.LEAVE_CONFIRM).assertDoesNotExist()
+        assertEquals(0, left)
+        rule.onNodeWithText("Leave this search").performScrollTo().performClick()
+        rule.onNodeWithText("Leave").performScrollTo().performClick()
         assertEquals(1, left)
     }
 }
