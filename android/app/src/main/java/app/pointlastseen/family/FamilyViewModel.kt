@@ -174,7 +174,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         lastClip = null
         clipUri = null
         clipLabel = null
-        photosUi = photosUi.copy(busy = false)
+        // The photo counts and notes were for the search being left.
+        photosUi = PhotosUi(0, false, null)
     }
 
     init {
@@ -643,6 +644,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
             photosUi = photosUi.copy(
                 busy = false,
                 consented = consentedPhotos.list(incidentId).size,
+                // A withdrawal with no failure settled every listed consent, the unconfirmed ones included.
+                unconfirmed = if (r.failed == 0) 0 else photosUi.unconfirmed,
                 withdrawNote = PhotoConsentWithdrawal.note(r),
             )
         }

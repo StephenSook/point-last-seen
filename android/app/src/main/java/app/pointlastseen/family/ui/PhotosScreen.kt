@@ -39,7 +39,8 @@ fun PhotosScreen(
             Note("The cloud read was not saved for ${if (ui.notSaved == 1) "1 photo" else "${ui.notSaved} photos"}. Command can still see ${if (ui.notSaved == 1) "it" else "them"}.")
         }
         if (ui.unconfirmed > 0) {
-            Note("The app could not check whether the cloud read is on for ${if (ui.unconfirmed == 1) "1 photo" else "${ui.unconfirmed} photos"}. You can still stop it below.")
+            val stopBelow = if (ui.consented > 0) " You can still stop it below." else ""
+            Note("The app could not check whether the cloud read is on for ${if (ui.unconfirmed == 1) "1 photo" else "${ui.unconfirmed} photos"}.$stopBelow")
         }
         ui.error?.let { Note(it) }
         ui.withdrawNote?.let { Note(it) }
