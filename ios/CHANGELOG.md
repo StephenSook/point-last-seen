@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-19
 
+### build(ios): ship the practice pack, so the Join screen offers the practice drill
+- What: the app bundles shared/practice/ios-practice-pack.json (53,011 bytes), the judge seed's sample
+  search exported for the phone: incident drill-dev-1 as "Practice search" in judge mode, its 68
+  segments, plan 19 with team T1 on segment BO, and the shared sample profile. With it in the build,
+  the Join screen shows "Start the practice drill".
+- Source: plan (judge access: a phone a judge can try with only the install link).
+- Verified: a test starts the drill from the bundled pack: practice mission, judge mode, team T1 on BO,
+  the Piedmont Park grid (its tiles are bundled too), the shared profile, and the route check
+  available. It failed without the resource and passes with it; 186 app tests pass. On the
+  simulator, from a fresh install: Start the practice drill, the task screen notice, the map on
+  bundled tiles, a typed report kept "On this phone only", the route check (cloud read 1,271 ms on
+  gemini-3.5-flash-lite), and End the practice drill back to the Join screen with no sign-out.
+
 ### feat(ios): the Join screen offers the practice drill, labelled as sample data
 - What: when the build carries a practice pack and no search is joined, the Join screen shows "No join
   code?", "Try a practice drill with sample data. Nobody is missing. Your reports stay on this phone."

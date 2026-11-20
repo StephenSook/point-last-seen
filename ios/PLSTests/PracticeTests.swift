@@ -53,6 +53,21 @@ import Testing
         #expect(throws: PracticePack.Failure.version) { try PracticePack.load(from: bad) }
     }
 
+    /// The pack the app ships: the judge seed's sample search, team T1 on segment BO, judge mode, on
+    /// the Piedmont Park grid whose tiles the app also ships.
+    @Test func theBundledPackStartsTheSampleSearch() async throws {
+        let url = try #require(PracticePack.bundledURL)
+        let pack = try PracticePack.load(from: url)
+        #expect(pack.provenance["sourceIncidentId"] == .string("drill-dev-1"))
+        let m = model(reader: FakeMissionReader(docs: nil), topics: FakePushTopics())
+        #expect(await m.startPractice(packURL: url, directory: try tempDir()) == nil)
+        let mission = try #require(m.mission)
+        #expect(mission.isPractice && mission.mode == "judge" && mission.teamId == "T1")
+        #expect(mission.assignedSegmentIds == ["BO"] && mission.gridId == "piedmont-park-dev")
+        #expect(Bundle.main.url(forResource: "piedmont-park-dev", withExtension: "pmtiles") != nil)
+        #expect(m.canRouteCheck && mission.sharedProfile != nil)
+    }
+
     /// Starting the drill reads nothing from the server, follows no topic and no plan listener, and
     /// the mission says it is practice, spoken without an account.
     @Test func startingThePracticeDrillUsesOnlyThePack() async throws {
