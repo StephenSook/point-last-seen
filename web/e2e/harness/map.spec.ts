@@ -82,11 +82,9 @@ test("every segment's code is drawn beside its dot, so a judge can name the cell
   const codes = page.locator(".seg-code");
   await expect(codes).toHaveCount(24); // every cell, including the one left out of the POA
   await expect(codes.filter({ hasText: /^AB$/ })).toHaveCount(1);
-  // The code sits left of the dot and never on the percent plate.
-  const plate = (await page.locator(".plate").first().boundingBox())!;
-  const dotX = plate.x + plate.width / 2;
-  const code = (await codes.first().boundingBox())!;
-  expect(code.x + code.width).toBeLessThanOrEqual(dotX - 14); // clear of the largest dot's radius
+  // On a roomy map every code sits left of its own dot, clear of it, and never on the percent plate.
+  const cells = await cellFit(page);
+  expect(cells.filter((c) => c.code !== null && c.code.right > c.cx - c.cap - 3 + 0.5).map((c) => c.id)).toEqual([]);
   await expect(page.locator(".plate .seg-code")).toHaveCount(0);
 });
 
@@ -186,4 +184,53 @@ test("the credit is one muted line linking to OpenStreetMap's copyright page, re
   await page.keyboard.press("Tab");
   await expect(osm).toBeFocused();
   await expect(osm).not.toHaveCSS("outline-style", "none");
+});
+
+// Each cell as drawn: its box on screen, its dot's centre and capped radius, and its code's box when the code shows.
+async function cellFit(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    type M = { project: (p: [number, number]) => { x: number; y: number }; getFeatureState: (f: { source: string; id: number }) => { cap?: number } };
+    const m = (window as unknown as { harnessMap: M }).harnessMap;
+    const cells = (window as unknown as { harnessCells: { segmentId: string; ring: [number, number][] }[] }).harnessCells;
+    const mapBox = document.querySelector("[data-testid=map]")!.getBoundingClientRect();
+    return cells.map((c, i) => {
+      const pts = c.ring.map((p) => m.project(p));
+      const box = { l: Math.min(...pts.map((q) => q.x)), r: Math.max(...pts.map((q) => q.x)), t: Math.min(...pts.map((q) => q.y)), b: Math.max(...pts.map((q) => q.y)) };
+      const el = [...document.querySelectorAll<HTMLElement>(".seg-code")].find((e) => e.textContent === c.segmentId)!;
+      const r = el.getBoundingClientRect();
+      const shows = getComputedStyle(el).visibility !== "hidden";
+      return {
+        id: c.segmentId,
+        box,
+        cx: (box.l + box.r) / 2,
+        cap: m.getFeatureState({ source: "centres", id: i }).cap ?? Infinity,
+        code: shows ? { left: r.left - mapBox.left, right: r.right - mapBox.left, top: r.top - mapBox.top, bottom: r.bottom - mapBox.top } : null,
+      };
+    });
+  });
+}
+
+test("on a small map every dot stays inside its cell, and every code that shows sits inside its own cell", async ({ page }) => {
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto("/harness/map.html");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const cells = await cellFit(page);
+  const tooBig = cells.filter((c) => c.cap > Math.min(c.box.r - c.box.l, c.box.b - c.box.t) / 2 + 0.01);
+  expect(tooBig.map((c) => c.id)).toEqual([]);
+  const outside = cells.filter((c) => c.code !== null && (c.code.left < c.box.l - 0.5 || c.code.right > c.box.r + 0.5 || c.code.top < c.box.t - 0.5 || c.code.bottom > c.box.b + 0.5));
+  expect(outside.map((c) => c.id)).toEqual([]);
+  // The rule was needed here: some codes moved onto their dot or gave way.
+  expect(cells.filter((c) => c.code === null || c.code.right > c.cx - c.cap - 3 + 0.5).length).toBeGreaterThan(0);
+  // Every code stays in the page, so the cell can still be named.
+  await expect(page.locator(".seg-code")).toHaveCount(24);
+});
+
+test("zooming in on a small map brings codes back: the fit is decided again on every move", async ({ page }) => {
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto("/harness/map.html");
+  const map = page.getByTestId("map");
+  await expect(map).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  const before = (await cellFit(page)).filter((c) => c.code !== null && c.code.right <= c.cx - c.cap - 3 + 0.5).length;
+  await page.evaluate(() => (window as unknown as { harnessMap: { zoomIn: (o: { duration: number }) => void } }).harnessMap.zoomIn({ duration: 0 }));
+  await expect.poll(async () => (await cellFit(page)).filter((c) => c.code !== null && c.code.right <= c.cx - c.cap - 3 + 0.5).length).toBeGreaterThan(before);
 });
