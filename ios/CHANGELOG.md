@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): a grouped count of seven or more digits is a phone number
+- What: per the shared ruling (privacy wins ties), "Call 4,045,550,142" and the same number in Adlam
+  digits are removed. A grouped count with three or more groups always has seven or more digits, so
+  the grouped-count exception could never hold under the ruling and is gone from the rule. "walked
+  12,345 steps" still stays; "walked 1,234,567 steps" is now removed.
+- Source: review (shared phone-number vectors: grouped counts).
+- Verified: the updated tests failed on the old rule and pass with the change; the shared vectors with
+  the two iPhone pending marks removed pass; all 346 core tests pass.
+
 ### test(ios): the phone-number vectors' no-digit check covers every script's number characters
 - What: the shared contract's "no digit left" check now means any Unicode number character (Nd, Nl,
   No), not only 0 to 9. The Swift vector runner checks the scrubbed text's every scalar for those

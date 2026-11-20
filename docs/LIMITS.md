@@ -98,10 +98,11 @@ each line says what the limit is and why.
   "ga 30301-1234" is removed, while "GA 30301-1234" stays.
 - It keeps too much in one case: a phone number written like a street address with an ordinal street ("5550 142nd
   St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart.
-- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, the iPhone and
-  Android, which read it as a grouped count. The shared rule now removes any grouped count of seven or more digits,
-  so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too. The
-  shared test cases (`shared/test-vectors/phone-numbers.json`) mark each platform that has not followed yet.
+- A phone number written with thousands commas ("Call 4,045,550,142") is kept today on the web, which reads it as a
+  grouped count; the iPhone and Android remove it. The shared rule removes any grouped count of seven or more
+  digits, so once each platform follows it, a count of a million or more ("walked 1,234,567 steps") is removed too
+  (as it already is on the iPhone and Android). The shared test cases (`shared/test-vectors/phone-numbers.json`) mark
+  each platform that has not followed yet.
 
 ## On-device safety (Android)
 

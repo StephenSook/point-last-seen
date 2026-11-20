@@ -49,7 +49,9 @@ sealed interface FirstPublish {
             // Only the ids the rules accept are kept from the stored list; anything else is repaired away.
             val stored = raw.filterIsInstance<String>().filter { it in Profiles.NOTE_IDS }
             // Notes follow the family's edits only; a field this publish merely fills in leaves command's notes as they are.
-            val changed = send.keys.filter { it in edited && it in Profiles.NOTE_INPUT_FIELDS && send[it] != existing[it] }.toSet()
+            val fields = send.keys.filter { it in edited && it in Profiles.NOTE_INPUT_FIELDS && send[it] != existing[it] }
+            // The flags count one by one: only the flags the family changed ("flags.<name>" marks) move their notes.
+            val changed = fields.flatMap { f -> if (f == "flags") edited.filter { it.startsWith("flags.") } else listOf(f) }.toSet()
             val ids = Profiles.mergeApproachNotes(stored, existing + send, changed)
             if (ids != raw) send["approachNoteIds"] = ids else send.remove("approachNoteIds")
         }

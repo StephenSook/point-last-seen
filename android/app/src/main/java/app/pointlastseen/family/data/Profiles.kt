@@ -243,18 +243,25 @@ object Profiles {
 
     /** Every approach note in card order, with the shared fields it is derived from (none: always shown). */
     private val NOTE_INPUTS: List<Pair<String, Set<String>>> = listOf(
-        "may_not_respond" to setOf("flags"), "approach_calm" to emptySet(), "stop_calling_name" to setOf("flags"),
-        "likely_to_hide" to setOf("flags"), "afraid_of_uniforms" to setOf("flags"),
-        "validate_feelings" to setOf("flags", "dementiaType"), "looking_for_home" to setOf("flags"),
-        "gait_unsteady" to setOf("flags"), "freezing" to setOf("flags"), "fall_risk" to setOf("flags"),
-        "soft_voice" to setOf("flags"), "fluctuates" to setOf("flags"), "sensitive_to_touch" to setOf("flags"),
-        "sensitive_to_light" to setOf("flags"), "may_strike_out" to setOf("flags"), "seizures" to setOf("flags"),
-        "medication_alert" to setOf("flags"), "medication_timing" to setOf("flags"), "language" to setOf("primaryLanguage"),
+        "may_not_respond" to setOf("flags.mayNotRespond"), "approach_calm" to emptySet(),
+        "stop_calling_name" to setOf("flags.mayNotRespond"), "likely_to_hide" to setOf("flags.likelyToHide"),
+        "afraid_of_uniforms" to setOf("flags.afraidOfUniforms"),
+        "validate_feelings" to setOf("flags.hallucinationsOrDelusions", "dementiaType"),
+        "looking_for_home" to setOf("flags.lookingForHome"), "gait_unsteady" to setOf("flags.gaitUnsteady"),
+        "freezing" to setOf("flags.freezing"), "fall_risk" to setOf("flags.fallRisk"),
+        "soft_voice" to setOf("flags.softVoice", "flags.slowToRespond"), "fluctuates" to setOf("flags.fluctuates"),
+        "sensitive_to_touch" to setOf("flags.sensitiveToTouch"), "sensitive_to_light" to setOf("flags.sensitiveToLight"),
+        "may_strike_out" to setOf("flags.likelyToFight"), "seizures" to setOf("flags.seizures"),
+        "medication_alert" to setOf("flags.medicationSensitivity", "flags.carriesMedicalAlertCard"),
+        "medication_timing" to setOf("flags.medicationTimingMatters"), "language" to setOf("primaryLanguage"),
         "triggers" to setOf("triggersToAvoid"), "best_approach" to setOf("bestApproach"), "unique" to setOf("uniqueDescription"),
     )
 
+    /** Every input any approach note reads: a field, or one flag as "flags.<name>". */
+    val NOTE_INPUT_KEYS: Set<String> = NOTE_INPUTS.flatMap { it.second }.toSet()
+
     /** The shared fields any approach note is derived from. */
-    val NOTE_INPUT_FIELDS: Set<String> = NOTE_INPUTS.flatMap { it.second }.toSet()
+    val NOTE_INPUT_FIELDS: Set<String> = NOTE_INPUT_KEYS.map { it.substringBefore('.') }.toSet()
 
     /** Every approach note id the rules accept. */
     val NOTE_IDS: Set<String> = NOTE_INPUTS.map { it.first }.toSet()

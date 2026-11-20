@@ -172,7 +172,7 @@ public enum ReadOutcomeBuilder {
 /// far shorter, so they stay.
 ///
 /// Search information made of digits can sit inside such a run: a written date, a time, a coordinate
-/// pair in range, a grouped count, a ZIP+4 code after a state, a month-name date, a number with a
+/// pair in range, a ZIP+4 code after a state, a month-name date, a number with a
 /// unit. It stays only when the rest of the run is nothing or whole numbers of seven or more digits
 /// (which are removed); when any other piece of 1 to 6 digits is left beside it, the whole run is
 /// removed, since that piece could be part of a number. A number with an ordinal ending (67th) never
@@ -278,9 +278,10 @@ public enum PhoneNumbers {
 
     /// The parts that are search information, found on the text as it is: a written date (three groups
     /// joined by one / - . or dash that read as a date, with no digits joined to it by its own
-    /// separator), a time (14:03), a coordinate pair in range (33.7490, -84.3880), a grouped count
-    /// (1,234,567), a ZIP+4 code after a state (GA 30301-1234), a month-name date (Nov 19 2026, 19 November
-    /// 2026) and a number with a unit (5km).
+    /// separator), a time (14:03), a coordinate pair in range (33.7490, -84.3880), a ZIP+4 code after a
+    /// state (GA 30301-1234), a month-name date (Nov 19 2026, 19 November 2026) and a number with a unit
+    /// (5km). A grouped count is not one of them: with three groups it has seven or more digits, and is
+    /// read as a phone number (privacy wins ties).
     static func searchSpans(_ s: String, _ parts: [Part]) -> Set<Int> {
         func gap(_ a: Int, _ b: Int) -> Substring { s[parts[a].range.upperBound..<parts[b].range.lowerBound] }
         func len(_ i: Int) -> Int { s[parts[i].range].count }
@@ -323,11 +324,6 @@ public enum PhoneNumbers {
             }
             if degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
                 kept.formUnion(i...(i + 3))
-            }
-            if len(i) <= 3, !(i > 0 && gap(i - 1, i) == ",") {
-                var j = i + 1
-                while written(j), gap(j - 1, j) == ",", len(j) == 3 { j += 1 }
-                if j - i - 1 >= 2 { kept.formUnion(i..<j) }
             }
             if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4, i > 0, !parts[i - 1].written,
                states.contains(String(text(i - 1))), gap(i - 1, i) == " " {

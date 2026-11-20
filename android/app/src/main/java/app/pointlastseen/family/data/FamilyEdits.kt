@@ -28,8 +28,14 @@ class FamilyEdits(private val store: KeyValueStore) {
 
     fun keys(doc: String): Set<String> = store.get(key(doc))?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
-    private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> =
-        (a.keys + b.keys).filter { a[it] != b[it] && !EditableFields.derived(it) }.toSet()
+    private fun changed(a: Map<String, Any?>, b: Map<String, Any?>): Set<String> {
+        val fields = (a.keys + b.keys).filter { a[it] != b[it] && !EditableFields.derived(it) }.toSet()
+        // Each flag the family changed is marked as well ("flags.<name>"), so only its own approach notes follow it.
+        val before = a["flags"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        val after = b["flags"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        val flags = (before.keys + after.keys).filter { (before[it] == true) != (after[it] == true) }.map { "flags.$it" }
+        return fields + flags
+    }
 
     private fun mark(doc: String, fields: Set<String>) {
         if (fields.isEmpty()) return
@@ -48,8 +54,8 @@ class FamilyEdits(private val store: KeyValueStore) {
 /**
  * Which edited fields a first publish may send over a value already there: single values only (text, numbers,
  * dates), never a collection (sent whole it would replace entries command added) and never a derived field.
- * Checked where marks are made and again where a first publish is staged, so a mark stored by an older build
- * cannot replace a collection either.
+ * Checked where a first publish is staged: a collection is marked too (so the approach notes it drives follow it),
+ * and this check keeps that mark from ever sending it over command's value.
  */
 object EditableFields {
     // nickname is the first other name; approachNoteIds come from the flags and a few text fields.

@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the iPhone now removes a grouped count of seven or more digits (#116), so "ios" leaves pendingOn on
+  grouped_phone_number and adlam_grouped_number; LIMITS says a comma-written phone number is kept today on the web and
+  Android only. Source: the iPhone grouped-count change. Verified: the iPhone team ran main's file with these marks
+  removed against #116 before it merged; scripts/test_phone_vectors.py 5 passed; local gates pass. Correction to the
+  grouped-count entry below: that file has 5 tests (one of them new), not 6.
 - Vectors README: a grouped count is no longer listed as search information that can shield itself inside a run. Under
   the 7+ digit ruling the grouped-count span always holds 7 or more digits, so it can never apply; the iPhone and
   Android rules both drop it. "walked 12,345 steps" on its own stays a keep. Source: the iPhone and Android reviews.
