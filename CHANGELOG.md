@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the pending marks for the web now match what the web does. Measured against
+  web/src/data/sightings.ts, the web passes 29 of the 52 cases; five it fails were unmarked (spaced_digits,
+  spoken_digits, uk_international, mexico_international, us_slashes) and now carry pendingOn web, and 17 it passes
+  were still marked and are now unmarked. LIMITS states each platform's pass count (Android 52, the iPhone 47, the web
+  29), and scripts/test_phone_vectors.py checks those counts against the file. Source: review. Verified: a probe of
+  the web function over every case (29 pass, the 23 failures all now pending on web); Android PhoneVectorsTest and the
+  iPhone's PhoneNumberVectorTests pass locally on this file; the count test failed on a planted 51 and passes on 52.
 - Phone vectors: Android (#122) now removes a time's minutes with its run, so "android" leaves pendingOn on
   time_joined_before_its_hour and time_after_zip_not_date; new mustRemove "Call GA 40455-5014 2:30 555-0142" (a time
   between a ZIP+4 and a number, which hid the number's short piece before #122), pending on web and ios. Source: the
