@@ -91,7 +91,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = PrefsStore(app, "pls")
     private val session = Session(prefs)
     private val profileStore = ProfileStore(PrefsStore(app, "pls-profile"))
-    private val familyTopic = FamilyTopic.firebase()
+    private val familyTopic = FamilyTopic.firebase(PrefsStore(app, "pls-topics"))
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     val rc = RcStore(FirebaseRcSource(Firebase.remoteConfig))
@@ -150,6 +150,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { writer.run() }
         session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); startJoined(it) }
         viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
+        // A topic drop FCM never confirmed (offline when leaving) is tried again.
+        viewModelScope.launch { familyTopic.retryPending() }
     }
 
     /**
@@ -225,7 +227,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                 settle = { Firebase.firestore.waitForPendingWrites().await() },
                 timeoutMs = LEAVE_SETTLE_MS,
                 finish = {
-                    familyTopic.left(incidentId)
+                    viewModelScope.launch { familyTopic.left(incidentId) }
                     if (!keepGone) prefs.remove(GONE)
                     nav = if (keepGone) Nav.leftOpen(nav) else Nav.leave(nav)
                 },
@@ -278,7 +280,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         questionCheck?.cancel()
         openQuestion = null
         watch.stop()
-        session.incidentId()?.let { familyTopic.left(it) }
+        session.incidentId()?.let { viewModelScope.launch { familyTopic.left(it) } }
         session.leave()
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
