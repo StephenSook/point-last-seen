@@ -65,4 +65,21 @@ class FamilyEditsTest {
         val keys = FamilyEdits(store).keys("shared")
         assertTrue("clothingLastWorn" in keys && "hair" in keys)
     }
+
+    /** Leaving forgets the search and the edit marks in one write, so a failed or interrupted write cannot keep half. */
+    @Test fun leavingForgetsTheMarksInTheSameWriteAsTheSearch() {
+        val writes = mutableListOf<List<String>>()
+        val store = object : KeyValueStore {
+            val m = mutableMapOf("incidentId" to "inc-1")
+            override fun get(key: String) = m[key]
+            override fun put(key: String, value: String) { m[key] = value }
+            override fun remove(key: String) { writes += listOf(key); m.remove(key) }
+            override fun removeAll(keys: Collection<String>) { writes += keys.toList(); keys.forEach { m.remove(it) } }
+        }
+        FamilyEdits(store).record(before, before.copy(clothingLastWorn = "blue coat"))
+        Session(store).leave(alsoRemove = FamilyEdits.STORED_KEYS)
+        assertEquals(1, writes.size)
+        assertEquals(emptySet<String>(), FamilyEdits(store).keys("shared"))
+        assertEquals(null, store.get("incidentId"))
+    }
 }

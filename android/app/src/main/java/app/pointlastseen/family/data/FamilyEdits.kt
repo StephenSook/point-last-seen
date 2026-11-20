@@ -19,10 +19,10 @@ class FamilyEdits(private val store: KeyValueStore) {
         mark("command", changed(Profiles.forCommand(before).toMap(), Profiles.forCommand(after).toMap()))
     }
 
-    /** Leaving or a drop: the edits were for that search, so none reaches the next search's first publish. */
+    /** The edits were for one search: none may reach the next search's first publish. */
     @Synchronized
     fun clear() {
-        store.removeAll(DOCS.map { key(it) })
+        store.removeAll(STORED_KEYS)
     }
 
     fun keys(doc: String): Set<String> = store.get(key(doc))?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
@@ -36,8 +36,11 @@ class FamilyEdits(private val store: KeyValueStore) {
         store.put(key(doc), all.sorted().joinToString(","))
     }
 
-    private companion object {
-        val DOCS = listOf("shared", "command")
+    companion object {
+        private val DOCS = listOf("shared", "command")
+
+        /** The keys the marks are stored under: leaving removes them in the same write as the search (Session.leave). */
+        val STORED_KEYS: List<String> = DOCS.map { "edited:$it" }
     }
 }
 

@@ -110,7 +110,8 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     private val reattach = OneTimer(viewModelScope)
     private val evidence = EvidenceTerms.screen(app)
     // The published fields the family changed on this phone: a first publish sends them even over a value already there.
-    private val familyEdits = FamilyEdits(PrefsStore(app, "pls-edits"))
+    // Kept in the session's own store, so leaving forgets the search and the marks in one write.
+    private val familyEdits = FamilyEdits(prefs)
     private var publishRequests = 0
     private val publisher = ProfilePublisher(FirestoreProfileSink(), PrefsPublishedProfiles(PrefsStore(app, "pls-published")), familyEdits::keys)
     private val telemetry = Telemetry(FirebaseTelemetrySink())
@@ -286,10 +287,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
                     watch.stop()
                     familyTopic.leaving(incidentId)
                     // The search and, for a found or closed one, the gone flag go in one write.
-                    // The family's edits were for this search: none may reach the next search's first publish. Cleared
-                    // before the search is forgotten, so a process exit between the two cannot carry them over.
-                    familyEdits.clear()
-                    session.leave(alsoRemove = if (keepGone) emptyList() else listOf(GONE))
+                    // The family's edits were for this search: none may reach the next search's first publish. Forgotten
+                    // in the same write as the search, so a failed or interrupted write cannot keep one without the other.
+                    session.leave(alsoRemove = (if (keepGone) emptyList() else listOf(GONE)) + FamilyEdits.STORED_KEYS)
                 },
                 // Profile writes in flight (a first publish is a transaction, outside Firestore's pending writes), then the rest.
                 settle = { publisher.settle(); Firebase.firestore.waitForPendingWrites().await() },
@@ -361,8 +361,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         session.incidentId()?.let { writer.forget(it) }
         watch.stop()
         session.incidentId()?.let { familyTopic.leaving(it); viewModelScope.launch { familyTopic.left(it) } }
-        familyEdits.clear()
-        session.leave()
+        session.leave(alsoRemove = FamilyEdits.STORED_KEYS)
         nav = Nav.dropped(nav)
         joinError = Copy.NO_LONGER_MEMBER
     }
