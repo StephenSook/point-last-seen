@@ -6,11 +6,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 ## 2026-11-19
 
 - LIMITS: leaving a search on the family app. "Leave this search" stops new changes, waits up to 5 seconds for sent
-  ones, then asks the phone to stop the family's notifications (one already on its way can still arrive); leaving is
-  local to the phone, whose sign-in still names it as the search's family, so a change made offline just before
-  leaving is accepted when the phone reconnects. Source: review of the Android leave change. Verified against the
-  Android leave code (`waitForPendingWrites` bounded at 5,000 ms, `Session.leave()` removes only the local incident
-  id) and the rules' `isMember`, which reads the sign-in's `inc` claim.
+  ones, then asks the phone to stop following the search's notifications; leaving is local to the phone, whose sign-in
+  still names it as the search's family, so a change made offline just before leaving is accepted when the phone
+  reconnects. After leaving, the app shows no notice for that search while open; a background notice can still arrive
+  until Firebase confirms the topic drop, which is retried at each app start until confirmed. Source: review of the
+  Android leave change. Verified against the Android code (`waitForPendingWrites` bounded at 5,000 ms,
+  `Session.leave()` removes only the local incident id, `FamilyPush.isForCurrentSearch`, `FamilyTopic` pending drops
+  with `retryPending`) and the rules' `isMember`, which reads the sign-in's `inc` claim.
 
 - `seed_drill.py` can add and revoke an extra join code for one role, for example an app reviewer's, without
   touching the incident's primary code: `--add-code <project> <incidentId> <role> <incidentId>-<name>` keeps the code

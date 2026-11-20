@@ -29,10 +29,13 @@ each line says what the limit is and why.
 - The family app leaves a search only when a refreshed sign-in no longer names it as that search's family, or when
   the family taps "Leave this search". A refused read, a failed refresh or being offline keeps the search, so a
   phone that loses its access while offline shows the search until it can check.
-- "Leave this search" stops new changes at once, waits up to 5 seconds for changes already sent, then asks the
-  phone to stop the family's notifications (a notice already on its way can still arrive). Leaving is on this phone
-  only: its sign-in still names it as the search's family, and the server checks that sign-in, so a change made
-  offline just before leaving still reaches the search when the phone reconnects.
+- "Leave this search" stops new changes at once, waits up to 5 seconds for changes already sent, then asks the phone
+  to stop following the search's notifications. Leaving is on this phone only: its sign-in still names it as the
+  search's family, and the server checks that sign-in, so a change made offline just before leaving still reaches the
+  search when the phone reconnects.
+- After leaving a search, the phone shows no notice for it while the app is open. A notice Android shows while the app
+  is in the background can still arrive until Firebase confirms the phone has stopped following that search; a drop
+  that was not confirmed is tried again each time the app starts.
 
 ## Search model
 
