@@ -56,6 +56,7 @@ function Harness() {
         </button>
       )}
       <pre data-testid="saved">{saved ? JSON.stringify(saved.position) : ""}</pre>
+      <pre data-testid="saved-read">{saved ? JSON.stringify(saved.readFilled ?? null) : ""}</pre>
     </main>
   );
 }

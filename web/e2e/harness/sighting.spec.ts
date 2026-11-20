@@ -75,3 +75,32 @@ test("a quote that is not in the note is never shown", async ({ page }) => {
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
   await expect(page.getByText(/blue coat/)).toHaveCount(0);
 });
+
+test("saving after a cloud read hands that read's route to the sighting", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  const read = JSON.parse(await page.getByTestId("saved-read").innerText()) as { route: { path: string; model: string; reason: string } };
+  expect(read.route).toMatchObject({ path: "cloud", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read" });
+});
+
+test("saving a sighting typed by hand hands no read, so it is recorded as hand entry", async ({ page }) => {
+  await page.goto("/harness/sighting.html");
+  await page.getByRole("combobox", { name: "Top" }).selectOption("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByTestId("saved-read")).toHaveText("null");
+});
+
+test("saving after a read that reported no route hands the read with its route not reported", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByTestId("saved-read")).toHaveText('{"route":null}');
+});
