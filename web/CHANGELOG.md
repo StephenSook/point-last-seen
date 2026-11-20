@@ -1764,3 +1764,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: while the server is still setting a practice search up, the status under the button says "Your practice search is still being set up. This page opens it when it is ready." instead of the server's "Try again in a moment.", which asked the judge to do what the page is already doing (the button is disabled meanwhile). After 30 s without a seat, the server's sentence shows as the error and the button comes back.
 - Source: review of the judge page retry.
 - Verified: the busy-then-seat browser check, changed to expect the new line, failed on a build without it, then passed on a local build with the other 16 judge checks; typecheck clean.
+
+### test(e2e): two clicks in the same moment start one practice search
+- What: the double-click check now clicks the start button twice in one task (`b.click(); b.click()`), before React can disable it, so only the page's own guard stops the second start. Playwright's `dblclick` sends the second click after React has already disabled the button, so the old check could not fail.
+- Source: review of the judge page retry.
+- Verified: on a build with the guard's early return removed the check failed (2 calls, expected 1); with the guard it passes, with the other judge checks.

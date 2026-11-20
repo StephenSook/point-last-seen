@@ -91,7 +91,7 @@ test("with no connection the start says No connection and does not start again",
   expect(posts).toBe(1);
 });
 
-test("a double click starts one practice search", async ({ page }) => {
+test("two clicks in the same moment start one practice search", async ({ page }) => {
   await withDebugToken(page);
   let posts = 0;
   await page.route("**/startJudgeSession", async (route) => {
@@ -101,7 +101,8 @@ test("a double click starts one practice search", async ({ page }) => {
     return route.fulfill(seatReply);
   });
   await page.goto("/judge");
-  await page.getByRole("button", { name: "Try a practice search" }).dblclick();
+  // Two clicks in one task, before React can disable the button: only the page's own guard stops the second.
+  await page.getByRole("button", { name: "Try a practice search" }).evaluate((b: HTMLButtonElement) => { b.click(); b.click(); });
   await expect(page).toHaveURL(/\?incident=judge-stubbed-seat/, { timeout: 15_000 });
   expect(posts).toBe(1);
 });
