@@ -64,9 +64,9 @@ object PhoneNumbers {
     )
 
     // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
-    // A comma (with up to two spaces around it, and a minus after), or a minus with a space before it: a bare minus
-    // between two decimals (44.2071-23.4567) is a dotted number, not a pair.
-    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{1,2}-""")
+    // A comma, semicolon, bullet, middle dot, bar or slash (with up to two spaces around it, and a minus after), or a
+    // minus with a space before it: a bare minus between two decimals (44.2071-23.4567) is a dotted number, not a pair.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2}[,;\u2022\u00B7|/][ \n]{0,2}-?|[ \n]{1,2}-""")
     private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
     private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
     private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
@@ -182,6 +182,7 @@ object PhoneNumbers {
         fun len(i: Int) = parts[i].end - parts[i].start
         fun text(i: Int) = s.substring(parts[i].start, parts[i].end)
         fun value(i: Int): Int? = text(i).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
+        fun ascii(i: Int) = text(i).all { it in '0'..'9' }
         fun written(i: Int) = i in parts.indices && parts[i].written
         fun isDay(i: Int) = written(i) && len(i) <= 2 && (value(i) ?: 0) in 1..31
         fun isYear(i: Int) = written(i) && len(i) == 4 && (value(i) ?: 0) in 1900..2100
@@ -226,6 +227,14 @@ object PhoneNumbers {
                 !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
             ) {
                 kept += i..(i + 3)
+            }
+            // A radio frequency (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a dotted chain
+            // (404.555.0142) and not after a "+". Beside any other short piece it goes with the run, as every span does.
+            if (written(i + 1) && gap(i, i + 1) == "." && len(i) <= 3 && len(i + 1) == 3 && ascii(i) && ascii(i + 1) &&
+                !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == ".") && !(written(i + 2) && gap(i + 1, i + 2) == ".") &&
+                !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
+            ) {
+                kept += i..(i + 1)
             }
             if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&
                 text(i - 1) in STATES && gap(i - 1, i) == " "

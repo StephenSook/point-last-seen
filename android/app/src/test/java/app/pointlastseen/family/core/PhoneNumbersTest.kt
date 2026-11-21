@@ -15,6 +15,16 @@ class PhoneNumbersTest {
         assertEquals("GPS 33.7490\u00B0, -84.3880\u00B0", PhoneNumbers.remove("GPS 33.7490\u00B0, -84.3880\u00B0"))
     }
 
+    /** A coordinate pair across ; or a bar, and a radio frequency list, stay; a number split by ; | ! ? is still removed. */
+    @Test fun coordinatesAndFrequenciesStayWhileSplitNumbersGo() {
+        for (note in listOf("GPS 33.7490; -84.3880", "GPS 33.7490 \u2022 -84.3880", "Radio 155.160 | 154.205")) {
+            assertEquals(note, PhoneNumbers.remove(note))
+        }
+        for (note in listOf("Call 404 | 555 | 0142 tonight", "Call 404;555;0142 tonight", "Call 404!555!0142 tonight", "Call 404?555?0142 tonight")) {
+            assertEquals("Call [number removed] tonight", PhoneNumbers.remove(note))
+        }
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))
