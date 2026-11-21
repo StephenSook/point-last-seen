@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone corpus: written again for the merged shared cases (121 inputs, among them the run-of-times and colon-gap cases),
+  so it holds 9,121 rows; the README names its new SHA-256. Source: the run-of-times and colon-gap cases merged.
+  Verified: `--check` failed before the rewrite and passes after; the web corpus test passes.
 - Phone corpus: `shared/test-vectors/phone-numbers-corpus.json` (9,116 rows, 615,930 bytes, 4,531 of them changed by the
   rule), written by the generator for the current web rule, and a README section with its shape, how to regenerate it
   and its SHA-256. Source: review (Android and the iPhone check the same rows). Verified: `--check` passes; the web
