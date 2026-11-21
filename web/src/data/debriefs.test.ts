@@ -1,12 +1,26 @@
 import { deleteField, serverTimestamp, Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
 import { clearedSegments, debriefAuthor, debriefEdit, debriefFromDoc, newDebriefDoc, parseDebriefForm } from "./debriefs";
+import { REPLACEMENT } from "./phoneNumbers";
 
 const form = (over: Partial<Record<"minutes" | "worked" | "didNotWork" | "coverage" | "clues" | "hazards", string>>) => ({
   minutes: "", worked: "", didNotWork: "", coverage: "", clues: "", hazards: "", ...over,
 });
 
 describe("parseDebriefForm", () => {
+  it("removes a phone number from every note before it can be stored, and leaves a note with none unchanged", () => {
+    const r = parseDebriefForm(form({ minutes: "45", worked: "Radio 404-555-0142 worked", didNotWork: "Thick brush", clues: "Call 404 555 0142 at the gate", hazards: "Ranger at (404) 555 0142" }));
+    expect(r).toEqual({
+      ok: true,
+      value: { tookMinutes: 45, worked: `Radio ${REPLACEMENT} worked`, didNotWork: "Thick brush", clues: `Call ${REPLACEMENT} at the gate`, hazards: `Ranger at ${REPLACEMENT}` },
+    });
+    expect(JSON.stringify(r)).not.toMatch(/0142/);
+  });
+  it("refuses a note that fits as typed but not once its number is replaced, and says so", () => {
+    const worked = `${"x".repeat(486)} 404-555-0142`;
+    expect(worked.length).toBe(499);
+    expect(parseDebriefForm(form({ minutes: "5", worked }))).toEqual({ ok: false, message: "What worked: 500 characters at most once phone numbers are replaced." });
+  });
   it("takes whole minutes from 0 to 1440 and optional notes, trimmed", () => {
     expect(parseDebriefForm(form({ minutes: " 45 ", worked: " Grid lines " }))).toEqual({ ok: true, value: { tookMinutes: 45, worked: "Grid lines" } });
     expect(parseDebriefForm(form({ minutes: "0", didNotWork: "Radio dead zone" }))).toEqual({ ok: true, value: { tookMinutes: 0, didNotWork: "Radio dead zone" } });

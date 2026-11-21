@@ -1,5 +1,6 @@
 // Dev-server-only harness (web/harness/debrief.html): the debrief section with two cleared segments, AA (no
-// debrief yet) and AB (debriefed by Team 2's own device). Saves are recorded on the page; ?save=fail refuses.
+// debrief yet) and AB (debriefed by Team 2's own device). Saves are recorded on the page, and the row then shows what
+// was saved, as the app's own row shows the stored debrief; ?save=fail refuses.
 // ?paper=sample offers the paper sheet read with a canned on-device reply for AA, ?paper=other one for AB, and
 // ?paper=refuse a laptop with no on-device model; the read's own cleaning runs on the reply. No Firebase.
 
@@ -21,7 +22,7 @@ const cleared = [
   { segmentId: "AB", eventId: "b".repeat(32), deviceId: "d2", teamId: "T2" },
 ];
 const teams = [{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }];
-const stored: Record<string, Debrief> = {
+const initial: Record<string, Debrief> = {
   AB: {
     segmentId: "AB", tookMinutes: 30, worked: "Line search along the creek", didNotWork: "Radio dead zone",
     coverageStatedPct: 50, clues: "Wrapper by the footbridge", hazards: "Fast water at the ford",
@@ -42,6 +43,7 @@ const route: RouteRecord = {
 
 function Harness() {
   const [saved, setSaved] = useState<string>("");
+  const [stored, setStored] = useState(initial);
   const [jpeg, setJpeg] = useState("");
   const paperRead: PaperRead | undefined = paper
     ? async (jpegBase64, segmentId) => {
@@ -64,6 +66,7 @@ function Harness() {
         onSave={async (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => {
           if (fail) throw new Error("refused");
           setSaved(JSON.stringify({ segmentId, input, existing, clearedEventId }));
+          setStored((s) => ({ ...s, [segmentId]: { ...input, segmentId, byUid: "harness", createdAtMs: 2, clearedEventId } }));
         }}
         paperRead={paperRead}
       />
