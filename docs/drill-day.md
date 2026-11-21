@@ -130,8 +130,10 @@ page.
 
 Before the drill:
 
-1. Set the logger to record a point at least every 5 seconds and to export GPX. Start it before the drill starts.
-2. Write down the drill's start and end times with the time zone, for example `2026-11-22T13:00:00-05:00`.
+1. The role-player agrees, before the drill, that each team's closest-pass distance (rounded to the nearest 10 m, and
+   "within 10 m" when nearer) and its time will be published on the judge page. The track itself never is.
+2. Set the logger to record a point at least every 5 seconds and to export GPX. Start it before the drill starts.
+3. Write down the drill's start and end times with the time zone, for example `2026-11-22T13:00:00-05:00`.
 
 After the drill, once section 4 has replaced the published run:
 
@@ -155,7 +157,7 @@ After the drill, once section 4 has replaced the published run:
 4. Check that the passes file holds no place: `grep -c '"lat"' web/public/extras/passes/<runId>.passes.json` must
    print 0. Commit the passes file with the published run. Never commit the track or the GPX file.
 5. On the judge page, under "Watch the drill replay", "Closest passes" lists one line per team: how far its nearest
-   report was from the role-player, and when. Teams carried no logger, so a pass is measured only at the moments a
+   report was from the role-player, rounded to the nearest 10 m ("within 10 m" when nearer), and when. Teams carried no logger, so a pass is measured only at the moments a
    team sent a report placed by its phone's GPS.
 6. For the debrief, open the drill's replay on the command post, and choose "Load a GPS track from this computer" with
    `~/pls-tracks.local/<runId>.track.json`. The path walked so far follows the slider. Nothing is uploaded.

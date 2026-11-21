@@ -11,8 +11,9 @@ It writes two files:
   build can serve it, no dev server can read it and no commit can take it): a person's track is not published without
   that person's written consent;
 - the closest passes, for the published run: for each team, the report placed by its phone's GPS that was nearest to
-  where she was at that moment, as team, event id, whole metres, time and the phone's stated accuracy. It holds no
-  coordinate, so it may be served beside the run. Teams carry no logger, so a pass is measured only at the moments a
+  where she was at that moment, as team, event id, distance rounded to the nearest 10 m (0 for under 10 m, read as
+  "within 10 m"), the report's time and the phone's stated accuracy. It holds no coordinate and no unrounded distance,
+  so it may be served beside the run; the role-player agrees to that before the drill. Teams carry no logger, so a pass is measured only at the moments a
   team sent a report.
 A track marked synthetic (made up for tests) never has its passes written inside the repository.
 
@@ -249,6 +250,12 @@ def team_samples(run: dict) -> list[dict]:
     return out
 
 
+def published_distance(d: float) -> int:
+    """A distance as published: rounded to the nearest 10 m (a half rounds up), and 0, read as "within 10 m", for
+    anything under 10 m. A published pass then never pins one point of the role-player's track."""
+    return 0 if d < 10 else int(math.floor(d / 10 + 0.5)) * 10
+
+
 def closest_passes(segments, samples) -> list[dict]:
     """Per team, sorted by team id: its report nearest to her at that moment (ties to the earlier report)."""
     best: dict[str, tuple[float, int, dict]] = {}
@@ -261,7 +268,7 @@ def closest_passes(segments, samples) -> list[dict]:
         if s["teamId"] not in best or key < best[s["teamId"]][:2]:
             best[s["teamId"]] = (d, s["tMs"], s)
     return [
-        {"teamId": team, "eventId": s["eventId"], "distanceM": round(d), "atMs": s["tMs"], "accuracyM": s["accuracyM"],
+        {"teamId": team, "eventId": s["eventId"], "distanceM": published_distance(d), "atMs": s["tMs"], "accuracyM": s["accuracyM"],
          "clockChecked": s["clockChecked"]}
         for team, (d, _, s) in sorted(best.items())
     ]

@@ -1,7 +1,8 @@
 // Each team's closest pass to the role-player in a published drill run, as tools/extras/import_track.py wrote it: team,
-// event id, whole metres, time, the phone's stated accuracy and whether its clock offset was measured. It holds no
-// coordinate. The role-player's GPS track itself is never published, so this page never fetches it; only this file,
-// beside the run. Each pass is checked against its report in the run; only the distance rests on the tool alone.
+// event id, metres rounded to 10 (0 for under 10, said as "within 10 m"), time, the phone's stated accuracy and whether
+// its clock offset was measured. It holds no coordinate. The role-player's GPS track itself is never published, so this
+// page never fetches it; only this file, beside the run. Each pass is checked against its report in the run; only the
+// distance rests on the tool alone.
 
 import type { PublishedRunV1 } from "../replay/runContract";
 import { clockLabel } from "../replay/ruler";
@@ -60,7 +61,8 @@ export function readPasses(json: unknown, run: RunLike): { ok: true; file: Passe
     if (!e || e.teamId !== teamId || e.role !== "searcher" || e.positionSource !== "gps" || !e.position) {
       return no("A pass names an event that is not that team's report placed by its phone's GPS.");
     }
-    if (!num(distanceM) || !Number.isInteger(distanceM) || distanceM < 0) return no("A pass's distance is not a whole number of metres.");
+    // Published rounded to the nearest 10 m, with 0 for under 10 m, so no pass pins a point of the role-player's track.
+    if (!num(distanceM) || !Number.isInteger(distanceM) || distanceM < 0 || distanceM % 10 !== 0) return no("A pass's distance is not rounded to 10 m.");
     if (!num(atMs) || typeof clockChecked !== "boolean") return no("A pass's time cannot be read.");
     // The report's phone time, plus the phone's measured offset when the pass says it was measured.
     const offset = offsets.get(e.deviceId);
@@ -90,7 +92,8 @@ export function passLines(file: PassesFile, run: Pick<PublishedRunV1, "teams">, 
         ...(p.clockChecked ? [] : ["its phone's clock was not checked"]),
       ];
       const acc = notes.length > 0 ? ` (${notes.join("; ")})` : "";
-      return { teamId: t.teamId, eventId: p.eventId, text: `${t.name} was ${p.distanceM} m from the role-player at ${clockLabel(p.atMs, timeZone)}, at its report then${acc}.` };
+      const how = p.distanceM === 0 ? "within 10 m of" : `${p.distanceM} m from`;
+      return { teamId: t.teamId, eventId: p.eventId, text: `${t.name} was ${how} the role-player at ${clockLabel(p.atMs, timeZone)}, at its report then${acc}.` };
     });
 }
 

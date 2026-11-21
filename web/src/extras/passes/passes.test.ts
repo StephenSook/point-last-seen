@@ -15,7 +15,7 @@ const file = () => ({
   trackFromMs: T0,
   trackToMs: T0 + 20 * MIN,
   passes: [
-    { teamId: "alfa", eventId: "r2", distanceM: 38, atMs: T0 + 16 * MIN, accuracyM: 5, clockChecked: true },
+    { teamId: "alfa", eventId: "r2", distanceM: 40, atMs: T0 + 16 * MIN, accuracyM: 5, clockChecked: true },
     { teamId: "bravo", eventId: "s2", distanceM: 240, atMs: T0 + 12 * MIN, accuracyM: 5, clockChecked: false },
   ],
 });
@@ -74,9 +74,9 @@ describe("readPasses", () => {
     expect(readPasses({ ...file(), passes: [{ ...pass, eventId: "s2" }] }, run).ok).toBe(false);
   });
 
-  it("refuses a distance that is not a whole number of metres at or above zero, or two passes for one team", () => {
+  it("refuses a distance that is not rounded to 10 m at or above zero, or two passes for one team", () => {
     const pass = file().passes[0]!;
-    for (const distanceM of [-1, 38.5, Number.NaN]) {
+    for (const distanceM of [-10, 38, 38.5, Number.NaN]) {
       expect(readPasses({ ...file(), passes: [{ ...pass, distanceM }] }, run).ok, String(distanceM)).toBe(false);
     }
     expect(readPasses({ ...file(), passes: [pass, pass] }, run).ok).toBe(false);
@@ -88,9 +88,12 @@ describe("passLines", () => {
     const r = readPasses(file(), run);
     if (!r.ok) throw new Error(r.reason);
     expect(passLines(r.file, run, "America/New_York")).toEqual([
-      { teamId: "alfa", eventId: "r2", text: "Alfa was 38 m from the role-player at 13:56, at its report then (its phone's GPS: within 5 m)." },
+      { teamId: "alfa", eventId: "r2", text: "Alfa was 40 m from the role-player at 13:56, at its report then (its phone's GPS: within 5 m)." },
       { teamId: "bravo", eventId: "s2", text: "Bravo was 240 m from the role-player at 13:52, at its report then (its phone's GPS: within 5 m; its phone's clock was not checked)." },
     ]);
+    // Under 10 m is published as 0 and said as "within 10 m", never "0 m".
+    const close = { ...r.file, passes: [{ ...r.file.passes[0]!, distanceM: 0 }] };
+    expect(passLines(close, run, "America/New_York")[0]!.text).toBe("Alfa was within 10 m of the role-player at 13:56, at its report then (its phone's GPS: within 5 m).");
     const onlyAlfa = { ...r.file, passes: r.file.passes.slice(0, 1) };
     expect(passLines(onlyAlfa, run, "UTC")[1]).toEqual({
       teamId: "bravo",

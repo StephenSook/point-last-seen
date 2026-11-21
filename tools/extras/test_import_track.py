@@ -147,22 +147,27 @@ def test_team_samples_are_team_reports_placed_by_the_phone_gps_at_the_phone_time
 
 # --- closest passes ---
 
-def test_each_team_gets_its_report_nearest_her_at_that_moment_in_whole_metres():
+def test_each_team_gets_its_report_nearest_her_at_that_moment_rounded_to_10_m():
     track = walk(121)  # 10 minutes walking north at 1 m/s
     def at(i):
         return track[i][1], track[i][2]
     samples = [
-        # Team 1: 40 m east of her at minute 2, then 25 m east of her at minute 6.
+        # Team 1: 40 m east of her at minute 2, then 27 m east of her at minute 6 (published as 30 m).
         {"teamId": "T1", "eventId": "t1-early", "tMs": track[24][0], "lat": at(24)[0], "lon": at(24)[1] + 40 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": 8.0, "clockChecked": True},
-        {"teamId": "T1", "eventId": "t1-late", "tMs": track[72][0], "lat": at(72)[0], "lon": at(72)[1] + 25 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": None, "clockChecked": True},
+        {"teamId": "T1", "eventId": "t1-late", "tMs": track[72][0], "lat": at(72)[0], "lon": at(72)[1] + 27 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": None, "clockChecked": True},
         # Team 2: 300 m south of where she was; and one report before her track starts, which is skipped.
         {"teamId": "T2", "eventId": "t2", "tMs": track[60][0], "lat": at(60)[0] - 300 / DEG_LAT_M, "lon": at(60)[1], "accuracyM": 12.0, "clockChecked": False},
         {"teamId": "T2", "eventId": "t2-before", "tMs": T0 - 60_000, "lat": LAT0, "lon": LON0, "accuracyM": 5.0, "clockChecked": True},
     ]
     assert it.closest_passes([track], samples) == [
-        {"teamId": "T1", "eventId": "t1-late", "distanceM": 25, "atMs": track[72][0], "accuracyM": None, "clockChecked": True},
+        {"teamId": "T1", "eventId": "t1-late", "distanceM": 30, "atMs": track[72][0], "accuracyM": None, "clockChecked": True},
         {"teamId": "T2", "eventId": "t2", "distanceM": 300, "atMs": track[60][0], "accuracyM": 12.0, "clockChecked": False},
     ]
+
+
+def test_a_published_distance_is_rounded_to_the_nearest_10_m_and_under_10_m_is_0_never_less_coarse():
+    # So a pass never pins one point of the role-player's track: 0 means "within 10 m".
+    assert [it.published_distance(d) for d in (0.0, 6.0, 9.99, 10.0, 12.0, 14.9, 15.0, 25.0, 298.0)] == [0, 0, 0, 10, 10, 10, 20, 30, 300]
 
 
 def test_a_tie_goes_to_the_earlier_report():
