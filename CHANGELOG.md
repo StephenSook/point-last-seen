@@ -14,6 +14,92 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   moves it; a command post still open for the first drill then says so and asks to be reopened with its command code
   (`docs/LIMITS.md`, Sign-in and joining). Source: review (a command who opens a practice search loses command).
   Verified: the hygiene guard passes.
+- Phone vectors README: the colon-gap paragraph says the remaining gap is two times beside a month name; two times after
+  a cue with no month are removed whole by the run-of-times step. Source: review (merging the run-of-times step with the
+  colon-gap cases). Verified: the vector tests pass; the hygiene guard passes.
+- Phone vectors README: the list of search information that can sit inside a digit run no longer names "a number with a
+  unit"; no platform's rule keeps one there (a short quantity glued to a unit, `5km`, stays because it never reaches
+  seven digits). Source: review (the iPhone port's notes). Verified: the hygiene guard passes.
+- Phone vectors: the 12 run-of-times cases are no longer pending on the iPhone, whose port is merged (main 20391d1f);
+  `docs/LIMITS.md` counts every platform at 116 of 116. Source: the iPhone port merged. Verified:
+  `scripts/test_phone_vectors.py` passes; the iPhone port matched the web rule on every row of the generated corpora
+  (local evidence, not in the repo).
+- Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
+  210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
+  `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
+  36db65c7 (local evidence, not in the repo).
+- Phone rule: a run of times with a month name right before or after it goes to the shared rule. A month name reads the
+  hour or minutes beside it as a day, so cutting the note at such a run changed how the shared rule grouped the digits
+  around it: `1.4045, -55.0142 14 May 6:00 7:00` kept a whole number the shared rule alone removes. One exact case
+  (pending on Android), the README rule text and `docs/LIMITS.md` (116 cases; a number spread across rising times is
+  part of the accepted gap) follow. Source: review (Codex, fourth round on the phone rule: one high, one medium).
+  Verified: the web unit test failed first, then passed (163 phone tests); the fuzz agrees on all 90,000 notes and gains
+  a check that the shared rule on the whole note equals it on each stretch and each decided run, which a looser README
+  fails; `scripts/test_phone_vectors.py` passes.
+- Phone rule: the run-of-times step reads past a digit, written or spoken, when it looks for a cue among the three words
+  before a run, so `Call one: 4:04 5:55 6:42` and `Call 5 at 4:04 5:55 06:44` are removed whole instead of kept; the
+  shared rule alone already removed most of both. A mustRemove case and an exact case (both pending on the iPhone and
+  Android), the README rule text and `docs/LIMITS.md` (115 cases) follow. Source: review (found while checking the
+  fourth round; a gap the step itself made). Verified: the web unit test failed first, then passed (160 phone tests);
+  the byte-for-byte fuzz, with the new contexts, agrees on all 90,000 notes; `scripts/test_phone_vectors.py` passes.
+- Phone vectors: the ten run-of-times cases are no longer pending on Android, whose port of the rule is merged (main
+  30479df3); `docs/LIMITS.md` counts Android at 113 of 113, the iPhone at 103 and the web at 113. Source: the Android
+  port merged. Verified: `scripts/test_phone_vectors.py` passes (6), and the Android port matched the web rule on all
+  60,113 notes of a generated corpus (local evidence, not in the repo).
+- Fix(data): a run of times is decided only when the rule reads it as its own group: the step that decides a run made
+  only of clock times hid the run from the shared rule with a private-use mark, which let a number through in four ways:
+  a phone cue with a tab, a line break or a bracket before the run was missed (`Call\t4:04 5:55 16:42` came back whole);
+  a spoken digit or a Chinese numeral joined to the run was split from it (`Call four 4:04 5:55 6:42` kept every digit);
+  a private-use character typed in a note moved a kept run; and digits that NFKC folds to ASCII (superscripts) qualified
+  as a run. Now a run is decided only when no digit part of the shared rule (written, spoken, Chinese, or a counted
+  `double`/`triple`) joins its first or last part; the text between decided runs goes to the shared rule as it is, with
+  no marks; a cue is a cue word among the three words before the run, or a `#`; and a note that NFKC changes skips the
+  step. The shared vectors gain three mustRemove cases (a tab, a cue a few words back, a bracket) and one exact case (a
+  spoken digit joined to the run), pending on Android and the iPhone; `docs/LIMITS.md` gives 113 cases (Android and the
+  iPhone 103, the web 113). Source: review (Codex, third round on the phone rule: two high, two medium findings).
+  Verified: the five new unit tests failed first, then passed (155 phone tests); `scripts/test_phone_vectors.py` passes;
+  web unit suite (1189), typecheck, build, the gates (329) and the hygiene guard pass. A local differential fuzz against
+  main's rule (300,000 notes, 152,395 holding a run, local evidence, not in the repo) found no note where the new step
+  keeps a digit outside a kept run that main removes, and no change at all for notes without a run; the same fuzz on the
+  previous commit found both the typed-mark and the spoken-digit leaks.
+- Fix(data): a run made only of clock times is decided whole; everything else keeps the shared rule: the previous change
+  edited the shared rule's time handling, and a second review found it let numbers through in ways the old rule did not
+  (a date shape, a digit in another script or a spoken digit beside the times). The rule is back to main's, plus one
+  step before it: a run made only of two or more ASCII clock times, separated by commas or spaces and joined to no other
+  digit, stays whole when it reads in clock order with no phone cue before it, and is replaced whole by one "[number
+  removed]" when it is out of order or comes right after a cue (the cue words plus "text" and "reach", with at most one
+  connector word, or a "#"). Any other run follows the shared rule unchanged. The joined case ("Times 14:03, 14:10,
+  14:17, 404 555 0142") is replaced by one where the number stands apart; the four numbers written as times are pending
+  on Android and the iPhone too, since their rules leave the first hour. `docs/LIMITS.md` gives the counts (109: Android
+  and the iPhone 103, the web 109) and the gap: a number written as rising times with no cue stays. Source: review
+  (Codex, second round on the phone rule: three ways a full number still survived, and wrong native counts). Verified:
+  the six shared cases pass on the web with every phone case (150); `scripts/test_phone_vectors.py` passes; web unit
+  suite (1180), typecheck, the gates (329) and the hygiene guard pass. A probe of the review's inputs: the four numbers
+  written as times and "4:04 5:55 01:42" are removed whole; date-shaped or mixed runs behave exactly as on main.
+- Fix(data): a run of times is kept only in clock order and never right after a phone cue: the rule that kept a time
+  after another kept time let each kept time protect the next, so a phone number written as times kept all its digits
+  ("Call 21:25 5:50 1:42" kept 212-555-0142; "12:12 5:55 01:42" and "Call 4:04 5:55 01:42" too). A time now keeps its
+  place after a kept time only when it is no earlier on the clock; one earlier puts the run in doubt and both go. A time
+  right after a phone cue (the existing cue words plus "text" and "reach", or a "#") is dropped, and the times after it
+  go with it. "The possible times are 14:03, 14:10, 14:17." still stays whole. Four new shared mustRemove cases cover
+  the leak (each passes on Android and the iPhone as they are on main, so none is pending);
+  `shared/test-vectors/README.md` states the rule, and `docs/LIMITS.md` the new counts (109: Android and the iPhone 107,
+  the web 109) and the rule's remaining gap: a number written as rising times with no cue (2:12 5:55 6:42) is kept.
+  Source: review (Android lane and Codex: a privacy leak in the run-of-times rule). Verified: the four cases failed on
+  the web first, then passed with every phone case (150); `scripts/test_phone_vectors.py` passes (the cases pinned, the
+  counts); web unit suite (1180), typecheck, the gates (329) and the hygiene guard pass.
+- Fix(data): the phone-number remover keeps a run of times whole: "The possible times are 14:03, 14:10, 14:17." came out
+  as "The possible times are 14:[number removed].": a time kept its place only after a date, so each time's hour, joined
+  by ", " to the previous time's minutes, counted as joined to other digits and the run was removed. In a search a run
+  of sighting times is evidence. The shared rule (`shared/test-vectors/README.md`) now keeps a time after another kept
+  time too; a time after a dropped one is still dropped, so "Call 1 404 555 01:42" and "Call GA 40455-5014 2:30" are
+  removed as before. Two shared cases: `times_run` (kept whole) and `times_run_then_number` ("Times 14:03, 14:10, 14:17,
+  404 555 0142" keeps the times and removes the number). Both are pending on Android and the iPhone until they port the
+  rule; the web remover (`web/src/data/phoneNumbers.ts`) follows it now. `docs/LIMITS.md` gives the new counts (105
+  cases: the web passes 105, Android and the iPhone 103). Source: review (Codex, on the Problem reports panel: a note's
+  times were removed as a phone number). Verified: the two new cases failed on the web first, then passed with every
+  phone case (146); `scripts/test_phone_vectors.py` (the cases pinned, well formed, and the LIMITS counts) passes; web
+  unit suite (1166), typecheck, the gates (329) and the hygiene guard pass.
 - Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
   1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
   ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
