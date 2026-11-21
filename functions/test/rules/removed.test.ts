@@ -46,3 +46,15 @@ describe("the removal records", () => {
     await assertFails(setDoc(doc(dbAs(S2, searcherClaims), `incidents/I1/removed/${S2}`), { removedBy: S2 }));
   });
 });
+
+describe("the membership records", () => {
+  it("command reads them; no member reads another's, and no client writes one", async () => {
+    await admin.db.doc(`incidents/I1/members/${S2}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });
+    await assertSucceeds(getDoc(doc(dbAs(C, commandClaims), `incidents/I1/members/${S2}`)));
+    await assertFails(getDoc(doc(dbAs(F, familyClaims), `incidents/I1/members/${S2}`)));
+    await assertFails(getDoc(doc(dbAs(S2, searcherClaims), `incidents/I1/members/${S2}`)));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), `incidents/I1/members/${S2}`), { role: "family", team: null }));
+    await assertFails(setDoc(doc(dbAs(S2, searcherClaims), `incidents/I1/members/${S2}`), { role: "command", team: null }));
+  });
+});
+

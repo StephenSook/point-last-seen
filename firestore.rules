@@ -143,6 +143,11 @@ service cloud.firestore {
         allow read: if isCommand(incidentId);
         allow write: if false;
       }
+      // Who joined, with what role and team (joinIncident, admin only): what removal decides from. Command reads them.
+      match /members/{uid} {
+        allow read: if isCommand(incidentId);
+        allow write: if false;
+      }
 
       match /teams/{teamId} {
         allow read: if isMember(incidentId);

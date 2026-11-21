@@ -82,6 +82,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: command reads incidents/{id}/members/{uid} and no client writes one; Storage keeps within its two Firestore
+  lookups per request: a photo upload and every read check the incident and the removal record, and a clip upload
+  checks the incident and its consent record (a removed account cannot create one, since Firestore refuses its
+  writes). Source: review (cross-family, approved fixes). Verified: rules tests for the members records and for a
+  removed member's photo upload and clip read failed first, then pass; an active member's clip upload passes; all
+  rules and Storage tests pass. The emulator does not enforce the lookup limit, so that part rests on the documented
+  limit.
 - functions: removal decides from a server-owned membership record, and privileged callers are checked by their
   current claims. joinIncident writes incidents/{id}/members/{uid} (role, team, joinedAt) in one transaction with its
   check of the removal records; removeMember reads that record (or, for an account that joined before it existed, its
