@@ -77,6 +77,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
+  segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
+  tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
+  steps move by one. Source: review (paper debrief, live on the command post). Verified against
+  web/src/extras/ExtrasDock.tsx:19, web/src/extras/debrief/DebriefSheets.tsx:39,71 and
+  web/src/extras/print/PrintSession.tsx:56 (DEBRIEF_BLANKS), and the live site at 0c9766e serving Print debrief
+  sheets.
+- Probe: the served-version check no longer counts shared/test-vectors as a production input (no production code
+  imports them; the phone and found rules only name them in comments), so a main change to the vectors alone asks for
+  no deploy. Source: review (the check asked for a deploy over phone-numbers.json). Verified: the test-only main
+  change and input-list tests failed first with a vectors file added, then pass (12); live, the check now names only
+  the 2 web files that differ.
+- README's Android row and the production checklist point at the latest judge release (/releases/latest,
+  android-judge-2 on 2026-11-21 with point-last-seen-family-0c9766ea.apk and its SHA-256 file). Source: review.
+  Verified: /releases/latest answers 200 signed out and resolves to releases/tag/android-judge-2; the release lists
+  the APK and its .sha256.
 - Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
   rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
   runner passes all 58 cases in CI on this commit.

@@ -24,11 +24,13 @@ RETIRE_AFTER = date(2026, 12, 17)
 SITE = "https://buildhybridai-2026-yg3m.web.app"
 MAIN = "origin/main"
 # What the hosted build reads, as git pathspecs: web/vite.config.ts builds web/index.html from web/src, reads
-# shared/ (engine, constants, grids, test vectors the phone and found rules load) and the root package files;
-# firebase.json is the hosting config. Test files, browser specs, harness pages and markdown are never built.
+# shared/ (engine, constants, schemas, grids) and the root package files; firebase.json is the hosting config. Test
+# files, browser specs, harness pages, markdown and the shared test vectors (no production code imports them; the
+# rules only name them in comments) are never built.
 INPUTS = [
     "web", "shared", "firebase.json", "package.json", "package-lock.json",
     ":(exclude)web/e2e", ":(exclude)web/harness", ":(exclude)web/extras-harness", ":(exclude)web/vitest.config.ts",
+    ":(exclude)shared/test-vectors",
     ":(exclude,glob)**/*.test.ts", ":(exclude,glob)**/*.test.tsx", ":(exclude,glob)**/test/**", ":(exclude,glob)**/*.md",
 ]
 

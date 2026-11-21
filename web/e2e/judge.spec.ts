@@ -47,10 +47,19 @@ test("the judge page links the iPhone's recorded runs and the test matrix, and n
   await expect(nav.getByRole("link", { name: "iPhone test runs" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/tree/main/docs/evidence/ios");
   await expect(nav.getByRole("link", { name: "Which model ran where" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/blob/main/docs/TEST-MATRIX.md");
   await expect(nav.getByRole("link", { name: /TestFlight/ })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Android family app" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/releases/tag/android-judge");
+  await expect(nav.getByRole("link", { name: "Android family app" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/releases/latest");
 });
 
-test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
+test("the Android link opens a published judge release for a signed-out browser", { tag: "@no-backend" }, async ({ request }) => {
+  // GitHub answers /releases/latest with the newest published release; it must be a judge build (android-judge or
+  // android-judge-N), never a draft or another release.
+  const res = await request.get("https://github.com/StephenSook/point-last-seen/releases/latest");
+  expect(res.status()).toBe(200);
+  expect(res.url()).toMatch(/\/releases\/tag\/android-judge(-\d+)?$/);
+  expect(await res.text()).toMatch(/point-last-seen-family-[0-9a-f]{8}\.apk/);
+});
+
+test("a practice search opens a labelled training incident on the real park map, with no code, and reopens without the join form", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
   await page.getByRole("button", { name: "Try a practice search" }).click();
@@ -58,6 +67,22 @@ test("a practice search opens a labelled training incident on the real park map,
   await expect(page.locator(".post-head")).toContainText("Training drill. Practice search; nobody is missing.", { timeout: 20_000 });
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".post-head")).toContainText("Radio check");
+  // Reopened (a reload), the post says it is opening the practice search while it reconnects: the join form,
+  // which a practice search never needs, must not show at any moment.
+  await page.addInitScript(() => {
+    const w = window as { sawJoinForm?: boolean; sawOpening?: boolean };
+    w.sawJoinForm = false;
+    w.sawOpening = false;
+    new MutationObserver(() => {
+      const h = document.querySelector("h1")?.textContent ?? "";
+      if (h === "Open the command post") w.sawJoinForm = true;
+      if ((document.body?.textContent ?? "").includes("Opening practice search")) w.sawOpening = true;
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  });
+  await page.reload();
+  await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => (window as { sawJoinForm?: boolean }).sawJoinForm)).toBe(false);
+  expect(await page.evaluate(() => (window as { sawOpening?: boolean }).sawOpening)).toBe(true);
 });
 
 // The start callable answered here instead of by the server, so these checks never use up practice searches.

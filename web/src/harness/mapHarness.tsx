@@ -2,6 +2,7 @@
 // whose only entry is index.html). It draws MapView over a small synthetic grid so
 // map visuals can be checked by screenshot. The data is made up and labelled so.
 
+import { WALKER_SENTENCE } from "../command/PriorSwitch";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MapView } from "../map/MapView";
@@ -40,7 +41,8 @@ const HARNESS_TRACKS: Track[] = Array.from({ length: 300 }, (_, i) => {
   return { pts: [[START.lon, START.lat], [end.lon, end.lat]], releaseMs: cohortReleaseMs(i), durationMs: 1500 };
 });
 
-// ?tiny: cell DF gets 0.01%, so a "<0.1%" plate exists. ?every: the map shows every percent.
+// ?tiny: cell DF gets 0.01%, so a "<0.1%" plate exists. ?every: the map shows every percent. ?note: the walker
+// model's sentence under the map.
 const params = new URLSearchParams(location.search);
 const POA = params.has("tiny") ? { ...HARNESS_POA, DF: 0.0001 } : HARNESS_POA;
 // Tests read each cell's ring and project it with the map, to compare plates with their cells on screen.
@@ -72,6 +74,7 @@ function Harness() {
         }}
         ripple={new URLSearchParams(location.search).has("ripple") ? { key: "prior-1", origin: HARNESS_SEGMENTS[1]!.centroid } : null}
         walkers={new URLSearchParams(location.search).has("walkers") ? { key: "walkers-1", tracks: HARNESS_TRACKS } : null}
+        note={params.has("note") ? WALKER_SENTENCE : undefined}
       />
     </div>
   );

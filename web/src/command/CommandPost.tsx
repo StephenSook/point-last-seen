@@ -70,6 +70,7 @@ import { ConditionsForm } from "./ConditionsForm";
 import { conditionsOf, setConditions } from "../data/conditions";
 import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSummary";
 import { reachLine } from "./reach";
+import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
@@ -140,6 +141,17 @@ export function CommandPost() {
   // does not jump when the connection is ready (it stays the same element, keeping typed text).
   if (phase.kind === "signin-failed" && pls) {
     return <JoinPanel pls={null} signIn={{ error: phase.message, retry: () => signIn(pls) }} onJoined={() => {}} />;
+  }
+  // Reconnecting to the incident the link names: say it is opening, rather than flash a join form it may not need.
+  const opening = connectingLine(incidentFromUrl());
+  if (phase.kind === "connecting" && opening) {
+    return (
+      <main className="panel">
+        <p className="wordmark">Point Last Seen</p>
+        <p className="drill">{DRILL_LINE}</p>
+        <p role="status" data-testid="opening">{opening}</p>
+      </main>
+    );
   }
   if (phase.kind === "connecting" || phase.kind === "signin-failed" || !pls) {
     return <JoinPanel pls={null} onJoined={() => {}} />;
@@ -904,6 +916,23 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           </details>
         </aside>
       </div>
+      {/* On a phone the rails run below the map, so the two actions command needs most stay in reach at the bottom. */}
+      <nav className="phone-bar" aria-label="Quick actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!incident || clipping}
+          onClick={() => {
+            setAdding(true);
+            requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));
+          }}
+        >
+          Add sighting
+        </button>
+        <button type="button" className="btn ghost" onClick={() => document.getElementById("plan-h")?.scrollIntoView({ block: "start" })}>
+          Plan
+        </button>
+      </nav>
     </div>
   );
 }
