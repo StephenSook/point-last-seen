@@ -188,18 +188,24 @@ test("a photo picked while the camera is being asked for wins, and the camera st
 });
 
 test("a photo cancelled before it is read never reaches the model", async ({ page }) => {
-  // Hold the photo's decoding, so Cancel lands between choosing the photo and the read.
+  // Hold the photo's decoding, so Cancel lands between choosing the photo and the read; mark when it is done.
   await page.addInitScript(() => {
+    const w = window as unknown as { __decoded: boolean };
+    w.__decoded = false;
     const decode = window.createImageBitmap.bind(window);
     window.createImageBitmap = ((...a: Parameters<typeof createImageBitmap>) =>
-      new Promise((resolve) => setTimeout(resolve, 1500)).then(() => decode(...a))) as typeof createImageBitmap;
+      new Promise((resolve) => setTimeout(resolve, 1500))
+        .then(() => decode(...a))
+        .finally(() => (w.__decoded = true))) as typeof createImageBitmap;
   });
   await page.goto("/harness/debrief.html?paper=sample");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
   await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
   await row.getByRole("button", { name: "Cancel" }).click();
-  await page.waitForTimeout(2500);
+  // Count reads only after the held photo has finished decoding, when a read could have started.
+  await page.waitForFunction(() => (window as unknown as { __decoded: boolean }).__decoded);
+  await page.waitForTimeout(300);
   await expect(page.getByTestId("read-count")).toHaveText("0");
   await expect(row.getByRole("button", { name: "Read the paper sheet" })).toBeVisible();
 });
