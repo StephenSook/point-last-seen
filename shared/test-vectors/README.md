@@ -194,6 +194,25 @@ text between decided runs follows the rule above unchanged. A note that NFKC cha
 folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
 written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.
 
+## phone-numbers-corpus.json (generated)
+
+Every input of the cases above, then 9,000 notes made from a fixed seed, each with the output the web rule gives
+(`web/src/data/phoneNumbers.ts`). Every platform runs its own rule over every input and must give the stored output,
+character for character, so a port that drifts fails its own CI. The notes lean on what ports get wrong: runs of
+times beside cues, digits, spoken digits, months and street names, and characters that sit between code points and
+what a person sees (combining marks such as U+034F and U+0301, variation selectors, keycaps such as `#️⃣`, joiner
+sequences and emoji modifiers).
+
+```json
+{ "rule": "sha256:<hash of web/src/data/phoneNumbers.ts>", "replacement": "[number removed]",
+  "rows": [{ "input": "...", "output": "..." }] }
+```
+
+`tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
+`--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
+web test fails until the file is written again. The file's SHA-256 is
+`7f39359c20652e5b8f44ac5ec4006aff8f70e6e522f4dc5adc6063ec547e7b5b`.
+
 ## language.json (hand-written)
 
 The language screen every platform runs before a note may go to the cloud read. The rule and its two word lists are
