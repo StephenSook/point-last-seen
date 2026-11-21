@@ -44,6 +44,7 @@ import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSe
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
+import { watchClaims } from "../data/claims";
 import { subscribeIncident } from "../data/incident";
 import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
@@ -294,6 +295,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
+  // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
+  const [claimsNote, setClaimsNote] = useState<string | null>(null);
+  const claimsWatch = useRef<{ stop: () => void; recheck: () => void } | null>(null);
+  useEffect(() => {
+    const w = watchClaims(pls.auth, incidentId, setClaimsNote);
+    claimsWatch.current = w;
+    return () => {
+      w.stop();
+      claimsWatch.current = null;
+    };
+  }, [pls, incidentId]);
+  useEffect(() => {
+    if (denied) claimsWatch.current?.recheck();
+  }, [denied]);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
   // A report the server has not answered yet lives only in this browser until it is sent, so the post says it is
@@ -807,7 +822,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       <main className="panel">
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
-        <p>Its data was cleared from the screen. Join again with a current code.</p>
+        <p>Its data was cleared from the screen.</p>
+        <p data-testid="claims-line">{claimsNote ?? "Join again with a current code."}</p>
         <button type="button" onClick={() => location.assign(location.pathname)}>
           Join again
         </button>
@@ -844,6 +860,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           }}
         />
       </header>
+      {claimsNote && (
+        <p className="error" role="alert" data-testid="claims-line">
+          {claimsNote}{" "}
+          <button type="button" onClick={() => location.reload()}>
+            Reopen this drill
+          </button>
+        </p>
+      )}
       {offline && (
         <p className="error" role="status">
           No connection. Showing the last data received.

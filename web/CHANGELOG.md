@@ -2539,3 +2539,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
 - Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
 - Verified: run alone against the live site, the retract check passes.
+
+### fix(command): a post whose sign-in moved to another search says so
+- What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
+- Source: review (a command who opens a practice search loses command).
+- Verified: new unit tests (the line for each case; the watch reports each change, rechecks with fresh claims and stops) failed first, then passed; web unit suite and typecheck pass.
