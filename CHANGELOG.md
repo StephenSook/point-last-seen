@@ -82,6 +82,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
+  report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
+  over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
+  file.
+- README, judges paragraph: the judge page's Measured block and where its numbers come from
+  (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
+  is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
+- web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
+  report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
+  --check passes; the numbers are the script's output, not typed.
+- scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
+  route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
+  (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
+  scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
+  on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
+  pass.
 - functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
   handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
   Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one

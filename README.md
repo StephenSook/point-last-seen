@@ -7,6 +7,9 @@ start a practice search of your own (a copy of the development drill on a real p
 which cloud model the command post is using, and check whether this laptop's own built-in model is ready. The page
 also replays the development drill's published run (Piedmont Park, Atlanta: test family reports and plans,
 2026-11-18 to 19).
+Its Measured block shows where stored report reads and plan wording ran and the cloud model's spend, all computed by
+`scripts/measured_export.py` from the route records each read and plan stores and from AI Logic's token counts
+(`web/public/evidence/measured.json`).
 
 ## What it does
 
