@@ -55,6 +55,16 @@ describe("segment debriefs", () => {
     }
     await assertSucceeds(put(db, "AB", debrief(C, { worked: "x".repeat(500), didNotWork: "" })));
   });
+  it("takes what the team stated on its paper sheet: a coverage percent, clues and hazards, each optional and bounded", async () => {
+    const db = dbAs(C, commandClaims);
+    await assertSucceeds(put(db, "AB", debrief(C, { coverageStatedPct: 80, clues: "A glove by the bench.", hazards: "Ice on the north path." })));
+    await assertSucceeds(put(db, "AC", debrief(C, { coverageStatedPct: 0, clues: "x".repeat(500), hazards: "" })));
+    await assertSucceeds(put(db, "AD", debrief(C, { coverageStatedPct: 100 })));
+    for (const over of [{ coverageStatedPct: -1 }, { coverageStatedPct: 101 }, { coverageStatedPct: 75.5 }, { coverageStatedPct: "80" },
+      { coverageStatedPct: null }, { clues: "x".repeat(501) }, { clues: 3 }, { hazards: "x".repeat(501) }, { hazards: ["ice"] }]) {
+      await assertFails(put(db, "AE", debrief(C, over)));
+    }
+  });
   it("only command edits a debrief, keeping who wrote it and when; nobody deletes it", async () => {
     await assertSucceeds(put(dbAs(S, searcherClaims), "AA", debrief(S, { clearedEventId: clearedId })));
     await assertFails(updateDoc(doc(dbAs(S, searcherClaims), "incidents/I1/debriefs/AA"), { tookMinutes: 50 }));

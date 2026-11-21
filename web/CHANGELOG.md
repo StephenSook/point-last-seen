@@ -2018,6 +2018,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (What changed showed "Sighting saved. Confirm it under Sightings to move the map." twice).
 - Verified: a new harness check in `e2e/harness/change.spec.ts` (the line once in the section's accessibility tree, still shown and still the live line) failed first (twice), then passed with the change and beat checks (8); typecheck, web unit suite and the hygiene guard pass.
 
+### fix(web): the privacy policy says how long drill data is kept, as the retention job keeps it
+- What: under "How long it is kept", the first line now reads "Drill data is deleted 30 days after the search command closes the drill. The four drills we use for development, judging, testing and our film are deleted on January 1, 2027, or the next day if a step has to be retried." (the policy source `web/legal/privacy-policy.md` and the page). The line about the practice drill is unchanged.
+- Source: drill retention is deployed; the earlier line said nothing deleted drill data automatically.
+- Verified: a new check in `src/legalPages.test.ts` reads `functions/src/retention.ts` and requires the policy's days to equal `DRILL_RETENTION_MS`, exactly four kept drills, and all four on the one date the policy names (a named constant is resolved); it failed while two drills had no end date and passes on the retention job that deletes all four on January 1, 2027. The page's text still equals the policy file.
+
 ### fix(command): the plan card says one thing about where its words came from
 - What: the draft line now reads "Draft for the current reports." (it said "from this laptop" while What ran could name the cloud), and a fallback plan no longer adds a notice sentence such as "The cloud step did not answer. The plan below uses fixed wording.": its route mark (Fixed wording) shows it, and What ran says why the model was not used. Each assignment stays one line: the team, its task and its reason, as the team's phone receives them.
 - Source: UI review (the card said "Draft from this laptop" and "The cloud step did not answer" together, while What ran said cloud).
