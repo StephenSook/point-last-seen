@@ -7,17 +7,18 @@ a track whose times run backwards or that jumps faster than a person moves (a GP
 to one point per five seconds.
 
 It writes two files:
-- the track itself, only inside a folder whose name ends in ".local" (gitignored): a person's track is not published
-  without that person's written consent;
+- the track itself, only inside a folder whose name ends in ".local" and that lies outside this repository (where no
+  build can serve it, no dev server can read it and no commit can take it): a person's track is not published without
+  that person's written consent;
 - the closest passes, for the published run: for each team, the report placed by its phone's GPS that was nearest to
   where she was at that moment, as team, event id, whole metres, time and the phone's stated accuracy. It holds no
   coordinate, so it may be served beside the run. Teams carry no logger, so a pass is measured only at the moments a
   team sent a report.
-A track marked synthetic (made up for tests) is never written into the served site.
+A track marked synthetic (made up for tests) never has its passes written inside the repository.
 
     python3 -I tools/extras/import_track.py --gpx <file.gpx> --grid shared/grid/<gridId>.grid.json \\
         --run web/public/evidence/published-run.json --from <ISO time> --to <ISO time> --source gps-logger \\
-        --track-out tools/extras/tracks.local/<runId>.track.json \\
+        --track-out ~/pls-tracks.local/<runId>.track.json \\
         --passes-out web/public/extras/passes/<runId>.passes.json
 
 Standard library only.
@@ -29,7 +30,9 @@ import argparse
 import datetime
 import json
 import math
+import os
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -45,6 +48,8 @@ MAX_GAP_MS = 120_000
 # A GPX file larger than this is refused before it is parsed.
 MAX_GPX_BYTES = 20_000_000
 SOURCES = ("gps-logger", "synthetic")
+# The repository this tool lives in: no track, and no synthetic passes file, is ever written inside it.
+REPO = Path(__file__).resolve().parents[2]
 
 
 def iso_utc(t_ms: int) -> str:
@@ -72,10 +77,17 @@ def parse_gpx(data: bytes) -> list[tuple[int, float, float]]:
     """(time ms, lat, lon) for every track point, in file order. Elevation and everything else is dropped."""
     if len(data) > MAX_GPX_BYTES:
         raise ValueError(f"the GPX file is larger than {MAX_GPX_BYTES} bytes")
+    # Read as UTF-8 only, so the scan below sees the text the parser will see (a UTF-16 file could hide a DOCTYPE).
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        raise ValueError("the GPX file is not UTF-8")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise ValueError("the GPX file is not UTF-8") from e
     # A GPX file never needs a DOCTYPE or an entity. Refusing both before parsing closes external-entity and
     # entity-expansion tricks without a third-party parser.
-    head = data.upper()
-    if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
+    head = text.upper()
+    if "<!DOCTYPE" in head or "<!ENTITY" in head:
         raise ValueError("the file declares a DOCTYPE or an ENTITY, which a GPX file never needs")
     try:
         root = ET.fromstring(data)
@@ -196,22 +208,30 @@ def closest_passes(track, samples) -> list[dict]:
 
 
 def _in_local_folder(path: Path) -> bool:
-    return any(part.endswith(".local") for part in path.resolve().parent.parts)
+    """The real folder (links followed) has a part whose name ends in .local."""
+    return any(part.casefold().endswith(".local") for part in path.resolve().parent.parts)
 
 
-def _in_served_site(path: Path) -> bool:
-    parts = path.resolve().parts
-    return any(a == "web" and b == "public" for a, b in zip(parts, parts[1:]))
+def _inside(path: Path, root: Path) -> bool:
+    """Whether the real path (links followed) is root or under it, letter case ignored (a case-blind disk)."""
+    p, r = str(path.resolve()).casefold(), str(root.resolve()).casefold()
+    return p == r or p.startswith(r + os.sep)
 
 
 def _write(path: Path, data: dict) -> None:
+    """Writes through a new temporary file (created exclusively, so a link planted beside it is never followed)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, indent=2) + "\n")
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, repo_root: Path = REPO) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--gpx", required=True)
     ap.add_argument("--grid", required=True)
@@ -223,11 +243,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--passes-out", required=True)
     args = ap.parse_args(argv)
     track_out, passes_out = Path(args.track_out), Path(args.passes_out)
-    if not _in_local_folder(track_out):
-        print(f"import_track: the track is a person's location; write it only inside a *.local folder, not {track_out}", file=sys.stderr)
+    if track_out.is_symlink() or not _in_local_folder(track_out) or _inside(track_out, repo_root):
+        print(f"import_track: the track is a person's location; write it only inside a *.local folder outside the "
+              f"repository, and not through a link: not {track_out}", file=sys.stderr)
         return 2
-    if args.source == "synthetic" and _in_served_site(passes_out):
-        print("import_track: a synthetic track's passes never go into web/public", file=sys.stderr)
+    if args.source == "synthetic" and _inside(passes_out, repo_root):
+        print("import_track: a synthetic track's passes are never written inside the repository", file=sys.stderr)
         return 2
     try:
         from_ms, to_ms = parse_time(args.from_), parse_time(args.to)
@@ -235,7 +256,10 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--to is not after --from")
         grid = json.loads(Path(args.grid).read_text(encoding="utf-8"))
         run = json.loads(Path(args.run).read_text(encoding="utf-8"))
-        points = parse_gpx(Path(args.gpx).read_bytes())
+        gpx_path = Path(args.gpx)
+        if gpx_path.stat().st_size > MAX_GPX_BYTES:
+            raise ValueError(f"the GPX file is larger than {MAX_GPX_BYTES} bytes")
+        points = parse_gpx(gpx_path.read_bytes())
         kept, out_area, out_window = clip(points, grid["bbox"], MARGIN_M, from_ms, to_ms)
         if not kept:
             raise ValueError("no point of the track is inside the drill area and window")

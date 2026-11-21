@@ -179,13 +179,14 @@ def write(tmp_path, name, data):
     return p
 
 
-def cli(tmp_path, track_out, passes_out, source="synthetic", points=None, events=None):
+def cli(tmp_path, track_out, passes_out, source="synthetic", points=None, events=None, repo=None, gpx_bytes=None):
     track = points if points is not None else walk(121, start=T0 + 60_000)
     runs = events if events is not None else [report("r1", "T1", "device-2", track[30][0], track[30][1] + 50 / DEG_LAT_M, track[30][2])]
-    args = ["--gpx", str(write(tmp_path, "t.gpx", gpx(track))), "--grid", str(write(tmp_path, "g.json", GRID)),
+    args = ["--gpx", str(write(tmp_path, "t.gpx", gpx_bytes if gpx_bytes is not None else gpx(track))), "--grid", str(write(tmp_path, "g.json", GRID)),
             "--run", str(write(tmp_path, "run.json", run_file(runs))), "--from", it.iso_utc(T0), "--to", it.iso_utc(T0 + 3_600_000),
             "--source", source, "--track-out", str(track_out), "--passes-out", str(passes_out)]
-    return it.main(args)
+    # A stand-in repository root inside the test folder, so no test writes into the real repository.
+    return it.main(args, repo_root=repo if repo is not None else tmp_path / "repo")
 
 
 def test_writes_the_track_locally_and_a_passes_file_with_no_coordinate_in_it(tmp_path):
@@ -206,10 +207,62 @@ def test_the_track_is_written_only_inside_a_local_folder(tmp_path):
     assert not (tmp_path / "public" / "drill.track.json").exists()
 
 
-def test_a_synthetic_passes_file_is_never_written_into_the_served_site(tmp_path):
-    served = tmp_path / "web" / "public" / "extras" / "passes" / "x.passes.json"
-    assert cli(tmp_path, tmp_path / "tracks.local" / "t.json", served, source="synthetic") == 2
-    assert not served.exists()
+def test_the_track_is_never_written_inside_the_repository_even_in_a_local_folder(tmp_path):
+    # Inside the repository a .local folder can still be served (web/public, web/dist) or read by the dev server.
+    repo = tmp_path / "repo"
+    for inside in (repo / "web" / "public" / "extras" / "tracks.local" / "t.json", repo / "tools" / "extras" / "tracks.local" / "t.json",
+                   repo / "WEB" / "Public" / "x.local" / "t.json"):
+        assert cli(tmp_path, inside, tmp_path / "p.json", repo=repo) == 2, inside
+        assert not inside.exists()
+
+
+def test_a_symlinked_track_path_or_local_folder_cannot_point_the_write_into_the_repository(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "web" / "public").mkdir(parents=True)
+    victim = repo / "web" / "public" / "published-run.json"
+    victim.write_text("tracked")
+    # A .local folder outside that is a link into the repository.
+    (tmp_path / "linked.local").symlink_to(repo / "web" / "public", target_is_directory=True)
+    assert cli(tmp_path, tmp_path / "linked.local" / "t.json", tmp_path / "p.json", repo=repo) == 2
+    # A track path that is itself a link to a tracked file.
+    (tmp_path / "out.local").mkdir()
+    (tmp_path / "out.local" / "t.json").symlink_to(victim)
+    assert cli(tmp_path, tmp_path / "out.local" / "t.json", tmp_path / "p.json", repo=repo) == 2
+    assert victim.read_text() == "tracked"
+
+
+def test_a_stale_temporary_link_beside_the_track_is_never_followed(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    victim = tmp_path / "victim.json"
+    victim.write_text("keep")
+    out = tmp_path / "out.local" / "t.json"
+    out.parent.mkdir()
+    (out.parent / "t.json.tmp").symlink_to(victim)
+    assert cli(tmp_path, out, tmp_path / "p.json", repo=repo) == 0
+    assert victim.read_text() == "keep"
+    assert json.loads(out.read_text())["source"] == "synthetic"
+
+
+def test_a_synthetic_passes_file_is_never_written_inside_the_repository(tmp_path):
+    repo = tmp_path / "repo"
+    for served in (repo / "web" / "public" / "extras" / "passes" / "x.passes.json", repo / "web" / "dist" / "x.passes.json",
+                   repo / "WEB" / "PUBLIC" / "x.passes.json"):
+        assert cli(tmp_path, tmp_path / "tracks.local" / "t.json", served, source="synthetic", repo=repo) == 2, served
+        assert not served.exists()
+
+
+def test_refuses_a_gpx_file_that_is_not_utf_8_so_a_utf_16_doctype_cannot_hide(tmp_path):
+    utf16 = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE gpx [<!ENTITY s "x">]><gpx xmlns="x"/>'.encode("utf-16")
+    with pytest.raises(ValueError, match="not UTF-8"):
+        it.parse_gpx(utf16)
+
+
+def test_a_gpx_file_over_the_size_limit_is_refused_before_it_is_read(tmp_path, monkeypatch):
+    monkeypatch.setattr(it, "MAX_GPX_BYTES", 100)
+    track_out = tmp_path / "tracks.local" / "t.json"
+    assert cli(tmp_path, track_out, tmp_path / "p.json") == 1
+    assert not track_out.exists()
 
 
 def test_a_refused_track_writes_neither_file(tmp_path):

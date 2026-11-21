@@ -124,8 +124,9 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
 ## 6. The role-player's GPS track and each team's closest pass
 
 Do this only if the person playing the missing person carried a GPS logger (or a phone app that records a track).
-The track itself is that person's location: it stays on this computer and is never committed or published unless
-the person gives written consent to publish it. Only each team's closest pass goes on the judge page.
+The track itself is that person's location: it stays on this computer, outside the repository, and is never committed
+or published unless the person gives written consent to publish it. Only each team's closest pass goes on the judge
+page.
 
 Before the drill:
 
@@ -134,14 +135,16 @@ Before the drill:
 
 After the drill, once section 4 has replaced the published run:
 
-1. Copy the GPX file into `tools/extras/tracks.local/` (any folder whose name ends in `.local` is gitignored).
+1. Copy the GPX file into a folder outside the repository whose name ends in `.local`, for example
+   `~/pls-tracks.local/`. The tool refuses to write the track anywhere inside the repository, where a build could
+   serve it or a commit could take it.
 2. From the repository root, run (use the run id section 4 printed):
 
    ```
-   python3 -I tools/extras/import_track.py --gpx tools/extras/tracks.local/<file>.gpx \
+   python3 -I tools/extras/import_track.py --gpx ~/pls-tracks.local/<file>.gpx \
        --grid shared/grid/kennesaw-mountain-drill.grid.json --run web/public/evidence/published-run.json \
        --from <start> --to <end> --source gps-logger \
-       --track-out tools/extras/tracks.local/<runId>.track.json \
+       --track-out ~/pls-tracks.local/<runId>.track.json \
        --passes-out web/public/extras/passes/<runId>.passes.json
    ```
 
@@ -155,4 +158,4 @@ After the drill, once section 4 has replaced the published run:
    report was from the role-player, and when. Teams carried no logger, so a pass is measured only at the moments a
    team sent a report placed by its phone's GPS.
 6. For the debrief, open the drill's replay on the command post, and choose "Load a GPS track from this computer" with
-   `tools/extras/tracks.local/<runId>.track.json`. The path walked so far follows the slider. Nothing is uploaded.
+   `~/pls-tracks.local/<runId>.track.json`. The path walked so far follows the slider. Nothing is uploaded.
