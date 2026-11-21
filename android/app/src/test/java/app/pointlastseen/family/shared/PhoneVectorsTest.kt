@@ -60,4 +60,36 @@ class PhoneVectorsTest {
             assertEquals(o["name"]!!.jsonPrimitive.content, o["output"]!!.jsonPrimitive.content, PhoneNumbers.remove(o["input"]!!.jsonPrimitive.content))
         }
     }
+
+    private fun pendingHere(c: JsonObject) = c["pendingOn"]?.jsonArray?.any { it.jsonPrimitive.content == "android" } == true
+
+    private val kinds = listOf("mustRemove", "mustKeep", "exact")
+
+    /** Whether this app passes case [o] of kind [key], by the same checks the tests above make. */
+    private fun passes(key: String, o: JsonObject): Boolean {
+        val input = o["input"]!!.jsonPrimitive.content
+        val out = PhoneNumbers.remove(input)
+        return when (key) {
+            "mustRemove" -> !out.contains(o["number"]!!.jsonPrimitive.content) && !out.codePoints().anyMatch { isNumber(it) } &&
+                o["forbidden"]!!.jsonArray.none { out.contains(it.jsonPrimitive.content) } &&
+                o["keep"]!!.jsonArray.all { out.contains(it.jsonPrimitive.content) }
+            "mustKeep" -> out == input
+            "exact" -> out == o["output"]!!.jsonPrimitive.content
+            else -> error("no such kind: $key")
+        }
+    }
+
+    /** The check below is only as good as [passes]: it agrees with every case that runs here. */
+    @Test fun thePassCheckAgreesWithEveryCaseThatRuns() {
+        for (key in kinds) for (o in vectors[key]!!.jsonArray.map { it.jsonObject }.filterNot(::pendingHere)) {
+            assertTrue("${o["name"]!!.jsonPrimitive.content}: passes", passes(key, o))
+        }
+    }
+
+    /** A case marked pending on android must still fail here; one that passes is ready to have android taken off it. */
+    @Test fun everyCasePendingOnAndroidStillFailsHere() {
+        for (key in kinds) for (o in vectors[key]!!.jsonArray.map { it.jsonObject }.filter(::pendingHere)) {
+            assertFalse("un-pend ${o["name"]!!.jsonPrimitive.content}: it passes on android", passes(key, o))
+        }
+    }
 }
