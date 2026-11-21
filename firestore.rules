@@ -78,6 +78,10 @@ service cloud.firestore {
         // What the family may be told about the search: only that teams are searching or that it is paused.
         && (!('searchState' in request.resource.data) || request.resource.data.searchState in ['searching', 'paused'])
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
+        // Why command ended the search: one of three reasons, and only with the close itself. Checked only when the
+        // reason changes, so a value copied onto an open incident (from an ended seed) never blocks its edits.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['closedReason'])
+            || (request.resource.data.status == 'closed' && request.resource.data.closedReason in ['found', 'suspended', 'training_ended']))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt',
                 'setupReady', 'setupId', 'setupStartedAtMs', 'closedAt'])
