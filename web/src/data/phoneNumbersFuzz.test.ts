@@ -20,6 +20,8 @@ const CHINESE = "〇零一二三四五六七八九";
 const CUE_WORDS = ["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "teléfono", "telefono", "celular", "número", "numero", "text", "reach"];
 const CUES = new Set(CUE_WORDS);
 const REPEAT_WORDS = new Set(["double", "triple"]);
+const ORDINALS = new Set(["st", "nd", "rd", "th"]);
+const STREETS = new Set(["ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "pl", "place", "way", "ct", "court", "pkwy", "parkway", "hwy", "highway", "ter", "terrace", "cir", "circle", "sq", "square", "trl", "trail"]);
 const MONTHS = new Set(["jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july", "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december"]);
 
 type Token = { text: string; start: number; end: number; digitish: boolean };
@@ -66,7 +68,15 @@ function decide(s: string, ts: Token[], start: number, end: number, run: string,
   // A month name right beside the run reads its hour or minutes as a day, so the shared rule keeps the run.
   if ([prev, next].some((t) => t && MONTHS.has(t.text.toLowerCase()))) return "rule";
   if (!loose && prev && !breaks(s.slice(prev.end, start)) && (prev.digitish || REPEAT_WORDS.has(prev.text.toLowerCase()))) return "rule";
-  if (!loose && next && !breaks(s.slice(end, next.start))) {
+  // A street name's number (up to three digits, its ending against it, then a street word: 67th Ave) joins nothing.
+  const street = (t: Token | undefined) => {
+    const i = t ? ts.indexOf(t) : -1;
+    const end = ts[i + 1];
+    const road = ts[i + 2];
+    return !!t && !SPOKEN[t.text.toLowerCase()] && t.digitish && [...t.text].length <= 3 && !!end && end.start === t.end
+      && ORDINALS.has(end.text.toLowerCase()) && !!road && STREETS.has(road.text.toLowerCase()) && /^\s+$/u.test(s.slice(end.end, road.start));
+  };
+  if (!loose && next && !breaks(s.slice(end, next.start)) && !street(next)) {
     if (next.digitish) return "rule";
     const then = after[1];
     if (REPEAT_WORDS.has(next.text.toLowerCase()) && then?.digitish && !breaks(s.slice(next.end, then.start))) return "rule";
@@ -230,7 +240,8 @@ function check(step: (t: string) => string, n: number, loose = false): Counts {
     else if (i % 3 === 1) x = noise(rnd(3)) + (rnd(2) ? cue() : pick(["", "Seen ", "Possible times ", "\n"])) + run() + noise(rnd(3));
     else {
       secret = planted();
-      x = noise(rnd(3)) + cue() + secret.text + (rnd(2) ? " tonight" : "") + noise(rnd(3));
+      // A separator on each side, so noise never glues onto a spoken digit and turns it into a word ("zerodouble").
+      x = `${noise(rnd(3))} ${cue()}${secret.text}${pick([" tonight ", " ", "\n", ". "])}${noise(rnd(3))}`;
     }
     const cut = split(x, loose);
     const pieces = cut.pieces;

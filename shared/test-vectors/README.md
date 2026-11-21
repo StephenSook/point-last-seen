@@ -173,7 +173,8 @@ A run made only of clock times is decided first, as a whole. Such a run is two o
 (`h:mm` or `hh:mm`, hour 0 to 23, minutes 00 to 59) separated by commas or spaces. It is decided only when the rule
 above would read it as its own group: no digit stands before or after it through anything but letters, and no digit
 part of the rule above (a written digit, a spoken digit such as `four`, a Chinese numeral, or a counted `double` or
-`triple`) joins its first or last part, and no month name stands right before or after it (a month name reads the
+`triple`; a street name's number such as `67th Ave` never joins) joins its first or last part, and no month name
+stands right before or after it (a month name reads the
 hour or minutes beside it as a day, which changes how the rule above groups the digits around it). A run that fails
 this goes to the rule above unchanged (`Call four 4:04 5:55 6:42` gives `Call [number removed]`;
 `1.4045, -55.0142 14 May 6:00 7:00` gives `[number removed] May 6:00 7:00`). A decided run stays whole when it reads in clock order
