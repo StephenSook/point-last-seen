@@ -28,7 +28,8 @@ function Harness() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateColumns: "1fr 320px" }}>
       <div style={{ display: "grid", gridTemplateRows: "auto 1fr" }}>
-        <p className="drill" style={{ margin: 0, padding: 8 }}>Synthetic test grid, not drill data.</p>
+        {/* order -2: the phone layout moves the map to order -1, and the map must keep the tall row. */}
+        <p className="drill" style={{ margin: 0, padding: 8, order: -2 }}>Synthetic test grid, not drill data.</p>
         <MapView
           segments={HARNESS_SEGMENTS}
           poa={holding ? HARNESS_POA : AFTER}

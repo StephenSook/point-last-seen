@@ -248,3 +248,17 @@ test("on a phone the walker model's sentence sits across the foot of the map, no
   const credit = (await page.getByTestId("map-credit").boundingBox())!;
   expect(n.y + n.height).toBeLessThanOrEqual(credit.y + 1);
 });
+
+// The phone layout moves the map first (order -1); the harness pages keep it in the tall row, as the command post does.
+for (const page_ of ["map", "change"] as const) {
+  test(`at phone width the ${page_} harness gives the map the tall row, not a 0 px one`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/harness/${page_}.html`);
+    await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+    const box = (await page.getByTestId("map").boundingBox())!;
+    expect(box.height).toBeGreaterThan(500);
+    // Nothing of the page sits over the cells.
+    const top = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.tagName ?? null, [box.x + box.width / 2, box.y + box.height / 2]);
+    expect(top).toBe("CANVAS");
+  });
+}
