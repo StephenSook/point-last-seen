@@ -265,11 +265,6 @@
       "keep": [
         "Call",
         "she has the dog."
-      ],
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
       ]
     },
     {
@@ -283,11 +278,6 @@
       ],
       "keep": [
         "Number:"
-      ],
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
       ]
     },
     {
@@ -300,11 +290,6 @@
       "keep": [
         "Text",
         "if you see him."
-      ],
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
       ]
     }
   ],
@@ -387,21 +372,11 @@
     },
     {
       "name": "spanish_digit_words_in_a_sentence",
-      "input": "Vimos dos ni\u00f1os y tres perros cerca del lago.",
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
-      ]
+      "input": "Vimos dos ni\u00f1os y tres perros cerca del lago."
     },
     {
       "name": "six_spanish_digit_words",
-      "input": "Equipo uno dos tres cuatro cinco seis listo",
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
-      ]
+      "input": "Equipo uno dos tres cuatro cinco seis listo"
     }
   ],
   "exact": [
@@ -443,12 +418,7 @@
     {
       "name": "time_then_spanish_spoken_number",
       "input": "Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
-      "output": "Seen at 14:03, [number removed]",
-      "pendingOn": [
-        "android",
-        "ios",
-        "web"
-      ]
+      "output": "Seen at 14:03, [number removed]"
     }
   ]
 }

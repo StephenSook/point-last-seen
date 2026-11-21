@@ -70,6 +70,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
+  rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
+  runner passes all 58 cases in CI on this commit.
 - Phone-number vectors: six cases for Spanish digit words (cero to nueve), pending on all three platforms: a number
   spelled in Spanish ("Call cuatro cero cuatro ..."), the same with capitals and dashes, Spanish words mixed with
   written digits, a Spanish sentence and a run of six Spanish digit words that stay, and a time before a
