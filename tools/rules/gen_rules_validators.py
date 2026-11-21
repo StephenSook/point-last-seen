@@ -212,6 +212,12 @@ def render(repo: Path) -> str:
         function("schema_CameraSightingReading", event["$defs"]["CameraSightingReading"], shape=True),
         function("schema_IncidentConditions", sch("incident-conditions.schema.json")),
         function("schema_ClipNoSighting", sch("clip-no-sighting.schema.json")),
+        "    // A content report's createdAt is the server's time of the write. Its note's maxLength counts characters\n"
+        "    // (Unicode code points), as JSON Schema does; size() counts UTF-16 units, so a regex bounds it instead.\n"
+        + function("schema_ContentReport", sch("content-report.schema.json"), {
+            "createdAt": lambda r: f"{r} == request.time",
+            "note": lambda r: f"({r} is string && {r}.matches('(?s)^.{{0,{sch('content-report.schema.json')['properties']['note']['maxLength']}}}$'))",
+        }),
         "    // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.\n"
         + function("schema_SharedProfile", shared, notes),
     ]) + END

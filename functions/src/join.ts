@@ -119,6 +119,8 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     if (!t.exists) denied();
     team = teamId!;
   }
+  // A removed account is refused before it can use up a limited invite (the members transaction below checks again).
+  if ((await db.doc(`incidents/${id}/removed/${uid}`).get()).exists) denied();
   // Count a use of a limited invite atomically, refusing if another caller took the last one meanwhile.
   if (code.get("maxUses") != null) {
     const ok = await db.runTransaction(async tx => {
@@ -129,6 +131,14 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     });
     if (!ok) denied();
   }
+  // One transaction with the removal records (members.ts): an account command removed cannot join again, and the
+  // members record (role and team, server-owned) is what removal decides from, whatever the claims say later.
+  const joined = await db.runTransaction(async tx => {
+    if ((await tx.get(db.doc(`incidents/${id}/removed/${uid}`))).exists) return false;
+    tx.set(db.doc(`incidents/${id}/members/${uid}`), { role, team, joinedAt: FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!joined) denied();
   await getAuth().setCustomUserClaims(uid, { inc: id, role, team });
   return { ok: true, incidentId: id };
 }

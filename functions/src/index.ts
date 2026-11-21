@@ -8,10 +8,12 @@ import { onCall } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectDeleted } from "firebase-functions/v2/storage";
+import { handleDeleteMyAccount } from "./account.js";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
+import { handleRemoveMember } from "./members.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
 import { deleteEndedDrills, recordDrillClosed } from "./retention.js";
 
@@ -57,7 +59,26 @@ export const deleteClipOnConsentEnd = onDocumentDeleted(
  */
 export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
-  request => handleDeleteMedia(getFirestore(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
+  request => handleDeleteMedia(getFirestore(), getAuth(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
+);
+
+/**
+ * removeMember (callable): command removes a searcher or family member of its own incident (members.ts): the removal
+ * is recorded first, so the security rules refuse that account at once, then its claims are cleared and its refresh
+ * tokens revoked. App Check enforced.
+ */
+export const removeMember = onCall<{ incidentId?: unknown; uid?: unknown }>(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
+  request => handleRemoveMember(getFirestore(), getAuth(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
+);
+
+/**
+ * deleteMyAccount (callable): the caller deletes its own sign-in (account.ts), for example when it leaves a search;
+ * idempotent. App Check enforced.
+ */
+export const deleteMyAccount = onCall(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
+  request => handleDeleteMyAccount(getAuth(), request.auth?.uid ?? null),
 );
 
 /**

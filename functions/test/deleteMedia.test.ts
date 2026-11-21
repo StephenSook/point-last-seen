@@ -13,8 +13,16 @@ const exists = async (path: string) => (await bucket.file(path).exists())[0];
 const CLIP = "a".repeat(64), PHOTO = "b".repeat(64);
 const command = (inc = "I1") => ({ uid: "command-uid", token: { inc, role: "command" } });
 
+// The caller's CURRENT claims are checked too (authz.ts), not only its token: command-uid is I1's command now.
+async function account(uid: string, claims: Record<string, unknown>): Promise<void> {
+  await admin.auth.deleteUser(uid).catch(() => undefined);
+  await admin.auth.createUser({ uid });
+  await admin.auth.setCustomUserClaims(uid, claims);
+}
+
 beforeEach(async () => {
   await clearFirestore();
+  await account("command-uid", { inc: "I1", role: "command", team: null });
   const [files] = await bucket.getFiles();
   await Promise.all(files.map(f => f.delete()));
   for (const inc of ["I1", "I2"]) {
@@ -30,7 +38,7 @@ afterAll(closeClients);
 
 describe("deleteIncidentMediaNow", () => {
   it("command removes its incident's clips, photos and their readings, and nothing of another incident", async () => {
-    expect(await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 5 });
+    expect(await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 5 });
     expect((await admin.db.doc(`incidents/I1/photoConsents/${PHOTO}`).get()).exists).toBe(false);
     expect((await admin.db.doc(`incidents/I2/photoConsents/${PHOTO}`).get()).exists).toBe(true);
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(false);
@@ -47,12 +55,12 @@ describe("deleteIncidentMediaNow", () => {
       if (markedBeforeListing === null) markedBeforeListing = (await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt") != null;
       return bucket.getFiles(q);
     } } as unknown as typeof bucket;
-    await handleDeleteMedia(admin.db, watching, command(), { incidentId: "I1" });
+    await handleDeleteMedia(admin.db, admin.auth, watching, command(), { incidentId: "I1" });
     expect(markedBeforeListing).toBe(true);
     const first = (await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt");
     expect(first).toBeInstanceOf(Timestamp);
     await new Promise(r => setTimeout(r, 5));
-    await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" });
+    await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" });
     expect(((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt") as Timestamp).toMillis()).toBeGreaterThan(first.toMillis());
     expect((await admin.db.doc("incidents/I2").get()).get("mediaRevokedAt")).toBeUndefined();
   });
@@ -60,51 +68,51 @@ describe("deleteIncidentMediaNow", () => {
     const reason = (e: unknown) => ({ code: (e as { code: string }).code, reason: (e as { details?: { reason?: string } }).details?.reason,
       message: (e as Error).message });
     const cases: [Promise<unknown>, string, string, string][] = [
-      [handleDeleteMedia(admin.db, bucket, command(), { incidentId: "bad id" }), "invalid-argument", "bad_incident_id", "incidentId is malformed."],
-      [handleDeleteMedia(admin.db, bucket, null, { incidentId: "I1" }), "unauthenticated", "not_signed_in", "Sign in before deleting an incident's media."],
-      [handleDeleteMedia(admin.db, bucket, command("I2"), { incidentId: "I1" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
-      [handleDeleteMedia(admin.db, bucket, command("NONE"), { incidentId: "NONE" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
+      [handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "bad id" }), "invalid-argument", "bad_incident_id", "incidentId is malformed."],
+      [handleDeleteMedia(admin.db, admin.auth, bucket, null, { incidentId: "I1" }), "unauthenticated", "not_signed_in", "Sign in before deleting an incident's media."],
+      [handleDeleteMedia(admin.db, admin.auth, bucket, command("I2"), { incidentId: "I1" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
+      [handleDeleteMedia(admin.db, admin.auth, bucket, command("NONE"), { incidentId: "NONE" }), "permission-denied", "not_command", "Only the incident's command can delete its media."],
     ];
     for (const [call, code, why, message] of cases) {
       expect(await call.then(() => null, reason)).toEqual({ code, reason: why, message });
     }
   });
   it("a refused caller marks nothing", async () => {
-    await expect(handleDeleteMedia(admin.db, bucket, command("I2"), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command("I2"), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     expect((await admin.db.doc("incidents/I1").get()).get("mediaRevokedAt")).toBeUndefined();
   });
   it("searchers, family, another incident's command and a signed-out caller are refused, and nothing is deleted", async () => {
     for (const auth of [{ uid: "s", token: { inc: "I1", role: "searcher" } }, { uid: "f", token: { inc: "I1", role: "family" } }, command("I2")]) {
-      await expect(handleDeleteMedia(admin.db, bucket, auth, { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+      await expect(handleDeleteMedia(admin.db, admin.auth, bucket, auth, { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     }
-    await expect(handleDeleteMedia(admin.db, bucket, null, { incidentId: "I1" })).rejects.toMatchObject({ code: "unauthenticated" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, null, { incidentId: "I1" })).rejects.toMatchObject({ code: "unauthenticated" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
   });
   it("like the security rules, a sandbox still being set up, with no setup flag, or with no timestamp expiry, refuses its command", async () => {
     const live = { name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) };
     await admin.db.doc("incidents/I1").set({ ...live, setupReady: false });
-    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     await admin.db.doc("incidents/I1").set(live);
-    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     await admin.db.doc("incidents/I1").set({ name: "No expiry", mode: "judge", status: "open", setupReady: true });
-    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     await admin.db.doc("incidents/I1").set({ ...live, setupReady: true });
-    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).resolves.toMatchObject({ deleted: expect.any(Number) });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).resolves.toMatchObject({ deleted: expect.any(Number) });
   });
   it("like the security rules, a missing or ended incident refuses even its command (review: stale claims)", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Ended sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
       setupReady: true });
-    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
-    await expect(handleDeleteMedia(admin.db, bucket, command("I7"), { incidentId: "I7" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command("I7"), { incidentId: "I7" })).rejects.toMatchObject({ code: "permission-denied" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
     await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000),
       setupReady: true });
     // Two files, two readings and the photo's consent record.
-    expect((await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).deleted).toBe(5);
+    expect((await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).deleted).toBe(5);
   });
   it("a malformed incident id is refused before anything is listed", async () => {
     for (const data of [{ incidentId: "../I1" }, { incidentId: "" }, {}, null]) {
-      await expect(handleDeleteMedia(admin.db, bucket, command("../I1"), data as never)).rejects.toMatchObject({ code: "invalid-argument" });
+      await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command("../I1"), data as never)).rejects.toMatchObject({ code: "invalid-argument" });
     }
   });
   it("the exported callable refuses a signed-in request with no or a bad App Check token, and deletes nothing", async () => {
@@ -121,3 +129,17 @@ describe("deleteIncidentMediaNow", () => {
     expect(ep.region).toEqual(["us-central1"]);
   });
 });
+
+describe("a stale command token is not enough", () => {
+  it("refuses a caller whose current claims are no longer command, even with a command token", async () => {
+    await account("stale-uid", { inc: "I1", role: "searcher", team: "T1" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, { uid: "stale-uid", token: { inc: "I1", role: "command" } }, { incidentId: "I1" }))
+      .rejects.toMatchObject({ code: "permission-denied" });
+    expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
+  });
+  it("refuses a command account that command removed", async () => {
+    await admin.db.doc("incidents/I1/removed/command-uid").set({ removedAt: new Date(), removedBy: "x", role: "command" });
+    await expect(handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+  });
+});
+

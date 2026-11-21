@@ -5,6 +5,7 @@ import app.pointlastseen.family.core.ExitEdge
 import app.pointlastseen.family.core.KeyFrame
 import app.pointlastseen.family.core.Legibility
 import app.pointlastseen.family.core.Lighting
+import app.pointlastseen.family.data.ContentReport
 import app.pointlastseen.family.data.EventContext
 import app.pointlastseen.family.data.Events
 import app.pointlastseen.family.data.FamilySightingInput
@@ -12,7 +13,9 @@ import app.pointlastseen.family.data.Profiles
 import app.pointlastseen.family.data.RouteRecord
 import app.pointlastseen.family.data.SubjectProfile
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -44,6 +47,19 @@ class SchemaShapeTest {
     @Test fun cameraSightingMatchesItsSchema() {
         val s = CameraSighting(true, "00:01", "00:02", ExitEdge.LEFT, ExitEdge.RIGHT, "blue", "black", "", "", "", listOf(), KeyFrame("00:01", listOf(1, 2, 3, 4)), Lighting.DAY, Legibility.CLEAR, "")
         assertEquals(props("camera-sighting.schema.json"), s.toMap().keys)
+    }
+
+    private fun contentReportProp(name: String): JsonObject =
+        SharedFiles.json("shared/schemas/content-report.schema.json")["properties"]!!.jsonObject[name]!!.jsonObject
+
+    /** The family app writes no content report yet; it carries the type so the shared schema and the app agree. */
+    @Test fun contentReportCarriesTheContentReportSchema() {
+        assertEquals(props("content-report.schema.json"), fields(ContentReport::class.java))
+        fun values(name: String) = contentReportProp(name)["enum"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertEquals(values("role"), ContentReport.ROLES)
+        assertEquals(values("target"), ContentReport.TARGETS)
+        assertEquals(values("reason"), ContentReport.REASONS)
+        assertEquals(contentReportProp("note")["maxLength"]!!.jsonPrimitive.content.toInt(), ContentReport.NOTE_MAX)
     }
 
     private fun fields(c: Class<*>): Set<String> =
