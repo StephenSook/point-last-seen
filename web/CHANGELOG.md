@@ -2195,3 +2195,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `rebuildPrior` takes the incident's `priorVersion` and refuses ("The map's segments have not all loaded yet.") when any segment carries another version or none. After a reseed, a cached snapshot can hold the older grid with the same id; a confirm or layer change on it would have saved a new version over part of the current grid. The command post's layer and model rebuilds and every camera and sighting confirm pass the version. The sighting prior tests run with the 30 s timeout the other prior tests use.
 - Source: review (cross-family, follow-up, approved).
 - Verified: new tests failed first, then pass: a stale or unversioned segment is refused, and a confirm against a stale grid is refused before anything is built. Every stored incident's segments and ROW (48 of 48) carry their incident's version, read live. 1080 web unit tests and the typecheck pass.
+
+### fix(prior): only an older grid blocks a rebuild; walkers check the grid first
+- What: the grid checks move into `assertCurrentGrid` (none loaded, some missing, or a segment older than the incident's version). A segment newer than the incident is now allowed, so an incident copied mid-rebuild can still rebuild instead of refusing forever. A walker run, which writes every segment too, makes the same check before it starts, so it never commits a new version over a stale segment list.
+- Source: review (cross-family).
+- Verified: new tests failed first, then pass: a newer segment rebuilds; `assertCurrentGrid` passes the whole current grid and refuses empty, partial and older ones; 1082 web unit tests and the typecheck pass.

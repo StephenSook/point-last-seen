@@ -63,7 +63,7 @@ import { loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } 
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
-import { priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
+import { assertCurrentGrid, priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
 import { elevationFor, loadElevationM } from "../prior/elevation";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
@@ -629,6 +629,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
     }
     if (graph?.state !== "ok") throw new Error("Walkers need this site's route graph.");
+    // Walkers write every segment too, so they run only on the whole current grid.
+    assertCurrentGrid(segments, incident.priorVersion);
     const g = graph.graph;
     if (!g.projection) throw new Error("This site's route graph has no projection.");
     const start = nearestWalkerStation(g, projectWalkerPoint(g.projection, incident.ipp));
