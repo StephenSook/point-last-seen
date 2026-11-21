@@ -444,6 +444,75 @@
       "kindOut": "unclear",
       "corrected": false,
       "parserKind": "unclear"
+    },
+    {
+      "name": "name_like_rose",
+      "note": "Found a coat near Rose",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "name_like_colour_lowercase",
+      "note": "found a coat near brown",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "name_like_place_capital",
+      "note": "Found a coat by the River",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "name_like_place_no_determiner",
+      "note": "found a hat near brook",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "name_like_colour_in_item",
+      "note": "Found a brown coat by the river",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "brown coat",
+      "feature": "water",
+      "corrected": true,
+      "parserKind": "clue"
+    },
+    {
+      "name": "name_like_place_after_the",
+      "note": "Found a hat by the brook",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "hat",
+      "feature": "creek_or_drainage",
+      "corrected": true,
+      "parserKind": "clue"
+    },
+    {
+      "name": "item_stops_at_punctuation",
+      "note": "Found a hat. Nearby the trail",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "hat",
+      "feature": "trail",
+      "corrected": true,
+      "parserKind": "clue"
     }
   ]
 }

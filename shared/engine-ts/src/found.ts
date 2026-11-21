@@ -72,6 +72,11 @@ export const OBJECT_NOTE_WORDS: ReadonlySet<string> = new Set([
   "side", "edge", "bank", "base", "top", "bottom", "end", "middle", "this", "that", "area", "segment", "team", "we", "our",
   "feet", "ft", "foot", "meters", "metres", "yards", "ago", "min", "mins", "minutes",
 ]);
+// Object-note words that are also given names or surnames ("near Brook", "found a coat near brown"). A colour or size
+// word counts only inside a found item, where it describes the object ("a brown coat"); a place word only right after a
+// determiner ("by the river"); and neither counts when written with a capital after the note's first word.
+const NAME_LIKE_DESCRIBERS = new Set(["black", "white", "brown", "gray", "grey", "green", "red", "tan", "long", "short"]);
+const NAME_LIKE_PLACES = new Set(["brook", "river", "hill", "field", "woods", "forest", "wall", "bush", "shore", "post", "rock", "lake"]);
 const ITEM_MAX = 40;
 // A segment id as the grid writes it (AA to MZ), typed in capitals inside a note that is not all capitals.
 const SEGMENT_CODE = /^[A-Z]{2}$/;
@@ -96,32 +101,42 @@ function possessiveHer(t: readonly Token[], i: number, note: string): boolean {
   return t[i]!.word === "her" && next !== undefined && OBJECTS.has(next.word) && /^\s+$/.test(note.slice(t[i]!.end, next.start));
 }
 
-/** The words after "found a/an/some/the/his/their/her" at t[i], up to three, stopping at a place word or a number. */
-function itemAfter(t: readonly Token[], i: number, note: string): string[] {
+/**
+ * Where the words after "found a/an/some/the/his/their/her" at t[i] sit: up to three, stopping at a place word, a
+ * number, or punctuation, so an item never runs into the next sentence ("found a hat. brown nearby" is "hat").
+ */
+function itemAfter(t: readonly Token[], i: number, note: string): number[] {
   if (i + 1 >= t.length || !(DETERMINERS.has(t[i + 1]!.word) || possessiveHer(t, i + 1, note))) return [];
-  const out: string[] = [];
-  for (let j = i + 2; j < t.length && out.length < 3 && !STOP_WORDS.has(t[j]!.word) && /^\p{L}/u.test(t[j]!.word); j++) out.push(t[j]!.word);
+  const out: number[] = [];
+  for (let j = i + 2; j < t.length && out.length < 3 && !STOP_WORDS.has(t[j]!.word) && /^\p{L}/u.test(t[j]!.word); j++) {
+    if (j > i + 2 && !/^\s+$/.test(note.slice(t[j - 1]!.end, t[j]!.start))) break;
+    out.push(j);
+  }
   return out;
 }
 
 /**
- * The first found item, when every "found" in the note is followed by a determiner and a known object. Null when
- * any "found" is not ("found mom", "found Bea", "found him"): whatever it found may be the person.
+ * Every found item, when every "found" in the note is followed by a determiner and a known object. Null when any
+ * "found" is not ("found mom", "found Bea", "found him"): whatever it found may be the person.
  */
-function foundItem(t: readonly Token[], note: string): string[] | null {
+function foundItems(t: readonly Token[], note: string): number[][] | null {
   const items = t.flatMap((x, i) => (x.word === "found" ? [itemAfter(t, i, note)] : []));
-  if (items.length === 0 || items.some((item) => !item.some((w) => OBJECTS.has(w)))) return null;
-  return items[0]!;
+  if (items.length === 0 || items.some((item) => !item.some((j) => OBJECTS.has(t[j]!.word)))) return null;
+  return items;
 }
 
-/** True only when every word is one an object-found note may hold, and none could name the person. */
-function onlyObjectWords(t: readonly Token[], note: string, names: readonly string[]): boolean {
+/** True only when every word is one an object-found note may hold where it stands, and none could name the person. */
+function onlyObjectWords(t: readonly Token[], note: string, names: readonly string[], inItem: ReadonlySet<number>): boolean {
   const nameWords = new Set(names.flatMap(words));
   const trustCodes = /\p{Ll}/u.test(note);
   return t.every((x, i) => {
     if (nameWords.has(x.word)) return false;
     if (x.word === "her") return possessiveHer(t, i, note);
     if (PERSON_WORDS.has(x.word)) return false;
+    if (NAME_LIKE_DESCRIBERS.has(x.word) || NAME_LIKE_PLACES.has(x.word)) {
+      if (i > 0 && /^\p{Lu}/u.test(x.raw)) return false;
+      return NAME_LIKE_DESCRIBERS.has(x.word) ? inItem.has(i) : i > 0 && DETERMINERS.has(t[i - 1]!.word);
+    }
     return OBJECT_NOTE_WORDS.has(x.word) || /^\p{N}+$/u.test(x.word) || (trustCodes && SEGMENT_CODE.test(x.raw));
   });
 }
@@ -134,8 +149,9 @@ export function correctFoundKind(reading: ReportReading, note: string, names: re
   const unchanged = { reading, corrected: false, reason: null };
   if (reading.kind !== "found") return unchanged;
   const t = tokens(note);
-  const item = foundItem(t, note);
-  if (item === null || !onlyObjectWords(t, note, names)) return unchanged;
+  const items = foundItems(t, note);
+  if (items === null || !onlyObjectWords(t, note, names, new Set(items.flat()))) return unchanged;
+  const item = items[0]!.map((j) => t[j]!.word).join(" ");
   const feature = FEATURES.find(([, place]) => t.some((x) => place.includes(x.word)))?.[0] ?? "none";
-  return { reading: { ...reading, kind: "clue", item: item.join(" ").slice(0, ITEM_MAX), feature }, corrected: true, reason: FOUND_AS_CLUE_REASON };
+  return { reading: { ...reading, kind: "clue", item: item.slice(0, ITEM_MAX), feature }, corrected: true, reason: FOUND_AS_CLUE_REASON };
 }

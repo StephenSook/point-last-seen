@@ -224,9 +224,15 @@ construction. The reading becomes a clue only when all three hold:
   rules parser's subject words, words for a person, family and relations, the person's state, the response to them,
   or a word of one of the profile's names. A contraction counts by its first part ("she's" is she).
 
+Some object-note words are also names ("Brook", "Brown", "River"). A name-like colour or size word (black, white,
+brown, gray, grey, green, red, tan, long, short) counts only inside a found item, where it describes the object ("a
+brown coat"); a name-like place word (brook, river, hill, field, woods, forest, wall, bush, shore, post, rock, lake)
+counts only right after a determiner ("by the river"); neither counts when written with a capital after the note's
+first word. So "Found a coat near brown", "found a hat near brook" and "Found a coat by the River" stay found.
+
 "her" is a possessive only when spaces alone separate it from a known object: "Found her coat by the creek" becomes a
 clue, while "Found her, coat nearby" and "Found her blue coat" stay found. Item is up to three words after the first
-determiner and feature comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
+determiner, ending at a stop word, a number or punctuation, and feature comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
 (`reason`, `FOUND_AS_CLUE_REASON`) is shown in the UI and the receipt and says the model said found, so the human
 sees both: "Read as a clue: an object was found, not the person. The model said found; check the note."
 

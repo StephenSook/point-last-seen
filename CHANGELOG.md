@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Engine: correctFoundKind treats object-note words that are also names ("Brook", "Brown", "River") as names where a
+  name would stand. A name-like colour or size word counts only inside a found item ("a brown coat"), a name-like
+  place word only right after a determiner ("by the river"), and neither when capitalised after the first word.
+  A found item now also ends at punctuation, so it never runs into the next sentence. found-kind.json gains 7 cases.
+  Source: review. Verified: three new cases and a generated check (29 name-like words, both cases, 5 shapes) failed
+  first; the item crossing a sentence ("found a hat. brown nearby") was the last failure, fixed by the punctuation
+  stop; all pass now with the engine's 372 tests, typecheck and lint; the web's unit tests and CI's Python gates pass.
 - Engine: correctFoundKind's object-note vocabulary grows with words that cannot name a person: places and terrain
   (fence, bridge, bench, tree, parking lot, porch, yard, rock, hill, gate, ...), positions, more colours, materials
   and sizes, what happened to an object (snagged, caught, hanging, buried, ...), and clue objects (wrapper, cup,

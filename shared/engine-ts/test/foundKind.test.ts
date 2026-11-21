@@ -86,6 +86,19 @@ describe("a found reading checked against its note (shared/test-vectors/found-ki
     expect(count).toBeGreaterThan(2000);
   });
 
+  // Object-note words that are also names: "near Brook", "near brown", "near River" must never correct.
+  it("never corrects a note whose name-like word stands where a name would", () => {
+    const nameLike = ["brown", "gray", "grey", "black", "white", "green", "red", "tan", "long", "short", "brook", "river", "hill",
+      "field", "woods", "forest", "wall", "bush", "shore", "post", "rock", "lake", "rose", "ivy", "hope", "rocky", "dale", "glen", "lily"];
+    for (const n of nameLike) {
+      for (const w of [n, n[0]!.toUpperCase() + n.slice(1)]) {
+        for (const note of [`Found a coat near ${w}`, `found a hat. ${w} nearby`, `Found a shoe, ${w} is here`, `Found a glove with ${w}`, `found a cane by ${w}`]) {
+          expect(correctFoundKind({ ...BLANK, kind: "found" }, note, []).corrected, note).toBe(false);
+        }
+      }
+    }
+  });
+
   it("no word that could name the person is ever an object-note word", () => {
     for (const w of PERSON_WORDS) expect(OBJECT_NOTE_WORDS.has(w), w).toBe(false);
   });
