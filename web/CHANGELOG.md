@@ -2291,3 +2291,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a new no-backend check, `web/e2e/mapCascade.spec.ts`, runs at 1440 px and 390 px on the built app. The join page loads the command post's code and every stylesheet it uses; the check puts a `.map-wrap` frame holding a `.map.maplibregl-map` element (the classes the map's container carries) on the page and asserts it is absolutely placed and the full 400 px tall. A build whose stylesheet order lets MapLibre's `position: relative` win fails it.
 - Source: live suite after deploy (a 0 px map that no CI check could see).
 - Verified: it failed at both widths on the build that drew the 0 px map (`position: relative`), and passes on the build with the split reverted, with every no-backend check (45).
+
+### fix(map): an empty map says it is waiting for the search area
+- What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
+- Source: UI review (too many words on the working screen).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.

@@ -288,3 +288,8 @@ test("zoomed out, every dot is at most 35% of its cell and codes wait for zoom o
   await page.mouse.move(mapBox.x + 4, mapBox.y + 4);
   await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(0);
 });
+
+test("with no segments yet, the map says it is waiting for the search area, in plain words", async ({ page }) => {
+  await page.goto("/harness/map.html?empty");
+  await expect(page.locator(".map-empty")).toHaveText("Waiting for the search area.");
+});

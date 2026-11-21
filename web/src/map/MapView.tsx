@@ -512,7 +512,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       <svg className="beat-overlay" aria-hidden="true">
         <path ref={arc} data-testid="beat-arc" />
       </svg>
-      {segments.length === 0 && <div className="map-empty">No segments yet. Build the prior to draw the map.</div>}
+      {segments.length === 0 && <div className="map-empty">Waiting for the search area.</div>}
       {note && (
         <p className="map-note" data-testid="map-note">
           {note}

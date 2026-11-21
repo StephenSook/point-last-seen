@@ -55,7 +55,7 @@ function Harness() {
       {/* order -2: the phone layout moves the map to order -1, and the map must keep the tall row. */}
       <p className="drill" style={{ margin: 0, padding: 8, order: -2 }}>Synthetic test grid, not drill data.</p>
       <MapView
-        segments={HARNESS_SEGMENTS}
+        segments={params.has("empty") ? [] : HARNESS_SEGMENTS}
         poa={POA}
         everyPercent={every}
         onEveryPercent={params.has("switch") ? setEvery : undefined}
