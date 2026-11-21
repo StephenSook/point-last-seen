@@ -141,7 +141,7 @@ def test_team_samples_are_team_reports_placed_by_the_phone_gps_at_the_phone_time
         report("e", "T1", "device-2", T0, LAT0, LON0, kind="confirmation", role="command"),
     ]
     assert it.team_samples(run_file(events, devices)) == [
-        {"teamId": "T1", "eventId": "a", "tMs": T0 + 2_000, "lat": LAT0, "lon": LON0, "accuracyM": 8.0}
+        {"teamId": "T1", "eventId": "a", "tMs": T0 + 2_000, "lat": LAT0, "lon": LON0, "accuracyM": 8.0, "clockChecked": True}
     ]
 
 
@@ -153,22 +153,86 @@ def test_each_team_gets_its_report_nearest_her_at_that_moment_in_whole_metres():
         return track[i][1], track[i][2]
     samples = [
         # Team 1: 40 m east of her at minute 2, then 25 m east of her at minute 6.
-        {"teamId": "T1", "eventId": "t1-early", "tMs": track[24][0], "lat": at(24)[0], "lon": at(24)[1] + 40 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": 8.0},
-        {"teamId": "T1", "eventId": "t1-late", "tMs": track[72][0], "lat": at(72)[0], "lon": at(72)[1] + 25 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": None},
+        {"teamId": "T1", "eventId": "t1-early", "tMs": track[24][0], "lat": at(24)[0], "lon": at(24)[1] + 40 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": 8.0, "clockChecked": True},
+        {"teamId": "T1", "eventId": "t1-late", "tMs": track[72][0], "lat": at(72)[0], "lon": at(72)[1] + 25 / (DEG_LAT_M * math.cos(math.radians(LAT0))), "accuracyM": None, "clockChecked": True},
         # Team 2: 300 m south of where she was; and one report before her track starts, which is skipped.
-        {"teamId": "T2", "eventId": "t2", "tMs": track[60][0], "lat": at(60)[0] - 300 / DEG_LAT_M, "lon": at(60)[1], "accuracyM": 12.0},
-        {"teamId": "T2", "eventId": "t2-before", "tMs": T0 - 60_000, "lat": LAT0, "lon": LON0, "accuracyM": 5.0},
+        {"teamId": "T2", "eventId": "t2", "tMs": track[60][0], "lat": at(60)[0] - 300 / DEG_LAT_M, "lon": at(60)[1], "accuracyM": 12.0, "clockChecked": False},
+        {"teamId": "T2", "eventId": "t2-before", "tMs": T0 - 60_000, "lat": LAT0, "lon": LON0, "accuracyM": 5.0, "clockChecked": True},
     ]
-    assert it.closest_passes(track, samples) == [
-        {"teamId": "T1", "eventId": "t1-late", "distanceM": 25, "atMs": track[72][0], "accuracyM": None},
-        {"teamId": "T2", "eventId": "t2", "distanceM": 300, "atMs": track[60][0], "accuracyM": 12.0},
+    assert it.closest_passes([track], samples) == [
+        {"teamId": "T1", "eventId": "t1-late", "distanceM": 25, "atMs": track[72][0], "accuracyM": None, "clockChecked": True},
+        {"teamId": "T2", "eventId": "t2", "distanceM": 300, "atMs": track[60][0], "accuracyM": 12.0, "clockChecked": False},
     ]
 
 
 def test_a_tie_goes_to_the_earlier_report():
     track = walk(20)
-    samples = [{"teamId": "T1", "eventId": e, "tMs": track[i][0], "lat": track[i][1], "lon": track[i][2], "accuracyM": None} for e, i in (("late", 9), ("early", 3))]
-    assert it.closest_passes(track, samples)[0]["eventId"] == "early"
+    samples = [{"teamId": "T1", "eventId": e, "tMs": track[i][0], "lat": track[i][1], "lon": track[i][2], "accuracyM": None, "clockChecked": True} for e, i in (("late", 9), ("early", 3))]
+    assert it.closest_passes([track], samples)[0]["eventId"] == "early"
+
+
+# --- segments, gaps and what is measured (from a second-model review) ---
+
+def two_segments(a, b):
+    """A GPX file whose points come in two <trkseg> elements: the logger was stopped and started again."""
+    seg = lambda pts: "<trkseg>" + "".join(f'<trkpt lat="{la}" lon="{lo}"><time>{it.iso_utc(t)}</time></trkpt>' for t, la, lo in pts) + "</trkseg>"
+    return (f'<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk>{seg(a)}{seg(b)}</trk></gpx>').encode()
+
+
+def test_each_gpx_segment_stays_its_own_segment_and_no_position_is_drawn_between_two():
+    a, b = walk(13), walk(13, start=T0 + 120_000)  # stopped at 18:01:00, started again at 18:02:00
+    segs = it.read_gpx(two_segments(a, b))
+    assert [len(s) for s in segs] == [13, 13]
+    assert it.position_in(segs, T0 + 90_000) is None  # 30 s inside the stop: no invented place
+    assert it.position_in(segs, T0 + 30_000) is not None
+
+
+def test_a_dropped_point_splits_its_segment_so_nothing_is_drawn_across_it():
+    out = (T0 + 30_000, BBOX[1] - 0.01, LON0)  # outside the area
+    segs, out_area, _ = it.clip_segments([[*walk(6), out, *walk(6, start=T0 + 35_000)]], BBOX, 200.0, T0, T0 + 3_600_000)
+    assert out_area == 1 and [len(s) for s in segs] == [6, 6]
+    assert it.position_in(segs, T0 + 30_000) is None
+
+
+def test_a_report_at_a_recorded_fix_has_that_fix_even_right_after_a_gap():
+    track = [(T0, LAT0, LON0), (T0 + 121_000, LAT0 + 0.001, LON0), (T0 + 126_000, LAT0 + 0.0011, LON0)]
+    assert it.position_in([track], T0 + 121_000) == (LAT0 + 0.001, LON0)
+    assert it.position_in([track], T0 + 60_000) is None
+
+
+def test_passes_are_measured_on_every_kept_point_not_the_thinned_track(tmp_path):
+    # Fixes at 0, 2 and 5 s; the report sits exactly on the 2 s fix, which thinning to one per 5 s drops.
+    pts = [(T0 + 60_000, 33.9200, LON0), (T0 + 62_000, 33.9201, LON0), (T0 + 65_000, 33.9200, LON0)]
+    runs = [report("r1", "T1", "device-2", T0 + 62_000, 33.9201, LON0)]
+    track_out, passes_out = tmp_path / "out.local" / "t.json", tmp_path / "p.json"
+    assert cli(tmp_path, track_out, passes_out, points=pts, events=runs) == 0
+    assert json.loads(passes_out.read_text())["passes"][0]["distanceM"] == 0
+    assert len(json.loads(track_out.read_text())["points"]) == 2
+
+
+def test_the_track_file_records_where_each_new_segment_starts(tmp_path):
+    a, b = walk(13, start=T0 + 60_000), walk(13, start=T0 + 180_000)
+    track_out = tmp_path / "out.local" / "t.json"
+    assert cli(tmp_path, track_out, tmp_path / "p.json", events=[], gpx_bytes=two_segments(a, b)) == 0
+    t = json.loads(track_out.read_text())
+    assert t["breaks"] == [len([p for p in it.thin(a, 5_000)])]
+
+
+def test_a_report_with_an_unreadable_accuracy_or_place_is_cleaned_or_skipped():
+    devices = [{"deviceId": "device-2", "teamId": "T1", "clockOffsetMs": 0}]
+    odd = report("a", "T1", "device-2", T0, LAT0, LON0)
+    odd["position"]["accuracyM"] = {"lat": 33.92, "lon": -84.6}
+    nowhere = report("b", "T1", "device-2", T0, LAT0, LON0)
+    nowhere["position"]["lat"] = "33.92"
+    samples = it.team_samples(run_file([odd, nowhere], devices))
+    assert [s["eventId"] for s in samples] == ["a"]
+    assert samples[0]["accuracyM"] is None
+
+
+def test_a_phone_whose_clock_offset_was_never_measured_is_marked_so():
+    events = [report("a", "T1", "device-2", T0, LAT0, LON0), report("b", "T1", "device-3", T0, LAT0, LON0), report("c", "T1", "device-4", T0, LAT0, LON0)]
+    devices = [{"deviceId": "device-2", "teamId": "T1", "clockOffsetMs": 0}, {"deviceId": "device-3", "teamId": "T1", "clockOffsetMs": None}]
+    assert [(s["eventId"], s["clockChecked"]) for s in it.team_samples(run_file(events, devices))] == [("a", True), ("b", False), ("c", False)]
 
 
 # --- the command ---
@@ -183,7 +247,7 @@ def cli(tmp_path, track_out, passes_out, source="synthetic", points=None, events
     track = points if points is not None else walk(121, start=T0 + 60_000)
     runs = events if events is not None else [report("r1", "T1", "device-2", track[30][0], track[30][1] + 50 / DEG_LAT_M, track[30][2])]
     args = ["--gpx", str(write(tmp_path, "t.gpx", gpx_bytes if gpx_bytes is not None else gpx(track))), "--grid", str(write(tmp_path, "g.json", GRID)),
-            "--run", str(write(tmp_path, "run.json", run_file(runs))), "--from", it.iso_utc(T0), "--to", it.iso_utc(T0 + 3_600_000),
+            "--run", str(write(tmp_path, "run.json", run_file(runs, [{"deviceId": "device-2", "teamId": "T1", "clockOffsetMs": 0}]))), "--from", it.iso_utc(T0), "--to", it.iso_utc(T0 + 3_600_000),
             "--source", source, "--track-out", str(track_out), "--passes-out", str(passes_out)]
     # A stand-in repository root inside the test folder, so no test writes into the real repository.
     return it.main(args, repo_root=repo if repo is not None else tmp_path / "repo")
@@ -197,7 +261,8 @@ def test_writes_the_track_locally_and_a_passes_file_with_no_coordinate_in_it(tmp
     assert track["source"] == "synthetic" and track["gridId"] == "kennesaw-mountain-drill" and len(track["points"]) == 121
     passes = json.loads(passes_out.read_text())
     assert passes["runId"] == "drill-test-2026-11-22" and passes["source"] == "synthetic" and passes["basis"] == "reports"
-    assert passes["passes"] == [{"teamId": "T1", "eventId": "r1", "distanceM": 50, "atMs": T0 + 60_000 + 150_000, "accuracyM": 8.0}]
+    assert passes["passes"] == [{"teamId": "T1", "eventId": "r1", "distanceM": 50, "atMs": T0 + 60_000 + 150_000, "accuracyM": 8.0, "clockChecked": True}]
+    assert track["breaks"] == []
     text = passes_out.read_text()
     assert '"lat"' not in text and '"lon"' not in text and str(round(LAT0, 2)) not in text
 

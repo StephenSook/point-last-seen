@@ -75,6 +75,11 @@ def _local(tag: str) -> str:
 
 def parse_gpx(data: bytes) -> list[tuple[int, float, float]]:
     """(time ms, lat, lon) for every track point, in file order. Elevation and everything else is dropped."""
+    return [p for seg in read_gpx(data) for p in seg]
+
+
+def read_gpx(data: bytes) -> list[list[tuple[int, float, float]]]:
+    """The track points as segments: a new GPX <trkseg> starts a new one (the logger was stopped and started)."""
     if len(data) > MAX_GPX_BYTES:
         raise ValueError(f"the GPX file is larger than {MAX_GPX_BYTES} bytes")
     # Read as UTF-8 only, so the scan below sees the text the parser will see (a UTF-16 file could hide a DOCTYPE).
@@ -95,8 +100,17 @@ def parse_gpx(data: bytes) -> list[tuple[int, float, float]]:
         raise ValueError("not a GPX file") from e
     if _local(root.tag) != "gpx":
         raise ValueError("not a GPX file")
-    points = []
-    for n, pt in enumerate((el for el in root.iter() if _local(el.tag) == "trkpt"), start=1):
+    segments: list[list[tuple[int, float, float]]] = []
+    n = 0
+    for pt in root.iter():
+        if _local(pt.tag) == "trkseg":
+            segments.append([])
+            continue
+        if _local(pt.tag) != "trkpt":
+            continue
+        n += 1
+        if not segments:
+            segments.append([])
         try:
             lat, lon = float(pt.attrib["lat"]), float(pt.attrib["lon"])
         except (KeyError, ValueError) as e:
@@ -110,10 +124,11 @@ def parse_gpx(data: bytes) -> list[tuple[int, float, float]]:
             t_ms = parse_time(time)
         except ValueError as e:
             raise ValueError(f"point {n}: {e}") from e
-        points.append((t_ms, round(lat, 6), round(lon, 6)))
-    if not points:
+        segments[-1].append((t_ms, round(lat, 6), round(lon, 6)))
+    segments = [seg for seg in segments if seg]
+    if not segments:
         raise ValueError("the GPX file has no track points")
-    return points
+    return segments
 
 
 def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -144,6 +159,24 @@ def clip(points, bbox, margin_m, from_ms, to_ms):
     return kept, out_area, out_window
 
 
+def clip_segments(segments, bbox, margin_m, from_ms, to_ms):
+    """As clip, per segment; a dropped point splits its segment, so no place is ever drawn across it."""
+    out, out_area, out_window = [], 0, 0
+    for seg in segments:
+        current = []
+        for p in seg:
+            kept, a, w = clip([p], bbox, margin_m, from_ms, to_ms)
+            out_area, out_window = out_area + a, out_window + w
+            if kept:
+                current.append(p)
+            elif current:
+                out.append(current)
+                current = []
+        if current:
+            out.append(current)
+    return out, out_area, out_window
+
+
 def check_speed(points, max_mps: float) -> None:
     """Raises when a point is not later than the one before it, or was reached faster than max_mps."""
     for i in range(1, len(points)):
@@ -168,6 +201,10 @@ def position_at(track, t_ms: int, max_gap_ms: int = MAX_GAP_MS):
     """(lat, lon) at t_ms on the straight line between the two points around it; None outside the track or in a gap."""
     if not track or t_ms < track[0][0] or t_ms > track[-1][0]:
         return None
+    # A recorded fix at that moment is the place, whatever the gaps around it.
+    for t, lat, lon in track:
+        if t == t_ms:
+            return (lat, lon)
     for (t0, la0, lo0), (t1, la1, lo1) in zip(track, track[1:]):
         if t0 <= t_ms <= t1:
             if t1 - t0 > max_gap_ms:
@@ -177,24 +214,46 @@ def position_at(track, t_ms: int, max_gap_ms: int = MAX_GAP_MS):
     return (track[-1][1], track[-1][2]) if t_ms == track[-1][0] else None
 
 
+def position_in(segments, t_ms: int):
+    """The place at t_ms in the one segment whose time span holds it; None between segments, outside or in a gap."""
+    for seg in segments:
+        if seg and seg[0][0] <= t_ms <= seg[-1][0]:
+            return position_at(seg, t_ms)
+    return None
+
+
+def _number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
 def team_samples(run: dict) -> list[dict]:
-    """Each searcher report placed by its phone's GPS, at the phone's time plus the phone's measured clock offset."""
-    offsets = {d["deviceId"]: d.get("clockOffsetMs") or 0 for d in run.get("devices", [])}
+    """Each searcher report placed by its phone's GPS, at the phone's time plus the phone's measured clock offset.
+
+    A phone whose offset was never measured is taken at its own clock and marked clockChecked False, so the line can
+    say so. A report whose place is not two numbers is skipped; an accuracy that is not a number is dropped.
+    """
+    offsets = {d["deviceId"]: d.get("clockOffsetMs") for d in run.get("devices", [])}
     out = []
     for e in run.get("events", []):
         pos = e.get("position")
-        if e.get("role") != "searcher" or not e.get("teamId") or e.get("positionSource") != "gps" or not pos:
+        if e.get("role") != "searcher" or not e.get("teamId") or e.get("positionSource") != "gps" or not isinstance(pos, dict):
             continue
-        out.append({"teamId": e["teamId"], "eventId": e["eventId"], "tMs": e["clientTimeMs"] + offsets.get(e["deviceId"], 0),
-                    "lat": pos["lat"], "lon": pos["lon"], "accuracyM": pos.get("accuracyM")})
+        if not (_number(pos.get("lat")) and _number(pos.get("lon")) and _number(e.get("clientTimeMs"))):
+            continue
+        offset = offsets.get(e["deviceId"])
+        checked = _number(offset)
+        acc = pos.get("accuracyM")
+        out.append({"teamId": e["teamId"], "eventId": e["eventId"], "tMs": e["clientTimeMs"] + (offset if checked else 0),
+                    "lat": pos["lat"], "lon": pos["lon"], "accuracyM": acc if _number(acc) and acc >= 0 else None,
+                    "clockChecked": checked})
     return out
 
 
-def closest_passes(track, samples) -> list[dict]:
+def closest_passes(segments, samples) -> list[dict]:
     """Per team, sorted by team id: its report nearest to her at that moment (ties to the earlier report)."""
     best: dict[str, tuple[float, int, dict]] = {}
     for s in samples:
-        here = position_at(track, s["tMs"])
+        here = position_in(segments, s["tMs"])
         if here is None:
             continue
         d = distance_m(here[0], here[1], s["lat"], s["lon"])
@@ -202,7 +261,8 @@ def closest_passes(track, samples) -> list[dict]:
         if s["teamId"] not in best or key < best[s["teamId"]][:2]:
             best[s["teamId"]] = (d, s["tMs"], s)
     return [
-        {"teamId": team, "eventId": s["eventId"], "distanceM": round(d), "atMs": s["tMs"], "accuracyM": s["accuracyM"]}
+        {"teamId": team, "eventId": s["eventId"], "distanceM": round(d), "atMs": s["tMs"], "accuracyM": s["accuracyM"],
+         "clockChecked": s["clockChecked"]}
         for team, (d, _, s) in sorted(best.items())
     ]
 
@@ -259,22 +319,33 @@ def main(argv: list[str] | None = None, repo_root: Path = REPO) -> int:
         gpx_path = Path(args.gpx)
         if gpx_path.stat().st_size > MAX_GPX_BYTES:
             raise ValueError(f"the GPX file is larger than {MAX_GPX_BYTES} bytes")
-        points = parse_gpx(gpx_path.read_bytes())
-        kept, out_area, out_window = clip(points, grid["bbox"], MARGIN_M, from_ms, to_ms)
+        segments = read_gpx(gpx_path.read_bytes())
+        read_count = sum(len(seg) for seg in segments)
+        kept, out_area, out_window = clip_segments(segments, grid["bbox"], MARGIN_M, from_ms, to_ms)
         if not kept:
             raise ValueError("no point of the track is inside the drill area and window")
-        check_speed(kept, MAX_SPEED_MPS)
-        track = thin(kept, THIN_MS)
+        for seg in kept:
+            check_speed(seg, MAX_SPEED_MPS)
+        check_speed([p for seg in kept for p in seg], float("inf"))  # times run forward across segments too
+        # Passes are measured on every kept point; only the written track is thinned.
+        thinned = [thin(seg, THIN_MS) for seg in kept]
     except (OSError, ValueError, KeyError) as e:
         print(f"import_track: stopped, nothing written: {e}", file=sys.stderr)
         return 1
-    passes = closest_passes(track, team_samples(run))
+    passes = closest_passes(kept, team_samples(run))
+    points = [p for seg in thinned for p in seg]
+    # Where each segment after the first starts in the points, so a reader never draws across a stop.
+    breaks, at = [], 0
+    for seg in thinned[:-1]:
+        at += len(seg)
+        breaks.append(at)
     _write(track_out, {"version": 1, "source": args.source, "gridId": grid["gridId"], "runId": run["runId"],
-                       "points": [[t, lat, lon] for t, lat, lon in track]})
+                       "points": [[t, lat, lon] for t, lat, lon in points], "breaks": breaks})
     _write(passes_out, {"version": 1, "runId": run["runId"], "source": args.source, "basis": "reports",
-                        "trackFromMs": track[0][0], "trackToMs": track[-1][0], "passes": passes})
-    print(f"import_track: kept {len(track)} of {len(points)} points ({out_area} outside the drill area, {out_window} outside "
-          f"the window, {len(kept) - len(track)} thinned to one per {THIN_MS // 1000} s); {len(passes)} team passes; "
+                        "trackFromMs": points[0][0], "trackToMs": points[-1][0], "passes": passes})
+    kept_count = sum(len(seg) for seg in kept)
+    print(f"import_track: kept {len(points)} of {read_count} points ({out_area} outside the drill area, {out_window} outside "
+          f"the window, {kept_count - len(points)} thinned to one per {THIN_MS // 1000} s); {len(passes)} team passes; "
           f"track in {track_out}, passes in {passes_out}")
     return 0
 
