@@ -37,8 +37,9 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/incidents/$(incidentId)/removed/$(request.auth.uid));
     }
     // A closed incident stays readable to its members but takes no new events or plans.
+    // A missing status counts as open, as the apps and the Storage rules read it.
     function isOpen(incidentId) {
-      return incidentData(incidentId).status != 'closed';
+      return incidentData(incidentId).get('status', 'open') != 'closed';
     }
     function role() {
       return request.auth.token.role;

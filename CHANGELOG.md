@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: isOpen counts a missing status as open (get('status', 'open')), as the apps and the Storage rules read it, so
+  an incident with no status field still takes clip readings, reports and plans. The closed-incident reading test now
+  proves its point: a valid completion succeeds on an open record and the same completion is refused after the close.
+  Source: review (cross-family, round 1 on closed-incident writes). Verified: a no-status case failed first, then
+  passes; the completion test fails if the open check is dropped; all 177 rules tests pass. Every live incident has a
+  status.
 - rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
   data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
   mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
