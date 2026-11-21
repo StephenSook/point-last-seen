@@ -82,7 +82,8 @@ test("the judge page says what the product is in one line and links home", { tag
 // The replay step's target depends on the run file, so each test waits for the file to settle before reading hrefs.
 async function routeLinksLand(page: Page): Promise<string[]> {
   const steps = page.getByRole("list", { name: "Three minutes, in order" }).getByRole("link");
-  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "Get this laptop ready", "See the cloud model"]);
+  // In the page's own order: the cloud model section comes before the laptop one.
+  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "See the cloud model", "Get this laptop ready"]);
   const hrefs = await steps.evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
   for (const href of hrefs) {
     expect(href).toMatch(/^#[a-z0-9-]+$/);

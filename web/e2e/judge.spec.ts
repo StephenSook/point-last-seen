@@ -47,6 +47,14 @@ test("the judge page links the iPhone's recorded runs and the test matrix, and n
   await expect(nav.getByRole("link", { name: "iPhone test runs" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/tree/main/docs/evidence/ios");
   await expect(nav.getByRole("link", { name: "Which model ran where" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/blob/main/docs/TEST-MATRIX.md");
   await expect(nav.getByRole("link", { name: /TestFlight/ })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Android family app" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/releases/tag/android-judge");
+});
+
+test("the numbered route follows the page's own order of sections", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const targets = await page.getByRole("list", { name: "Three minutes, in order" }).getByRole("link").evaluateAll((as) => as.map((a) => a.getAttribute("href")!.slice(1)));
+  const tops = await Promise.all(targets.map((id) => page.locator(`[id="${id}"]`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY)));
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
 });
 
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {

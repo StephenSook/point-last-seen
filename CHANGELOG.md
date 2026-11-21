@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Judge page: links the published Android release (android-judge, point-last-seen-family-424e5f9c.apk with its SHA-256
+  file) as "Android family app" (ANDROID_RELEASE_URL in web/src/judge/judge.ts), and the numbered three-minute route
+  now follows the page's own order, the cloud model before the laptop step. README's Android row points at the
+  release. Source: review (judge reachability; live QA of the route order). Verified: the release page and the APK
+  answer 200 to a signed-out request; the new unit test and the e2e checks for the Android link and the route order
+  failed first, then pass; web typecheck, 923 unit tests, the build and 34 no-backend browser checks pass.
 - Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
   (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
   web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead

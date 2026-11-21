@@ -115,8 +115,8 @@ export function JudgePage() {
       <ol aria-label="Three minutes, in order" className="judge-route">
         <li><a href="#practice-h">Try a practice search</a></li>
         <li><a href={runFile ? "#extras-replay-h" : "#d1-h"}>Watch the drill replay</a></li>
-        <li><a href="#d2-h">Get this laptop ready</a></li>
         <li><a href="#model-h">See the cloud model</a></li>
+        <li><a href="#d2-h">Get this laptop ready</a></li>
       </ol>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
