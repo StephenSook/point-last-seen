@@ -234,3 +234,17 @@ test("zooming in on a small map brings codes back: the fit is decided again on e
   await page.evaluate(() => (window as unknown as { harnessMap: { zoomIn: (o: { duration: number }) => void } }).harnessMap.zoomIn({ duration: 0 }));
   await expect.poll(async () => (await cellFit(page)).filter((c) => c.code !== null && c.code.right <= c.cx - c.cap - 3 + 0.5).length).toBeGreaterThan(before);
 });
+
+test("on a phone the walker model's sentence sits across the foot of the map, not down its left edge", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/harness/map.html?note");
+  const note = page.getByTestId("map-note");
+  await expect(note).toBeVisible();
+  const n = (await note.boundingBox())!;
+  const mapBox = (await page.getByTestId("map").boundingBox())!;
+  // One or two lines across the map's width, inside the map, clear of the credit line below it.
+  expect(n.height).toBeLessThanOrEqual(40);
+  expect(n.width).toBeGreaterThan(mapBox.width * 0.6);
+  const credit = (await page.getByTestId("map-credit").boundingBox())!;
+  expect(n.y + n.height).toBeLessThanOrEqual(credit.y + 1);
+});

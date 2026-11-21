@@ -2042,3 +2042,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ANDROID_RELEASE_URL` is GitHub's `/releases/latest` instead of a fixed tag, so a new judge build (android-judge-2 and later) needs no code change. A new browser check asks GitHub for that URL signed out and requires a 200, a final address on an `android-judge` or `android-judge-N` tag, and a `point-last-seen-family-<sha>.apk` asset on the page.
 - Source: review (android-judge-2 was published; the link should follow the newest build).
 - Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).
+
+### fix(map): on a phone the walker model's sentence spans the foot of the map
+- What: at phone width the walker model's sentence under the map ("The walker model is a prior for planning. It does not predict where a person is.") spans the map's width just above the credit line, in one or two lines; it was held to the map's width minus 320 px, a column about 70 px wide that ran down the map's left edge. The laptop layout is unchanged. The map harness gains `?note`.
+- Source: UI review (on a phone the walker caption box covered the map's left edge).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` (at 390 by 844 the sentence is at most 40 px tall, wider than 60% of the map, and clear of the credit line) failed first (138 px tall), then passed with the other map checks (16); typecheck, web unit suite and the hygiene guard pass.
