@@ -66,6 +66,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY row 6: the four server prompt templates are locked, with the read-back: locked true and the same template
+  text by SHA-256, an identical-text write refused (HTTP 400 FAILED_PRECONDITION), template calls still answering 200
+  after the lock, and the publish dry run matching the repository. Source: review (Firebase recommends locking
+  templates used in production). Verified: GET of each template after modifyLock; the refused PATCH; serviceruntime
+  request counts per minute (TemplateGenerateContent 200 at 01:56:52Z and 01:57:52Z); scripts/template_publish.py dry
+  run.
 - README, judges line: the published run is described in the judge card's own words again (the run file's label:
   Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19), not a separate count. Source:
   review (the README and the judge card must say the same thing). Verified: the README contains the label text of the
