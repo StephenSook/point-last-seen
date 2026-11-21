@@ -2331,3 +2331,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `memberRows` kept the first role it saw for an account, so a searcher who later joined as command (or the caller's own earlier reports) still got Remove from this drill while the members records were loading or refused. It now leaves out the caller (the command post passes its own uid) and any account with a command members record or any command event, whichever came first.
 - Source: review (Codex: the panel can offer to remove the caller or another command account).
 - Verified: a new unit test in `members.test.ts` (the caller, an account with a later command event, and an account with a command record are all left out) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(data): two people in the People list never share a label
+- What: people with the same label were told apart by the last four characters of their id, so two ids ending alike gave two identical rows (and confirms) that removed different people. The ending now grows, two characters at a time, until every label in the group is distinct.
+- Source: review (Codex: two people can have identical labels and confirmations).
+- Verified: a new unit test in `members.test.ts` (two ids with the same last four characters get distinct labels) failed first, then passed with the whole file (8); the hygiene guard passes.

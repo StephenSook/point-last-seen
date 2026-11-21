@@ -32,7 +32,8 @@ export type MemberRow = { uid: string; role: "searcher" | "family"; teamId: stri
  * Everyone command can remove: the members records joined with the authors of the incident's events (an account that
  * joined before the records existed is known only by what it wrote). Never listed: the caller, and any account ever
  * seen as command (in a members record or in any of its events, whichever came first). A members record wins over an
- * event for role and team. Two people with the same label are told apart by the last four characters of their id. Removed members come last.
+ * event for role and team. People with the same label are told apart by the end of their id, longer until every label
+ * is distinct. Removed members come last.
  */
 export function memberRows(
   members: Readonly<Record<string, MemberDoc>>,
@@ -58,9 +59,14 @@ export function memberRows(
     const label = k.role === "family" ? "Family member" : `${name(k.teamId)} searcher`;
     rows.push({ uid, role: k.role, teamId: k.teamId, label, removed: removed.has(uid) });
   }
-  const count = new Map<string, number>();
-  for (const r of rows) count.set(r.label, (count.get(r.label) ?? 0) + 1);
-  for (const r of rows) if ((count.get(r.label) ?? 0) > 1) r.label = `${r.label} (${r.uid.slice(-4)})`;
+  const groups = new Map<string, MemberRow[]>();
+  for (const r of rows) groups.set(r.label, [...(groups.get(r.label) ?? []), r]);
+  for (const [label, group] of groups) {
+    if (group.length < 2) continue;
+    let n = 4;
+    while (n < 128 && new Set(group.map((r) => r.uid.slice(-n))).size < group.length) n += 2;
+    for (const r of group) r.label = `${label} (${r.uid.slice(-n)})`;
+  }
   return rows.sort((a, b) => Number(a.removed) - Number(b.removed) || a.label.localeCompare(b.label));
 }
 

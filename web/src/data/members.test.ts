@@ -71,4 +71,11 @@ describe("memberRows: never the caller or a command account, and never two ident
     );
     expect(rows.map((r) => r.uid)).toEqual(["s3"]);
   });
+  it("lengthens the id ending until every label is distinct", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows({ "aa001111": { role: "searcher", team: "T1" }, "bb001111": { role: "searcher", team: "T1" } }, [], new Set(), teams, null);
+    const labels = rows.map((r) => r.label);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels).toEqual(["Team 1 searcher (aa001111)", "Team 1 searcher (bb001111)"]);
+  });
 });
