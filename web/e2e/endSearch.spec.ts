@@ -1,10 +1,10 @@
 import { expect, test, withDebugToken } from "./fixtures";
 
-// Ends a fresh practice copy (a throwaway judge incident), never the test drill: closing is final. It costs one
-// practice search per run.
+// Ends a fresh practice copy (a throwaway judge incident), never the test drill: closing is final. It costs one of
+// the judges' practice searches per run, so it is tagged @quota and runs only with PLS_ALLOW_QUOTA=1.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test("command ends a practice search with a reason; the post says so, stops taking reports, and keeps it after a reload", async ({ page }) => {
+test("command ends a practice search with a reason; the post says so, stops taking reports, and keeps it after a reload", { tag: "@quota" }, async ({ page }) => {
   test.setTimeout(180_000);
   await withDebugToken(page);
   await page.goto("/judge");
