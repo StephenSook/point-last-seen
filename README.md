@@ -34,7 +34,8 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 - The sheet and radio cards can print the names the person answers to and the approach notes (one box, off by
   default)
 - Replay of the event log over time, from the current prior onward
-- Terrain display layer (USGS 3DEP; display only; the prior has no elevation term), for the Kennesaw drill grid only
+- Terrain (USGS 3DEP), for the Kennesaw drill grid only: a display layer, and a Downhill and level ground prior layer,
+  off by default (ISRID dementia shares, Lost Person Behavior p. 164; `docs/LIMITS.md`)
 
 ## How the models are called
 

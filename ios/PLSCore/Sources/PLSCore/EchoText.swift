@@ -51,6 +51,14 @@ public enum EchoText {
         route.reason == .notEnglish ? "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing." : nil
     }
 
+    /// Under a report read from a photo: it was read on the phone and the photo was not kept, and when code found it
+    /// like the family's description, that too. Nil for any other report.
+    public static func photoLine(inputMethod: InputMethod, reading: JSONValue?) -> String? {
+        guard inputMethod == .photo else { return nil }
+        let kept = "Read from a photo on this phone. The photo was not kept."
+        return reading?["matchesProfile"] == .string(ProfileMatch.consistent.rawValue) ? kept + " Like the family's description." : kept
+    }
+
     /// Why the router chose a route, in plain words for the route check screen.
     public static func reasonWords(_ reason: RouteReason) -> String {
         switch reason {

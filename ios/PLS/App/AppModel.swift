@@ -1,3 +1,4 @@
+import CoreGraphics
 import FirebaseAuth
 import FirebaseFirestore
 import Foundation
@@ -28,6 +29,12 @@ final class AppModel {
     /// Apple's model and, when allowed, Gemini through Firebase AI Logic.
     typealias ReadReport = @MainActor (String, ReportSituation, RemoteConfigValues, EvidenceScreen) async -> ReadOutcome
     private let readReport: ReadReport
+    /// Reads one photo on Apple's model, on the phone; and whether this phone can (seams for tests).
+    typealias ReadPhoto = @MainActor (CGImage, @escaping @Sendable () -> Bool) async -> PhotoReadResult
+    private let readPhoto: ReadPhoto
+    private let photoReaderAvailable: () -> Bool
+    /// The searcher's GPS fix (a seam for tests; the default asks Core Location).
+    private let fixOverride: (@MainActor (TimeInterval) async -> Position?)?
 
     /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
     private let joinBackend: JoinBackend
@@ -72,6 +79,9 @@ final class AppModel {
     @ObservationIgnored private var planWatchId = 0
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
+    /// Counts every time the mission is dropped (never on a reload of the same one): a report read across a drop is
+    /// not journalled, even when the same mission was loaded again meanwhile.
+    @ObservationIgnored private var missionDrops = 0
     /// The incident and team the server's claims grant this phone, kept when the mission could not
     /// be read, so it can be read again without sending the code again.
     private var membership: (incidentId: String, teamId: String)?
@@ -88,6 +98,9 @@ final class AppModel {
          nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
          measurements: MeasurementWriter? = nil,
          readReport: ReadReport? = nil,
+         readPhoto: ReadPhoto? = nil,
+         photoReaderAvailable: (() -> Bool)? = nil,
+         fixPosition: (@MainActor (TimeInterval) async -> Position?)? = nil,
          joinBackend: JoinBackend? = nil,
          missionReader: MissionReader? = nil,
          pushTopics: PushTopics? = nil,
@@ -106,6 +119,9 @@ final class AppModel {
         self.uid = uid
         self.nowMs = nowMs
         self.measurements = measurements
+        self.readPhoto = readPhoto ?? { await PhotoReader.read($0, stillCurrent: $1) }
+        self.fixOverride = fixPosition
+        self.photoReaderAvailable = photoReaderAvailable ?? { PhotoReader.available }
         self.readReport = readReport ?? { text, situation, config, screen in
             await ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
                 .read(text, situation: situation)
@@ -182,7 +198,12 @@ final class AppModel {
     var cloudConsent = false { didSet { refreshGate() } }
     /// Whether this phone has the cloud route (iOS 27); without it the live gate keeps the cloud off (a seam for tests).
     var cloudRouteAvailable = ModelSessionFactory.cloudRouteSupported { didSet { refreshGate() } }
-    private(set) var mission: Mission?
+    private(set) var mission: Mission? { didSet { missionKey.set(MissionKey(mission)) } }
+    /// Words that were not sent because the team changed meanwhile; Send stays off for them until they are edited or
+    /// the searcher taps "Send to my new team".
+    private(set) var heldForReview: String?
+    /// The mission on screen as a key any thread can read (a report's check before each model call).
+    @ObservationIgnored let missionKey = MissionKeyBox()
     private(set) var store: EventStore?
     private(set) var sending = false
     /// The last GPS fix this phone got; the screen theme uses it to know when it is dusk here.
@@ -477,6 +498,12 @@ final class AppModel {
         dropMissionNow()
     }
 
+    /// Ready check's sign-in line; nil in the practice drill, which never signs in, so a tester is not told to sign in.
+    var signInLine: String? {
+        guard mission?.isPractice != true else { return nil }
+        return signedIn ? "Signed in" : "Not signed in. Stay in signal."
+    }
+
     static let leaveBlocked = "Some reports have not reached command yet. Stay in signal until each one says Delivered, then leave."
 
     /// True while a report from this phone is not settled with the server. Its write waits in this
@@ -576,8 +603,9 @@ final class AppModel {
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
     private func dropMission() async { dropMissionNow() }
 
-    private func dropMissionNow() {
+    func dropMissionNow() {
         missionGeneration += 1
+        missionDrops += 1
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
@@ -870,28 +898,53 @@ final class AppModel {
     /// journaled on this phone, the same words when it was not, so nothing the searcher said is lost.
     func submit(_ text: String, inputMethod: InputMethod) async -> String {
         guard !sending else { return text }
-        return await send(text, inputMethod: inputMethod) ? "" : text
+        // Words kept because the team changed while they were sending go out again only through "Send to my new team",
+        // or once the searcher has edited them: a plain second tap would file them under the new team unread.
+        if let held = heldForReview {
+            if held == text { problem = Self.teamChanged; return text }
+            heldForReview = nil
+        }
+        let sent = await send(text, inputMethod: inputMethod)
+        if !sent, problem == Self.teamChanged { heldForReview = text }
+        return sent ? "" : text
+    }
+
+    /// The searcher checked the new task and sends the kept words to the team now on screen.
+    func sendToNewTeam(_ text: String, inputMethod: InputMethod) async -> String {
+        heldForReview = nil
+        return await submit(text, inputMethod: inputMethod)
     }
 
     /// Reads the report, builds the one event and journals it. The Firestore write is never
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
-        guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
-        if !mission.isPractice { await trySignIn() }
+        // Each send starts with no message, so an earlier one never stands for this attempt's outcome.
+        problem = nil
+        guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
+        let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         refreshGate()
         let submittedAt = nowMs()
 
-        let position = await location.fix(timeout: 10)
+        let position = await positionFix(10)
         if let position { lastFix = position }
-        let situation = ReportSituation(
+        // The mission may have changed while the fix was awaited: then no model reads this report.
+        let current = stillCurrent(mission)
+        guard current() else { problem = Self.teamChanged; return false }
+        var situation = ReportSituation(
             incidentMode: mission.mode, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds,
             positionSegmentId: position.flatMap { Geo.segment(containing: $0, in: mission.grid) },
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
             liveGate: { [gate] in gate.current }, subjectNames: Self.subjectNames(mission))
+        situation.stillCurrent = current
         let outcome = await readReport(text, situation, config, screen)
         let readDone = nowMs()
         switch outcome.cloudTransport {
@@ -901,7 +954,7 @@ final class AppModel {
         }
 
         return journal(outcome, rawText: text, inputMethod: inputMethod, position: position, mission: mission, uid: uid,
-                       identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
+                       identity: identity, store: store, drops: drops, submittedAt: submittedAt, readDone: readDone)
     }
 
     /// The subject's names from the shared profile, for the found-kind rule only; they never reach a model.
@@ -958,28 +1011,110 @@ final class AppModel {
         return await readReport(Self.routeCheckSentence(mission), situation, config, screen)
     }
 
-    /// A report the searcher picked from the list: no model runs, the person's choices stand.
-    func submitPick(_ choice: PickListChoice) async -> Bool {
-        guard !sending else { return false }
-        guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
-        if !mission.isPractice { await trySignIn() }
+    /// Whether `mission` is still the one on screen (incident, team and mode), as a check any thread can run.
+    func stillCurrent(_ mission: Mission) -> @Sendable () -> Bool {
+        let key = MissionKey(mission)
+        let box = missionKey
+        return { box.current == key }
+    }
+
+    private func positionFix(_ timeout: TimeInterval) async -> Position? {
+        if let fixOverride { return await fixOverride(timeout) }
+        return await location.fix(timeout: timeout)
+    }
+
+    static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
+    static let teamChanged = "Your team changed while this was sending. Check your new task, then send again if it still applies."
+    static let photoReadBusy = "The last photo is still being read. Try again in a moment."
+
+    /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
+    var canReadPhoto: Bool { photoReaderAvailable() && mission.map { ReadPlan.modelModes.contains($0.mode) } == true }
+
+    /// A photo of something found: Apple's model describes it on the phone, and code makes the clue
+    /// (`PhotoClue`). A photo that shows a person, or that could not be read, sends nothing. The photo is
+    /// never kept or sent. True once the clue is in the journal.
+    func submitPhoto(_ image: CGImage) async -> Bool {
+        guard !sending, canReadPhoto else { return false }
+        guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
+        let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
         let submittedAt = nowMs()
-        let position = await location.fix(timeout: 10)
+        let position = await positionFix(10)
+        if let position { lastFix = position }
+        // Segments come from code: the one the searcher stands in, else the team's only one.
+        let segmentIds = position.flatMap { Geo.segment(containing: $0, in: mission.grid) }.map { [$0] }
+            ?? (mission.assignedSegmentIds.count == 1 ? mission.assignedSegmentIds : [])
+        let current = stillCurrent(mission)
+        guard current() else { problem = Self.teamChanged; return false }
+        let read = await readPhoto(image, current)
+        if case .busy = read {
+            problem = Self.photoReadBusy
+            return false
+        }
+        // The mission changed while the photo was read: nothing of it is kept.
+        guard current() else { problem = Self.teamChanged; return false }
+        guard case let .described(photo, modelName, latencyMs) = read else {
+            problem = Self.photoReadFailed
+            return false
+        }
+        switch PhotoClue.decide(photo, profile: mission.profile, segmentIds: segmentIds) {
+        case let .discarded(why):
+            problem = why
+            return false
+        case let .clue(clue):
+            // Possible evidence follows the evidence protocol, as a typed report does: command decides, no
+            // reading is stored, and the receipt shows how to handle it.
+            // The whole caption as the model gave it, before any cut, and the words as stored.
+            let evidence = screen.isPossibleEvidence(photo.object) || screen.isPossibleEvidence(clue.rawText)
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: evidence ? .evidenceProtocol : .guided, model: modelName,
+                                    reason: evidence ? .possibleEvidence : .onDeviceDefault, latencyMs: latencyMs,
+                                    sdkReported: false, blocked: nil, decidedAtMs: submittedAt)
+            let validation = ReadingValidator.validate(clue.reading, knownSegmentIds: mission.grid.map(\.segmentId), rawText: clue.rawText)
+            return journal(ReadOutcome(reading: clue.reading, route: route, validation: validation), rawText: clue.rawText, inputMethod: .photo,
+                           position: position, mission: mission, uid: uid, identity: identity, store: store, drops: drops,
+                           submittedAt: submittedAt, readDone: nowMs())
+        }
+    }
+
+    /// A report the searcher picked from the list: no model runs, the person's choices stand.
+    func submitPick(_ choice: PickListChoice) async -> Bool {
+        guard !sending else { return false }
+        guard let pending = mission, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
+        let drops = missionDrops
+        guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        sending = true
+        defer { sending = false }
+        let submittedAt = nowMs()
+        let position = await positionFix(10)
         if let position { lastFix = position }
         return journal(PickList.outcome(choice, nowMs: submittedAt), rawText: "", inputMethod: .picklist, position: position,
-                       mission: mission, uid: uid, identity: identity, store: store, submittedAt: submittedAt, readDone: submittedAt)
+                       mission: mission, uid: uid, identity: identity, store: store, drops: drops, submittedAt: submittedAt, readDone: submittedAt)
     }
 
     /// Builds the one event, journals it (the Firestore write is never awaited), recomputes the
     /// posterior and writes the timings. True once the event is in the journal.
     private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
-                         mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
+                         mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore, drops: Int,
                          submittedAt: Double, readDone: Double) -> Bool {
-        // The journal changed while the report was read (the practice drill ended): it goes nowhere.
-        guard store === self.store else { return false }
+        // The journal changed while the report was read (the practice drill ended), or the mission was dropped
+        // (the searcher left, the token stopped naming it, the account changed), even if it was loaded again
+        // since: it goes nowhere. The same mission reloaded or with a new plan, with no drop, keeps its report.
+        guard store === self.store, drops == missionDrops, let current = self.mission, current.incidentId == mission.incidentId,
+              current.teamId == mission.teamId, current.mode == mission.mode else { return false }
+        // The task that read it was cancelled: the report is not journalled, and its words stay in the field.
+        guard !Task.isCancelled else { return false }
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,

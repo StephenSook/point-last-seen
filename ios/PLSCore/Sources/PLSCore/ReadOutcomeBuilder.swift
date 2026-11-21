@@ -74,8 +74,10 @@ public enum ReadOutcomeBuilder {
         var reading = outcome.reading
         // Segment ids come from code, never the model (`SegmentChoice`): the ids the report
         // names, else the segment under this fix; with neither, the effect falls back to the
-        // team's assignment. An unknown id the report names is kept so the validator rejects it.
-        if outcome.route.stage != .picklist {
+        // team's assignment. An unknown id the report names is kept so the validator rejects it. A
+        // photo's words come from the model's caption, so they never name a segment: its segment is the
+        // one code chose (the fix's, or the team's only one).
+        if outcome.route.stage != .picklist && context.inputMethod != .photo {
             reading.segmentIds = SegmentChoice.ids(rawText: rawText, known: Array(context.effect.segments.keys),
                                                    positionSegmentId: ctx.positionSegmentId)
         }

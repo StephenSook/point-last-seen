@@ -29,6 +29,9 @@ struct ReportEchoView: View {
                 if let route = entry.doc.route, let refusal = EchoText.refusalLine(route) {
                     Text(refusal).font(.title3.weight(.semibold)).accessibilityIdentifier("refusal-line")
                 }
+                if let photo = EchoText.photoLine(inputMethod: entry.doc.inputMethod, reading: entry.doc.reading) {
+                    Text(photo).font(.title3.weight(.semibold)).accessibilityIdentifier("photo-line")
+                }
                 // A model's "found" read as a clue says so, always: the searcher checks the note.
                 if let reason = entry.foundKindReason {
                     Text(reason).font(.title3.weight(.semibold)).accessibilityIdentifier("found-kind-line")

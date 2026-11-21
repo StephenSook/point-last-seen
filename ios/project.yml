@@ -60,6 +60,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSLocationWhenInUseUsageDescription: Used to place your report on the search map.
+        NSCameraUsageDescription: Used to read a photo of something found, on this phone. The photo is not kept.
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
