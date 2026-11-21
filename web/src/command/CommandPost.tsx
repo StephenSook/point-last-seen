@@ -411,6 +411,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
   // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
   const ended = endedLine(incident?.status, incident?.closedReason, !view?.incidentPending);
+  // A form already open (or opened before another tab ended the search) goes too.
+  useEffect(() => {
+    if (!ended) return;
+    setAdding(false);
+    setClipping(false);
+    setPin(null);
+  }, [ended]);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -846,7 +853,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
-          {incident && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+          {incident && !ended && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />

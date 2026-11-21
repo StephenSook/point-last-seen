@@ -2326,3 +2326,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Firestore shows this browser's own pending write to the incident listener at once, so the post said "Search ended" (and dropped the confirm) before the server had accepted the close, and offline it said so while the server still took reports. The incident listener now reads metadata changes and reports `incidentPending`; `endedLine` takes whether the server has the close, and the post shows the ended line only then. Until the server acknowledges, the confirm stays up saying it is ending.
 - Source: review (Codex: the post shows a search as ended before the server accepts the close).
 - Verified: a new unit test in `endSearch.test.ts` (no ended line for a close the server does not have yet) failed first, then passed; typecheck, web unit suite (1152), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): ending a search closes any open report form and the first-report card
+- What: the add buttons were disabled once a search ended, but a sighting form or camera clip panel already open (or opened in another tab before the close) still offered Save and Confirm, and a practice search ended before its first report still offered "Add and confirm this report". Once the server has the close, the post now closes both forms and hides the first-report card.
+- Source: review (Codex: the closed post still offers writes).
+- Verified: the deployed check `e2e/endSearch.spec.ts` now opens Add sighting before ending the search and expects the form gone after; it runs after deploy. Typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.

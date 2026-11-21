@@ -11,6 +11,9 @@ test("command ends a practice search with a reason; the post says so, stops taki
   await page.getByRole("button", { name: "Try a practice search" }).click();
   await expect(page).toHaveURL(/\?incident=judge-/, { timeout: 60_000 });
   await expect(page.getByRole("button", { name: "Add sighting" }).first()).toBeEnabled({ timeout: 30_000 });
+  // A form left open when the search ends must go too.
+  await page.getByRole("button", { name: "Add sighting" }).first().click();
+  await expect(page.locator(".sighting-form")).toBeVisible();
   const details = page.getByTestId("rail-details");
   if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
   await page.getByRole("button", { name: "End this search" }).click();
@@ -18,6 +21,7 @@ test("command ends a practice search with a reason; the post says so, stops taki
   await page.getByRole("button", { name: "End search", exact: true }).click();
   const line = "Search ended: training ended. No new reports are taken.";
   await expect(page.getByTestId("ended-line")).toHaveText(line, { timeout: 30_000 });
+  await expect(page.locator(".sighting-form")).toHaveCount(0);
   for (const b of await page.getByRole("button", { name: "Add sighting" }).all()) await expect(b).toBeDisabled();
   await expect(page.getByRole("button", { name: "Add camera clip" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "End this search" })).toHaveCount(0);
