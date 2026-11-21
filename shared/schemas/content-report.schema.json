@@ -60,7 +60,7 @@
     "#": {
       "ts": "pending:web/src/data/contentReports.ts#ContentReport",
       "ios": "pending:ios/PLSCore/Sources/PLSCore/ContentReport.swift#ContentReport",
-      "android": "pending:android/app/src/main/java/app/pointlastseen/family/data/ContentReport.kt#ContentReport"
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/ContentReport.kt#ContentReport"
     }
   }
 }

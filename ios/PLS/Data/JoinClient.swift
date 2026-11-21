@@ -37,6 +37,8 @@ protocol JoinBackend: Sendable {
     /// The token's claims, read fresh from the server when `forceRefresh` (so a team change since
     /// the last token counts), or the cached token's; nil with no signed-in user or when a refresh fails.
     func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]?
+    /// Deletes the signed-in caller's own account on the server; true only when the server says it did.
+    func deleteMyAccount() async -> Bool
 }
 
 enum JoinOutcome: Equatable, Sendable {
@@ -104,12 +106,16 @@ struct FirebaseJoinBackend: JoinBackend {
     let signIn: @MainActor () async -> Bool
     let callable: Callable
     let tokenClaims: TokenClaims
+    /// Whether Auth holds a user on this phone.
+    let hasUser: @Sendable () -> Bool
 
     init(signIn: @escaping @MainActor () async -> Bool, callable: @escaping Callable = FirebaseJoinBackend.firebaseCallable,
-         tokenClaims: @escaping TokenClaims = FirebaseJoinBackend.firebaseClaims) {
+         tokenClaims: @escaping TokenClaims = FirebaseJoinBackend.firebaseClaims,
+         hasUser: @escaping @Sendable () -> Bool = { Auth.auth().currentUser != nil }) {
         self.signIn = signIn
         self.callable = callable
         self.tokenClaims = tokenClaims
+        self.hasUser = hasUser
     }
 
     func ensureSignedIn() async -> Bool { await signIn() }
@@ -130,5 +136,25 @@ struct FirebaseJoinBackend: JoinBackend {
     func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? {
         guard let claims = (try? await tokenClaims(forceRefresh)) ?? nil else { return nil }
         return claims.mapValues(FirestoreJSON.value)
+    }
+
+    /// The deleteMyAccount callable, with the same limited-use App Check tokens and nothing sent: the server deletes
+    /// its caller. Only the server's ok counts as deleted, except that an account already gone (a delete whose reply
+    /// was lost) counts too, so leaving cannot get stuck: no user left on this phone, Auth answering that the user is
+    /// gone, or Auth having signed that user out during the call (it does so on exactly those answers).
+    func deleteMyAccount() async -> Bool {
+        guard hasUser() else { return true }
+        do {
+            return FirestoreJSON.value(try await callable("deleteMyAccount", Self.options, [:]))["ok"] == .bool(true)
+        } catch {
+            return Self.userIsGone(error) || !hasUser()
+        }
+    }
+
+    /// Auth's answers that the signed-in user no longer exists or can no longer be used; Auth signs the user out on each.
+    static func userIsGone(_ error: Error) -> Bool {
+        let e = error as NSError
+        let gone: [AuthErrorCode] = [.userNotFound, .userDisabled, .userTokenExpired, .invalidUserToken]
+        return e.domain == AuthErrorDomain && gone.contains { $0.rawValue == e.code }
     }
 }

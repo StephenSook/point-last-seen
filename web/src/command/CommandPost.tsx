@@ -45,6 +45,8 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
+import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
+import { MembersPanel } from "./MembersPanel";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
@@ -407,6 +409,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
+  // The people command can remove: the server's members records and the authors of the incident's reports.
+  const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
+  const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
+  // A refused read stops its listener for good, so the panel says the list may be out of date and offers no removal.
+  const [membersStale, setMembersStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids, () => setMembersStale(true))), [pls, incidentId, denied]);
+  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
   // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
   // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
@@ -1023,6 +1032,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
             {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
             {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
