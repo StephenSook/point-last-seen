@@ -167,6 +167,23 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect((await purge("DONE").get()).get("doneAt")).toBeInstanceOf(Timestamp);
   });
 
+  it("a drill once marked stale that later becomes due is purged, and a failed purge of it is finished next run", async () => {
+    await drill("BACK", closed(31));
+    const gone = await member("BACK");
+    await purge("BACK").set({ startedAt: Timestamp.fromMillis(NOW - 9 * DAY), closedAtMs: NOW - 40 * DAY, staleAt: Timestamp.fromMillis(NOW - 9 * DAY) });
+    const failing = {
+      listUsers: admin.auth.listUsers.bind(admin.auth),
+      getUsers: admin.auth.getUsers.bind(admin.auth),
+      deleteUsers: async (uids: string[]) => ({ successCount: 0, failureCount: uids.length, errors: uids.map((_, index) => ({ index, error: new Error("auth down") })) }),
+    } as unknown as A;
+    expect((await deleteEndedDrills(admin.db, bucket, failing, NOW)).failed).toEqual(["BACK"]);
+    expect((await inc("BACK").get()).exists).toBe(false);
+    const next = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW + DAY);
+    expect(next.deleted).toEqual(["BACK"]);
+    expect(await userExists(gone)).toBe(false);
+    expect((await purge("BACK").get()).get("doneAt")).toBeInstanceOf(Timestamp);
+  });
+
   it("one purge record that cannot be written does not stop the other drills' purges", async () => {
     await drill("OLD", closed(31));
     await drill("STALE", {});

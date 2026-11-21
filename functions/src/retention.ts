@@ -158,7 +158,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   };
   for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
-      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete() }, { merge: true });
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete(), staleAt: FieldValue.delete() }, { merge: true });
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {
         await deleteCodes(id);

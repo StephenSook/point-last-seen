@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention: starting a purge clears both done and stale marks, so a drill once marked stale that later becomes
+  due is retried by the next run when its purge fails partway. Source: review (second-model, fourth round). Verified:
+  a new test (a stale record, the drill due, sign-in deletes failing after the root is gone, then the next run) failed
+  first, then passes; functions suite 281.
 - LIMITS, Drill data retention: tombstones and the seed tool's refusal of a purged id, and the one race left open (a
   sign-in idle since the close that joins another incident in the instant before its delete; its person signs in again
   and rejoins with a code). Source: review. Verified against functions/src/retention.ts and tools/seed/seed_drill.py.
