@@ -3314,3 +3314,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
 - Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
 - Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+
+### chore(schemas): the content-report schema's web type is built
+- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
+- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
+- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.
