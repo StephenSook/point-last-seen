@@ -158,3 +158,18 @@ describe("removePhoneNumbers: coordinates and radio frequencies are search infor
   });
 });
 
+describe("removePhoneNumbers: a phone number written like a coordinate or a frequency", () => {
+  it("a coordinate's whole degrees never start with a zero, so a London number is not a latitude", () => {
+    for (const s of ["Call 020.79460958 / -020.79460959", "Call 020.79460958 | -0.1276", "Call 020.79460958, -0.1276"]) {
+      expect(removePhoneNumbers(s)).not.toMatch(/79460958/);
+    }
+    expect(removePhoneNumbers("GPS 0.1276, 51.5072")).toBe("GPS 0.1276, 51.5072");
+  });
+  it("a frequency is 25 to 999 with no leading zero, and one other group anywhere in the run removes it all", () => {
+    expect(removePhoneNumbers("Call 404.555 0.142")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 0.142 1234567")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 012.345")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Radio 27.185 155.160 462.550")).toBe("Radio 27.185 155.160 462.550");
+  });
+});
+

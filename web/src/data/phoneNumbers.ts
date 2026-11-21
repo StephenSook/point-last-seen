@@ -183,6 +183,8 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   const degrees = (whole: number, frac: number, max: number) => {
     if (!written(whole) || !written(frac) || gap(whole, frac) !== "." || len(whole) > 3 || len(frac) < 4 || len(frac) > 8) return false;
     if (!isAsciiNumber(text(whole)) || !isAsciiNumber(text(frac))) return false;
+    // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
+    if (text(whole).length > 1 && text(whole).startsWith("0")) return false;
     return Number(`${text(whole)}.${text(frac)}`) <= max;
   };
   const kept = new Set<number>();
@@ -216,9 +218,10 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
     if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.test(flat(gap(i + 1, i + 2), true)) && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
       for (const j of range(i, i + 3)) kept.add(j);
     }
-    // A radio frequency candidate (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a dotted
-    // chain (404.555.0142) and not after a "+". Kept below only when nothing but other frequencies joins it.
+    // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3 digits,
+    // not part of a dotted chain (404.555.0142) and not after a "+". Kept below only in a run of frequencies.
     if (written(i + 1) && gap(i, i + 1) === "." && len(i) <= 3 && len(i + 1) === 3 && isAsciiNumber(text(i)) && isAsciiNumber(text(i + 1))
+      && !text(i).startsWith("0") && between(Number(text(i)), 25, 999)
       && !(i > 0 && parts[i - 1]!.digits > 0 && gap(i - 1, i) === ".") && !(written(i + 2) && gap(i + 1, i + 2) === ".")
       && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
       frequencies.push(i);
@@ -228,17 +231,22 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
       kept.add(i + 1);
     }
   }
-  // A frequency is search information only in a run of frequencies: joined to any other digits (404.555-0142 #123,
-  // Radio 155.160 404 5550142) it could be part of a phone number, so it goes with the run.
-  const inFrequency = new Set(frequencies.flatMap((i) => [i, i + 1]));
-  const alone = (inside: number, outside: number) =>
-    outside < 0 || outside >= parts.length || inFrequency.has(outside)
-    || !joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!);
-  for (const i of frequencies) {
-    if (alone(i, i - 1) && alone(i + 1, i + 2)) {
-      kept.add(i);
-      kept.add(i + 1);
-    }
+  // A frequency is search information only in a run made of nothing but frequencies: joined anywhere in its run to other
+  // digits (404.555-0142 #123, 404.555 0.142 1234567) it could be part of a phone number, so it goes with the run.
+  // Candidates with a joined neighbour outside the set drop out until none does.
+  let live = frequencies;
+  for (;;) {
+    const inFrequency = new Set(live.flatMap((i) => [i, i + 1]));
+    const alone = (inside: number, outside: number) =>
+      outside < 0 || outside >= parts.length || inFrequency.has(outside)
+      || !joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!);
+    const next = live.filter((i) => alone(i, i - 1) && alone(i + 1, i + 2));
+    if (next.length === live.length) break;
+    live = next;
+  }
+  for (const i of live) {
+    kept.add(i);
+    kept.add(i + 1);
   }
   // Dates are found in order, so a date can overlap only the one before or after it in the list; overlaps cancel.
   const writtenDates = dates.filter((d, k) => !(k > 0 && dates[k - 1]!.last >= d.first) && !(k + 1 < dates.length && dates[k + 1]!.first <= d.last));

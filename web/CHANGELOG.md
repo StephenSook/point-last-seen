@@ -2154,3 +2154,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a radio frequency is kept only when nothing but other frequencies joins it, so a phone number never keeps a frequency's shape ("Call 404.555-0142 #123" had kept "404.555"; "Radio 155.160 404 5550142" is now removed whole). Two decimals across a semicolon, bullet, middle dot, bar or slash are a coordinate pair only with a minus after the mark ("GPS 33.7490 | -84.3880"); without one they can be two phone numbers ("020.79460958 / 020.79460959" had been kept whole). The comma rule is unchanged.
 - Source: review (cross-family, privacy).
 - Verified: both cases failed first, then pass; the coordinate and frequency keeps still pass; 89 draft shared cases and 350 data tests pass on the web.
+
+### fix(data): no zero-led degrees, and frequencies only in a run of frequencies
+- What: a coordinate's whole degrees never start with a zero (0.1276 still counts), so a London number written "020.79460958" next to a coordinate is removed, after a comma too. A radio frequency is 25 to 999 MHz with no leading zero, and a run keeps its frequencies only when every digit group in it is one: candidates with a joined neighbour outside the set drop out until none does ("Call 404.555 0.142 1234567" had kept "404.555").
+- Source: review (cross-family, privacy).
+- Verified: the new tests failed first, then pass; 94 draft shared cases and 1105 web unit tests (with the draft file) pass; the typecheck passes.
