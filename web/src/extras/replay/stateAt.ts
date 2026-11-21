@@ -71,6 +71,33 @@ export function frameKey(data: ReplayData, w: ReplayWindow, tMs: number): string
   return `${arrived}|${tMs >= w.priorInUseFromMs ? "prior" : "before"}|${plan}`;
 }
 
+/**
+ * A segment counts as changed by a report when its share moved by at least this many percentage points (ours). Every
+ * share moves a little when one does, as the map makes room; a move this size is one a person can see on the map.
+ */
+export const CHANGED_PP = 1;
+
+/**
+ * The segments whose share moved by at least CHANGED_PP points with the latest arrival at or before tMs, sorted by id.
+ * None where no map is stored, on the first stored map (no stored map just before it to compare with), or for a
+ * report that moved nothing (an unconfirmed sighting waits for command).
+ */
+export function changedSegments(data: ReplayData, tMs: number): string[] {
+  const now = stateAt(data, tMs);
+  if (now.phase !== "replayable") return [];
+  let latest = Number.NEGATIVE_INFINITY;
+  for (const e of now.shown) if (e.arrivedAtMs !== null) latest = Math.max(latest, e.arrivedAtMs);
+  if (!Number.isFinite(latest)) return [];
+  const before = stateAt(data, latest - 1);
+  if (before.phase !== "replayable") return [];
+  const p0 = before.view.result.poa;
+  const p1 = now.view.result.poa;
+  return data.segments
+    .map((s) => s.segmentId)
+    .filter((id) => Math.abs((p1[id] ?? 0) - (p0[id] ?? 0)) * 100 >= CHANGED_PP)
+    .sort();
+}
+
 /** Every event that had arrived by tMs (pending writes never), and, once the current prior is in use, its map. */
 export function stateAt(data: ReplayData, tMs: number): ReplayFrame {
   const shown = data.events.filter((e) => e.arrivedAtMs !== null && e.arrivedAtMs <= tMs);
