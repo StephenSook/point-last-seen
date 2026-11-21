@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README lists drill retention among the Cloud Functions, and LIMITS records that the job is live (since 2026-11-21
+  03:02 UTC) and that its first run, started by hand, deleted nothing because every drill was open. Source: review.
+  Verified: the deploy log, the live ruleset read back, the scheduler job ENABLED, a throwaway drill's closedAt equal
+  to its close commit time, and the run's log line (deleted 0, failed 0).
 - Drill retention keeps drill-test-1 until 2027-01-01, like drill-kennesaw-1: every live check and the daily probe use
   it, and the seed tool refuses a purged id, so an accidental close would have broken them inside judging. LIMITS and
   the production checklist list it. Source: review. Verified: the keep-list test failed first (drill-test-1 not kept),

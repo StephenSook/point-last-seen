@@ -240,7 +240,8 @@ each line says what the limit is and why.
 
 - A drill's data is deleted 30 days after the search command closes it: the incident with its events, plans,
   debriefs, consents and everything else under it, its clips, photos and packs, and its join codes.
-  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`). It writes a purge record
+  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`; live since 2026-11-21 03:02 UTC, and
+  its first run, started by hand, deleted nothing because every drill was open). It writes a purge record
   (`ops/drillPurges/items/{id}`, which no client can read or write) before deleting anything and marks it done only
   when every step succeeded, so a run that stops partway is finished by the next one, even after the incident itself
   is gone; a record whose incident id is in use again is marked stale and nothing of that incident is deleted. Done

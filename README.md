@@ -67,8 +67,8 @@ is missing.
   the listed models and bounds each reply.
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
-  rules; Cloud Functions (joining, judge sandboxes, media deletion, push notices); Remote Config; Cloud Messaging;
-  Hosting; Crashlytics and Performance on iPhone and Android, and Analytics on Android.
+  rules; Cloud Functions (joining, judge sandboxes, media deletion, drill retention, push notices); Remote Config;
+  Cloud Messaging; Hosting; Crashlytics and Performance on iPhone and Android, and Analytics on Android.
 - Apps: the web command post in React and Vite, offline with vite-plugin-pwa, with MapLibre GL maps on PMTiles
   basemaps from OpenStreetMap data; the iPhone app in SwiftUI with MapLibre Native, Live Activities (ActivityKit),
   App Intents and swift-crypto; the Android family app in Kotlin with Jetpack Compose (Material 3).
