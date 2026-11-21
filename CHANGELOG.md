@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone vectors: the iPhone takes the current Android rule (#157), so "ios" leaves pendingOn on its last five cases
+  (bare minus between decimals, an ordinal with no street word, and three times joined to digits) and no case is
+  pending on any platform; LIMITS states 52 of 52 on Android, the iPhone and the web. Source: the iPhone port.
+  Verified: with every mark cleared, the iPhone's PhoneNumber tests (32 tests), the web's phoneVectors.test.ts (53)
+  and Android's PhoneVectorsTest pass locally; scripts/test_phone_vectors.py checks the counts (6 passed).
 - A judge sandbox now counts as live only with an explicit `setupReady == true`: `firestore.rules` liveFor and
   `storage.rules` notExpired read `get('setupReady', false)`, and `deleteIncidentMediaNow` requires `setupReady ===
   true`. Before, a sandbox with no flag (made before setup was tracked) counted as ready; every such sandbox has

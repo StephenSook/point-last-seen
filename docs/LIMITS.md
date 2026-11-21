@@ -107,9 +107,8 @@ each line says what the limit is and why.
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
 - Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
-  47 and the web 52. Each platform's runner runs every case not marked pending for it. The iPhone is pending on five
-  (a bare minus between decimals, an ordinal with no street word after it, and three times joined to other digits)
-  until it takes the current Android rule (`scripts/test_phone_vectors.py` checks these counts against the file).
+  52 and the web 52. No case is pending on any platform (`scripts/test_phone_vectors.py` checks these counts
+  against the file).
 
 ## On-device safety (Android)
 
