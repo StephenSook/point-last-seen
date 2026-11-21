@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs: LIMITS says a stalled photo read can overlap the next one
+- What: the photo-clue section said no other photo read starts while a timed-out model call runs. The read now
+  frees its gate at the 30-second limit, so a stalled call can briefly overlap the next read. The line now says so.
+- Source: review (the gate change).
+- Verified: the gates pass.
+
 ### fix(ios): a report whose task was cancelled while it was read is not journalled
 - What: the journal adds a typed, picked or photo report only if the task that read it was not cancelled meanwhile.
   A photo read's model work runs in a task of its own, so cancelling the caller did not stop the report from being

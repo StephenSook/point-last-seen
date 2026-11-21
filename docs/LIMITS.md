@@ -163,7 +163,8 @@ each line says what the limit is and why.
 - Code, not the model, compares the object with the family's described items by kind and color. Anything it cannot
   read for sure is unknown, never consistent. A photo whose words could be evidence follows the evidence protocol.
 - A model call that runs past the 30-second limit keeps its own copy of the photo in memory until it ends (within
-  its output cap). The app releases its own reference and starts no other photo read meanwhile.
+  its output cap). At the limit the app releases its own reference, starts no further model call for that photo,
+  and lets the next photo be read, so a stalled call can briefly overlap the next read.
 - NOT VERIFIED: the camera on a real iPhone. The person question on real photos: on the simulator it answered no on
   two object photos and yes on one public-domain portrait. Whether the system photo picker caches the photo. The app
   covers its screen when it leaves the foreground with the picker open, but what iOS keeps for the app switcher was
