@@ -239,17 +239,16 @@ public enum ReadOrchestrator {
                     let v = validate(r, context, text)
                     if v.isOK {
                         // Numbers the model left empty come from the rules, checked once the model's reading is valid.
-                        let (stated, filled) = Self.statedNumbers(r, from: parse(text, context))
-                        guard filled else { return finish(r, path: path, stage: .guided) }
-                        let vf = validate(stated, context, text)
-                        if vf.isOK {
-                            numbersFromRules = true
-                            return finish(stated, path: path, stage: .guided)
+                        switch Self.statedNumbers(r, from: parse(text, context), isValid: { validate($0, context, text).isOK }) {
+                        case let .kept(reading, fromRules):
+                            numbersFromRules = fromRules
+                            return finish(reading, path: path, stage: .guided)
+                        case .coverageRefused:
+                            // A coverage the report states that the app refuses is never silently dropped (the model's
+                            // effort numbers could then clear the area): the read goes on as the rules alone end it.
+                            notes.append("guided \(guidedPath.rawValue): stated coverage refused")
+                            next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                         }
-                        // A number the report states that the app refuses is never silently dropped (the model's
-                        // effort numbers could then clear the area): the read goes on as the rules alone would end it.
-                        notes.append("guided \(guidedPath.rawValue): stated number refused \(Self.reasons(vf))")
-                        next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                     } else {
                         notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
                         if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
@@ -317,16 +316,35 @@ public enum ReadOrchestrator {
         await Timeout.run(seconds: seconds, op)
     }
 
+    enum NumberFill {
+        /// The reading to use, and whether any of its numbers came from the rules.
+        case kept(ReportReading, fromRules: Bool)
+        /// The report states a coverage the app refuses.
+        case coverageRefused
+    }
+
     /// Apple's model leaves every number in its reading empty, even one the report states ("coverage 0.7" came back
     /// nil on the simulator), and a schema that made it fill each number got invented ones. So a number a model left
     /// empty is taken from the rules parser, which reads only numbers the report states; a model's own number stays.
-    /// True when any number was taken.
-    static func statedNumbers(_ reading: ReportReading, from parsed: ReportReading) -> (ReportReading, Bool) {
-        var r = reading, filled = false
-        if r.coverage == nil, let c = parsed.coverage { r.coverage = c; filled = true }
-        if r.minutes == nil, let m = parsed.minutes { r.minutes = m; filled = true }
-        if r.searchers == nil, let n = parsed.searchers { r.searchers = n; filled = true }
-        return (r, filled)
+    /// Numbers matter only to a cleared report, so nothing else is filled. A stated coverage the app refuses refuses
+    /// the read; a time or count the rules read out of range ("200 people at the entrance") is left out.
+    static func statedNumbers(_ reading: ReportReading, from parsed: ReportReading, isValid: (ReportReading) -> Bool) -> NumberFill {
+        guard reading.kind == .cleared else { return .kept(reading, fromRules: false) }
+        var r = reading, fromRules = false
+        if r.coverage == nil, let c = parsed.coverage {
+            r.coverage = c
+            guard isValid(r) else { return .coverageRefused }
+            fromRules = true
+        }
+        if r.minutes == nil, let m = parsed.minutes {
+            var t = r; t.minutes = m
+            if isValid(t) { r = t; fromRules = true }
+        }
+        if r.searchers == nil, let n = parsed.searchers {
+            var t = r; t.searchers = n
+            if isValid(t) { r = t; fromRules = true }
+        }
+        return .kept(r, fromRules: fromRules)
     }
 
     /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection

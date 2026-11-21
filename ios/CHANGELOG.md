@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): only a cleared report is filled, and only a stated coverage refuses the read
+- What: numbers matter only to a cleared report, so a sighting or clue is no longer filled from the rules ("There were
+  200 people at the entrance" no longer costs a valid sighting). In a cleared report, a stated coverage the app
+  refuses still refuses the read, but a time or count the rules read out of range is left out and the rest is kept.
+- Source: third review of the numbers fix.
+- Verified: tests for a sighting with a crowd count and for a misread count in a cleared report failed before the
+  change and pass after; 446 PLSCore tests pass.
+
 ### fix(ios-core): an explicit search time beats an "in N minutes" one
 - What: an "in N minutes" time with no cue word now counts only when the report states no other search time, so
   "pickup in 45 minutes. Search took 10 minutes." reads 10, while "cleared AE in 45 minutes" still reads 45. A unit

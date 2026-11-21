@@ -94,6 +94,21 @@ import Testing
         #expect(o.route.path == .rules && !o.validation.isOK && !o.numbersFromRules)
     }
 
+    /// Numbers matter only to a cleared report, so a sighting keeps its valid reading whatever the rules count.
+    @Test func aSightingIsNotFilled() async {
+        let text = "Saw her by the stadium in AE 10 minutes ago. There were 200 people at the entrance."
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(kind: .sighting, segmentIds: ["AE"], evidenceQuote: text))]
+        let o = await ReadOrchestrator.read(text: text, context: context(), runner: r, clock: FixedClock(ms: [1_000, 1_850]))
+        #expect(o.route.stage == .guided && o.reading.kind == .sighting && o.reading.searchers == nil && !o.numbersFromRules)
+    }
+
+    /// A time or count the rules misread out of range is left out; only a stated coverage refuses the read.
+    @Test func aMisreadCountIsLeftOutNotRefused() async {
+        let o = await modelRead("Cleared segment AE, coverage 0.7, 200 people at the trailhead.", ids: ["AE"])
+        #expect(o.route.stage == .guided && near(o.reading.coverage, 0.7) && o.reading.searchers == nil && o.numbersFromRules)
+    }
+
     /// The quote retry still sees only the model's own reasons: a refused stated number does not skip it.
     @Test func theQuoteRetryIsNotSkippedBecauseOfAFill() async {
         let text = "Cleared segment AE, coverage 400, nothing found."
