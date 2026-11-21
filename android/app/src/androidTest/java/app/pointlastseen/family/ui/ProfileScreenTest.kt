@@ -2,6 +2,7 @@ package app.pointlastseen.family.ui
 
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -106,6 +107,17 @@ class ProfileScreenTest {
         rule.onNodeWithText("She's gone").assertDoesNotExist()
         rule.onNodeWithText("Back").performScrollTo().performClick()
         assertEquals(1, back)
+    }
+
+    /** "She's gone" is the one big action; joining and a note sit side by side under it, smaller. */
+    @Test fun shesGoneLeadsAndTheOtherTwoShareARow() {
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), false, null, {}, {}, {}, gone = false, onBack = {}) } }
+        val gone = rule.onNodeWithText("She's gone").getBoundsInRoot()
+        val join = rule.onNodeWithText("Join with a code").getBoundsInRoot()
+        val note = rule.onNodeWithText("I remembered something").getBoundsInRoot()
+        assertTrue(gone.bottom <= join.top && gone.bottom <= note.top)
+        assertTrue(join.right <= note.left)
+        assertTrue((join.top - note.top).value * (join.top - note.top).value < 100f)
     }
 
     @Test fun joiningKeepsWhatWasTyped() {

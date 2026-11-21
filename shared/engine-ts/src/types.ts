@@ -309,6 +309,10 @@ export interface Debrief {
   tookMinutes: number;
   worked?: string;
   didNotWork?: string;
+  /** Coverage the team stated, in percent. Stated by the team; the engine never reads it. */
+  coverageStatedPct?: number;
+  clues?: string;
+  hazards?: string;
   byUid: string;
   /** Firestore server timestamp of the first write. */
   createdAt: unknown;

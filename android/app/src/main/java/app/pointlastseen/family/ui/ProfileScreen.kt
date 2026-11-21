@@ -135,8 +135,8 @@ fun ProfileScreen(
         } else {
             Sentence("Who might go missing?")
             MainAction("She's gone") { onGone(edited()) }
-            if (!joined) OtherAction("Join with a code") { onJoin(edited()) }
-            OtherAction("I remembered something") { onRemember(edited()) }
+            if (!joined) PairActions("Join with a code", { onJoin(edited()) }, "I remembered something", { onRemember(edited()) })
+            else OtherAction("I remembered something") { onRemember(edited()) }
         }
 
         Heading("Searchers see this")

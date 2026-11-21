@@ -45,8 +45,9 @@ Apple's; the app gets only the typed text.
 
 ## How long it is kept
 
-- Drill data stays in the drill's Firebase project until the developer deletes it. Nothing deletes it
-  automatically yet.
+- Drill data is deleted 30 days after the search command closes the drill. The four drills we use for
+  development, judging, testing and our film are deleted on January 1, 2027, or the next day if a step has to
+  be retried.
 - The practice drill keeps its reports on the phone only; they are never sent. Ending the practice drill
   deletes them from the phone.
 
