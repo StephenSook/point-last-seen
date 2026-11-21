@@ -82,6 +82,30 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: isOpen counts a missing status as open (get('status', 'open')), as the apps and the Storage rules read it, so
+  an incident with no status field still takes clip readings, reports and plans. The closed-incident reading test now
+  proves its point: a valid completion succeeds on an open record and the same completion is refused after the close.
+  Source: review (cross-family, round 1 on closed-incident writes). Verified: a no-status case failed first, then
+  passes; the completion test fails if the open check is dropped; all 177 rules tests pass. Every live incident has a
+  status.
+- rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
+  data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
+  mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
+  record, a photo upload the incident and the removal record. Source: review (closed-incident writes found during End
+  this search review). Verified: a storage case (after the close, a clip and a photo upload are refused and an
+  existing photo still reads) failed first, then passes; all 176 rules and Storage tests and the gates pass.
+- rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
+  and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
+  makes. Source: review (closed-incident writes found during End this search review). Verified:
+  rules/closedIncident.test.ts (a reading starts while open, not after the close; an open record cannot be completed
+  or taken over after it) failed first, then passes; all rules tests pass.
+- docs(limits): removing a member. Command removes a searcher or family member (removeMember): its app can no longer
+  read or write the search, open screens included (measured live: two open listeners refused within a second), and
+  that account cannot rejoin. The four remaining limits: a new sign-in rejoins until the role's code is replaced
+  (rotateJoinCode, which stops every older code of that role); media links already received keep working until the
+  drill's media is deleted; a clip upload in progress can finish within the hour; and an account that joined before
+  membership records began and has since joined another search cannot be removed for up to an hour. The Leave
+  paragraph no longer says command has no way to remove a member. Source: review (member removal, approved wording).
 - functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
   close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
   searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before
