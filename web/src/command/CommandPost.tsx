@@ -5,7 +5,7 @@ import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint,
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, clipCloudGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoOnDevice } from "../ai/photoCues";
+import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
 import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
@@ -534,7 +534,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   });
   const readPhotoHere = async (p: TrayPhoto) => {
     const t0 = Date.now();
-    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: 30_000 });
+    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: PHOTO_READ_TIMEOUT_MS });
     if (!("cues" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);
