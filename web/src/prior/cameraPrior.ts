@@ -7,7 +7,7 @@ import { buildCameraSighting, cameraReading, cameraStartPatch, type ClipFacts } 
 import { buildConfirmation, type CommandWriter } from "../data/sightings";
 import type { SegmentDoc } from "../data/incident";
 import type { LatLon } from "../map/geo";
-import { priorWrites, rebuildPrior, type PriorWrites } from "./rebuild";
+import { priorWrites, rebuildPrior, usableLayers, type PriorWrites } from "./rebuild";
 
 export type CameraPriorIncident = {
   gridId: string;
@@ -18,6 +18,8 @@ export type CameraPriorIncident = {
   priorVersion: number;
   priorInputEventIds?: string[];
   engineParams?: EngineParams;
+  /** Each segment's elevation in metres (the site's elevation file); needed when the elevation layer is on. */
+  elevationM?: Readonly<Record<string, number>>;
 };
 
 export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: CameraPriorIncident, cam: EventDoc, bearingDeg: number | null): PriorWrites {
@@ -26,9 +28,10 @@ export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: Cam
   const stored = incident.priorLayers ?? { linear: false, wedge: false };
   // The newest camera sighting decides the direction: with none, the wedge goes off (a stored
   // wedge with no bearing would make the rebuild refuse).
-  const layers = { ...stored, wedge: bearingDeg !== null };
+  // The elevation layer measures from the new start; where it cannot, the rebuild drops it rather than refusing.
+  const layers = usableLayers({ ...stored, wedge: bearingDeg !== null }, segments, ipp, incident.elevationM);
   const terrain = incident.terrain ?? "temperate_flat";
-  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain }, layers, bearingDeg, incident.engineParams);
+  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM }, layers, bearingDeg, incident.engineParams);
   const w = priorWrites(rebuilt, incident, layers, terrain);
   return { ...w, incident: { ...w.incident, priorModel: "rings", ipp, priorInputEventIds: patch.priorInputEventIds } };
 }

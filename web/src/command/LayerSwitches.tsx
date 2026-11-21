@@ -2,7 +2,7 @@
 // direction wedge as switches, and the distance table column. Each shows its source and
 // n. A change rebuilds the prior for every team (the match code changes), so it asks first.
 
-import type { PriorLayers, Terrain } from "@pls/engine";
+import { ELEVATION_PARAMS, type PriorLayers, type Terrain } from "@pls/engine";
 import { useEffect, useRef, useState } from "react";
 import { priorRefusalMessage } from "./postAccess";
 import { ringSourceLine, TERRAINS } from "./terrains";
@@ -16,6 +16,11 @@ type Props = {
   terrainNote?: unknown;
   /** A confirmed direction of travel exists (the wedge needs one). */
   hasBearing: boolean;
+  /**
+   * The site's elevation file loaded (the switch shows only then) and whether the start point's segment has an
+   * elevation (the layer measures from it).
+   */
+  elevation?: { available: boolean; startHasElevation: boolean };
   vehicleInvolved: boolean;
   /** The prior model in use; a layer rebuild always gives the ring prior. */
   model?: "rings" | "walkers";
@@ -23,7 +28,7 @@ type Props = {
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
 
-export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing, vehicleInvolved, model = "rings", onApply }: Props) {
+export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing, elevation, vehicleInvolved, model = "rings", onApply }: Props) {
   const note = typeof terrainNote === "string" ? terrainNote.trim().slice(0, 200) : "";
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
@@ -33,9 +38,18 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
   const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   // Follow the stored settings when they change (another seat, or this rebuild arriving).
-  useEffect(() => setDraft({ layers, terrain }), [layers.linear, layers.wedge, terrain]);
+  useEffect(() => setDraft({ layers, terrain }), [layers.linear, layers.wedge, layers.elevation, terrain]);
 
-  const changed = draft.layers.linear !== layers.linear || draft.layers.wedge !== layers.wedge || draft.terrain !== terrain;
+  const changed = draft.layers.linear !== layers.linear || draft.layers.wedge !== layers.wedge
+    || (draft.layers.elevation ?? false) !== (layers.elevation ?? false) || draft.terrain !== terrain;
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  // The switch shows where the site's elevation file loaded, and wherever the saved layer is on, so command can always
+  // turn a saved layer off; it turns on only where the engine can measure the start.
+  const showElevation = elevation?.available === true || layers.elevation === true;
+  const canTurnOnElevation = elevation?.available === true && elevation.startHasElevation && draft.terrain !== "urban";
+  const elevationWhyNot = !elevation?.available ? " This site's elevation file did not load; you can turn the layer off."
+    : draft.terrain === "urban" ? " Not used on urban terrain: the source has no urban split."
+    : !elevation.startHasElevation ? " Needs the start point inside a mapped segment that has an elevation." : "";
 
   function apply() {
     setError(null);
@@ -69,7 +83,14 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
         )}
         <label>
           Distance table
-          <select value={draft.terrain} onChange={(e) => setDraft((d) => ({ ...d, terrain: e.target.value as Terrain }))}>
+          <select
+            value={draft.terrain}
+            onChange={(e) => {
+              const next = e.target.value as Terrain;
+              // The elevation layer has no urban split, so choosing the urban table turns it off.
+              setDraft((d) => ({ terrain: next, layers: next === "urban" ? { ...d.layers, elevation: false } : d.layers }));
+            }}
+          >
             {TERRAINS.map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
@@ -105,6 +126,27 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
         </label>
         <p className="muted small">ISRID: 75% within 66 degrees of the travel direction, n = 11.{hasBearing ? "" : " Needs a confirmed direction of travel."}</p>
       </div>
+      {showElevation && (
+        <div className="layer">
+          <label className="check">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={draft.layers.elevation ?? false}
+              disabled={!(draft.layers.elevation ?? false) && !canTurnOnElevation}
+              onChange={(e) => setDraft((d) => ({ ...d, layers: { ...d.layers, elevation: e.target.checked } }))}
+            />
+            Downhill and level ground
+          </label>
+          <p className="muted small">
+            ISRID dementia, temperate (Lost Person Behavior p. 164): found {pct(ELEVATION_PARAMS.temperate.down)} downhill,{" "}
+            {pct(ELEVATION_PARAMS.temperate.level)} about level and {pct(ELEVATION_PARAMS.temperate.up)} uphill of the point last
+            seen; the source prints no sample size. About level means within {ELEVATION_PARAMS.levelBandM} m of the start segment (our rule; the
+            source gives none).{elevationWhyNot}
+          </p>
+        </div>
+      )}
+      {model === "walkers" && <p className="muted small">These apply when the prior is rebuilt as rings.</p>}
       {vehicleInvolved && <p>Vehicle involved: these distances assume travel on foot.</p>}
       {changed && (
         <div className="suggested">

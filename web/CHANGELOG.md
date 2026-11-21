@@ -2063,6 +2063,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (on a laptop the "+0.2 pts" chip covered BC's percentage).
 - Verified: new `chipPlace` unit tests failed first, then passed; a new harness check in `e2e/harness/change.spec.ts` (at 1440 by 900 and 1100 by 700, then zoomed out two steps, every chip inside the map and none over a visible percent or code) failed on main ("+14.7 pts over 7.5%", "3.5%", "1.0%" two steps out), then passed with the change and map checks; typecheck, web unit suite and the hygiene guard pass.
 
+### feat(prior): rebuilds carry the site's elevations for the elevation layer
+- What: `rebuildPrior` takes the site's per-segment elevations (`site.elevationM`) and, when the elevation layer is on, gives the engine the start segment's elevation from the rebuild's own start point (`segmentElevations`), so a rebuild from a new last known point measures from that point; it refuses without the file or with the start outside every segment. `cameraPriorWrites` passes them through (camera and sighting confirms). `loadElevationM` reads the site's elevation file (the one the terrain display reads) into a per-segment mean.
+- Source: review (terrain layer, approved).
+- Verified: new tests failed first, then pass: `rebuild.test.ts` (equals buildPrior with the start's elevation; ROW kept; refusals), `cameraPrior.test.ts` (from the camera's place; refusal without elevations), `elevation.test.ts` (this grid's file; no file, another grid's, broken, offline).
+
+### feat(command): a Downhill and level ground switch where terrain ships
+- What: the Prior panel shows a third switch, off by default, only when the site's elevation file loads (the Kennesaw drill grid). Its line gives the ISRID shares from the engine's constants (42% downhill, 39% about level, 19% uphill; p. 164; no n printed) and says the 3 m band is ours. It is disabled on urban terrain ("the source has no urban split") and when the start point's segment has no elevation; choosing the urban table turns it off. Like the other switches it asks before it rebuilds. The command post loads the file once per grid and passes the elevations to every rebuild (layers, the prior model switch, camera and sighting confirms).
+- Source: review (terrain layer, approved).
+- Verified: 4 new harness checks failed first, then pass (15 in layers.spec.ts); 1031 web unit tests, typecheck, the build and 43 no-backend browser checks pass; the Kennesaw file covers all 338 segments.
 ### chore(e2e): the harness and extras dev servers take their port from the environment
 - What: `e2e/harness.config.ts` reads `PLS_HARNESS_PORT` (default 5175) and `e2e/extras.config.ts` reads `PLS_EXTRAS_PORT` (default 5176) through `e2e/harnessPort.ts`, which refuses anything but a whole number from 1024 to 65535. Each server starts with `--strictPort`, so two worktrees running the same suite at once collided on one port; now each can use its own. CI and an unset variable behave as before.
 - Source: review (two worktrees' harness runs failed on a busy port 5175).
@@ -2073,6 +2082,30 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
 - Verified: new harness checks in `e2e/harness/teams.spec.ts` (strip at most 168 px; names fg-2 with none picked; a click and the Enter key pick a team, recolour the names and outline its cells; a second press clears; a team with no task outlines nothing) failed first (rail 200 px, no team buttons), then passed; a screenshot shows Team 2's cells AB and AC outlined; typecheck, web unit suite and the hygiene guard pass.
 
+### fix(prior): the elevation layer never blocks a confirmation
+- What: `usableLayers` keeps the elevation layer on only where the site's elevations are loaded and the start point is inside a segment that has one. A camera or sighting confirm whose new start is outside every segment, or one made while the file is missing, now rebuilds and saves the prior with the layer off instead of throwing before the confirmation is written. Turning the prior model back to rings does the same.
+- Source: review (cross-family, high).
+- Verified: new tests failed first, then pass: `usableLayers` (kept; turned off without the file, outside, or with no start elevation; other layers untouched) and the camera confirm with no file and outside the grid (equal to the ring prior from that point).
+
+### fix(command): elevations bound to their grid; a saved layer can always be turned off
+- What: the command post keeps the loaded elevation map with the grid it was loaded for (`elevationFor`) and clears it on a grid change, so a slow load never applies another site's heights (Piedmont's segment ids also exist in the Kennesaw file). The elevation switch now also shows wherever the saved layer is on, even when the site's file did not load, so command can turn it off; it turns on only where the start has an elevation.
+- Source: review (cross-family, medium).
+- Verified: new tests failed first, then pass: `elevationFor` (own grid; another grid; loading) and the harness check for a saved layer whose file did not load (16 in layers.spec.ts); 1036 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild before the map's segments load
+- What: `rebuildPrior` refuses an empty segment list ("The map's segments have not loaded yet."). Segments arrive through their own listener, so a sighting or camera confirm made after the incident and events loaded but before the segments did would have saved the confirmation, the new start and a new prior version with all mass outside the grid, leaving every stored segment's old probability in place. Every rebuild path goes through `rebuildPrior`, so all are covered.
+- Source: review (cross-family, high).
+- Verified: new tests failed first ("expected [Function] to throw"), then pass: `rebuildPrior([])` and `cameraPriorWrites([])` with the elevation layer off and on; 1038 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild from a partly loaded grid
+- What: `rebuildPrior` refuses a segment list in which a segment names a neighbour, upstream or downstream segment that is not in the list ("The map's segments have not all loaded yet."). A cached snapshot can hold only some segments, and the listener drops a document with unreadable geometry; a confirm from either would have saved a new prior version over part of the grid and left the rest on the old prior. Both shipped grids are closed and connected (no dangling names; neighbours symmetric), so any partial set is caught.
+- Source: review (cross-family, high).
+- Verified: a new test failed first ("expected [Function] to throw"), then passes: a linked 9-segment grid rebuilds, 8 of its 9 are refused, and dangling upstream or downstream names are refused; 1039 web unit tests, typecheck, 179 harness checks, the build and 43 no-backend browser checks pass; closure and connectivity checked on shared/grid/*.grid.json.
+
+### fix(command): the Prior panel says its switches are rings settings under walkers
+- What: with the walkers prior in use, the Prior panel adds "These apply when the prior is rebuilt as rings.", since the stored layers (elevation included) are kept for the rings rebuild. The elevation line says "the source prints no sample size" instead of "no n printed"; LIMITS matches.
+- Source: review.
+- Verified: the new harness check failed first without the line, then passes (17 in layers.spec.ts).
 ### test(harness): at phone width the map and change harnesses keep the map in the tall row
 - What: the phone layout's `.map-wrap { order: -1 }` moved the map ahead of the harness's drill line, into its auto row, so at 900 px and below the harness map was 0 px tall and the drill line sat over the cells; checks run there (the small and crowded map checks at 300 by 420) measured a map with no height. The drill line now has `order: -2` in `web/src/harness/mapHarness.tsx` and `changeHarness.tsx`, so the map keeps the tall row, as on the command post.
 - Source: found while adding a pointer check to the map harness at 300 by 420 (the pointer landed on the drill line).

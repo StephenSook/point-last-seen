@@ -18,11 +18,16 @@ function Harness() {
     <main className="rail right" style={{ width: 340 }}>
       <p className="drill">Synthetic settings, not drill data.</p>
       <LayerSwitches
-        layers={{ linear: true, wedge: false }}
+        layers={{ linear: true, wedge: false, ...(new URLSearchParams(location.search).get("stored") === "elevation" ? { elevation: true } : {}) }}
         terrain={new URLSearchParams(location.search).get("terrain") === "urban" ? "urban" : "temperate_flat"}
         rings={new URLSearchParams(location.search).get("rings") === "custom" ? [0.5, 1, 2.5, 10] : undefined}
         terrainNote={new URLSearchParams(location.search).has("note") ? "Default terrain column (urban), not verified for this site." : undefined}
         hasBearing={false}
+        elevation={(() => {
+          const e = new URLSearchParams(location.search).get("elevation");
+          if (e === null) return undefined;
+          return e === "gone" ? { available: false, startHasElevation: false } : { available: true, startHasElevation: e !== "nostart" };
+        })()}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
         onApply={(layers, terrain) => {

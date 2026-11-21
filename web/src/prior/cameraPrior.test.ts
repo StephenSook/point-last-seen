@@ -87,3 +87,38 @@ describe("familyCameraConfirmWrites", () => {
     expect(() => familyCameraConfirmWrites(famCam, null, writer, SEGS, incident)).toThrow("Place the camera on the map first.");
   });
 });
+
+describe("a camera rebuild keeps the elevation layer, measured from the camera's place", () => {
+  // The camera is in CB, in the north row (120 m): the new start, so its row is level and the rows south are lower.
+  const cam = buildCameraSighting(clip, writer);
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, s.segmentId[0] === "C" ? 120 : s.segmentId[0] === "A" ? 80 : 100]));
+  const withElevation = { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } };
+
+  it("rebuilds with the elevations from the site's file, from the new start", () => {
+    const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, cam, null);
+    expect(w.incident.priorLayers).toMatchObject({ elevation: true });
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), CAMERA, "temperate_flat", { linear: false, wedge: false, elevation: true },
+      null, DEFAULT_PARAMS, { startM: 120, bySegment: elevationM });
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(direct.segments.map((s) => s.priorPoa));
+  });
+
+  it("never blocks a confirmation: with no elevations, or a new start outside every segment, it rebuilds with the layer off", () => {
+    const noFile = cameraPriorWrites(SEGS, withElevation, cam, null);
+    expect(noFile.incident.priorLayers).toMatchObject({ elevation: false });
+    const outside = buildCameraSighting({ ...clip, camera: { lat: IPP.lat + 0.5, lon: IPP.lon } }, writer);
+    const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, outside, null);
+    expect(w.incident.priorLayers).toMatchObject({ elevation: false });
+    const ring = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), { lat: IPP.lat + 0.5, lon: IPP.lon }, "temperate_flat", { linear: false, wedge: false }, null, DEFAULT_PARAMS);
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(ring.segments.map((s) => s.priorPoa));
+  });
+});
+
+describe("a confirm before the map's segments load", () => {
+  it("is refused before anything is built, with the layer off or on", () => {
+    const cam = buildCameraSighting(clip, writer);
+    expect(() => cameraPriorWrites([], incident, cam, null)).toThrow("The map's segments have not loaded yet.");
+    expect(() => cameraPriorWrites([], { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } }, cam, null))
+      .toThrow("The map's segments have not loaded yet.");
+  });
+});
+
