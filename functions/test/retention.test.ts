@@ -104,10 +104,12 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(DRILL_RETENTION_MS).toBe(30 * DAY);
   });
 
-  it("keeps the development and judge seed drills always, and the Kennesaw drill until 2027-01-01", async () => {
+  it("keeps the development and judge seed drills always, and the Kennesaw and test drills until 2027-01-01", async () => {
     for (const id of ["drill-dev-1", "drill-judge-1", "drill-kennesaw-1"]) await drill(id, closed(60));
     expect((await deleteEndedDrills(admin.db, bucket, admin.auth, NOW)).deleted).toEqual([]);
     expect(keptUntil("drill-kennesaw-1")).toBe(Date.UTC(2027, 0, 1));
+    // The test drill every live check and the daily probe use is kept through judging too.
+    expect(keptUntil("drill-test-1")).toBe(Date.UTC(2027, 0, 1));
     expect(keptUntil("drill-dev-1")).toBe(Number.POSITIVE_INFINITY);
     const r = await deleteEndedDrills(admin.db, bucket, admin.auth, Date.UTC(2027, 0, 1));
     expect(r.deleted).toEqual(["drill-kennesaw-1"]);

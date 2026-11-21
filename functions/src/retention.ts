@@ -24,12 +24,14 @@ export const DRILL_RETENTION_MS = 30 * 86_400_000;
 export const PURGES = "ops/drillPurges/items";
 // The prefixes a drill's media live under (as in media.ts).
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
-// drill-dev-1: the development drill; drill-judge-1: the judge sandboxes' seed; drill-kennesaw-1: the drill on film,
-// kept through judging and until the end of the year.
+// drill-dev-1: the development drill; drill-judge-1: the judge sandboxes' seed; drill-kennesaw-1: the drill on film;
+// drill-test-1: the drill every live check and the daily probe use. The last two are kept through judging and until
+// the end of the year.
 const KEEP_UNTIL: Record<string, number> = {
   "drill-dev-1": Number.POSITIVE_INFINITY,
   "drill-judge-1": Number.POSITIVE_INFINITY,
   "drill-kennesaw-1": Date.UTC(2027, 0, 1),
+  "drill-test-1": Date.UTC(2027, 0, 1),
 };
 
 /** The time until which a drill is kept whatever its closedAt says, or 0 when it is not on the keep-list. */

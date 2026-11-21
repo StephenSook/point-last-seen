@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention keeps drill-test-1 until 2027-01-01, like drill-kennesaw-1: every live check and the daily probe use
+  it, and the seed tool refuses a purged id, so an accidental close would have broken them inside judging. LIMITS and
+  the production checklist list it. Source: review. Verified: the keep-list test failed first (drill-test-1 not kept),
+  then passes; functions suite 281.
 - Drill retention: starting a purge clears both done and stale marks, so a drill once marked stale that later becomes
   due is retried by the next run when its purge fails partway. Source: review (second-model, fourth round). Verified:
   a new test (a stale record, the drill due, sign-in deletes failing after the root is gone, then the next run) failed
