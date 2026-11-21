@@ -20,6 +20,7 @@ import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
 import app.pointlastseen.family.ai.FirebaseClipDeps
 import app.pointlastseen.family.ai.JoinedClipDeps
+import app.pointlastseen.family.ai.LatestOnly
 import app.pointlastseen.family.ai.ModelReadiness
 import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteEnv
@@ -145,6 +146,9 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var noteUi by mutableStateOf<NoteUi>(NoteUi.Idle)
         private set
+    // A sort that ends after the family left the note screen (or started another sort) is dropped, so its
+    // answer, a consent question included, can never land on a later note. Declared before init: Back can run early.
+    private val noteSorts = LatestOnly()
     var clipUi by mutableStateOf<ClipUi>(ClipUi.Idle)
         private set
     var clipLabel by mutableStateOf<String?>(null)
@@ -263,6 +267,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun back() {
         nav = Nav.back(nav)
+        noteSorts.drop()
         noteUi = NoteUi.Idle
         if (clipUi !is ClipUi.Busy) clipUi = ClipUi.Idle
     }
@@ -493,19 +498,21 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     // I remembered something
     fun sortNote(text: String, consent: Boolean) {
+        val mine = noteSorts.begin()
         noteUi = NoteUi.Busy
         viewModelScope.launch {
             // A fresh check, not the shown state: another app may have finished the shared model's download.
             val env = NoteEnv(modelReadiness.current(), consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
             val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
-            noteUi = NoteUi.Done(outcome, text)
+            if (noteSorts.isLatest(mine)) noteUi = NoteUi.Done(outcome, text)
         }
     }
 
     /** From the profile: what was typed is saved first, then the note opens (before joining a search too). */
     fun remember(edited: SubjectProfile) {
         saveProfile(edited)
+        noteSorts.drop()
         noteUi = NoteUi.Idle
         open(Screen.NOTE)
     }
