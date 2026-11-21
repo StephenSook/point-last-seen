@@ -20,17 +20,19 @@ import Testing
         })
     }
 
-    func mission(mode: String) throws -> Mission {
-        Mission(incidentId: "drill-test-1", mode: mode, teamId: "T1", priorVersion: 2, grid: [], prior: [],
-                assignedSegmentIds: ["BO"], params: try BundledConstants.engineParams(), profile: ModelProfile(shared: .null),
-                sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+    func mission(mode: String, practice: Bool = false) throws -> Mission {
+        var m = Mission(incidentId: "drill-test-1", mode: mode, teamId: "T1", priorVersion: 2, grid: [], prior: [],
+                        assignedSegmentIds: ["BO"], params: try BundledConstants.engineParams(), profile: ModelProfile(shared: .null),
+                        sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+        m.isPractice = practice
+        return m
     }
 
     @Test func eachRouteReadsTheFixedSentenceAsIntended() async throws {
         let seen = Seen()
         let m = model(seen)
         m.connectivity.pathChanged(satisfied: true)
-        await m.load(try mission(mode: "drill"))
+        await m.load(try mission(mode: "drill", practice: true))
         let onDevice = try #require(await m.routeCheck(.onDevice))
         let cloud = try #require(await m.routeCheck(.cloud))
         #expect(seen.reads.map(\.0) == ["Cleared segment BO, nothing found.", "Cleared segment BO, nothing found."])
@@ -50,5 +52,18 @@ import Testing
         let cloud = await m.routeCheck(.cloud)
         #expect(onDevice == nil && cloud == nil)
         #expect(seen.reads.isEmpty && !m.canRouteCheck)
+    }
+
+    /// A live drill (not the practice drill) is never route checked either: its cloud route would send the
+    /// drill subject's description. Only the practice drill's sample data goes.
+    @Test func aLiveDrillIsNeverRouteChecked() async throws {
+        let seen = Seen()
+        let m = model(seen)
+        m.connectivity.pathChanged(satisfied: true)
+        await m.load(try mission(mode: "drill"))
+        #expect(!m.canRouteCheck)
+        let onDevice = await m.routeCheck(.onDevice)
+        let cloud = await m.routeCheck(.cloud)
+        #expect(onDevice == nil && cloud == nil && seen.reads.isEmpty)
     }
 }
