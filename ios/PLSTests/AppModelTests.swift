@@ -193,6 +193,16 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(doc.rawText == "Photo: bloody knife." && doc.inputMethod == .photo)
     }
 
+    /// An evidence word past the item's 40 characters still sends the photo through the evidence protocol.
+    @Test func evidenceLateInALongCaptionStillGoesToCommand() async throws {
+        let bag = PhotoDescription(showsPerson: false, object: "weathered camouflage backpack with bloodstains", color: .green, kind: .bag)
+        let (model, store) = try photoModel(.described(bag, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.effect == .none(why: .needsCommand))
+    }
+
     /// While an earlier photo is still being read, a new one is not started and nothing is sent.
     @Test func aPhotoWhileAnotherIsReadSendsNothing() async throws {
         let (model, store) = try photoModel(.busy)

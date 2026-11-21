@@ -42,7 +42,9 @@ public enum PhotoClue {
     }
 
     public static func decide(_ photo: PhotoDescription, profile: ModelProfile, segmentIds: [String]) -> Outcome {
-        let object = cleaned(photo.object, kind: photo.kind)
+        // The words keep the whole caption, so the evidence screen sees all of it; the item is cut to the schema's 40.
+        let caption = cleaned(photo.object, kind: photo.kind, max: 200)
+        let object = cleaned(photo.object, kind: photo.kind, max: 40)
         if photo.showsPerson || namesAPerson(photo.object) { return .discarded(personMessage) }
         let phrase = match(photo, profile: profile)
         var reading = ReportReading.unclear(quote: object)
@@ -50,7 +52,7 @@ public enum PhotoClue {
         reading.segmentIds = segmentIds
         reading.item = object
         reading.matchesProfile = phrase == nil ? .unknown : .consistent
-        return .clue(Clue(rawText: "Photo: \(object).", reading: reading, matchedPhrase: phrase))
+        return .clue(Clue(rawText: "Photo: \(caption).", reading: reading, matchedPhrase: phrase))
     }
 
     /// The first described item of the same kind whose color agrees, or that names no color. Whatever the rule cannot
@@ -117,12 +119,12 @@ public enum PhotoClue {
         s.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
     }
 
-    /// Lower case, letters and single spaces only (digits, and so any number, are gone), at most 40 characters cut
-    /// at a word; the kind's name when nothing is left.
-    static func cleaned(_ object: String, kind: PhotoObjectKind) -> String {
+    /// Lower case, letters and single spaces only (digits, and so any number, are gone), at most `max` characters cut
+    /// at a word; the kind's name when nothing is left. The 40-character item is a prefix of the 200-character caption.
+    static func cleaned(_ object: String, kind: PhotoObjectKind, max: Int) -> String {
         var s = words(object).joined(separator: " ")
-        while s.count > 40, let space = s.lastIndex(of: " ") { s = String(s[..<space]) }
-        if s.count > 40 { s = String(s.prefix(40)) }
+        while s.count > max, let space = s.lastIndex(of: " ") { s = String(s[..<space]) }
+        if s.count > max { s = String(s.prefix(max)) }
         return s.isEmpty ? (kind == .other ? "object" : kind.rawValue) : s
     }
 

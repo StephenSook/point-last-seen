@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a photo report's words keep the whole caption, so the evidence screen sees all of it
+- What: a photo report's words now carry the whole cleaned caption (up to 200 characters), and only the reading's
+  item is cut to the schema's 40 characters (it is a prefix of the words, so the quote is still in them). Before, the
+  words were cut to 40 characters first, so an evidence word late in a caption ("weathered camouflage backpack with
+  bloodstains") was never screened and the photo became an ordinary clue.
+- Source: review.
+- Verified: a core test (the words keep the whole caption, the item stays within 40 and in the words) failed before
+  the change and passes after; an app test with that caption now goes to command under the evidence protocol; all
+  415 core tests pass.
+
 ### fix(ios): a photo read gives up cleanly at its limit and never blocks the next one
 - What: a photo read opens its one-at-a-time gate exactly once, when its work ends or at the 30-second limit,
   whichever is first, so a stalled model call no longer blocks every later photo until relaunch, and a worker that

@@ -124,6 +124,17 @@ import Testing
         #expect(c.reading.feature == .none && c.reading.topColor == .unknown)
     }
 
+    /// The report's words keep the whole caption (so the evidence screen sees all of it); only the item is cut to 40.
+    @Test func theWordsKeepTheWholeCaptionAndTheItemIsShort() throws {
+        let c = try #require(Self.clue(PhotoClue.decide(Self.photo("weathered camouflage backpack with bloodstains", .green, .bag),
+                                                       profile: Self.worn, segmentIds: [])))
+        #expect(c.rawText == "Photo: weathered camouflage backpack with bloodstains.")
+        #expect(c.reading.item.count <= 40 && c.rawText.contains(c.reading.item) && c.reading.evidenceQuote == c.reading.item)
+        let huge = try #require(Self.clue(PhotoClue.decide(Self.photo(String(repeating: "very ", count: 80) + "old hat", .red, .hat),
+                                                          profile: Self.worn, segmentIds: [])))
+        #expect(huge.rawText.count <= 210)
+    }
+
     @Test func theObjectIsCleanedAndKeptShort() throws {
         let digits = try #require(Self.clue(PhotoClue.decide(Self.photo("cap 404 555 0142!", .red, .hat), profile: Self.worn, segmentIds: [])))
         #expect(digits.reading.item == "cap")
