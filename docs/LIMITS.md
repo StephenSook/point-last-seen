@@ -39,8 +39,19 @@ each line says what the limit is and why.
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
   and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
-  Reports already sent stay in the incident until its data is deleted, and command still lists that member: the app
-  has no way yet for command to remove a member from a search.
+  Reports already sent stay in the incident until its data is deleted, and command still lists that member, so
+  command can still remove it like any other.
+- Command removes a searcher or family member from the People panel (the `removeMember` callable). From that moment
+  the member's app can no longer read or write anything in the search, screens already open included (measured on
+  2026-11-21: two open listeners were refused within a second of the removal), and that account cannot join again.
+  Four limits remain:
+  - A removed person can join again with a new sign-in until that role's join code is replaced (the
+    `rotateJoinCode` callable). Replacing it stops every older code of that role, an extra one such as a reviewer's
+    included.
+  - A removed member can still open media through links they already received, until the drill's media is deleted.
+  - A member removed while a clip upload is in progress can finish that one upload within the hour.
+  - Removal takes effect at once for every account that joined after membership records began (2026-11-21, 18:48
+    UTC). An account that joined before and has since joined another search cannot be removed for up to an hour.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,
