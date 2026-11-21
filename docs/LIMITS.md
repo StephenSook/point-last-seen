@@ -78,13 +78,23 @@ each line says what the limit is and why.
 
 ## Language
 
-- Notes are expected in English. The web asks Chrome's on-device model for English text in and out
-  (`web/src/ai/gate.ts`), and the iPhone uses its on-device model only when that model supports the phone's language
-  setting. The iPhone's plain parser, used when no model can read, knows English words; the evidence pre-screen on
-  every platform matches English terms only (`shared/constants/evidence-terms.json`); and the phone-number rule on
-  every platform removes any run of 7 or more digits, written in any script, or English digit words. A
-  note in another language can still go to the cloud model, whose prompt names no language, and nothing measures how
-  well it reads one. Evidence described in another language is not caught by the pre-screen.
+- Notes are expected in English. Before a note may go to the cloud model, every platform screens it, as written,
+  with one shared rule (`shared/constants/language-words.json`; the web in `web/src/ai/sightingText.ts`, the iPhone in
+  `ios/PLSCore/Sources/PLSCore/LanguageScreen.swift`, Android in
+  `android/app/src/main/java/app/pointlastseen/family/core/LanguageScreen.kt`). A note is not sent when more than half
+  of its words are in a non-Latin script, or when it holds 3 or more of 90 common Spanish, Portuguese and Vietnamese
+  words and more than twice as many of them as English words; the person then fills the fields by hand (on the
+  iPhone, picks them).
+- The screen is a word count, not a language detector. A short note in another language can pass it ("Ella no está
+  aquí" does, on every platform), and a note in another Latin-script language (French, for one) passes, because
+  accents fold away and its words are on neither list. A note that passes goes to the cloud model, whose prompt
+  names no language, and nothing measures how well it reads one.
+- The web asks Chrome's on-device model for English text in and out (`web/src/ai/gate.ts`), and the iPhone uses its
+  on-device model only when that model supports the phone's language setting. The iPhone's plain parser, used when
+  no model can read, knows English words; the evidence pre-screen on every platform matches English terms only
+  (`shared/constants/evidence-terms.json`); and the phone-number rule on every platform removes any run of 7 or more
+  digits, written in any script, or English digit words. Evidence described in another language is not caught by the
+  pre-screen.
 
 ## Phone numbers in notes
 
