@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
+  and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
+  makes. Source: review (closed-incident writes found during End this search review). Verified:
+  rules/closedIncident.test.ts (a reading starts while open, not after the close; an open record cannot be completed
+  or taken over after it) failed first, then passes; all rules tests pass.
 - rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
   command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
   Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
