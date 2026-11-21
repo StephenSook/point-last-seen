@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: a removed account is refused at once. Firestore's isMember and the event create check, and Storage's
+  isMember, require that incidents/{id}/removed/{uid} does not exist, so a member command removed can neither read nor
+  write the incident, nor upload, while its ID token still carries the claims; command reads the removal records and
+  no client writes one. Source: review (App Review guideline 1.2, approved design). Verified: rules/removed.test.ts (5
+  cases) and the storage case failed first, then pass; all 154 Firestore rules tests and 15 Storage tests pass.
 - functions: removeMember (callable, App Check enforced): command removes a searcher or family member of its own
   incident. It records incidents/{id}/removed/{uid} first, then clears the member's claims and revokes its refresh
   tokens (an ID token already issued stays valid up to an hour, so the record is what the rules check). Command cannot

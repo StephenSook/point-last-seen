@@ -122,3 +122,12 @@ describe("storage rules (spec section 7)", () => {
     await assertSucceeds(getMetadata(ref(storageAs("command-uid", commandClaims), "packs/I1/T2/v1.bundle")));
   });
 });
+
+describe("a member command removed", () => {
+  it("cannot upload, while its token still carries the claims", async () => {
+    await admin.db.doc("incidents/I1/removed/family-uid").set({ removedAt: new Date(), removedBy: "command-uid", role: "family", team: null });
+    const st = storageAs("family-uid", familyClaims);
+    await assertFails(uploadBytes(ref(st, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+});
+

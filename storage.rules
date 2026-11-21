@@ -31,8 +31,10 @@ service firebase.storage {
         && c.expiresAt is timestamp && c.expiresAt >= request.time + duration.value(31, 'd')
         && c.consent.personInClip != null && c.consent.footageOwner != null && c.consent.cloudProcessing != null;
     }
+    // Not removed by command (functions/src/members.ts writes the record before clearing the claims).
     function isMember(incidentId) {
-      return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId);
+      return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId)
+        && !firestore.exists(/databases/(default)/documents/incidents/$(incidentId)/removed/$(request.auth.uid));
     }
     function isCommandOrFamily(incidentId) {
       return isMember(incidentId) && request.auth.token.role in ['command', 'family'];
