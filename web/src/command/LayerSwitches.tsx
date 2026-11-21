@@ -43,8 +43,13 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
   const changed = draft.layers.linear !== layers.linear || draft.layers.wedge !== layers.wedge
     || (draft.layers.elevation ?? false) !== (layers.elevation ?? false) || draft.terrain !== terrain;
   const pct = (x: number) => `${Math.round(x * 100)}%`;
-  const elevationWhyNot = draft.terrain === "urban" ? " Not used on urban terrain: the source has no urban split."
-    : elevation && !elevation.startHasElevation ? " Needs the start point inside a mapped segment that has an elevation." : "";
+  // The switch shows where the site's elevation file loaded, and wherever the saved layer is on, so command can always
+  // turn a saved layer off; it turns on only where the engine can measure the start.
+  const showElevation = elevation?.available === true || layers.elevation === true;
+  const canTurnOnElevation = elevation?.available === true && elevation.startHasElevation && draft.terrain !== "urban";
+  const elevationWhyNot = !elevation?.available ? " This site's elevation file did not load; you can turn the layer off."
+    : draft.terrain === "urban" ? " Not used on urban terrain: the source has no urban split."
+    : !elevation.startHasElevation ? " Needs the start point inside a mapped segment that has an elevation." : "";
 
   function apply() {
     setError(null);
@@ -121,14 +126,14 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
         </label>
         <p className="muted small">ISRID: 75% within 66 degrees of the travel direction, n = 11.{hasBearing ? "" : " Needs a confirmed direction of travel."}</p>
       </div>
-      {elevation?.available && (
+      {showElevation && (
         <div className="layer">
           <label className="check">
             <input
               type="checkbox"
               role="switch"
               checked={draft.layers.elevation ?? false}
-              disabled={draft.terrain === "urban" || !elevation.startHasElevation}
+              disabled={!(draft.layers.elevation ?? false) && !canTurnOnElevation}
               onChange={(e) => setDraft((d) => ({ ...d, layers: { ...d.layers, elevation: e.target.checked } }))}
             />
             Downhill and level ground

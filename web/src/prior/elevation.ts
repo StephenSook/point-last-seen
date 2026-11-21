@@ -15,3 +15,9 @@ export async function loadElevationM(gridId: string, load: (gridId: string) => P
     return null;
   }
 }
+
+/** A loaded elevation map, used only for the grid it was loaded for (never another site's heights during a reload). */
+export function elevationFor(gridId: string | undefined, loaded: { gridId: string; m: Record<string, number> | null } | null): Record<string, number> | undefined {
+  return loaded && gridId !== undefined && loaded.gridId === gridId && loaded.m ? loaded.m : undefined;
+}
+

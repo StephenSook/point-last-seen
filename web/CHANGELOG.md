@@ -2086,3 +2086,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `usableLayers` keeps the elevation layer on only where the site's elevations are loaded and the start point is inside a segment that has one. A camera or sighting confirm whose new start is outside every segment, or one made while the file is missing, now rebuilds and saves the prior with the layer off instead of throwing before the confirmation is written. Turning the prior model back to rings does the same.
 - Source: review (cross-family, high).
 - Verified: new tests failed first, then pass: `usableLayers` (kept; turned off without the file, outside, or with no start elevation; other layers untouched) and the camera confirm with no file and outside the grid (equal to the ring prior from that point).
+
+### fix(command): elevations bound to their grid; a saved layer can always be turned off
+- What: the command post keeps the loaded elevation map with the grid it was loaded for (`elevationFor`) and clears it on a grid change, so a slow load never applies another site's heights (Piedmont's segment ids also exist in the Kennesaw file). The elevation switch now also shows wherever the saved layer is on, even when the site's file did not load, so command can turn it off; it turns on only where the start has an elevation.
+- Source: review (cross-family, medium).
+- Verified: new tests failed first, then pass: `elevationFor` (own grid; another grid; loading) and the harness check for a saved layer whose file did not load (16 in layers.spec.ts); 1036 web unit tests, typecheck, the build and 43 no-backend browser checks pass.

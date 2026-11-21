@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadElevationM } from "./elevation";
+import { elevationFor, loadElevationM } from "./elevation";
 
 const file = (over: Record<string, unknown> = {}) => ({
   gridId: "kennesaw-mountain-drill", gridSha256: "a".repeat(64), source: "USGS 3DEP", license: "public domain", credit: "USGS",
@@ -18,3 +18,14 @@ describe("loadElevationM: each segment's mean elevation from the site's elevatio
     expect(await loadElevationM("kennesaw-mountain-drill", async () => { throw new Error("offline"); })).toBeNull();
   });
 });
+
+describe("elevationFor: a loaded map is used only for the grid it was loaded for", () => {
+  it("gives the map for its own grid and nothing for another, or while loading", () => {
+    const loaded = { gridId: "kennesaw-mountain-drill", m: { AA: 300 } };
+    expect(elevationFor("kennesaw-mountain-drill", loaded)).toEqual({ AA: 300 });
+    expect(elevationFor("piedmont-park-dev", loaded)).toBeUndefined();
+    expect(elevationFor("kennesaw-mountain-drill", null)).toBeUndefined();
+    expect(elevationFor("kennesaw-mountain-drill", { gridId: "kennesaw-mountain-drill", m: null })).toBeUndefined();
+  });
+});
+

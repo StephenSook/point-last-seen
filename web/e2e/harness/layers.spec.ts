@@ -144,3 +144,15 @@ test("choosing the urban table turns the elevation switch off", async ({ page })
   await expect(sw).toBeDisabled();
 });
 
+test("a saved elevation layer whose file no longer loads still shows, so command can turn it off", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=gone&stored=elevation");
+  const s = page.getByRole("region", { name: "Prior" });
+  const sw = s.getByRole("switch", { name: "Downhill and level ground" });
+  await expect(sw).toBeChecked();
+  await expect(sw).toBeEnabled();
+  await expect(s).toContainText("This site's elevation file did not load; you can turn the layer off.");
+  await sw.click();
+  await s.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByTestId("applied")).toHaveText('{"linear":true,"wedge":false,"elevation":false} temperate_flat');
+});
+

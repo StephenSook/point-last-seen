@@ -61,8 +61,8 @@ import { loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } 
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
-import { priorWrites, rebuildPrior } from "../prior/rebuild";
-import { loadElevationM } from "../prior/elevation";
+import { priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
+import { elevationFor, loadElevationM } from "../prior/elevation";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
@@ -556,13 +556,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The site's route graph for the walker prior, beside its basemap.
   const [graph, setGraph] = useState<GraphLoad | null>(null);
   const [flow, setFlow] = useState<{ key: string; tracks: Track[] } | null>(null);
-  // Each segment's elevation, from the site's elevation file: the elevation layer's input. Null where none ships.
-  const [elevationM, setElevationM] = useState<Record<string, number> | null>(null);
+  // Each segment's elevation, from the site's elevation file: the elevation layer's input. Bound to the grid it was
+  // loaded for, so a grid change never uses another site's heights.
+  const [elevationLoaded, setElevationLoaded] = useState<{ gridId: string; m: Record<string, number> | null } | null>(null);
+  const elevationM = elevationFor(incident?.gridId, elevationLoaded);
   useEffect(() => {
     if (!incident?.gridId) return;
     let live = true;
     void loadRouteGraph(`/tiles/${incident.gridId}.graph.json`).then((g) => live && setGraph(g));
-    void loadElevationM(incident.gridId).then((m) => live && setElevationM(m));
+    const gridId = incident.gridId;
+    setElevationLoaded(null);
+    void loadElevationM(gridId).then((m) => live && setElevationLoaded({ gridId, m }));
     return () => {
       live = false;
     };
@@ -574,8 +578,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
-      const layers = incident.priorLayers ?? { linear: false, wedge: false };
-      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM: elevationM ?? undefined }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+      const layers = usableLayers(incident.priorLayers ?? { linear: false, wedge: false }, segments, incident.ipp, elevationM);
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
@@ -600,7 +604,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM: elevationM ?? undefined }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
     const w = priorWrites(rebuilt, incident, layers, terrain);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
   };
@@ -647,7 +651,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       { sha256: o.sha256, reading: o.reading, route: o.route, clipStartMs: input.clipStartMs, clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg, camera: input.camera },
       [writer(), writer()],
       segments,
-      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM: elevationM ?? undefined },
+      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM },
       o.bearingDeg,
     );
     setPin(null);
@@ -818,7 +822,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             }}
             onDecide={async (c, d) => {
               const priorIncident = incident?.ipp && incident.gridId
-                ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM: elevationM ?? undefined }
+                ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM }
                 : null;
               // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
               // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
@@ -881,13 +885,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
                 terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
                 hasBearing={bearing !== null}
-                elevation={elevationM ? {
-                  available: true,
+                elevation={{
+                  available: elevationM !== undefined,
                   startHasElevation: (() => {
-                    const start = incident.ipp ? segmentContaining(incident.ipp, segments) : null;
-                    return start !== null && elevationM[start] !== undefined;
+                    const start = incident.ipp && elevationM ? segmentContaining(incident.ipp, segments) : null;
+                    return start !== null && elevationM?.[start] !== undefined;
                   })(),
-                } : undefined}
+                }}
                 model={incident.priorModel ?? "rings"}
                 vehicleInvolved={profile?.command?.vehicle?.involved === true}
                 onApply={applyPrior}
