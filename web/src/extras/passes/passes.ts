@@ -80,7 +80,8 @@ export function readPasses(json: unknown, run: RunLike): { ok: true; file: Passe
 
 /** A report the tool measures from: a team's searcher report placed by its phone's GPS. */
 function gpsReport(e: PublishedRunV1["events"][number]): boolean {
-  return e.role === "searcher" && e.positionSource === "gps" && e.position !== null && e.teamId !== null;
+  // A place must be there: the run reader lets a field be left out, so an absent place counts as none.
+  return e.role === "searcher" && e.positionSource === "gps" && isObj(e.position) && e.teamId !== null;
 }
 
 /**

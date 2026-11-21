@@ -107,6 +107,9 @@ describe("passLines", () => {
       eventId: null,
       text: "No pass for Bravo: its reports placed by its phone's GPS came only where the role-player's track has no fix.",
     });
+    // A report marked as placed by GPS but with no place at all (the field left out) is not one the tool measures from.
+    const noPlace = { ...run, events: run.events.map((e) => (e.eventId === "s2" ? (({ position: _p, ...rest }) => rest)(e) : e)) } as unknown as typeof run;
+    expect(passLines(onlyAlfa, noPlace, "UTC")[1]!.text).toBe("No pass for Bravo: none of its reports placed by its phone's GPS came while the role-player's track ran.");
     // With the track starting at +13, the run shows no GPS report of Bravo's inside it at all.
     const later = { ...onlyAlfa, trackFromMs: T0 + 13 * MIN };
     expect(passLines(later, run, "UTC")[1]!.text).toBe("No pass for Bravo: none of its reports placed by its phone's GPS came while the role-player's track ran.");
