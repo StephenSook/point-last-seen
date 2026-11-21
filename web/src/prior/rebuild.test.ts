@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { SegmentDoc } from "../data/incident";
 import { gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
 
+// Each case builds a whole prior; on a loaded machine or a CI runner one can pass vitest's 5 s default.
+const SLOW = { timeout: 30_000 };
+
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
 const IPP = { lat: 33.78, lon: -84.38 };
 const D_LAT = 125 / 111_320;
@@ -24,7 +27,7 @@ const SEGS: SegmentDoc[] = Array.from({ length: 9 }, (_, i) => {
   };
 });
 
-describe("rebuilding the prior from the stored segments", () => {
+describe("rebuilding the prior from the stored segments", SLOW, () => {
   it("turns segment documents back into the engine's grid", () => {
     const g = gridFromDocs(SEGS, "synthetic", "Synthetic test grid");
     expect(g.segments).toHaveLength(9);
@@ -69,7 +72,7 @@ describe("rebuilding the prior from the stored segments", () => {
   });
 });
 
-describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, dementia p.164)", () => {
+describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, dementia p.164)", SLOW, () => {
   // BB holds the start point; the row north of it is 20 m up, the row south 20 m down, the middle row level.
   const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, s.segmentId[0] === "C" ? 120 : s.segmentId[0] === "A" ? 80 : 100]));
   const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const, elevationM };
@@ -93,7 +96,7 @@ describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, de
   });
 });
 
-describe("usableLayers: the elevation layer stays on only where it can measure the start", () => {
+describe("usableLayers: the elevation layer stays on only where it can measure the start", SLOW, () => {
   const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, 100]));
   const on = { linear: true, wedge: false, elevation: true };
   it("keeps it on with the site's elevations and the start inside a segment that has one", () => {
@@ -110,7 +113,7 @@ describe("usableLayers: the elevation layer stays on only where it can measure t
   });
 });
 
-describe("a rebuild needs the map's segments", () => {
+describe("a rebuild needs the map's segments", SLOW, () => {
   it("refuses while the segments have not loaded, so no prior is saved over a missing grid", () => {
     const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
     expect(() => rebuildPrior([], site, { linear: false, wedge: false }, null)).toThrow("The map's segments have not loaded yet.");
