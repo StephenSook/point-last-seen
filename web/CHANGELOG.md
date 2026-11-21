@@ -1998,6 +1998,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: privacy gap (a number spelled in Spanish digit words passed the rule).
 - Verified: run against the six new shared cases with their pending platforms forced, the web vector test failed 4 (the two keep cases already passed), then passed all 58; new unit checks in `src/data/phoneNumbers.test.ts` (a Spanish spoken number in any case is removed; un and una are kept) failed on the old rule, then passed; web unit suite, typecheck and the hygiene guard pass.
 
+### feat(command): the sighting form shows when, where, the note and Save first
+- What: in Add sighting, Seen at, Place, the Note with Read the note and its status lines, and Save sighting come first; Going, Top, Bottom, Footwear, Carrying, Reported by and the callback wait under a closed "More details". A read that fills the fields opens More details, so every filled field is in view when the form says "Check every field."
+- Source: UI review (Save sat about 950 px below the top of the form).
+- Verified: two new harness checks in `e2e/harness/sighting.spec.ts` (the first fields and Save in view, Save within 560 px of the form's top, the rest hidden until More details opens; a filling read opens it) failed first, then passed; the checks that pick a field by hand open More details first, and value checks also find a closed field; the sighting and sightings checks (25) and the full harness suite pass (except the triage measurement, which needs the build env file); typecheck, web unit suite (953), CI's Python gates and the hygiene guard pass.
+
 ### fix(command): What changed reads a line once when the shown and spoken words match
 - What: when the banner and the spoken line are the same words (a sighting waiting for command's confirmation), the banner is hidden from assistive technology and the live line speaks it, so a screen reader and the accessibility tree have the line once instead of twice. A banner with different spoken words is unchanged. The change harness gains `?confirm=1`.
 - Source: UI review (What changed showed "Sighting saved. Confirm it under Sightings to move the map." twice).

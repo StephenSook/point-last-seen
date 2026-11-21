@@ -123,6 +123,9 @@ button, input, select { font: inherit; color: inherit; }
 .sighting-form label { display: grid; gap: 4px; color: var(--fg-2); font-size: 14px; }
 /* field edges use fg-4: 4.79:1 on bg-1 and 4.33:1 on bg-2 (WCAG 1.4.11 asks 3:1) */
 .sighting-form input, .sighting-form select, .sighting-form textarea { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
+/* The sighting fields after the note: closed until opened, or until a read fills them. */
+.more-details > summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; }
+.more-details[open] { display: grid; gap: 8px; }
 .conditions-form label { display: grid; gap: 4px; }
 .conditions-form fieldset { border: 0; padding: 0; margin: 0; gap: 12px; }
 .conditions-form fieldset label { display: flex; align-items: center; gap: 6px; }
