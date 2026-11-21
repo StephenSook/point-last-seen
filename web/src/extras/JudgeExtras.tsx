@@ -30,7 +30,8 @@ export function JudgeExtras({ run, scamLoad = loadScam }: { run: PublishedRun | 
           {replay.ok ? (
             <ExtrasBoundary>
               <Suspense fallback={<p>Loading.</p>}>
-                <LazyReplayPanel data={replay.data} />
+                {/* The judge page shows the drill line above its heading, so the card does not repeat it. */}
+                <LazyReplayPanel data={replay.data} drillLine={false} />
               </Suspense>
             </ExtrasBoundary>
           ) : (

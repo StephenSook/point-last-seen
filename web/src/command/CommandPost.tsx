@@ -12,6 +12,7 @@ import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
+import { sightingConfirmWrites, sightingNewLkp } from "../prior/sightingPrior";
 import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
@@ -750,16 +751,21 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               return at ? segmentContaining(at, segments) : null;
             }}
             onDecide={async (c, d) => {
+              const priorIncident = incident?.ipp && incident.gridId
+                ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams }
+                : null;
+              // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
+              // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
+              // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
+              if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
+                const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
+                await writePrior(pls.db, incidentId, prior, built);
+                return;
+              }
               if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
               // A family camera clip: command's confirmation and the camera prior, in one batch.
-              if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-              const { events: built, prior } = familyCameraConfirmWrites(
-                c.sighting,
-                placedCameras[c.sighting.eventId] ?? null,
-                writer(),
-                segments,
-                { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
-              );
+              if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
+              const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
               await writePrior(pls.db, incidentId, prior, built);
             }}
             onPlace={(c) =>

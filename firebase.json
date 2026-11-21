@@ -20,6 +20,8 @@
     "public": "web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      { "source": "/privacy", "destination": "/privacy.html" },
+      { "source": "/support", "destination": "/support.html" },
       { "source": "!/@(tiles|evidence)/**", "destination": "/index.html" }
     ],
     "headers": [

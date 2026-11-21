@@ -66,6 +66,18 @@ each line says what the limit is and why.
 
 ## Search model
 
+- A sighting the search command confirms, with a place (a GPS fix or a point on the map) and the time it was seen,
+  becomes the new last known point: the ring prior is rebuilt from its place, with the direction-of-travel wedge when
+  it says which way the person went, as a confirmed camera sighting does. The rings do not widen with the time since
+  the sighting (the ring model has no time term); the command post states the sighting's age instead. Only a
+  sighting seen later than every sighting the map was already built from moves the start, because command confirms
+  in the order reports are reviewed, not the order they were seen; an older one stays a clue and the command post
+  says so. The time the person was first reported missing is not stored, so a sighting from before it can still
+  move the start when it is the first one confirmed. A confirmed camera clip always moves the start, even one seen
+  before the current last known point, so command checks a clip's time before confirming it. A sighting with no
+  place, or one only the family confirmed, still moves the map only as a clue, which raises its segment's weight
+  against every other by a third (by two thirds when it matches the profile). The map before the rebuild is not
+  kept, so the replay starts from the newest prior.
 - The linear-feature layer (ISRID: 75% of found subjects within 71 m of a road, trail, stream or water edge)
   is switched to neutral when 75% or more of the grid's prior mass is already that close to a feature. This
   rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the

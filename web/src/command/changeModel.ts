@@ -48,8 +48,28 @@ function causeLabel(ev: EventDoc): string {
 const pct = (v: number | undefined) => Number(((v ?? 0) * 100).toFixed(1));
 
 const CONFIRM_SIGHTING = "Sighting saved. Confirm it under Sightings to move the map.";
+/** Added when command confirms a sighting with a place that was not seen after the map's newest input. */
+export const OLDER_SIGHTING = "It was not seen after the current last known point, so it counts as a clue.";
 const awaitsConfirm = (ev: EventDoc) =>
   ev.type === "sighting" && ev.effect.kind === "clue" && (ev.effect.authenticity === "high" || ev.effect.authenticity === "medium");
+
+/**
+ * A sighting command confirmed with a place rebuilt the prior from it: the map has a new start, so there is no
+ * before-and-after on one prior to show. Its age is counted to the confirmation, so every seat shows the same line.
+ */
+export function newLastKnownPointChange(sighting: EventDoc, confirmation: EventDoc): ChangeResult {
+  const seg = sighting.effect.kind === "clue"
+    ? Object.entries(sighting.effect.influences).find(([, v]) => v === "strong_for")?.[0] ?? null
+    : null;
+  const where = seg ? `at ${seg}` : "outside the mapped area";
+  const mins = Math.max(0, Math.round((confirmation.clientTimeMs - (sighting.observedAtMs ?? confirmation.clientTimeMs)) / 60_000));
+  const age = mins < 1 ? "seen just before it was confirmed" : `seen ${mins} min before it was confirmed`;
+  return {
+    changed: [],
+    banner: `New last known point: the sighting ${where}, ${age}. The map is rebuilt from there.`,
+    announce: seg ? `New last known point at segment ${seg}. The map is rebuilt from the sighting.` : "New last known point outside the mapped area. The map is rebuilt from the sighting.",
+  };
+}
 
 export function changeModel(before: Readonly<Record<string, number>>, after: Readonly<Record<string, number>>, cause: EventDoc): ChangeResult {
   const ids = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((id) => id !== "ROW");
