@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone corpus: written again for the merged shared cases (121 inputs, among them the run-of-times and colon-gap cases),
+  so it holds 9,121 rows; the README names its new SHA-256. Source: the run-of-times and colon-gap cases merged.
+  Verified: `--check` failed before the rewrite and passes after; the web corpus test passes.
+- Phone corpus: `shared/test-vectors/phone-numbers-corpus.json` (9,116 rows, 615,930 bytes, 4,531 of them changed by the
+  rule), written by the generator for the current web rule, and a README section with its shape, how to regenerate it
+  and its SHA-256. Source: review (Android and the iPhone check the same rows). Verified: `--check` passes; the web
+  corpus test passes.
+- Phone corpus generator: `tools/vectors/phone_corpus.ts` builds the shared phone-number corpus (every shared case's
+  input, then 9,000 notes from a fixed mulberry32 seed, each with the web rule's output), leaning on runs of times
+  beside cues, digits, spoken digits, months and street names, and on combining marks, variation selectors, keycaps,
+  joiner sequences and emoji modifiers; `tools/vectors/phone_corpus_cli.ts --write` writes it and `--check` exits 1
+  unless the file is exactly what it would write. Source: review (one corpus every platform checks, so a port that
+  drifts fails its own CI). Verified: `--write` then `--check` passes; the web test that imports the generator passes.
 - Phone vectors README: the colon-gap paragraph says the remaining gap is two times beside a month name; two times after
   a cue with no month are removed whole by the run-of-times step. Source: review (merging the run-of-times step with the
   colon-gap cases). Verified: the vector tests pass; the hygiene guard passes.

@@ -2524,6 +2524,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
 - Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
 
+### test(data): the web rule gives every stored output in the shared phone corpus
+- What: `phoneCorpus.test.ts` requires the committed corpus to be exactly what the generator writes for the current rule (its `rule` field is the SHA-256 of `phoneNumbers.ts`, so a rule change fails the test until the file is written again), at least 9,000 rows with the shared replacement, the stored output for every row with every mismatch listed, and the README to name the file's SHA-256. A planted wrong output in 50 rows is caught exactly once.
+- Source: review (one corpus every platform checks).
+- Verified: the five tests pass; the web unit suite (1216), typecheck, the gates and the hygiene guard pass.
 ### fix(command): Problem reports follow the rail's lead instead of preceding it
 - What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
 - Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
