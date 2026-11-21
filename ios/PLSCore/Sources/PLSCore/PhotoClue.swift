@@ -197,8 +197,9 @@ public enum PhotoClue {
         "them", "grandma", "grandpa", "grandmother", "grandfather", "mom", "mother", "dad", "father",
         "hand", "finger", "face", "arm", "leg", "foot", "feet", "head", "shoulder", "knee", "skin", "ankle", "wrist", "torso",
         "neck", "elbow", "thumb", "toe", "chest", "shin", "thigh", "fist", "eye",
-        "remains", "corpse", "cadaver",
+        "remains", "corpse", "cadaver", "skull", "skeleton", "bone", "ear", "teenager", "adult", "elderly", "senior", "infant",
         "persona", "gente", "hombre", "mujer", "chico", "chica", "niño", "niña", "nino", "nina", "bebé", "bebe", "señor",
-        "señora", "senor", "senora", "cuerpo", "cadáver", "restos", "mano", "cara", "brazo", "pierna", "pie",
+        "señora", "senor", "senora", "cuerpo", "cadáver", "restos", "mano", "cara", "brazo", "pierna", "pie", "calavera",
+        "esqueleto", "hueso", "cabeza", "dedo", "ojo", "oreja", "cuello", "pecho",
     ]
 }

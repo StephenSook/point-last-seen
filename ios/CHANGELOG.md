@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): more words for a person or remains keep a photo from being a clue
+- What: the photo rule's person words now also cover teenager, adult, elderly, senior, infant, ear, skull, skeleton
+  and bones, and the Spanish calavera, esqueleto, hueso, cabeza, dedo, ojo, oreja, cuello and pecho. The two model
+  checks stay the main defence; the word list is the backstop when both miss ("smiling teenager").
+- Source: review.
+- Verified: a test with each reviewed caption failed before the change (18 expectations) and passes after; all 415
+  core tests pass.
+
 ### fix(ios-core): a photo match is unknown on any negation or color conflict in the description
 - What: a negation anywhere in a profile field, contractions included ("wasn't", "didn't", "isn't", with either
   apostrophe or none), now keeps that whole field from matching, so splitting on "and" can no longer cut the negation

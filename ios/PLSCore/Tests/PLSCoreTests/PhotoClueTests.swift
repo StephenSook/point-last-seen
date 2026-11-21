@@ -33,7 +33,9 @@ import Testing
     /// Plurals, Spanish, more body parts and a word spelled out letter by letter are a person too.
     @Test func everyWayOfNamingAPersonIsNotKept() {
         for object in ["remains", "bodies by a creek", "a corpse", "corpses", "niño", "niña con gorra", "niños", "hombre", "mujer",
-                       "persona", "cuerpo", "shoe with an ankle", "a wrist with a watch", "torso", "m.a.n", "m a n", "W-O-M-A-N", "babies"] {
+                       "persona", "cuerpo", "shoe with an ankle", "a wrist with a watch", "torso", "m.a.n", "m a n", "W-O-M-A-N", "babies",
+                       "smiling teenager", "an adult", "elderly", "a senior", "infant", "skull", "skeleton", "bones", "an ear",
+                       "calavera", "esqueleto", "cabeza", "dedo", "ojo", "oreja", "cuello", "pecho", "huesos"] {
             #expect(PhotoClue.decide(Self.photo(object, .red, .other), profile: Self.worn, segmentIds: []) == .discarded(PhotoClue.personMessage), "\(object)")
         }
     }
