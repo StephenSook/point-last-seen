@@ -3202,3 +3202,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
+
+### feat(rules): command ends a search with one of three reasons
+- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
+- Source: review (an "End this search" control for command).
+- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
