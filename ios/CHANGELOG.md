@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the iOS 26 matrix row names its call without a pipe
+- What: the new iPhone row cited `killCloud: config.killCloud || !cloudRouteAvailable`; the matrix check
+  splits rows on "|", so it read the row as having too many columns. The row now cites
+  `!cloudRouteAvailable` on the same line.
+- Source: the matrix check (scripts/test_test_matrix.py).
+- Verified: the matrix check passes in the local CI mirror on the branch merged with main.
+
 ### docs: the test matrix records the iOS 26.5 simulator run
 - What: a new iPhone row in docs/TEST-MATRIX.md: iOS 26, on-device then rules with no cloud route, run on the
   iOS 26.5 simulator, with what ran and what could not (no on-device model in the simulator).
