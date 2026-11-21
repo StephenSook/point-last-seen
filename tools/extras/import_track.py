@@ -250,7 +250,8 @@ def main(argv: list[str] | None = None) -> int:
     _write(passes_out, {"version": 1, "runId": run["runId"], "source": args.source, "basis": "reports",
                         "trackFromMs": track[0][0], "trackToMs": track[-1][0], "passes": passes})
     print(f"import_track: kept {len(track)} of {len(points)} points ({out_area} outside the drill area, {out_window} outside "
-          f"the window); {len(passes)} team passes; track in {track_out}, passes in {passes_out}")
+          f"the window, {len(kept) - len(track)} thinned to one per {THIN_MS // 1000} s); {len(passes)} team passes; "
+          f"track in {track_out}, passes in {passes_out}")
     return 0
 
 

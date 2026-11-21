@@ -217,3 +217,10 @@ def test_a_refused_track_writes_neither_file(tmp_path):
     track_out, passes_out = tmp_path / "tracks.local" / "t.json", tmp_path / "p.json"
     assert cli(tmp_path, track_out, passes_out, points=bad, events=[]) == 1
     assert not track_out.exists() and not passes_out.exists()
+
+
+def test_the_summary_accounts_for_every_point_read(tmp_path, capsys):
+    pts = walk(31, step_s=1, start=T0 + 60_000)  # 31 points 1 s apart: 7 kept after thinning to one per 5 s
+    assert cli(tmp_path, tmp_path / "tracks.local" / "t.json", tmp_path / "p.json", points=pts, events=[]) == 0
+    out = capsys.readouterr().out
+    assert "kept 7 of 31 points (0 outside the drill area, 0 outside the window, 24 thinned to one per 5 s)" in out
