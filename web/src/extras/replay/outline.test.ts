@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MapSegment } from "../hostApp";
+import { COMMAND, type MapSegment } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { attachOutline, outlineCollection } from "./outline";
 
@@ -41,7 +41,10 @@ describe("attachOutline", () => {
     attachOutline(map);
     expect([...sources.keys()]).toEqual(["extras-changed"]);
     expect([...layers.keys()]).toEqual(["extras-changed-line"]);
-    expect((layers.get("extras-changed-line") as { type: string }).type).toBe("line");
+    const layer = layers.get("extras-changed-line") as { type: string; paint: Record<string, unknown> };
+    expect(layer.type).toBe("line");
+    // Change-cyan is the product's one colour for "moved by the last report", as the command post's change chips use it.
+    expect(layer.paint["line-color"]).toBe(COMMAND.changeCyan);
     const c = outlineCollection([square("AA", 0)], ["AA"]);
     o.set(c);
     expect(sources.get("extras-changed")!.data).toBe(c);

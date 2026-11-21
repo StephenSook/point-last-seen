@@ -79,27 +79,59 @@ test("the judge page says what the product is in one line and links home", { tag
   await expect(page.getByRole("link", { name: /GitHub|video/i })).toHaveCount(0);
 });
 
-// The replay step's target depends on the run file, so each test waits for the file to settle before reading hrefs.
-async function routeLinksLand(page: Page): Promise<string[]> {
-  const steps = page.getByRole("list", { name: "Three minutes, in order" }).getByRole("link");
-  await expect(steps).toHaveText(["Try a practice search", "Watch the drill replay", "Get this laptop ready", "See the cloud model"]);
-  const hrefs = await steps.evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
-  for (const href of hrefs) {
-    expect(href).toMatch(/^#[a-z0-9-]+$/);
-    await expect(page.locator(href)).toHaveCount(1);
-  }
-  return hrefs;
+// The first screen: the door, one line and the practice button, then the replay map at its end as the hero.
+for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+  test(`at ${width} px the judge page opens with the door, one line and the practice button, then the replay map`, { tag: "@no-backend" }, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/judge");
+    const h1 = page.getByRole("heading", { level: 1, name: "Judge's door" });
+    const lede = page.getByText("No login. About three minutes.", { exact: true });
+    const start = page.getByRole("region", { name: "Try a practice search" }).getByRole("button", { name: "Try a practice search" });
+    const map = page.getByRole("region", { name: "Watch the drill replay" }).locator(".extras-replay-map");
+    await expect(map).toBeVisible();
+    const top = async (l: typeof h1) => (await l.boundingBox())!.y;
+    const [hY, lY, bY, mY, aY] = [await top(h1), await top(lede), await top(start), await top(map), await top(page.getByTestId("judge-advice"))];
+    expect(hY).toBeLessThan(120);
+    expect(hY).toBeLessThan(lY);
+    expect(lY).toBeLessThan(bY);
+    expect(bY).toBeLessThan(mY);
+    // The quote sits below the practice card and the replay, not above the door.
+    expect(mY).toBeLessThan(aY);
+    // The button is on the first screen, and the map starts on it.
+    const b = (await start.boundingBox())!;
+    expect(b.y + b.height).toBeLessThanOrEqual(height);
+    expect(mY).toBeLessThan(height);
+    // No numbered in-page route list any more.
+    await expect(page.getByRole("list", { name: "Three minutes, in order" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
 }
 
-test("the judge page opens with a numbered three-minute route, each step linking to its section", { tag: "@no-backend" }, async ({ page }) => {
-  await page.goto("/judge");
-  await expect(page.getByRole("region", { name: "Watch the drill replay" })).toBeVisible();
-  expect((await routeLinksLand(page))[1]).toBe("#extras-replay-h");
-});
-
-test("with no published run the route's replay step goes to the line that says so", { tag: "@no-backend" }, async ({ page }) => {
+test("with no published run the replay's place under the practice card says so", { tag: "@no-backend" }, async ({ page }) => {
   await page.route(RUN_URL, (route) => route.fulfill({ status: 404, body: "" }));
   await page.goto("/judge");
-  await expect(page.getByText("No published run yet.")).toBeVisible();
-  expect((await routeLinksLand(page))[1]).toBe("#d1-h");
+  const none = page.getByRole("region", { name: "Replay the training drill" });
+  await expect(none.getByText("No published run yet.")).toBeVisible();
+  const card = (await page.getByRole("region", { name: "Try a practice search" }).boundingBox())!;
+  expect((await none.boundingBox())!.y).toBeGreaterThan(card.y + card.height - 1);
+});
+
+test("every link on the judge page is drawn in fg-2 and underlined, never the browser's default blue", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  await expect(page.getByRole("link", { name: "Command post" })).toBeVisible();
+  const r = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--fg-2)";
+    document.querySelector("main")!.append(probe);
+    const fg2 = getComputedStyle(probe).color;
+    probe.remove();
+    const links = [...document.querySelectorAll("main a")].map((a) => ({ text: a.textContent, color: getComputedStyle(a).color, line: getComputedStyle(a).textDecorationLine }));
+    return { fg2, links };
+  });
+  expect(r.fg2).toBe("rgb(215, 211, 208)");
+  expect(r.links.length).toBeGreaterThanOrEqual(4);
+  for (const l of r.links) {
+    expect(l.color, l.text ?? "").toBe(r.fg2);
+    expect(l.line, l.text ?? "").toContain("underline");
+  }
 });
