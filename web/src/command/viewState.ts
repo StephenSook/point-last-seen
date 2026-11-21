@@ -14,7 +14,7 @@ import {
   type RankedSegment,
   type SegmentPrior,
 } from "@pls/engine";
-import { changeModel, type ChangeResult } from "./changeModel";
+import { changeModel, newLastKnownPointChange, type ChangeResult } from "./changeModel";
 
 export type ViewState = { result: PosteriorResult; rank: RankedSegment[]; hash: string; code: string };
 
@@ -51,6 +51,14 @@ export function lastReportChange(
   if (reports.length === 0) return null;
   const cause = reports.reduce((a, b) => (b.clientTimeMs > a.clientTimeMs || (b.clientTimeMs === a.clientTimeMs && b.seq > a.seq) ? b : a));
   const ids = [...priorInputEventIds];
+  // Command confirming a sighting with a place rebuilt the prior from it (the sighting is now a prior input).
+  const target = cause.type === "confirmation" && cause.role === "command" && cause.decision === "confirmed" && cause.targetEventId
+    ? docs.find((d) => d.eventId === cause.targetEventId)
+    : undefined;
+  if (target && target.type === "sighting" && ids.includes(target.eventId)) {
+    const poa = posterior(prior, toEngineEvents([...docs], ids), params).poa;
+    return { causeEventId: cause.eventId, before: poa, after: poa, change: newLastKnownPointChange(target, cause) };
+  }
   const before = posterior(prior, toEngineEvents(docs.filter((d) => d.eventId !== cause.eventId), ids), params).poa;
   const after = posterior(prior, toEngineEvents([...docs], ids), params).poa;
   return { causeEventId: cause.eventId, before, after, change: changeModel(before, after, cause) };
