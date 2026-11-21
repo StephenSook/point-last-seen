@@ -2539,3 +2539,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
 - Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
 - Verified: run alone against the live site, the retract check passes.
+
+### test(data): a phone case pending on the web must still fail there
+- What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
+- Source: review (parity with the iPhone's vector test).
+- Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
