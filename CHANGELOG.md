@@ -70,6 +70,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention: purge records are kept for good as tombstones (doneAt when finished, staleAt when the id was in use
+  again) instead of being deleted, so the seed tool can refuse a purged id; a finished purge is never resumed; each
+  unfinished record is handled on its own, so one that cannot be written fails alone and the other drills are still
+  purged. Source: review (second-model, third round). Verified: 3 new tests (a tombstone not resumed, a stale record
+  left alone on the next run, one failing record beside a due drill) and 3 updated ones failed first, then pass;
+  functions suite 280.
 - Seed tool: refuses to create a drill, or add a code to one, when the drill retention job holds a purge record for
   its id, and fails closed when the record cannot be read; checked before anything is written to the Keychain or
   Firestore. Source: review (second-model: a purged id seeded again would carry old sign-ins' claims and could be hit

@@ -6,13 +6,14 @@
 //   record outside the incident (ops/drillPurges/items/{id}), then deletes the media prefixes, the drill's join codes,
 //   the incident with everything under it, a last media and join-code sweep (anything written during the purge; with
 //   the incident gone the rules refuse new uploads), and the anonymous sign-ins whose only incident it was and that
-//   nobody has used since the drill closed, each re-read just before it is deleted. The record is cleared only when
-//   every step succeeded, so a run that fails partway is finished by the next one from the record, even when the
-//   incident root is already gone; a record whose incident id is in use again is dropped without deleting anything.
-//   The keep-list protects the drills the judge page and the film use. A drill closed before closedAt existed has
-//   none and is never deleted by this job.
+//   nobody has used since the drill closed, each re-read just before it is deleted. The record is marked done only
+//   when every step succeeded, so a run that fails partway is finished by the next one from the record, even when the
+//   incident root is already gone; a record whose incident id is in use again is marked stale and nothing is deleted.
+//   Done and stale records are kept for good, and the seed tool refuses any id that has one, so a purged id is never
+//   reused (old sign-ins still carry it in their claims). The keep-list protects the drills the judge page and the
+//   film use. A drill closed before closedAt existed has none and is never deleted by this job.
 import type { Auth, UserRecord } from "firebase-admin/auth";
-import { Timestamp, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { getStorage } from "firebase-admin/storage";
 
 // The bucket type the Admin SDK hands out (as in media.ts).
@@ -130,17 +131,26 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
     if (keptUntil(doc.id) > nowMs) out.kept.push(doc.id);
     else due.set(doc.id, at.toMillis());
   }
-  // A recorded purge resumes only while its incident is gone. An incident at that id that is not itself due is a new
-  // one using the id again: the record is dropped and nothing is deleted, its sign-ins included.
-  const records = await db.collection(PURGES).get();
-  const roots = records.empty ? [] : await db.getAll(...records.docs.map(r => db.doc(`incidents/${r.id}`)));
-  records.docs.forEach((r, i) => {
-    if (due.has(r.id) || keptUntil(r.id) > nowMs) return;
+  // A purge record is kept for good once its purge is done (doneAt) or abandoned (staleAt), as a tombstone: the seed
+  // tool refuses an id that has one. An unfinished record resumes only while its incident is gone; an incident at that
+  // id that is not itself due means the id is in use again, so the record is marked stale and nothing is deleted,
+  // its sign-ins included. Each record is handled on its own: one that cannot be written fails alone.
+  const records = (await db.collection(PURGES).get()).docs.filter(r => r.get("doneAt") === undefined && r.get("staleAt") === undefined);
+  const roots = records.length === 0 ? [] : await db.getAll(...records.map(r => db.doc(`incidents/${r.id}`)));
+  for (const [i, r] of records.entries()) {
+    if (due.has(r.id) || keptUntil(r.id) > nowMs) continue;
     const closedAtMs = r.get("closedAtMs");
-    if (roots[i]?.exists || typeof closedAtMs !== "number") out.stale.push(r.id);
-    else due.set(r.id, closedAtMs);
-  });
-  if (!dryRun) await Promise.all(out.stale.map(id => db.doc(`${PURGES}/${id}`).delete()));
+    if (!roots[i]?.exists && typeof closedAtMs === "number") {
+      due.set(r.id, closedAtMs);
+      continue;
+    }
+    try {
+      if (!dryRun) await db.doc(`${PURGES}/${r.id}`).update({ staleAt: Timestamp.fromMillis(nowMs) });
+      out.stale.push(r.id);
+    } catch {
+      out.failed.push(r.id);
+    }
+  }
   const members = await anonymousMembers(auth, new Set(due.keys()));
   const deleteCodes = async (id: string) => {
     const codes = await db.collection("joinCodes").where("incidentId", "==", id).get();
@@ -148,7 +158,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   };
   for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
-      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs }, { merge: true });
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete() }, { merge: true });
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {
         await deleteCodes(id);
@@ -157,7 +167,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
         await deleteCodes(id);
       }
       out.users += await deleteMembers(auth, id, members.get(id) ?? [], closedAtMs, dryRun);
-      if (!dryRun) await db.doc(`${PURGES}/${id}`).delete();
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).update({ doneAt: Timestamp.fromMillis(nowMs) });
       out.deleted.push(id);
     } catch {
       out.failed.push(id);
@@ -165,5 +175,6 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   }
   out.kept.sort();
   out.stale.sort();
+  out.failed.sort();
   return out;
 }

@@ -76,7 +76,7 @@ describe("closedAt: the server records when a drill is closed", () => {
 });
 
 describe("deleteEndedDrills: 30 days after the close", () => {
-  it("deletes a drill closed more than 30 days ago, with its events, media and join codes, and clears its purge record", async () => {
+  it("deletes a drill closed more than 30 days ago, with its events, media and join codes, and keeps a tombstone", async () => {
     await drill("OLD", closed(31));
     await admin.db.doc("joinCodes/h1").set({ incidentId: "OLD", roles: ["searcher"] });
     await admin.db.doc("joinCodes/h2").set({ incidentId: "OTHER", roles: ["searcher"] });
@@ -88,7 +88,7 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     for (const p of media("OLD")) expect(await exists(p)).toBe(false);
     expect((await admin.db.doc("joinCodes/h1").get()).exists).toBe(false);
     expect((await admin.db.doc("joinCodes/h2").get()).exists).toBe(true);
-    expect((await purge("OLD").get()).exists).toBe(false);
+    expect((await purge("OLD").get()).get("doneAt")).toBeInstanceOf(Timestamp);
   });
 
   it("keeps a drill closed less than 30 days ago, an open drill, a closed drill with no closedAt, and every non-drill", async () => {
@@ -150,7 +150,41 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     for (const p of media("REUSED")) expect(await exists(p)).toBe(true);
     expect((await admin.db.doc("joinCodes/h9").get()).exists).toBe(true);
     expect(await userExists(newMember)).toBe(true);
-    expect((await purge("REUSED").get()).exists).toBe(false);
+    expect((await purge("REUSED").get()).get("staleAt")).toBeInstanceOf(Timestamp);
+    const again = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW + DAY);
+    expect(again.deleted).toEqual([]);
+    expect(again.stale).toEqual([]);
+    expect((await inc("REUSED").get()).exists).toBe(true);
+  });
+
+  it("never resumes a finished purge: its tombstone stays, and a sign-in claiming the id is left alone", async () => {
+    await purge("DONE").set({ startedAt: Timestamp.fromMillis(NOW - 5 * DAY), closedAtMs: NOW - 40 * DAY, doneAt: Timestamp.fromMillis(NOW - 5 * DAY) });
+    const left = await member("DONE");
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(r.deleted).toEqual([]);
+    expect(r.failed).toEqual([]);
+    expect(await userExists(left)).toBe(true);
+    expect((await purge("DONE").get()).get("doneAt")).toBeInstanceOf(Timestamp);
+  });
+
+  it("one purge record that cannot be written does not stop the other drills' purges", async () => {
+    await drill("OLD", closed(31));
+    await drill("STALE", {});
+    await purge("STALE").set({ startedAt: Timestamp.fromMillis(NOW - DAY), closedAtMs: NOW - 40 * DAY });
+    const path = `${PURGES}/STALE`;
+    const db = new Proxy(admin.db, {
+      get(target, prop) {
+        if (prop === "doc") return (p: string) => (p === path
+          ? { set: () => Promise.reject(new Error("write failed")), update: () => Promise.reject(new Error("write failed")) }
+          : target.doc(p));
+        const v = Reflect.get(target, prop, target);
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    });
+    const r = await deleteEndedDrills(db, bucket, admin.auth, NOW);
+    expect(r.deleted).toEqual(["OLD"]);
+    expect(r.failed).toEqual(["STALE"]);
+    expect((await inc("STALE").get()).exists).toBe(true);
   });
 
   it("deletes a join code written while the purge ran, by a last sweep after the incident is gone", async () => {
@@ -198,12 +232,13 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(first.failed).toEqual(["OLD"]);
     expect(first.users).toBe(0);
     expect((await purge("OLD").get()).exists).toBe(true);
+    expect((await purge("OLD").get()).get("doneAt")).toBeUndefined();
     expect((await inc("OLD").get()).exists).toBe(false);
     const second = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW + DAY);
     expect(second.deleted).toEqual(["OLD"]);
     expect(second.users).toBe(1);
     expect(await userExists(gone)).toBe(false);
-    expect((await purge("OLD").get()).exists).toBe(false);
+    expect((await purge("OLD").get()).get("doneAt")).toBeInstanceOf(Timestamp);
   });
 
   it("finishes an interrupted purge from its record, even with the incident root already gone", async () => {
@@ -217,7 +252,7 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect((await inc("HALF").collection("events").get()).size).toBe(0);
     for (const p of media("HALF")) expect(await exists(p)).toBe(false);
     expect(await userExists(gone)).toBe(false);
-    expect((await purge("HALF").get()).exists).toBe(false);
+    expect((await purge("HALF").get()).get("doneAt")).toBeInstanceOf(Timestamp);
   });
 
   it("deletes a photo uploaded while the purge ran, by a last sweep after the incident is gone", async () => {
