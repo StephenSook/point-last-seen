@@ -82,6 +82,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- ci: judge-quota.yml runs the judge quota probe hourly (minute 41) through judging, with the CI App Check debug
+  token; a failed run emails the repo owner. Source: review (judge quota probe, approved). Verified: the gates
+  (workflow paths, ci-local mirror) pass.
 - scripts: judge_quota_probe.py reads today's ops/judgeSessions doc (never starts a session) and exits 1 when fewer
   than 10 of the day's judge practice searches are left; the cap is read from functions/src/judgeSession.ts, a failed
   read fails, a missing doc is an unused day, and it retires after 2026-12-17. Its tests run in CI and ci-local.
