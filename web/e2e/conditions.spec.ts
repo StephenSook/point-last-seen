@@ -1,10 +1,11 @@
-import { deployedOnly, expect, joinCommand, test, withDebugToken } from "./fixtures";
+import { deployedOnly, expect, joinCommand, openDetails, test, withDebugToken } from "./fixtures";
 
 // Command types the incident's conditions on the test drill; the phones read them for the urgency chip.
 test("command saves the incident's conditions and sees the chip the phones show", async ({ page }) => {
   deployedOnly();
   await withDebugToken(page);
   await joinCommand(page);
+  await openDetails(page);
   const form = page.getByRole("region", { name: "Conditions" });
   const temp = form.getByLabel("Air temperature (°F)");
   await expect(temp).toBeVisible({ timeout: 20_000 });

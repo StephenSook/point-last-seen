@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, joinCommand, test, withDebugToken } from "./fixtures";
+import { expect, joinCommand, openDetails, test, withDebugToken } from "./fixtures";
 
 // axe with the WCAG 2.0 to 2.2 A and AA rules. Each finding prints its rule and the nodes it flags.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
@@ -31,6 +31,10 @@ for (const width of [1440, 390]) {
       // The map canvas and its markers are drawn by MapLibre; the rail, header and forms are ours.
       const r = await new AxeBuilder({ page }).withTags(TAGS).exclude(".maplibregl-canvas").analyze();
       expect(describe(r.violations)).toEqual([]);
+      // The sections under Details are checked open too: a closed details hides them from the scan.
+      await openDetails(page);
+      const opened = await new AxeBuilder({ page }).withTags(TAGS).exclude(".maplibregl-canvas").analyze();
+      expect(describe(opened.violations)).toEqual([]);
     });
   });
 }

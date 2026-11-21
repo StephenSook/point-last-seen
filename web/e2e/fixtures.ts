@@ -73,6 +73,14 @@ export async function joinCommand(page: Page): Promise<string> {
   return incident;
 }
 
+/** Opens the command post rail's Details (conditions, family, prior, photos, debriefs), closed when the post opens. */
+export async function openDetails(page: Page): Promise<void> {
+  const details = page.getByTestId("rail-details");
+  await expect(details).toBeAttached({ timeout: 20_000 });
+  if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
+  await expect(details).toHaveAttribute("open", "");
+}
+
 /** A synthetic sign image drawn in the page (no personal photo), as JPEG bytes for a file input. */
 export async function syntheticSignJpeg(page: Page): Promise<Buffer> {
   const b64 = await page.evaluate(async () => {
