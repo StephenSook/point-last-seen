@@ -149,3 +149,26 @@ describe("cleanup", () => {
   });
 });
 
+describe("cleanup and joins, review round 2", () => {
+  it("a failed revocation is retried: revoke comes before clearing the claims", async () => {
+    let calls = 0;
+    const failsOnce = {
+      getUser: (uid: string) => admin.auth.getUser(uid),
+      setCustomUserClaims: (uid: string, c: object | null) => admin.auth.setCustomUserClaims(uid, c),
+      revokeRefreshTokens: (uid: string) => (calls++ === 0 ? Promise.reject(Object.assign(new Error("revoke failed"), { code: "auth/internal-error" })) : admin.auth.revokeRefreshTokens(uid)),
+    };
+    await expect(handleRemoveMember(admin.db, failsOnce, asCmd(), { incidentId: "I1", uid: searcher })).rejects.toThrow("revoke failed");
+    expect((await admin.auth.getUser(searcher)).customClaims?.["inc"]).toBe("I1");
+    await handleRemoveMember(admin.db, failsOnce, asCmd(), { incidentId: "I1", uid: searcher });
+    expect(calls).toBe(2);
+    expect((await admin.auth.getUser(searcher)).customClaims?.["inc"]).toBeUndefined();
+  });
+  it("a removed account does not use up a limited invite", async () => {
+    await admin.db.doc(`joinCodes/${hash("MXTD2345")}`).set({ incidentId: "I1", roles: ["family"], maxUses: 1, uses: 0 });
+    await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: family });
+    const err = await handleJoin(family, { joinCode: "MXTD2345", role: "family" }).then(() => null, (e: unknown) => e as { code?: string });
+    expect(err?.code).toBe("permission-denied");
+    expect((await admin.db.doc(`joinCodes/${hash("MXTD2345")}`).get()).get("uses")).toBe(0);
+  });
+});
+

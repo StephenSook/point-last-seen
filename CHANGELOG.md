@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
+  redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
+  before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
+  once is retried and the claims then go; a removed account leaves a single-use invite unused; both failed first, then
+  pass; 318 functions and rules tests pass.
 - rules: command reads incidents/{id}/members/{uid} and no client writes one; Storage keeps within its two Firestore
   lookups per request: a photo upload and every read check the incident and the removal record, and a clip upload
   checks the incident and its consent record (a removed account cannot create one, since Firestore refuses its

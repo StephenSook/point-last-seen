@@ -119,6 +119,8 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     if (!t.exists) denied();
     team = teamId!;
   }
+  // A removed account is refused before it can use up a limited invite (the members transaction below checks again).
+  if ((await db.doc(`incidents/${id}/removed/${uid}`).get()).exists) denied();
   // Count a use of a limited invite atomically, refusing if another caller took the last one meanwhile.
   if (code.get("maxUses") != null) {
     const ok = await db.runTransaction(async tx => {

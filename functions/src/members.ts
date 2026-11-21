@@ -68,9 +68,10 @@ export async function handleRemoveMember(db: Firestore, auth: Pick<Auth, "getUse
     if ((e as { code?: string }).code === "auth/user-not-found") return null;
     throw e;
   });
+  // Revoke first: if it fails, the claims still name this incident, so calling again redoes both.
   if (target !== null && target.customClaims?.["inc"] === incidentId) {
-    await auth.setCustomUserClaims(uid, null);
     await auth.revokeRefreshTokens(uid);
+    await auth.setCustomUserClaims(uid, null);
   }
   return { removed: true };
 }
