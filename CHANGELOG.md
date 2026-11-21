@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone vectors: the 12 run-of-times cases are no longer pending on the iPhone, whose port is merged (main 20391d1f);
+  `docs/LIMITS.md` counts every platform at 116 of 116. Source: the iPhone port merged. Verified:
+  `scripts/test_phone_vectors.py` passes; the iPhone port matched the web rule on every row of the generated corpora
+  (local evidence, not in the repo).
 - Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
   210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
   `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
