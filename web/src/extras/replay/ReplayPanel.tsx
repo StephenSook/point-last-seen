@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { MapView, type MapLibreMap } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
-import { pendingLine, type ReplayData } from "./replayData";
+import { lastReportRoute, pendingLine, type ReplayData } from "./replayData";
 import { clockLabel, markTimes, nextMarkTime } from "./ruler";
 import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
@@ -60,6 +60,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   };
   const prev = nextMarkTime(marks, tMs, -1);
   const next = nextMarkTime(marks, tMs, 1);
+  const route = lastReportRoute(frame.shown);
 
   return (
     <div className="extras-replay" data-phase={frame.phase}>
@@ -71,6 +72,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
       <div className="extras-replay-facts" role={playing ? undefined : "status"}>
         <span>Clock <span className="num">{clockLabel(tMs, timeZone)}</span></span>
         <span>{frame.shown.length === 1 ? "1 report arrived" : `${frame.shown.length} reports arrived`}</span>
+        {route && <span data-testid="replay-route">Last report: {route}</span>}
         {frame.phase === "replayable" ? (
           <>
             <span>Match code <span className="num" data-testid="replay-code">{frame.view.code}</span></span>
