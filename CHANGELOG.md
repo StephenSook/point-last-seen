@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: the command post also checks the browser's sign-in at once after a refused action, past the 30-second spacing.
+  Source: review. Verified: the hygiene guard passes in public mode.
 - Limits: the command post checks the browser's sign-in when its tab is shown or focused and every five minutes while
   shown, at most once in 30 seconds. Source: review. Verified: the hygiene guard passes.
 - Limits: a practice search's post, which has no join code, sends you back to the judge's page when the browser's
