@@ -34,11 +34,13 @@ fun StatusScreen(
     subjectName: String = "",
     /** Leaving a search still open, after the family confirms it. */
     onLeaveOpen: () -> Unit = {},
+    /** Why command ended the search (found, suspended or training_ended), when it is closed. */
+    closedReason: String? = null,
 ) {
     val open = status != "found" && status != "closed"
     var asking by rememberSaveable { mutableStateOf(false) }
     FamilyScaffold(mode, killCloud) {
-        Sentence(Copy.status(status))
+        Sentence(Copy.status(status, closedReason))
         Note(Copy.newsByPhone(subjectName))
         if (unsaved) Note("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
         if (shareFailed) Note("The profile did not reach command. It will be sent again when you save it.")

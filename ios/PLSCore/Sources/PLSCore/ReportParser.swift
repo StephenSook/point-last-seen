@@ -91,26 +91,71 @@ public enum ReportParser {
     static let filler: Set<String> = ["of", "at", "is", "was", "about", "around", "roughly", "approximately", "maybe", "estimated", "near", "like"]
     static let percentWords: Set<String> = ["percent", "%", "pct", "per"]
 
+    /// Coverage as stated (80 stays 80, and code normalizes it later), except a stated percent of 3 or less, which is
+    /// made a ratio here: normalizing reads a bare value up to 3 as a ratio, so "coverage 1%" would become 100%.
     static func coverage(_ t: Tokens) -> Double? {
         guard let k = t.lower.firstIndex(of: "coverage") else { return nil }
         var j = k + 1
         while j < t.lower.count, filler.contains(t.lower[j]) { j += 1 }
-        if let (v, _) = NumberWords.parse(t.lower, at: j) { return v }
-        if k >= 1, percentWords.contains(t.lower[k - 1]), let v = NumberWords.parse(t.lower, endingBefore: k - 1) { return v }
+        if let (v, n) = NumberWords.parse(t.lower, at: j) {
+            return percentAfter(t.lower, at: j + n) ? Self.percent(v) : v
+        }
+        if k >= 1, percentWords.contains(t.lower[k - 1]), let v = NumberWords.parse(t.lower, endingBefore: k - 1) { return Self.percent(v) }
         if let v = NumberWords.parse(t.lower, endingBefore: k) { return v }
         return nil
     }
 
+    /// A stated percent: kept as stated above 3 (normalizing divides it by 100), made a ratio at 3 or less.
+    static func percent(_ v: Double) -> Double { v > 3 ? v : v / 100 }
+
+    /// Whether a percent follows at `i`: "percent", "%", "pct" or "per cent", never "per" alone ("1 per the lead").
+    static func percentAfter(_ w: [String], at i: Int) -> Bool {
+        guard i < w.count else { return false }
+        if ["percent", "%", "pct"].contains(w[i]) { return true }
+        return w[i] == "per" && i + 1 < w.count && w[i + 1] == "cent"
+    }
+
     static func minutes(_ t: Tokens) -> Double? {
         let w = t.lower
+        var whenUnit = -2                                   // the unit word of the last time phrase that said when
+        var inTime: Double?                                 // the first "in N minutes": a search time or a countdown
         for i in w.indices {
-            if ["minutes", "minute", "mins", "min"].contains(w[i]), let v = NumberWords.parse(w, endingBefore: i) { return v }
-            if ["hours", "hour", "hrs", "hr"].contains(w[i]) {
-                if i >= 1, ["an", "a"].contains(w[i - 1]) { return i >= 2 && w[i - 2] == "half" ? 30 : 60 }
-                if let v = NumberWords.parse(w, endingBefore: i) { return v * 60 }
+            let found: (minutes: Double, start: Int)?
+            if ["minutes", "minute", "mins", "min"].contains(w[i]) {
+                found = NumberWords.span(w, endingBefore: i).map { ($0.value, $0.start) }
+            } else if ["hours", "hour", "hrs", "hr"].contains(w[i]) {
+                if i >= 1, ["an", "a"].contains(w[i - 1]) {
+                    found = i >= 2 && w[i - 2] == "half" ? (30, i - 2) : (60, i - 1)
+                } else {
+                    found = NumberWords.span(w, endingBefore: i).map { ($0.value * 60, $0.start) }
+                }
+            } else {
+                continue
             }
+            guard let (m, start) = found else { continue }
+            // "In 1 hour and 30 minutes": a unit joined by a lower-case "and" belongs to the phrase before it ("And"
+            // starting a sentence does not; the tokens keep no full stop, but they keep its capital).
+            let joined = start >= 2 && t.original[start - 1] == "and" && start - 2 == whenUnit
+            if joined || whenNotHowLong(w, before: start) { whenUnit = i; continue }
+            // An explicit search time wins; "in N minutes" with no cue counts only when nothing else is stated.
+            if start >= 1, w[start - 1] == "in" { inTime = inTime ?? m; continue }
+            return m
         }
-        return nil
+        return inTime
+    }
+
+    static let whenWords: Set<String> = ["every", "next", "until", "till"]
+    /// Words that, a little before "in", say what happens next ("radio check in 30 minutes", "back in an hour").
+    static let nextCues: Set<String> = ["next", "check", "back", "again", "will", "return", "returning", "report", "update", "regroup"]
+
+    /// True when the words just before a time say when something happens ("every 2 hours", "check in 30 minutes"),
+    /// not how long the team searched ("cleared AE in 45 minutes").
+    static func whenNotHowLong(_ w: [String], before start: Int) -> Bool {
+        var k = start - 1
+        while k >= 0, filler.contains(w[k]) { k -= 1 }
+        guard k >= 0 else { return false }
+        if whenWords.contains(w[k]) { return true }
+        return w[k] == "in" && w[max(0, k - 4)..<k].contains(where: nextCues.contains)
     }
 
     /// Minutes before now for "20 minutes ago", "an hour ago" or "two hours ago"; nil otherwise.
@@ -118,10 +163,11 @@ public enum ReportParser {
         let w = Tokens(text).lower
         guard let ago = w.firstIndex(of: "ago"), ago >= 2 else { return nil }
         let unit = w[ago - 1]
-        if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1) }
+        // Never negative, so a sighting is never put after the report.
+        if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1).flatMap { $0 >= 0 ? $0 : nil } }
         if ["hours", "hour", "hrs", "hr"].contains(unit) {
             if ["an", "a"].contains(w[ago - 2]) { return ago >= 3 && w[ago - 3] == "half" ? 30 : 60 }
-            return NumberWords.parse(w, endingBefore: ago - 1).map { $0 * 60 }
+            return NumberWords.parse(w, endingBefore: ago - 1).flatMap { $0 >= 0 ? $0 * 60 : nil }
         }
         return nil
     }
@@ -261,16 +307,21 @@ struct Tokens {
     init(_ text: String) {
         var out: [String] = []
         var current = ""
-        let chars = Array(text)
+        // A minus sign pasted as U+2212 is the same sign, so a negative number stays negative.
+        let chars = Array(text).map { $0 == "\u{2212}" ? "-" : $0 }
         func flush() { if !current.isEmpty { out.append(current); current = "" } }
         for (i, ch) in chars.enumerated() {
             if ch.isLetter || ch.isNumber {
                 current.append(ch)
             } else if ch == ".", current.first?.isNumber == true || current.first == "-", i + 1 < chars.count, chars[i + 1].isNumber {
                 current.append(ch)                        // keep 0.8 together
-            } else if ch == "-", current.isEmpty, i + 1 < chars.count, chars[i + 1].isNumber,
+            } else if ch == ".", current.isEmpty, i + 1 < chars.count, chars[i + 1].isNumber,
                       i == 0 || !(chars[i - 1].isLetter || chars[i - 1].isNumber) {
-                current.append(ch)                        // a sign, so -0.8 stays negative and is rejected
+                current.append(ch)                        // ".7" is 0.7, never 7
+            } else if ch == "-", current.isEmpty, i + 1 < chars.count,
+                      chars[i + 1].isNumber || (chars[i + 1] == "." && i + 2 < chars.count && chars[i + 2].isNumber),
+                      i == 0 || !(chars[i - 1].isLetter || chars[i - 1].isNumber) {
+                current.append(ch)                        // a sign, so -0.8 and -.8 stay negative and are rejected
             } else {
                 flush()
                 if ch == "%" { out.append("%") }
@@ -302,9 +353,7 @@ enum NumberWords {
     /// Parses a number that starts at `i`; returns the value and how many tokens it used.
     static func parse(_ w: [String], at i: Int) -> (Double, Int)? {
         guard i < w.count else { return nil }
-        if let v = Double(w[i]), w[i].first?.isNumber == true || (w[i].first == "-" && w[i].dropFirst().first?.isNumber == true) {
-            return (v, 1)
-        }
+        if let v = Double(w[i]), Self.isNumeral(w[i]) { return (v, 1) }
         var j = i
         var whole: Double?
         if let t = tens[w[j]] {
@@ -325,10 +374,23 @@ enum NumberWords {
 
     /// Parses the longest number phrase that ends just before index `end`.
     static func parse(_ w: [String], endingBefore end: Int) -> Double? {
+        span(w, endingBefore: end)?.value
+    }
+
+    /// The longest number phrase that ends just before index `end`, and the index it starts at.
+    static func span(_ w: [String], endingBefore end: Int) -> (value: Double, start: Int)? {
         guard end >= 1 else { return nil }
         for start in max(0, end - 5)..<end {
-            if let (v, n) = parse(w, at: start), start + n == end { return v }
+            if let (v, n) = parse(w, at: start), start + n == end { return (v, start) }
         }
         return nil
+    }
+
+    /// A token written with digits: "7", "0.8", ".7", "-0.8" or "-.7".
+    static func isNumeral(_ token: String) -> Bool {
+        var rest = Substring(token)
+        if rest.first == "-" { rest = rest.dropFirst() }
+        if rest.first == "." { rest = rest.dropFirst() }
+        return rest.first?.isNumber == true
     }
 }

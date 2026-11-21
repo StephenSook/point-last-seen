@@ -23,4 +23,11 @@ class AppCheckLiveTest {
         assertTrue("App Check token length ${token.token.length}", token.token.length > 100)
         assertTrue(token.expireTimeMillis > System.currentTimeMillis())
     }
+
+    /** The cloud calls use limited-use tokens (Remote Config use_limited_use_tokens, default on): the debug provider must serve one too. */
+    @Test fun theDebugProviderServesALimitedUseToken() {
+        val token = Tasks.await(Firebase.appCheck.limitedUseAppCheckToken, 30, TimeUnit.SECONDS)
+        assertTrue("limited-use App Check token length ${token.token.length}", token.token.length > 100)
+        assertTrue(token.expireTimeMillis > System.currentTimeMillis())
+    }
 }

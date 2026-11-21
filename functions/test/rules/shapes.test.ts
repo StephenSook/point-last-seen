@@ -164,9 +164,9 @@ describe("clip readings expire within 31 days; the incident status stays in its 
       await (ok ? assertSucceeds(write) : assertFails(write));
     }
   });
-  it("command cannot set the status outside open, found and closed, or remove it", async () => {
+  it("command cannot set the status outside open and closed (a bare found is refused), or remove it", async () => {
     const db = dbAs(C, commandClaims);
-    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { status: "found" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { status: "found" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { status: "Closed" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { name: "Drill", mode: "drill" }));
   });
