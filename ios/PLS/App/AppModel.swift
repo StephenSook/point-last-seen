@@ -1125,7 +1125,7 @@ final class AppModel {
                 params: mission.params)
             let event = ReadOutcomeBuilder.event(from: outcome, rawText: rawText, position: position, context: context,
                                                  seq: try identity.nextSeq())
-            try store.append(event, foundKindReason: outcome.foundKindReason)
+            try store.append(event, foundKindReason: outcome.foundKindReason, numbersFromRules: outcome.numbersFromRules ? true : nil)
             problem = nil
             recomputePosterior(mission)
             // A practice report's timings stay off the server, like the report.

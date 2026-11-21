@@ -133,6 +133,8 @@ public enum ReadOrchestrator {
 
         /// After grounding, a model's "found" for an object is read as a clue (the found-kind rule).
         var foundKindReason: String?
+        /// Set by the stage that answers when a number in its reading came from the rules parser.
+        var numbersFromRules = false
         func checked(_ r: ReportReading) -> ReportReading {
             let g = grounded(r)
             guard let rule = context.foundKind else { return g }
@@ -154,7 +156,7 @@ public enum ReadOrchestrator {
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
             return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport,
-                               stageNotes: notes, foundKindReason: foundKindReason)
+                               stageNotes: notes, foundKindReason: foundKindReason, numbersFromRules: numbersFromRules)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -234,8 +236,10 @@ public enum ReadOrchestrator {
                         r = Self.zerosNotStated(r)
                         r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)
                     }
+                    let (stated, filled) = Self.statedNumbers(r, from: parse(text, context))
+                    r = stated
                     let v = validate(r, context, text)
-                    if v.isOK { return finish(r, path: path, stage: .guided) }
+                    if v.isOK { numbersFromRules = filled; return finish(r, path: path, stage: .guided) }
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
                     if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
                         quoteRetried = true
@@ -256,9 +260,14 @@ public enum ReadOrchestrator {
                 switch result {
                 case let .success(line):
                     if let line = PermissiveLine.parse(line, known: context.knownSegmentIds) {
-                        let merged = withCodeSegments(line.merged(into: parse(text, context)))
+                        let parsed = parse(text, context)
+                        let merged = withCodeSegments(line.merged(into: parsed))
                         let v = validate(merged, context, text)
-                        if v.isOK { return finish(merged, path: path, stage: .permissiveText) }
+                        if v.isOK {
+                            // The line carries only kind, ids and coverage: every other number is the parser's.
+                            numbersFromRules = (line.coverage == nil && parsed.coverage != nil) || parsed.minutes != nil || parsed.searchers != nil
+                            return finish(merged, path: path, stage: .permissiveText)
+                        }
                         notes.append("permissive \(path.rawValue): invalid \(Self.reasons(v))")
                     } else {
                         notes.append("permissive \(path.rawValue): unparsed")
@@ -294,6 +303,18 @@ public enum ReadOrchestrator {
 
     static func timed<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
         await Timeout.run(seconds: seconds, op)
+    }
+
+    /// Apple's model leaves every number in its reading empty, even one the report states ("coverage 0.7" came back
+    /// nil on the simulator), and a schema that made it fill each number got invented ones. So a number a model left
+    /// empty is taken from the rules parser, which reads only numbers the report states; a model's own number stays.
+    /// True when any number was taken.
+    static func statedNumbers(_ reading: ReportReading, from parsed: ReportReading) -> (ReportReading, Bool) {
+        var r = reading, filled = false
+        if r.coverage == nil, let c = parsed.coverage { r.coverage = c; filled = true }
+        if r.minutes == nil, let m = parsed.minutes { r.minutes = m; filled = true }
+        if r.searchers == nil, let n = parsed.searchers { r.searchers = n; filled = true }
+        return (r, filled)
     }
 
     /// Apple's model fills a number the report never stated with 0. For minutes, searchers and detection

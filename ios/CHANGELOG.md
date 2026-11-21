@@ -5,6 +5,23 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): numbers a model leaves empty are read from the report by the rules
+- What: Apple's on-device model returns every number in its reading empty, even one the report states, so a typed
+  "cleared" report never moved the map on a phone with Apple Intelligence ("Cleared segment AE, coverage 0.7, nothing
+  found." was answered "Ask command."). After a model's reading, each number it left empty (coverage, minutes,
+  searchers) is now taken from the rules parser, which reads only numbers the report states; a model's own number
+  stays, and kind, area and route stay the model's. The receipt then adds "Numbers read by rules." That note lives only
+  in this phone's journal, like the found-kind note, never in the event. The permissive stage, whose line carries only
+  kind, area and coverage, says so too when its other numbers came from the parser.
+- Source: a simulator run of the drill step card. All five test reports came back with no numbers. A spike on the
+  Mac's on-device model with the same schema, instructions and greedy options returned no numbers for all five, and a
+  schema with required numbers made it invent ones the reports never stated (10 minutes, 1 searcher, 100 m, coverage
+  0.8 on a report that states none), so the numbers come from code.
+- Verified: new PLSCore tests for the four coverage sentences, minutes and searchers, a model's own number, a report
+  with no numbers, the permissive stage, a rules-only read, the receipt line and an older journal without the flag;
+  an app test that the flag stays with the report. Each new test failed before the change and passes after; 430
+  PLSCore tests and the full app suite pass.
+
 ### fix(ios): Ready check shows no sign-in line in the practice drill
 - What: Ready check's "Not signed in. Stay in signal." line is hidden in the practice drill, which never signs in, so a
   tester trying the app without a team is not told to do something the practice drill does not need. Outside the
