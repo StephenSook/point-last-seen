@@ -190,7 +190,11 @@ public enum ReadOutcomeBuilder {
 /// never joins others. A removed run keeps its line breaks.
 public enum PhoneNumbers {
     public static let replacement = "[number removed]"
-    static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+    /// Spoken digits in English and Spanish (matched lower-cased). Not "un" or "una": those are articles.
+    static let digitWords: Set<String> = [
+        "zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
+    ]
     /// A spoken repeat before a digit counts the extra digits it stands for: "triple five" is three digits.
     static let repeats: [String: Int] = ["double": 1, "triple": 2]
     /// Dashes besides the plain hyphen, as NFKC leaves them: hyphen, non-breaking hyphen, figure, en and

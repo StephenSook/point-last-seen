@@ -123,8 +123,8 @@ each line says what the limit is and why.
   on-device model only when that model supports the phone's language setting. The iPhone's plain parser, used when
   no model can read, knows English words; the evidence pre-screen on every platform matches English terms only
   (`shared/constants/evidence-terms.json`); and the phone-number rule on every platform removes any run of 7 or more
-  digits, written in any script, or English digit words. Evidence described in another language is not caught by the
-  pre-screen.
+  digits, written in any script, or English or Spanish digit words. Evidence described in another language is not
+  caught by the pre-screen.
 
 ## Phone numbers in notes
 
@@ -146,9 +146,9 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 52 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 52, the iPhone
-  52 and the web 52. No case is pending on any platform (`scripts/test_phone_vectors.py` checks these counts
-  against the file).
+- Of the 58 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 58, the iPhone
+  58 and the web 58. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). No case
+  is pending on any platform (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## On-device safety (Android)
 

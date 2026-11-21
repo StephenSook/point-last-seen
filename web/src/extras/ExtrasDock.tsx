@@ -16,6 +16,7 @@ import "./extras.css";
 const replayTitle = "Replay";
 const assignmentTitle = "Print assignment sheet";
 const cardsTitle = "Print radio cards";
+const debriefTitle = "Print debrief sheets";
 const checkTitle = "Check a radio code";
 const deleteTitle = "Delete this search's clips and photos";
 
@@ -113,6 +114,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
           </button>
           <button type="button" role="menuitem" onClick={() => openPrint("assignment")}>{assignmentTitle}</button>
           <button type="button" role="menuitem" onClick={() => openPrint("cards")}>{cardsTitle}</button>
+          <button type="button" role="menuitem" onClick={() => openPrint("debrief")}>{debriefTitle}</button>
           <button type="button" role="menuitem" onClick={() => {
             setSurface({ kind: "check", planVersion: snapshot().planVersion });
             setOpen(false);
@@ -168,7 +170,7 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
       )}
       {surface && surface.kind !== "check" && surface.kind !== "replay" && surface.kind !== "delete" && (
         <ExtrasBoundary fallback={
-          <ExtrasDialog title={surface.kind === "cards" ? cardsTitle : assignmentTitle} onClose={closeDialog} returnFocus={more}>
+          <ExtrasDialog title={surface.kind === "cards" ? cardsTitle : surface.kind === "debrief" ? debriefTitle : assignmentTitle} onClose={closeDialog} returnFocus={more}>
             <p role="alert" className="extras-panel-error">{PANEL_LOAD_FAILED}</p>
             <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>
           </ExtrasDialog>
