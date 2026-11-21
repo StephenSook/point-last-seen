@@ -4,6 +4,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PhoneNumbersTest {
+    /** Any punctuation or symbol between digit groups joins them, except the marks of a time, a percent and a degree. */
+    @Test fun anyGapMarkJoinsExceptTimePercentAndDegree() {
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u00B7555\u00B70142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u2022555\u20220142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404_555_0142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404 | 555 | 0142 tonight"))
+        assertEquals("POA 45% 30% 15% 10%", PhoneNumbers.remove("POA 45% 30% 15% 10%"))
+        assertEquals("Seen 14:03 14:30", PhoneNumbers.remove("Seen 14:03 14:30"))
+        assertEquals("GPS 33.7490\u00B0, -84.3880\u00B0", PhoneNumbers.remove("GPS 33.7490\u00B0, -84.3880\u00B0"))
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))
