@@ -70,6 +70,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention, review fix: startPurge starts or resumes each purge in one transaction that reads the incident and
+  its purge record together and returns the sign-in cutoff. With the incident gone, only an unfinished record resumes,
+  with its own cutoff, so a stale run never reopens a purge another run finished; with the incident there, the cutoff
+  is its close (a kept drill past its end date: the earlier of its close and that date, an open one closed at that
+  date, never over a recorded close), never later than an unfinished record's cutoff, and the record is written in the
+  same transaction. Source: review (second-model: the purge ignored the close transaction's result). Verified: 3 new
+  startPurge tests (a close recorded after the scan, an open kept drill and a later close, a finished purge and an
+  unfinished one) failed first, then pass; functions suite 289.
 - Drill retention, review fix: a kept drill purged on its end date uses one sign-in cutoff on every run and retry (its
   real close if it had one, else its end date), and an open one is closed at its end date in a transaction that never
   overwrites a close that landed meanwhile (stampKeptClose). Source: review (second-model: a retry could widen the

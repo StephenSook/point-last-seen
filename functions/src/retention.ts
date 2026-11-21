@@ -63,16 +63,37 @@ export async function recordDrillClosed(db: Firestore, incidentId: string, befor
 }
 
 /**
- * Closes a kept drill at its end date for its purge: writes closedAt, in a transaction and only if it is still absent,
- * so a real close that landed after the scan is never overwritten. Returns whether it wrote.
+ * Starts (or resumes) the purge of one incident in a single transaction that reads the incident and its purge record
+ * together, and returns the sign-in cutoff, or null when there is nothing to purge. With the incident gone, only an
+ * unfinished record resumes, with its own cutoff, so a stale run never reopens a purge another run finished. With the
+ * incident there, the cutoff is its close (for a kept drill past its end date, the earlier of its close and that date;
+ * an open one is closed at that date, never over a close already recorded), and never later than an unfinished
+ * record's cutoff; the record is written in the same transaction.
  */
-export async function stampKeptClose(db: Firestore, incidentId: string, endMs: number): Promise<boolean> {
-  const ref = db.doc(`incidents/${incidentId}`);
+export async function startPurge(db: Firestore, incidentId: string, nowMs: number, scanCutoffMs: number): Promise<number | null> {
+  const incRef = db.doc(`incidents/${incidentId}`), recRef = db.doc(`${PURGES}/${incidentId}`);
   return db.runTransaction(async tx => {
-    const now = await tx.get(ref);
-    if (!now.exists || now.get("closedAt") !== undefined) return false;
-    tx.update(ref, { closedAt: Timestamp.fromMillis(endMs) });
-    return true;
+    const [inc, rec] = await tx.getAll(incRef, recRef);
+    const unfinished = !!rec?.exists && rec.get("doneAt") === undefined && rec.get("staleAt") === undefined;
+    const recorded = unfinished && typeof rec!.get("closedAtMs") === "number" ? (rec!.get("closedAtMs") as number) : null;
+    if (!inc?.exists) {
+      if (recorded === null) return null;
+      tx.set(recRef, { startedAt: Timestamp.fromMillis(nowMs) }, { merge: true });
+      return recorded;
+    }
+    const at = inc.get("closedAt");
+    const closedMs = at instanceof Timestamp ? at.toMillis() : null;
+    const end = keptUntil(incidentId);
+    let cutoff: number;
+    if (end > 0 && end <= nowMs) {
+      if (closedMs === null) tx.update(incRef, { closedAt: Timestamp.fromMillis(end) });
+      cutoff = closedMs === null ? end : Math.min(closedMs, end);
+    } else {
+      cutoff = closedMs ?? scanCutoffMs;
+    }
+    if (recorded !== null) cutoff = Math.min(cutoff, recorded);
+    tx.set(recRef, { startedAt: Timestamp.fromMillis(nowMs), closedAtMs: cutoff, doneAt: FieldValue.delete(), staleAt: FieldValue.delete() }, { merge: true });
+    return cutoff;
   });
 }
 
@@ -142,8 +163,6 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   const out: RetentionResult = { deleted: [], kept: [], failed: [], stale: [], files: 0, users: 0 };
   // When each due drill closed: from the incident for a newly due drill, from its record for a resumed purge.
   const due = new Map<string, number>();
-  // Open kept drills past their end date: each is closed at its end date before its purge starts.
-  const closeFirst = new Set<string>();
   for (const doc of (await db.collection("incidents").where("mode", "==", "drill").get()).docs) {
     const at = doc.get("closedAt");
     const closedMs = at instanceof Timestamp ? at.toMillis() : null;
@@ -152,7 +171,6 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
     // close if it had one, else its end date, so every run and every retry use the same cutoff.
     if (keep > 0 && keep <= nowMs) {
       due.set(doc.id, closedMs === null ? keep : Math.min(closedMs, keep));
-      if (closedMs === null) closeFirst.add(doc.id);
       continue;
     }
     if (doc.get("status") !== "closed" || closedMs === null || closedMs >= nowMs - DRILL_RETENTION_MS) continue;
@@ -184,10 +202,11 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
     const codes = await db.collection("joinCodes").where("incidentId", "==", id).get();
     await Promise.all(codes.docs.map(c => c.ref.delete()));
   };
-  for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [id, scanCutoffMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
-      if (!dryRun && closeFirst.has(id)) await stampKeptClose(db, id, keptUntil(id));
-      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete(), staleAt: FieldValue.delete() }, { merge: true });
+      // The cutoff and the purge record come from one transaction (startPurge); null: another run already finished it.
+      const closedAtMs = dryRun ? scanCutoffMs : await startPurge(db, id, nowMs, scanCutoffMs);
+      if (closedAtMs === null) continue;
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {
         await deleteCodes(id);
