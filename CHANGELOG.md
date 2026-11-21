@@ -82,6 +82,26 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
+  generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
+  500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
+  (499 letters plus an emoji, and a note with newlines, accepted; 500 letters plus an emoji, and 501 emoji, refused)
+  failed first, then passes; all 163 rules tests pass; the generator's --check is current.
+- rules test: a member command removed cannot file a content report, while another member still can (the report rule
+  goes through isMember, which checks the removal record). Source: review (content reports after member removal
+  landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;
+  all rules tests pass.
+- rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
+  only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
+  event, none for the family's description); command reads every report, the author only its own; nobody updates or
+  deletes one. The shape check is generated from content-report.schema.json (schema_ContentReport, createdAt ==
+  request.time). Source: review (App Review guideline 1.2, approved design). Verified: rules/contentReports.test.ts (5
+  cases) failed first on create and read, then passes; all 154 rules tests pass; the generator's --check is current.
+- schemas: content-report.schema.json, the shape of incidents/{id}/contentReports/{reportId}: a searcher or family
+  member flags the team's task, the family's description or one event, with a reason (abusive, personal_information,
+  wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
+  1.2). Platform types are pending in x-parity for the web, the iPhone and Android. Source: review (approved design; a
+  collection of its own, since event docs pin 25 keys). Verified: scripts/check_schema_parity.py ok (14 schemas).
 - functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
   sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
   delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
