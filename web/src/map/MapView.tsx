@@ -61,6 +61,8 @@ type Props = {
   /** When set, the map shows an "Every percent" switch that calls this. */
   onEveryPercent?: ((on: boolean) => void) | undefined;
   /** The newest report's change. When `key` changes after the first one seen, the REPORT beat plays. */
+  /** The picked team's assigned cells: a 2 px fg-1 outline on a bg-0 casing. Empty when no team is picked. */
+  outlined?: readonly string[];
   beat?: {
     key: string;
     before: Readonly<Record<string, number>>;
@@ -72,6 +74,7 @@ type Props = {
 };
 
 const NO_MOVED: readonly { segmentId: string; deltaPts: number }[] = [];
+const NO_OUTLINE: readonly string[] = [];
 const movedFilter = (ids: string[]) => ["in", ["get", "segmentId"], ["literal", ids]] as never;
 
 function bounds(segments: readonly MapSegment[]): [[number, number], [number, number]] | null {
@@ -86,7 +89,7 @@ function bounds(segments: readonly MapSegment[]): [[number, number], [number, nu
   return [[w, s], [e, n]];
 }
 
-export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note, everyPercent = false, onEveryPercent }: Props) {
+export function MapView({ segments, poa, onMapClick, pin = null, attribution, moved = NO_MOVED, outlined = NO_OUTLINE, onReady, beat = null, basemapUrl = null, ripple = null, walkers = null, note, everyPercent = false, onEveryPercent }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -145,6 +148,9 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
           "circle-stroke-color": MAP_INK.dotRing,
         },
       });
+      // The picked team's cells, under the moved outline so a change still shows on top.
+      m.addLayer({ id: "team-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
+      m.addLayer({ id: "team-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.team, "line-width": 2 } });
       // Moved by the newest report (22.1): 2 px cyan on a 2 px bg-0 casing each side, so it reads on every step.
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
       m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
@@ -153,6 +159,14 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       readyRef.current?.(m);
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
+    // The pointer over a cell shows that cell's code, even where the cell is too small for codes at this zoom.
+    // Set again on every move, since a redraw makes new code elements.
+    const hover = (id: string | null) => {
+      for (const c of el.current?.querySelectorAll<HTMLElement>(".seg-code.hover") ?? []) if (c.textContent !== id) c.classList.remove("hover");
+      if (id !== null) for (const c of el.current?.querySelectorAll<HTMLElement>(".seg-code") ?? []) if (c.textContent === id) c.classList.add("hover");
+    };
+    m.on("mousemove", "seg-fill", (e) => hover((e.features?.[0]?.properties?.["segmentId"] as string | undefined) ?? null));
+    m.on("mouseleave", "seg-fill", () => hover(null));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
     map.current = m;
     const scope = motionScope((r) => {
@@ -249,8 +263,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
           const c = m.project([seg.centroid.lon, seg.centroid.lat]);
           const where = codePlace({ code: { w: code.offsetWidth, h: code.offsetHeight }, box, centre: { x: c.x, y: c.y }, dotR });
           if (where === "left") marker.setOffset([-(dotR + CODE_GAP_PX), 0]);
-          else if (where === "centre") marker.setOffset([code.offsetWidth / 2, 0]);
-          else code.classList.add("unfit");
+          else {
+            // Hidden until the pointer is over the cell, where it shows on the centre.
+            marker.setOffset([code.offsetWidth / 2, 0]);
+            if (where === "hidden") code.classList.add("unfit");
+          }
         }
         const plate = own.find((el) => el.classList.contains("plate"));
         if (!plate) continue;
@@ -269,6 +286,20 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       m.off("moveend", place);
     };
   }, [segments, poa, beat?.before, everyPercent]);
+
+  // The picked team's cells. The map element names them (data-team-outline) once the filter is set.
+  const outlineKey = outlined.join(" ");
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const draw = () => {
+      const ids = outlineKey === "" ? [] : outlineKey.split(" ");
+      for (const id of ["team-casing", "team-line"]) if (m.getLayer(id)) m.setFilter(id, movedFilter(ids));
+      el.current?.setAttribute("data-team-outline", outlineKey);
+    };
+    if (ready.current) draw();
+    else m.once("load", draw);
+  }, [outlineKey]);
 
   useEffect(() => {
     const m = map.current;

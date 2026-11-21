@@ -1,22 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { CHIP_GAP_PX, CODE_GAP_PX, cappedDotRadius, chipPlace, codePlace } from "./labelFit";
+import { CHIP_GAP_PX, CODE_GAP_PX, CODE_MIN_CELL_PX, DOT_CAP_SHARE, cappedDotRadius, chipPlace, codePlace } from "./labelFit";
 
 // A cell 60 px wide and 40 px tall, its centre at (100, 100).
 const box = { left: 70, top: 80, right: 130, bottom: 120 };
 const centre = { x: 100, y: 100 };
 
 describe("cappedDotRadius", () => {
-  it("keeps a dot that fits its cell", () => {
-    expect(cappedDotRadius(14, box)).toBe(14);
+  it("keeps a dot that is small next to its cell", () => {
+    expect(cappedDotRadius(14, { left: 0, top: 0, right: 100, bottom: 120 })).toBe(14);
   });
 
-  it("caps a dot at half the smaller side of its cell on screen", () => {
-    expect(cappedDotRadius(14, { left: 0, top: 0, right: 20, bottom: 40 })).toBe(10);
-    expect(cappedDotRadius(14, { left: 0, top: 0, right: 40, bottom: 16 })).toBe(8);
+  it("caps a dot's width at 35% of the smaller side of its cell on screen, so the fill stays the mark", () => {
+    expect(DOT_CAP_SHARE).toBe(0.35);
+    expect(cappedDotRadius(14, { left: 0, top: 0, right: 20, bottom: 40 })).toBeCloseTo(3.5, 9);
+    expect(cappedDotRadius(14, { left: 0, top: 0, right: 40, bottom: 16 })).toBeCloseTo(2.8, 9);
+    // A phone cell of 26 px: the dot is about 9 px wide, not the whole cell.
+    expect(2 * cappedDotRadius(14, { left: 0, top: 0, right: 26, bottom: 26 })).toBeCloseTo(9.1, 9);
   });
 });
 
 describe("codePlace", () => {
+  it("hides the code while its cell is under 40 px on its smaller side: codes come with zoom (or hover)", () => {
+    expect(CODE_MIN_CELL_PX).toBe(40);
+    const small = { left: 80, top: 80, right: 119, bottom: 140 };
+    expect(codePlace({ code: { w: 18, h: 12 }, box: small, centre: { x: 99.5, y: 110 }, dotR: 3 })).toBe("hidden");
+    const justBig = { left: 80, top: 80, right: 120, bottom: 140 };
+    expect(codePlace({ code: { w: 18, h: 12 }, box: justBig, centre: { x: 100, y: 110 }, dotR: 3 })).not.toBe("hidden");
+  });
+
   it("puts the code left of its dot when it fits there inside the cell", () => {
     // Right edge at 100 - 6 - gap, left edge 20 px further left: inside 70..130.
     expect(codePlace({ code: { w: 20, h: 12 }, box, centre, dotR: 6 })).toBe("left");
