@@ -51,3 +51,8 @@ test("once a list read is refused, the panel says it may be out of date and offe
   await expect(panel).toContainText("This list may be out of date. Reload the page before removing anyone.");
   await expect(panel.getByRole("button", { name: "Remove from this drill" })).toHaveCount(0);
 });
+
+test("a refused read with no one to list still says the list may be out of date", async ({ page }) => {
+  await page.goto("/harness/members.html?stale=1&empty=1");
+  await expect(page.getByRole("region", { name: "People" })).toContainText("This list may be out of date.");
+});

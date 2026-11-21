@@ -11,7 +11,8 @@ export function MembersPanel({ rows, onRemove, stale = false }: { rows: readonly
   const [err, setErr] = useState<{ uid: string; line: string } | null>(null);
   // Removed from this seat: shown as Removed at once, before the removal record reaches the listener.
   const [doneHere, setDoneHere] = useState<ReadonlySet<string>>(() => new Set());
-  if (rows.length === 0) return null;
+  // With no one to list the panel stays away, unless a refused read means the list may be missing people.
+  if (rows.length === 0 && !stale) return null;
 
   async function remove(uid: string) {
     setBusy(uid);

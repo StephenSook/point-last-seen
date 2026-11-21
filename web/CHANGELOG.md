@@ -2376,3 +2376,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the cleanup returned removeMember's status and its callers dropped it, so a failed cleanup left the family account joined without a word; it now throws unless the server removed the account. The fixture records the account just before the join is sent, so a join that went through with its answer lost is still cleaned up (an account the server says never joined counts as clean). The check waits for the removed account's session refresh to fail with `TOKEN_EXPIRED` (the server writes the removal record before it revokes the sessions, and any malformed token also gives a 400), and until it has seen that, a failure removes the account again, which retries the revocation. The cleanup's own command account stays joined, since command cannot remove itself; it holds no reports.
 - Source: review (Codex, third round: cleanup ignores failed removals, checks revocation too early, accepts any 400, and misses a lost join answer).
 - Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### fix(command): a refused People read with no one listed still says so
+- What: with no one to list the People panel showed nothing, so when a read was refused before any rows loaded, command saw neither the list nor the warning. The panel now shows its heading and "This list may be out of date. Reload the page before removing anyone." whenever a read was refused, even with no rows.
+- Source: review (Codex, third round, low: a first-load refusal can hide the stale warning).
+- Verified: a new harness check (`?stale=1&empty=1`) failed first, then passed with the People checks (7); typecheck passes.
