@@ -107,6 +107,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test(vectors): five shared phone-number cases for a known gap, pending on every platform: a colon breaks a digit
+  run, so a number written as two times after a cue or beside a month ("Call 5:55 01:42 May", "May 5:55 01:42", "Text
+  5:55 07:14 May", "Call May 5:55 01:42") survives; the fifth, "Seen 14 May 5:55 01:42", is an exact case that keeps
+  the date. They are cases to remove, never to keep; issue #298 tracks closing the gap. LIMITS now counts 108 cases,
+  each platform still passing its 103, and the vectors README gives the reason. Source: review (phone rule gap found
+  by an automated security review, ruled a documented gap). Verified: test_phone_vectors.py (the pinned lists and the
+  LIMITS count) passes; the web phone runner passes 144 with the five skipped as pending; the public hygiene guard
+  passes.
 - functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
   read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
   deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
