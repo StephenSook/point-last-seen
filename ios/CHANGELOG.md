@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a photo is kept only when a separate person question answers a clean no
+- What: before Apple's model describes a photo, it is asked on its own, in a separate session, whether any part of a
+  person is visible. The photo is kept only on a clean no; a yes on that question or in the description, no answer,
+  an error or the 30-second limit keeps nothing. Only one photo read runs at a time (a second says "The last photo is
+  still being read. Try again in a moment."), and the reader releases its reference to the image when the read ends
+  or gives up. A dedicated on-device person detector would be stronger; it is not used, because the app's AI
+  inference stays on Firebase AI Logic and Apple's Foundation Models.
+- Source: review (a person photo whose description said no person became a clue).
+- Verified: tests of the decision (a clean no and a description keep the photo; a yes on either marks a person; no
+  answer keeps nothing), the one-at-a-time gate, the image release and the busy message pass; the app suite passes.
+  On the simulator the person question answered no on two object photos (four runs; each read 1.7 to 2.6 s) and yes
+  on a public-domain NASA portrait, which was then not kept (two runs).
+
 ### fix(ios): a photo of possible evidence follows the evidence protocol
 - What: when a photo report's words could be evidence (the same evidence terms a typed report is checked against,
   for example "bloody knife"), it goes to command under the evidence protocol, as a typed report does: no reading

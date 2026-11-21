@@ -193,6 +193,14 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(doc.rawText == "Photo: bloody knife." && doc.inputMethod == .photo)
     }
 
+    /// While an earlier photo is still being read, a new one is not started and nothing is sent.
+    @Test func aPhotoWhileAnotherIsReadSendsNothing() async throws {
+        let (model, store) = try photoModel(.busy)
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty && model.problem == AppModel.photoReadBusy)
+    }
+
     @Test func aPhotoThatCouldNotBeReadSendsNothing() async throws {
         let (model, store) = try photoModel(.failed)
         await model.load(try quietMission())

@@ -968,6 +968,7 @@ final class AppModel {
     }
 
     static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
+    static let photoReadBusy = "The last photo is still being read. Try again in a moment."
 
     /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
     var canReadPhoto: Bool { photoReaderAvailable() && mission.map { ReadPlan.modelModes.contains($0.mode) } == true }
@@ -988,7 +989,12 @@ final class AppModel {
         // Segments come from code: the one the searcher stands in, else the team's only one.
         let segmentIds = position.flatMap { Geo.segment(containing: $0, in: mission.grid) }.map { [$0] }
             ?? (mission.assignedSegmentIds.count == 1 ? mission.assignedSegmentIds : [])
-        guard case let .described(photo, modelName, latencyMs) = await readPhoto(image) else {
+        let read = await readPhoto(image)
+        if case .busy = read {
+            problem = Self.photoReadBusy
+            return false
+        }
+        guard case let .described(photo, modelName, latencyMs) = read else {
             problem = Self.photoReadFailed
             return false
         }
