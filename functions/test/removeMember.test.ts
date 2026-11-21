@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { handleJoin } from "../src/join";
 import { handleRemoveMember } from "../src/members";
+import { PURGES } from "../src/retention";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
 const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
@@ -169,6 +170,25 @@ describe("cleanup and joins, review round 2", () => {
     const err = await handleJoin(family, { joinCode: "MXTD2345", role: "family" }).then(() => null, (e: unknown) => e as { code?: string });
     expect(err?.code).toBe("permission-denied");
     expect((await admin.db.doc(`joinCodes/${hash("MXTD2345")}`).get()).get("uses")).toBe(0);
+  });
+});
+
+describe("the incident must still be there", () => {
+  it("refuses removal from a missing or expired incident and writes no removal record; a closed one still allows it", async () => {
+    const ghostCmd = await member({ inc: "GONE", role: "command", team: null });
+    const ghostMember = await member({ inc: "GONE", role: "searcher", team: "T1" });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, caller(ghostCmd, { inc: "GONE", role: "command" }), { incidentId: "GONE", uid: ghostMember }), "permission-denied");
+    expect((await admin.db.doc(`incidents/GONE/removed/${ghostMember}`).get()).exists).toBe(false);
+    await admin.db.doc("incidents/I1").update({ expiresAt: new Date(Date.now() - 1000) });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
+    await admin.db.doc("incidents/I1").update({ expiresAt: null, status: "closed", closedReason: "found" });
+    expect(await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher })).toEqual({ removed: true });
+  });
+  it("refuses removal once the drill's purge has started, so no record is left under a deleted drill", async () => {
+    await admin.db.doc("incidents/I1").update({ status: "closed", closedReason: "training_ended" });
+    await admin.db.doc(`${PURGES}/I1`).set({ startedAt: new Date(), closedAtMs: 1 });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
+    expect((await admin.db.doc(`incidents/I1/removed/${searcher}`).get()).exists).toBe(false);
   });
 });
 
