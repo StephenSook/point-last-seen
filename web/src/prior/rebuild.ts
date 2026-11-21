@@ -50,9 +50,22 @@ export function segmentElevations(segments: readonly SegmentDoc[], ipp: { lat: n
  */
 export function usableLayers(layers: PriorLayers, segments: readonly SegmentDoc[], ipp: { lat: number; lon: number },
   elevationM: Readonly<Record<string, number>> | undefined): PriorLayers {
-  if (!layers.elevation) return layers;
-  const start = elevationM ? segmentContaining(ipp, segments) : null;
-  return start !== null && elevationM?.[start] !== undefined ? layers : { ...layers, elevation: false };
+  return elevationDropReason(layers, segments, ipp, elevationM) === null ? layers : { ...layers, elevation: false };
+}
+
+/** The line command sees when a rebuild turned the elevation layer off, or undefined when it did not. */
+export function elevationDropNote(reason: string | null): string | undefined {
+  return reason ? `Rebuilt without downhill and level ground: ${reason}.` : undefined;
+}
+
+/** Why a rebuild from this start turns the elevation layer off, or null when it stays as it is. */
+export function elevationDropReason(layers: PriorLayers, segments: readonly SegmentDoc[], ipp: { lat: number; lon: number },
+  elevationM: Readonly<Record<string, number>> | undefined): string | null {
+  if (!layers.elevation) return null;
+  if (!elevationM) return "no elevation file loaded for this site";
+  const start = segmentContaining(ipp, segments);
+  if (start === null) return "the new start is outside the mapped segments";
+  return elevationM[start] === undefined ? "the new start's segment has no elevation" : null;
 }
 
 /**

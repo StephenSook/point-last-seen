@@ -99,6 +99,7 @@ describe("a camera rebuild keeps the elevation layer, measured from the camera's
 
   it("rebuilds with the elevations from the site's file, from the new start", () => {
     const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, cam, null);
+    expect(w.layersNote).toBeUndefined();
     expect(w.incident.priorLayers).toMatchObject({ elevation: true });
     const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), CAMERA, "temperate_flat", { linear: false, wedge: false, elevation: true },
       null, DEFAULT_PARAMS, { startM: 120, bySegment: elevationM });
@@ -108,9 +109,11 @@ describe("a camera rebuild keeps the elevation layer, measured from the camera's
   it("never blocks a confirmation: with no elevations, or a new start outside every segment, it rebuilds with the layer off", () => {
     const noFile = cameraPriorWrites(SEGS, withElevation, cam, null);
     expect(noFile.incident.priorLayers).toMatchObject({ elevation: false });
+    expect(noFile.layersNote).toBe("Rebuilt without downhill and level ground: no elevation file loaded for this site.");
     const outside = buildCameraSighting({ ...clip, camera: { lat: IPP.lat + 0.5, lon: IPP.lon } }, writer);
     const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, outside, null);
     expect(w.incident.priorLayers).toMatchObject({ elevation: false });
+    expect(w.layersNote).toBe("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
     const ring = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), { lat: IPP.lat + 0.5, lon: IPP.lon }, "temperate_flat", { linear: false, wedge: false }, null, DEFAULT_PARAMS);
     expect(w.segments.map((s) => s.data.priorPoa)).toEqual(ring.segments.map((s) => s.priorPoa));
   });
