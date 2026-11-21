@@ -20,7 +20,8 @@ object Copy {
     /** Where the release APK is published (GitHub Releases). */
     const val DOWNLOAD_PAGE = "https://github.com/StephenSook/point-last-seen/releases/latest"
 
-    private fun isDrill(mode: String?) = mode == "drill" || mode == "judge"
+    /** A drill or judge search: made-up data, our own film and call-taker. */
+    fun isDrill(mode: String?) = mode == "drill" || mode == "judge"
 
     fun drillBanner(mode: String?): String? = if (isDrill(mode)) DRILL else null
 

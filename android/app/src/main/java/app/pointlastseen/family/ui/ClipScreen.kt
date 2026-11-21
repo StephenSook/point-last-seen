@@ -108,7 +108,9 @@ fun ClipScreen(
                 Tick("The person in the clip agrees", person) { person = it }
                 Tick("I own this footage or have the owner's OK", owner) { owner = it }
                 Tick("Send it to the cloud to read it", cloud) { cloud = it }
-                Tick("It may be shown in the drill film (optional)", public) { public = it }
+                // The drill film is our concern, not a family's: only a drill or judge search asks about it.
+                val drill = Copy.isDrill(mode)
+                if (drill) Tick("It may be shown in the drill film (optional)", public) { public = it }
                 OutlinedTextField(start, { start = it.take(5) }, label = { Text("When the clip starts (HH:MM)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Tick("The camera's clock is right", clock) { clock = it }
                 Note("Which way does the camera face?")
@@ -120,7 +122,7 @@ fun ClipScreen(
                 val m = HHMM.matchEntire(start.trim())
                 MainAction("Read the clip", enabled = ui == ClipUi.Idle && clipLabel != null && person && owner && cloud && clock && m != null) {
                     val match = m ?: return@MainAction
-                    onRead(ClipForm(person, owner, cloud, public, clock, match.groupValues[1].toInt() * 60 + match.groupValues[2].toInt(), facing))
+                    onRead(ClipForm(person, owner, cloud, public && drill, clock, match.groupValues[1].toInt() * 60 + match.groupValues[2].toInt(), facing))
                 }
             }
             is ClipUi.Read -> {
