@@ -70,6 +70,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vectors: six cases for Spanish digit words (cero to nueve), pending on all three platforms: a number
+  spelled in Spanish ("Call cuatro cero cuatro ..."), the same with capitals and dashes, Spanish words mixed with
+  written digits, a Spanish sentence and a run of six Spanish digit words that stay, and a time before a
+  Spanish-spelled number. The shared rule in shared/test-vectors/README.md names the words; LIMITS states 58 cases,
+  each platform passing 52 until its port lands. Source: review (an English note could carry a number spelled in
+  Spanish digit words past the phone rule). Verified: scripts/test_phone_vectors.py (the required lists and the LIMITS
+  counts) failed first, then passes.
 - served_version_check compares the served commit's production inputs with origin/main's instead of checking ancestry,
   and refuses a shallow clone, a missing origin/main and an unknown served commit. Source: review (second-model).
   Verified: 12 real-git tests; the live site fails today because main's engine changes are not deployed.
