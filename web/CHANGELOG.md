@@ -2047,3 +2047,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
+
+### feat(judge): a Measured block with the stored numbers, refusing an old file
+- What: the judge page reads `/evidence/measured.json` (`web/src/judge/measured.ts` `loadMeasured`, `measuredLines`) and shows, under "Stored on our servers", where stored report reads and plan wording ran (on the device, by the cloud model, by fixed rules) with each route's median time, and the cloud model's spend per day. Beside an on-device count of none, a line says why (an iPhone's practice drill keeps its reads on the phone; a plan is worded on the laptop only with Chrome's built-in model). No number is typed in the page; a file older than 30 days or one it cannot read shows a line and no numbers.
+- Source: review (a measured block on a judged surface).
+- Verified: 6 new unit tests failed first (no module), then pass; a new no-backend browser check reads the served file's counts on the page and refuses a 2020 file; 1010 web unit tests, typecheck, the build and 44 no-backend browser checks pass.
