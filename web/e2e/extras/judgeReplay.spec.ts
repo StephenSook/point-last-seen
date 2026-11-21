@@ -136,3 +136,11 @@ test("with no passes file, nothing about passes shows", async ({ page }) => {
   await expect(section.getByTestId("closest-passes")).toHaveCount(0);
   await expect(section.getByTestId("closest-passes-refused")).toHaveCount(0);
 });
+
+test("the judge replay has no way to load a track: a person's track is never on the judge page", async ({ page }) => {
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("replay-code")).toBeVisible();
+  await expect(page.getByLabel("Load a GPS track from this computer")).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+});
