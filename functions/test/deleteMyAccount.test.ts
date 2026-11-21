@@ -40,15 +40,28 @@ describe("deleteMyAccount: the caller deletes its own sign-in", () => {
   it("refuses a caller who is not signed in", async () => {
     await expectCode(handleDeleteMyAccount(admin.auth, null), "unauthenticated");
   });
+  it("refuses a command account, which keeps its sign-in (only a searcher or family member leaves this way)", async () => {
+    const cmd = await admin.auth.createUser({});
+    await admin.auth.setCustomUserClaims(cmd.uid, { inc: "I1", role: "command", team: null });
+    const err = await handleDeleteMyAccount(admin.auth, cmd.uid).then(() => null, (e: unknown) => e as { code?: string; details?: { reason?: string } });
+    expect(err?.code).toBe("failed-precondition");
+    expect(err?.details?.reason).toBe("command_account");
+    expect((await admin.auth.getUser(cmd.uid)).uid).toBe(cmd.uid);
+  });
+  it("deletes an account with no claims (it never joined, or command removed it)", async () => {
+    const u = await admin.auth.createUser({});
+    expect(await handleDeleteMyAccount(admin.auth, u.uid)).toEqual({ ok: true });
+    expect(await admin.auth.getUser(u.uid).then(() => "exists", () => "gone")).toBe("gone");
+  });
 });
 
 describe("a deleted account's token, still valid for up to an hour, grants no command action", () => {
-  it("removeMember and deleteIncidentMediaNow refuse a command that deleted its own sign-in", async () => {
+  it("removeMember and deleteIncidentMediaNow refuse a command whose account is gone", async () => {
     const cmd = await admin.auth.createUser({});
     await admin.auth.setCustomUserClaims(cmd.uid, { inc: "I1", role: "command", team: null });
     const member = await admin.auth.createUser({});
     await admin.auth.setCustomUserClaims(member.uid, { inc: "I1", role: "searcher", team: "T1" });
-    await handleDeleteMyAccount(admin.auth, cmd.uid);
+    await admin.auth.deleteUser(cmd.uid);
     const oldToken = { uid: cmd.uid, token: { inc: "I1", role: "command" } };
     await expectCode(handleRemoveMember(admin.db, admin.auth, oldToken, { incidentId: "I1", uid: member.uid }), "permission-denied");
     await expectCode(handleDeleteMedia(admin.db, admin.auth, getStorage(adminApp).bucket(), oldToken, { incidentId: "I1" }), "permission-denied");

@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
+  sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
+  delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
+  gone still gets { ok: true }. Source: review (cross-family, round 2 on deleteMyAccount). Verified: the command case
+  failed first, then passes; the no-claims case passes; 325 functions and rules tests and the typecheck pass.
 - functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
   after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
   check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
