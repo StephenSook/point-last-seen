@@ -3,6 +3,7 @@
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
 import { withEngineDefaults, type EngineParams, type GridSegment, type PriorLayers, type Terrain } from "@pls/engine";
+import { confirmedStatus } from "./endSearch";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -10,6 +11,8 @@ export type IncidentDoc = {
   mode: "drill" | "judge";
   drillLabel?: string;
   status: "open" | "found" | "closed";
+  /** Why command ended the search (set only with status "closed"). */
+  closedReason?: string;
   priorVersion: number;
   priorInputEventIds?: string[];
   engineParams?: EngineParams;
@@ -45,6 +48,10 @@ const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is str
 
 export type IncidentView = {
   incident: IncidentDoc | null;
+  /** True while the incident doc on hand includes this browser's own write the server has not acknowledged. */
+  incidentPending?: boolean;
+  /** The status the server last confirmed (a pending local write does not change it). */
+  serverStatus?: string;
   teams: Team[];
   segments: SegmentDoc[];
   /** Prior mass outside the grid: the reserved "ROW" segment. Null until the prior is built. */
@@ -96,8 +103,11 @@ export function subscribeIncident(
   const base = ["incidents", incidentId] as const;
 
   const unsubs: Unsubscribe[] = [
-    onSnapshot(doc(db, ...base), (s) => {
+    // With metadata changes, so the acknowledgement of this browser's own write (same data, no longer pending) arrives.
+    onSnapshot(doc(db, ...base), { includeMetadataChanges: true }, (s) => {
       view.incident = s.exists() ? incidentFromDoc(s.data()) : null;
+      view.incidentPending = s.metadata.hasPendingWrites;
+      view.serverStatus = confirmedStatus(view.serverStatus, view.incident?.status, s.metadata.hasPendingWrites);
       emit();
     }, onError),
     onSnapshot(collection(db, ...base, "segments"), (s) => {
