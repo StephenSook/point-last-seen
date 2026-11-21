@@ -2,9 +2,9 @@
 // line from the Android family app (android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt) and
 // checked against shared/test-vectors/phone-numbers.json. Seven or more digits in a row are a number: written
 // digits (any script, full-width folded, Chinese numerals, circled and other number characters) and spoken digit
-// words count alike, joined only by separators (spaces, - . , ( ) / or a dash, any number of them; a line break
-// with its indent counts as one, and accents or joiners in a gap count as nothing) and with an optional leading
-// + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
+// words count alike, joined by any separators (spaces, punctuation and symbols, any number of them, but never ":"
+// "%" or "°", which mark a time, a percent or a degree; a line break with its indent counts as one, and accents or
+// joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
 //
 // Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a ZIP+4
 // code after a state, a month-name date. It stays only when the rest of the run is nothing or whole numbers of
@@ -301,9 +301,16 @@ function isDate(s: string, a: Part, b: Part, c: Part): boolean {
   return between(x, 1, 31) && between(y, 1, 31) && (between(x, 1, 12) || between(y, 1, 12));
 }
 
-/** What may sit between the parts of one number: spaces or - . , ( ) / or dashes, any number of them, read after flat(). */
+// The marks that are search information, never part of a number: a time (14:03), a percent (45%), a degree (33.7490°).
+const NOT_A_SEPARATOR = ":%°";
+
+/**
+ * What may sit between the parts of one number, read after flat(): anything but a mark in NOT_A_SEPARATOR, any amount
+ * of it. A gap holds no letter or digit (those are parts), so every space, line break, punctuation mark and symbol
+ * joins: - . , ( ) / and the dashes, and also a middle dot, a bullet, an underscore, a bar or a bracket.
+ */
 function onlySeparators(s: string): boolean {
-  return [...flat(s)].every((c) => c === " " || c === "\n" || "-.,()/".includes(c) || DASHES.includes(c));
+  return ![...flat(s)].some((c) => NOT_A_SEPARATOR.includes(c));
 }
 
 /**

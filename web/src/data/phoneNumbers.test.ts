@@ -2,7 +2,7 @@
 // beyond the shared cases. The shared cases themselves run in phoneVectors.test.ts.
 
 import { describe, expect, it } from "vitest";
-import { removePhoneNumbers } from "./phoneNumbers";
+import { REPLACEMENT, removePhoneNumbers } from "./phoneNumbers";
 
 const DIGIT = /\p{Nd}/u;
 const noDigit = (text: string) => expect(removePhoneNumbers(text), text).not.toMatch(DIGIT);
@@ -100,3 +100,30 @@ describe("removePhoneNumbers, Spanish spoken digits", () => {
     expect(removePhoneNumbers(t)).toBe(t);
   });
 });
+
+describe("removePhoneNumbers: any punctuation or symbol between digit groups joins them", () => {
+  // Kept before this rule: only spaces, - . , ( ) / and dashes joined a number's groups.
+  const split = [
+    "404 555\u00b70142", "404\u00b7555\u00b70142", "404 \u00b7 555 \u00b7 0142", "404\u2027555\u20270142",
+    "404\u2022555\u20220142", "404_555_0142", "404*555*0142", "404 | 555 | 0142",
+  ];
+  it.each(split)("removes %j and keeps the words around it", (n) => {
+    const out = removePhoneNumbers(`Call ${n} tonight`);
+    expect(out).toBe(`Call ${REPLACEMENT} tonight`);
+  });
+  it("removes a bracketed group; the opening bracket stays, since a run starts at its first digit (or a + or ()", () => {
+    expect(removePhoneNumbers("Call [404] 555 0142 tonight")).toBe(`Call [${REPLACEMENT} tonight`);
+  });
+  it("still removes numbers split by spaces of every width, an em dash, full stops and full-width forms", () => {
+    for (const n of ["404\u00a0555\u00a00142", "404\u2009555\u20090142", "404\u202f555\u202f0142", "404\u2014555\u20140142", "404.555.0142",
+      "\uff14\uff10\uff14\uff0d\uff15\uff15\uff15\uff0d\uff10\uff11\uff14\uff12"]) {
+      expect(removePhoneNumbers(`Call ${n} tonight`)).toBe(`Call ${REPLACEMENT} tonight`);
+    }
+  });
+  it("never joins across a time's colon, a percent or a degree", () => {
+    for (const t of ["GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%", "Seen 14:03 14:30"]) {
+      expect(removePhoneNumbers(t)).toBe(t);
+    }
+  });
+});
+
