@@ -170,7 +170,10 @@ object PhoneNumbers {
             val last = endsAt[m.range.last + 1] ?: continue
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
                 (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
-            if (joined) continue
+            // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
+            // changes how the rule groups the digits around it, so such a run stays with the text around it.
+            fun month(i: Int) = i in parts.indices && !parts[i].written && word(folded, parts[i]) in MONTHS
+            if (joined || month(first - 1) || month(last + 1)) continue
             val minutes = CLOCK_TIME.findAll(m.value).map { it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }.toList()
             val inOrder = minutes.zipWithNext().all { (a, b) -> b >= a }
             out.append(removeByRule(folded.substring(from, m.range.first)))

@@ -110,6 +110,11 @@ class PhoneNumbersTest {
         assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
     }
 
+    /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
+    @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
+        assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))
