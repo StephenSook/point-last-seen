@@ -2042,3 +2042,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ANDROID_RELEASE_URL` is GitHub's `/releases/latest` instead of a fixed tag, so a new judge build (android-judge-2 and later) needs no code change. A new browser check asks GitHub for that URL signed out and requires a 200, a final address on an `android-judge` or `android-judge-N` tag, and a `point-last-seen-family-<sha>.apk` asset on the page.
 - Source: review (android-judge-2 was published; the link should follow the newest build).
 - Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).
+
+### test(command): the shared-link check runs as a visitor who has not joined
+- What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
+- Source: the live run after the reopening change.
+- Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
