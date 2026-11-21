@@ -70,6 +70,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Drill data retention: tombstones and the seed tool's refusal of a purged id, and the one race left open (a
+  sign-in idle since the close that joins another incident in the instant before its delete; its person signs in again
+  and rejoins with a code). Source: review. Verified against functions/src/retention.ts and tools/seed/seed_drill.py.
 - Drill retention: purge records are kept for good as tombstones (doneAt when finished, staleAt when the id was in use
   again) instead of being deleted, so the seed tool can refuse a purged id; a finished purge is never resumed; each
   unfinished record is handled on its own, so one that cannot be written fails alone and the other drills are still
