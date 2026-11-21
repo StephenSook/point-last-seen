@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
+  document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
+  command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
+  own retraction of someone else's report. Source: command-side "Retract report". Verified: the rules suite on the
+  emulator, 292 passed (events.test.ts 32, two new).
 - Drill day: the runbook names the header's match code by its new label, Radio check. Source: review. Verified
   against web/src/command/CommandPost.tsx.
 - LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
