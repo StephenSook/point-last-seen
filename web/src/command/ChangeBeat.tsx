@@ -30,10 +30,12 @@ export function ChangeBeat({ change, holding, onHold }: { change: ChangeResult |
   }, [onHold]);
 
   if (!change) return null;
+  // When the shown line and the spoken line are the same words, a screen reader hears them once, from the live line.
+  const sameWords = change.banner === change.announce;
   return (
     <section aria-labelledby="change-h" className="change" data-testid="change">
       <h2 id="change-h" className="label">What changed</h2>
-      <p data-testid="change-banner">{change.banner}</p>
+      <p data-testid="change-banner" aria-hidden={sameWords || undefined}>{change.banner}</p>
       {holding && <p className="tag">Before this report</p>}
       <p className="sr-only" role="status" aria-live="polite">
         {change.announce}

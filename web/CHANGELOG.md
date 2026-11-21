@@ -1987,3 +1987,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/change.spec.ts` also accepts "New last known point: ..." (a confirmed sighting with a place that rebuilt the map) and the clue line with "It was not seen after the current last known point, so it counts as a clue." added, on screen and in the spoken line, with each banner form named once.
 - Source: a confirmed sighting on the test drill now shows these banners, which the check refused.
 - Verified: the check failed on the live site with the older-sighting banner, then passed live; the patterns accept each banner form and refuse a truncated one.
+
+### fix(command): What changed reads a line once when the shown and spoken words match
+- What: when the banner and the spoken line are the same words (a sighting waiting for command's confirmation), the banner is hidden from assistive technology and the live line speaks it, so a screen reader and the accessibility tree have the line once instead of twice. A banner with different spoken words is unchanged. The change harness gains `?confirm=1`.
+- Source: UI review (What changed showed "Sighting saved. Confirm it under Sightings to move the map." twice).
+- Verified: a new harness check in `e2e/harness/change.spec.ts` (the line once in the section's accessibility tree, still shown and still the live line) failed first (twice), then passed with the change and beat checks (8); typecheck, web unit suite and the hygiene guard pass.
