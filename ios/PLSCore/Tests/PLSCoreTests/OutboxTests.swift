@@ -9,6 +9,23 @@ private let e1 = doc("00000000000000000000000000000001", .cleared, effect: clear
 private let e2 = doc("00000000000000000000000000000002", .clue, effect: clue(.high))
 
 @Suite struct OutboxTests {
+    /// The found-kind reason is the phone's own note for the receipt: it is kept with the entry across a reopen,
+    /// never in the event, and an entry written before the field reads as having none.
+    @Test func anEntryKeepsItsFoundKindReasonOnThePhone() throws {
+        let url = tempFile()
+        var box = try Outbox(fileURL: url)
+        try box.add(e2, foundKindReason: FoundKind.reason)
+        try box.add(e1)
+        let reopened = try Outbox(fileURL: url)
+        #expect(reopened.entries.map(\.foundKindReason) == [FoundKind.reason, nil])
+        #expect(reopened.entries[0].doc == e2)
+        let old = try JSONEncoder().encode(OutboxEntry(doc: e1, state: .pending, lastError: nil))
+        var object = try JSONSerialization.jsonObject(with: old) as? [String: Any] ?? [:]
+        object.removeValue(forKey: "foundKindReason")
+        let decoded = try JSONDecoder().decode(OutboxEntry.self, from: JSONSerialization.data(withJSONObject: object))
+        #expect(decoded.foundKindReason == nil && decoded.doc == e1)
+    }
+
     @Test func rejectedStaysVisibleAndRetryable() throws {
         let url = tempFile()
         var box = try Outbox(fileURL: url)

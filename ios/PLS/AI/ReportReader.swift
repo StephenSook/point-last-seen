@@ -18,6 +18,8 @@ struct ReportSituation {
     /// The release route check only: Apple's model counts as unavailable for this one read, so the
     /// router takes the cloud route. Never set for a searcher's report.
     var onDeviceOff = false
+    /// The subject's names, for the found-kind rule only (never sent to a model).
+    var subjectNames: [String] = []
 }
 
 /// Reads one field report and never throws. The decisions live in PLSCore's ReadOrchestrator;
@@ -31,6 +33,8 @@ struct ReportReader {
     var language: LanguageScreen? = try? BundledConstants.languageScreen()
     /// The grounding rule run on every reading; when it cannot be loaded the fields it checks are blanked.
     var grounding: Grounding? = try? BundledConstants.grounding()
+    /// The found-kind rule (built on the same word lists); when it cannot be loaded the model's kind stays.
+    var foundKind: FoundKind? = (try? BundledConstants.grounding()).map(FoundKind.init)
     /// Whether this phone has the cloud route (iOS 27); without it a read never goes to the cloud (a seam for tests).
     var cloudRouteAvailable: Bool = ModelSessionFactory.cloudRouteSupported
     /// Counts tokens with Apple's model (a seam for tests).
@@ -74,6 +78,8 @@ struct ReportReader {
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         context.language = language
         context.grounding = grounding
+        context.foundKind = foundKind
+        context.subjectNames = situation.subjectNames
         context.profile = situation.profile
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())

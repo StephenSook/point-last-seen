@@ -1938,3 +1938,23 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `SightingForm` takes `cloudPaused` (the command post passes Remote Config `kill_cloud`). While it is on, the form shows "Cloud reading is paused by command." where the "Read in the cloud" and "I consent for this note" buttons were, and a cloud read refused as `cloud-paused` (command paused after the consent was shown) says "Cloud reading is paused by command. Fill the fields by hand." instead of the generic "The note could not be read.", with no cloud button left.
 - Source: review finding (a paused cloud read looked like a failed one, with both cloud buttons still offered).
 - Verified: two new harness checks in `e2e/harness/sighting.spec.ts` (paused before the read: the line shows and no cloud button; paused at the consent: the line shows, the consent button goes, and the generic sentence never shows) failed on the old form, then passed with the other sighting and sightings checks (23/23); web unit suite and CI's Python gates pass; typecheck clean.
+
+### feat(data): read, check and write the incident's typed conditions
+- What: new `web/src/data/conditions.ts`. `parseConditions` turns command's typed temperature and wet answer into `{ tempF, wet, setAtMs }` (an empty temperature is not known; anything else must be a plain number from -80 to 140, the rules' range); `conditionsOf` reads an incident's conditions only when they have the shared shape; `urgencyChip` names the phones' chip in the iPhone's words through the engine's `urgencyFromConditions`; `URGENCY_SOURCE_LINE` cites shared/constants/urgency.json as the iPhone does; `setConditions` writes `incident.conditions`.
+- Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
+- Verified: `src/data/conditions.test.ts` (6 tests) failed first (no module), then passed; web unit suite and typecheck pass.
+
+### feat(command): a conditions form shows the urgency chip the phones show
+- What: new `ConditionsForm`: air temperature (°F), "Is the person likely wet?" (Yes, No, Not known) and Save conditions. Saved conditions show as "Read at <time>: <temp>, wet: <answer>." with the chip the phones show ("Cold raises urgency", "Cool and wet raises urgency"), the line "A planning cue from a cited source, not a medical judgment." and the CDC source with its link; without a chip it says the phones show no urgency cue. A bad temperature is refused before anything is sent, a refused write says "The conditions were not saved. Try again." and keeps the fields, and a closed incident cannot be saved. New harness page `harness/conditions.html` and styles.
+- Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
+- Verified: 6 new harness checks in `e2e/harness/conditions.spec.ts` failed first (no form), then passed; typecheck clean.
+
+### feat(command): the command post writes the incident's conditions
+- What: the rail shows `ConditionsForm` for the incident, above the family channel, writing `incident.conditions` through the incident update rule (closed incidents excluded); the phones read it for their urgency chip. New deployed check `e2e/conditions.spec.ts` saves a value on the test drill, waits for the server to take the write, and expects the chip.
+- Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
+- Verified: typecheck clean; web unit suite (928) and CI's Python gates pass; the full harness suite passes except the triage measurement, which needs the build env file this worktree lacks and passes where it is present; the deployed check runs after the deploy.
+
+### test(judge): the route-order check goes with the numbered route
+- What: `e2e/judge.spec.ts` no longer checks that the numbered route follows the page's sections; the judge page's first screen dropped the route list, and `e2e/judgeRun.spec.ts` now asserts the list is gone.
+- Source: merge with main (the judge page opens with the door, the practice card and the replay).
+- Verified: the full no-backend browser set and the web unit suite pass.
