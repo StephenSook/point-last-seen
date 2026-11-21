@@ -92,6 +92,14 @@ describe("lastReportChange", () => {
     expect(c.change.changed).toEqual([]);
   });
 
+  it("says a confirmed sighting seen before the current last known point counts as a clue", () => {
+    const start = at(base, "lkp-1", 15_000, { ...sighting, eventId: "lkp-1", clientTimeMs: 15_000, seq: 15_000, observedAtMs: 20_000 - 5 * 60_000 });
+    const c = lastReportChange(prior, [start, sighting, confirm("command", 21_000)], ["lkp-1"], DEFAULT_PARAMS)!;
+    expect(c.change.banner).not.toMatch(/New last known point/);
+    expect(c.change.banner).toMatch(/ It was not seen after the current last known point, so it counts as a clue\.$/);
+    expect(c.change.announce).toMatch(/It was not seen after the current last known point, so it counts as a clue\.$/);
+  });
+
   it("keeps the clue line for a sighting that did not rebuild the prior (no place, or only the family confirmed)", () => {
     const c = lastReportChange(prior, [sighting, confirm("family", 21_000)], [], DEFAULT_PARAMS)!;
     expect(c.change.banner).not.toMatch(/last known point/);

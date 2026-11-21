@@ -14,7 +14,8 @@ import {
   type RankedSegment,
   type SegmentPrior,
 } from "@pls/engine";
-import { changeModel, newLastKnownPointChange, type ChangeResult } from "./changeModel";
+import { sightingSeenBeforeStart } from "../prior/sightingPrior";
+import { changeModel, newLastKnownPointChange, OLDER_SIGHTING, type ChangeResult } from "./changeModel";
 
 export type ViewState = { result: PosteriorResult; rank: RankedSegment[]; hash: string; code: string };
 
@@ -61,5 +62,10 @@ export function lastReportChange(
   }
   const before = posterior(prior, toEngineEvents(docs.filter((d) => d.eventId !== cause.eventId), ids), params).poa;
   const after = posterior(prior, toEngineEvents([...docs], ids), params).poa;
-  return { causeEventId: cause.eventId, before, after, change: changeModel(before, after, cause) };
+  const change = changeModel(before, after, cause);
+  // Command confirmed a sighting with a place that is older than the map's start: it stayed a clue, and says why.
+  if (target && sightingSeenBeforeStart(target, ids, docs)) {
+    return { causeEventId: cause.eventId, before, after, change: { ...change, banner: `${change.banner} ${OLDER_SIGHTING}`, announce: `${change.announce} ${OLDER_SIGHTING}` } };
+  }
+  return { causeEventId: cause.eventId, before, after, change };
 }

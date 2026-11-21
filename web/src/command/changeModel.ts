@@ -48,6 +48,8 @@ function causeLabel(ev: EventDoc): string {
 const pct = (v: number | undefined) => Number(((v ?? 0) * 100).toFixed(1));
 
 const CONFIRM_SIGHTING = "Sighting saved. Confirm it under Sightings to move the map.";
+/** Added when command confirms a sighting with a place that was not seen after the map's newest input. */
+export const OLDER_SIGHTING = "It was not seen after the current last known point, so it counts as a clue.";
 const awaitsConfirm = (ev: EventDoc) =>
   ev.type === "sighting" && ev.effect.kind === "clue" && (ev.effect.authenticity === "high" || ev.effect.authenticity === "medium");
 

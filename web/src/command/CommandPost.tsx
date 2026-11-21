@@ -754,8 +754,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 : null;
               // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
               // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
-              if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [])) {
-                const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident);
+              // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
+              if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
+                const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
                 await writePrior(pls.db, incidentId, prior, built);
                 return;
               }
