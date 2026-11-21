@@ -5,6 +5,223 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): each send starts with no message, so an old one never holds words for review
+- What: a typed send clears the on-screen message before it starts. Before, a send that failed without a message of
+  its own (its task cancelled, or the journal swapped) kept the previous "Your team changed..." message, and the
+  edited words were then wrongly held for review.
+- Source: review.
+- Verified: a test (a team change, then edited words whose read is cancelled) failed (the words were held) before the
+  change and passes after; the app suite passes.
+
+### fix(ios): words kept after a team change are sent again only once reviewed
+- What: when a typed report is not sent because the team changed meanwhile, the message now says "Your team changed
+  while this was sending. Check your new task, then send again if it still applies.", and the kept words are held:
+  Send stays off for them until they are edited, or the searcher taps "Send to my new team", which sends them to the
+  team now on screen. A plain second tap no longer files them under the new team unread.
+- Source: review.
+- Verified: a test (the team changes at sign-in; a second tap sends nothing and calls no reader; "Send to my new team"
+  sends to T2) failed to compile before the change and passes after; 241 app tests pass.
+
+### fix(ios): a report whose mission changes while it waits gets no model call
+- What: the app keeps the mission on screen (incident, team and mode) as a key any thread can read. After the GPS
+  fix, and right before every model call (the typed reader's token count and stages, the photo's person question and
+  description), the report's mission must still be that key; otherwise no model is called and nothing is journalled
+  ("Your team changed while this was sending. Send it again."). The journal also checks the mode. The GPS fix has a
+  test seam.
+- Source: review (a switch to a live search during the GPS wait could still start a model call, and typed reports
+  passed the old drill mode to the reader).
+- Verified: tests of a mode-only and an incident-only switch during the GPS wait (zero reader calls, typed and photo),
+  of the photo reader with a mission that is not current (no person question, no description after it changes), and
+  of the typed reader (no token count) pass; with the reader's check removed, its test fails; 240 app tests pass.
+
+### fix(ios-core): the reader checks the report's mission is still current before every model call
+- What: a read can be given a still-current check (same incident, team and mode as when the report was made). It is
+  run right before every model call, on the phone and in the cloud; once it fails, no model runs and rules read the
+  rest, with the route saying the incident is not in a mode where a model may read.
+- Source: review (a switch to a live search while a report waited could still start a model call).
+- Verified: a test with the check already failing (no model call at all) and one where it fails during the on-device
+  call (no plain-text call after it) failed to compile before the change and pass after; all 418 core tests pass.
+
+### fix(ios-core): an item's colors all count together, however the family joined them
+- What: a profile field is split into items at "and" and "with", but a piece that names no item now stays with its
+  neighbour, so "red and blue cap" and "red cap with a blue brim" are each one item with two colors, and a one-color
+  photo of the cap is unknown, not consistent. Separate items still split ("a red cap and white sneakers").
+- Source: review.
+- Verified: tests with "red and blue cap" and "red cap with a blue brim" failed (consistent) before the change and pass
+  after; "a red cap and white sneakers" still matches a red cap; all 416 core tests pass.
+
+### fix(ios-core): gear names count with a hyphen or in the plural
+- What: gear named after a body part is recognised with a space or a hyphen between the words and in the plural
+  ("neck-gaiter", "wrist watches", "hand-warmers", "knee braces", "head lamps"), so a clean read of ordinary gear is no
+  longer discarded as a person.
+- Source: review.
+- Verified: tests of each form failed (seven discarded) before the change and pass after; all 416 core tests pass.
+
+### fix(ios-core): a possessive is an owner only when a clothing or gear word follows it
+- What: a photo caption's possessive ("men's", "girls'") is dropped before the person check only when, after any color,
+  style or gear words, a clothing or gear noun follows ("men's red knit cap", "men's face mask"). Otherwise the "'s"
+  may be "is" ("the boy's wearing a red face mask"), so the person word stays and the photo is not kept.
+- Source: review.
+- Verified: tests with "the boy's wearing a red face mask", "the man's lying by a cap" and "girl's by the creek"
+  failed (kept as clues) before the change and pass after; the earlier possessive and gear cases still pass; all 416
+  core tests pass.
+
+### fix(ios): the evidence screen reads a photo's whole caption, before any cut
+- What: a photo's caption is screened for evidence as the model gave it, before it is cut to 200 characters for the
+  report's words, so an evidence word late in a very long caption still sends the photo to command.
+- Source: review.
+- Verified: a test with "bloodstains" past character 200 failed (an ordinary clue) before the change and passes after;
+  the app model tests pass.
+
+### fix(ios): a report is dropped when sign-in moves the phone to another team or mode
+- What: each report path notes the incident, team and mode of the mission on screen before sign-in. If sign-in then
+  leaves a different incident, team or mode loaded, the report is not journalled ("Your team changed while this was
+  sending. Send it again."), so a report made for one team is never filed under another, and a photo is never read
+  in a search where no model may read. Sign-in that only reloads the same mission under the new session still keeps
+  the report.
+- Source: review.
+- Verified: a test where sign-in moves the phone to team T2, and one where it moves the mission into a live search,
+  failed to compile before the change and pass after; the same-mission sign-in test still passes; 235 app tests pass.
+
+### docs: LIMITS says a stalled photo read can overlap the next one
+- What: the photo-clue section said no other photo read starts while a timed-out model call runs. The read now
+  frees its gate at the 30-second limit, so a stalled call can briefly overlap the next read. The line now says so.
+- Source: review (the gate change).
+- Verified: the gates pass.
+
+### fix(ios): a report whose task was cancelled while it was read is not journalled
+- What: the journal adds a typed, picked or photo report only if the task that read it was not cancelled meanwhile.
+  A photo read's model work runs in a task of its own, so cancelling the caller did not stop the report from being
+  journalled.
+- Source: review.
+- Verified: a test that cancels the photo read's task failed (the report was journalled) before the change and passes
+  after; 234 app tests pass.
+
+### fix(ios): a report is checked against a mission-drop count taken after sign-in
+- What: the app counts every time the mission is dropped (never a reload of the same one). Each report path takes
+  the mission and that count after sign-in, and the journal adds the report only if no drop happened since, the
+  journal is the same and the loaded mission is the same incident and team. This closes two gaps in the earlier
+  check: a mission dropped and loaded again while a report was read (same incident, team and owner) no longer lets
+  the stale read through, and a sign-in at Send that reloads the mission under the new session no longer loses the
+  report (the old check compared owners against a copy taken before sign-in).
+- Source: review.
+- Verified: tests of a drop and restore during a photo read, and of a sign-in that reloads the mission with a new
+  owner, failed before the change and pass after; 233 app tests pass.
+
+### fix(ios-core): a possessive or a gear name is an object, not a person, in a photo caption
+- What: before the person check, a photo caption drops possessives ("men's jacket", "girls' shoes", "child’s mitten")
+  and a short list of gear names ("neck gaiter", "chest pack", "wrist watch", "hand warmers", "face mask" and the
+  like), so ordinary gear is no longer thrown away as a person. Anything else still fails closed: "man's hand",
+  "mens jacket", "neck" and "woman's face" are still not kept.
+- Source: review.
+- Verified: a test of the reviewed gear and possessives (and of the captions that must still be discarded) failed
+  before the change (18 expectations) and passes after; all 416 core tests pass.
+
+### fix(ios-core): more words for a person or remains keep a photo from being a clue
+- What: the photo rule's person words now also cover teenager, adult, elderly, senior, infant, ear, skull, skeleton
+  and bones, and the Spanish calavera, esqueleto, hueso, cabeza, dedo, ojo, oreja, cuello and pecho. The two model
+  checks stay the main defence; the word list is the backstop when both miss ("smiling teenager").
+- Source: review.
+- Verified: a test with each reviewed caption failed before the change (18 expectations) and passes after; all 415
+  core tests pass.
+
+### fix(ios-core): a photo match is unknown on any negation or color conflict in the description
+- What: a negation anywhere in a profile field, contractions included ("wasn't", "didn't", "isn't", with either
+  apostrophe or none), now keeps that whole field from matching, so splitting on "and" can no longer cut the negation
+  off an item ("not wearing a red cap and green jacket"). Every color in a described phrase counts, before or after
+  the item ("cap was blue"), and all of them must be the photo's; every color in the caption must be the color
+  field's ("black cap with red logo" with a red field is unknown). A negation in one field leaves the others alone.
+- Source: review.
+- Verified: tests of each case failed before the change (nine expectations) and pass after; all 415 core tests pass.
+
+### fix(ios-core): a photo report's words keep the whole caption, so the evidence screen sees all of it
+- What: a photo report's words now carry the whole cleaned caption (up to 200 characters), and only the reading's
+  item is cut to the schema's 40 characters (it is a prefix of the words, so the quote is still in them). Before, the
+  words were cut to 40 characters first, so an evidence word late in a caption ("weathered camouflage backpack with
+  bloodstains") was never screened and the photo became an ordinary clue.
+- Source: review.
+- Verified: a core test (the words keep the whole caption, the item stays within 40 and in the words) failed before
+  the change and passes after; an app test with that caption now goes to command under the evidence protocol; all
+  415 core tests pass.
+
+### fix(ios): a photo read gives up cleanly at its limit and never blocks the next one
+- What: a photo read opens its one-at-a-time gate exactly once, when its work ends or at the 30-second limit,
+  whichever is first, so a stalled model call no longer blocks every later photo until relaunch, and a worker that
+  finishes late cannot open a later read's gate. Before each model call the worker checks that the read is still
+  wanted (not cancelled, image not released), so a late answer starts no second call and holds the image no
+  longer. The read is split into run(), which takes the two model calls as functions.
+- Source: review.
+- Verified: tests with a model call that ignores cancellation (the read gives up and frees the gate; a late no
+  starts no description; a late worker leaves the next read's gate shut) pass, and with the old behaviour put back
+  all three fail; the reader tests pass.
+
+### docs: LIMITS says what the iPhone photo clue does and what is not verified
+- What: a "Photo clues (iPhone)" section: on-device only and never kept; the separate person question and why a
+  dedicated person detector is not used; code compares with the family's items; the evidence protocol; what the
+  30-second limit releases; and what is not verified (the real camera, real person photos, picker caches, the app
+  switcher snapshot).
+- Source: review.
+- Verified: the gates pass (the LIMITS checks included).
+
+### feat(ios): leaving the app while the photo picker is up covers the screen
+- What: while the photo picker is open, the app covers its window when it stops being active and uncovers it when it
+  comes back, so the app switcher's snapshot shows no photo. Whether iOS keeps anything else of the photo (the
+  picker's own caches) is not verified.
+- Source: review.
+- Verified: a test that the window is covered on resign-active and uncovered on become-active failed to compile
+  before the change and passes after; 226 app tests pass.
+
+### fix(ios): a photo is kept only when a separate person question answers a clean no
+- What: before Apple's model describes a photo, it is asked on its own, in a separate session, whether any part of a
+  person is visible. The photo is kept only on a clean no; a yes on that question or in the description, no answer,
+  an error or the 30-second limit keeps nothing. Only one photo read runs at a time (a second says "The last photo is
+  still being read. Try again in a moment."), and the reader releases its reference to the image when the read ends
+  or gives up. A dedicated on-device person detector would be stronger; it is not used, because the app's AI
+  inference stays on Firebase AI Logic and Apple's Foundation Models.
+- Source: review (a person photo whose description said no person became a clue).
+- Verified: tests of the decision (a clean no and a description keep the photo; a yes on either marks a person; no
+  answer keeps nothing), the one-at-a-time gate, the image release and the busy message pass; the app suite passes.
+  On the simulator the person question answered no on two object photos (four runs; each read 1.7 to 2.6 s) and yes
+  on a public-domain NASA portrait, which was then not kept (two runs).
+
+### fix(ios): a photo of possible evidence follows the evidence protocol
+- What: when a photo report's words could be evidence (the same evidence terms a typed report is checked against,
+  for example "bloody knife"), it goes to command under the evidence protocol, as a typed report does: no reading
+  is stored, command decides, and the receipt shows how to handle it. Before, it became an ordinary clue.
+- Source: review.
+- Verified: a test with a "bloody knife" photo failed (an ordinary clue) before the change and passes after; all
+  219 app tests pass.
+
+### fix(ios): a report read after its mission changed is not journalled
+- What: a typed, picked or photo report is journalled only if the mission it was read for is still the one loaded
+  (same incident, team and signed-in owner). Before, only the journal itself was checked, so a report read while the
+  searcher left the search, or while the claims stopped naming the mission, was still added for the old mission. The
+  same mission reloaded or with a new plan keeps its report. Tests that send now give the app a join backend whose
+  claims cannot be read, so they no longer depend on the Auth user the simulator holds (with one that is not a
+  searcher, the app drops the test's mission, which the journal used to ignore).
+- Source: review.
+- Verified: tests that leave the search during a photo read and a typed read failed (the report was journalled)
+  before the change and pass after; a test that reloads the same mission during a read keeps the report; all 218
+  app tests pass.
+
+### fix(ios-core): a photo report's segment comes from code, never from its words
+- What: the event builder takes segment ids from the words a report names; a photo report's words come from the
+  model's caption, so a caption such as "grid ae cap" could put the clue in AE. Photo reports now keep the segment
+  code chose (the segment under the fix, else the team's only one).
+- Source: review.
+- Verified: a test with "Photo: grid ae cap." and "Photo: segment AE cap." failed (the clue went to AE) before the
+  change and passes after; all 414 core tests pass.
+
+### fix(ios-core): a photo matches the family's description only when the rule is sure
+- What: when the photo rule cannot read a described item for sure, the match is unknown, never consistent: a
+  phrase with a negation ("no red cap", "not wearing a hat"), a word right before the item that is neither a listed
+  color nor a style word ("teal cap", "red plaid cap"), or a caption whose own color disagrees with the color
+  field. The color is taken only from the words right before the item, so in "black hair wearing a red cap" the
+  cap is red. Coats and shirts are different kinds now.
+- Source: review (a teal cap, a black cap beside "black hair", "No red cap" and a caption the color field
+  contradicted each matched a red cap).
+- Verified: tests of each case failed before the change and pass after; all core tests pass.
+
 ### fix(ios-core): a decimal pair is a coordinate only with a minus and no phone cue before it
 - What: the iPhone's phone-number rule matches the final shared rule. A decimal pair stays as a coordinate only with
   the western longitude's minus after its mark (comma included), with 4 to 7 decimals, and with no phone cue right
@@ -32,6 +249,68 @@ finding) and how it was verified. Newest first.
   vectors.
 
 ## 2026-11-20
+
+### fix(ios-core): a photo naming a person in any form is not kept
+- What: the photo rule's person words now cover plurals (bodies, corpses, niños, mujeres), Spanish words (niño, niña,
+  hombre, mujer, persona, cuerpo and others), more body parts (ankle, wrist, torso, neck and others), remains and
+  corpse, and a word spelled out letter by letter ("m.a.n", "W-O-M-A-N"). A person word inside a longer word
+  (handbag, backpack, manual) is still an object. The entry for the photo rule said 12 tests; it was 11.
+- Source: review (a person photo whose caption said "remains", "bodies", "niño" or "m.a.n" became a clue).
+- Verified: tests of every reviewed form and of the longer words failed before the change and pass after; all
+  core tests pass.
+
+### fix(ios): the photo reader gets Apple's model from the model session file
+- What: the photo reader built Apple's on-device model itself, and the rules gate allows that only in
+  ModelSessionFactory.swift. ModelSessionFactory now gives the vision check and the photo session, and the reader
+  uses them.
+- Source: the rules gate (model builders belong in one file).
+- Verified: the rules gate failed on PhotoReader.swift and passes after; the app suite passes.
+
+### feat(ios): the task screen takes a photo of something found; the receipt says it was not kept
+- What: a "Photo of something found" button on the task screen, shown only where Apple's model can read a photo,
+  in a drill that lets a model read. It opens the camera (the photo library where there is no camera); the photo is
+  drawn upright at most 1024 points on its long side, read on the phone, and never saved. The receipt under a photo
+  report says "Read from a photo on this phone. The photo was not kept." The camera prompt says "Used to read a
+  photo of something found, on this phone. The photo is not kept."
+- Source: the photo clue feature.
+- Verified: tests of the camera prompt and the photo sizing (large, small, rotated) failed before the change and pass
+  after; 215 app tests pass. On the simulator, in the practice drill, a photo of a black cap from the library came
+  back "Photo: black baseball cap." / "Clue logged in BO." / "Read from a photo on this phone. The photo was not kept."
+
+### feat(ios): Apple's model reads a photo of something found, on the phone
+- What: PhotoReader asks Apple's on-device model (iOS 27 with the vision capability, greedy, capped, 30-second
+  limit) what one photo shows: a person or not, the object, its color and its kind. It is never shown the family's
+  description. AppModel.submitPhoto turns that into a clue with PhotoClue and journals it like any report
+  (inputMethod photo, segments from the searcher's position or the team's only segment, the reading validated in
+  code). A photo that shows a person, or that could not be read, sends nothing and says why. The photo stays in
+  memory and is never kept or sent; there is no cloud route for photos. Photos are read only in a drill that lets a
+  model read.
+- Source: the photo clue feature.
+- Verified: four app tests (a described item journalled as a consistent clue with its route, a person photo and a
+  failed read send nothing, no photo reading without the model or outside a drill) were written before the code and
+  pass; on the simulator the shipped reader read two public-domain photos as "black baseball cap" (black, hat) and
+  "green knit hat" (green, hat) in 1.3 to 3.5 s.
+
+### feat(ios-core): a photo report's receipt says the photo was not kept
+- What: EchoText.photoLine gives the line under a report read from a photo: "Read from a photo on this phone. The
+  photo was not kept.", with "Like the family's description." when code found it consistent. Nil for any other
+  report.
+- Source: the photo clue feature (the receipt says what happened to the photo).
+- Verified: a test of the photo, consistent, no-reading and typed cases failed to compile before the change and
+  passes after; all 410 core tests pass.
+
+### feat(ios-core): a photo of something found becomes a clue, decided in code
+- What: PhotoClue turns what Apple's model says about a photo (person visible, object, color, kind) into a clue
+  report in code. A photo that shows any part of a person is not kept. The object is compared with the family's
+  described items only (clothing, appearance, mobility aids): the same kind in the same color, or a described item
+  with no color, is consistent and named on the receipt; anything else is unknown, never marked down. The report's
+  words are written by code ("Photo: black baseball cap."), and the object is lower-cased, letters only, at most 40
+  characters.
+- Source: the photo clue feature. On the simulator, Apple's model shown the family's description matched a black
+  cap and a green knit hat to "red baseball cap"; shown nothing, it described both correctly, so code compares.
+- Verified: 11 tests (person and body words discard, state words such as "walking stick" kept, kind and color
+  matching with the family's color names, unknown color never confirms, the quote is in the text, cleaning) failed
+  to compile before the change and pass after; all core tests pass.
 
 ### docs: the iPhone Live Activity on a real phone's lock screen (build 9)
 - What: evidence folder docs/evidence/ios/iphone-2026-11-20-build9-live-activity with the Live Activity as

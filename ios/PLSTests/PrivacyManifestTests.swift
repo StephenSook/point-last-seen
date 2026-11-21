@@ -21,4 +21,10 @@ import Testing
         #expect(apis.first?["NSPrivacyAccessedAPIType"] as? String == "NSPrivacyAccessedAPICategoryUserDefaults")
         #expect(apis.first?["NSPrivacyAccessedAPITypeReasons"] as? [String] == ["CA92.1"])
     }
+
+    /// The camera prompt says what the photo is for and that it is not kept.
+    @Test func theAppSaysWhyItUsesTheCamera() {
+        #expect(Bundle.main.infoDictionary?["NSCameraUsageDescription"] as? String
+                == "Used to read a photo of something found, on this phone. The photo is not kept.")
+    }
 }

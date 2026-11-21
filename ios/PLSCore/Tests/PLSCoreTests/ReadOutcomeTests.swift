@@ -118,6 +118,20 @@ private func outcomeCtx(assigned: [String] = ["AC"]) -> OutcomeContext {
         #expect(e.reading?["segmentIds"] == .array([.string("AC")]))
     }
 
+    /// A photo's words are written from the model's caption, so they never pick a segment: the segment code chose stays.
+    @Test func aPhotoClueKeepsTheSegmentFromCodeNotFromItsWords() {
+        var ctx = outcomeCtx(assigned: ["AC"])
+        ctx.inputMethod = .photo
+        var r = ReportReading.unclear(quote: "grid ae cap")
+        r.kind = .clue
+        r.segmentIds = ["AC"]
+        r.item = "grid ae cap"
+        for text in ["Photo: grid ae cap.", "Photo: segment AE cap."] {
+            let e = ReadOutcomeBuilder.event(from: ReadOutcome(reading: r, route: route(), validation: .ok), rawText: text, position: nil, context: ctx, seq: 30)
+            #expect(e.reading?["segmentIds"] == .array([.string("AC")]), "\(text)")
+        }
+    }
+
     @Test func whenNoClaimedIdIsNamedTheAssignmentIsUsed() {
         let o = ReadOutcome(reading: reading(segmentIds: ["AA", "AB"], coverage: 1, evidenceQuote: "we cleared our area"), route: route(), validation: .ok)
         let e = ReadOutcomeBuilder.event(from: o, rawText: "we cleared our area", position: nil, context: outcomeCtx(assigned: ["AD"]), seq: 21)

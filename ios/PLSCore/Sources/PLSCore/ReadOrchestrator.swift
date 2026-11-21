@@ -75,6 +75,9 @@ public struct ReadContext: Sendable {
     public var subjectNames: [String] = []
     /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
     public var profile: ModelProfile?
+    /// Whether the mission the report was made for is still the one loaded (same incident, team and mode). Checked
+    /// right before every model call; when it is not, no model runs and rules read the rest. Nil: not checked.
+    public var stillCurrent: (@Sendable () -> Bool)?
 
     public init(incidentMode: String?, knownSegmentIds: [String], networkOnline: Bool, onDevice: OnDeviceStatus,
                 estimatedTokens: Int, tokenBudgetFraction: Double, cloudConsent: Bool, killCloud: Bool,
@@ -196,6 +199,13 @@ public enum ReadOrchestrator {
                     path = .rules
                     stage = .deterministicParser
                 }
+            }
+            // The mission is checked again right before every model call: on another incident or team, or in a mode
+            // where no model may read, the rest is read by rules (and the journal does not keep the report).
+            if stage == .guided || stage == .permissiveText, let current = context.stillCurrent, !current() {
+                decision = RouteDecision(path: .rules, reason: .notDrillMode)
+                path = .rules
+                stage = .deterministicParser
             }
             let next: NextStep
             switch stage {

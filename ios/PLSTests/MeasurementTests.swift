@@ -18,7 +18,7 @@ final class FakeMeasurementWriter: MeasurementWriter {
         let clock = Clock()
         let writer = FakeMeasurementWriter()
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, nowMs: { clock.tick() },
-                             measurements: writer)
+                             measurements: writer, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("meas-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -40,7 +40,7 @@ final class FakeMeasurementWriter: MeasurementWriter {
 
     @Test func loadingAPackStartsTheEventsListenerOncePerIncident() async throws {
         let server = FakeEventServer()
-        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" })
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("lis-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         model.attach(store: try EventStore(server: server, outboxURL: dir.appendingPathComponent("o.json")),
@@ -55,7 +55,7 @@ final class FakeMeasurementWriter: MeasurementWriter {
 
     @Test func aPickedReportIsJournaledWithThePersonsSegment() async throws {
         let writer = FakeMeasurementWriter()
-        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: writer)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: writer, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pick-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("o.json"))

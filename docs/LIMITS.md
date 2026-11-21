@@ -173,6 +173,26 @@ each line says what the limit is and why.
   103 and the web 103. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). No case
   is pending on any platform (`scripts/test_phone_vectors.py` checks these counts against the file).
 
+## Photo clues (iPhone)
+
+- A searcher can take a photo of something found. Apple's on-device model reads it (iOS 27 with the vision
+  capability, in a drill that lets a model read). The photo stays in the app's memory, is never saved or sent, and
+  has no cloud route.
+- The photo is kept only when a separate question to the same model ("Is any part of a person visible?") answers a
+  clean no and its description shows no person. A yes, no answer, an error, the 30-second limit or a person or
+  body word in the description keeps nothing. A dedicated on-device person detector (Apple's Vision framework)
+  would be stronger. It is not used, because the app's AI inference stays on Firebase AI Logic and Apple's Foundation
+  Models.
+- Code, not the model, compares the object with the family's described items by kind and color. Anything it cannot
+  read for sure is unknown, never consistent. A photo whose words could be evidence follows the evidence protocol.
+- A model call that runs past the 30-second limit keeps its own copy of the photo in memory until it ends (within
+  its output cap). At the limit the app releases its own reference, starts no further model call for that photo,
+  and lets the next photo be read, so a stalled call can briefly overlap the next read.
+- NOT VERIFIED: the camera on a real iPhone. The person question on real photos: on the simulator it answered no on
+  two object photos and yes on one public-domain portrait. Whether the system photo picker caches the photo. The app
+  covers its screen when it leaves the foreground with the picker open, but what iOS keeps for the app switcher was
+  not checked.
+
 ## On-device safety (Android)
 
 - The family app's note read asks for the on-device model first (PREFER_ON_DEVICE). Firebase AI Logic's
