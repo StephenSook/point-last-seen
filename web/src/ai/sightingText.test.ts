@@ -26,6 +26,14 @@ function deps(over: Partial<SightingTextDeps> & { availableAnswer?: boolean | "t
 }
 
 describe("readSightingText", () => {
+  // A model can fill a field from the missing person's profile instead of the note; a value the note does not
+  // support is blanked, so a report never claims what nobody wrote.
+  it("blanks a colour the note does not support, and keeps the ones it does", async () => {
+    const reply = JSON.stringify({ direction: "n", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
+    const r = await readSightingText(text, deps({ generate: async () => ({ text: reply, inferenceSource: "on_device" }) }));
+    expect(r).toEqual({ reading: { direction: "n", topColor: "unknown", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" } });
+  });
+
   it("a reply that does not come within the time limit is not read", async () => {
     const never = () => new Promise<never>(() => undefined);
     expect(await readSightingText(text, deps({ generate: never, timeoutMs: 20 }))).toEqual({ refused: "timeout" });
@@ -91,6 +99,12 @@ describe("readSightingText", () => {
 });
 
 describe("readSightingTextInCloud", () => {
+  it("blanks a colour the note does not support in a cloud read too", async () => {
+    const reply = JSON.stringify({ direction: "n", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "a woman in a blue coat walking north" });
+    const r = await readSightingTextInCloud(text, { byUid: "u", atMs: 1 }, { generateCloud: async () => ({ text: reply, inferenceSource: "in_cloud" }), killCloud: false });
+    expect(r).toMatchObject({ reading: { topColor: "unknown", direction: "n" } });
+  });
+
   const consent = { byUid: "uid-cmd", atMs: 1 };
 
   it("needs a consent record for that note", async () => {

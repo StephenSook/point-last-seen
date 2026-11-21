@@ -7,7 +7,7 @@
 // This file never counts tokens (rules gate): that path calls the cloud.
 
 import { InferenceMode, type HybridParams, type LanguageModelCreateOptions } from "firebase/ai";
-import { isPossibleEvidence, validateReading, type ClothingColor, type Direction, type ReportReading } from "@pls/engine";
+import { groundReading, isPossibleEvidence, validateReading, type ClothingColor, type Direction, type ReportReading } from "@pls/engine";
 import readingSchema from "../../../shared/schemas/report-reading.schema.json";
 import { removePhoneNumbers } from "../data/sightings";
 import { onDeviceCreateOptions } from "./gate";
@@ -87,7 +87,9 @@ function checked(replyText: string, note: string): SightingCues | null {
     evidenceQuote: c.evidenceQuote,
   };
   if (!validateReading(reading, [], note).ok) return null;
-  return { direction: c.direction, topColor: c.topColor, bottomColor: c.bottomColor, footwear: notUnknown(c.footwear), carried: notUnknown(c.carried), evidenceQuote: c.evidenceQuote };
+  // A value the note does not support (filled from the missing person's profile, say) is blanked.
+  const g = groundReading(reading, note);
+  return { direction: g.direction, topColor: g.topColor, bottomColor: g.bottomColor, footwear: notUnknown(g.footwear), carried: notUnknown(g.carried), evidenceQuote: g.evidenceQuote };
 }
 
 /** Free-text fields: the model may answer "unknown" for "the note does not say", which must leave the field empty. */
