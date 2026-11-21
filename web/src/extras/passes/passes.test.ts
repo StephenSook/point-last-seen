@@ -4,7 +4,9 @@ import { T0 } from "../testdata/replay";
 import { loadPasses, passLines, passesUrl, readPasses } from "./passes";
 
 const MIN = 60_000;
-const run = harnessRun();
+// The harness run, with bravo's phone (device-2) never having its clock offset measured.
+const base = harnessRun();
+const run = { ...base, devices: base.devices.map((d) => (d.deviceId === "device-2" ? { ...d, clockOffsetMs: null } : d)) };
 // Made-up passes for the harness run: alfa's report r2 and bravo's sighting s2.
 // Each pass's time is its report's phone time plus the phone's measured offset (0 here); accuracy is the report's own.
 const file = () => ({
@@ -58,12 +60,16 @@ describe("readPasses", () => {
     expect(readPasses(file(), handPlaced)).toEqual({ ok: false, reason: "A pass names an event that is not that team's report placed by its phone's GPS." });
   });
 
-  it("a pass whose phone clock was not measured is taken at the phone's own time", () => {
-    const pass = { ...file().passes[0]!, clockChecked: false };
-    expect(readPasses({ ...file(), passes: [pass] }, run).ok).toBe(true);
-    const offset = { ...run, devices: run.devices.map((d) => ({ ...d, clockOffsetMs: 30_000 })) };
-    expect(readPasses({ ...file(), passes: [{ ...pass, clockChecked: true }] }, offset)).toEqual({ ok: false, reason: "A pass's time is not its report's time." });
-    expect(readPasses({ ...file(), passes: [{ ...pass, clockChecked: true, atMs: pass.atMs + 30_000 }] }, offset).ok).toBe(true);
+  it("a pass says its phone's clock was checked exactly when the run has that phone's offset", () => {
+    const [alfa, bravo] = file().passes as [ReturnType<typeof file>["passes"][number], ReturnType<typeof file>["passes"][number]];
+    // Bravo's phone has no measured offset: the pass is taken at the phone's own time, and says so.
+    expect(readPasses({ ...file(), passes: [bravo] }, run).ok).toBe(true);
+    expect(readPasses({ ...file(), passes: [{ ...bravo, clockChecked: true }] }, run)).toEqual({ ok: false, reason: "A pass says its phone's clock was checked, but the run has no offset for it." });
+    // Alfa's phone has one (0): a pass may not set it aside.
+    expect(readPasses({ ...file(), passes: [{ ...alfa, clockChecked: false }] }, run)).toEqual({ ok: false, reason: "A pass says its phone's clock was not checked, but the run has its offset." });
+    const offset = { ...run, devices: run.devices.map((d) => (d.deviceId === "device-1" ? { ...d, clockOffsetMs: 30_000 } : d)) };
+    expect(readPasses({ ...file(), passes: [alfa] }, offset)).toEqual({ ok: false, reason: "A pass's time is not its report's time." });
+    expect(readPasses({ ...file(), passes: [{ ...alfa, atMs: alfa.atMs + 30_000 }] }, offset).ok).toBe(true);
   });
 
   it("refuses a pass for a team the run lacks, or for an event that is not that team's report in the run", () => {
@@ -95,11 +101,15 @@ describe("passLines", () => {
     const close = { ...r.file, passes: [{ ...r.file.passes[0]!, distanceM: 0 }] };
     expect(passLines(close, run, "America/New_York")[0]!.text).toBe("Alfa was within 10 m of the role-player at 13:56, at its report then (its phone's GPS: within 5 m).");
     const onlyAlfa = { ...r.file, passes: r.file.passes.slice(0, 1) };
+    // Bravo's GPS report at +12 lies inside the track's span, so its missing pass means the track had no fix then.
     expect(passLines(onlyAlfa, run, "UTC")[1]).toEqual({
       teamId: "bravo",
       eventId: null,
-      text: "No pass for Bravo: none of its reports placed by its phone's GPS came at a moment the role-player's track covers.",
+      text: "No pass for Bravo: its reports placed by its phone's GPS came only where the role-player's track has no fix.",
     });
+    // With the track starting at +13, the run shows no GPS report of Bravo's inside it at all.
+    const later = { ...onlyAlfa, trackFromMs: T0 + 13 * MIN };
+    expect(passLines(later, run, "UTC")[1]!.text).toBe("No pass for Bravo: none of its reports placed by its phone's GPS came while the role-player's track ran.");
   });
 });
 

@@ -116,7 +116,8 @@ test("with a passes file beside the run, the replay lists each team's closest pa
   const block = page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("closest-passes");
   await expect(block.getByRole("heading", { name: "Closest passes" })).toBeVisible();
   await expect(block.locator('li[data-event-id="r2"]')).toHaveText(/^Alfa was 40 m from the role-player at \d\d:\d\d, at its report then \(its phone's GPS: within 5 m\)\.$/);
-  await expect(block.locator("li").filter({ hasText: "No pass for Bravo: none of its reports placed by its phone's GPS" })).toHaveCount(1);
+  // Bravo's GPS report lies inside the track's span, so no pass means the track had no fix then.
+  await expect(block.locator("li").filter({ hasText: "No pass for Bravo: its reports placed by its phone's GPS came only where the role-player's track has no fix." })).toHaveCount(1);
   // The track itself is never published, and the block says so.
   await expect(block).toContainText("The track itself is not published.");
 });
