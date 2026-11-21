@@ -66,6 +66,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS gains Drill data retention (what is deleted and when, the server's closedAt, the orphaned anonymous sign-ins,
+  the keep-list, the iPhone practice drill staying on the phone); the production checklist gets the job's row. Source:
+  review (drill retention). Verified against functions/src/retention.ts, firestore.rules and
+  ios/PLS/App/AppModel.swift; on 2026-11-21 every drill in production was open, so nothing is due before 30 days after
+  the first close.
 - functions/src/index.ts: recordDrillClosedTrigger (incident updates) and deleteEndedDrillsJob (daily 07:41 UTC,
   counts only in its log line). Source: review (drill retention). Verified: functions typecheck; the functions suite
   passes (270); ci-local ts and rules sections pass.

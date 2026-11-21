@@ -218,6 +218,24 @@ each line says what the limit is and why.
   probe checks the sweep's `ops/storage` heartbeat. A link made during the sandbox stops working when its file
   is deleted.
 
+## Drill data retention
+
+- A drill's data is deleted 30 days after the search command closes it: the incident with its events, plans,
+  debriefs, consents and everything else under it, and its clips, photos and packs. `deleteEndedDrillsJob` runs
+  daily at 07:41 UTC (`functions/src/retention.ts`). A drill whose media cannot be deleted is left whole, and the
+  next day's run tries again.
+- The close time is the server's: `recordDrillClosedTrigger` writes `closedAt` when a drill's status becomes
+  closed, and the security rules refuse `closedAt` from every client, so no seat can move a drill's deletion.
+  Closing is final, so `closedAt` is never cleared. A drill closed before this job existed has no `closedAt` and
+  is not deleted by it (on 2026-11-21 every drill was still open).
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. A sign-in with an email,
+  a phone number or another provider is a person's account and is kept.
+- Kept whatever their close: `drill-dev-1` (the development drill) and `drill-judge-1` (the judge sandboxes'
+  seed), and `drill-kennesaw-1` until 2027-01-01 (the drill on film and on the judge page). A live search and a
+  judge sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
+- The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
+  their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
+
 ## The published drill run
 
 - `tools/export-run` writes the public run (`web/public/evidence/published-run.json`) with no Firebase uid:
