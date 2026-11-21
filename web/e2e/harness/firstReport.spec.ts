@@ -10,15 +10,18 @@ test("the card says the report, saves and confirms it with one press, and says w
   await add.click();
   await expect(card.getByRole("status")).toHaveText("Saving the report...");
   await expect(add).toBeDisabled();
+  await page.getByRole("button", { name: "Server has it" }).click();
   await expect(card.getByRole("status")).toHaveText("Confirming it as the new last known point...");
+  await page.getByRole("button", { name: "Confirm done" }).click();
   await expect(page.getByTestId("confirmed")).toBeVisible();
   await expect(card).toHaveCount(0);
 });
 
 test("a refused save says so and lets command try again", async ({ page }) => {
-  await page.goto("/harness/first-report.html?fail=1");
+  await page.goto("/harness/first-report.html");
   const card = page.getByRole("region", { name: "Try a report" });
   await card.getByRole("button", { name: "Add and confirm this report" }).click();
+  await page.getByRole("button", { name: "Server refuses" }).click();
   await expect(card.getByRole("alert")).toHaveText("The report was not saved. Check the connection and try again.");
   await expect(card.getByRole("button", { name: "Add and confirm this report" })).toBeEnabled();
 });
