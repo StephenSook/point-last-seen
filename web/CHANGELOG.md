@@ -2524,3 +2524,18 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
 - Source: review (the Android app already shows the time of a cloud read).
 - Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.
+
+### test(web): the live clip check makes a clip no earlier run has made
+- What: the check made each run's clip "fresh" from a random height (0 to 199), but neighbouring heights encode to the same bytes, so only 100 distinct clips exist, and 24 of them already had a stored reading on the test drill: about one run in four read a stored answer and called no model, failing "read once in the cloud". `make-moving-box.sh` takes the square's colour as a third argument (default red, so the harness clips are unchanged), and the check picks one of 512 colours (each channel in steps of 32; adjacent colours also encode alike) as well as the height, about 51,000 clips.
+- Source: live suite (the clip check failed twice in three runs after the rules deploy).
+- Verified: the 200 heights give 100 distinct SHA-256s and 24 match stored readings on drill-test-1 (read-only); 18 colours in steps of 32 give 18 distinct clips; the harness clip, frames and triage checks pass (28); the live check passed twice in a row.
+
+### test(web): the removal check signs in fresh and joins the test drill itself
+- What: in the full live suite the removal check used the run's shared signed-in account, which by then could hold a practice search's claims (the judge checks start practice searches on it). Its cached token still showed command of the test drill, so the post offered Remove, but `removeMember` checks the caller's current claims and refused with "Only command can remove someone." The check now starts from an empty browser and joins the test drill as command itself. (Its cleanup removed the fresh member it had made, as designed.)
+- Source: live suite after the People panel deploy (the check failed with that refusal; the removal record its cleanup wrote is on the test drill).
+- Verified: run alone against the live site, it passes end to end (the fresh member is removed from the People panel; its read is refused, its session refresh fails with TOKEN_EXPIRED, and its rejoin is refused).
+
+### test(web): the retract check finds its report under Sightings whatever else is waiting
+- What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
+- Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
+- Verified: run alone against the live site, the retract check passes.

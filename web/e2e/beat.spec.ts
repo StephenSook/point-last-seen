@@ -109,8 +109,12 @@ test("command retracts a report from Reports: it stays, struck through, survives
   const text = note("retracted by command");
   await addSighting(page, text);
   await expect(page.getByTestId("saving")).toHaveCount(0, { timeout: 60_000 });
-  // It is listed under Sightings first (the newest seen is among the three shown), so leaving it below means something.
-  await expect(page.getByRole("region", { name: "Sightings" }).getByText(text)).toHaveCount(1);
+  // It is listed under Sightings first, so leaving it below means something. The test drill keeps undecided test
+  // sightings, some seen later than now, so this one need not be among the three shown: show them all first.
+  const sightings = page.getByRole("region", { name: "Sightings" });
+  const showAll = sightings.getByRole("button", { name: /^Show all/ });
+  if (await showAll.count()) await showAll.click();
+  await expect(sightings.getByText(text)).toHaveCount(1);
   await openDetails(page);
   const report = page.getByRole("region", { name: "Reports" }).getByRole("listitem").filter({ hasText: text });
   await report.getByRole("button", { name: "Retract" }).click();
