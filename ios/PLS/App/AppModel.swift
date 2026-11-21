@@ -891,7 +891,7 @@ final class AppModel {
             assignedSegmentIds: mission.assignedSegmentIds,
             positionSegmentId: position.flatMap { Geo.segment(containing: $0, in: mission.grid) },
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
-            liveGate: { [gate] in gate.current })
+            liveGate: { [gate] in gate.current }, subjectNames: Self.subjectNames(mission))
         let outcome = await readReport(text, situation, config, screen)
         let readDone = nowMs()
         switch outcome.cloudTransport {
@@ -902,6 +902,12 @@ final class AppModel {
 
         return journal(outcome, rawText: text, inputMethod: inputMethod, position: position, mission: mission, uid: uid,
                        identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
+    }
+
+    /// The subject's names from the shared profile, for the found-kind rule only; they never reach a model.
+    static func subjectNames(_ mission: Mission) -> [String] {
+        guard let p = mission.sharedProfile else { return [] }
+        return ([p.answersTo] + p.namesToCall).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
     /// The report-reading eval's arms: the rules alone, or Apple's on-device model.
@@ -916,7 +922,7 @@ final class AppModel {
         ReportSituation(
             incidentMode: arm == .onDevice ? mission.mode : nil, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds, positionSegmentId: nil, profile: mission.profile,
-            networkOnline: false, cloudConsent: false, liveGate: nil)
+            networkOnline: false, cloudConsent: false, liveGate: nil, subjectNames: subjectNames(mission))
     }
 
     func evalRead(_ text: String, arm: EvalArm) async -> EvalOutput? {
@@ -984,7 +990,7 @@ final class AppModel {
                 params: mission.params)
             let event = ReadOutcomeBuilder.event(from: outcome, rawText: rawText, position: position, context: context,
                                                  seq: try identity.nextSeq())
-            try store.append(event)
+            try store.append(event, foundKindReason: outcome.foundKindReason)
             problem = nil
             recomputePosterior(mission)
             // A practice report's timings stay off the server, like the report.

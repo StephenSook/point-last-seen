@@ -20,7 +20,7 @@ profile, notes, photos and camera clips from their own app, and decides which of
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
 | iPhone searcher app | Searchers in the field | TestFlight once Apple clears review (no public link yet); its recorded on-device and cloud runs are in [docs/evidence/ios](docs/evidence/ios) |
-| Android family app | The missing person's family | A signed APK as a GitHub release asset (no release is published yet) |
+| Android family app | The missing person's family | The signed APK on the [android-judge release](https://github.com/StephenSook/point-last-seen/releases/tag/android-judge) (`point-last-seen-family-424e5f9c.apk`, with its SHA-256 file) |
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 
