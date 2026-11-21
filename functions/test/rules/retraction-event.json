@@ -1,0 +1,62 @@
+{
+ "target": {
+  "eventId": "55555555555555555555555555555555",
+  "schemaVersion": 1,
+  "incidentId": "drill-dev-1",
+  "teamId": "T1",
+  "deviceId": "uid-s1",
+  "seq": 4,
+  "authorUid": "uid-s1",
+  "role": "searcher",
+  "clientTimeMs": 1795859000000,
+  "serverTime": null,
+  "isTrainingInject": true,
+  "route": null,
+  "planVersion": null,
+  "priorVersion": 2,
+  "type": "clue",
+  "reporter": "searcher",
+  "observedAtMs": null,
+  "position": null,
+  "positionSource": "none",
+  "rawText": "Glove by the creek",
+  "inputMethod": "typed",
+  "reading": null,
+  "effect": {
+   "kind": "none",
+   "why": "informational"
+  },
+  "targetEventId": null,
+  "decision": null
+ },
+ "retraction": {
+  "eventId": "6c3a6579affdfcf8f504358604dbc9bd",
+  "schemaVersion": 1,
+  "incidentId": "drill-dev-1",
+  "teamId": null,
+  "deviceId": "uid-cmd",
+  "seq": 9,
+  "authorUid": "uid-cmd",
+  "role": "command",
+  "clientTimeMs": 1795859600000,
+  "serverTime": null,
+  "isTrainingInject": true,
+  "route": null,
+  "planVersion": null,
+  "priorVersion": 2,
+  "type": "retraction",
+  "reporter": "system",
+  "observedAtMs": null,
+  "position": null,
+  "positionSource": "none",
+  "rawText": null,
+  "inputMethod": "system",
+  "reading": null,
+  "effect": {
+   "kind": "none",
+   "why": "informational"
+  },
+  "targetEventId": "55555555555555555555555555555555",
+  "decision": null
+ }
+}

@@ -1,5 +1,5 @@
 import { AUTH_STATE } from "./authState";
-import { expect, joinCommand, test, withDebugToken } from "./fixtures";
+import { expect, joinCommand, mapDrawn, openDetails, test, withDebugToken } from "./fixtures";
 
 // Writes one command-entered sighting to the drill incident per run (the normal product path).
 test("a new report plays the beat once on the live post, and a reload does not replay it", async ({ page }) => {
@@ -99,3 +99,26 @@ test("a report saved offline in a page that then closed reaches the server when 
   await expect(fresh.getByText(`"${text}"`)).toBeVisible({ timeout: 30_000 });
   await other.close();
 });
+
+// Command takes a report back: the report stays in Reports, struck through, and leaves the Sightings list. Written
+// online after the checks above, in this file so it never lands during the beat check.
+test("command retracts a report from Reports: it stays, struck through, survives a reload and leaves Sightings", async ({ page }) => {
+  await withDebugToken(page);
+  await joinCommand(page);
+  await mapDrawn(page);
+  const text = note("retracted by command");
+  await addSighting(page, text);
+  await expect(page.getByTestId("saving")).toHaveCount(0, { timeout: 60_000 });
+  await openDetails(page);
+  const report = page.getByRole("region", { name: "Reports" }).getByRole("listitem").filter({ hasText: text });
+  await report.getByRole("button", { name: "Retract" }).click();
+  await report.getByRole("button", { name: "Retract report" }).click();
+  await expect(report).toContainText("Retracted by command.");
+  await expect(page.getByRole("region", { name: "Sightings" }).getByText(text)).toHaveCount(0);
+  await expect(page.getByTestId("saving")).toHaveCount(0, { timeout: 60_000 });
+  await page.reload();
+  await mapDrawn(page);
+  await openDetails(page);
+  await expect(page.getByRole("region", { name: "Reports" }).getByRole("listitem").filter({ hasText: text })).toContainText("Retracted by command.");
+});
+

@@ -162,6 +162,29 @@ export function buildConfirmation(target: EventDoc, decision: "confirmed" | "rej
   };
 }
 
+/**
+ * Command takes a report back: a new event that points at it. The report is never edited or deleted; every device's
+ * engine stops counting it (a retraction from command counts for any author's report). A retraction of a training
+ * inject is part of the inject.
+ */
+export function buildRetraction(target: EventDoc, w: CommandWriter): EventDoc {
+  return {
+    ...commandEventBase(w),
+    isTrainingInject: target.isTrainingInject,
+    type: "retraction",
+    reporter: "system",
+    observedAtMs: null,
+    position: null,
+    positionSource: "none",
+    rawText: null,
+    inputMethod: "system",
+    reading: null,
+    effect: { kind: "none", why: "informational" },
+    targetEventId: target.eventId,
+    decision: null,
+  };
+}
+
 /** Promote a confirmed sighting to the start point: it then shapes the prior and stops counting as a likelihood. */
 export function useAsStartPoint(
   sighting: EventDoc,
