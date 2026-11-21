@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Daily probe: a new step fails when the live site does not serve main's newest web change
+  (scripts/served_version_check.py reads /version.json and checks that main's newest commit touching web, shared,
+  firebase.json or the package files is the served commit or its ancestor, and that the build was not dirty); the
+  probe now checks out full history for it. The production checklist records the cron's measured lag (about 8 h) and
+  that the 2026-11-19 scheduled run failed because an Actions budget blocked it before it started. Source: review (the
+  live site lagged main after a merge). Verified: 4 unit tests; against the live site it passes (17c20055); given an
+  older served commit (424e5f9c) it fails, naming 3 web commits not deployed; the retire date is pinned in
+  scripts/test_judging_window.py.
 - Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
   (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
   web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
