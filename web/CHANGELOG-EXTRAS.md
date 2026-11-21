@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-21
 
+- Docs: a print copy of the fluent speaker checklist (`docs/design/spanish-drafts/CHECKLIST.pdf`), rendered from `CHECKLIST.md` with headless Chrome: US Letter, 6 pages, a drawn box beside each yes and no, table headers repeated on each page and no row split across pages. Source: a paper copy to hand to a speaker. Verified: pdfinfo reports 6 pages of 612 x 792 pt (Letter); pages 1, 3, 4 and 5 looked at as images; every word in the language lines is in the PDF's text.
+
 - Fix: the fluent speaker checklist lists the 128 Spanish words and the 37 words Spanish shares with Portuguese, rather than pointing at the draft file, so the check works on paper. Source: making the print copy. Verified: the word counts match `language-words.v2.json`; 69 yes or no lines in all.
 
 - Docs: a checklist for the fluent Spanish speaker (`docs/design/spanish-drafts/CHECKLIST.md`): every sentence of the Spanish cases with its meaning and a yes or no box, every word list as one yes or no line, the suggestions only one machine review made (not applied) as yes or no questions, and what the two reviews already changed. About 45 minutes. Nothing in the drafts reaches the app until it passes. Source: the Spanish notes design. Verified: every sentence and word in the checklist matches the drafts; no dashes or curly quotes.
