@@ -1,5 +1,6 @@
-// The outline the replay draws around the segments the latest report changed. A shape, not a colour, so the map's
-// colours keep their one meaning each.
+// The outline the replay draws around the segments the latest report changed: a line, so a person who cannot tell
+// the colour still sees it, in change-cyan, the product's one colour for "moved by the last report" (the command
+// post's change chips use it too).
 
 import { COMMAND, type MapSegment } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
@@ -23,7 +24,7 @@ export function outlineCollection(segments: readonly MapSegment[], ids: readonly
 export function attachOutline(map: ExtrasMapLike): { set(c: unknown): void; remove(): void } {
   if (!map.getSource(SRC)) map.addSource(SRC, { type: "geojson", data: EMPTY });
   if (!map.getLayer(LAYER)) {
-    map.addLayer({ id: LAYER, type: "line", source: SRC, paint: { "line-color": COMMAND.fg1, "line-width": 3 } });
+    map.addLayer({ id: LAYER, type: "line", source: SRC, paint: { "line-color": COMMAND.changeCyan, "line-width": 3 } });
   }
   return {
     set(c) {
