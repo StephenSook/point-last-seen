@@ -1,5 +1,5 @@
 // Dev-server-only harness (web/harness/change.html): the map and the change banner
-// for a synthetic report that moves probability toward cell CD. No Firebase.
+// for a synthetic report that moves probability toward cell CD (?confirm=1: a sighting awaiting confirmation). No Firebase.
 
 import type { EventDoc } from "@pls/engine";
 import { useState } from "react";
@@ -15,7 +15,9 @@ import { HARNESS_POA, HARNESS_SEGMENTS } from "./mapHarness";
 // After the synthetic report, CD gains 0.15 and the rest shrink in proportion.
 const AFTER: Record<string, number> = Object.fromEntries(Object.entries(HARNESS_POA).map(([id, v]) => [id, id === "CD" ? v * 0.85 + 0.15 : v * 0.85]));
 const CAUSE = { type: "clue", isTrainingInject: true, reading: { kind: "clue", item: "slipper", feature: "water", segmentIds: [] } } as unknown as EventDoc;
-const CHANGE = changeModel(HARNESS_POA, AFTER, CAUSE);
+// ?confirm=1: a sighting waiting for command's confirmation, whose banner and spoken line are the same words.
+const SIGHTING = { type: "sighting", effect: { kind: "clue", influences: {}, authenticity: "medium" } } as unknown as EventDoc;
+const CHANGE = new URLSearchParams(location.search).get("confirm") === "1" ? changeModel(HARNESS_POA, HARNESS_POA, SIGHTING) : changeModel(HARNESS_POA, AFTER, CAUSE);
 // The synthetic report sits in cell DE, south-east of CD.
 const ORIGIN = HARNESS_SEGMENTS.find((s) => s.segmentId === "DE")!.centroid;
 const DIST = beatDistances(ORIGIN, CHANGE.changed.map((c) => c.segmentId), HARNESS_SEGMENTS);

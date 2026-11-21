@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
+  about 2.2 by 3.9 km, rings to 12.8 km), so most of the probability sits beyond the drill area; the grid is not
+  extended before the deadline, since one-batch prior rebuilds cap a 125 m grid near 490 segments (about half the
+  probability still beyond it) and a new grid would need a new iPhone build and App Store review. Source: review.
+  Verified against shared/constants/engine-params.json, the two grid files and web/src/prior/write.ts.
 - Hosting: `/privacy` and `/support` rewrite to `/privacy.html` and `/support.html` ahead of the app shell, so each
   URL answers with its own page. Source: the App Store submission needs public privacy and support pages.
   Verified: a new check in `scripts/test_firebase_config.py` (each path has one rewrite to its page, before the app
@@ -70,6 +75,46 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention, review fix: startPurge starts or resumes each purge in one transaction that reads the incident and
+  its purge record together and returns the sign-in cutoff. With the incident gone, only an unfinished record resumes,
+  with its own cutoff, so a stale run never reopens a purge another run finished; with the incident there, the cutoff
+  is its close (a kept drill past its end date: the earlier of its close and that date, an open one closed at that
+  date, never over a recorded close), never later than an unfinished record's cutoff, and the record is written in the
+  same transaction. Source: review (second-model: the purge ignored the close transaction's result). Verified: 3 new
+  startPurge tests (a close recorded after the scan, an open kept drill and a later close, a finished purge and an
+  unfinished one) failed first, then pass; functions suite 289.
+- Drill retention, review fix: a kept drill purged on its end date uses one sign-in cutoff on every run and retry (its
+  real close if it had one, else its end date), and an open one is closed at its end date in a transaction that never
+  overwrites a close that landed meanwhile (stampKeptClose). Source: review (second-model: a retry could widen the
+  cutoff; the stamp could overwrite a real close). Verified: 3 new tests (the stamp, the retry cutoff, a close after
+  the scan) failed first, then pass; functions suite 287.
+- Drill retention test: a kept drill that is closed but has no closedAt is purged once its end date passes, with the
+  run's time as its close. Source: review. Verified: passes on the existing fix (this case takes the same path as an
+  open kept drill, which failed first in the previous commit); retention tests 22.
+- Drill retention: a kept drill is purged once its end date (2027-01-01) passes, whether or not anyone closed it; an
+  open one first gets the server's closedAt, then goes the same durable way (purge record, media, join codes, the
+  incident, idle sign-ins). An open drill that is not kept is never touched. Source: review (an open drill is never
+  deleted, so the kept drills would have outlived their date). Verified: 2 new tests (an open kept drill past its date
+  is purged while an open drill that is not kept stays; the server's closedAt is written before the purge and not in a
+  dry run) failed first, then pass; functions suite 283.
+- Drill retention: every kept drill (drill-dev-1, drill-judge-1, drill-kennesaw-1, drill-test-1) is kept until
+  2027-01-01 and then deleted like any other closed drill; none is kept for ever. LIMITS and the production checklist
+  say so. Source: review (a simple, true privacy line; judging ends 2026-12-16). Verified: the keep-list test failed
+  first (the development and judge seed drills were kept for ever), then passes; functions suite 281. Production on
+  2026-11-21: 4 drills, all open, so no closed drill lacks a closedAt.
+- README lists drill retention among the Cloud Functions, and LIMITS records that the job is live (since 2026-11-21
+  03:02 UTC) and that its first run, started by hand, deleted nothing because every drill was open. Source: review.
+  Verified: the deploy log, the live ruleset read back, the scheduler job ENABLED, a throwaway drill's closedAt equal
+  to its close commit time, and the run's log line (deleted 0, failed 0).
+- Drill retention keeps drill-test-1 until 2027-01-01, like drill-kennesaw-1: every live check and the daily probe use
+  it, and the seed tool refuses a purged id, so an accidental close would have broken them inside judging. LIMITS and
+  the production checklist list it. Source: review. Verified: the keep-list test failed first (drill-test-1 not kept),
+  then passes; functions suite 281.
+- drill-day, section 2: a new step 4 says to tap Allow when iOS asks to allow Live Activities on the first start of a
+  drill, while there is still signal, so the lock screen shows the team's status; the later steps and section 5's
+  reference move by one. Source: review (the prompt was seen on a physical iPhone, 2026-11-20). Verified: the
+  three lock-screen lines against ios/PLSWidgets/TaskLiveActivity.swift and
+  ios/PLSCore/Sources/PLSCore/TaskStatus.swift.
 - Drill retention: starting a purge clears both done and stale marks, so a drill once marked stale that later becomes
   due is retried by the next run when its purge fails partway. Source: review (second-model, fourth round). Verified:
   a new test (a stale record, the drill due, sign-in deletes failing after the root is gone, then the next run) failed

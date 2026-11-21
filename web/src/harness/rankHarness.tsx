@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PoaRank } from "../command/PoaRank";
+// The practice grid's bounds and the flat-terrain rings, as the command post would compute them.
+const REACH = "The search rings reach 12.8 km; this drill area covers about 1.0 by 1.6 km.";
 import "../theme/fonts.css";
 import "../theme/base.css";
 
@@ -22,7 +24,7 @@ function Harness() {
       <button type="button" className="btn ghost" onClick={() => setAfter(true)}>
         Report
       </button>
-      <PoaRank rows={many > 0 ? MANY : after ? AFTER : BEFORE} row={0.19} reorderDelayMs={delay} />
+      <PoaRank rows={many > 0 ? MANY : after ? AFTER : BEFORE} row={0.19} reorderDelayMs={delay} reach={REACH} />
     </main>
   );
 }

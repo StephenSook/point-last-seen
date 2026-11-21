@@ -72,6 +72,13 @@ each line says what the limit is and why.
 
 ## Search model
 
+- The drill areas are small next to the search rings: the practice area is about 1.0 by 1.6 km and the Kennesaw
+  drill area about 2.2 by 3.9 km, while the rings reach 12.8 km (flat terrain; 8.3 km in mountains, 12.6 km urban).
+  Most of the probability therefore sits beyond the drill area, shown as its own row below the top segments with a
+  computed line saying how far the rings reach. The grid is not extended before the hackathon deadline: a prior
+  rebuild writes every segment in one batch, so a 125 m grid stops near 490 segments (about 2.8 by 2.8 km, which
+  still leaves about half the probability beyond it), and a new grid would need a new iPhone build, since the iPhone
+  carries the practice grid, and a new App Store review.
 - A sighting the search command confirms, with a place (a GPS fix or a point on the map) and the time it was seen,
   becomes the new last known point: the ring prior is rebuilt from its place, with the direction-of-travel wedge when
   it says which way the person went, as a confirmed camera sighting does. The rings do not widen with the time since
@@ -240,7 +247,8 @@ each line says what the limit is and why.
 
 - A drill's data is deleted 30 days after the search command closes it: the incident with its events, plans,
   debriefs, consents and everything else under it, its clips, photos and packs, and its join codes.
-  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`). It writes a purge record
+  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`; live since 2026-11-21 03:02 UTC, and
+  its first run, started by hand, deleted nothing because every drill was open). It writes a purge record
   (`ops/drillPurges/items/{id}`, which no client can read or write) before deleting anything and marks it done only
   when every step succeeded, so a run that stops partway is finished by the next one, even after the incident itself
   is gone; a record whose incident id is in use again is marked stale and nothing of that incident is deleted. Done
@@ -259,9 +267,11 @@ each line says what the limit is and why.
   delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close
   that refreshes and joins another incident in the moment between that last read and the delete is still deleted.
   Its person then signs in again and rejoins with a code; nothing they wrote is lost.
-- Kept whatever their close: `drill-dev-1` (the development drill) and `drill-judge-1` (the judge sandboxes'
-  seed), and `drill-kennesaw-1` until 2027-01-01 (the drill on film and on the judge page). A live search and a
-  judge sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
+- Kept until 2027-01-01 whatever their close, and purged on that date whether or not anyone closed them (the job
+  closes one still open at that date, never over a real close, then deletes it the same way): `drill-dev-1` (the
+  development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
+  judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
+  sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
 - The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
   their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
 

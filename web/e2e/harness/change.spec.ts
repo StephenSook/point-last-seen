@@ -108,3 +108,12 @@ test("the report pin passes the accessibility check: a labelled image, not a lab
   const r = await new AxeBuilder({ page }).include(".report-pin").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(r.violations.map((v) => v.id)).toEqual([]);
 });
+
+test("a line that is both shown and spoken is read out once", async ({ page }) => {
+  const line = "Sighting saved. Confirm it under Sightings to move the map.";
+  await page.goto("/harness/change.html?confirm=1");
+  await expect(page.getByTestId("change-banner")).toHaveText(line);
+  await expect(page.getByTestId("change").getByRole("status")).toHaveText(line);
+  const tree = await page.getByTestId("change").ariaSnapshot();
+  expect(tree.split(line).length - 1).toBe(1);
+});
