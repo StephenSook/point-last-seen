@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../hostApp";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
-import { fromLive, fromPublishedRun, mmssToMs, pendingLine } from "./replayData";
+import { fromLive, fromPublishedRun, lastReportRoute, mmssToMs, pendingLine } from "./replayData";
 import { runDevice, runEvent } from "../testdata/replayIncident";
 import { MAX_RUN_EVENTS, PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunCameraReading, type RunSegment } from "./runContract";
 
@@ -544,5 +544,62 @@ describe("fromPublishedRun", () => {
 
   it("names the contract version it reads", () => {
     expect(PUBLISHED_RUN_VERSION).toBe(1);
+  });
+});
+
+describe("lastReportRoute", () => {
+  const cloud = { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read", latencyMs: 1577, sdkReported: true, blocked: null, decidedAtMs: T0 };
+  // Each route goes in as a public run carries it and through the run reader, so the line shows only what it checked.
+  const lineFor = (route: unknown) => {
+    const read = fromPublishedRun(run({ events: [{ ...runEvent(eventDoc({ eventId: "e" }), T0), route } as never] }));
+    if (!read.ok) throw new Error(read.reason);
+    return lastReportRoute(read.data.events);
+  };
+
+  it("a cloud read says so and names its model", () => {
+    expect(lineFor(cloud)).toBe("Read in the cloud, model gemini-3.5-flash-lite");
+  });
+
+  it("a read on a phone's own model says so and names the model", () => {
+    expect(lineFor({ ...cloud, platform: "ios", path: "on_device", stage: "guided", model: "apple-foundation-model", reason: "on_device_default" })).toBe(
+      "Read on the phone, model apple-foundation-model",
+    );
+    expect(lineFor({ ...cloud, platform: "android", path: "on_device", model: "gemini-nano (ML Kit Prompt API)", reason: "on_device_default" })).toBe(
+      "Read on the phone, model gemini-nano (ML Kit Prompt API)",
+    );
+  });
+
+  it("a read on the browser's own model is on the laptop, not a phone", () => {
+    expect(lineFor({ ...cloud, path: "on_device", model: "chrome-built-in", reason: "sdk_prefer_on_device" })).toBe("Read on the laptop, model chrome-built-in");
+  });
+
+  it("a rules route says no model ran, whatever placeholder its model field holds", () => {
+    expect(lineFor({ ...cloud, path: "rules", stage: "picklist", model: "none", reason: "on_device_default", sdkReported: false })).toBe("Rules, no model");
+  });
+
+  it("an unknown route, or a report with no route, says the route was not reported", () => {
+    // Where an unknown read ran is not known, so neither is which model read it.
+    expect(lineFor({ ...cloud, path: "unknown" })).toBe("Route not reported");
+    expect(lineFor(null)).toBe("Route not reported");
+  });
+
+  it("names a model only when the route reports one", () => {
+    expect(lineFor({ ...cloud, model: "" })).toBe("Read in the cloud");
+    expect(lineFor({ ...cloud, model: "  " })).toBe("Read in the cloud");
+  });
+
+  it("describes the latest report at that time, not command's confirmation of it", () => {
+    const report = eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + MIN, route: cloud as EventDoc["route"] });
+    const confirm = eventDoc({ eventId: "c1", type: "confirmation", clientTimeMs: T0 + 2 * MIN, targetEventId: "s1", decision: "confirmed", effect: { kind: "none", why: "informational" } });
+    const data = fromLive(replayView(), [streamed(report, T0 + MIN), streamed(confirm, T0 + 2 * MIN)], [])!;
+    expect(lastReportRoute(data.events)).toBe("Read in the cloud, model gemini-3.5-flash-lite");
+    expect(lastReportRoute(data.events.filter((e) => e.type === "confirmation"))).toBeNull();
+    expect(lastReportRoute([])).toBeNull();
+  });
+
+  it("a live route the run reader would refuse is not reported, not shown", () => {
+    const odd = eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + MIN, route: { ...cloud, path: "satellite" } as never });
+    const data = fromLive(replayView(), [streamed(odd, T0 + MIN)], [])!;
+    expect(lastReportRoute(data.events)).toBe("Route not reported");
   });
 });

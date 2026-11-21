@@ -13,6 +13,7 @@ import {
   type MapSegment,
   type PlanDoc,
   type PublishedRun,
+  type RouteRecord,
   type SegmentPrior,
   type StreamedEvent,
   type Team,
@@ -183,6 +184,35 @@ export function pendingLine(data: ReplayData): string | null {
   const n = data.events.filter((e) => e.arrivedAtMs === null).length;
   if (n === 0) return null;
   return n === 1 ? "1 report is still sending and is not in the replay." : `${n} reports are still sending and are not in the replay.`;
+}
+
+/** Command's answers to a report or a plan: no report of their own, so no read to describe. */
+const NOT_A_REPORT: readonly EventDoc["type"][] = ["confirmation", "retraction", "plan_ack"];
+// The run reader's own check of a route record (the exporter's too), so the line never shows a value it would refuse.
+const routeCheck = RUN_TYPES.event["route"];
+
+function routeWords(route: RouteRecord): string {
+  if (route.path === "cloud") return "Read in the cloud";
+  // The browser's own model runs only on a computer; the phone apps read on the phone.
+  if (route.path === "on_device") return route.platform === "web" ? "Read on the laptop" : "Read on the phone";
+  return route.path === "rules" ? "Rules, no model" : "Route not reported";
+}
+
+/**
+ * How the latest report shown at this time was read, from its route record: where the read ran, and the model when
+ * the route names one. A rules route holds a placeholder (none, template), and an unknown route cannot say which
+ * model ran, so neither names one. A report with no route, or one the reader would refuse, is "Route not reported".
+ * Null while no report has arrived.
+ */
+export function lastReportRoute(shown: readonly ReplayEvent[]): string | null {
+  const last = shown.findLast((e) => !NOT_A_REPORT.includes(e.type));
+  if (!last) return null;
+  const route: unknown = last.doc.route;
+  if (route === null || route === undefined || !routeCheck || routeCheck(route, "route") !== null) return "Route not reported";
+  const r = route as RouteRecord;
+  const words = routeWords(r);
+  const named = (r.path === "cloud" || r.path === "on_device") && r.model.trim() !== "";
+  return named ? `${words}, model ${r.model}` : words;
 }
 
 const YEAR_2000_MS = Date.UTC(2000, 0, 1);
