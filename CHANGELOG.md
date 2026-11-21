@@ -70,6 +70,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- served_version_check compares the served commit's production inputs with origin/main's instead of checking ancestry,
+  and refuses a shallow clone, a missing origin/main and an unknown served commit. Source: review (second-model).
+  Verified: 12 real-git tests; the live site fails today because main's engine changes are not deployed.
+- Daily probe: a new step fails when the live site is not built from main's production inputs
+  (scripts/served_version_check.py reads /version.json and compares the served commit's web app, shared engine and
+  data, hosting config and package files, without tests, e2e specs, harness pages or markdown, with origin/main's; it
+  also fails a dirty build, a shallow clone, a missing origin/main and a served commit the repository does not have).
+  Content is compared, not ancestry: a squash merge with the same code passes, a build from a branch ahead of main
+  with other code fails, and a test-only main commit asks for no deploy. The probe checks out full history for it.
+  The production checklist records the cron's measured lag (about 8 h) and that the 2026-11-19 scheduled run failed
+  because an Actions budget blocked it before it started. Source: review (the live site lagged main after a merge;
+  a second-model review found ancestry accepted a branch build with other web code). Verified: 12 tests against real
+  git repositories (behind main, ahead of main with other code, squash-equivalent, test-only main change, a checked
+  out feature branch, a missing commit, dirty, no origin/main, shallow); live it fails today, correctly: the site
+  serves 17c20055 and 16 production files on main differ, starting with shared/engine-ts/src/found.ts. The retire
+  date is pinned in scripts/test_judging_window.py.
 - LIMITS, Search model: only a sighting seen later than every prior input moves the start; the first-missing time is
   not stored; a confirmed camera clip always moves the start, so command checks its time first. Source: review.
   Verified against web/src/prior/sightingPrior.ts and web/src/prior/cameraPrior.ts.
