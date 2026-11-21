@@ -1,6 +1,8 @@
 import { useEffect, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import type { PlanDoc } from "../hostApp";
+import { DebriefSheets } from "../debrief/DebriefSheets";
+import { debriefSheets, sampleDebriefSheet } from "../debrief/debriefSheet";
 import { radioCards } from "../radio/radioCard";
 import { RadioCards } from "../radio/RadioCards";
 import { Ics204 } from "./Ics204View";
@@ -10,6 +12,9 @@ import { PrintRoot } from "./PrintRoot";
 
 export const assignmentTitle = "Print assignment sheet";
 export const cardsTitle = "Print radio cards";
+export const debriefTitle = "Print debrief sheets";
+/** Blank debrief sheets printed after the plan's own, for a sweep the plan did not name. */
+const DEBRIEF_BLANKS = 2;
 /** One box, on the sheet and on the cards, says plainly what ticking it puts on paper. */
 export const personBoxLabel = "Print the person's names and approach notes (teams need them in the field; paper leaves this app)";
 const editFields = [
@@ -18,7 +23,7 @@ const editFields = [
   ["branch", "Branch"], ["division", "Division"], ["group", "Group"], ["stagingArea", "Staging Area"],
 ] as const;
 
-export type PrintSessionData = { kind: "assignment" | "cards"; model: PrintModel; approachLines: string[] };
+export type PrintSessionData = { kind: "assignment" | "cards" | "debrief"; model: PrintModel; approachLines: string[] };
 
 export function PrintSession({ session, plans, matchCode, reportCount, onClose, returnFocus }: {
   session: PrintSessionData;
@@ -33,6 +38,7 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
   const [typed, setTyped] = useState(() => defaultTyped(model, timeZone));
   const [printedAtMs, setPrintedAtMs] = useState(model.printedAtMs);
   const [cardsPerson, setCardsPerson] = useState(false);
+  const [withSample, setWithSample] = useState(false);
   const drillLine = model.drillLabel;
   useEffect(() => {
     const stamp = () => flushSync(() => setPrintedAtMs(Date.now()));
@@ -44,6 +50,21 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
   if (isStale(model, plans)) {
     const latest = Math.max(...plans.map(({ version }) => version).filter(Number.isInteger));
     staleMessage = `A newer plan (v${latest}) was approved. Print again.`;
+  }
+  if (kind === "debrief") {
+    // No person lines and no approach notes: the debrief asks for nothing about anyone.
+    const sheets = [...debriefSheets(model, { blanks: DEBRIEF_BLANKS }), ...(withSample ? [sampleDebriefSheet(model)] : [])];
+    const sampleControl = (
+      <label className="extras-note-option">
+        <input type="checkbox" checked={withSample} onChange={(event) => setWithSample(event.target.checked)} />
+        Add a filled SAMPLE sheet for practice
+      </label>
+    );
+    return (
+      <PrintRoot title={debriefTitle} onClose={onClose} returnFocus={returnFocus} controls={sampleControl} staleMessage={staleMessage} drillLine={drillLine}>
+        <DebriefSheets sheets={sheets} />
+      </PrintRoot>
+    );
   }
   if (kind === "cards") {
     // The say-it-like-this lines wait for a command report flow; the person lines print only when ticked.
