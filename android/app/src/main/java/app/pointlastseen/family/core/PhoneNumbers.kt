@@ -21,7 +21,12 @@ import java.text.Normalizer
 object PhoneNumbers {
     const val REPLACEMENT = "[number removed]"
 
-    private val DIGIT_WORDS = setOf("zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+    // English and Spanish digit words, as the shared rule names them (shared/test-vectors/README.md). Spanish "un" and
+    // "una" are articles, so they are not digits.
+    private val DIGIT_WORDS = setOf(
+        "zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
+    )
 
     // Chinese numeral digits, and the spoken "幺" (one): the iPhone counts them as digits (whole numbers); Java calls
     // them letters.
