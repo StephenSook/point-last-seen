@@ -154,6 +154,38 @@ class ModelReadinessTest {
         assertEquals(DeviceModelStatus.AVAILABLE, seen.last().status)
     }
 
+    @Test fun aStaleCheckFinishingFirstDoesNotUseUpTheLaunchDownload() = runTest {
+        val first = CompletableDeferred<DeviceModelStatus>()
+        val second = CompletableDeferred<DeviceModelStatus>()
+        var calls = 0
+        var downloads = 0
+        val readiness = ModelReadiness(
+            this,
+            check = { if (++calls == 1) first.await() else second.await() },
+            download = { downloads++; flowOf(ModelDownload.Done) },
+            unmetered = { true },
+        ) {}
+        readiness.refresh()
+        readiness.refresh()
+        advanceUntilIdle()
+        first.complete(DeviceModelStatus.UNKNOWN)
+        advanceUntilIdle()
+        second.complete(DeviceModelStatus.DOWNLOADABLE)
+        advanceUntilIdle()
+        assertEquals(1, downloads)
+    }
+
+    @Test fun aFreshCheckBeforeASortReplacesAStaleDownloadingState() = runTest {
+        // Another app started the shared download: this app sees DOWNLOADING with no download of its own.
+        val phone = Phone(DeviceModelStatus.DOWNLOADING, DeviceModelStatus.AVAILABLE)
+        val readiness = phone.readiness(this)
+        readiness.refresh()
+        advanceUntilIdle()
+        assertEquals(DeviceModelStatus.DOWNLOADING, phone.seen.last().status)
+        assertEquals(DeviceModelStatus.AVAILABLE, readiness.current())
+        assertEquals(DeviceModelStatus.AVAILABLE, phone.seen.last().status)
+    }
+
     @Test fun aCheckThatThrowsReadsAsUnknown() = runTest {
         val seen = mutableListOf<ModelState>()
         ModelReadiness(this, check = { throw IllegalStateException("AICore not bound") }, download = { flowOf() }, unmetered = { true }) { seen += it }

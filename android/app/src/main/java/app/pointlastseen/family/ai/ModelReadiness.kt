@@ -38,23 +38,34 @@ class ModelReadiness(
     private var downloadActive = false
 
     fun refresh() {
-        // Only the most recently started check may update the screen: an older one finishing last
-        // (a resume check during a download, say) would otherwise put back a stale status.
         val mine = ++latestCheck
-        scope.launch {
-            val status = try {
-                check()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                DeviceModelStatus.UNKNOWN
-            }
-            if (mine == latestCheck) set(state.copy(status = shown(status)))
-            if (!launchChecked) {
-                launchChecked = true
-                if (status == DeviceModelStatus.DOWNLOADABLE && unmetered()) getModel()
-            }
+        scope.launch { checkAs(mine, launch = true) }
+    }
+
+    /**
+     * A fresh check, for a note about to be routed: the shown status can be stale (another app's download of
+     * the shared model ends with no word to this app, or the model was removed). Returns the status to route on.
+     */
+    suspend fun current(): DeviceModelStatus = checkAs(++latestCheck, launch = false)
+
+    private suspend fun checkAs(mine: Long, launch: Boolean): DeviceModelStatus {
+        val status = try {
+            check()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            DeviceModelStatus.UNKNOWN
         }
+        // Only the most recently started check may update the screen or decide the launch download: an
+        // older one finishing out of order (a resume check during a download, say) would put back a stale
+        // status, or use up the one automatic download on a stale answer.
+        if (mine != latestCheck) return shown(status)
+        set(state.copy(status = shown(status)))
+        if (launch && !launchChecked) {
+            launchChecked = true
+            if (status == DeviceModelStatus.DOWNLOADABLE && unmetered()) getModel()
+        }
+        return shown(status)
     }
 
     fun getModel() {
