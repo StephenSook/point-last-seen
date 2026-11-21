@@ -3,7 +3,7 @@ import { MapView, type MapLibreMap } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
 import { lastReportRoute, pendingLine, runCarriesRoutes, type ReplayData } from "./replayData";
-import { clockLabel, markTimes, nextMarkTime, playStops } from "./ruler";
+import { markTimes, nextMarkTime, playStops } from "./ruler";
 import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
 import { attachTrail, legText, legs, trailCollections, trailOrder, trailPoints } from "./trail";
@@ -72,10 +72,8 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
       <div className="extras-replay-map" data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}>
         <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
       </div>
+      {/* The time and the report count are the slider's one clock, so the facts line has no clock of its own. */}
       <div className="extras-replay-facts" role={playing ? undefined : "status"}>
-        <span>Clock <span className="num">{clockLabel(tMs, timeZone)}</span></span>
-        <span>{frame.shown.length === 1 ? "1 report arrived" : `${frame.shown.length} reports arrived`}</span>
-        {route && <span data-testid="replay-route">Last report: {route}</span>}
         {frame.phase === "replayable" ? (
           <>
             <span>Match code <span className="num" data-testid="replay-code">{frame.view.code}</span></span>
@@ -84,6 +82,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
         ) : (
           <span data-testid="replay-not-stored">Earlier prior. The map for this time is not stored.</span>
         )}
+        {route && <span data-testid="replay-route">Last report: {route}</span>}
       </div>
       {pendingLine(data) && <p className="muted">{pendingLine(data)}</p>}
       {order.length >= 2 && (

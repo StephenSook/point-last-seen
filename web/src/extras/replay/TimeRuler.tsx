@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import type { ReplayData } from "./replayData";
-import { elapsedLabel, nextMark, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
+import { nextMark, reportCount, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
 import type { ReplayWindow } from "./stateAt";
 
 // The SVG is drawn in CSS pixels at the track's measured width, so labels and shapes are never stretched.
@@ -66,13 +66,14 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
   }
 
   const head = toX(tMs);
+  // The replay's one clock. The slider announces the same words, so the bubble itself is not read twice.
+  const clock = valueText(tMs, w.startMs, reportCount(data, tMs));
   return (
     <div className="extras-ruler">
-      {/* The clock is in the facts line above; the slider announces both, so this readout is not read twice. */}
-      <div className="extras-ruler-clock" aria-hidden="true">
-        <span>Elapsed</span> <span className="extras-ruler-elapsed">{elapsedLabel(tMs, w.startMs)}</span>
-      </div>
       <div className="extras-ruler-track" ref={track}>
+        <div className="extras-ruler-bubble" aria-hidden="true" style={{ left: `${Math.min(Math.max(head, 0), W)}px` }} data-edge={head < 90 ? "start" : head > W - 90 ? "end" : undefined}>
+          {clock}
+        </div>
         <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
           <line className="extras-ruler-scale" x1={0} x2={W} y1={SCALE_Y} y2={SCALE_Y} />
           {m.ticks.map((t) => (
@@ -97,7 +98,7 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
           step={1000}
           value={scale.valueOf(tMs)}
           aria-label="Replay time"
-          aria-valuetext={valueText(tMs, w.startMs, timeZone)}
+          aria-valuetext={clock}
           onChange={(e) => onChange(scale.timeOf(Number(e.target.value)))}
           onKeyDown={onKeyDown}
         />

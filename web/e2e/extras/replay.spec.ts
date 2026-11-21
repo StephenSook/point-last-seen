@@ -37,13 +37,19 @@ test("dragging the slider to the end shows the same match code as the live heade
   expect(errors).toEqual([]);
 });
 
-test("the clock and the elapsed time are each labelled, shown once, and the elapsed digits are not in the 7-segment font", async ({ page }) => {
+test("one clock: the bubble over the slider head says the time since the start and the report, as the slider announces", async ({ page }) => {
   const dialog = await openReplay(page);
-  await expect(dialog.locator(".extras-replay-facts")).toContainText(/Clock \d\d:\d\d/);
-  const readout = dialog.locator(".extras-ruler-clock");
-  await expect(readout).toHaveText(/^Elapsed \d\d:\d\d:\d\d$/);
-  const font = await readout.locator(".extras-ruler-elapsed").evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(font).not.toContain("DSEG7");
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  const bubble = dialog.locator(".extras-ruler-bubble");
+  await expect(bubble).toHaveText(/^\d+ min, report 6 of 6$/);
+  await expect(bubble).toHaveText((await slider.getAttribute("aria-valuetext"))!);
+  // No second clock anywhere in the replay: no "Clock" line, no "Elapsed" readout, no hh:mm:ss digits.
+  await expect(dialog.locator(".extras-replay-facts")).not.toContainText("Clock");
+  await expect(dialog.getByText("Elapsed")).toHaveCount(0);
+  await expect(dialog.locator(".extras-replay")).not.toContainText(/\d\d:\d\d:\d\d/);
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await expect(bubble).toHaveText("0 min, report 0 of 6");
 });
 
 test("the facts line says how the latest report was read, and by which model", async ({ page }) => {
@@ -70,7 +76,7 @@ test("a run with no route on any report shows no route line at any time", async 
   const slider = dialog.getByRole("slider", { name: "Replay time" });
   await slider.focus();
   await page.keyboard.press("End");
-  await expect(dialog.locator(".extras-replay-facts")).toContainText("reports arrived");
+  await expect(dialog.getByTestId("replay-code")).toBeVisible();
   await expect(dialog.getByTestId("replay-route")).toHaveCount(0);
   await expect(dialog.getByText("Route not reported")).toHaveCount(0);
 });
@@ -80,14 +86,14 @@ test("the slider works by keyboard and announces the time", async ({ page }) => 
   const slider = dialog.getByRole("slider", { name: "Replay time" });
   await slider.focus();
   await page.keyboard.press("Home");
-  await expect(slider).toHaveAttribute("aria-valuetext", /^\d\d:\d\d, 0 minutes in$/);
+  await expect(slider).toHaveAttribute("aria-valuetext", "0 min, report 0 of 6");
   for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight");
-  await expect(slider).toHaveAttribute("aria-valuetext", /^\d\d:\d\d, 1 minute in$/);
+  await expect(slider).toHaveAttribute("aria-valuetext", "1 min, report 0 of 6");
   await page.keyboard.press("Shift+ArrowRight");
-  await expect(slider).toHaveAttribute("aria-valuetext", /^\d\d:\d\d, 2 minutes in$/);
+  await expect(slider).toHaveAttribute("aria-valuetext", "2 min, report 0 of 6");
   // Period jumps to the next mark: the first report arrives 3 minutes in.
   await page.keyboard.press(".");
-  await expect(slider).toHaveAttribute("aria-valuetext", /^\d\d:\d\d, 3 minutes in$/);
+  await expect(slider).toHaveAttribute("aria-valuetext", "3 min, report 1 of 6");
 });
 
 test("with reduced motion there is no Play button and Next report moves the slider", async ({ page }) => {
@@ -101,7 +107,7 @@ test("with reduced motion there is no Play button and Next report moves the slid
   await dialog.getByRole("button", { name: "Next report" }).click();
   const after = Number(await slider.inputValue());
   expect(after).toBeGreaterThan(before);
-  await expect(slider).toHaveAttribute("aria-valuetext", /, 3 minutes in$/);
+  await expect(slider).toHaveAttribute("aria-valuetext", "3 min, report 1 of 6");
 });
 
 test("Play starts on the first stored map, holds about 1.5 s per report and ends on the live map", async ({ page }) => {

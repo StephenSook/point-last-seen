@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { clockLabel, elapsedLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
+import { clockLabel, durationLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, reportCount, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -137,19 +137,29 @@ describe("markTimes and nextMarkTime", () => {
   });
 });
 
-describe("elapsedLabel", () => {
-  it("elapsedLabel pads hours, minutes and seconds", () => {
-    expect(elapsedLabel(T0 + 42 * MIN + 10_000, T0)).toBe("00:42:10");
-    expect(elapsedLabel(T0 + 3 * 3_600_000 + 5_000, T0)).toBe("03:00:05");
-    expect(elapsedLabel(T0 - 1, T0)).toBe("00:00:00");
+describe("durationLabel", () => {
+  it("says the time since the start in whole minutes, with hours past the first hour", () => {
+    expect(durationLabel(0)).toBe("0 min");
+    expect(durationLabel(-1)).toBe("0 min");
+    expect(durationLabel(42 * MIN + 59_999)).toBe("42 min");
+    expect(durationLabel(60 * MIN)).toBe("1 h 0 min");
+    expect(durationLabel(21 * 60 * MIN + 18 * MIN + 34_000)).toBe("21 h 18 min");
   });
 });
 
-describe("valueText", () => {
-  it("says the clock time and how far in, for the slider's announcement", () => {
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 45, 10), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:45, 42 minutes in");
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 4, 30), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:04, 1 minute in");
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 45), Date.UTC(2026, 10, 22, 14, 3), "America/New_York")).toBe("09:45, 42 minutes in");
+describe("reportCount and valueText", () => {
+  it("counts the reports that had arrived by a time, out of every arrived report", () => {
+    const d = data();
+    expect(reportCount(d, T0)).toEqual({ shown: 0, total: 6 });
+    // Arrivals at +2.5, +5 and +6 by then; +8, +10 and +11 later.
+    expect(reportCount(d, T0 + 6 * MIN)).toEqual({ shown: 3, total: 6 });
+    expect(reportCount(d, T0 + 11 * MIN)).toEqual({ shown: 6, total: 6 });
+  });
+
+  it("the replay's one clock, which the slider also announces: time since the start, then the report", () => {
+    expect(valueText(T0 + 21 * 60 * MIN + 18 * MIN + 34_000, T0, { shown: 24, total: 24 })).toBe("21 h 18 min, report 24 of 24");
+    expect(valueText(T0 + 42 * MIN, T0, { shown: 3, total: 24 })).toBe("42 min, report 3 of 24");
+    expect(valueText(T0, T0, { shown: 0, total: 24 })).toBe("0 min, report 0 of 24");
   });
 });
 

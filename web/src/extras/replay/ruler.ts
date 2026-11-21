@@ -40,18 +40,27 @@ export function clockLabel(tMs: number, timeZone: string): string {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(tMs);
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
-/** Time since the window start, "00:42:10". */
-export function elapsedLabel(tMs: number, startMs: number): string {
-  const s = Math.max(0, Math.floor((tMs - startMs) / 1000));
-  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+/** A time since the window start in whole minutes: "0 min", "42 min", "21 h 18 min". */
+export function durationLabel(ms: number): string {
+  const m = Math.max(0, Math.floor(ms / MIN));
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
 }
 
-/** What the slider announces: "14:03, 42 minutes in". */
-export function valueText(tMs: number, startMs: number, timeZone: string): string {
-  const minutes = Math.max(0, Math.floor((tMs - startMs) / MIN));
-  return `${clockLabel(tMs, timeZone)}, ${minutes} ${minutes === 1 ? "minute" : "minutes"} in`;
+/** How many reports had arrived by tMs, out of every report that arrived (a pending write never counts). */
+export function reportCount(data: ReplayData, tMs: number): { shown: number; total: number } {
+  let shown = 0;
+  let total = 0;
+  for (const e of data.events) {
+    if (e.arrivedAtMs === null) continue;
+    total++;
+    if (e.arrivedAtMs <= tMs) shown++;
+  }
+  return { shown, total };
+}
+
+/** The replay's one clock, which the slider also announces: "21 h 18 min, report 24 of 24". */
+export function valueText(tMs: number, startMs: number, count: { shown: number; total: number }): string {
+  return `${durationLabel(tMs - startMs)}, report ${count.shown} of ${count.total}`;
 }
 
 const TYPE_WORD: Record<ReplayEvent["type"], string> = {
