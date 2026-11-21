@@ -88,3 +88,15 @@ describe("removePhoneNumbers, the Android rule's own checks", () => {
     unchanged("near 4550 142nd St");
   });
 });
+
+describe("removePhoneNumbers, Spanish spoken digits", () => {
+  it("removes a number spoken in Spanish digit words, in any case", () => {
+    expect(removePhoneNumbers("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos")).toBe("Call [number removed]");
+    expect(removePhoneNumbers("Call CUATRO cero cuatro cinco cinco cinco cero uno cuatro dos")).toBe("Call [number removed]");
+  });
+
+  it("does not count the articles un and una as digits", () => {
+    const t = "Found una chaqueta and un sombrero by the creek";
+    expect(removePhoneNumbers(t)).toBe(t);
+  });
+});
