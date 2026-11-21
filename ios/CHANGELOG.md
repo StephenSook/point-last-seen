@@ -5,6 +5,32 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs(limits): Leave deletes the account first and needs signal
+- What: the LIMITS line on "Leave this search" now says the phone asks the server to delete its anonymous account
+  first, that leaving needs signal (every report settled, and a failed delete changes nothing and asks to try again),
+  that an account already gone counts as deleted, and that sent reports stay in the incident until its data is
+  deleted. It no longer says the old user's claims stay on the server.
+- Source: the Leave change before this entry.
+- Verified: each sentence checked against AppModel.leaveSearch and FirebaseJoinBackend.deleteMyAccount at this commit.
+
+### feat(ios): Leave this search deletes the phone's account on the server
+- What: "Leave this search" first asks the server to delete this phone's anonymous account (the deleteMyAccount
+  callable, with limited-use App Check tokens and nothing sent), while still signed in; only then does the phone leave
+  the team's topic, drop the mission and sign out. If the delete fails (no signal, or the server refused), nothing
+  changes and the phone says: "Could not delete this phone's sign-in. Stay in signal, then leave again." So no sign-in
+  is left behind on the server. An account already gone counts as deleted, so a Leave whose earlier reply was lost
+  cannot get stuck: no user left on the phone, Auth answering userNotFound, userDisabled, userTokenExpired or
+  invalidUserToken, or Auth having signed that user out during the call. The Ready check shows the actual reason a
+  Leave was refused (it always showed the unsettled-reports reason). The leave dialog now says the sign-in is deleted
+  and that reports already sent stay with command; it no longer says command can remove you. Ending the practice drill
+  does not touch the account.
+- Source: App Review's request for account deletion in apps that create accounts (the join makes an anonymous one).
+- Verified: tests for the delete asked while signed in, a failed delete keeping the search (still signed in, on the
+  topic, the reason shown), a second Leave after a lost reply, the adapter (callable name, limited-use tokens, empty
+  payload, only ok counts, each gone-user answer, Auth dropping the user mid-call, no user on the phone) and no delete
+  while a report is unsettled or in the practice drill. The new tests failed before the change and pass after. The
+  callable is not deployed yet, so on a phone today Leave is refused until it is.
+
 ### fix(ios): Ready check shows no sign-in line in the practice drill
 - What: Ready check's "Not signed in. Stay in signal." line is hidden in the practice drill, which never signs in, so a
   tester trying the app without a team is not told to do something the practice drill does not need. Outside the

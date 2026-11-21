@@ -21,7 +21,7 @@ struct ReadyCheckView: View {
     static let leaveLabel = "Leave this search"
     static let endPracticeLabel = "End the practice drill"
     static let endPracticeDetail = "Its reports are deleted from this phone. You can then join a search or start the practice drill again."
-    static let leaveDetail = "This phone stops getting this team's tasks and can join another search. Command still lists you until they remove you."
+    static let leaveDetail = "This phone stops getting this team's tasks and its sign-in is deleted, so it can join another search. Reports already sent stay with command."
 
     var body: some View {
         ScrollView {
@@ -74,8 +74,8 @@ struct ReadyCheckView: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(theme.accentColor)
                         .accessibilityIdentifier("leave-search")
-                        if leaveRefused {
-                            Text(AppModel.leaveBlocked).font(.title3.weight(.semibold))
+                        if leaveRefused, let reason = model.leaveRefusal {
+                            Text(reason).font(.title3.weight(.semibold))
                         }
                     }
                     .confirmationDialog(leaveTitle, isPresented: $confirmingLeave, titleVisibility: .visible) {

@@ -134,9 +134,10 @@ import Testing
         final class Count: @unchecked Sendable { var signOuts = 0 }
         let count = Count()
         let reader = FakeMissionReader(docs: nil)
+        let backend = FakeJoinBackend()
         let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }, signOut: { count.signOuts += 1 }),
                          speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
-                         uid: { "uid-1" }, joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: FakePushTopics(),
+                         uid: { "uid-1" }, joinBackend: backend, missionReader: reader, pushTopics: FakePushTopics(),
                          alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "practice-leave-\(UUID().uuidString)")!)
         let dir = try tempDir(), practiceDir = try tempDir()
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -145,7 +146,7 @@ import Testing
         #expect(m.store !== store)
         #expect(await m.submit("Cleared segment BO, nothing found", inputMethod: .typed) == "")
         #expect(await m.leaveSearch())
-        #expect(m.mission == nil && count.signOuts == 0)
+        #expect(m.mission == nil && count.signOuts == 0 && backend.deletes == 0)
         // The real journal is back, untouched, and the drill's reports are gone from the phone.
         #expect(m.store === store && store.entries.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: practiceDir.path))

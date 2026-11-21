@@ -1,3 +1,4 @@
+import FirebaseAuth
 import FirebaseFunctions
 import Foundation
 import PLSCore
@@ -43,6 +44,11 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
         }
         return answer
     }
+    /// What deleteMyAccount answers (true: the server deleted the caller's account), and a hook that runs at the call.
+    var deleteAnswer = true
+    private(set) var deletes = 0
+    var onDelete: (() -> Void)?
+    func deleteMyAccount() async -> Bool { steps.append("delete"); deletes += 1; onDelete?(); return deleteAnswer }
 }
 
 /// A searcher joins with the code and team command gave: the callable sets the claims, the phone
@@ -111,5 +117,53 @@ final class FakeJoinBackend: JoinBackend, @unchecked Sendable {
         _ = await backend.currentClaims(forceRefresh: false)
         #expect(seen.names == ["joinIncident"] && seen.limitedUse == [true] && seen.refreshes == [true, false])
         #expect(FirebaseJoinBackend.region == "us-central1")
+    }
+
+    /// The real adapter deletes the caller's account through the deleteMyAccount callable, with limited-use App Check
+    /// tokens and an empty payload; only the server's ok counts as deleted, and an error or any other reply does not.
+    @Test func theFirebaseAdapterDeletesTheAccountThroughItsCallable() async {
+        final class Seen: @unchecked Sendable {
+            var calls: [(String, Bool, [String: String])] = []
+            var reply: Result<Any, Error> = .success(["ok": true])
+        }
+        let seen = Seen()
+        let backend = FirebaseJoinBackend(signIn: { true }, callable: { name, options, payload in
+            seen.calls.append((name, options.requireLimitedUseAppCheckTokens, payload))
+            return try seen.reply.get()
+        }, hasUser: { true })
+        #expect(await backend.deleteMyAccount())
+        #expect(seen.calls.count == 1 && seen.calls[0].0 == "deleteMyAccount" && seen.calls[0].1 && seen.calls[0].2.isEmpty)
+        seen.reply = .success(["ok": false])
+        #expect(await backend.deleteMyAccount() == false)
+        seen.reply = .failure(NSError(domain: FunctionsErrorDomain, code: FunctionsErrorCode.unavailable.rawValue))
+        #expect(await backend.deleteMyAccount() == false)
+        seen.reply = .failure(NSError(domain: AuthErrorDomain, code: AuthErrorCode.networkError.rawValue))
+        #expect(await backend.deleteMyAccount() == false)
+    }
+
+    /// An account already gone (a delete whose reply was lost) counts as deleted, so leaving cannot get stuck: Auth's
+    /// own answer that the user is gone, Auth having dropped the user during the call, or no user left on the phone.
+    @Test func theFirebaseAdapterCountsAnAccountAlreadyGoneAsDeleted() async {
+        final class State: @unchecked Sendable { var user = true; var calls = 0; var error: Error? }
+        let state = State()
+        let backend = FirebaseJoinBackend(signIn: { true }, callable: { _, _, _ in
+            state.calls += 1
+            throw state.error!
+        }, hasUser: { state.user })
+        for code in [AuthErrorCode.userNotFound, .userTokenExpired, .userDisabled, .invalidUserToken] {
+            state.error = NSError(domain: AuthErrorDomain, code: code.rawValue)
+            #expect(await backend.deleteMyAccount(), "\(code)")
+        }
+        // Auth signs a gone user out during the call; any error then still means there is nothing left to delete.
+        state.error = NSError(domain: FunctionsErrorDomain, code: FunctionsErrorCode.unauthenticated.rawValue)
+        #expect(await backend.deleteMyAccount() == false)
+        let gone = FirebaseJoinBackend(signIn: { true }, callable: { _, _, _ in
+            state.user = false
+            throw NSError(domain: FunctionsErrorDomain, code: FunctionsErrorCode.unauthenticated.rawValue)
+        }, hasUser: { state.user })
+        #expect(await gone.deleteMyAccount())
+        // With no user on the phone there is no account it could delete, and nothing is called.
+        let before = state.calls
+        #expect(await backend.deleteMyAccount() && state.calls == before)
     }
 }
