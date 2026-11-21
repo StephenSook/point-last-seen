@@ -16,7 +16,11 @@ const cleared = [
 ];
 const teams = [{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }];
 const stored: Record<string, Debrief> = {
-  AB: { segmentId: "AB", tookMinutes: 30, worked: "Line search along the creek", didNotWork: "Radio dead zone", byUid: "d2", createdAtMs: 1, clearedEventId: "b".repeat(32) },
+  AB: {
+    segmentId: "AB", tookMinutes: 30, worked: "Line search along the creek", didNotWork: "Radio dead zone",
+    coverageStatedPct: 50, clues: "Wrapper by the footbridge", hazards: "Fast water at the ford",
+    byUid: "d2", createdAtMs: 1, clearedEventId: "b".repeat(32),
+  },
 };
 
 function Harness() {
