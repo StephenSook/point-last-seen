@@ -40,6 +40,13 @@ describe("cleanSheet", () => {
     expect(cleanSheet({ ...sampleReply, segment: "ZZ" }, ctx)!.problems.segment).toBe("Not a segment of this search.");
   });
 
+  it("flags a segment read with anything but letters, so a misread is never cleaned into a match", () => {
+    const r = cleanSheet({ ...sampleReply, segment: "AA1" }, ctx)!;
+    expect(r.form.segment).toBe("AA");
+    expect(r.problems.segment).toBe("Read as AA1: check the segment on the sheet.");
+    expect(cleanSheet({ ...sampleReply, segment: " aa " }, ctx)!.problems.segment).toBeUndefined();
+  });
+
   it("flags a sheet for another segment of this search, and a sheet with no segment read", () => {
     const other = cleanSheet({ ...sampleReply, segment: "ab" }, ctx)!;
     expect(other.form.segment).toBe("AB");

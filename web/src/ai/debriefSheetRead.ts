@@ -64,8 +64,11 @@ export function cleanSheet(raw: unknown, ctx: SheetContext): SheetRead | null {
   const s = (f: SheetField) => (r[f] as string).trim();
   const problems: SheetRead["problems"] = {};
 
-  const segment = s("segment").toUpperCase().replace(/[^A-Z]/g, "");
+  const segmentRead = s("segment").toUpperCase();
+  const segment = segmentRead.replace(/[^A-Z]/g, "");
   if (segment === "") problems.segment = "No segment read from the sheet.";
+  // A digit or a mark in the read is a misread to check, never something to clean into a match ("AA1" is not "AA").
+  else if (segment !== segmentRead.replace(/\s+/g, "")) problems.segment = `Read as ${segmentRead}: check the segment on the sheet.`;
   else if (!ctx.segmentIds.includes(segment)) problems.segment = "Not a segment of this search.";
   else if (segment !== ctx.segmentId) problems.segment = `This sheet is for segment ${segment}, not ${ctx.segmentId}.`;
   const teamRead = s("team");
