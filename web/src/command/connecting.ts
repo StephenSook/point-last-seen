@@ -4,6 +4,11 @@
 /** Practice searches are judge-{uid}-{12 hex} (functions/src/judgeSession.ts). */
 const PRACTICE = /^judge-/;
 
+/** A practice search from the judge's door. */
+export function isPracticeIncident(incidentId: string): boolean {
+  return PRACTICE.test(incidentId);
+}
+
 export function connectingLine(incidentId: string | null): string | null {
   if (!incidentId) return null;
   return PRACTICE.test(incidentId) ? "Opening practice search" : `Opening incident ${incidentId}`;
