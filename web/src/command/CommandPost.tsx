@@ -298,14 +298,25 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
   const [claimsNote, setClaimsNote] = useState<string | null>(null);
   const claimsWatch = useRef<{ stop: () => void; recheck: () => void } | null>(null);
+  // A practice search (judge-...) has no join code: its lines and buttons point back to the judge's page.
+  const practice = incidentId.startsWith("judge-");
   useEffect(() => {
-    const w = watchClaims(pls.auth, incidentId, setClaimsNote);
+    const w = watchClaims(pls.auth, { incidentId, practice }, setClaimsNote);
     claimsWatch.current = w;
+    // Fresh claims when the tab is shown again (after a practice search started in another tab) and every 5 minutes,
+    // since a refused action alone may not show the line when this tab's token is older than the server's claims.
+    const onShow = () => {
+      if (document.visibilityState === "visible") w.recheck();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    const every = setInterval(() => w.recheck(), 5 * 60_000);
     return () => {
       w.stop();
       claimsWatch.current = null;
+      document.removeEventListener("visibilitychange", onShow);
+      clearInterval(every);
     };
-  }, [pls, incidentId]);
+  }, [pls, incidentId, practice]);
   useEffect(() => {
     if (denied) claimsWatch.current?.recheck();
   }, [denied]);
@@ -823,10 +834,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
         <p>Its data was cleared from the screen.</p>
-        <p data-testid="claims-line">{claimsNote ?? "Join again with a current code."}</p>
-        <button type="button" onClick={() => location.assign(location.pathname)}>
-          Join again
-        </button>
+        <p data-testid="claims-line">{claimsNote ?? (practice ? "Open it again from the judge's page." : "Join again with a current code.")}</p>
+        {practice ? (
+          <button type="button" onClick={() => location.assign("/judge")}>
+            Open the judge's page
+          </button>
+        ) : (
+          <button type="button" onClick={() => location.assign(location.pathname)}>
+            Join again
+          </button>
+        )}
       </main>
     );
   }
@@ -863,9 +880,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       {claimsNote && (
         <p className="error" role="alert" data-testid="claims-line">
           {claimsNote}{" "}
-          <button type="button" onClick={() => location.reload()}>
-            Reopen this drill
-          </button>
+          {practice ? (
+            <button type="button" onClick={() => location.assign("/judge")}>
+              Open the judge's page
+            </button>
+          ) : (
+            <button type="button" onClick={() => location.reload()}>
+              Reopen this drill
+            </button>
+          )}
         </p>
       )}
       {offline && (

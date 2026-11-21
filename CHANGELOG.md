@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: a practice search's post, which has no join code, sends you back to the judge's page when the browser's
+  sign-in moved; the post checks again whenever its tab is shown and every five minutes. Source: review. Verified: the
+  hygiene guard passes.
 - Limits: a browser's sign-in holds one search and one role at a time, so a practice search or a join in another tab
   moves it; a command post still open for the first drill then says so and asks to be reopened with its command code
   (`docs/LIMITS.md`, Sign-in and joining). Source: review (a command who opens a practice search loses command).
