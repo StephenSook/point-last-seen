@@ -26,7 +26,7 @@ export const PURGES = "ops/drillPurges/items";
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
 // drill-dev-1: the development drill; drill-judge-1: the judge sandboxes' seed; drill-kennesaw-1: the drill on film;
 // drill-test-1: the drill every live check and the daily probe use. All are kept through judging (it ends 2026-12-16)
-// and until the end of the year, then deleted like any other closed drill.
+// and until the end of the year. On that date each is purged, whether or not anyone closed it.
 const KEPT_UNTIL_MS = Date.UTC(2027, 0, 1);
 const KEEP_UNTIL: Record<string, number> = {
   "drill-dev-1": KEPT_UNTIL_MS,
@@ -128,11 +128,21 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   const out: RetentionResult = { deleted: [], kept: [], failed: [], stale: [], files: 0, users: 0 };
   // When each due drill closed: from the incident for a newly due drill, from its record for a resumed purge.
   const due = new Map<string, number>();
+  // Open kept drills past their end date: each gets the server's closedAt before its purge starts.
+  const closeFirst = new Set<string>();
   for (const doc of (await db.collection("incidents").where("mode", "==", "drill").get()).docs) {
     const at = doc.get("closedAt");
-    if (doc.get("status") !== "closed" || !(at instanceof Timestamp) || at.toMillis() >= nowMs - DRILL_RETENTION_MS) continue;
-    if (keptUntil(doc.id) > nowMs) out.kept.push(doc.id);
-    else due.set(doc.id, at.toMillis());
+    const closedMs = at instanceof Timestamp ? at.toMillis() : null;
+    const keep = keptUntil(doc.id);
+    // A kept drill goes once its end date passes, whether or not anyone closed it.
+    if (keep > 0 && keep <= nowMs) {
+      due.set(doc.id, closedMs ?? nowMs);
+      if (closedMs === null) closeFirst.add(doc.id);
+      continue;
+    }
+    if (doc.get("status") !== "closed" || closedMs === null || closedMs >= nowMs - DRILL_RETENTION_MS) continue;
+    if (keep > nowMs) out.kept.push(doc.id);
+    else due.set(doc.id, closedMs);
   }
   // A purge record is kept for good once its purge is done (doneAt) or abandoned (staleAt), as a tombstone: the seed
   // tool refuses an id that has one. An unfinished record resumes only while its incident is gone; an incident at that
@@ -161,6 +171,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   };
   for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
+      if (!dryRun && closeFirst.has(id)) await db.doc(`incidents/${id}`).update({ closedAt: FieldValue.serverTimestamp() });
       if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete(), staleAt: FieldValue.delete() }, { merge: true });
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {

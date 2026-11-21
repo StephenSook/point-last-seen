@@ -118,6 +118,38 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(after.kept).toEqual([]);
   });
 
+  it("purges a kept drill once its end date passes even if nobody closed it, and never an open drill that is not kept", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-test-1", {});
+    await drill("OPEN-OTHER", {});
+    const gone = await member("drill-test-1");
+    const before = await deleteEndedDrills(admin.db, bucket, admin.auth, END - 1);
+    expect(before.deleted).toEqual([]);
+    expect((await inc("drill-test-1").get()).exists).toBe(true);
+    const at = await deleteEndedDrills(admin.db, bucket, admin.auth, END);
+    expect(at.deleted).toEqual(["drill-test-1"]);
+    expect((await inc("drill-test-1").get()).exists).toBe(false);
+    for (const p of media("drill-test-1")) expect(await exists(p)).toBe(false);
+    expect(await userExists(gone)).toBe(false);
+    const rec = (await purge("drill-test-1").get()).data()!;
+    expect(rec["doneAt"]).toBeInstanceOf(Timestamp);
+    expect(rec["closedAtMs"]).toBe(END);
+    expect((await inc("OPEN-OTHER").get()).exists).toBe(true);
+  });
+
+  it("writes the server's closedAt on an open kept drill past its date before purging it, and not in a dry run", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-dev-1", {});
+    const dry = await deleteEndedDrills(admin.db, bucket, admin.auth, END, { dryRun: true });
+    expect(dry.deleted).toEqual(["drill-dev-1"]);
+    expect((await inc("drill-dev-1").get()).get("closedAt")).toBeUndefined();
+    // A run whose media step fails leaves the incident, now carrying the server's closedAt, for the next run.
+    const failing = { getFiles: async () => { throw new Error("storage down"); } } as unknown as B;
+    const r = await deleteEndedDrills(admin.db, failing, admin.auth, END);
+    expect(r.failed).toEqual(["drill-dev-1"]);
+    expect((await inc("drill-dev-1").get()).get("closedAt")).toBeInstanceOf(Timestamp);
+  });
+
   it("deletes the anonymous sign-ins that belonged only to the deleted drill", async () => {
     await drill("OLD", closed(31));
     await drill("RECENT", closed(1));

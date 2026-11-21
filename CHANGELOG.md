@@ -70,6 +70,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention: a kept drill is purged once its end date (2027-01-01) passes, whether or not anyone closed it; an
+  open one first gets the server's closedAt, then goes the same durable way (purge record, media, join codes, the
+  incident, idle sign-ins). An open drill that is not kept is never touched. Source: review (an open drill is never
+  deleted, so the kept drills would have outlived their date). Verified: 2 new tests (an open kept drill past its date
+  is purged while an open drill that is not kept stays; the server's closedAt is written before the purge and not in a
+  dry run) failed first, then pass; functions suite 283.
 - Drill retention: every kept drill (drill-dev-1, drill-judge-1, drill-kennesaw-1, drill-test-1) is kept until
   2027-01-01 and then deleted like any other closed drill; none is kept for ever. LIMITS and the production checklist
   say so. Source: review (a simple, true privacy line; judging ends 2026-12-16). Verified: the keep-list test failed
