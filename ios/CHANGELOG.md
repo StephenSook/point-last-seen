@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): an ended search stays with the account that was in it
+- What: the ended search records the account that was in it and lists only that account's reports, and a change of
+  account clears it, so another user never sees the previous one's reports or words. A read that started for one
+  account and comes back closed after the account changed (or after a newer load) no longer sets it.
+- Source: review of the ended-search change.
+- Verified: tests for an account change after the end and for a late closed read for an old account failed before
+  the change and pass after; 255 app tests pass.
+
 ### fix(ios): only the server's word ends a search on the phone
 - What: the incident listener ignores a snapshot that comes only from the phone's cache, so a stale cached "closed"
   (a drill reset to open under the same id) cannot end a search that is open on the server. The server's snapshot

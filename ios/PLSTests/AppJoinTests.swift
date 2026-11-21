@@ -549,6 +549,38 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.mission?.teamId == "T1" && m.endedSearch == nil && m.endedEntries.isEmpty)
     }
 
+    /// An ended search belongs to the account that was in it: another user never sees its reports.
+    @Test func anEndedSearchIsGoneAfterAnAccountChange() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-acct-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.endedEntries.count == 1 && m.endedSearch?.owner == "uid-1")
+        m.noteAccount("uid-2")
+        #expect(m.endedSearch == nil && m.endedEntries.isEmpty)
+    }
+
+    /// A read that started for one account and comes back closed after the account changed shows nothing.
+    @Test func aLateClosedReadForAnOldAccountShowsNothing() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs(status: "closed", closedReason: "found"))
+        let gate = ReadGate()
+        reader.holdNextRead = gate
+        let m = model(FakeJoinBackend(), reader)
+        let resume = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        m.noteAccount("uid-2")
+        gate.release()
+        await resume.value
+        #expect(m.endedSearch == nil)
+    }
+
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
     /// given back, T1's assignment is spoken again.
     @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {

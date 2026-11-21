@@ -423,8 +423,11 @@ final class AppModel {
             await refreshAlerts()
             return .loaded
         } catch let failure as MissionBuilder.Failure {
-            // A search that is no longer open keeps its reports on screen, with the line saying why.
-            if case let .notOpen(line) = failure { endedSearch = EndedSearch(incidentId: incidentId, line: line) }
+            // A search that is no longer open keeps its reports on screen, with the line saying why, unless a newer load
+            // or another account took over while this read ran.
+            if case let .notOpen(line) = failure, generation == missionGeneration, isCurrent(session) {
+                endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: session.uid)
+            }
             return .failed(failure)
         } catch MissionReadError.accessDenied {
             return .denied
@@ -514,19 +517,21 @@ final class AppModel {
     struct EndedSearch: Equatable {
         let incidentId: String
         let line: String
+        /// The account that was in the search; only its reports are shown.
+        var owner: String? = nil
     }
     private(set) var endedSearch: EndedSearch?
     /// The ended search's reports, shown read-only on the task screen.
     var endedEntries: [OutboxEntry] {
-        guard let incidentId = endedSearch?.incidentId else { return [] }
-        return store?.entries.filter { $0.doc.incidentId == incidentId } ?? []
+        guard let ended = endedSearch else { return [] }
+        return store?.entries.filter { $0.doc.incidentId == ended.incidentId && $0.doc.authorUid == ended.owner } ?? []
     }
 
     /// Command ended the search this phone is in: the mission goes, so nothing more can be sent to it, the phone says
     /// so in the command post's words, and that search's reports stay on screen, read-only.
     private func searchEnded(incidentId: String, line: String) {
         dropMissionNow()
-        endedSearch = EndedSearch(incidentId: incidentId, line: line)
+        endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: uid())
         joinMessage = line
     }
 
@@ -641,6 +646,8 @@ final class AppModel {
         sessionUid = reported
         sessionGeneration += 1
         accessCheck += 1
+        // An ended search belongs to the account that was in it; another user never sees its reports.
+        endedSearch = nil
         // A practice drill belongs to no account, so a change of user leaves it and its voice alone.
         guard practice == nil else { return true }
         speaker.stop()
