@@ -102,6 +102,14 @@ class PhoneNumbersTest {
         }
     }
 
+    /** A digit between a phone cue and a run of times, written or spoken, never hides the cue. */
+    @Test fun aDigitBetweenACueAndARunOfTimesNeverHidesTheCue() {
+        val spoken = PhoneNumbers.remove("Call one: 4:04 5:55 6:42 tonight")
+        assertFalse(spoken, Regex("[0-9]").containsMatchIn(spoken))
+        assertEquals("Call 5 at [number removed] tonight", PhoneNumbers.remove("Call 5 at 4:04 5:55 06:44 tonight"))
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))

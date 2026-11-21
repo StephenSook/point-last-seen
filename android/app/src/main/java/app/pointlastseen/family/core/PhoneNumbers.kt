@@ -133,11 +133,17 @@ object PhoneNumbers {
 
     /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
     private fun cuedRun(s: String, parts: List<Part>, first: Int): Boolean {
+        // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the
+        // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
         var j = first - 1
-        var n = 0
-        while (n < CUE_WINDOW && j >= 0 && parts[j].digits == 0) {
+        var words = 0
+        while (j >= 0 && words < CUE_WINDOW) {
+            if (parts[j].digits > 0) {
+                j--
+                continue
+            }
             if (word(s, parts[j]) in TIME_CUES) return true
-            n++
+            words++
             j--
         }
         return s.substring(if (j >= 0) parts[j].end else 0, parts[first].start).contains('#')
