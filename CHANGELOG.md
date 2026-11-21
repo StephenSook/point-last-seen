@@ -82,6 +82,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- tools/seed: seed_segments.py refuses to reseed the practice seed (shared/constants/judge-seed.json) from 2026-11-30
+  to 2026-12-17, while judging is open, unless --i-know-judging-is-open is passed (judging_problem; parse_args takes
+  the flag only at the end). A judge's practice copy taken during such a reseed could mix two sites. README's seed
+  step says so, with the reseed's higher --prior-version. Source: review (ruling). Verified:
+  test_the_practice_seed_is_never_reseeded_while_judging_is_open_without_saying_so (both sides of 2026-11-30 and
+  2026-12-17, the flag, another incident) and test_the_command_line_takes_the_judging_flag_only_at_the_end failed
+  first, then pass; 44 seed tests pass.
 - scripts: the heavy-slot waiting line names every process with the busy slot's lock file open (lsof -t, sorted,
   joined) instead of the first one listed, and the slot tests hold a slot until the waiting line appears, then let it
   go (run_until_waiting), instead of for a fixed 3 s. lsof lists every opener, a waiter's own lockf attempt too,
