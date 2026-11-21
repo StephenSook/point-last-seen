@@ -109,6 +109,8 @@ test("command retracts a report from Reports: it stays, struck through, survives
   const text = note("retracted by command");
   await addSighting(page, text);
   await expect(page.getByTestId("saving")).toHaveCount(0, { timeout: 60_000 });
+  // It is listed under Sightings first (the newest seen is among the three shown), so leaving it below means something.
+  await expect(page.getByRole("region", { name: "Sightings" }).getByText(text)).toHaveCount(1);
   await openDetails(page);
   const report = page.getByRole("region", { name: "Reports" }).getByRole("listitem").filter({ hasText: text });
   await report.getByRole("button", { name: "Retract" }).click();

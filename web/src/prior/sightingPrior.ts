@@ -9,8 +9,7 @@ import type { EventDoc } from "@pls/engine";
 import { readingBearingDeg } from "../data/direction";
 import { buildConfirmation, type CommandWriter } from "../data/sightings";
 import type { SegmentDoc } from "../data/incident";
-import { cameraPriorWrites, type CameraPriorIncident } from "./cameraPrior";
-import type { PriorWrites } from "./rebuild";
+import { cameraPriorWrites, type CameraPriorIncident, type CameraPriorWrites } from "./cameraPrior";
 
 /** The compass bearing the sighting says the person went, or null (no direction, or upstream or downstream). */
 export function sightingBearingDeg(s: EventDoc): number | null {
@@ -60,7 +59,7 @@ export function sightingConfirmWrites(
   segments: readonly SegmentDoc[],
   incident: CameraPriorIncident,
   events: readonly EventDoc[],
-): { events: EventDoc[]; prior: PriorWrites } {
+): { events: EventDoc[]; prior: CameraPriorWrites } {
   const inputs = incident.priorInputEventIds ?? [];
   if (sightingSeenBeforeStart(sighting, inputs, events)) {
     throw new Error("This sighting was not seen after the current last known point, so it cannot replace it.");
