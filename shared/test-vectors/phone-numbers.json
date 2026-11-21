@@ -591,6 +591,76 @@
         "Llame al",
         "tonight"
       ]
+    },
+    {
+      "name": "colon_gap_times_after_cue_before_month",
+      "input": "Call 5:55 01:42 May",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "Call",
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_month",
+      "input": "May 5:55 01:42",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_text_cue_before_month",
+      "input": "Text 5:55 07:14 May",
+      "number": "5:55 07:14",
+      "forbidden": [
+        "5:55",
+        "07:14"
+      ],
+      "keep": [
+        "Text",
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_cue_and_month",
+      "input": "Call May 5:55 01:42",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "Call May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
@@ -780,6 +850,16 @@
       "name": "frequency_beside_number",
       "input": "Radio 155.160 404 5550142",
       "output": "Radio [number removed]"
+    },
+    {
+      "name": "colon_gap_times_after_date",
+      "input": "Seen 14 May 5:55 01:42",
+      "output": "Seen 14 May [number removed]",
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
     }
   ]
 }
