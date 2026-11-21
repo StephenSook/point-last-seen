@@ -211,6 +211,13 @@ describe("removePhoneNumbers: a run made only of clock times", () => {
     gone("Call 4:04 5:55 01:42 five 0142", ["five", "0142", "5:55"]);
     gone("Seen 四 4:04 5:55 6:42", ["5:55", "6:42"]);
   });
+  it("a digit, written or spoken, between a cue and the run never hides the cue", () => {
+    expect(removePhoneNumbers("Call one: 4:04 5:55 6:42")).toBe(`Call one: ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call one two three: 4:04 5:55 6:42")).toBe(`Call one two three: ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call 5 at 4:04 5:55 6:42")).toBe(`Call 5 at ${REPLACEMENT}`);
+    // Digits are read past, not counted: three plain words still end the look.
+    expect(removePhoneNumbers("Seen 2 dogs at 14:03, 14:10")).toBe("Seen 2 dogs at 14:03, 14:10");
+  });
   it("a private-use character typed in the note stays where it was and moves no time", () => {
     const t = "Seen . Times 4:04 5:55 6:42.";
     expect(removePhoneNumbers(t)).toBe(t);

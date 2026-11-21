@@ -179,7 +179,9 @@ part of the rule above (a written digit, a spoken digit such as `four`, a Chines
 Out of order (`Try 12:12 5:55 01:42`) or with a cue before it, it could be a number written as times, and the whole run
 is replaced by one `[number removed]`: when in doubt, remove. A cue here is one of the cue words above, or `text` or
 `reach`, among the three words just before the run (`Reach me at 4:04 5:55 06:42`), or a `#` between the run and the
-part before those words; spaces, tabs, line breaks and brackets between do not matter (`Call (4:04 5:55 16:43)`). The
+part before those words; spaces, tabs, line breaks and brackets between do not matter (`Call (4:04 5:55 16:43)`), and
+a digit between, written or spoken (or a counted `double` or `triple`), is read past and is not one of the three words
+(`Call one: 4:04 5:55 6:42`, `Call 5 at 4:04 5:55 06:44`). The
 text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
 folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
 written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.

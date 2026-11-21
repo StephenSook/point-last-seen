@@ -68,10 +68,20 @@ function decide(s: string, ts: Token[], start: number, end: number, run: string,
     const then = after[1];
     if (REPEAT_WORDS.has(next.text.toLowerCase()) && then?.digitish && !breaks(s.slice(next.end, then.start))) return "rule";
   }
+  // The three words before the run, reading past every token that carries digits (a double or triple counts as one
+  // when digits follow it with no break).
+  const counted = (i: number) => {
+    const t = before[i]!;
+    if (t.digitish) return true;
+    const n = ts[ts.indexOf(t) + 1];
+    return REPEAT_WORDS.has(t.text.toLowerCase()) && !!n && n.digitish && !breaks(s.slice(t.end, n.start));
+  };
   let k = before.length - 1;
   let cued = false;
-  for (let n = 0; n < 3 && k >= 0 && !before[k]!.digitish; n++, k--) {
+  for (let words = 0; k >= 0 && words < 3; k--) {
+    if (counted(k)) continue;
     if (CUES.has(before[k]!.text.toLowerCase())) cued = true;
+    words++;
   }
   if (s.slice(k >= 0 ? before[k]!.end : 0, start).includes("#")) cued = true;
   const minutes = [...run.matchAll(/(\d+):(\d+)/g)].map((m) => Number(m[1]) * 60 + Number(m[2]));
@@ -187,7 +197,8 @@ const cue = () => {
   if (r === 1) return pick(["Seen ", "Possible times ", "Times were "]);
   if (r === 2) return "# ";
   const word = pick(CUE_WORDS);
-  return `${rnd(2) ? word[0]!.toUpperCase() + word.slice(1) : word}${pick([" ", " me at ", " her on ", ": ", " (", "\t", "\r\n", " - "])}`;
+  const between = pick([" ", " me at ", " her on ", ": ", " (", "\t", "\r\n", " - ", " one: ", " one two: ", " 5 at ", " double 5 at ", " x double 5 at "]);
+  return `${rnd(2) ? word[0]!.toUpperCase() + word.slice(1) : word}${between}`;
 };
 
 type Counts = { differs: number; planted: number; withRun: number; kept: number; marked: number };

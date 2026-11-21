@@ -90,9 +90,13 @@ const CUE_WINDOW = 3;
 
 /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
 function cuedRun(s: string, parts: Part[], first: number): boolean {
+  // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the three
+  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
   let j = first - 1;
-  for (let n = 0; n < CUE_WINDOW && j >= 0 && parts[j]!.digits === 0; n++, j--) {
+  for (let words = 0; j >= 0 && words < CUE_WINDOW; j--) {
+    if (parts[j]!.digits > 0) continue;
     if (TIME_CUES.has(word(s, parts[j]!))) return true;
+    words++;
   }
   return s.substring(j >= 0 ? parts[j]!.end : 0, parts[first]!.start).includes("#");
 }

@@ -668,6 +668,17 @@
         ") tonight"
       ],
       "pendingOn": ["ios"]
+    },
+    {
+      "name": "phone_cue_and_a_spoken_digit_before_a_run_of_times",
+      "input": "Call one: 4:04 5:55 6:42 tonight",
+      "number": "4:04 5:55 6:42",
+      "forbidden": [],
+      "keep": [
+        "Call one:",
+        "tonight"
+      ],
+      "pendingOn": ["ios", "android"]
     }
   ],
   "mustKeep": [
@@ -828,6 +839,12 @@
       "input": "Times 14:03, 14:10, 14:17. Call 404 555 0142",
       "output": "Times 14:03, 14:10, 14:17. Call [number removed]",
       "pendingOn": ["ios"]
+    },
+    {
+      "name": "phone_cue_and_a_written_digit_before_a_run_of_times",
+      "input": "Call 5 at 4:04 5:55 06:44 tonight",
+      "output": "Call 5 at [number removed] tonight",
+      "pendingOn": ["ios", "android"]
     },
     {
       "name": "spoken_digit_joined_to_a_run_of_times",

@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone rule: the run-of-times step reads past a digit, written or spoken, when it looks for a cue among the three words
+  before a run, so `Call one: 4:04 5:55 6:42` and `Call 5 at 4:04 5:55 06:44` are removed whole instead of kept; the
+  shared rule alone already removed most of both. A mustRemove case and an exact case (both pending on the iPhone and
+  Android), the README rule text and `docs/LIMITS.md` (115 cases) follow. Source: review (found while checking the
+  fourth round; a gap the step itself made). Verified: the web unit test failed first, then passed (160 phone tests);
+  the byte-for-byte fuzz, with the new contexts, agrees on all 90,000 notes; `scripts/test_phone_vectors.py` passes.
 - Phone vectors: the ten run-of-times cases are no longer pending on Android, whose port of the rule is merged (main
   30479df3); `docs/LIMITS.md` counts Android at 113 of 113, the iPhone at 103 and the web at 113. Source: the Android
   port merged. Verified: `scripts/test_phone_vectors.py` passes (6), and the Android port matched the web rule on all
