@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): a model's reading is checked for found right after grounding
+- What: the read runs the found-kind rule on a model's reading (Apple's model or the cloud, guided or plain
+  text) right after grounding, with the subject's names, which stay in code and never reach a model. A
+  corrected reading is stored as a clue with the note's item and place, and the read outcome carries the
+  reason for the receipt. The rules parser's reading is not checked. Without the rule loaded, the model's
+  kind stays.
+- Source: the found-kind rule (shared vectors).
+- Verified: tests that a found object from Apple's model and from the cloud becomes a clue with its reason,
+  that a found person and a word of the subject's name keep found, that a rules reading is not checked, and
+  that no rule keeps the model's kind failed to compile before the change and pass after; 396 core tests pass.
+
 ### feat(ios-core): a model's "found" for an object is checked against the note (shared rule)
 - What: a Swift port of the shared found-kind rule (shared/test-vectors/found-kind.json, reference
   shared/engine-ts/src/found.ts). A model's found becomes a clue only when every "found" in the note is
