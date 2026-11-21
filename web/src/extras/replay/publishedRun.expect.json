@@ -1,7 +1,7 @@
 {
-  "sha256": "e0b10c5c213ae69b651a28cdc50a4ada8780aa19513462ea1a93d708a0fb990d",
+  "sha256": "19b8f64795e4b0d04dfe4bba528b80565cc8d04ea3a885f1dba273d09cab2273",
   "runId": "drill-dev-1-2026-11-19",
-  "label": "Development drill, Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing.",
+  "label": "Development drill, Piedmont Park, Atlanta: test family reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing.",
   "events": 24,
   "plans": 18,
   "endCode": "T43J",
