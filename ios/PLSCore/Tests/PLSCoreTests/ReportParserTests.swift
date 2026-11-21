@@ -186,4 +186,16 @@ import Testing
         #expect(ReportParser.minutesAgo("Saw her -5 minutes ago in AE.") == nil)
         #expect(ReportParser.minutesAgo("Saw her 5 minutes ago in AE.") == 5)
     }
+
+    /// An explicit search time beats an "in N minutes" one, which may be a countdown ("pickup in 45 minutes").
+    @Test func anExplicitSearchTimeBeatsAnInTime() {
+        #expect(ReportParser.minutes(Tokens("Cleared AE with two searchers. Pickup in 45 minutes. Search took 10 minutes.")) == 10)
+        #expect(ReportParser.minutes(Tokens("Cleared AE in 45 minutes with two searchers.")) == 45)
+    }
+
+    /// A sentence that starts with "And" is a new sentence, not a joined unit.
+    @Test func aSentenceStartingWithAndIsNotJoined() {
+        #expect(ReportParser.minutes(Tokens("Next radio check in an hour. And 30 minutes spent on the search.")) == 30)
+        #expect(ReportParser.minutes(Tokens("Searched segment AE with 2 searchers. Next check in 1 hour and 30 minutes.")) == nil)
+    }
 }

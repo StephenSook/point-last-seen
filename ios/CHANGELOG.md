@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): an explicit search time beats an "in N minutes" one
+- What: an "in N minutes" time with no cue word now counts only when the report states no other search time, so
+  "pickup in 45 minutes. Search took 10 minutes." reads 10, while "cleared AE in 45 minutes" still reads 45. A unit
+  is joined to the time phrase before it only by a lower-case "and"; a sentence that starts with "And" is a new
+  sentence ("Next radio check in an hour. And 30 minutes spent on the search." reads 30).
+- Source: third review of the numbers fix.
+- Verified: new parser tests failed before the change and pass after; 446 PLSCore tests pass.
+
 ### fix(ios): a stated number the app refuses refuses the read, and a permissive percent stays a percent
 - What: when the rules find a number the report states that the app refuses (coverage 400, or -.7), the model's
   reading is no longer used without it, because its effort numbers could then clear the area; the read goes on as

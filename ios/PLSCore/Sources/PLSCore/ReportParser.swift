@@ -118,6 +118,7 @@ public enum ReportParser {
     static func minutes(_ t: Tokens) -> Double? {
         let w = t.lower
         var whenUnit = -2                                   // the unit word of the last time phrase that said when
+        var inTime: Double?                                 // the first "in N minutes": a search time or a countdown
         for i in w.indices {
             let found: (minutes: Double, start: Int)?
             if ["minutes", "minute", "mins", "min"].contains(w[i]) {
@@ -132,12 +133,15 @@ public enum ReportParser {
                 continue
             }
             guard let (m, start) = found else { continue }
-            // "In 1 hour and 30 minutes": a unit joined by "and" belongs to the phrase before it.
-            let joined = start >= 2 && w[start - 1] == "and" && start - 2 == whenUnit
+            // "In 1 hour and 30 minutes": a unit joined by a lower-case "and" belongs to the phrase before it ("And"
+            // starting a sentence does not; the tokens keep no full stop, but they keep its capital).
+            let joined = start >= 2 && t.original[start - 1] == "and" && start - 2 == whenUnit
             if joined || whenNotHowLong(w, before: start) { whenUnit = i; continue }
+            // An explicit search time wins; "in N minutes" with no cue counts only when nothing else is stated.
+            if start >= 1, w[start - 1] == "in" { inTime = inTime ?? m; continue }
             return m
         }
-        return nil
+        return inTime
     }
 
     static let whenWords: Set<String> = ["every", "next", "until", "till"]
