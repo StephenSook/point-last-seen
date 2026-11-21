@@ -102,6 +102,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
   1.2). Platform types are pending in x-parity for the web, the iPhone and Android. Source: review (approved design; a
   collection of its own, since event docs pin 25 keys). Verified: scripts/check_schema_parity.py ok (14 schemas).
+- functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
+  sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
+  delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
+  gone still gets { ok: true }. Source: review (cross-family, round 2 on deleteMyAccount). Verified: the command case
+  failed first, then passes; the no-claims case passes; 325 functions and rules tests and the typecheck pass.
+- functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
+  after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
+  check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
+  the test passes, and fails with the deleted-account branch of the current-claims check removed; all functions and
+  rules tests pass.
+- functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
+  its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
+  whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review
+  (App Review account deletion, approved). Verified: deleteMyAccount.test.ts (deletes the caller and keeps its
+  reports; ok when already gone; leaves another user; refuses an unsigned caller) failed first (no module), then
+  passes; all functions tests and the typecheck pass.
 - functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
   redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
   before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
