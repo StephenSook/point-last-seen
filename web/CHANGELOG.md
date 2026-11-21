@@ -2048,6 +2048,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
 
+### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
+- What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
+- Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
+- Verified: a new deployed check in `e2e/phone.spec.ts` (the bar at the bottom of a 390 by 844 window; Plan brings the plan into view; Add sighting opens the form in view) failed on the live site (no bar) and runs again after the deploy; the post layout harness, the no-backend set (43), web unit suite (1000), typecheck and the hygiene guard pass.
+
 ### fix(map): on a phone the walker model's sentence spans the foot of the map
 - What: at phone width the walker model's sentence under the map ("The walker model is a prior for planning. It does not predict where a person is.") spans the map's width just above the credit line, in one or two lines; it was held to the map's width minus 320 px, a column about 70 px wide that ran down the map's left edge. The laptop layout is unchanged. The map harness gains `?note`.
 - Source: UI review (on a phone the walker caption box covered the map's left edge).

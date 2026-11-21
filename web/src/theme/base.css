@@ -85,9 +85,15 @@ button, input, select { font: inherit; color: inherit; }
 /* alert-red is for hazards only (with an icon and a word), so errors use neutral ink */
 .error { color: var(--fg-1); background: var(--bg-2); border-left: 3px solid var(--fg-1); padding: 6px 10px; }
 
+/* The phone's bottom bar (Add sighting, Plan): only where the rails run below the map. */
+.phone-bar { display: none; }
+
 @media (max-width: 900px) {
   /* Phones: the map takes the first row and the page scrolls; rails follow it at full height. */
-  .post { height: auto; min-height: 100%; overflow: visible; }
+  .phone-bar { display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: var(--bg-1); border-top: 1px solid var(--line); }
+  .phone-bar .btn { flex: 1; }
+  /* The page scrolls as one column, with room for the bar so it never covers the end of the rail. */
+  .post { height: auto; min-height: 100%; overflow: visible; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .post-body { grid-template-columns: 1fr; grid-template-rows: 55vh auto auto; }
   .map-wrap { order: -1; }
   /* The drill line takes its own row; the incident, the match code and More share the second. */
