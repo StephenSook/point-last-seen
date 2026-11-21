@@ -22,16 +22,19 @@ function cell(segmentId: string, col: number, row: number, priorPoa: number): Se
 const segments = [cell("AA", 0, 0, 0.3), cell("AB", 1, 0, 0.25), cell("BA", 0, 1, 0.2), cell("BB", 1, 1, 0.15)];
 const here = (col: number, row: number) => ({ lat: LAT + (row + 0.5) * D, lon: LON + (col + 0.5) * D, accuracyM: 5 });
 const cmd = { role: "command", teamId: null, deviceId: "cmd" } as const;
+// The first report was read by the browser's own model, the last in the cloud; the others carry no route.
+const readHere: EventDoc["route"] = { platform: "web", path: "on_device", stage: "sdk", model: "chrome-built-in", reason: "sdk_prefer_on_device", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: T0 + 3 * MIN };
+const readInCloud: EventDoc["route"] = { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "on_device_unavailable", latencyMs: 1_500, sdkReported: true, blocked: null, decidedAtMs: T0 + 16 * MIN };
 // Server times are not whole seconds on real data: the last arrival is 123 ms past one, so the slider's end must
 // still reach it.
 const docs: [EventDoc, number][] = [
   // Sent at +1 min, arrived at +9: eight minutes without signal.
   [eventDoc({ eventId: "r1", clientTimeMs: T0 + MIN, deviceId: "d1", position: here(1, 0), effect: { kind: "clue", influences: { AA: "strong_for" }, authenticity: "high" } }), T0 + 9 * MIN],
-  [eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + 3 * MIN, observedAtMs: T0 + 3 * MIN, deviceId: "d1", position: here(0, 0), effect: { kind: "clue", influences: { AA: "for" }, authenticity: "high" } }), T0 + 4 * MIN],
+  [eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + 3 * MIN, observedAtMs: T0 + 3 * MIN, deviceId: "d1", position: here(0, 0), effect: { kind: "clue", influences: { AA: "for" }, authenticity: "high" }, route: readHere }), T0 + 4 * MIN],
   [eventDoc({ ...cmd, eventId: "c1", type: "confirmation", clientTimeMs: T0 + 5 * MIN, targetEventId: "s1", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 5 * MIN],
   [eventDoc({ eventId: "s2", type: "sighting", teamId: "bravo", clientTimeMs: T0 + 12 * MIN, observedAtMs: T0 + 12 * MIN, deviceId: "d2", position: here(1, 1), effect: { kind: "clue", influences: { BB: "for" }, authenticity: "high" } }), T0 + 13 * MIN],
   [eventDoc({ ...cmd, eventId: "c2", type: "confirmation", clientTimeMs: T0 + 14 * MIN, targetEventId: "s2", decision: "confirmed", effect: { kind: "none", why: "informational" } }), T0 + 14 * MIN],
-  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", position: here(0, 1), effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" } }), T0 + 16 * MIN + 123],
+  [eventDoc({ eventId: "r2", clientTimeMs: T0 + 16 * MIN, deviceId: "d1", position: here(0, 1), effect: { kind: "clue", influences: { AB: "for" }, authenticity: "medium" }, route: readInCloud }), T0 + 16 * MIN + 123],
 ];
 
 /** One drill incident whose current prior came into use at +6 min, so the first five minutes have no stored map. */
