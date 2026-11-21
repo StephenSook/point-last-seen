@@ -10,6 +10,8 @@ export type IncidentDoc = {
   mode: "drill" | "judge";
   drillLabel?: string;
   status: "open" | "found" | "closed";
+  /** Why command ended the search (set only with status "closed"). */
+  closedReason?: string;
   priorVersion: number;
   priorInputEventIds?: string[];
   engineParams?: EngineParams;

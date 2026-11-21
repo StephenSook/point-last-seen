@@ -45,6 +45,8 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
+import { endedLine, endSearch } from "../data/endSearch";
+import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
@@ -406,6 +408,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
+  // Once command ends the search the rules take no new reports, so the post stops offering them.
+  const ended = endedLine(incident?.status, incident?.closedReason);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -809,6 +813,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           No connection. Showing the last data received.
         </p>
       )}
+      {ended && (
+        <p role="status" data-testid="ended-line">
+          {ended}
+        </p>
+      )}
       {unreadablePlanLine(state.unreadablePlans ?? []) && (
         <p className="error" role="status" data-testid="unreadable-plans">
           {unreadablePlanLine(state.unreadablePlans ?? [])}
@@ -873,7 +882,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || !!ended}>
               Add sighting
             </button>
           )}
@@ -893,7 +902,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding}>
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || !!ended}>
               Add camera clip
             </button>
           )}
@@ -1003,6 +1012,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            {incident && !ended && <EndSearch onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
         </aside>
       </div>
@@ -1011,7 +1021,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <button
           type="button"
           className="btn"
-          disabled={!incident || clipping}
+          disabled={!incident || clipping || !!ended}
           onClick={() => {
             setAdding(true);
             requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));
