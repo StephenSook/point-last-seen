@@ -181,8 +181,10 @@ def main(argv: list[str]) -> int:
     p = json.load(open(path))
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
-    existing = segment_ids(project, incident_id, token)
+    # The incident first: its updateTime guards the commit, so a seed that lands after this read makes the commit fail
+    # before any write, and the segment list read next is never older than the version the commit is bound to.
     stored, update_time, stored_version = read_incident(project, incident_id, token, p["terrain"])
+    existing = segment_ids(project, incident_id, token)
     why = version_problem(existing, stored_version, int(version))
     if why:
         print(f"seed_segments: REFUSED: {why}", file=sys.stderr)

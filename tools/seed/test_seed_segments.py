@@ -141,3 +141,12 @@ def test_a_reseed_over_an_existing_grid_must_raise_the_prior_version():
     assert "raise" in seed.version_problem({"AA", "ROW"}, 4, 3)
     assert "prior version" in seed.version_problem({"AA", "ROW"}, None, 2)
 
+
+def test_the_incident_is_read_before_the_segments_are_listed():
+    # Review: listing segments first let a seed that committed between the two reads hand this run its new updateTime
+    # with the old segment list, so the guarded commit passed on a stale list and left a mixed grid. Read first, the
+    # incident's updateTime guards the commit, and a seed landing in between makes it fail before any write.
+    src = Path(seed.__file__).read_text()
+    body = src[src.index("def main("):]
+    assert body.index("read_incident(project, incident_id, token") < body.index("segment_ids(project, incident_id, token)")
+
