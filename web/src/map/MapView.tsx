@@ -159,6 +159,14 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       readyRef.current?.(m);
     });
     m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
+    // The pointer over a cell shows that cell's code, even where the cell is too small for codes at this zoom.
+    // Set again on every move, since a redraw makes new code elements.
+    const hover = (id: string | null) => {
+      for (const c of el.current?.querySelectorAll<HTMLElement>(".seg-code.hover") ?? []) if (c.textContent !== id) c.classList.remove("hover");
+      if (id !== null) for (const c of el.current?.querySelectorAll<HTMLElement>(".seg-code") ?? []) if (c.textContent === id) c.classList.add("hover");
+    };
+    m.on("mousemove", "seg-fill", (e) => hover((e.features?.[0]?.properties?.["segmentId"] as string | undefined) ?? null));
+    m.on("mouseleave", "seg-fill", () => hover(null));
     m.on("idle", () => el.current?.setAttribute("data-map-state", "idle"));
     map.current = m;
     const scope = motionScope((r) => {
@@ -255,8 +263,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
           const c = m.project([seg.centroid.lon, seg.centroid.lat]);
           const where = codePlace({ code: { w: code.offsetWidth, h: code.offsetHeight }, box, centre: { x: c.x, y: c.y }, dotR });
           if (where === "left") marker.setOffset([-(dotR + CODE_GAP_PX), 0]);
-          else if (where === "centre") marker.setOffset([code.offsetWidth / 2, 0]);
-          else code.classList.add("unfit");
+          else {
+            // Hidden until the pointer is over the cell, where it shows on the centre.
+            marker.setOffset([code.offsetWidth / 2, 0]);
+            if (where === "hidden") code.classList.add("unfit");
+          }
         }
         const plate = own.find((el) => el.classList.contains("plate"));
         if (!plate) continue;
