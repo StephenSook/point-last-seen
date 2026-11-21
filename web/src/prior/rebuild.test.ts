@@ -1,7 +1,7 @@
 import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import type { SegmentDoc } from "../data/incident";
-import { gridFromDocs, priorWrites, rebuildPrior } from "./rebuild";
+import { gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
 
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
 const IPP = { lat: 33.78, lon: -84.38 };
@@ -68,3 +68,63 @@ describe("rebuilding the prior from the stored segments", () => {
     expect(() => rebuildPrior(SEGS, { gridId: "s", attribution: "a", ipp: IPP, terrain: "temperate_flat" }, { linear: false, wedge: true }, null)).toThrow(/direction of travel/);
   });
 });
+
+describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, dementia p.164)", () => {
+  // BB holds the start point; the row north of it is 20 m up, the row south 20 m down, the middle row level.
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, s.segmentId[0] === "C" ? 120 : s.segmentId[0] === "A" ? 80 : 100]));
+  const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const, elevationM };
+
+  it("gives what buildPrior gives with the start segment's elevation, and leaves ROW alone", () => {
+    const layers = { linear: false, wedge: false, elevation: true };
+    const r = rebuildPrior(SEGS, site, layers, null);
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), IPP, "temperate_flat", layers, null, DEFAULT_PARAMS,
+      { startM: 100, bySegment: elevationM });
+    expect(r.segments).toEqual(direct.segments);
+    const ring = rebuildPrior(SEGS, site, { linear: false, wedge: false }, null);
+    expect(r.row).toBeCloseTo(ring.row, 12);
+    const up = r.segments.filter((s) => s.segmentId[0] === "C").reduce((n, s) => n + s.priorPoa, 0);
+    expect(up / (1 - r.row)).toBeCloseTo(0.19, 9);
+  });
+
+  it("refuses without the site's elevations or with the start outside every segment", () => {
+    const layers = { linear: false, wedge: false, elevation: true };
+    expect(() => rebuildPrior(SEGS, { ...site, elevationM: undefined }, layers, null)).toThrow(/elevation/);
+    expect(() => rebuildPrior(SEGS, { ...site, ipp: { lat: 34.5, lon: -84.38 } }, layers, null)).toThrow(/start point/);
+  });
+});
+
+describe("usableLayers: the elevation layer stays on only where it can measure the start", () => {
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, 100]));
+  const on = { linear: true, wedge: false, elevation: true };
+  it("keeps it on with the site's elevations and the start inside a segment that has one", () => {
+    expect(usableLayers(on, SEGS, IPP, elevationM)).toEqual(on);
+  });
+  it("turns only it off without the file, with the start outside, or with the start's segment missing", () => {
+    expect(usableLayers(on, SEGS, IPP, undefined)).toEqual({ ...on, elevation: false });
+    expect(usableLayers(on, SEGS, { lat: 34.5, lon: -84.38 }, elevationM)).toEqual({ ...on, elevation: false });
+    const { BB: _bb, ...noStart } = elevationM;
+    expect(usableLayers(on, SEGS, IPP, noStart)).toEqual({ ...on, elevation: false });
+  });
+  it("leaves layers without elevation untouched", () => {
+    expect(usableLayers({ linear: false, wedge: true }, SEGS, IPP, undefined)).toEqual({ linear: false, wedge: true });
+  });
+});
+
+describe("a rebuild needs the map's segments", () => {
+  it("refuses while the segments have not loaded, so no prior is saved over a missing grid", () => {
+    const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
+    expect(() => rebuildPrior([], site, { linear: false, wedge: false }, null)).toThrow("The map's segments have not loaded yet.");
+  });
+
+  it("refuses a partial set: a loaded segment names a neighbour, upstream or downstream segment that is missing", () => {
+    const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
+    const layers = { linear: false, wedge: false };
+    const linked = SEGS.map((x, i) => ({ ...x, neighbors: [SEGS[(i + 1) % 9]!.segmentId, SEGS[(i + 8) % 9]!.segmentId] }));
+    expect(() => rebuildPrior(linked, site, layers, null)).not.toThrow();
+    const partial = "The map's segments have not all loaded yet.";
+    expect(() => rebuildPrior(linked.slice(0, 8), site, layers, null)).toThrow(partial);
+    expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, upstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
+    expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, downstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
+  });
+});
+
