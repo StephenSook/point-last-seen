@@ -2104,5 +2104,5 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### fix(command): the Prior panel says its switches are rings settings under walkers
 - What: with the walkers prior in use, the Prior panel adds "These apply when the prior is rebuilt as rings.", since the stored layers (elevation included) are kept for the rings rebuild. The elevation line says "the source prints no sample size" instead of "no n printed"; LIMITS matches.
-- Source: review (web lane ruling).
+- Source: review.
 - Verified: the new harness check failed first without the line, then passes (17 in layers.spec.ts).
