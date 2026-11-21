@@ -2272,6 +2272,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review at phone width (too many words on the working screen).
 - Verified: new harness checks in `e2e/harness/sightings.spec.ts` (three shown, waiting ones first, Show all reveals all eight with the decided last; no button for three or fewer) failed first, then passed with the existing sightings checks (5); typecheck, web unit suite and the hygiene guard pass.
 
+### fix(command): the offline line sits under the header without shifting the post
+- What: the command post was a two-row grid (header, then body), so a status line between them (the offline line "No connection. Showing the last data received.", or the unreadable-plans line) became an extra grid child with a paragraph's margins: it sat 15 px below the header and pushed the map and rails down. The post is now a flex column: the header, any status line at its own height (no margin, a thin rule under it), then the body filling the rest of the window. The post layout harness gains `?offline=1`.
+- Source: UI review (the offline banner shifted the whole screen).
+- Verified: a new harness check in `e2e/harness/postLayout.spec.ts` (the line sits right under the header, at most two lines tall, the body starts under it and still reaches the bottom of the window, nothing scrolls the document) failed first (15 px gap), then passed; the full harness suite (200), web unit suite and the hygiene guard pass.
+
 ### perf(web): the judge page and the command post each load their own code
 - What: `web/src/main.tsx` loads `CommandPost` and `JudgePage` with `React.lazy`, so the app was one 2.5 MB `main` script and is now a 223 KB `main`, a 161 KB `CommandPost` chunk and an 18 KB `JudgePage` chunk. On a placeholder build the judge page's unique script bytes fell from 3.94 MB to 3.78 MB: the shared code (Firebase, MapLibre for the replay, reCAPTCHA) still loads, and a deeper cut needs Firestore set up only where it is used and a second look at prefetching the replay.
 - Source: UI review (one 2.5 MB script on every page).
