@@ -13,12 +13,12 @@ describe("receiptLines", () => {
       "Sent: 1,204 bytes of plan text.",
     ]);
   });
-  it("says nothing left this laptop when it ran here", () => {
+  it("says no text or image left this laptop when it ran here (a timing record still does)", () => {
     expect(receiptLines({ asked: "this laptop first", route: r({ path: "on_device", model: "chrome-built-in", reason: "sdk_prefer_on_device" }), sentBytes: 1204, what: "plan text" })).toEqual([
       "Asked for: this laptop first.",
       "Ran: on this laptop (reported by the SDK).",
       "Model: chrome-built-in.",
-      "Sent: nothing left this laptop.",
+      "Sent: no text or image left this laptop.",
     ]);
   });
   it("is plain about a source the SDK did not report", () => {
@@ -31,7 +31,7 @@ describe("receiptLines", () => {
   it("says no model was asked for fixed wording", () => {
     expect(receiptLines({ asked: "this laptop first", route: r({ path: "rules", model: "template", reason: "template_fallback", sdkReported: false }), sentBytes: 1204, what: "plan text" })).toEqual([
       "No model was asked: fixed wording from code.",
-      "Sent: nothing.",
+      "Sent: no text or image.",
     ]);
   });
 });
