@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): a photo report's receipt says the photo was not kept
+- What: EchoText.photoLine gives the line under a report read from a photo: "Read from a photo on this phone. The
+  photo was not kept.", with "Like the family's description." when code found it consistent. Nil for any other
+  report.
+- Source: the photo clue feature (the receipt says what happened to the photo).
+- Verified: a test of the photo, consistent, no-reading and typed cases failed to compile before the change and
+  passes after; all 410 core tests pass.
+
 ### feat(ios-core): a photo of something found becomes a clue, decided in code
 - What: PhotoClue turns what Apple's model says about a photo (person visible, object, color, kind) into a clue
   report in code. A photo that shows any part of a person is not kept. The object is compared with the family's
