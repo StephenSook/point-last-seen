@@ -2296,3 +2296,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `.btn.ghost:disabled` used fg-4 text, 4.33:1 on bg-2 (the sighting form and photo panels), a pair the theme never allows. It now uses fg-3 text (well over 4.5:1) with a dashed edge, so it still reads as off.
 - Source: UI review (disabled outline buttons on bg-2).
 - Verified: a new harness check, `e2e/harness/disabledGhost.spec.ts` (text-to-surface ratio and edge style from computed styles), failed at 4.33 first and now passes with the whole harness (204); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(map): an empty map says it is waiting for the search area
+- What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
+- Source: UI review (too many words on the working screen).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.
