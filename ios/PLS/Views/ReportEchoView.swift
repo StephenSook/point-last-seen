@@ -29,6 +29,10 @@ struct ReportEchoView: View {
                 if let route = entry.doc.route, let refusal = EchoText.refusalLine(route) {
                     Text(refusal).font(.title3.weight(.semibold)).accessibilityIdentifier("refusal-line")
                 }
+                // A model's "found" read as a clue says so, always: the searcher checks the note.
+                if let reason = entry.foundKindReason {
+                    Text(reason).font(.title3.weight(.semibold)).accessibilityIdentifier("found-kind-line")
+                }
                 // Proof is a glyph; the sentence is for filming and judges only.
                 if showSources, let route = entry.doc.route {
                     Text(EchoText.routeLine(route)).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))

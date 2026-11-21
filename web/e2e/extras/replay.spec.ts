@@ -132,6 +132,11 @@ test("the span with no stored map is shaded on the scrubber and says so", async 
   await expect(dialog.locator(".extras-ruler-unstored-label")).toHaveText("No stored map");
 });
 
+test("the command post's replay dialog carries the drill line, since nothing else in it does", async ({ page }) => {
+  const dialog = await openReplay(page);
+  await expect(dialog.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(1);
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });

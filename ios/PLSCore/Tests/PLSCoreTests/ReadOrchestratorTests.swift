@@ -43,6 +43,7 @@ private func rctx(online: Bool = true, onDevice: Bool = true, consent: Bool = tr
                         cloudModel: "gemini-3.5-flash-lite", screen: EvidenceScreen(terms: ["blood"]))
     c.language = languageScreen
     c.grounding = groundingWords
+    c.foundKind = groundingWords.map(FoundKind.init)
     return c
 }
 private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per test: tests run in parallel
@@ -385,6 +386,64 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
                 #expect(r.calls == [.guided(.onDevice), .guided(.cloud)] && o.route.path == .cloud)
             }
         }
+    }
+
+    /// A model's "found" for an object becomes a clue after grounding (the shared found-kind rule), with the item and
+    /// place from the note and the reason the receipt shows.
+    @Test func aFoundObjectFromApplesModelBecomesAClue() async {
+        let r = FakeRunner()
+        let note = "Found a blue coat by the creek in AC"
+        r.guidedResults[.onDevice] = [.success(reading(kind: .found, evidenceQuote: note))]
+        let o = await ReadOrchestrator.read(text: note, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.route.path == .onDevice && o.reading.kind == .clue)
+        #expect(o.reading.item == "blue coat" && o.reading.feature == .creekOrDrainage)
+        #expect(o.foundKindReason == FoundKind.reason)
+    }
+
+    @Test func theCloudsFoundObjectBecomesAClueToo() async {
+        let r = FakeRunner()
+        let note = "Found a shoe on the path in segment AC"
+        r.guidedResults[.cloud] = [.success(reading(kind: .found, evidenceQuote: note))]
+        let o = await ReadOrchestrator.read(text: note, context: rctx(onDevice: false), runner: r, clock: clock)
+        #expect(o.route.path == .cloud && o.reading.kind == .clue && o.foundKindReason == FoundKind.reason)
+    }
+
+    @Test func aFoundPersonStaysFound() async {
+        let r = FakeRunner()
+        let note = "Found her, she is safe, in segment AC"
+        r.guidedResults[.onDevice] = [.success(reading(kind: .found, evidenceQuote: note))]
+        let o = await ReadOrchestrator.read(text: note, context: rctx(online: false), runner: r, clock: clock)
+        #expect(o.reading.kind == .found && o.foundKindReason == nil)
+    }
+
+    /// The subject's names reach the rule: a word of a name keeps the model's kind.
+    @Test func aWordOfTheSubjectsNameKeepsFound() async {
+        let note = "Found a blue coat by the creek in AC"
+        var c = rctx(online: false)
+        c.subjectNames = ["Bea Creek"]
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(kind: .found, evidenceQuote: note))]
+        let o = await ReadOrchestrator.read(text: note, context: c, runner: r, clock: clock)
+        #expect(o.reading.kind == .found && o.foundKindReason == nil)
+    }
+
+    /// The rule checks a model's kind only: the rules parser's reading is left as the parser gave it.
+    @Test func aRulesReadingIsNotChecked() async {
+        let r = FakeRunner()
+        var c = rctx(online: false, onDevice: false)
+        c.foundKind = groundingWords.map(FoundKind.init)
+        let o = await ReadOrchestrator.read(text: "Found her coat by the creek in AC", context: c, runner: r, clock: clock)
+        #expect(o.route.path == .rules && o.reading.kind == .found && o.foundKindReason == nil)
+    }
+
+    @Test func withNoRuleLoadedTheModelsKindStays() async {
+        let note = "Found a blue coat by the creek in AC"
+        var c = rctx(online: false)
+        c.foundKind = nil
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(kind: .found, evidenceQuote: note))]
+        let o = await ReadOrchestrator.read(text: note, context: c, runner: r, clock: clock)
+        #expect(o.reading.kind == .found && o.foundKindReason == nil)
     }
 
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once

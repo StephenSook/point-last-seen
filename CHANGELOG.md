@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Hosting: `/privacy` and `/support` rewrite to `/privacy.html` and `/support.html` ahead of the app shell, so each
+  URL answers with its own page. Source: the App Store submission needs public privacy and support pages.
+  Verified: a new check in `scripts/test_firebase_config.py` (each path has one rewrite to its page, before the app
+  shell, and the page file exists) failed first, then passed with CI's Python gates.
 - Engine: correctFoundKind treats object-note words that are also names ("Brook", "Brown", "River") as names where a
   name would stand. A name-like colour or size word counts only inside a found item ("a brown coat"), a name-like
   place word only right after a determiner ("by the river"), and neither when capitalised after the first word.
@@ -66,6 +70,23 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Search model: only a sighting seen later than every prior input moves the start; the first-missing time is
+  not stored; a confirmed camera clip always moves the start, so command checks its time first. Source: review.
+  Verified against web/src/prior/sightingPrior.ts and web/src/prior/cameraPrior.ts.
+- LIMITS, Search model: a command-confirmed sighting with a place and a time becomes the new last known point (the
+  ring prior is rebuilt from it, with the wedge from its direction); the rings have no time term, so the command post
+  states the sighting's age instead; a sighting with no place, or confirmed only by the family, still moves the map
+  only as a clue; the map before the rebuild is not kept. Source: review. Verified against
+  web/src/prior/sightingPrior.ts and the camera path it reuses.
+- Judge page route-order check: waits for the replay region before reading the route's targets, since the replay step
+  points at #d1-h until the run file loads and that section then goes away; without the wait it timed out in CI.
+  Source: CI. Verified: the check passed 3 runs in a row locally and the full no-backend set passes (34).
+- Judge page: links the published Android release (android-judge, point-last-seen-family-424e5f9c.apk with its SHA-256
+  file) as "Android family app" (ANDROID_RELEASE_URL in web/src/judge/judge.ts), and the numbered three-minute route
+  now follows the page's own order, the cloud model before the laptop step. README's Android row points at the
+  release. Source: review (judge reachability; live QA of the route order). Verified: the release page and the APK
+  answer 200 to a signed-out request; the new unit test and the e2e checks for the Android link and the route order
+  failed first, then pass; web typecheck, 923 unit tests, the build and 34 no-backend browser checks pass.
 - SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
   Logic hands the trigger a template call already expanded (the template's system instruction and output schema, no
   template name), so the trigger cannot tell them apart; template use is shown by the apps' code. Source: review.

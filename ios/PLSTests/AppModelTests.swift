@@ -128,6 +128,34 @@ import Testing
                 profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
     }
 
+    /// A found object read as a clue keeps its reason with the report on this phone, for the receipt, and the
+    /// subject's names from the shared profile reach the reader (for the found-kind rule only).
+    @Test func aCorrectedFoundKeepsItsReasonWithTheReport() async throws {
+        final class Seen: @unchecked Sendable { var names: [String] = [] }
+        let seen = Seen()
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, situation, _, _ in
+            seen.names = situation.subjectNames
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 640, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .clue
+            reading.segmentIds = ["AC"]
+            reading.item = "blue coat"
+            return ReadOutcome(reading: reading, route: route, validation: .ok, foundKindReason: FoundKind.reason)
+        })
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("found-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        var mission = try quietMission()
+        mission.sharedProfile = try JSONDecoder().decode(SharedProfile.self, from: Data(#"{"answersTo":"Bea","otherNames":["Mama Bea"]}"#.utf8))
+        await model.load(mission)
+        #expect(await model.submit("Found a blue coat by the creek in AC", inputMethod: .typed) == "")
+        #expect(store.entries.first?.foundKindReason == FoundKind.reason)
+        #expect(seen.names == ["Bea", "Mama Bea"])
+    }
+
     @Test func aFailedSignInReadsNothingAndSendsNothing() async throws {
         let log = CallLog()
         let (model, store) = try sendModel(signIn: SignIn(isSignedIn: { false }, attempt: { log.events.append("signIn"); return false }),

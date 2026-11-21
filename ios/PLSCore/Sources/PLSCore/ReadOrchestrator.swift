@@ -69,6 +69,10 @@ public struct ReadContext: Sendable {
     public var language: LanguageScreen?
     /// The grounding rule run on every read's reading. Without it the fields it checks are blanked (fails closed).
     public var grounding: Grounding?
+    /// The found-kind rule run on a model's reading after grounding. Without it the model's kind stays.
+    public var foundKind: FoundKind?
+    /// The subject's names, for the found-kind rule only (a word of a name keeps the model's "found"). Never sent to a model.
+    public var subjectNames: [String] = []
     /// The subject's description, for deciding in code whether a reading by Apple's model matches it.
     public var profile: ModelProfile?
 
@@ -124,8 +128,19 @@ public enum ReadOrchestrator {
             context.grounding.map { $0.ground(r, note: text) } ?? Grounding.blanked(r)
         }
 
+        /// After grounding, a model's "found" for an object is read as a clue (the found-kind rule).
+        var foundKindReason: String?
+        func checked(_ r: ReportReading) -> ReportReading {
+            let g = grounded(r)
+            guard let rule = context.foundKind else { return g }
+            let out = rule.correct(g, note: text, names: context.subjectNames)
+            if out.corrected { foundKindReason = out.reason }
+            return out.reading
+        }
+
         func finish(_ unGrounded: ReportReading, path: RoutePath, stage: ReadStage) -> ReadOutcome {
-            let reading = grounded(unGrounded)
+            // Only a model's reading is checked for found; the rules parser's reading is as the parser gave it.
+            let reading = stage == .guided || stage == .permissiveText ? checked(unGrounded) : grounded(unGrounded)
             let model: String
             switch (path, stage) {
             case (_, .evidenceProtocol): model = "none"
@@ -136,7 +151,7 @@ public enum ReadOrchestrator {
             let route = RouteRecord(platform: .ios, path: path, stage: stage, model: model, reason: decision.reason,
                                     latencyMs: clock.nowMs() - start, sdkReported: false, blocked: blocked, decidedAtMs: start)
             return ReadOutcome(reading: reading, route: route, validation: validate(reading, context, text), cloudTransport: transport,
-                               stageNotes: notes)
+                               stageNotes: notes, foundKindReason: foundKindReason)
         }
 
         if plan.stages == [.evidenceProtocol] {
@@ -203,8 +218,8 @@ public enum ReadOrchestrator {
                     // Apple's model reads the report alone (it never sees the description), so code
                     // decides whether the report matches the subject.
                     if guidedPath == .onDevice {
-                        // Grounded first, so a colour copied from the profile is no match.
-                        r = grounded(r)
+                        // Grounded (and found checked) first, so a colour copied from the profile is no match.
+                        r = checked(r)
                         r.matchesProfile = context.profile.map { ProfileMatch.decide(r, profile: $0) } ?? .unknown
                         r = Self.zerosNotStated(r)
                         r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)

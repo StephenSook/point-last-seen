@@ -24,7 +24,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
     BackHandler(enabled = Nav.systemBack(vm.nav) != null) { vm.systemBack() }
     Crossfade(targetState = vm.nav.screen, animationSpec = Paper.crossfade(), label = "screen") { screen ->
         when (screen) {
-            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back)
+            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back, onRemember = vm::remember)
             Screen.CALL_FIRST -> CallFirstScreen(
                 mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst,
                 onScript = if (BuildConfig.SCRIPT_911) ({ vm.open(Screen.SCRIPT_911) }) else null,
@@ -38,11 +38,11 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
             )
             Screen.CLIP -> ClipScreen(mode, rc.killCloud, vm.clipLabel, vm.clipUi, onPick = onPickClip, onRead = vm::readClip, onConfirm = vm::confirmClip, onBack = vm::back)
             Screen.PHOTOS -> PhotosScreen(mode, rc.killCloud, vm.photosUi, onPick = onPickPhotos, onBack = vm::back, onCloudRead = vm::cloudRead, onWithdraw = vm::withdrawCloudRead)
-            Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back)
+            Screen.NOTE -> NoteScreen(mode, rc.killCloud, vm.noteUi, onSort = vm::sortNote, onAdd = vm::addNote, onBack = vm::back, model = vm.model, onGetModel = vm::getModel)
             Screen.SIGHTING -> SightingScreen(mode, rc.killCloud, busy = false, error = vm.sightingError, nowMs = System::currentTimeMillis, onSend = vm::sendSighting, onBack = vm::back)
             Screen.SCRIPT_911 -> Script911Screen(vm.profile, mode, rc.killCloud, onBack = vm::back)
             Screen.QUESTION -> QuestionScreen(mode, rc.killCloud, vm.questionUi, onSend = vm::sendAnswer, onBack = vm::back)
-            Screen.ABOUT -> AboutPhoneScreen(vm.deviceStatus, mode, rc.killCloud, rc.cloudModelAndroid, AppCheckSetup.PROVIDER, BuildConfig.VERSION_NAME, onBack = vm::back)
+            Screen.ABOUT -> AboutPhoneScreen(vm.model, mode, rc.killCloud, rc.cloudModelAndroid, AppCheckSetup.PROVIDER, BuildConfig.VERSION_NAME, onGetModel = vm::getModel, onBack = vm::back)
         }
     }
 }
