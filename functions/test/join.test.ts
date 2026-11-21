@@ -28,7 +28,8 @@ beforeEach(async () => {
   await admin.db.doc("incidents/I2").set({ name: "Other drill", mode: "drill", status: "open" });
   await admin.db.doc("incidents/I9").set({ name: "Old drill", mode: "drill", status: "closed" });
   await admin.db.doc(`joinCodes/${hash("QRST2345")}`).set({ incidentId: "I9", roles: ["family"] });
-  await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+  await admin.db.doc("incidents/J1").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
+    setupReady: true });
   await admin.db.doc(`joinCodes/${hash("JDGE2345")}`).set({ incidentId: "J1", roles: ["family"] });
   await admin.db.doc(`joinCodes/${hash("TWOR2345")}`).set({ incidentId: "I1", roles: ["searcher", "family"] });
   uid = await freshUser();
@@ -108,11 +109,18 @@ describe("joinIncident (spec sections 7 and 14)", () => {
     await expectCode(handleJoin(uid, { incidentId: "I9", joinCode: "QRST2345", role: "searcher", teamId: "T1" }), "permission-denied");
     await expectCode(handleJoin(uid, { joinCode: "QRST2345", role: "family" }), "permission-denied");
   });
-  it("a judge incident needs a future timestamp expiry to be joined", async () => {
-    await admin.db.doc("incidents/J2").set({ name: "Judge", mode: "judge", status: "open" });
+  it("a judge incident needs a future timestamp expiry and a finished setup to be joined", async () => {
+    await admin.db.doc("incidents/J2").set({ name: "Judge", mode: "judge", status: "open", setupReady: true });
     await admin.db.doc(`joinCodes/${hash("JDGE6789")}`).set({ incidentId: "J2", roles: ["command"] });
     await expectCode(handleJoin(uid, { joinCode: "JDGE6789", role: "command" }), "permission-denied");
-    await admin.db.doc("incidents/J2").set({ name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) });
+    // As the security rules require: no setup flag, or a setup still running, admits no one.
+    const live = { name: "Judge", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3600_000) };
+    for (const notReady of [live, { ...live, setupReady: false }]) {
+      await admin.db.doc("incidents/J2").set(notReady);
+      await expectCode(handleJoin(uid, { joinCode: "JDGE6789", role: "command" }), "permission-denied");
+      expect(await claimsOf(uid)).toBeUndefined();
+    }
+    await admin.db.doc("incidents/J2").set({ ...live, setupReady: true });
     await expect(handleJoin(uid, { joinCode: "JDGE6789", role: "command" })).resolves.toEqual({ ok: true, incidentId: "J2" });
   });
   it("an expired judge incident cannot be joined", async () => {

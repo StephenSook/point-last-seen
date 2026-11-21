@@ -14,12 +14,12 @@ service firebase.storage {
     // Claims outlive an incident, so membership also needs the incident (read from Firestore) to
     // exist and not be expired. Cross-service rules: the deploy grants Storage read access to Firestore.
     // A judge sandbox must carry a timestamp expiry in the future and have finished its setup (as in
-    // firestore.rules liveFor; no flag counts as ready); any other incident may have no expiry.
+    // firestore.rules liveFor; only an explicit setupReady == true counts); any other incident may have no expiry.
     function notExpired(incidentId) {
       let i = firestore.get(/databases/(default)/documents/incidents/$(incidentId)).data;
       let exp = i.get('expiresAt', null);
       return i.get('mode', '') == 'judge'
-        ? (exp is timestamp && request.time < exp && i.get('setupReady', true) == true)
+        ? (exp is timestamp && request.time < exp && i.get('setupReady', false) == true)
         : (exp == null || (exp is timestamp && request.time < exp));
     }
     // Ruling I9: the uploader's own clip reading, with the three required consents, exists before the upload.
