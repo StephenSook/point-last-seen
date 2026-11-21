@@ -1948,3 +1948,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: new `ConditionsForm`: air temperature (°F), "Is the person likely wet?" (Yes, No, Not known) and Save conditions. Saved conditions show as "Read at <time>: <temp>, wet: <answer>." with the chip the phones show ("Cold raises urgency", "Cool and wet raises urgency"), the line "A planning cue from a cited source, not a medical judgment." and the CDC source with its link; without a chip it says the phones show no urgency cue. A bad temperature is refused before anything is sent, a refused write says "The conditions were not saved. Try again." and keeps the fields, and a closed incident cannot be saved. New harness page `harness/conditions.html` and styles.
 - Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
 - Verified: 6 new harness checks in `e2e/harness/conditions.spec.ts` failed first (no form), then passed; typecheck clean.
+
+### feat(command): the command post writes the incident's conditions
+- What: the rail shows `ConditionsForm` for the incident, above the family channel, writing `incident.conditions` through the incident update rule (closed incidents excluded); the phones read it for their urgency chip. New deployed check `e2e/conditions.spec.ts` saves a value on the test drill, waits for the server to take the write, and expects the chip.
+- Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
+- Verified: typecheck clean; web unit suite (928) and CI's Python gates pass; the full harness suite passes except the triage measurement, which needs the build env file this worktree lacks and passes where it is present; the deployed check runs after the deploy.
