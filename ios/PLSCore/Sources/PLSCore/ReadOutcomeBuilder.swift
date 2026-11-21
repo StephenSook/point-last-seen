@@ -216,10 +216,6 @@ public enum PhoneNumbers {
         "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "pl", "place", "way",
         "ct", "court", "pkwy", "parkway", "hwy", "highway", "ter", "terrace", "cir", "circle", "sq", "square", "trl", "trail",
     ]
-    /// Endings glued to a number that make it a quantity (5km, 3pm).
-    static let units: Set<String> = [
-        "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph", "kg", "lb", "lbs", "cm", "mm",
-    ]
     /// US state and territory codes, in capitals (GA 30301-1234); lower case would match common words.
     static let states: Set<String> = [
         "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
@@ -615,11 +611,6 @@ public enum PhoneNumbers {
                (1...31).contains(x), (1...31).contains(y), (1...12).contains(x) || (1...12).contains(y),
                !sameSeparatorNeighbour(s, parts, i, i + 1) {
                 dates.append(i...(i + 1))
-            }
-            // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
-            if i + 1 < parts.count, !parts[i + 1].written, parts[i + 1].range.lowerBound == parts[i].range.upperBound,
-               units.contains(word(s, parts[i + 1])), parts[i].digits < 7 {
-                kept.insert(i)
             }
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
                 times.append(i...(i + 1))

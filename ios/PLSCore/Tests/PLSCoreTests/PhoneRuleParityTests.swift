@@ -42,4 +42,10 @@ import Testing
     func aHashOrAPlusIsReadByCodePoint(input: String, output: String) {
         #expect(same(input, output))
     }
+
+    /// A number with a unit glued on is not set apart: the web and Android rules keep no unit span, so five digits
+    /// before "pm" join the digits beside them.
+    @Test func aUnitDoesNotSetANumberApart() {
+        #expect(same("Call 1:23 45678pm", "Call 1:[number removed]pm"))
+    }
 }

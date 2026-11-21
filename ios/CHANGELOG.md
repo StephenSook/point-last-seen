@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a number with a unit is not set apart, as on the web and Android
+- What: the iPhone kept a number of up to six digits with a unit glued on (5km, 3pm) apart from the digits beside it,
+  an exception the web and Android rules do not have. So "Call 1:23 45678pm" kept seven digits the web removes. The
+  exception is gone; a short quantity on its own still stays, since it has fewer than seven digits.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the input as a test failed before the change and passes after; the existing unit tests ("about 2 5km
+  loops" stays, "Call 4045550142pm" goes) pass; both web corpora match byte for byte.
+
 ### fix(ios-core): a "#" or "+" a grapheme cluster would hide is read by code point
 - What: the "#" before a decimal pair (a phone cue), the "+" before one (an international number) and the "+" or
   "(" taken into a removed number are now read by code point, as the web and Android rules read them. A keycap
