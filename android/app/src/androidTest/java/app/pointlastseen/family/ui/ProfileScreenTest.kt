@@ -116,6 +116,21 @@ class ProfileScreenTest {
         assertEquals("Mae", joinedWith!!.answersTo)
     }
 
+    @Test fun aNoteCanBeWrittenBeforeJoiningAndKeepsWhatWasTyped() {
+        var rememberedWith: SubjectProfile? = null
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), false, null, {}, {}, {}, gone = false, onBack = {}, onRemember = { rememberedWith = it }) } }
+        type("Name they answer to", "Mae")
+        tap("I remembered something")
+        assertEquals("Mae", rememberedWith!!.answersTo)
+    }
+
+    @Test fun goneButNotJoinedAlsoOffersANote() {
+        var remembered = 0
+        rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), joined = false, mode = null, onSave = {}, onGone = {}, onJoin = {}, gone = true, onBack = {}, onRemember = { remembered++ }) } }
+        tap("I remembered something")
+        assertEquals(1, remembered)
+    }
+
     @Test fun goneButNotJoinedStillOffersJoin() {
         var joins = 0
         rule.setContent { PaperTheme { ProfileScreen(SubjectProfile(), emptyList(), joined = false, mode = null, onSave = {}, onGone = {}, onJoin = { joins++ }, gone = true, onBack = {}) } }

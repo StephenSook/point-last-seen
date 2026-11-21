@@ -26,7 +26,7 @@ def test_clip_readings_ttl_is_declared_and_the_rules_allow_at_least_30_days():
 
 
 def test_the_daily_probes_retire_only_after_judging():
-    for script in ("scripts/appcheck_control.py", "scripts/media_probe.py", "scripts/models_probe.py"):
+    for script in ("scripts/appcheck_control.py", "scripts/media_probe.py", "scripts/models_probe.py", "scripts/served_version_check.py"):
         m = re.search(r"RETIRE_AFTER = date\((\d+), (\d+), (\d+)\)", (REPO / script).read_text())
         assert date(*map(int, m.groups())) > JUDGING_ENDS, script
 
