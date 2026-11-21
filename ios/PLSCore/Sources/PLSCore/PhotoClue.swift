@@ -104,7 +104,7 @@ public enum PhotoClue {
     /// True when any word of the object names a person or part of one: a plural (bodies, niños, mujeres) or a word
     /// spelled out letter by letter ("m.a.n", "W-O-M-A-N") counts. A person word inside a longer word (handbag) does not.
     static func namesAPerson(_ object: String) -> Bool {
-        let tokens = words(object)
+        let tokens = words(objectWords(object))
         var joined: [String] = []
         var letters = ""
         for t in tokens {
@@ -114,6 +114,20 @@ public enum PhotoClue {
         if !letters.isEmpty { joined.append(letters) }
         return (tokens + joined).contains { w in forms(w).contains(where: personWords.contains) }
     }
+
+    /// The caption without the words that name a person only as an owner or a kind of gear: a possessive ("men's
+    /// jacket", "girls' shoes") and a short list of gear names ("neck gaiter", "wrist watch"). Everything else stays,
+    /// so a person word anywhere else still discards the photo.
+    static func objectWords(_ object: String) -> String {
+        var s = object.lowercased()
+        s = s.replacingOccurrences(of: #"\b\p{L}+['’]s\b"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"\b\p{L}+s['’](?=\s|$)"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: gearNames, with: " ", options: .regularExpression)
+        return s
+    }
+
+    static let gearNames = #"\b(neck|chest|wrist|hand|face|knee|ear|head|arm|leg|toe|foot|elbow)\s+"#
+        + #"(gaiter|pack|watch|warmer|warmers|mask|brace|muffs|lamp|band|light|strap|wrap|guard|pad|pads|sleeve|sleeves|bag|rest)\b"#
 
     /// A word and its singular forms: bodies -> body, mujeres -> mujer, niños -> niño.
     static func forms(_ w: String) -> [String] {

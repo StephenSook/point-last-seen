@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a possessive or a gear name is an object, not a person, in a photo caption
+- What: before the person check, a photo caption drops possessives ("men's jacket", "girls' shoes", "child’s mitten")
+  and a short list of gear names ("neck gaiter", "chest pack", "wrist watch", "hand warmers", "face mask" and the
+  like), so ordinary gear is no longer thrown away as a person. Anything else still fails closed: "man's hand",
+  "mens jacket", "neck" and "woman's face" are still not kept.
+- Source: review.
+- Verified: a test of the reviewed gear and possessives (and of the captions that must still be discarded) failed
+  before the change (18 expectations) and passes after; all 416 core tests pass.
+
 ### fix(ios-core): more words for a person or remains keep a photo from being a clue
 - What: the photo rule's person words now also cover teenager, adult, elderly, senior, infant, ear, skull, skeleton
   and bones, and the Spanish calavera, esqueleto, hueso, cabeza, dedo, ojo, oreja, cuello and pecho. The two model

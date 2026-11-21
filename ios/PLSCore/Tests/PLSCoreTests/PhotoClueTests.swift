@@ -47,6 +47,18 @@ import Testing
         }
     }
 
+    /// A possessive (men's jacket) and a short list of gear names (neck gaiter) are objects; anything else fails closed.
+    @Test func possessivesAndGearNamesAreObjects() {
+        for object in ["men's jacket", "women's boots", "kid's hat", "boy's cap", "girls' shoes", "child’s mitten", "senior's walker",
+                       "neck gaiter", "chest pack", "wrist watch", "neck warmer", "hand warmers", "face mask", "knee brace",
+                       "ear muffs", "head lamp", "head band", "hand bag"] {
+            #expect(Self.clue(PhotoClue.decide(Self.photo(object, .black, .other), profile: Self.worn, segmentIds: [])) != nil, "\(object)")
+        }
+        for object in ["man's hand", "mens jacket", "a man", "neck", "chest", "woman's face"] {
+            #expect(PhotoClue.decide(Self.photo(object, .black, .other), profile: Self.worn, segmentIds: []) == .discarded(PhotoClue.personMessage), "\(object)")
+        }
+    }
+
     /// State words a report uses for a person ("walking", "sitting", "safe") are not a person in a photo.
     @Test func anObjectNamedWithAStateWordIsKept() {
         for object in ["walking stick", "sitting pad", "safety vest", "fine-knit glove"] {
