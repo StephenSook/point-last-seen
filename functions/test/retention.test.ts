@@ -104,16 +104,18 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(DRILL_RETENTION_MS).toBe(30 * DAY);
   });
 
-  it("keeps the development and judge seed drills always, and the Kennesaw and test drills until 2027-01-01", async () => {
-    for (const id of ["drill-dev-1", "drill-judge-1", "drill-kennesaw-1"]) await drill(id, closed(60));
-    expect((await deleteEndedDrills(admin.db, bucket, admin.auth, NOW)).deleted).toEqual([]);
-    expect(keptUntil("drill-kennesaw-1")).toBe(Date.UTC(2027, 0, 1));
-    // The test drill every live check and the daily probe use is kept through judging too.
-    expect(keptUntil("drill-test-1")).toBe(Date.UTC(2027, 0, 1));
-    expect(keptUntil("drill-dev-1")).toBe(Number.POSITIVE_INFINITY);
-    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, Date.UTC(2027, 0, 1));
-    expect(r.deleted).toEqual(["drill-kennesaw-1"]);
-    expect(r.kept).toEqual(["drill-dev-1", "drill-judge-1"]);
+  it("keeps the development, judge seed, filmed and test drills until 2027-01-01, then deletes them like any other", async () => {
+    const kept = ["drill-dev-1", "drill-judge-1", "drill-kennesaw-1", "drill-test-1"];
+    for (const id of kept) await drill(id, closed(60));
+    const during = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(during.deleted).toEqual([]);
+    expect(during.kept).toEqual(kept);
+    // One end date for every kept drill: judging ends 2026-12-16, and nothing needs them after the year.
+    for (const id of kept) expect(keptUntil(id)).toBe(Date.UTC(2027, 0, 1));
+    expect(keptUntil("drill-other")).toBe(0);
+    const after = await deleteEndedDrills(admin.db, bucket, admin.auth, Date.UTC(2027, 0, 1));
+    expect(after.deleted).toEqual(kept);
+    expect(after.kept).toEqual([]);
   });
 
   it("deletes the anonymous sign-ins that belonged only to the deleted drill", async () => {

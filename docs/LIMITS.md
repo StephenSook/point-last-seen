@@ -260,10 +260,10 @@ each line says what the limit is and why.
   delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close
   that refreshes and joins another incident in the moment between that last read and the delete is still deleted.
   Its person then signs in again and rejoins with a code; nothing they wrote is lost.
-- Kept whatever their close: `drill-dev-1` (the development drill) and `drill-judge-1` (the judge sandboxes'
-  seed), and until 2027-01-01 `drill-kennesaw-1` (the drill on film and on the judge page) and `drill-test-1` (the
-  drill every live check and the daily probe use). A live search and a judge sandbox are never deleted by this job;
-  a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
+- Kept until 2027-01-01 whatever their close, then deleted like any other closed drill: `drill-dev-1` (the
+  development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
+  judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
+  sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
 - The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
   their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
 

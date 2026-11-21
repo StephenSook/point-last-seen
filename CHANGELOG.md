@@ -70,6 +70,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention: every kept drill (drill-dev-1, drill-judge-1, drill-kennesaw-1, drill-test-1) is kept until
+  2027-01-01 and then deleted like any other closed drill; none is kept for ever. LIMITS and the production checklist
+  say so. Source: review (a simple, true privacy line; judging ends 2026-12-16). Verified: the keep-list test failed
+  first (the development and judge seed drills were kept for ever), then passes; functions suite 281. Production on
+  2026-11-21: 4 drills, all open, so no closed drill lacks a closedAt.
 - README lists drill retention among the Cloud Functions, and LIMITS records that the job is live (since 2026-11-21
   03:02 UTC) and that its first run, started by hand, deleted nothing because every drill was open. Source: review.
   Verified: the deploy log, the live ruleset read back, the scheduler job ENABLED, a throwaway drill's closedAt equal
