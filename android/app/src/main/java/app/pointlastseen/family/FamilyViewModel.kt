@@ -503,6 +503,13 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** From the profile: what was typed is saved first, then the note opens (before joining a search too). */
+    fun remember(edited: SubjectProfile) {
+        saveProfile(edited)
+        noteUi = NoteUi.Idle
+        open(Screen.NOTE)
+    }
+
     fun addNote(r: FamilyNoteReading) {
         saveProfile(Profiles.applyNote(profile, r))
         back()

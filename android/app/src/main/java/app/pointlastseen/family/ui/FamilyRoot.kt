@@ -24,7 +24,7 @@ fun FamilyRoot(vm: FamilyViewModel, onPickClip: () -> Unit, onPickPhotos: () -> 
     BackHandler(enabled = Nav.systemBack(vm.nav) != null) { vm.systemBack() }
     Crossfade(targetState = vm.nav.screen, animationSpec = Paper.crossfade(), label = "screen") { screen ->
         when (screen) {
-            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back)
+            Screen.PROFILE -> ProfileScreen(vm.profile, vm.warnings(), vm.nav.joined, mode, vm::saveProfile, vm::shesGone, vm::toJoin, gone = vm.nav.gone, onBack = vm::back, onRemember = vm::remember)
             Screen.CALL_FIRST -> CallFirstScreen(
                 mode, rc.killCloud, onDial = onDial, onDone = vm::calledFirst,
                 onScript = if (BuildConfig.SCRIPT_911) ({ vm.open(Screen.SCRIPT_911) }) else null,
