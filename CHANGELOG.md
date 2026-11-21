@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: ops/judgeSessions-YYYY-MM-DD, which holds only that UTC day's count of judge practice searches, is readable
+  without sign-in like ops/storage, so a probe can watch the judges' quota without a credential; nobody writes it from
+  a client. Source: review (judge quota probe, approved). Verified: a shapes case (a day's doc readable,
+  ops/judgeSessions-latest not, no client write) failed first, then passes.
 - functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
   close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
   searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before

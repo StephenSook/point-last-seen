@@ -60,9 +60,11 @@ service cloud.firestore {
     }
 
     // ops/storage holds only the bucket's lifecycle state and the sweep time, written by the scheduled
-    // deleteIncidentMedia; the daily probe reads it without credentials. No other ops doc is readable.
+    // deleteIncidentMedia; the daily probe reads it without credentials. ops/judgeSessions-YYYY-MM-DD holds only
+    // that UTC day's count of judge practice searches (startJudgeSession); the quota probe reads it the same way.
+    // No other ops doc is readable.
     match /ops/{docId} {
-      allow read: if docId == 'storage';
+      allow read: if docId == 'storage' || docId.matches('^judgeSessions-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
       allow write: if false;
     }
 
