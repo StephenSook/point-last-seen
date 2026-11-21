@@ -66,7 +66,7 @@ export function segmentFeatures(
  * a boundary reads on dark and light steps alike. Dots: fg-2 with a bg-0 ring, so each
  * centre dot is 3:1 or more against every probability step.
  */
-export const MAP_INK = { edgeCasing: COMMAND.bg0, edgeLine: COMMAND.fg4, dot: COMMAND.fg2, dotRing: COMMAND.bg0, moved: COMMAND.changeCyan } as const;
+export const MAP_INK = { edgeCasing: COMMAND.bg0, edgeLine: COMMAND.fg4, dot: COMMAND.fg2, dotRing: COMMAND.bg0, moved: COMMAND.changeCyan, team: COMMAND.fg1 } as const;
 
 export type CentreCollection = {
   type: "FeatureCollection";
