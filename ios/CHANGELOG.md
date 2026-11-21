@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a possessive is an owner only when a clothing or gear word follows it
+- What: a photo caption's possessive ("men's", "girls'") is dropped before the person check only when, after any color,
+  style or gear words, a clothing or gear noun follows ("men's red knit cap", "men's face mask"). Otherwise the "'s"
+  may be "is" ("the boy's wearing a red face mask"), so the person word stays and the photo is not kept.
+- Source: review.
+- Verified: tests with "the boy's wearing a red face mask", "the man's lying by a cap" and "girl's by the creek"
+  failed (kept as clues) before the change and pass after; the earlier possessive and gear cases still pass; all 416
+  core tests pass.
+
 ### fix(ios): the evidence screen reads a photo's whole caption, before any cut
 - What: a photo's caption is screened for evidence as the model gave it, before it is cut to 200 characters for the
   report's words, so an evidence word late in a very long caption still sends the photo to command.

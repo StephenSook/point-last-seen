@@ -120,11 +120,23 @@ public enum PhotoClue {
     /// so a person word anywhere else still discards the photo.
     static func objectWords(_ object: String) -> String {
         var s = object.lowercased()
-        s = s.replacingOccurrences(of: #"\b\p{L}+['’]s\b"#, with: " ", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"\b\p{L}+s['’](?=\s|$)"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: possessiveBeforeAnItem, with: " ", options: .regularExpression)
         s = s.replacingOccurrences(of: gearNames, with: " ", options: .regularExpression)
         return s
     }
+
+    /// A possessive ("men's", "girls'") counts as an owner only when, after any color, style or gear words, a clothing
+    /// or gear noun follows ("men's red knit cap", "men's face mask"). Otherwise ("the boy's wearing", "girl's by the
+    /// creek") the "'s" may be "is", so the person word stays.
+    static let possessiveBeforeAnItem: String = {
+        let gearFirst = ["neck", "chest", "wrist", "hand", "face", "knee", "ear", "head", "arm", "leg", "toe", "foot", "elbow"]
+        let gearSecond = ["gaiter", "pack", "watch", "warmer", "warmers", "mask", "brace", "muffs", "lamp", "band", "light", "strap",
+                          "wrap", "guard", "pad", "pads", "sleeve", "sleeves", "bag", "rest"]
+        let colors = ClothingColor.allCases.filter { $0 != .unknown }.map(\.rawValue) + Array(colorNames.keys)
+        let modifiers = (colors + Array(styleWords) + gearFirst).sorted().joined(separator: "|")
+        let nouns = (Array(allKindWords) + gearSecond).sorted().joined(separator: "|")
+        return #"\b\p{L}+(?:['’]s|s['’])(?=(?:\s+(?:"# + modifiers + #"))*\s+(?:"# + nouns + #")\b)"#
+    }()
 
     static let gearNames = #"\b(neck|chest|wrist|hand|face|knee|ear|head|arm|leg|toe|foot|elbow)\s+"#
         + #"(gaiter|pack|watch|warmer|warmers|mask|brace|muffs|lamp|band|light|strap|wrap|guard|pad|pads|sleeve|sleeves|bag|rest)\b"#

@@ -50,11 +50,13 @@ import Testing
     /// A possessive (men's jacket) and a short list of gear names (neck gaiter) are objects; anything else fails closed.
     @Test func possessivesAndGearNamesAreObjects() {
         for object in ["men's jacket", "women's boots", "kid's hat", "boy's cap", "girls' shoes", "child’s mitten", "senior's walker",
+                       "boy's red knit cap", "men's face mask",
                        "neck gaiter", "chest pack", "wrist watch", "neck warmer", "hand warmers", "face mask", "knee brace",
                        "ear muffs", "head lamp", "head band", "hand bag"] {
             #expect(Self.clue(PhotoClue.decide(Self.photo(object, .black, .other), profile: Self.worn, segmentIds: [])) != nil, "\(object)")
         }
-        for object in ["man's hand", "mens jacket", "a man", "neck", "chest", "woman's face"] {
+        for object in ["man's hand", "mens jacket", "a man", "neck", "chest", "woman's face", "the boy's wearing a red face mask",
+                       "the man's lying by a cap", "girl's by the creek"] {
             #expect(PhotoClue.decide(Self.photo(object, .black, .other), profile: Self.worn, segmentIds: []) == .discarded(PhotoClue.personMessage), "\(object)")
         }
     }
