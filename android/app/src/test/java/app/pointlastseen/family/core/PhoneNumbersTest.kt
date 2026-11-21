@@ -4,6 +4,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PhoneNumbersTest {
+    /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
+    @Test fun spanishDigitWordsAreDigits() {
+        assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))
+        assertEquals("Number: [number removed]", PhoneNumbers.remove("Number: Seis-Siete-Ocho-Nueve-Tres-Dos-Uno-Cero-Cinco-Cuatro"))
+        assertEquals("Vimos dos niños y tres perros cerca del lago.", PhoneNumbers.remove("Vimos dos niños y tres perros cerca del lago."))
+        assertEquals("Tiene un perro y una gata", PhoneNumbers.remove("Tiene un perro y una gata"))
+    }
+
     @Test fun phoneNumbersAreRemoved() {
         assertEquals("call [number removed]", PhoneNumbers.remove("call 404-555-0142"))
         assertEquals("seen at 14:03", PhoneNumbers.remove("seen at 14:03"))
