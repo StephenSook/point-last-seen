@@ -2281,3 +2281,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/src/main.tsx` loads `CommandPost` and `JudgePage` with `React.lazy`, so the app was one 2.5 MB `main` script and is now a 223 KB `main`, a 161 KB `CommandPost` chunk and an 18 KB `JudgePage` chunk. On a placeholder build the judge page's unique script bytes fell from 3.94 MB to 3.78 MB: the shared code (Firebase, MapLibre for the replay, reCAPTCHA) still loads, and a deeper cut needs Firestore set up only where it is used and a second look at prefetching the replay.
 - Source: UI review (one 2.5 MB script on every page).
 - Verified: a new no-backend check, `e2e/routeChunks.spec.ts` (the judge page loads no `CommandPost` chunk and its own `JudgePage` chunk; the command post loads its chunk), failed on the old build and passes on the new one with every no-backend check (45); typecheck, web unit suite and the hygiene guard pass.
+
+### revert(web): the judge page and the command post load as one bundle again
+- What: reverts the per-page code split. With `CommandPost` loaded lazily, the stylesheets its modules import (MapLibre's among them) were injected after `base.css` instead of before it, so every rule of equal specificity flipped. `.maplibregl-map { position: relative }` then beat `.map { position: absolute; inset: 0 }`, and the deployed command post drew a map 0 px tall at every width. The deploy was rolled back within four minutes; the split saved about 160 KB, too little to justify auditing every reordered rule before the drill.
+- Source: live suite after deploy (the map drew no plates on the test drill, and on a phone it was 0 px tall).
+- Verified: `web/src/main.tsx` and the route-chunk check are back to their state before the split; the built page links MapLibre's stylesheet before `base.css` again (checked in the built `index.html`), and every no-backend check passes (45).
+
+### test(web): CI checks that the built stylesheets leave the map filling its frame
+- What: a new no-backend check, `web/e2e/mapCascade.spec.ts`, runs at 1440 px and 390 px on the built app. The join page loads the command post's code and every stylesheet it uses; the check puts a `.map-wrap` frame holding a `.map.maplibregl-map` element (the classes the map's container carries) on the page and asserts it is absolutely placed and the full 400 px tall. A build whose stylesheet order lets MapLibre's `position: relative` win fails it.
+- Source: live suite after deploy (a 0 px map that no CI check could see).
+- Verified: it failed at both widths on the build that drew the 0 px map (`position: relative`), and passes on the build with the split reverted, with every no-backend check (45).
