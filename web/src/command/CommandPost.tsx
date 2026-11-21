@@ -297,7 +297,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [everyPercent, setEveryPercent] = useState(false);
   // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
   const [claimsNote, setClaimsNote] = useState<string | null>(null);
-  const claimsWatch = useRef<{ stop: () => void; recheck: () => void } | null>(null);
+  const claimsWatch = useRef<{ stop: () => void; recheck: (urgent?: boolean) => void } | null>(null);
   // A practice search has no join code: its lines and buttons point back to the judge's page. The incident's own mode
   // decides once it has loaded (and is remembered after a refusal clears the view); until then its id does.
   const knownMode = useRef<string | null>(null);
@@ -324,7 +324,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     };
   }, [pls, incidentId, practice]);
   useEffect(() => {
-    if (denied) claimsWatch.current?.recheck();
+    // A refusal asks at once, past the spacing: it is the moment the line must be right.
+    if (denied) claimsWatch.current?.recheck(true);
   }, [denied]);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});

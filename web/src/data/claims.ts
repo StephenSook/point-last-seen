@@ -23,14 +23,27 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
 /**
  * Calls `onLine` with claimsLine each time this browser's sign-in changes, in any tab (the SDK shares the signed-in
  * user across tabs); `recheck` asks the server for fresh claims, for when the tab is shown or focused again or after
- * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), nothing is applied
- * after `stop`, and a forced read runs at most once in 30 seconds and never while another is running.
+ * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), and nothing is applied
+ * after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
+ * recheck (after a refusal) skips the spacing, and one that comes while a forced read runs waits for it and then runs.
+ * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back.
  */
-export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: string | null) => void, now: () => number = Date.now): { stop: () => void; recheck: () => void } {
+export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: string | null) => void, now: () => number = Date.now): { stop: () => void; recheck: (urgent?: boolean) => void } {
+  const SPACING_MS = 30_000;
   let stopped = false;
   let latest = 0;
-  let forcing = false;
+  // The forced read in flight (its number, 0 when none), when the last one started, and an urgent recheck waiting.
+  let forcing = 0;
   let lastForced = -Infinity;
+  let queued = false;
+  const settled = (seq: number) => {
+    if (forcing !== seq) return;
+    forcing = 0;
+    if (queued && !stopped) {
+      queued = false;
+      read(true);
+    }
+  };
   const read = (force: boolean) => {
     const seq = ++latest;
     const user = auth.currentUser;
@@ -39,16 +52,16 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       return;
     }
     if (force) {
-      forcing = true;
+      forcing = seq;
       lastForced = now();
     }
     user.getIdTokenResult(force).then(
       (r) => {
-        if (force) forcing = false;
         if (!stopped && seq === latest) onLine(claimsLine(r.claims, ctx));
+        if (force) settled(seq);
       },
       () => {
-        if (force) forcing = false;
+        if (force) settled(seq);
       },
     );
   };
@@ -60,8 +73,14 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       stopped = true;
       unsubscribe();
     },
-    recheck: () => {
-      if (stopped || forcing || now() - lastForced < 30_000) return;
+    recheck: (urgent = false) => {
+      if (stopped) return;
+      const since = now() - lastForced;
+      if (forcing !== 0 && since < SPACING_MS) {
+        if (urgent) queued = true;
+        return;
+      }
+      if (!urgent && since < SPACING_MS) return;
       read(true);
     },
   };

@@ -126,3 +126,46 @@ describe("watchClaims: only the newest read decides the line, and forced reads a
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: a refusal's recheck is never dropped, and a stalled read does not block", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: () => () => {} }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    const releases: (() => void)[] = [];
+    const forced: boolean[] = [];
+    const user = { getIdTokenResult: (force?: boolean) => (forced.push(force === true), new Promise<{ claims: Record<string, unknown> }>((r) => { releases.push(() => r({ claims: { inc: "drill-test-1", role: "command" } })); })) };
+    const clock = { t: 1_000_000 };
+    const w = watchClaims({ currentUser: user } as never, drill, () => {}, () => clock.t);
+    return { vi, w, forced, releases, clock };
+  }
+
+  it("an urgent recheck runs inside the 30-second spacing, and one that arrives during a forced read runs after it", async () => {
+    const { vi, w, forced, releases, clock } = await setup();
+    w.recheck();
+    w.recheck(true);
+    expect(forced).toEqual([true]);
+    releases[0]!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(forced).toEqual([true, true]);
+    releases[1]!();
+    await new Promise((r) => setTimeout(r, 0));
+    clock.t += 1_000;
+    w.recheck(true);
+    expect(forced).toEqual([true, true, true]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("a forced read still running after 30 seconds no longer blocks the next recheck", async () => {
+    const { vi, w, forced, clock } = await setup();
+    w.recheck();
+    clock.t += 10_000;
+    w.recheck();
+    expect(forced).toEqual([true]);
+    clock.t += 25_000;
+    w.recheck();
+    expect(forced).toEqual([true, true]);
+    vi.doUnmock("firebase/auth");
+  });
+});

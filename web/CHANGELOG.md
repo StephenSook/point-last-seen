@@ -2573,3 +2573,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a sign-in check that finished after a newer one could restore an old line (or clear a current one); now only the newest read decides. The post also checks when its window gets focus, so side-by-side windows (no tab switch) still show the line before a refused action; the 5-minute check runs only while the tab is shown, and a forced check runs at most once in 30 seconds and never while one is running. Whether the post is a practice search now comes from the incident's own mode once it has loaded (an id is only the first guess), and the no-access panel's drill button reloads with the drill still in the link ("Reopen this drill") instead of dropping it.
 - Source: review (Codex, second round on the sign-in line: three medium, two low findings).
 - Verified: new unit tests (a late older read is dropped; forced reads are spaced and never overlap) failed first, then passed (9); web unit suite (1196) and typecheck pass.
+
+### fix(command): a refusal's sign-in check is never dropped, and a stalled one does not block
+- What: the check after a refused read is urgent: it skips the 30-second spacing, and one that comes while a forced check is running waits for it and then runs, so the line is right at the moment it matters. A forced check still running after 30 seconds counts as stalled and no longer holds the next one back.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: two new unit tests (an urgent recheck inside the spacing runs after the running one; a stalled read stops blocking after 30 s) failed first, then passed; the claims tests (11) and typecheck pass.
