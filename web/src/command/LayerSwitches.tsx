@@ -21,6 +21,8 @@ type Props = {
    * elevation (the layer measures from it).
    */
   elevation?: { available: boolean; startHasElevation: boolean };
+  /** Why the last confirm on this seat rebuilt without the elevation layer, shown until the next rebuild here. */
+  layersNote?: string;
   vehicleInvolved: boolean;
   /** The prior model in use; a layer rebuild always gives the ring prior. */
   model?: "rings" | "walkers";
@@ -28,7 +30,7 @@ type Props = {
   onApply: (layers: PriorLayers, terrain: Terrain) => { version: number; ack: Promise<void> };
 };
 
-export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing, elevation, vehicleInvolved, model = "rings", onApply }: Props) {
+export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing, elevation, layersNote, vehicleInvolved, model = "rings", onApply }: Props) {
   const note = typeof terrainNote === "string" ? terrainNote.trim().slice(0, 200) : "";
   const [draft, setDraft] = useState({ layers, terrain });
   const [sent, setSent] = useState<number | null>(null);
@@ -145,6 +147,11 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
             source gives none).{elevationWhyNot}
           </p>
         </div>
+      )}
+      {layersNote && (
+        <p className="muted small" data-testid="layers-note">
+          {layersNote}
+        </p>
       )}
       {model === "walkers" && <p className="muted small">These apply when the prior is rebuilt as rings.</p>}
       {vehicleInvolved && <p>Vehicle involved: these distances assume travel on foot.</p>}

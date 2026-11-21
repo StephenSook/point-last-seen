@@ -28,6 +28,7 @@ function Harness() {
           if (e === null) return undefined;
           return e === "gone" ? { available: false, startHasElevation: false } : { available: true, startHasElevation: e !== "nostart" };
         })()}
+        layersNote={new URLSearchParams(location.search).has("layersnote") ? "Rebuilt without downhill and level ground: the new start is outside the mapped segments." : undefined}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
         onApply={(layers, terrain) => {

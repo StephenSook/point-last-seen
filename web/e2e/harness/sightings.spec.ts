@@ -26,3 +26,11 @@ test("a camera clip from the family shows what it saw and asks for the camera's 
   await row.getByRole("button", { name: "Place camera" }).click();
   await expect(page.getByTestId("placing")).toHaveText("a".repeat(32));
 });
+
+test("a confirm that turned the elevation layer off says why on its card", async ({ page }) => {
+  await page.goto("/harness/sightings.html?note=1");
+  const row = page.getByTestId("sighting-cccccccccccccccccccccccccccccccc");
+  await row.getByRole("button", { name: "Confirm" }).click();
+  await expect(row).toContainText("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+});
+

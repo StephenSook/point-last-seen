@@ -1,7 +1,7 @@
 import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import type { SegmentDoc } from "../data/incident";
-import { assertCurrentGrid, gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
+import { assertCurrentGrid, elevationDropNote, elevationDropReason, gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
 
 // Each case builds a whole prior; on a loaded machine or a CI runner one can pass vitest's 5 s default.
 const SLOW = { timeout: 30_000 };
@@ -156,6 +156,25 @@ describe("assertCurrentGrid: the check every rebuild and walker run makes first"
     const linked = at3.map((x, i) => ({ ...x, neighbors: [at3[(i + 1) % 9]!.segmentId] }));
     expect(() => assertCurrentGrid(linked.slice(0, 8), 3)).toThrow("The map's segments have not all loaded yet.");
     expect(() => assertCurrentGrid(at3, 4)).toThrow("The map's segments have not all loaded yet.");
+  });
+});
+
+describe("elevationDropReason: why a rebuild turns the elevation layer off", SLOW, () => {
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, 100]));
+  const on = { linear: false, wedge: false, elevation: true };
+  it("gives none while the layer can stay on, or is off already", () => {
+    expect(elevationDropReason(on, SEGS, IPP, elevationM)).toBeNull();
+    expect(elevationDropReason({ linear: false, wedge: false }, SEGS, IPP, undefined)).toBeNull();
+  });
+  it("words the note command sees, and gives none without a reason", () => {
+    expect(elevationDropNote("the new start is outside the mapped segments")).toBe("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+    expect(elevationDropNote(null)).toBeUndefined();
+  });
+  it("names the reason: no file, a start outside the grid, or a start segment the file does not hold", () => {
+    expect(elevationDropReason(on, SEGS, IPP, undefined)).toBe("no elevation file loaded for this site");
+    expect(elevationDropReason(on, SEGS, { lat: 34.5, lon: -84.38 }, elevationM)).toBe("the new start is outside the mapped segments");
+    const { BB: _bb, ...noStart } = elevationM;
+    expect(elevationDropReason(on, SEGS, IPP, noStart)).toBe("the new start's segment has no elevation");
   });
 });
 
