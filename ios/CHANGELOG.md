@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios): leaving the app while the photo picker is up covers the screen
+- What: while the photo picker is open, the app covers its window when it stops being active and uncovers it when it
+  comes back, so the app switcher's snapshot shows no photo. Whether iOS keeps anything else of the photo (the
+  picker's own caches) is not verified.
+- Source: review.
+- Verified: a test that the window is covered on resign-active and uncovered on become-active failed to compile
+  before the change and passes after; 226 app tests pass.
+
 ### fix(ios): a photo is kept only when a separate person question answers a clean no
 - What: before Apple's model describes a photo, it is asked on its own, in a separate session, whether any part of a
   person is visible. The photo is kept only on a clean no; a yes on that question or in the description, no answer,

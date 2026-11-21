@@ -27,17 +27,33 @@ struct PhotoPicker: UIViewControllerRepresentable {
 }
 
 /// Presents the system picker once, as Apple documents for the camera, and is its delegate: it hands on the
-/// photo and closes the cover when the picker finishes or is cancelled.
+/// photo and closes the cover when the picker finishes or is cancelled. While it is up, leaving the app covers the
+/// window, so the app switcher's snapshot shows no photo.
 final class FoundPhotoController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    static let shieldId = "photo-shield"
     private let picked: (CGImage) -> Void
     private let finish: () -> Void
     private var presented = false
+    private let shield = UIView()
 
     init(picked: @escaping (CGImage) -> Void, finish: @escaping () -> Void) {
         self.picked = picked
         self.finish = finish
         super.init(nibName: nil, bundle: nil)
+        shield.backgroundColor = .black
+        shield.accessibilityIdentifier = Self.shieldId
+        shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        NotificationCenter.default.addObserver(self, selector: #selector(cover), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(uncover), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
+
+    @objc private func cover() {
+        guard let window = view.window, shield.superview == nil else { return }
+        shield.frame = window.bounds
+        window.addSubview(shield)
+    }
+
+    @objc private func uncover() { shield.removeFromSuperview() }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }

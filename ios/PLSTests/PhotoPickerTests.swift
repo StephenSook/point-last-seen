@@ -25,6 +25,18 @@ import UIKit
         #expect(cg.width == 640 && cg.height == 480)
     }
 
+    /// While the picker is up, leaving the app covers the screen, so the app switcher's snapshot shows no photo.
+    @MainActor @Test func leavingTheAppCoversThePicker() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 100, height: 200))
+        let controller = FoundPhotoController(picked: { _ in }, finish: {})
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
+        #expect(window.subviews.contains { $0.accessibilityIdentifier == FoundPhotoController.shieldId })
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        #expect(!window.subviews.contains { $0.accessibilityIdentifier == FoundPhotoController.shieldId })
+    }
+
     /// A portrait photo from the camera comes with a rotation flag; the model gets it upright.
     @Test func aRotatedPhotoIsDrawnUpright() throws {
         let cg = try #require(PhotoPicker.readable(Self.image(2000, 1000, orientation: .right)))
