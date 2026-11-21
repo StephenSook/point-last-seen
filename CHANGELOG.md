@@ -77,6 +77,30 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Engine and reference: elevationWeights refuses a negative or non-finite share, and returns neutral weights when the
+  classes that hold mass have shares summing to zero (it gave NaN before); a generated vector covers the zero-sum
+  case. Source: review (second-model). Verified: a reference test and the vector failed first, then pass; engine suite
+  389; reference suite 19.
+- Engine: the elevation layer's constants (ELEVATION_PARAMS, from a top-level elevation block in
+  shared/constants/engine-params.json with its own source line) stay outside EngineParams, so stored incidents and the
+  published run, which carry no copy, still pass every reader (the replay reader derives its required engine fields
+  from DEFAULT_PARAMS and refused the run); search.json is unchanged from main. Source: CI and review (second-model).
+  Verified: the replay suite (119) and the published-run test pass; engine suite and typecheck; web typecheck and unit
+  suite.
+- docs/evidence/isrid-dementia-p164.md gains the elevation table as printed (temperate uphill 19%, down 42%, same 39%;
+  dry 50%, 38%, 13%; medians 75 and 60 ft temperate, 317 and 187 ft dry), says what the source does not give (no n, no
+  band for Same, no urban column), and that the temperate shares are the engine's elevation layer. Source: review.
+  Verified against the publisher's sample PDF text.
+- Engine: an elevation prior layer, off by default (PriorLayers.elevation). elevationWeights matches the reference's
+  vectors; buildPrior applies it last, from the start's and each segment's elevation (SegmentElevations), keeps ROW,
+  and refuses urban terrain and a site with no elevations. Engine params gain elevation (temperate shares SOURCED to
+  p.164, the 3 m band OURS); search.json only gains that param. Source: review (terrain layer, approved). Verified: 7
+  vector cases and 4 buildPrior tests failed first, then pass; engine suite 387 and typecheck; web typecheck; ci-local
+  gates and ts.
+- Vector reference: elevation_weights in tools/vectors/make_vectors.py (each segment uphill, level within 3 m of the
+  start, or downhill, weighted to the class shares; an empty class returns its share pro rata; no elevation keeps
+  weight 1) and seven generated elevationWeights cases in shared/test-vectors/prior.json. Source: review (terrain
+  layer, approved). Verified: 2 reference tests failed first, then pass; the generator check passes.
 - drill-day, section 3: the printer settings add Two-sided: off (a printer that defaults to two-sided puts two teams'
   sheets back to back), and a line before the steps says to print a test page on Saturday because the drill printer
   reported low ink, or print at a library. Source: review. Verified: docs only.
