@@ -21,7 +21,7 @@ export type Measured = {
 
 export type MeasuredLoad = { state: "file"; file: Measured } | { state: "none" };
 export type MeasuredView =
-  | { state: "ok"; heading: string; lines: string[]; asOf: string }
+  | { state: "ok"; heading: string; source: string; lines: string[]; asOf: string }
   | { state: "stale"; line: string }
   | { state: "unreadable"; line: string };
 
@@ -69,12 +69,14 @@ export function measuredLines(f: Measured, nowMs: number): MeasuredView {
     return { state: "stale", line: `The measured numbers are more than ${MEASURED_MAX_AGE_DAYS} days old, so none are shown.` };
   }
   const lines = [
-    blockLine("Report reads", f.window, f.reads, "", "on the device", "by the cloud model", "by fixed rules with no model",
+    blockLine("Report reads", f.window, f.reads, "", "on the device, in our own iPhone test runs", "by the cloud model", "by fixed rules with no model",
       "On the device: none stored yet. An iPhone's practice drill keeps its reads on the phone; a drill report read on the phone is stored with its route."),
     blockLine("Plan wording", f.wordingWindow, f.wording, " plans", "written by the laptop's own model", "by the cloud model", "in fixed wording with no model",
       "On the laptop: none stored yet. A plan is worded on the laptop only when its browser has Chrome's built-in model."),
     `Cloud model spend, ${day(`${f.spend.from}T00:00:00Z`)} to ${day(f.generatedAt)}: $${f.spend.usd.toFixed(2)} over ${f.spend.days} days ($${f.spend.usdPerDay} a day), from Firebase AI Logic's token counts.`,
   ];
   const asOf = `Computed on ${new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} by scripts/measured_export.py from the route records each read and plan stores.`;
-  return { state: "ok", heading: "Stored on our servers", lines, asOf };
+  // Every number is from our own test runs and practice drills: the page says so beside the block.
+  const source = `All counts come from our own test runs and practice drills (${day(`${f.spend.from}T00:00:00Z`)} to ${day(f.generatedAt)}); no real search has used the app yet.`;
+  return { state: "ok", heading: "Stored on our servers", source, lines, asOf };
 }

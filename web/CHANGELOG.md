@@ -2500,3 +2500,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
+
+### feat(judge): the Measured block says every count is from our own test runs
+- What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
+- Source: review (every judge-facing number says where it came from).
+- Verified: `src/judge/measured.test.ts` (the source line and the iPhone row) failed first, then passed (7); `e2e/judgeRun.spec.ts` now checks the served line; typecheck, 225 and 72 no-backend browser checks and the build pass.

@@ -166,6 +166,7 @@ test("the Measured block shows the served file's numbers, says where they come f
   await expect(block).toContainText(`: ${file.wording.reads} plans.`);
   await expect(block).toContainText(`over ${file.spend.days} days`);
   await expect(block).toContainText("scripts/measured_export.py");
+  await expect(block.getByTestId("measured-source")).toContainText("no real search has used the app yet.");
   // A file older than the limit shows no numbers.
   await page.route("**/evidence/measured.json", (route) => route.fulfill({ status: 200, contentType: "application/json",
     body: JSON.stringify({ ...file, generatedAt: "2020-01-01T00:00:00Z" }) }));

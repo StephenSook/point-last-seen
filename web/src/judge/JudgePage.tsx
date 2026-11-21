@@ -180,6 +180,7 @@ export function JudgePage() {
           {measured.state === "ok" ? (
             <>
               <h3 className="small">{measured.heading}</h3>
+              <p data-testid="measured-source">{measured.source}</p>
               {measured.lines.map((l) => <p key={l}>{l}</p>)}
               <p className="muted small">{measured.asOf}</p>
             </>
