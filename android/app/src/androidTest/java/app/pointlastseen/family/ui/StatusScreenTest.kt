@@ -48,11 +48,19 @@ class StatusScreenTest {
             .performScrollTo().assertIsDisplayed()
     }
 
-    @Test fun aFoundIncidentSaysFoundSafeAndOffersNothingToSend() {
+    @Test fun aFoundIncidentSaysTheLeadWillCallAndOffersNothingToSend() {
         rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
-        rule.onNodeWithText("Found. Safe.").assertIsDisplayed()
+        rule.onNodeWithText("The search has ended. Your search lead will call you.").assertIsDisplayed()
         rule.onNodeWithText("Share a camera clip").assertDoesNotExist()
         rule.onNodeWithText("Someone saw them").assertDoesNotExist()
+    }
+
+    /** Command records a find as a closed search with the reason found: the same line, and nothing to send. */
+    @Test fun aSearchClosedAsFoundSaysTheLeadWillCall() {
+        rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, closedReason = "found") } }
+        rule.onNodeWithText("The search has ended. Your search lead will call you.").assertIsDisplayed()
+        rule.onNodeWithText("The search is closed.").assertDoesNotExist()
+        rule.onNodeWithText("I remembered something").assertDoesNotExist()
     }
 
     @Test fun aClosedSearchOffersNothingToSend() {
