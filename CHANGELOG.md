@@ -110,7 +110,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
   has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
   path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
-  Source: review (self-audit of judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
   judge page for on-device claims; only the README's three lines claimed more than ran.
 - evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
   report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
