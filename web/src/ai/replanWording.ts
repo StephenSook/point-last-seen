@@ -203,3 +203,11 @@ async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<Worde
     clearTimeout(timer);
   }
 }
+
+/**
+ * The wording's own on-device options, ONLY_ON_DEVICE and with no cloud params: what a measurement page asks for, since
+ * a dev page never builds a cloud model. With the built-in model available, PREFER_ON_DEVICE runs these same options.
+ */
+export function wordingOnDeviceParams(): HybridParams {
+  return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: wordingParams("").onDeviceParams };
+}

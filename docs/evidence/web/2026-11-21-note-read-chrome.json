@@ -1,0 +1,21 @@
+{
+  "what": "The command post's on-device read of a sighting note (readSightingText with sightingTextGenerator, ONLY_ON_DEVICE, the same path as CommandPost's readNote), measured on a local page with the same code path (local page, same code path). Five made-up drill notes read once each, in a row, in a newly opened page.",
+  "date": "2026-11-21",
+  "browser": "Stephen's Google Chrome stable on this Mac (macOS, Apple M5 Pro); the built-in model reported available for text; the Chrome and model versions were not recorded",
+  "page": "web/harness/note-measure.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in, at the commit that adds the page",
+  "note": "Read 1 is the first in the newly opened page. About 20 minutes earlier the same browser had read photos on its model (2026-11-21-photo-read-chrome.json), so this is one first-read sample, not a worst case. The command post gave a note read 30,000 ms (NOTE_READ_TIMEOUT_MS).",
+  "runs": [
+    { "run": 1, "note": "Training drill. Caller saw an older man in a blue coat and grey trousers walking north on the path, carrying a brown bag.", "replyMs": 27900, "inferenceSource": "on_device", "read": { "direction": "n", "topColor": "blue", "bottomColor": "unknown", "footwear": "", "carried": "brown bag" }, "want": { "direction": "n", "topColor": "blue", "bottomColor": "gray" }, "fieldsRight": 2 },
+    { "run": 2, "note": "Training drill. A woman in a red jacket and black pants, white sneakers, heading east toward the road.", "replyMs": 2879, "inferenceSource": "on_device", "read": { "direction": "e", "topColor": "red", "bottomColor": "black", "footwear": "white sneakers", "carried": "" }, "want": { "direction": "e", "topColor": "red", "bottomColor": "black" }, "fieldsRight": 3 },
+    { "run": 3, "note": "Training drill. Man in a green sweater and brown slacks going downstream along the creek, holding a cane.", "replyMs": 2354, "inferenceSource": "on_device", "read": { "direction": "downstream", "topColor": "green", "bottomColor": "brown", "footwear": "", "carried": "cane" }, "want": { "direction": "downstream", "topColor": "green", "bottomColor": "brown" }, "fieldsRight": 3 },
+    { "run": 4, "note": "Training drill. Someone in a yellow raincoat and blue jeans was seen walking south past the gate.", "replyMs": 2302, "inferenceSource": "on_device", "read": { "direction": "s", "topColor": "yellow", "bottomColor": "blue", "footwear": "", "carried": "" }, "want": { "direction": "s", "topColor": "yellow", "bottomColor": "blue" }, "fieldsRight": 3 },
+    { "run": 5, "note": "Training drill. An older woman in a purple cardigan and tan skirt, moving west across the field with a small dog.", "replyMs": 2317, "inferenceSource": "on_device", "read": { "direction": "w", "topColor": "purple", "bottomColor": "tan", "footwear": "", "carried": "small dog" }, "want": { "direction": "w", "topColor": "purple", "bottomColor": "tan" }, "fieldsRight": 3 }
+  ],
+  "googleRequests": [],
+  "findings": [
+    "The first read took 27,900 ms, within 7% of the command post's 30,000 ms limit; the next four took 2.3 to 2.9 s. A slower laptop's first note read would be refused.",
+    "14 of 15 stated fields right. The miss: \"grey trousers\" came back unknown; the colour list spells it gray.",
+    "All five reads ran on device as the SDK reported, and the page made no request to a Google or Firebase host."
+  ],
+  "n": 5
+}
