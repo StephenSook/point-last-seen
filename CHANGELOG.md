@@ -66,6 +66,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Production checklist: the minimum_version_android item no longer waits for the repo to go public on 2026-11-28; the
+  repo is public and /releases/latest opens the android-judge release with its APK, so the key is raised only when a
+  newer release APK is published. Source: review. Verified: /releases/latest answers 200 and resolves to
+  releases/tag/android-judge for a signed-out request.
 - README, judges line: the judge page names the cloud model and says whether the laptop's built-in model is ready (it
   does not name an on-device model), and the published run is described as it is: 24 sightings from the build's own
   tests (15 entered at the command post, 9 from the family app) and 18 plans. Source: review. Verified against
