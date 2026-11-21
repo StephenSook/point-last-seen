@@ -35,7 +35,7 @@ describe("the prior moves one version at a time", () => {
     const db = dbAs(C, commandClaims);
     await assertFails(priorBatch(db, 7));
     await assertFails(updateDoc(doc(db, "incidents/I1"), { priorVersion: 4 }));
-    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { status: "found" }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { searchState: "paused" }));
   });
   it("a segment cannot take a version the incident does not have after the write", async () => {
     const db = dbAs(C, commandClaims);
