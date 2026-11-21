@@ -120,3 +120,39 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
 
 4. The outbox holds the drill's report text, with phone numbers already removed. Read it before any of it goes into
    the repository, and never commit it raw.
+
+## 6. The role-player's GPS track and each team's closest pass
+
+Do this only if the person playing the missing person carried a GPS logger (or a phone app that records a track).
+The track itself is that person's location: it stays on this computer and is never committed or published unless
+the person gives written consent to publish it. Only each team's closest pass goes on the judge page.
+
+Before the drill:
+
+1. Set the logger to record a point at least every 5 seconds and to export GPX. Start it before the drill starts.
+2. Write down the drill's start and end times with the time zone, for example `2026-11-22T13:00:00-05:00`.
+
+After the drill, once section 4 has replaced the published run:
+
+1. Copy the GPX file into `tools/extras/tracks.local/` (any folder whose name ends in `.local` is gitignored).
+2. From the repository root, run (use the run id section 4 printed):
+
+   ```
+   python3 -I tools/extras/import_track.py --gpx tools/extras/tracks.local/<file>.gpx \
+       --grid shared/grid/kennesaw-mountain-drill.grid.json --run web/public/evidence/published-run.json \
+       --from <start> --to <end> --source gps-logger \
+       --track-out tools/extras/tracks.local/<runId>.track.json \
+       --passes-out web/public/extras/passes/<runId>.passes.json
+   ```
+
+   It keeps only points inside the drill grid (plus 200 m) and inside the window, so the drive to the park never
+   reaches a file. Its last line says how many points it kept and dropped, and how many teams have a pass.
+3. If it stops on a jump ("reached at ... m/s"), the logger lost its fix there. Delete that point from a copy of the
+   GPX file and run it again. If it stops for another reason, it says why and writes nothing.
+4. Check that the passes file holds no place: `grep -c '"lat"' web/public/extras/passes/<runId>.passes.json` must
+   print 0. Commit the passes file with the published run. Never commit the track or the GPX file.
+5. On the judge page, under "Watch the drill replay", "Closest passes" lists one line per team: how far its nearest
+   report was from the role-player, and when. Teams carried no logger, so a pass is measured only at the moments a
+   team sent a report placed by its phone's GPS.
+6. For the debrief, open the drill's replay on the command post, and choose "Load a GPS track from this computer" with
+   `tools/extras/tracks.local/<runId>.track.json`. The path walked so far follows the slider. Nothing is uploaded.
