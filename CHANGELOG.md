@@ -77,6 +77,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Engine: an elevation prior layer, off by default (PriorLayers.elevation). elevationWeights matches the reference's
+  vectors; buildPrior applies it last, from the start's and each segment's elevation (SegmentElevations), keeps ROW,
+  and refuses urban terrain and a site with no elevations. Engine params gain elevation (temperate shares SOURCED to
+  p.164, the 3 m band OURS); search.json only gains that param. Source: review (terrain layer, approved). Verified: 7
+  vector cases and 4 buildPrior tests failed first, then pass; engine suite 387 and typecheck; web typecheck; ci-local
+  gates and ts.
 - Vector reference: elevation_weights in tools/vectors/make_vectors.py (each segment uphill, level within 3 m of the
   start, or downhill, weighted to the class shares; an empty class returns its share pro rata; no elevation keeps
   weight 1) and seven generated elevationWeights cases in shared/test-vectors/prior.json. Source: review (terrain
