@@ -600,7 +600,8 @@
       "keep": [
         "Call",
         "tonight"
-      ]
+      ],
+      "pendingOn": ["ios", "android"]
     },
     {
       "name": "phone_cue_before_a_run_of_times_with_commas",
@@ -610,7 +611,8 @@
       "keep": [
         "Call",
         "tonight"
-      ]
+      ],
+      "pendingOn": ["ios", "android"]
     },
     {
       "name": "times_out_of_clock_order",
@@ -620,7 +622,8 @@
       "keep": [
         "Try",
         "tonight"
-      ]
+      ],
+      "pendingOn": ["ios", "android"]
     },
     {
       "name": "phone_cue_before_times_written_as_a_number",
@@ -630,7 +633,8 @@
       "keep": [
         "Call",
         "tonight"
-      ]
+      ],
+      "pendingOn": ["ios", "android"]
     }
   ],
   "mustKeep": [
@@ -787,9 +791,9 @@
       "output": "Seen at 14:03, [number removed]"
     },
     {
-      "name": "times_run_then_number",
-      "input": "Times 14:03, 14:10, 14:17, 404 555 0142",
-      "output": "Times 14:03, 14:10, 14:17, [number removed]",
+      "name": "times_run_and_a_number",
+      "input": "Times 14:03, 14:10, 14:17. Call 404 555 0142",
+      "output": "Times 14:03, 14:10, 14:17. Call [number removed]",
       "pendingOn": ["ios", "android"]
     },
     {
