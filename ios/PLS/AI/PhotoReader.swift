@@ -40,6 +40,22 @@ final class PhotoReadGate: @unchecked Sendable {
     }
 }
 
+/// Opens one read's gate once, whichever of its work or its time limit ends first.
+final class EndOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var gate: PhotoReadGate?
+
+    init(_ gate: PhotoReadGate) { self.gate = gate }
+
+    func end() {
+        lock.lock()
+        let g = gate
+        gate = nil
+        lock.unlock()
+        g?.end()
+    }
+}
+
 /// Our one reference to the photo while it is read; released when the read ends or gives up. (A model call still
 /// running after a timeout holds its own copy, which this code cannot release; it ends within the output cap.)
 final class ImageHolder: @unchecked Sendable {
@@ -116,21 +132,34 @@ enum PhotoReader {
 
     static func read(_ image: CGImage) async -> PhotoReadResult {
         guard #available(iOS 27, *), available else { return .failed }
+        return await run(image, timeoutSeconds: timeoutSeconds, gate: gate, model: ModelSessionFactory.onDeviceStatus().variant,
+                         askPerson: { await askPerson($0) }, describe: { await describe($0) })
+    }
+
+    /// One read: the person question first, the description only after a clean no, both within `timeoutSeconds`.
+    /// The gate opens exactly once for this read, when its work ends or at the limit, whichever is first, so a stalled
+    /// model call never blocks the next photo and a late worker never opens a later read's gate. Before each model
+    /// call the worker checks that the read is still wanted (not cancelled, image not released), so an answer that
+    /// comes after the limit starts nothing more. A model call already running keeps its own copy of the image until
+    /// it returns; this code cannot release that copy.
+    static func run(_ image: CGImage, timeoutSeconds: Double, gate: PhotoReadGate, model: String,
+                    askPerson: @escaping @Sendable (CGImage) async -> PersonAnswer?,
+                    describe: @escaping @Sendable (CGImage) async -> PhotoDescription?) async -> PhotoReadResult {
         guard gate.tryStart() else { return .busy }
         let holder = ImageHolder(image)
-        let name = ModelSessionFactory.onDeviceStatus().variant
+        let endOnce = EndOnce(gate)
         let start = Date()
-        // Both questions run in one task, the person question first; the gate opens when that task ends.
         let answer = await Timeout.run(seconds: timeoutSeconds) { () -> (PhotoDescription?, PersonAnswer?) in
-            defer { gate.end() }
-            guard let image = holder.image else { return (nil, nil) }
-            let person = await askPerson(image)
-            guard person == .no else { return (nil, person) }
-            return (await describe(image), person)
+            defer { endOnce.end() }
+            guard !Task.isCancelled, let first = holder.image else { return (nil, nil) }
+            let person = await askPerson(first)
+            guard person == .no, !Task.isCancelled, let second = holder.image else { return (nil, person) }
+            return (await describe(second), person)
         }
         holder.release()
+        endOnce.end()
         guard let (description, person) = answer else { return .failed }
-        return combine(description, person: person, model: name, latencyMs: Date().timeIntervalSince(start) * 1000)
+        return combine(description, person: person, model: model, latencyMs: Date().timeIntervalSince(start) * 1000)
     }
 
     @available(iOS 27, *)

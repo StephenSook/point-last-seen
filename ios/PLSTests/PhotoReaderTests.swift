@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import PLSCore
 import Testing
 @testable import PLS
@@ -27,6 +28,54 @@ import Testing
     @Test func noAnswerToEitherQuestionKeepsNothing() {
         if case .failed = PhotoReader.combine(Self.cap, person: nil, model: "m", latencyMs: 1) {} else { Issue.record("no person answer kept the photo") }
         if case .failed = PhotoReader.combine(nil, person: .no, model: "m", latencyMs: 1) {} else { Issue.record("no description kept the photo") }
+    }
+
+    /// A model call that ignores cancellation, as a stalled one does: it answers after `seconds`, whatever happens.
+    static func stall<T: Sendable>(_ seconds: Double, then value: T) async -> T {
+        await withCheckedContinuation { c in DispatchQueue.global().asyncAfter(deadline: .now() + seconds) { c.resume(returning: value) } }
+    }
+
+    final class Count: @unchecked Sendable { var n = 0 }
+
+    static func onePixel() throws -> CGImage {
+        let ctx = try #require(CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                         space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        return try #require(ctx.makeImage())
+    }
+
+    /// A stalled person question: the read gives up at its limit, keeps nothing, and the next photo can be read.
+    @Test func aStalledReadFreesTheGateAtItsLimit() async throws {
+        let gate = PhotoReadGate()
+        let r = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 0.2, gate: gate, model: "m",
+                                      askPerson: { _ in await Self.stall(2, then: PersonAnswer.no) }, describe: { _ in Self.cap })
+        if case .failed = r {} else { Issue.record("a timed-out read kept the photo") }
+        #expect(gate.tryStart())
+    }
+
+    /// An answer that comes after the limit starts no second model call.
+    @Test func aLateNoStartsNoDescription() async throws {
+        let described = Count()
+        _ = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 0.2, gate: PhotoReadGate(), model: "m",
+                                  askPerson: { _ in await Self.stall(0.5, then: PersonAnswer.no) },
+                                  describe: { _ in described.n += 1; return Self.cap })
+        try await Task.sleep(for: .seconds(1))
+        #expect(described.n == 0)
+    }
+
+    /// The worker that finishes late does not open the gate of a read that started after the limit.
+    @Test func aLateWorkerLeavesTheNextReadsGateAlone() async throws {
+        let gate = PhotoReadGate()
+        _ = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 0.2, gate: gate, model: "m",
+                                  askPerson: { _ in await Self.stall(0.6, then: PersonAnswer.yes) }, describe: { _ in Self.cap })
+        #expect(gate.tryStart())               // the next read holds the gate
+        try await Task.sleep(for: .seconds(1)) // the first worker finishes meanwhile
+        #expect(gate.tryStart() == false)      // and has not opened it
+    }
+
+    @Test func aReadWithinItsLimitDescribesThePhoto() async throws {
+        let r = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 5, gate: PhotoReadGate(), model: "m",
+                                      askPerson: { _ in .no }, describe: { _ in Self.cap })
+        #expect(Self.isDescribed(r, person: false))
     }
 
     @Test func onlyOneReadRunsAtATime() {

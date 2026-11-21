@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a photo read gives up cleanly at its limit and never blocks the next one
+- What: a photo read opens its one-at-a-time gate exactly once, when its work ends or at the 30-second limit,
+  whichever is first, so a stalled model call no longer blocks every later photo until relaunch, and a worker that
+  finishes late cannot open a later read's gate. Before each model call the worker checks that the read is still
+  wanted (not cancelled, image not released), so a late answer starts no second call and holds the image no
+  longer. The read is split into run(), which takes the two model calls as functions.
+- Source: review.
+- Verified: tests with a model call that ignores cancellation (the read gives up and frees the gate; a late no
+  starts no description; a late worker leaves the next read's gate shut) pass, and with the old behaviour put back
+  all three fail; the reader tests pass.
+
 ### docs: LIMITS says what the iPhone photo clue does and what is not verified
 - What: a "Photo clues (iPhone)" section: on-device only and never kept; the separate person question and why a
   dedicated person detector is not used; code compares with the family's items; the evidence protocol; what the
