@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-21T21:24:42Z",
+  "source": {
+    "reads": "route records on every stored report read (incidents/{id}/events/{eventId}.route), each event counted once",
+    "wording": "route records of approved plans (incidents/{id}/plans/{version}.wordingRoute), each distinct record counted once",
+    "spend": "Firebase AI Logic token counts in Cloud Monitoring, priced by scripts/ai_spend.py"
+  },
+  "window": {
+    "from": "2026-11-19T23:22:33Z",
+    "to": "2026-11-21T20:26:05Z"
+  },
+  "reads": {
+    "reads": 124,
+    "onDevice": {
+      "count": 9,
+      "medianMs": 2573.27099609375
+    },
+    "cloud": {
+      "count": 2,
+      "medianMs": 2760.0
+    },
+    "rules": 113,
+    "unknown": 0,
+    "onDeviceShare": 0.82,
+    "byPlatform": {
+      "android": {
+        "onDevice": 0,
+        "cloud": 0,
+        "rules": 1
+      },
+      "ios": {
+        "onDevice": 9,
+        "cloud": 0,
+        "rules": 3
+      },
+      "web": {
+        "onDevice": 0,
+        "cloud": 2,
+        "rules": 109
+      }
+    }
+  },
+  "wordingWindow": {
+    "from": "2026-11-18T12:13:14Z",
+    "to": "2026-11-21T20:24:17Z"
+  },
+  "wording": {
+    "reads": 48,
+    "onDevice": {
+      "count": 0,
+      "medianMs": null
+    },
+    "cloud": {
+      "count": 7,
+      "medianMs": 1347.0
+    },
+    "rules": 41,
+    "unknown": 0,
+    "onDeviceShare": 0.0,
+    "byPlatform": {
+      "web": {
+        "onDevice": 0,
+        "cloud": 7,
+        "rules": 41
+      }
+    }
+  },
+  "spend": {
+    "from": "2026-11-13",
+    "to": "2026-11-21T21:24Z",
+    "usd": 0.1212,
+    "days": 8,
+    "usdPerDay": 0.0152
+  }
+}

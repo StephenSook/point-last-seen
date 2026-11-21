@@ -27,6 +27,31 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   30479df3); `docs/LIMITS.md` counts Android at 113 of 113, the iPhone at 103 and the web at 113. Source: the Android
   port merged. Verified: `scripts/test_phone_vectors.py` passes (6), and the Android port matched the web rule on all
   60,113 notes of a generated corpus (local evidence, not in the repo).
+- Docs: the README's Android row and the production checklist name android-judge-4
+  (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
+  README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
+  judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-4 tag;
+  the hygiene guard passes.
+- Chore(schemas): the content-report schema's web type is built: `shared/schemas/content-report.schema.json` named its
+  TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops
+  "pending:" and the schema parity gate checks it on every run. Source: review (the content-report schema's owner asked
+  for "pending:" to go in whichever PR merged second). Verified: the schema parity gate reports "ok content-report # ts:
+  7 fields" and 0 failures; the hygiene guard passes.
+- Fix(rules): a closedReason copied onto an open incident never blocks its edits: the closedReason clause now applies
+  only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open"
+  (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused.
+  Setting a reason still needs status "closed" and one of the three values. Source: review (Codex: closing the seed
+  drill would make every new practice search refuse ordinary edits). Verified: a new rules test (an open incident
+  carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first;
+  all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+- Feat(rules): command ends a search with one of three reasons: the incident update rule takes an optional
+  `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`.
+  Command could already close an incident; it now says why. A searcher or the family still cannot write the incident,
+  and a closed incident still takes no edits, so its reason stays as written. Source: review (an "End this search"
+  control for command). Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted
+  from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a
+  closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the
+  rules gate and its tests, the gates and the hygiene guard pass.
 - Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
   document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
   command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
@@ -104,6 +129,35 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
+  report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
+  over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
+  file.
+- README, judges paragraph: the judge page's Measured block and where its numbers come from
+  (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
+  is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
+- web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
+  report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
+  --check passes; the numbers are the script's output, not typed.
+- scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
+  route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
+  (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
+  scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
+  on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
+  pass.
+- functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
+  handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
+  Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one
+  not-yet-cleared removed sign-in counted 3 before the fix and counts 2 after, as the live run deletes 2; 362
+  functions and rules tests pass.
+- docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
+  review (claims check).
+- functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
+  their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
+  deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.
+  Source: review (claims check of the privacy policy and LIMITS against retention). Verified: new cases (an idle
+  removed sign-in deleted; one that joined another drill, one used after the close and a person's kept; a dry run
+  counts and deletes nothing) failed first, then pass; 362 functions and rules tests and the typecheck pass.
 - scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
   lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
   probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
@@ -3409,21 +3463,6 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
-
-### feat(rules): command ends a search with one of three reasons
-- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
-- Source: review (an "End this search" control for command).
-- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
-
-### fix(rules): a closedReason copied onto an open incident never blocks its edits
-- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
-- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
-- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
-
-### chore(schemas): the content-report schema's web type is built
-- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
-- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
-- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.
 
 ### fix(data): the phone-number remover keeps a run of times whole
 - What: "The possible times are 14:03, 14:10, 14:17." came out as "The possible times are 14:[number removed].": a time kept its place only after a date, so each time's hour, joined by ", " to the previous time's minutes, counted as joined to other digits and the run was removed. In a search a run of sighting times is evidence. The shared rule (`shared/test-vectors/README.md`) now keeps a time after another kept time too; a time after a dropped one is still dropped, so "Call 1 404 555 01:42" and "Call GA 40455-5014 2:30" are removed as before. Two shared cases: `times_run` (kept whole) and `times_run_then_number` ("Times 14:03, 14:10, 14:17, 404 555 0142" keeps the times and removes the number). Both are pending on Android and the iPhone until they port the rule; the web remover (`web/src/data/phoneNumbers.ts`) follows it now. `docs/LIMITS.md` gives the new counts (105 cases: the web passes 105, Android and the iPhone 103).

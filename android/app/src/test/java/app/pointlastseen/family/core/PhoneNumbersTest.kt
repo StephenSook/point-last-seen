@@ -102,6 +102,19 @@ class PhoneNumbersTest {
         }
     }
 
+    /** A digit between a phone cue and a run of times, written or spoken, never hides the cue. */
+    @Test fun aDigitBetweenACueAndARunOfTimesNeverHidesTheCue() {
+        val spoken = PhoneNumbers.remove("Call one: 4:04 5:55 6:42 tonight")
+        assertFalse(spoken, Regex("[0-9]").containsMatchIn(spoken))
+        assertEquals("Call 5 at [number removed] tonight", PhoneNumbers.remove("Call 5 at 4:04 5:55 06:44 tonight"))
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+    }
+
+    /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
+    @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
+        assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))

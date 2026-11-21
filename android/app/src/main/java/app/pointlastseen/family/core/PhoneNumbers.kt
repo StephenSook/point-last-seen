@@ -133,11 +133,17 @@ object PhoneNumbers {
 
     /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
     private fun cuedRun(s: String, parts: List<Part>, first: Int): Boolean {
+        // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the
+        // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
         var j = first - 1
-        var n = 0
-        while (n < CUE_WINDOW && j >= 0 && parts[j].digits == 0) {
+        var words = 0
+        while (j >= 0 && words < CUE_WINDOW) {
+            if (parts[j].digits > 0) {
+                j--
+                continue
+            }
             if (word(s, parts[j]) in TIME_CUES) return true
-            n++
+            words++
             j--
         }
         return s.substring(if (j >= 0) parts[j].end else 0, parts[first].start).contains('#')
@@ -164,7 +170,10 @@ object PhoneNumbers {
             val last = endsAt[m.range.last + 1] ?: continue
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
                 (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
-            if (joined) continue
+            // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
+            // changes how the rule groups the digits around it, so such a run stays with the text around it.
+            fun month(i: Int) = i in parts.indices && !parts[i].written && word(folded, parts[i]) in MONTHS
+            if (joined || month(first - 1) || month(last + 1)) continue
             val minutes = CLOCK_TIME.findAll(m.value).map { it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }.toList()
             val inOrder = minutes.zipWithNext().all { (a, b) -> b >= a }
             out.append(removeByRule(folded.substring(from, m.range.first)))
