@@ -141,11 +141,12 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
           <p className="muted small">
             ISRID dementia, temperate (Lost Person Behavior p. 164): found {pct(ELEVATION_PARAMS.temperate.down)} downhill,{" "}
             {pct(ELEVATION_PARAMS.temperate.level)} about level and {pct(ELEVATION_PARAMS.temperate.up)} uphill of the point last
-            seen; no n printed. About level means within {ELEVATION_PARAMS.levelBandM} m of the start segment (our rule; the
+            seen; the source prints no sample size. About level means within {ELEVATION_PARAMS.levelBandM} m of the start segment (our rule; the
             source gives none).{elevationWhyNot}
           </p>
         </div>
       )}
+      {model === "walkers" && <p className="muted small">These apply when the prior is rebuilt as rings.</p>}
       {vehicleInvolved && <p>Vehicle involved: these distances assume travel on foot.</p>}
       {changed && (
         <div className="suggested">

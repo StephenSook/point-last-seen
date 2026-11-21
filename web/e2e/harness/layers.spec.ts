@@ -115,7 +115,7 @@ test("with one, the elevation switch is off, names its source, and asks before i
   const s = page.getByRole("region", { name: "Prior" });
   const sw = s.getByRole("switch", { name: "Downhill and level ground" });
   await expect(sw).not.toBeChecked();
-  await expect(s).toContainText("ISRID dementia, temperate (Lost Person Behavior p. 164): found 42% downhill, 39% about level and 19% uphill of the point last seen; no n printed.");
+  await expect(s).toContainText("ISRID dementia, temperate (Lost Person Behavior p. 164): found 42% downhill, 39% about level and 19% uphill of the point last seen; the source prints no sample size.");
   await expect(s).toContainText("About level means within 3 m of the start segment (our rule; the source gives none).");
   await sw.click();
   await expect(s).toContainText("Rebuild the prior? Every team's map and match code change.");
@@ -154,5 +154,12 @@ test("a saved elevation layer whose file no longer loads still shows, so command
   await sw.click();
   await s.getByRole("button", { name: "Rebuild prior" }).click();
   await expect(page.getByTestId("applied")).toHaveText('{"linear":true,"wedge":false,"elevation":false} temperate_flat');
+});
+
+test("under the walkers model the switches say they apply when the prior is rebuilt as rings", async ({ page }) => {
+  await page.goto("/harness/layers.html?model=walkers");
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("These apply when the prior is rebuilt as rings.");
+  await page.goto("/harness/layers.html");
+  await expect(page.getByRole("region", { name: "Prior" })).not.toContainText("These apply when the prior is rebuilt as rings.");
 });
 

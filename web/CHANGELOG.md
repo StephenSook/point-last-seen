@@ -2101,3 +2101,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `rebuildPrior` refuses a segment list in which a segment names a neighbour, upstream or downstream segment that is not in the list ("The map's segments have not all loaded yet."). A cached snapshot can hold only some segments, and the listener drops a document with unreadable geometry; a confirm from either would have saved a new prior version over part of the grid and left the rest on the old prior. Both shipped grids are closed and connected (no dangling names; neighbours symmetric), so any partial set is caught.
 - Source: review (cross-family, high).
 - Verified: a new test failed first ("expected [Function] to throw"), then passes: a linked 9-segment grid rebuilds, 8 of its 9 are refused, and dangling upstream or downstream names are refused; 1039 web unit tests, typecheck, 179 harness checks, the build and 43 no-backend browser checks pass; closure and connectivity checked on shared/grid/*.grid.json.
+
+### fix(command): the Prior panel says its switches are rings settings under walkers
+- What: with the walkers prior in use, the Prior panel adds "These apply when the prior is rebuilt as rings.", since the stored layers (elevation included) are kept for the rings rebuild. The elevation line says "the source prints no sample size" instead of "no n printed"; LIMITS matches.
+- Source: review (web lane ruling).
+- Verified: the new harness check failed first without the line, then passes (17 in layers.spec.ts).

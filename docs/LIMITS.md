@@ -98,7 +98,7 @@ each line says what the limit is and why.
   source line for the layer says so.
 - The elevation layer, "Downhill and level ground", is off by default. When on, the grid's mass sits 42% downhill,
   39% about level and 19% uphill of the start segment: the ISRID dementia split for temperate terrain (Koester, Lost
-  Person Behavior p. 164). The source prints no n for this table and does not define "same", so "about level" as
+  Person Behavior p. 164). The source prints no sample size for this table and does not define "same", so "about level" as
   within 3 m of the start segment is ours. The layer is not used on urban terrain, for which the source has no split;
   choosing the urban table turns it off. It needs each segment's elevation, so the switch shows only on a site with an
   elevation file (the Kennesaw drill grid; the development grid and the judge practice search have none), and a
