@@ -2,13 +2,22 @@
 // coat by the creek" as the person found: the command post then says Found, and the coat's clue value is lost. When
 // the note says an object was found and nothing in it says the person was, the reading becomes a clue, its item and
 // place read from the note the way the phones' rules parser reads them (ReportParser), and the reason is returned for
-// the UI and the receipt. Any other reading comes back unchanged: a possible person-found is never downgraded.
+// the UI and the receipt. Any other reading comes back unchanged. A person-found note read as a clue is the one wrong
+// answer that must never happen, so any word that could mean the person was found keeps the reading as it is.
 import type { Feature, ReportReading } from "./types";
 
 export const FOUND_AS_CLUE_REASON = "Read as a clue: an object was found, not the person.";
 
-// The rules parser's subject words, then words that only a person found would bring.
-const PERSON_WORDS = new Set(["him", "her", "them", "subject", "person", "patient", "located", "safe", "breathing"]);
+// Words that could mean the person was found: pronouns and the rules parser's subject words, words for a person, the
+// person's state, and the response to a found person. "her" is also a possessive: see possessiveHer.
+const PERSON_WORDS = new Set([
+  "he", "she", "they", "him", "her", "them", "subject", "person", "patient",
+  "man", "woman", "lady", "gentleman", "guy", "boy", "girl", "child", "kid", "baby", "toddler", "teen", "mr", "mrs", "ms",
+  "sir", "body", "victim",
+  "located", "safe", "alive", "conscious", "unconscious", "awake", "alert", "responsive", "unresponsive", "talking",
+  "breathing", "hurt", "injured", "bleeding", "ok", "okay", "fine", "dead", "deceased", "hypothermic", "rescued",
+  "ambulance", "ems", "medic", "medics", "paramedic", "paramedics", "911", "hospital", "cpr",
+]);
 const PERSON_PHRASES = [["with", "us"]];
 // Things a person drops or leaves behind. A "found a man" or "found a woman" is not one, so it is never corrected.
 const OBJECTS = new Set([
@@ -17,7 +26,8 @@ const OBJECTS = new Set([
   "boot", "boots", "sandal", "sandals", "sock", "socks", "sweater", "hoodie", "shirt", "blanket", "umbrella", "watch",
   "bracelet", "card", "cards", "belt", "hearing", "aid", "dentures", "pill", "pills", "medication", "bottle",
 ]);
-const DETERMINERS = new Set(["a", "an", "some", "the"]);
+// The rules parser's determiners after "found", and the possessives ("found his glasses", "found her coat").
+const DETERMINERS = new Set(["a", "an", "some", "the", "his", "their"]);
 // The rules parser's words that end an item, and its place words.
 const STOP_WORDS = new Set(["by", "near", "in", "on", "at", "under", "next", "beside", "and", "with", "from", "to", "of", "heading", "close"]);
 const FEATURES: [Feature, string[]][] = [
@@ -32,25 +42,41 @@ const FEATURES: [Feature, string[]][] = [
 ];
 const ITEM_MAX = 40;
 
-function words(text: string): string[] {
-  return (text.match(/[\p{L}\p{N}]+/gu) ?? []).map((w) => w.toLowerCase());
+type Token = { word: string; start: number; end: number };
+
+/** Runs of letters and digits, lowercased, with where each sits in the note ("she's" is "she" and "s"). */
+function tokens(text: string): Token[] {
+  const out: Token[] = [];
+  const re = /[\p{L}\p{N}]+/gu;
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) out.push({ word: m[0].toLowerCase(), start: m.index, end: m.index + m[0].length });
+  return out;
 }
 
-/** The words after the first "found a/an/some/the", up to three, stopping at a place word or a number. */
-function foundItem(w: readonly string[]): string[] {
-  for (let i = 0; i + 1 < w.length; i++) {
-    if (w[i] !== "found" || !DETERMINERS.has(w[i + 1]!)) continue;
+function words(text: string): string[] {
+  return tokens(text).map((t) => t.word);
+}
+
+/** "her" right before a known object with only spaces between ("her coat"), so not the person ("found her, coat"). */
+function possessiveHer(t: readonly Token[], i: number, note: string): boolean {
+  const next = t[i + 1];
+  return t[i]!.word === "her" && next !== undefined && OBJECTS.has(next.word) && /^\s+$/.test(note.slice(t[i]!.end, next.start));
+}
+
+/** The words after the first "found a/an/some/the/his/their/her", up to three, stopping at a place word or a number. */
+function foundItem(t: readonly Token[], note: string): string[] {
+  for (let i = 0; i + 1 < t.length; i++) {
+    if (t[i]!.word !== "found" || !(DETERMINERS.has(t[i + 1]!.word) || possessiveHer(t, i + 1, note))) continue;
     const out: string[] = [];
-    for (let j = i + 2; j < w.length && out.length < 3 && !STOP_WORDS.has(w[j]!) && /^\p{L}/u.test(w[j]!); j++) out.push(w[j]!);
+    for (let j = i + 2; j < t.length && out.length < 3 && !STOP_WORDS.has(t[j]!.word) && /^\p{L}/u.test(t[j]!.word); j++) out.push(t[j]!.word);
     if (out.length > 0) return out;
   }
   return [];
 }
 
-function personFound(w: readonly string[], names: readonly string[]): boolean {
+function personFound(t: readonly Token[], note: string, names: readonly string[]): boolean {
   const nameWords = new Set(names.flatMap(words));
-  if (w.some((x) => PERSON_WORDS.has(x) || nameWords.has(x))) return true;
-  return PERSON_PHRASES.some((p) => w.some((_, i) => p.every((x, k) => w[i + k] === x)));
+  if (t.some((x, i) => nameWords.has(x.word) || (PERSON_WORDS.has(x.word) && !possessiveHer(t, i, note)))) return true;
+  return PERSON_PHRASES.some((p) => t.some((_, i) => p.every((x, k) => t[i + k]?.word === x)));
 }
 
 /**
@@ -60,9 +86,9 @@ function personFound(w: readonly string[], names: readonly string[]): boolean {
 export function correctFoundKind(reading: ReportReading, note: string, names: readonly string[]): { reading: ReportReading; corrected: boolean; reason: string | null } {
   const unchanged = { reading, corrected: false, reason: null };
   if (reading.kind !== "found") return unchanged;
-  const w = words(note);
-  const item = foundItem(w);
-  if (!item.some((x) => OBJECTS.has(x)) || personFound(w, names)) return unchanged;
-  const feature = FEATURES.find(([, place]) => w.some((x) => place.includes(x)))?.[0] ?? "none";
+  const t = tokens(note);
+  const item = foundItem(t, note);
+  if (!item.some((x) => OBJECTS.has(x)) || personFound(t, note, names)) return unchanged;
+  const feature = FEATURES.find(([, place]) => t.some((x) => place.includes(x.word)))?.[0] ?? "none";
   return { reading: { ...reading, kind: "clue", item: item.join(" ").slice(0, ITEM_MAX), feature }, corrected: true, reason: FOUND_AS_CLUE_REASON };
 }

@@ -38,6 +38,27 @@ describe("a found reading checked against its note (shared/test-vectors/found-ki
     expect(reading).toEqual({ ...BLANK, kind: "found" });
   });
 
+  // A person-found note read as a clue is the one wrong answer that must never happen: every found object beside every
+  // way a note says the person was found stays found.
+  it("never corrects a note that also says the person was found, in any of many phrasings", () => {
+    const objects = ["a coat", "a jacket", "the walker", "a shoe", "a cane", "some keys", "the glasses", "a backpack", "her coat", "his hat"];
+    const people = [
+      "she is sitting by the creek", "he is talking to us", "they are alive", "she's conscious", "the woman is hurt",
+      "ambulance on the way", "she is ok", "he is okay", "she is fine", "he is awake", "she is responsive", "he is injured",
+      "EMS on scene", "medic with him", "called 911 for her", "the man is cold but breathing", "a lady is with us",
+      "he is dead", "she was located", "the subject is safe", "taking him to the hospital", "paramedics have them",
+    ];
+    for (const o of objects) {
+      for (const p of people) {
+        for (const note of [`Found ${o}, ${p}`, `Found ${o} and ${p}`, `Found ${o}. ${p}`]) {
+          const out = correctFoundKind({ ...BLANK, kind: "found" }, note, []);
+          expect(out.corrected, note).toBe(false);
+          expect(out.reading.kind, note).toBe("found");
+        }
+      }
+    }
+  });
+
   it("each case's parserKind is what the phones' rules parser gives the note", () => {
     for (const c of cases) expect(parserKind(c.note), c.name).toBe(c.parserKind);
   });

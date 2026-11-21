@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Engine: correctFoundKind keeps every note that could say the person was found. It now also treats as person-found
+  he, she, they; words for a person (man, woman, lady, child, body, ...); the person's state (alive, conscious, awake,
+  talking, hurt, injured, ok, fine, dead, ...); and the response to them (ambulance, EMS, medic, paramedics, 911,
+  hospital, CPR). It also reads possessive his, their and her as determiners, so "Found her coat by the creek" and
+  "Found his glasses on the trail" become clues; "her" counts as a possessive only when spaces alone separate it
+  from a known object, so "Found her, coat nearby" and "Found her blue coat" stay found. found-kind.json gains 12
+  cases. Source: review (seven person-found notes, such as "Found a coat, she is sitting by the creek", came back
+  as clues). Verified: the new cases and a check that 660 notes pairing a found object with a way of saying the
+  person was found are never corrected failed first (10 of 31 tests), then passed; the engine's 344 tests,
+  typecheck and lint pass; the web's unit tests and CI's Python gates pass.
 - Engine: correctFoundKind(reading, note, names) in `shared/engine-ts/src/found.ts` runs found-kind.json. A `found`
   reading becomes a clue when the note has "found a/an/some/the" then a known object and no word says the person was
   found (him, her, them, subject, person, patient, located, safe, breathing, "with us", or a word of the profile's
