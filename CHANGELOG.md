@@ -77,6 +77,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs/evidence/isrid-dementia-p164.md gains the elevation table as printed (temperate uphill 19%, down 42%, same 39%;
+  dry 50%, 38%, 13%; medians 75 and 60 ft temperate, 317 and 187 ft dry), says what the source does not give (no n, no
+  band for Same, no urban column), and that the temperate shares are the engine's elevation layer. Source: review.
+  Verified against the publisher's sample PDF text.
 - Engine: an elevation prior layer, off by default (PriorLayers.elevation). elevationWeights matches the reference's
   vectors; buildPrior applies it last, from the start's and each segment's elevation (SegmentElevations), keeps ROW,
   and refuses urban terrain and a site with no elevations. Engine params gain elevation (temperate shares SOURCED to
