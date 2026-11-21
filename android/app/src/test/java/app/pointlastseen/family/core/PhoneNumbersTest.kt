@@ -49,7 +49,7 @@ class PhoneNumbersTest {
             val out = PhoneNumbers.remove(note)
             assertFalse(out, out.contains("79460958"))
         }
-        assertEquals("GPS 0.1276, 51.5072", PhoneNumbers.remove("GPS 0.1276, 51.5072"))
+        assertEquals("GPS 0.1276, -51.5072", PhoneNumbers.remove("GPS 0.1276, -51.5072"))
     }
 
     /**
@@ -62,6 +62,27 @@ class PhoneNumbersTest {
             assertFalse(out, out.contains("404") || out.contains("555") || out.contains("1234567"))
         }
         assertEquals("Radio 27.185 155.160 462.550", PhoneNumbers.remove("Radio 27.185 155.160 462.550"))
+    }
+
+    /**
+     * Two decimals are a coordinate pair only with the western minus between them, 4 to 7 decimals each, and no phone cue
+     * just before: Mexican 10-digit numbers in dot form go.
+     */
+    @Test fun mexicanNumbersInDotFormAreNoCoordinatePair() {
+        for (note in listOf("Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496",
+            "33.12345678 / -81.12345678")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("12345678") || out.contains("87654321"))
+        }
+        for (note in listOf("Call 33.7490, -84.3880", "Call: 33.7490, -84.3880", "Llame al 33.7490, -84.3880", "#33.7490, -84.3880")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("7490") || out.contains("3880"))
+        }
+        // A cue further back names a thing, not a number to dial: the place a phone was found stays.
+        for (note in listOf("GPS 33.7490, -84.3880", "Punto 19.4326, -99.1332", "Last seen 33.7490 -84.3880",
+            "Phone found at 33.7866, -84.3733")) {
+            assertEquals(note, PhoneNumbers.remove(note))
+        }
     }
 
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
@@ -308,7 +329,7 @@ class PhoneNumbersTest {
     /** An indent after a line break is no coordinate gap: a number split across lines is never read as a pair. */
     @Test fun anIndentedLineBreakIsNoCoordinateGap() {
         assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call +44.2071\r\n    -23.4567"))
-        assertEquals("GPS 33.7490,\r\n 84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n 84.3880 x"))
+        assertEquals("GPS 33.7490,\r\n -84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n -84.3880 x"))
     }
 
     /** A wider gap of separators alone (spaces, dashes, dots) still joins the groups of one number. */

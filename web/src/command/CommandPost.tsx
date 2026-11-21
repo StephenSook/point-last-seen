@@ -23,7 +23,7 @@ import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
 import { readStoredPhotoInCloud } from "../photos/cloudRead";
-import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
+import { WORDING_WAIT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
 import { NOTE_READ_TIMEOUT_MS, readSightingText, readSightingTextInCloud } from "../ai/sightingText";
@@ -437,7 +437,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const suggest = (): Promise<WordedPlan> => {
     if (!draft) return Promise.reject(new Error("no draft"));
     const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb, draft.assignments.map((a) => a.teamId));
-    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
+    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: WORDING_WAIT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
       // A model asked whose answer was not used is traced on its own, so it is never hidden behind the fixed wording.
       if (w.attempt) traced(w.attempt.route);
       traced(w.route);
