@@ -11,6 +11,12 @@ each line says what the limit is and why.
   and the debug provider (the debug APK reports 5).
 - An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
   and the rules require 31 to 33 days, so the consent and the upload are refused.
+- Apple's terms for its on-device model forbid "official use in connection with law enforcement or criminal
+  justice" and decisions "without human supervision that have a material impact on individual rights, in high-risk
+  domains" (Acceptable use requirements for the Foundation Models framework). The iPhone app reads a report with
+  Apple's model or Gemini only in a drill or judge incident (`ios/PLSCore/Sources/PLSCore/ReadPlan.swift`; any
+  other incident is read by rules), and a person at command approves every assignment change. We CANNOT VERIFY that
+  Apple permits its model's use on an official search, so this build is for training drills.
 - The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules. The app installs from
   iOS 26.0, but the cloud route runs Gemini in a Foundation Models session (`ai.geminiLanguageModel(name:)`),
   which iOS 26 does not have, so the reader keeps the cloud off there. The iOS 26.5 simulator runs the app's tests

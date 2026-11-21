@@ -66,6 +66,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS: Apple's Foundation Models acceptable-use terms, quoted (no official use in connection with law enforcement
+  or criminal justice; no decisions without human supervision with a material impact on individual rights in high-risk
+  domains); the iPhone reads with a model only in drill and judge incidents (ReadPlan.swift) and command approves
+  every assignment change; we cannot verify Apple permits use on an official search. Source: review. Verified: both
+  quotes word for word from Apple's Acceptable use requirements for the Foundation Models framework page (read
+  2026-11-21); ReadPlan.modelModes is drill and judge.
 - Production checklist: the minimum_version_android item no longer waits for the repo to go public on 2026-11-28; the
   repo is public and /releases/latest opens the android-judge release with its APK, so the key is raised only when a
   newer release APK is published. Source: review. Verified: /releases/latest answers 200 and resolves to
