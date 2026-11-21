@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Vectors README: the found-kind.json section now lists the full rule (determiners including possessives, every
+  kind of person-found word, when "her" is a possessive) and every way the rules parser's kind differs from the
+  rule's, with the line that a platform follows `kindOut`. Source: review. Verified: hygiene guard and CI's Python
+  gates pass.
 - Engine: correctFoundKind keeps every note that could say the person was found. It now also treats as person-found
   he, she, they; words for a person (man, woman, lady, child, body, ...); the person's state (alive, conscious, awake,
   talking, hurt, injured, ok, fine, dead, ...); and the response to them (ambulance, EMS, medic, paramedics, 911,

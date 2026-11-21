@@ -207,21 +207,32 @@ from the video frames, with no note and no profile in the request (no server pro
 A model can read "Found a blue coat by the creek in BO" as the person found. A found event moves no probability and
 the command post labels it Found, so the coat's clue value is lost and a commander reads Found. After grounding,
 each platform that reads a report's kind checks a `found` reading against its note with `correctFoundKind` in
-`shared/engine-ts/src/found.ts`: when the note has "found a", "found an", "found some" or "found the" followed by a
-known object (coat, shoe, glasses, keys, ...), and no word says the person was found (the rules parser's subject
-words him, her, them, subject, person, patient; located, safe, breathing, "with us"; or a word of one of the
-profile's names), the reading becomes a clue. Its item is up to three words after the determiner and its feature
-comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
-(`reason`, `FOUND_AS_CLUE_REASON`) is shown in the UI and the receipt. Any other reading comes back unchanged, so a
-possible person-found is never downgraded.
+`shared/engine-ts/src/found.ts`. The reading becomes a clue only when both hold:
+
+- The note has "found" then a determiner (a, an, some, the, his, their, or a possessive her) then a known object
+  (coat, shoe, glasses, keys, ...).
+- No word could mean the person was found: a pronoun (he, she, they, him, her, them), the rules parser's subject
+  words (subject, person, patient), a word for a person (man, woman, lady, child, body, ...), the person's state
+  (located, safe, alive, conscious, awake, talking, breathing, hurt, injured, ok, fine, dead, ...), the response to
+  them (ambulance, EMS, medic, paramedics, 911, hospital, CPR), "with us", or a word of one of the profile's names.
+  A contraction counts by its first part ("she's" is she).
+
+"her" is a possessive only when spaces alone separate it from a known object: "Found her coat by the creek" becomes a
+clue, while "Found her, coat nearby" and "Found her blue coat" stay found. Item is up to three words after the
+determiner and feature comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
+(`reason`, `FOUND_AS_CLUE_REASON`) is shown in the UI and the receipt. Any other reading comes back unchanged: a
+person-found note read as a clue is the one wrong answer that must never happen, so the rule leaves a reading alone
+whenever it is unsure.
 
 - `cases[]`: `{ name, note, names, kindIn, kindOut, item?, feature?, corrected, parserKind }`. Give a blank reading
   of kind `kindIn`, check it against `note` and the profile's `names`, and expect kind `kindOut` and `corrected`;
-  a corrected case also expects `item` and `feature`, and an unchanged one the reading as given.
-- `parserKind` is what the phones' rules parser (`ReportParser.kind`) gives the same note. It equals `kindOut`
-  except where the rule is deliberately more careful than the parser: the parser reads no profile names ("Found Mr.
-  Lee", `unclear`), calls "found a man" a clue, and does not read safe, breathing or "with us". The engine test checks
-  each `parserKind` against a copy of the parser's rule.
+  a corrected case also expects `item` and `feature`, and an unchanged one the reading as given. The engine test
+  also checks that 660 notes pairing a found object with a way of saying the person was found are never corrected.
+- `parserKind` is what the phones' rules parser (`ReportParser.kind`) gives the same note, checked by the engine test
+  against a copy of the parser's rule. It differs from `kindOut` on purpose: the parser reads no profile names
+  ("Found Mr. Lee", `unclear`); it calls "found a man", "found a coat, she is sitting by the creek" and other notes
+  that also name the person a clue; it reads "Found her coat by the creek" as the person found and "Found his glasses
+  on the trail" as `unclear`. A platform follows `kindOut`, not its parser's kind.
 
 Where it applies: the iPhone, whose searcher reads produce a kind. The web and the Android family app never produce
 kind `found` from a model; the web runs the vector against the engine.
