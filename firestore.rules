@@ -106,11 +106,16 @@ service cloud.firestore {
       // (incident cleanup does). The engine never reads it.
       match /debriefs/{segmentId} {
         function debriefOk(d) {
-          return d.keys().hasOnly(['tookMinutes', 'worked', 'didNotWork', 'byUid', 'createdAt', 'clearedEventId'])
+          return d.keys().hasOnly(['tookMinutes', 'worked', 'didNotWork', 'coverageStatedPct', 'clues', 'hazards', 'byUid',
+              'createdAt', 'clearedEventId'])
             && d.keys().hasAll(['tookMinutes', 'byUid', 'createdAt'])
             && d.tookMinutes is int && d.tookMinutes >= 0 && d.tookMinutes <= 1440
             && (!('worked' in d) || (d.worked is string && d.worked.size() <= 500))
             && (!('didNotWork' in d) || (d.didNotWork is string && d.didNotWork.size() <= 500))
+            // What the team stated on its sheet: a record for people; the engine never reads it.
+            && (!('coverageStatedPct' in d) || (d.coverageStatedPct is int && d.coverageStatedPct >= 0 && d.coverageStatedPct <= 100))
+            && (!('clues' in d) || (d.clues is string && d.clues.size() <= 500))
+            && (!('hazards' in d) || (d.hazards is string && d.hazards.size() <= 500))
             && (!('clearedEventId' in d) || d.clearedEventId == null
                 || (d.clearedEventId is string && d.clearedEventId.matches('^[0-9a-f]{32}$')));
         }
