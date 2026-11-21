@@ -105,7 +105,7 @@ describe("removePhoneNumbers: any punctuation or symbol between digit groups joi
   // Kept before this rule: only spaces, - . , ( ) / and dashes joined a number's groups.
   const split = [
     "404 555\u00b70142", "404\u00b7555\u00b70142", "404 \u00b7 555 \u00b7 0142", "404\u2027555\u20270142",
-    "404\u2022555\u20220142", "404_555_0142", "404*555*0142", "404 | 555 | 0142",
+    "404\u2022555\u20220142", "404_555_0142", "404*555*0142",
   ];
   it.each(split)("removes %j and keeps the words around it", (n) => {
     const out = removePhoneNumbers(`Call ${n} tonight`);
@@ -120,8 +120,10 @@ describe("removePhoneNumbers: any punctuation or symbol between digit groups joi
       expect(removePhoneNumbers(`Call ${n} tonight`)).toBe(`Call ${REPLACEMENT} tonight`);
     }
   });
-  it("never joins across a time's colon, a percent or a degree", () => {
-    for (const t of ["GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%", "Seen 14:03 14:30"]) {
+  it("never joins across a time's colon, a percent, a degree, or a semicolon, bar, ! or ? that ends a field", () => {
+    for (const t of ["GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%", "Seen 14:03 14:30",
+      "GPS 33.7490; -84.3880", "Seen 2026-11-19; 3 searchers", "Radio 155.160 | 154.205", "Check-ins 08:30; 11:45; 14:03",
+      "Seen 2026-11-19? 3 searchers", "Seen 2026-11-19! 3 searchers"]) {
       expect(removePhoneNumbers(t)).toBe(t);
     }
   });
