@@ -47,7 +47,8 @@ fun StatusScreen(
         if (pending > 0) Note(if (pending == 1) "1 item waiting to send." else "$pending items waiting to send.")
         if (rejected > 0) {
             Note(if (rejected == 1) "1 item was not accepted." else "$rejected items were not accepted.")
-            OtherAction("Try again", onClick = onRetry)
+            // An ended search takes nothing again, so there is nothing to try.
+            if (open) OtherAction("Try again", onClick = onRetry)
         }
         if (open) {
             OtherAction("Someone saw them") { onOpen(Screen.SIGHTING) }
