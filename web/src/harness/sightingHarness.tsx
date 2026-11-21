@@ -22,6 +22,8 @@ function Harness() {
   const quote = new URLSearchParams(location.search).get("quote") ?? "";
   // ?read=cloud: no laptop model; after the consent tap the cloud answers (top red) with its route and size.
   const cloud = new URLSearchParams(location.search).get("read") === "cloud";
+  // ?lang=other: the cloud read's language screen refuses the note.
+  const notEnglish = new URLSearchParams(location.search).get("lang") === "other";
   // ?read=timeout: the laptop's model does not answer within the read's time limit.
   const timeout = new URLSearchParams(location.search).get("read") === "timeout";
   return (
@@ -44,7 +46,9 @@ function Harness() {
               : async () => ({ refused: "no-on-device-model" })
         }
         readNoteInCloud={async (text) =>
-          cloud
+          notEnglish
+            ? { refused: "not-english" as const }
+            : cloud
             ? {
                 reading: { direction: "unknown", topColor: "red", bottomColor: "unknown", footwear: "", carried: "", evidenceQuote: "" },
                 route: { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read", latencyMs: 800, sdkReported: true, blocked: null, decidedAtMs: 0 },

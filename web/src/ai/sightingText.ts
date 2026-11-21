@@ -7,7 +7,7 @@
 // This file never counts tokens (rules gate): that path calls the cloud.
 
 import { InferenceMode, type HybridParams, type LanguageModelCreateOptions } from "firebase/ai";
-import { groundReading, isPossibleEvidence, validateReading, type ClothingColor, type Direction, type ReportReading } from "@pls/engine";
+import { groundReading, isPossibleEvidence, looksEnglish, validateReading, type ClothingColor, type Direction, type ReportReading } from "@pls/engine";
 import readingSchema from "../../../shared/schemas/report-reading.schema.json";
 import { removePhoneNumbers } from "../data/sightings";
 import { onDeviceCreateOptions } from "./gate";
@@ -130,8 +130,11 @@ export async function readSightingTextInCloud(
   text: string,
   consent: CloudConsent | null,
   deps: CloudSightingDeps,
-): Promise<{ reading: SightingCues; sentBytes: number } | { refused: "possible-evidence" | "cloud-paused" | "not-in-cloud" | "invalid" }> {
+): Promise<{ reading: SightingCues; sentBytes: number } | { refused: "possible-evidence" | "cloud-paused" | "not-in-cloud" | "invalid" | "not-english" }> {
   if (!consent || !consent.byUid || !Number.isFinite(consent.atMs)) throw new Error("A cloud read needs a consent tap for this note.");
+  // The language screen reads the note exactly as typed: removing a number writes "[number removed]", English words
+  // that could make a note in another language pass.
+  if (!looksEnglish(text)) return { refused: "not-english" };
   const note = removePhoneNumbers(text);
   if (isPossibleEvidence(note)) return { refused: "possible-evidence" };
   if (deps.killCloud) return { refused: "cloud-paused" };
