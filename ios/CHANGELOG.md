@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the reader checks the report's mission is still current before every model call
+- What: a read can be given a still-current check (same incident, team and mode as when the report was made). It is
+  run right before every model call, on the phone and in the cloud; once it fails, no model runs and rules read the
+  rest, with the route saying the incident is not in a mode where a model may read.
+- Source: review (a switch to a live search while a report waited could still start a model call).
+- Verified: a test with the check already failing (no model call at all) and one where it fails during the on-device
+  call (no plain-text call after it) failed to compile before the change and pass after; all 418 core tests pass.
+
 ### fix(ios-core): an item's colors all count together, however the family joined them
 - What: a profile field is split into items at "and" and "with", but a piece that names no item now stays with its
   neighbour, so "red and blue cap" and "red cap with a blue brim" are each one item with two colors, and a one-color
