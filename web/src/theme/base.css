@@ -224,7 +224,7 @@ button, input, select { font: inherit; color: inherit; }
 fieldset.facing, fieldset.consents { border: 0; padding: 0; margin: 0; display: grid; gap: 2px; }
 fieldset.facing { grid-template-columns: repeat(3, auto); }
 .flags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.flags p { margin: 0; }
+.flags p { margin: 0; overflow-wrap: anywhere; }
 fieldset.end-search { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 fieldset.end-search label.check { display: flex; gap: 6px; align-items: center; min-height: 28px; }
 .sighting-form label.check { display: flex; gap: 6px; align-items: center; }

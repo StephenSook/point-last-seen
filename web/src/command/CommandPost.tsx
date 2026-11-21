@@ -45,7 +45,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { subscribeFlags, type Flag } from "../data/contentReports";
+import { flagTarget, subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
@@ -409,9 +409,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
-  // What searchers and family flagged with Report a problem; a searcher is named by the team its reports carry.
+  // What searchers and family flagged with Report a problem; a searcher is named by the team its reports carry. A
+  // refused read keeps the flags and says they may be out of date.
   const [flags, setFlags] = useState<Flag[]>([]);
-  useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags)), [pls, incidentId, denied]);
+  const [flagsStale, setFlagsStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags, () => setFlagsStale(true))), [pls, incidentId, denied]);
+  const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const flagAuthor = (uid: string, role: Flag["role"]) => {
     if (role === "family") return "Family member";
     const teamId = events.find((e) => e["authorUid"] === uid)?.["teamId"];
@@ -849,7 +852,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
         <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
-          <FlagsPanel flags={flags} labelFor={flagAuthor} timeOf={(ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} />
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, flagClock)} timeOf={flagClock} />
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
