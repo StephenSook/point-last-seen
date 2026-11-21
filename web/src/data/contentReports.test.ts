@@ -64,4 +64,9 @@ describe("content reports, second round", () => {
     expect(latestTeamOf("u1", events)).toBe("T2");
     expect(latestTeamOf("nobody", events)).toBeNull();
   });
+  it("falls back to the plain words for a report time outside the date range", async () => {
+    const { flagTarget } = await import("./contentReports");
+    const ev = { eventId: "a".repeat(32), clientTimeMs: 9e18, reading: { segmentIds: ["AE"] } };
+    expect(flagTarget(reportFromDoc("r", doc())!, [ev], [], (ms) => new Date(ms).toISOString())).toBe("a report");
+  });
 });

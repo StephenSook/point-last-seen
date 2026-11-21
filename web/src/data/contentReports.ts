@@ -61,10 +61,11 @@ export function flagTarget(f: Flag, events: readonly Readonly<Record<string, unk
   timeOf: (ms: number) => string): string {
   if (f.target === "event") {
     const e = events.find((x) => x["eventId"] === f.targetId);
-    if (!e || typeof e["clientTimeMs"] !== "number") return TARGET_WORDS.event;
-    const seg = (e["reading"] as { segmentIds?: unknown } | null | undefined)?.segmentIds;
+    const ms = e?.["clientTimeMs"];
+    if (typeof ms !== "number" || !Number.isFinite(new Date(ms).getTime())) return TARGET_WORDS.event;
+    const seg = (e!["reading"] as { segmentIds?: unknown } | null | undefined)?.segmentIds;
     const where = Array.isArray(seg) && typeof seg[0] === "string" ? ` in segment ${seg[0]}` : "";
-    return `a report from ${timeOf(e["clientTimeMs"])}${where}`;
+    return `a report from ${timeOf(ms)}${where}`;
   }
   if (f.target === "task") {
     const p = plans.find((x) => planDocId(x.version) === f.targetId);

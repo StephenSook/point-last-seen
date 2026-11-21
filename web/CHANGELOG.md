@@ -2401,3 +2401,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the author label picked the report with the largest phone time, so a phone clock set back between a Team 1 report and a newer Team 2 report kept the old team, and a report with no time stopped every later match. `latestTeamOf` in `web/src/data/contentReports.ts` orders by server time, then the report's own time, and skips reports with neither; the command post uses it.
 - Source: review (Codex, second round: the team lookup can keep the old team after a rejoin).
 - Verified: a new unit test in `contentReports.test.ts` (a skewed phone clock and a report with no time) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(command): a flagged report is named to the second, and never as "Invalid Date"
+- What: two reports from one segment in the same minute were both named "a report from 14:03 in segment AE", so with no note command still could not tell which was flagged; the command post now names a flagged report to the second ("14:03:07"). A report time outside the date range now falls back to "a report" instead of "a report from Invalid Date".
+- Source: review (Codex, second round: same-minute reports get identical labels; an out-of-range time renders as Invalid Date).
+- Verified: a new unit test in `contentReports.test.ts` (an out-of-range time gives the plain words) failed first, then passed with the file (8); typecheck and the hygiene guard pass.
