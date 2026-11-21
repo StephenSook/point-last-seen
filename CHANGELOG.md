@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone corpus generator: `tools/vectors/phone_corpus.ts` builds the shared phone-number corpus (every shared case's
+  input, then 9,000 notes from a fixed mulberry32 seed, each with the web rule's output), leaning on runs of times
+  beside cues, digits, spoken digits, months and street names, and on combining marks, variation selectors, keycaps,
+  joiner sequences and emoji modifiers; `tools/vectors/phone_corpus_cli.ts --write` writes it and `--check` exits 1
+  unless the file is exactly what it would write. Source: review (one corpus every platform checks, so a port that
+  drifts fails its own CI). Verified: `--write` then `--check` passes; the web test that imports the generator passes.
 - Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
   210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
   `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
