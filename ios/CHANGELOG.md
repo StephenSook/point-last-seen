@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): the phone rule's last three cases, as on Android
+- What: the iPhone's phone rule now matches Android's on the five shared cases still pending on the
+  iPhone. A bare minus between two decimals (44.2071-23.4567) is a dotted number, not a coordinate pair:
+  the minus needs a space before it. An ordinal stays apart only as a street name (one to three digits,
+  the ending, then a street word: 67th Ave); "4550 142nd" is a number. A time keeps its place only at the
+  start of a run or after a date: joined before its hour to other digits (a ZIP+4 code too) it could be
+  a number's last four, so it goes with the run, its hour joining its minutes; a short piece the time
+  leaves takes the whole run.
+- Source: the shared phone vectors (Android's final rule).
+- Verified: a test that runs every case still marked pending on the iPhone failed on all five before the
+  change and passes after; every other shared vector and the ported Android tests still pass; all 381
+  core tests pass.
+
 ### feat(ios): every reading is grounded in its note
 - What: after every read, on every route, a colour, direction, footwear or carried item the note does
   not support is blanked (the shared grounding rule), so a reading never claims what nobody wrote. On
