@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs: the Kennesaw seed record gains its prior version 3 reseed (temperate mountain terrain, set before the drill,
+  with the commands, the terrain note and the read-back), and README's extras line names the Downhill and level ground
+  prior layer instead of saying the prior has no elevation term. Source: review. Verified: read back from Firestore
+  (339 docs at version 3, same ids, segment_contract ok, no events or plans); README against
+  shared/engine-ts/src/prior.ts and web/src/command/LayerSwitches.tsx.
 - tools/seed: seed_segments.py refuses to reseed the practice seed (shared/constants/judge-seed.json) from 2026-11-30
   to 2026-12-17, while judging is open, unless --i-know-judging-is-open is passed (judging_problem; parse_args takes
   the flag only at the end). A judge's practice copy taken during such a reseed could mix two sites. README's seed

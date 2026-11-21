@@ -70,3 +70,22 @@ seed tool now checks its docs against the apps' segment shape before writing and
 `python3 -I tools/seed/segment_contract.py buildhybridai-2026-yg3m drill-kennesaw-1` reports 339 docs at prior
 version 2, readable by the apps. The incident's other fields, its teams, its join codes and its terrain note are
 unchanged.
+
+## Re-seeded at prior version 3, temperate mountain, 2026-11-21
+
+Before the drill, the terrain was set to temperate mountain: the grid is a wooded, hilly battlefield park, and on urban
+terrain the Downhill and level ground layer is not used. Steps 2 and 3 were run again from the same grid, point last
+seen and near-feature layer, with `--terrain temperate_mountain`, at `--prior-version 3` (the seed tool refuses a
+reseed over an existing grid at the same version):
+`npm run build-grid -w tools/grid-builder -- --prior <repo>/shared/grid/kennesaw-mountain-drill.grid.json --ipp 33.92614,-84.59069 --terrain temperate_mountain --linear --out kennesaw.segments.json`
+(the `--prior` path is resolved from `tools/grid-builder`, so give it in full), then
+`python3 -I tools/seed/seed_segments.py buildhybridai-2026-yg3m drill-kennesaw-1 kennesaw.segments.json --prior-version 3`.
+The terrain note was set by field path to "Temperate mountain column, set before the drill for a wooded, hilly park;
+not verified for this site."
+
+Read back: terrain temperate_mountain, prior version 3, 339 documents at version 3 with the same ids as before (the
+seed deleted none), `segment_contract.py` "339 docs at prior version 3, readable by the apps", teams T1, T2 and T3,
+and no events or plans. The mass outside the grid (ROW) went from 0.6306 with the urban rings to 0.5532 with the
+temperate mountain rings (0.3, 0.8, 1.9 and 8.3 km). The start segment, HE, has an elevation (294.45 m), so the
+Downhill and level ground switch can be used.
+

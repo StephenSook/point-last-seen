@@ -2248,6 +2248,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: command-side "Retract report" (good command practice; reports are user content command can remove).
 - Verified: new unit tests (`reportCards.test.ts`: the kinds listed, the map's retraction rule, the start point, one card per report) and harness checks (`e2e/harness/reports.spec.ts`: order and header lines, ask then Keep it or Retract report, author retraction and start point lines, a refused write) failed first, then passed; a live check in `e2e/beat.spec.ts` retracts a report on the test drill and checks it after a reload; full harness suite (196), typecheck, web unit suite and the hygiene guard pass.
 
+### test(harness): the first report harness waits for the test at each step
+- What: `web/harness/first-report.html` no longer moves from saving to confirming to done on 400 ms timers; each step waits for its button ("Server has it", "Confirm done", "Server refuses"), and `e2e/harness/firstReport.spec.ts` presses them. A 400 ms step could pass between two of Playwright's polls (its interval grows to a second), so the check sometimes never saw "Confirming..." and timed out on "Saving the report...".
+- Source: review (the check failed about one run in five locally and once in CI).
+- Verified: typecheck passes; both checks passed 30 times in a row (`--repeat-each 5`, three runs); the hygiene guard passes.
+
+### fix(command): a join error sits under its field, marks it invalid and takes the focus
+- What: the join form showed every error in one line under both fields, with no `aria-invalid`, no `aria-describedby`, and the focus left where it was. Now an error about one field ("Enter the incident id."; "The join code has 8 characters." or "That code did not match this incident.") sits under that field, marks it `aria-invalid`, is its description, and takes the focus there; any other error stays under the form. `joinErrorField` in `web/src/data/join.ts` says which field an error is about.
+- Source: UI review (the join error was not beside its field).
+- Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
+
 ### fix(command): the Sightings list shows three at a time, those waiting for a decision first
 - What: the Sightings panel listed every sighting, decided or not, so on a phone a busy drill pushed the rest of the rail thousands of pixels down (the test drill's post was 12,579 px tall at 390 px wide). It now lists the sightings waiting for command first, then the decided ones, shows three, and offers "Show all N sightings"; a line under the heading says how many are waiting ("6 waiting for a decision."). The sightings harness gains `?many=1`; the live retraction check now sees the report listed before it checks that it leaves.
 - Source: UI review at phone width (too many words on the working screen).

@@ -498,6 +498,12 @@ final class AppModel {
         dropMissionNow()
     }
 
+    /// Ready check's sign-in line; nil in the practice drill, which never signs in, so a tester is not told to sign in.
+    var signInLine: String? {
+        guard mission?.isPractice != true else { return nil }
+        return signedIn ? "Signed in" : "Not signed in. Stay in signal."
+    }
+
     static let leaveBlocked = "Some reports have not reached command yet. Stay in signal until each one says Delivered, then leave."
 
     /// True while a report from this phone is not settled with the server. Its write waits in this

@@ -49,7 +49,7 @@ struct ReadyCheckView: View {
                         .toggleStyle(FieldToggleStyle())
                 }
                 section("Before you leave signal") {
-                    row(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", icon: "person.badge.key")
+                    if let signIn = model.signInLine { row(signIn, icon: "person.badge.key") }
                     row(model.mission == nil ? "Pack: not loaded" : "Pack: loaded", icon: "shippingbox")
                     row(model.updatePrompt ?? "App version \(model.appVersion): current", icon: "arrow.down.app")
                     row(ModelSessionFactory.unavailableReason() ?? "On-device model: ready (\(ModelSessionFactory.onDeviceStatus().variant))",

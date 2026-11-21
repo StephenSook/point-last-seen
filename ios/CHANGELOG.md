@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): Ready check shows no sign-in line in the practice drill
+- What: Ready check's "Not signed in. Stay in signal." line is hidden in the practice drill, which never signs in, so a
+  tester trying the app without a team is not told to do something the practice drill does not need. Outside the
+  practice drill the line is unchanged.
+- Source: an App Review walk-through of the review notes' path (the line read as a required step).
+- Verified: a test of the line in a drill (shown) and in the practice drill (hidden) failed to compile before the
+  change and passes after; 243 app tests pass.
+
 ### fix(ios): each send starts with no message, so an old one never holds words for review
 - What: a typed send clears the on-screen message before it starts. Before, a send that failed without a message of
   its own (its task cancelled, or the journal swapped) kept the previous "Your team changed..." message, and the
