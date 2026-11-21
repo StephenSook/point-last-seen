@@ -70,6 +70,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Rules test: no client reads or writes a drill purge record (ops/drillPurges/items), signed in or not. Source:
+  review. Verified: the functions suite passes (275).
 - Drill retention, after a second-model review: a purge record (ops/drillPurges/items/{id}) is written before anything
   is deleted and cleared only when every step succeeded, so a run that stops partway, even after the incident root is
   gone, is finished by the next one; the drill's join codes are deleted; a last media sweep after the incident is gone

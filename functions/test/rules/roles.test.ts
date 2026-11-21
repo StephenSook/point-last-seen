@@ -120,6 +120,12 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(db, "incidents/I1"), { status: "closed", closedAt: new Date(Date.now() - 60 * 86400_000) }, { merge: true }));
     await assertSucceeds(setDoc(doc(db, "incidents/I1"), { status: "closed" }, { merge: true }));
   });
+  it("no client reads or writes a drill purge record", async () => {
+    await admin.db.doc("ops/drillPurges/items/I1").set({ startedAt: new Date() });
+    await assertFails(getDoc(doc(dbAs(C, commandClaims), "ops/drillPurges/items/I1")));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "ops/drillPurges/items/I1"), { startedAt: null }));
+    await assertFails(getDoc(doc(dbAs(null), "ops/drillPurges/items/I1")));
+  });
   it("no client creates an incident", async () => {
     await assertFails(setDoc(doc(dbAs(C, { inc: "I3", role: "command", team: null }), "incidents/I3"), { name: "New", mode: "drill", status: "open" }));
   });
