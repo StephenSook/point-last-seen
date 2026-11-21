@@ -2043,6 +2043,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (android-judge-2 was published; the link should follow the newest build).
 - Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).
 
+### test(command): the shared-link check runs as a visitor who has not joined
+- What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
+- Source: the live run after the reopening change.
+- Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
+
 ### fix(map): on a phone the walker model's sentence spans the foot of the map
 - What: at phone width the walker model's sentence under the map ("The walker model is a prior for planning. It does not predict where a person is.") spans the map's width just above the credit line, in one or two lines; it was held to the map's width minus 320 px, a column about 70 px wide that ran down the map's left edge. The laptop layout is unchanged. The map harness gains `?note`.
 - Source: UI review (on a phone the walker caption box covered the map's left edge).
