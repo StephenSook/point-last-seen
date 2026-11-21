@@ -122,3 +122,21 @@ describe("storage rules (spec section 7)", () => {
     await assertSucceeds(getMetadata(ref(storageAs("command-uid", commandClaims), "packs/I1/T2/v1.bundle")));
   });
 });
+
+describe("a member command removed", () => {
+  // Storage rules allow two Firestore lookups per request. A photo upload and every read check the incident and the
+  // removal record; a clip upload checks the incident and its consent record, which a removed account can no longer
+  // create (Firestore refuses its writes), so it does not check the removal record.
+  it("cannot upload a photo or read a clip, while its token still carries the claims", async () => {
+    const st = storageAs("family-uid", familyClaims);
+    await assertSucceeds(uploadBytes(ref(st, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    await admin.db.doc("incidents/I1/removed/family-uid").set({ removedAt: new Date(), removedBy: "command-uid", role: "family", team: null });
+    await assertFails(uploadBytes(ref(st, `photos/I1/${SHA}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
+    await assertFails(getMetadata(ref(st, `clips/I1/${SHA}.mp4`)));
+  });
+  it("an active member still uploads a clip with its consent record", async () => {
+    const st = storageAs("family-uid", familyClaims);
+    await assertSucceeds(uploadBytes(ref(st, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+  });
+});
+
