@@ -212,6 +212,8 @@ def render(repo: Path) -> str:
         function("schema_CameraSightingReading", event["$defs"]["CameraSightingReading"], shape=True),
         function("schema_IncidentConditions", sch("incident-conditions.schema.json")),
         function("schema_ClipNoSighting", sch("clip-no-sighting.schema.json")),
+        "    // A content report's createdAt is the server's time of the write.\n"
+        + function("schema_ContentReport", sch("content-report.schema.json"), {"createdAt": lambda r: f"{r} == request.time"}),
         "    // profile/shared is always written whole (all 20 keys), so every reader can rely on every field.\n"
         + function("schema_SharedProfile", shared, notes),
     ]) + END

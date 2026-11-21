@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
+  only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
+  event, none for the family's description); command reads every report, the author only its own; nobody updates or
+  deletes one. The shape check is generated from content-report.schema.json (schema_ContentReport, createdAt ==
+  request.time). Source: review (App Review guideline 1.2, approved design). Verified: rules/contentReports.test.ts (5
+  cases) failed first on create and read, then passes; all 154 rules tests pass; the generator's --check is current.
 - schemas: content-report.schema.json, the shape of incidents/{id}/contentReports/{reportId}: a searcher or family
   member flags the team's task, the family's description or one event, with a reason (abusive, personal_information,
   wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
