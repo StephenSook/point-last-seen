@@ -5,6 +5,62 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the test matrix's iOS 26 row cites its call's new line
+- What: the iOS 26 row cited `!cloudRouteAvailable` at ReportReader.swift:73; the found-kind change moved it to
+  line 77, and the matrix check reads the cited line. The row now cites line 77.
+- Source: the matrix check (scripts/test_test_matrix.py).
+- Verified: the matrix check passes.
+
+### feat(ios): the reader checks a model's found with the subject's names, and the receipt says so
+- What: the reader loads the found-kind rule from the bundled word lists and passes the subject's names from
+  the shared profile (they stay in code and never reach a model). A report whose "found" was read as a clue
+  is journalled with the reason, and its receipt shows "Read as a clue: an object was found, not the person.
+  The model said found; check the note." under what the phone made of it.
+- Source: the found-kind rule (shared vectors).
+- Verified: tests that the reader turns a model's found object into a clue with its reason and keeps found for
+  a word of the subject's name, and that a corrected report keeps its reason and the reader gets the
+  profile's names, failed to compile before the change and pass after; 207 app tests pass.
+
+### feat(ios-core): an outbox entry keeps the found-kind reason on the phone
+- What: an outbox entry can carry the reason a model's "found" was read as a clue, so the report's receipt
+  can show it after the app restarts. It is the phone's own note, never part of the event; an entry written
+  before the field reads as having none.
+- Source: the found-kind rule (the receipt shows the reason).
+- Verified: a test that the reason survives a reopen, stays out of the event, and that an older entry decodes
+  without it failed to compile before the change and passes after; all core tests pass.
+
+### test(ios): the privacy manifest test expects the eight declared types
+- What: the app test of the privacy manifest still expected the three types the manifest declared before the
+  label work, so the iPhone app suite failed on main after that change. CI runs the core package only, and the
+  app suite had not been run before that merge. The test now expects the label's eight types.
+- Source: the app suite (a test left behind by the privacy label change).
+- Verified: the test failed on main and passes after; all 207 app tests pass.
+
+### feat(ios-core): a model's reading is checked for found right after grounding
+- What: the read runs the found-kind rule on a model's reading (Apple's model or the cloud, guided or plain
+  text) right after grounding, with the subject's names, which stay in code and never reach a model. A
+  corrected reading is stored as a clue with the note's item and place, and the read outcome carries the
+  reason for the receipt. The rules parser's reading is not checked. Without the rule loaded, the model's
+  kind stays.
+- Source: the found-kind rule (shared vectors).
+- Verified: tests that a found object from Apple's model and from the cloud becomes a clue with its reason,
+  that a found person and a word of the subject's name keep found, that a rules reading is not checked, and
+  that no rule keeps the model's kind failed to compile before the change and pass after; 396 core tests pass.
+
+### feat(ios-core): a model's "found" for an object is checked against the note (shared rule)
+- What: a Swift port of the shared found-kind rule (shared/test-vectors/found-kind.json, reference
+  shared/engine-ts/src/found.ts). A model's found becomes a clue only when every "found" in the note is
+  followed by a determiner and a known object, every word of the note is one an object-found note may hold,
+  and no word could name the person (person words or a profile name); name-like colour, size and place words
+  count only where they describe the object or follow a determiner. Any other note keeps the model's kind.
+  The corrected reading takes its item and feature from the note, and the reason is "Read as a clue: an
+  object was found, not the person. The model said found; check the note."
+- Source: the found-kind rule (shared vectors).
+- Verified: the runner over all 53 cases failed to compile before the type existed and passes after; this
+  phone's rules parser gives each case's parserKind; 930 notes that also say the person was found, over
+  2,000 with a family word, a name or a second find, and every name-like word where a name would stand are
+  never corrected; no person word is an object-note word.
+
 ### build(ios): the release check runs the privacy label check on every exported build
 - What: ios/scripts/archive_release.sh now runs scripts/check_privacy_label.py on the exported app, so a release
   build fails its checks when any bundled privacy manifest collects data the App Store label does not list.

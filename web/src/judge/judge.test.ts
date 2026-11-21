@@ -132,6 +132,10 @@ describe("judgeLinks", () => {
     const labels = judgeLinks({ android: `${REPO}/releases/tag/android-judge`, testflight: "https://testflight.apple.com/join/x" }).map(l => l.label);
     expect(labels).toEqual(["Command post", "Source code", "Android family app", "iPhone app (TestFlight)", "iPhone test runs", "Which model ran where"]);
   });
+  it("links the published Android release, which a signed-out browser can open", () => {
+    expect(ANDROID_RELEASE_URL).toBe(`${REPO}/releases/tag/android-judge`);
+    expect(judgeLinks({ android: ANDROID_RELEASE_URL, testflight: TESTFLIGHT_URL }).find(l => l.label === "Android family app")?.href).toBe(ANDROID_RELEASE_URL);
+  });
   it("ships no TestFlight link until Apple clears review", () => {
     expect(TESTFLIGHT_URL).toBeNull();
     expect(judgeLinks({ android: ANDROID_RELEASE_URL, testflight: TESTFLIGHT_URL }).some(l => l.label.includes("TestFlight"))).toBe(false);
