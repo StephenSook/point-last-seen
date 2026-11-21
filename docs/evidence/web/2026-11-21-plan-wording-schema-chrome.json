@@ -1,0 +1,33 @@
+{
+  "what": "Plan wording on Chrome's built-in model after the per-plan schema (planWordingJson: one assignment per team, teamId limited to the plan's teams), measured on the committed local page with the same on-device options as the command post (local page, same code path). The same made-up plan as 2026-11-21-plan-wording-chrome.json, worded three times in a row in a newly opened page, twice.",
+  "date": "2026-11-21",
+  "browser": "Stephen's Google Chrome stable on this Mac (macOS, Apple M5 Pro); the built-in model reported available for text; the Chrome and model versions were not recorded",
+  "page": "web/harness/wording-measure.html (dev server http://127.0.0.1:5175), wordingOnDeviceGenerator with the plan's teams (ONLY_ON_DEVICE, the command post's on-device options), bare Firebase app with no App Check and no sign-in, at the commit that adds the per-plan schema",
+  "note": "Session 1 is the first wording in a newly opened page; the browser had used its model about 10 minutes earlier. The command post gives a wording reply 15,000 ms (REPLY_TIMEOUT_MS).",
+  "sessions": [
+    {
+      "session": 1,
+      "runs": [
+        { "run": 1, "replyMs": 19773, "inferenceSource": "on_device", "accepted": true, "reasons": ["Team T1 searches only the CC segment.", "Team T2 searches only the CD segment."] },
+        { "run": 2, "replyMs": 2281, "inferenceSource": "on_device", "accepted": true, "reasons": ["T1 searches segments with high recent percentage change.", "T2 searches segments with high recent percentage change."] },
+        { "run": 3, "replyMs": 2561, "inferenceSource": "on_device", "accepted": true, "reasons": ["T1 searches only segment CC.", "T2 searches only segment CD."] }
+      ]
+    },
+    {
+      "session": 2,
+      "runs": [
+        { "run": 1, "replyMs": 2117, "inferenceSource": "on_device", "accepted": true, "reasons": ["T1 searches CC segment.", "T2 searches CD segment."] },
+        { "run": 2, "replyMs": 3171, "inferenceSource": "on_device", "accepted": true, "reasons": ["T1 focuses on CC, which has a 1.4% segment.", "T2 focuses on CD, which has a 1.4% segment."] },
+        { "run": 3, "replyMs": 2648, "inferenceSource": "on_device", "accepted": true, "reasons": ["T1 searches CC, which has increased significantly.", "T2 searches CD, which has increased significantly."] }
+      ]
+    }
+  ],
+  "googleRequests": [],
+  "findings": [
+    "Code accepted 6 of 6 wordings (2 of 6 before the per-plan schema); every reply had exactly one entry per team.",
+    "All six ran on device as the SDK reported, with no request to a Google or Firebase host.",
+    "The first wording in the new page took 19,773 ms, more than the command post's 15,000 ms wording limit, so in the command post that first plan would show fixed wording; the rest took 2.1 to 3.2 s.",
+    "The reasons are short and stay on each team's own segment; some are generic (\"increased significantly\")."
+  ],
+  "n": 6
+}
