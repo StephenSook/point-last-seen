@@ -66,6 +66,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Search model: only a sighting seen later than every prior input moves the start; the first-missing time is
+  not stored; a confirmed camera clip always moves the start, so command checks its time first. Source: review.
+  Verified against web/src/prior/sightingPrior.ts and web/src/prior/cameraPrior.ts.
+- LIMITS, Search model: a command-confirmed sighting with a place and a time becomes the new last known point (the
+  ring prior is rebuilt from it, with the wedge from its direction); the rings have no time term, so the command post
+  states the sighting's age instead; a sighting with no place, or confirmed only by the family, still moves the map
+  only as a clue; the map before the rebuild is not kept. Source: review. Verified against
+  web/src/prior/sightingPrior.ts and the camera path it reuses.
 - Judge page route-order check: waits for the replay region before reading the route's targets, since the replay step
   points at #d1-h until the run file loads and that section then goes away; without the wait it timed out in CI.
   Source: CI. Verified: the check passed 3 runs in a row locally and the full no-backend set passes (34).
