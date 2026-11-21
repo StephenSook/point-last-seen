@@ -2316,3 +2316,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/src/command/FlagsPanel.tsx` lists the "Report a problem" flags newest first, one line each ("Family member flagged the family's description: wrong or misleading."), with the time and the reporter's note in quotes. With no flags there is no panel. A harness page (`web/harness/flags.html`) renders it with synthetic flags.
 - Source: review (a command-side list of "Report a problem" flags).
 - Verified: two new harness checks in `e2e/harness/flags.spec.ts` failed with the component moved aside, then passed with the whole harness; web unit suite and the hygiene guard pass.
+
+### feat(command): the command post shows Problem reports at the top of its right rail
+- What: the command post listens to the incident's "Report a problem" flags and shows the Problem reports panel first in the right rail whenever there is one (a flag can be about personal information, so it is not tucked under Details). A searcher is named by the team its reports carry ("Team 1 searcher", or "A searcher" before it has sent one); family reads "Family member"; times are local hours and minutes.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: typecheck, web unit suite (1151), the whole harness (210), the build and every no-backend check (45) pass, with the hygiene guard. No deployed check: command cannot create a flag, and the family's channel is not exercised on the live drill, so the panel's lines are covered by the harness.
