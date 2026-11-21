@@ -19,7 +19,9 @@ test("a published run replays in one section, labelled as a training drill", { t
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
   // The replay map credits OpenStreetMap like every other map view.
   await expect(section.getByTestId("map-credit").getByRole("link", { name: "© OpenStreetMap contributors" })).toBeVisible();
-  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
+  // The page's own drill line, above the heading, labels the whole page; the replay card does not repeat it.
+  await expect(page.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(1);
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(0);
   // One replay section: the page's own placeholder is gone and "No published run yet." is never said.
   await expect(page.getByRole("region", { name: "Replay the training drill" })).toHaveCount(0);
   await expect(page.getByText("No published run yet.")).toHaveCount(0);
@@ -57,7 +59,9 @@ test("the site serves its published drill run, and the judge page replays it", {
   // The end frame of this exact file: a change to the engine or the reader that moves the judged map fails here.
   // Re-exporting the run changes the file and this code in the same commit.
   await expect(section.getByTestId("replay-code")).toHaveText("T43J");
-  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
+  // The page's own drill line, above the heading, labels the whole page; the replay card does not repeat it.
+  await expect(page.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(1);
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(0);
   await expect(page.getByTestId("replay-refused")).toHaveCount(0);
   // The Numbers section shows counts read from the served file, each with its unit, and promises nothing not built.
   const numbers = page.getByRole("region", { name: "Numbers" });
