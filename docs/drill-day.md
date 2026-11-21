@@ -66,10 +66,15 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
 5. Open **More**, then **Print radio cards**. The same box is on this page, also off; tick it to put the names and
    approach notes on every card. Print with the same settings, and cut along the dashed line. Give each team its own
    card.
-6. During the drill, a team reads its match code over the radio, one character at a time. Command types it into
+6. Open **More**, then **Print debrief sheets**. It prints one Letter page per segment of the approved plan, with the
+   team and the segment typed, then two blank sheets for a sweep the plan did not name. Print with the same settings
+   and give each team its sheets. After its sweep, a team fills in its sheet in BLOCK CAPITALS, ticks one coverage box,
+   and writes no one's name or phone number on it. Command reads the sheet at the command post and checks every field
+   before it is saved.
+7. During the drill, a team reads its match code over the radio, one character at a time. Command types it into
    **More**, then **Check a radio code**. "Same map" means the team and command see the same prior version and the
    same reports.
-7. If command approves a new plan, print again: the paper names the plan version it was printed for.
+8. If command approves a new plan, print again: the paper names the plan version it was printed for.
 
 ## 4. After the drill: publish the run to the judge page
 

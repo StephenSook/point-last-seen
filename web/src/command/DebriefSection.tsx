@@ -1,5 +1,6 @@
-// After a segment is cleared: how long it took and what worked or did not, for the team's own review. Command
-// adds or edits one per segment. A debrief never moves the map, the probabilities or the plans.
+// After a segment is cleared: how long it took, what worked or did not, and, as the team stated it, how much it
+// covered and what clues and hazards it saw, for the team's own review. Command adds or edits one per segment. A
+// debrief never moves the map, the probabilities or the plans: a stated coverage is the team's words, not a claim.
 
 import { useState } from "react";
 import { debriefAuthor, parseDebriefForm, type ClearedSegment, type Debrief, type DebriefInput } from "../data/debriefs";
@@ -30,6 +31,9 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
   const [minutes, setMinutes] = useState("");
   const [worked, setWorked] = useState("");
   const [didNotWork, setDidNotWork] = useState("");
+  const [coverage, setCoverage] = useState("");
+  const [clues, setClues] = useState("");
+  const [hazards, setHazards] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -37,12 +41,15 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
     setMinutes(debrief ? String(debrief.tookMinutes) : "");
     setWorked(debrief?.worked ?? "");
     setDidNotWork(debrief?.didNotWork ?? "");
+    setCoverage(debrief?.coverageStatedPct !== undefined ? String(debrief.coverageStatedPct) : "");
+    setClues(debrief?.clues ?? "");
+    setHazards(debrief?.hazards ?? "");
     setError(null);
     setEditing(true);
   }
 
   async function save() {
-    const parsed = parseDebriefForm({ minutes, worked, didNotWork });
+    const parsed = parseDebriefForm({ minutes, worked, didNotWork, coverage, clues, hazards });
     if (!parsed.ok) {
       setError(parsed.message);
       return;
@@ -69,6 +76,9 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
               <p>{`${debrief.tookMinutes} min. By ${debriefAuthor(debrief, cleared, teams)}.`}</p>
               {debrief.worked && <p className="small">{`Worked: ${debrief.worked}`}</p>}
               {debrief.didNotWork && <p className="small">{`Didn't work: ${debrief.didNotWork}`}</p>}
+              {debrief.coverageStatedPct !== undefined && <p className="small">{`Coverage stated by the team: ${debrief.coverageStatedPct}%`}</p>}
+              {debrief.clues && <p className="small">{`Clues: ${debrief.clues}`}</p>}
+              {debrief.hazards && <p className="small">{`Hazards: ${debrief.hazards}`}</p>}
             </>
           ) : (
             <p className="muted small">No debrief yet.</p>
@@ -91,6 +101,18 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
           <label>
             What didn't work (optional)
             <textarea maxLength={500} value={didNotWork} onChange={(e) => setDidNotWork(e.target.value)} disabled={saving} />
+          </label>
+          <label>
+            Coverage the team stated (percent, optional)
+            <input inputMode="numeric" value={coverage} onChange={(e) => setCoverage(e.target.value)} disabled={saving} />
+          </label>
+          <label>
+            Clues: what and where (optional)
+            <textarea maxLength={500} value={clues} onChange={(e) => setClues(e.target.value)} disabled={saving} />
+          </label>
+          <label>
+            Hazards: what and where (optional)
+            <textarea maxLength={500} value={hazards} onChange={(e) => setHazards(e.target.value)} disabled={saving} />
           </label>
           {error && (
             <p className="error" role="alert">

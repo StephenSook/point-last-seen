@@ -2,25 +2,50 @@ import { deleteField, serverTimestamp, Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
 import { clearedSegments, debriefAuthor, debriefEdit, debriefFromDoc, newDebriefDoc, parseDebriefForm } from "./debriefs";
 
+const form = (over: Partial<Record<"minutes" | "worked" | "didNotWork" | "coverage" | "clues" | "hazards", string>>) => ({
+  minutes: "", worked: "", didNotWork: "", coverage: "", clues: "", hazards: "", ...over,
+});
+
 describe("parseDebriefForm", () => {
   it("takes whole minutes from 0 to 1440 and optional notes, trimmed", () => {
-    expect(parseDebriefForm({ minutes: " 45 ", worked: " Grid lines ", didNotWork: "" })).toEqual({ ok: true, value: { tookMinutes: 45, worked: "Grid lines" } });
-    expect(parseDebriefForm({ minutes: "0", worked: "", didNotWork: "Radio dead zone" })).toEqual({ ok: true, value: { tookMinutes: 0, didNotWork: "Radio dead zone" } });
+    expect(parseDebriefForm(form({ minutes: " 45 ", worked: " Grid lines " }))).toEqual({ ok: true, value: { tookMinutes: 45, worked: "Grid lines" } });
+    expect(parseDebriefForm(form({ minutes: "0", didNotWork: "Radio dead zone" }))).toEqual({ ok: true, value: { tookMinutes: 0, didNotWork: "Radio dead zone" } });
+  });
+  it("takes the team's stated coverage as a whole percent from 0 to 100, and clues and hazards, all optional", () => {
+    expect(parseDebriefForm(form({ minutes: "45", coverage: " 75 ", clues: " Blue scarf on marker 4 ", hazards: "Loose rock" }))).toEqual({
+      ok: true,
+      value: { tookMinutes: 45, coverageStatedPct: 75, clues: "Blue scarf on marker 4", hazards: "Loose rock" },
+    });
+    expect(parseDebriefForm(form({ minutes: "45", coverage: "0" }))).toEqual({ ok: true, value: { tookMinutes: 45, coverageStatedPct: 0 } });
+  });
+  it("refuses a stated coverage that is not a whole percent from 0 to 100, and clues or hazards over 500 characters", () => {
+    for (const coverage of ["101", "-1", "75.5", "most", "75%"]) {
+      expect(parseDebriefForm(form({ minutes: "5", coverage })), coverage).toEqual({ ok: false, message: "Coverage stated: a whole number from 0 to 100, or empty." });
+    }
+    expect(parseDebriefForm(form({ minutes: "5", clues: "x".repeat(501) }))).toEqual({ ok: false, message: "Clues: 500 characters at most." });
+    expect(parseDebriefForm(form({ minutes: "5", hazards: "x".repeat(501) }))).toEqual({ ok: false, message: "Hazards: 500 characters at most." });
   });
   it("refuses minutes that are not a whole number in range, and notes over 500 characters", () => {
     for (const minutes of ["", "1441", "-1", "2.5", "abc"]) {
-      expect(parseDebriefForm({ minutes, worked: "", didNotWork: "" })).toEqual({ ok: false, message: "Time it took: a whole number of minutes, 0 to 1440." });
+      expect(parseDebriefForm(form({ minutes }))).toEqual({ ok: false, message: "Time it took: a whole number of minutes, 0 to 1440." });
     }
-    expect(parseDebriefForm({ minutes: "5", worked: "x".repeat(501), didNotWork: "" })).toEqual({ ok: false, message: "What worked: 500 characters at most." });
-    expect(parseDebriefForm({ minutes: "5", worked: "", didNotWork: "x".repeat(501) })).toEqual({ ok: false, message: "What didn't work: 500 characters at most." });
+    expect(parseDebriefForm(form({ minutes: "5", worked: "x".repeat(501) }))).toEqual({ ok: false, message: "What worked: 500 characters at most." });
+    expect(parseDebriefForm(form({ minutes: "5", didNotWork: "x".repeat(501) }))).toEqual({ ok: false, message: "What didn't work: 500 characters at most." });
   });
 });
 
 describe("debriefFromDoc", () => {
   it("reads a stored debrief", () => {
     expect(debriefFromDoc("AA", { tookMinutes: 30, worked: "Line search", byUid: "u1", createdAt: Timestamp.fromMillis(5), clearedEventId: null })).toEqual({
-      segmentId: "AA", tookMinutes: 30, worked: "Line search", didNotWork: undefined, byUid: "u1", createdAtMs: 5, clearedEventId: null,
+      segmentId: "AA", tookMinutes: 30, worked: "Line search", didNotWork: undefined, coverageStatedPct: undefined, clues: undefined, hazards: undefined,
+      byUid: "u1", createdAtMs: 5, clearedEventId: null,
     });
+  });
+  it("reads the stated coverage, clues and hazards, and drops a stated coverage it cannot trust", () => {
+    const d = debriefFromDoc("AA", { tookMinutes: 30, coverageStatedPct: 75, clues: "Scarf", hazards: "Rock", byUid: "u1", createdAt: null });
+    expect([d?.coverageStatedPct, d?.clues, d?.hazards]).toEqual([75, "Scarf", "Rock"]);
+    expect(debriefFromDoc("AA", { tookMinutes: 30, coverageStatedPct: 101, byUid: "u1" })?.coverageStatedPct).toBeUndefined();
+    expect(debriefFromDoc("AA", { tookMinutes: 30, coverageStatedPct: "75", byUid: "u1" })?.coverageStatedPct).toBeUndefined();
   });
   it("is null for a document it cannot trust", () => {
     expect(debriefFromDoc("AA", { tookMinutes: "30", byUid: "u1" })).toBeNull();
@@ -37,8 +62,13 @@ describe("writes", () => {
   });
   it("an edit changes the time and notes only, and removes a note that was cleared", () => {
     const e = debriefEdit({ tookMinutes: 20, worked: "Dogs" }) as Record<string, unknown>;
-    expect(Object.keys(e).sort()).toEqual(["didNotWork", "tookMinutes", "worked"]);
-    expect((e["didNotWork"] as ReturnType<typeof deleteField>).isEqual(deleteField())).toBe(true);
+    expect(Object.keys(e).sort()).toEqual(["clues", "coverageStatedPct", "didNotWork", "hazards", "tookMinutes", "worked"]);
+    for (const k of ["didNotWork", "coverageStatedPct", "clues", "hazards"]) expect((e[k] as ReturnType<typeof deleteField>).isEqual(deleteField()), k).toBe(true);
+  });
+  it("a new debrief and an edit carry the stated coverage, clues and hazards when given", () => {
+    const input = { tookMinutes: 45, coverageStatedPct: 75, clues: "Scarf", hazards: "Rock" };
+    expect(newDebriefDoc(input, "u1", null)).toMatchObject(input);
+    expect(debriefEdit(input)).toMatchObject(input);
   });
 });
 
