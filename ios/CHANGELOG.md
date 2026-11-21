@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report is dropped when sign-in moves the phone to another team or mode
+- What: each report path notes the incident, team and mode of the mission on screen before sign-in. If sign-in then
+  leaves a different incident, team or mode loaded, the report is not journalled ("Your team changed while this was
+  sending. Send it again."), so a report made for one team is never filed under another, and a photo is never read
+  in a search where no model may read. Sign-in that only reloads the same mission under the new session still keeps
+  the report.
+- Source: review.
+- Verified: a test where sign-in moves the phone to team T2, and one where it moves the mission into a live search,
+  failed to compile before the change and pass after; the same-mission sign-in test still passes; 235 app tests pass.
+
 ### docs: LIMITS says a stalled photo read can overlap the next one
 - What: the photo-clue section said no other photo read starts while a timed-out model call runs. The read now
   frees its gate at the 30-second limit, so a stalled call can briefly overlap the next read. The line now says so.

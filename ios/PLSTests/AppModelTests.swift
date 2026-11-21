@@ -306,6 +306,34 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(store.entries.count == 1)
     }
 
+    /// A sign-in at Send that moves the phone to another team, or into a search where no model may read, drops the
+    /// report: it was made for the mission on screen, so it must not be journalled under another one.
+    @Test func aSignInThatChangesTheTeamOrModeDropsTheReport() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        var otherTeam = try quietMission()
+        otherTeam.teamId = "T2"
+        var liveSearch = try quietMission()
+        liveSearch.mode = "search"
+        for replacement in [otherTeam, liveSearch] {
+            let box = ModelBox()
+            let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: {
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(replacement)
+                                     return true
+                                 }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                                 readPhoto: { _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                                 joinBackend: NoClaimsJoinBackend())
+            box.model = model
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("team-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+            model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+            await model.load(try quietMission())
+            #expect(await model.submitPhoto(try Self.onePixel()) == false, "\(replacement.teamId) \(replacement.mode)")
+            #expect(store.entries.isEmpty && model.problem == AppModel.teamChanged)
+        }
+    }
+
     /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
     @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
         let box = ModelBox()

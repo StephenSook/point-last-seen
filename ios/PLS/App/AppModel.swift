@@ -891,8 +891,10 @@ final class AppModel {
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
         guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         if !pending.isPractice { await trySignIn() }
-        // Checked against the mission loaded after sign-in, which can reload it under the new session.
-        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
         let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
@@ -975,7 +977,7 @@ final class AppModel {
     }
 
     static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
-    static let missionChanged = "The mission changed before the report was read. Check the Ready check."
+    static let teamChanged = "Your team changed while this was sending. Send it again."
     static let photoReadBusy = "The last photo is still being read. Try again in a moment."
 
     /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
@@ -988,8 +990,10 @@ final class AppModel {
         guard !sending, canReadPhoto else { return false }
         guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         if !pending.isPractice { await trySignIn() }
-        // Checked against the mission loaded after sign-in, which can reload it under the new session.
-        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
         let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
@@ -1032,8 +1036,10 @@ final class AppModel {
         guard !sending else { return false }
         guard let pending = mission, let identity, let store else { problem = "No pack loaded."; return false }
         if !pending.isPractice { await trySignIn() }
-        // Checked against the mission loaded after sign-in, which can reload it under the new session.
-        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or
+        // mode: the report was made for the mission on screen, so then it is not sent anywhere else.
+        guard let mission = self.mission, mission.incidentId == pending.incidentId, mission.teamId == pending.teamId,
+              mission.mode == pending.mode else { problem = Self.teamChanged; return false }
         let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
