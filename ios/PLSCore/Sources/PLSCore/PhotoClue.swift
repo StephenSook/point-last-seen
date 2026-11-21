@@ -55,19 +55,20 @@ public enum PhotoClue {
         return .clue(Clue(rawText: "Photo: \(caption).", reading: reading, matchedPhrase: phrase))
     }
 
-    /// The first described item of the same kind whose color agrees, or that names no color. Whatever the rule cannot
-    /// read for sure gives no match (unknown), never consistent: a phrase with a negation ("no red cap"), a word right
-    /// before the item that is neither a listed color nor a style word ("teal cap", "red plaid cap"), or a caption whose
-    /// own color disagrees with the color field. A color counts only in the words right before the item, so in "black
-    /// hair wearing a red cap" the cap is red.
+    /// The first described item of the same kind whose colors all agree, or that names no color. Whatever the rule
+    /// cannot read for sure gives no match (unknown), never consistent: a field with a negation anywhere ("no red cap",
+    /// "wasn't wearing a red cap"), a word right before the item that is neither a listed color nor a style word ("teal
+    /// cap", "red plaid cap"), any color in the phrase that is not the photo's ("black hair wearing a red cap", "cap was
+    /// blue"), or any color in the caption that is not the color field's ("black cap with red logo").
     static func match(_ photo: PhotoDescription, profile: ModelProfile) -> String? {
         let items = kindWords[photo.kind, default: []]
         guard !items.isEmpty else { return nil }
+        // Every color the caption names must be the color field's.
         let captionColors = Set(words(photo.object).compactMap(color))
-        if !captionColors.isEmpty, !captionColors.contains(photo.color) { return nil }
+        guard captionColors.isSubset(of: [photo.color]) else { return nil }
         for phrase in phrases(profile) {
             let w = words(phrase)
-            guard w.allSatisfy({ !negations.contains($0) }), let at = w.firstIndex(where: items.contains) else { continue }
+            guard let at = w.firstIndex(where: items.contains) else { continue }
             var modifiers: [String] = []
             var i = at - 1
             while i >= 0, !modifierStops.contains(w[i]), !allKindWords.contains(w[i]) {
@@ -75,21 +76,29 @@ public enum PhotoClue {
                 i -= 1
             }
             guard modifiers.allSatisfy({ color($0) != nil || styleWords.contains($0) }) else { continue }
-            let colors = Set(modifiers.compactMap(color))
-            if colors.isEmpty || (photo.color != .unknown && colors.contains(photo.color)) { return phrase }
+            // Every color in the phrase, before or after the item, must be the photo's.
+            let colors = Set(w.compactMap(color))
+            if colors.isEmpty || (photo.color != .unknown && colors.isSubset(of: [photo.color])) { return phrase }
         }
         return nil
     }
 
     /// The family's described items, one per phrase, as they wrote them.
+    /// A field that says anywhere what the person did not have ("no", "not", "wasn't" and the like) gives no phrases
+    /// at all: splitting it could cut the negation off an item ("not wearing a red cap and green jacket").
     static func phrases(_ profile: ModelProfile) -> [String] {
         let text = [profile.clothingLastWorn, profile.appearance].compactMap { $0 } + (profile.mobilityAids ?? [])
-        return text.flatMap { part in
+        return text.filter { !negated($0) }.flatMap { part in
             part.replacingOccurrences(of: #"\s+(and|with)\s+"#, with: ",", options: [.regularExpression, .caseInsensitive])
                 .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "." })
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
         }
+    }
+
+    static func negated(_ text: String) -> Bool {
+        let plain = text.replacingOccurrences(of: #"n['’]t\b"#, with: " not", options: [.regularExpression, .caseInsensitive])
+        return words(plain).contains(where: negations.contains)
     }
 
     /// True when any word of the object names a person or part of one: a plural (bodies, niños, mujeres) or a word
@@ -157,8 +166,11 @@ public enum PhotoClue {
 
     static let allKindWords: Set<String> = kindWords.values.reduce(into: Set<String>()) { $0.formUnion($1) }
 
-    /// A phrase with one of these says what the person did not have, so it never matches.
-    static let negations: Set<String> = ["no", "not", "without", "never", "nor", "none", "sin", "ni", "nunca"]
+    /// A field with one of these says what the person did not have, so none of it matches.
+    static let negations: Set<String> = [
+        "no", "not", "without", "never", "nor", "none", "sin", "ni", "nunca", "wasnt", "isnt", "didnt", "doesnt", "dont", "wont",
+        "cant", "hasnt", "hadnt", "havent", "arent", "werent", "cannot", "couldnt", "wouldnt", "shouldnt", "aint",
+    ]
 
     /// Where the words describing an item stop, reading back from it: articles, possessives, verbs and joining words.
     static let modifierStops: Set<String> = [

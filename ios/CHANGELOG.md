@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a photo match is unknown on any negation or color conflict in the description
+- What: a negation anywhere in a profile field, contractions included ("wasn't", "didn't", "isn't", with either
+  apostrophe or none), now keeps that whole field from matching, so splitting on "and" can no longer cut the negation
+  off an item ("not wearing a red cap and green jacket"). Every color in a described phrase counts, before or after
+  the item ("cap was blue"), and all of them must be the photo's; every color in the caption must be the color
+  field's ("black cap with red logo" with a red field is unknown). A negation in one field leaves the others alone.
+- Source: review.
+- Verified: tests of each case failed before the change (nine expectations) and pass after; all 415 core tests pass.
+
 ### fix(ios-core): a photo report's words keep the whole caption, so the evidence screen sees all of it
 - What: a photo report's words now carry the whole cleaned caption (up to 200 characters), and only the reading's
   item is cut to the schema's 40 characters (it is a prefix of the words, so the quote is still in them). Before, the

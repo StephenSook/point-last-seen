@@ -103,15 +103,25 @@ import Testing
         // A color the family used that is not on the list.
         #expect(Self.matches(Self.photo("green cap", .green, .hat), Self.profile("teal cap")) == .unknown)
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("red plaid cap")) == .unknown)
-        // Only the words right before the item give its color.
+        // Any color in the phrase that is not the photo's makes it unsure, wherever the color sits.
         #expect(Self.matches(Self.photo("black cap", .black, .hat), Self.profile("black hair wearing a red cap")) == .unknown)
-        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("black hair wearing a red cap")) == .consistent)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("black hair wearing a red cap")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("cap was blue")) == .unknown)
+        #expect(Self.matches(Self.photo("blue cap", .blue, .hat), Self.profile("cap was blue")) == .consistent)
         // A negation.
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("no red cap")) == .unknown)
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("not wearing a hat")) == .unknown)
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("sin gorra, a coat")) == .unknown)
-        // The caption and the color field disagree.
+        // A contraction is a negation, and a negation anywhere in a field covers all of that field.
+        for said in ["wasn't wearing a red cap", "she didn't have her red cap", "isn't in a red cap", "wasn’t wearing a red cap", "wasnt wearing a red cap"] {
+            #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile(said)) == .unknown, "\(said)")
+        }
+        #expect(Self.matches(Self.photo("green jacket", .green, .coat), Self.profile("not wearing a red cap and green jacket")) == .unknown)
+        // A negation in one field leaves the other fields as they are.
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("a red cap", appearance: "no glasses")) == .consistent)
+        // The caption and the color field disagree, in any of the caption's colors.
         #expect(Self.matches(Self.photo("black cap", .red, .hat), Self.profile("red cap")) == .unknown)
+        #expect(Self.matches(Self.photo("black cap with red logo", .red, .hat), Self.profile("red cap")) == .unknown)
         // A style word is not a color; with no color named, the kind decides.
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("a baseball cap")) == .consistent)
     }
