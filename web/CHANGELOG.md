@@ -2037,3 +2037,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
 - Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).
 - Verified: new `src/command/connecting.test.ts` (practice, other incident, none) failed first (no module), then passed; the live practice check now reloads the practice search and requires that the join form never appears and the opening line does, which failed on the live site (the join form showed) and runs again after the deploy; the no-backend set (42), web unit suite (987), typecheck, CI's Python gates and the hygiene guard pass.
+
+### test(command): the shared-link check runs as a visitor who has not joined
+- What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
+- Source: the live run after the reopening change.
+- Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
