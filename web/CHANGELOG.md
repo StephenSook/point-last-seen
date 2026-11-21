@@ -2336,3 +2336,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: people with the same label were told apart by the last four characters of their id, so two ids ending alike gave two identical rows (and confirms) that removed different people. The ending now grows, two characters at a time, until every label in the group is distinct.
 - Source: review (Codex: two people can have identical labels and confirmations).
 - Verified: a new unit test in `members.test.ts` (two ids with the same last four characters get distinct labels) failed first, then passed with the whole file (8); the hygiene guard passes.
+
+### fix(command): a removal shows Removed at once, so it cannot be sent twice
+- What: the callable can answer before the removal record reaches the listener, and in that gap the row offered Remove from this drill again for the same person. The People panel now marks a person Removed as soon as the call succeeds on this seat. Each row also carries `data-member` (the account id) so a check can find one person's row.
+- Source: review (Codex: a successful removal can be submitted again).
+- Verified: a new harness check (`?noecho=1`, where no removal record arrives) failed first, then passed with the People checks (5); typecheck and the hygiene guard pass.

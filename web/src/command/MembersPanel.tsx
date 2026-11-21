@@ -8,6 +8,8 @@ export function MembersPanel({ rows, onRemove }: { rows: readonly MemberRow[]; o
   const [asking, setAsking] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<{ uid: string; line: string } | null>(null);
+  // Removed from this seat: shown as Removed at once, before the removal record reaches the listener.
+  const [doneHere, setDoneHere] = useState<ReadonlySet<string>>(() => new Set());
   if (rows.length === 0) return null;
 
   async function remove(uid: string) {
@@ -15,6 +17,7 @@ export function MembersPanel({ rows, onRemove }: { rows: readonly MemberRow[]; o
     setErr(null);
     try {
       await onRemove(uid);
+      setDoneHere((s) => new Set([...s, uid]));
       setAsking(null);
     } catch (e) {
       setErr({ uid, line: removeErrorMessage(e) });
@@ -28,9 +31,9 @@ export function MembersPanel({ rows, onRemove }: { rows: readonly MemberRow[]; o
       <h2 id="people-h" className="label">People</h2>
       <ul className="people">
         {rows.map((r) => (
-          <li key={r.uid}>
+          <li key={r.uid} data-member={r.uid}>
             <span>{r.label}</span>
-            {r.removed ? (
+            {r.removed || doneHere.has(r.uid) ? (
               <span className="tag">Removed</span>
             ) : asking === r.uid ? (
               <div className="confirm">

@@ -35,3 +35,12 @@ test("someone already removed shows Removed and offers no action", async ({ page
   await expect(row).toContainText("Removed");
   await expect(row.getByRole("button")).toHaveCount(0);
 });
+
+test("a successful removal shows Removed at once, before the removal record arrives, so it cannot be sent twice", async ({ page }) => {
+  await page.goto("/harness/members.html?noecho=1");
+  const row = page.getByRole("region", { name: "People" }).getByRole("listitem").filter({ hasText: "Team 2 searcher" });
+  await row.getByRole("button", { name: "Remove from this drill" }).click();
+  await row.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(row).toContainText("Removed");
+  await expect(row.getByRole("button")).toHaveCount(0);
+});

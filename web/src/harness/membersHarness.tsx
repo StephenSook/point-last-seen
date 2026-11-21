@@ -22,7 +22,8 @@ function Harness() {
         onRemove={async (uid) => {
           const reason = q.get("fail");
           if (reason) throw Object.assign(new Error("refused"), { code: "functions/permission-denied", details: { reason } });
-          setRemoved((s) => new Set([...s, uid]));
+          // ?noecho=1: the call succeeds but no removal record arrives (as before the listener catches up).
+          if (q.get("noecho") !== "1") setRemoved((s) => new Set([...s, uid]));
         }}
       />
     </div>
