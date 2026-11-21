@@ -55,10 +55,13 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const live = useRef(true);
-  // Every new step (asking for the camera, reading a photo, closing) starts a new attempt. A camera or a read that
-  // answers for an older attempt is stopped or dropped, so it can never take over the screen or fill the form.
-  const attempt = useRef(0);
-  const current = (mine: number) => live.current && mine === attempt.current;
+  // Each camera request and each read is numbered. Starting a read or closing makes every earlier camera request and
+  // read stale; closing the rail's Details makes camera requests stale but lets a read finish. A stale camera is
+  // stopped and a stale read is dropped, so neither can take over the screen or fill the form.
+  const camAttempt = useRef(0);
+  const readAttempt = useRef(0);
+  const camCurrent = (mine: number) => live.current && mine === camAttempt.current;
+  const readCurrent = (mine: number) => live.current && mine === readAttempt.current;
 
   useEffect(() => {
     live.current = true;
@@ -82,9 +85,16 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     setCamReady(false);
   }
 
-  function close() {
-    attempt.current++;
+  /** Stops the camera, drops a request the browser has not answered yet, and makes asking again possible. */
+  function cancelCamera() {
+    camAttempt.current++;
     stopCamera();
+    setOpening(false);
+  }
+
+  function close() {
+    readAttempt.current++;
+    cancelCamera();
     onClose();
   }
 
@@ -93,9 +103,8 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     const details = root.current?.closest("details");
     if (!details) return;
     const onToggle = () => {
-      if (details.open || stream.current === null) return;
-      attempt.current++;
-      stopCamera();
+      if (details.open) return;
+      cancelCamera();
       setPhase((p) => (p === "camera" ? "pick" : p));
     };
     details.addEventListener("toggle", onToggle);
@@ -103,26 +112,26 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }, []);
 
   async function openCamera() {
-    const mine = ++attempt.current;
+    const mine = ++camAttempt.current;
     setMessage(null);
     setOpening(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
       // Closed, or a photo chosen, while the browser asked: stop it at once.
-      if (!current(mine)) return s.getTracks().forEach((t) => t.stop());
+      if (!camCurrent(mine)) return s.getTracks().forEach((t) => t.stop());
       stream.current = s;
       setPhase("camera");
     } catch {
-      if (current(mine)) setMessage(SAY.camera);
+      if (camCurrent(mine)) setMessage(SAY.camera);
     } finally {
-      if (live.current) setOpening(false);
+      if (camCurrent(mine)) setOpening(false);
     }
   }
 
   async function takePhoto() {
     const v = video.current;
     if (!v || v.videoWidth === 0) return;
-    const mine = attempt.current;
+    const mine = readAttempt.current;
     const c = document.createElement("canvas");
     c.width = v.videoWidth;
     c.height = v.videoHeight;
@@ -132,7 +141,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     c.width = 0;
     c.height = 0;
     // Cancelled while the photo was taken: nothing is read.
-    if (!current(mine)) return;
+    if (!readCurrent(mine)) return;
     if (!photo) {
       setPhase("pick");
       setMessage(SAY.photo);
@@ -142,33 +151,33 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   async function readPhoto(photo: Blob) {
-    const mine = ++attempt.current;
-    stopCamera();
+    const mine = ++readAttempt.current;
+    cancelCamera();
     setPhase("reading");
     setMessage(null);
     let jpeg: string;
     try {
       jpeg = bytesToBase64(await toStandardJpeg(photo));
     } catch {
-      if (current(mine)) {
+      if (readCurrent(mine)) {
         setPhase("pick");
         setMessage(SAY.photo);
       }
       return;
     }
     // Cancelled while the photo was prepared: the model is never asked.
-    if (!current(mine)) return;
+    if (!readCurrent(mine)) return;
     let r: PaperReadResult;
     try {
       r = await read(jpeg, segmentId);
     } catch {
-      if (current(mine)) {
+      if (readCurrent(mine)) {
         setPhase("pick");
         setMessage(SAY.failed);
       }
       return;
     }
-    if (!current(mine)) return;
+    if (!readCurrent(mine)) return;
     if ("refused" in r) {
       setPhase("pick");
       setMessage(SAY[r.refused]);

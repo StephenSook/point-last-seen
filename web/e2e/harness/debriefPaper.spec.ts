@@ -233,3 +233,36 @@ test("while it reads, the paper read says the first read can be slow, so a long 
   await expect(row.getByRole("status")).toHaveText("Reading the sheet on this laptop. The first read can take up to a minute.");
   await expect(row.getByLabel("Minutes searched", { exact: true })).toHaveValue("45");
 });
+
+test("closing the Details while the camera is still being asked for drops that request", async ({ page }) => {
+  await fakeCamera(page, true);
+  await page.goto("/harness/debrief.html?paper=sample&details=1");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Read the paper sheet" }).click();
+  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  // The browser fires "toggle" a moment after the click: wait for it, so the page has seen the close before the
+  // person answers the camera prompt, as happens when they answer it seconds later.
+  await page.evaluate(() => {
+    const d = document.querySelector("details")!;
+    (window as unknown as { __closed: Promise<void> }).__closed = new Promise((resolve) => d.addEventListener("toggle", () => resolve(), { once: true }));
+  });
+  await page.locator("summary", { hasText: "Details" }).click();
+  await page.evaluate(() => (window as unknown as { __closed: Promise<void> }).__closed);
+  await page.evaluate(() => (window as unknown as { __grant: () => void }).__grant());
+  await expect.poll(() => cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: true });
+  await page.locator("summary", { hasText: "Details" }).click();
+  await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
+});
+
+test("a photo chosen while the camera is being asked for leaves the camera button usable", async ({ page }) => {
+  await fakeCamera(page, true);
+  await page.goto("/harness/debrief.html?paper=refuse");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Read the paper sheet" }).click();
+  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
+  await expect(row.getByRole("alert")).toContainText("the sheet was not read");
+  // The browser never answered the first request; asking again still works.
+  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
+});
