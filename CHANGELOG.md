@@ -66,6 +66,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README, judges line: the judge page names the cloud model and says whether the laptop's built-in model is ready (it
+  does not name an on-device model), and the published run is described as it is: 24 sightings from the build's own
+  tests (15 entered at the command post, 9 from the family app) and 18 plans. Source: review. Verified against
+  web/src/judge/judge.ts and the live /evidence/published-run.json.
 - SECURITY row 1b: App Attest PASSED on a physical iPhone (2026-11-20, Ad Hoc Release build, App Attest production:
   attestation and assertion exchanges 200, Firestore reads VALID before enforcement); it said PENDING. Source: review.
   Verified: Cloud Monitoring reads at 21:22Z and 21:28Z on 2026-11-20; docs/TEST-MATRIX.md build 8 rows.

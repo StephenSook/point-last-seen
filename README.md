@@ -3,9 +3,10 @@
 A search-planning aid for search and rescue training drills, for a person with dementia who has walked away.
 
 **Judges: open https://buildhybridai-2026-yg3m.web.app/judge.** It needs no account and no key. From there you can
-start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours) and
-check which on-device and cloud models the command post is using. The page also replays the development drill's
-published run (Piedmont Park, the build's own test reports and plans, 2026-11-18 to 19).
+start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours), see
+which cloud model the command post is using, and check whether this laptop's own built-in model is ready. The page
+also replays the development drill's published run (Piedmont Park, 2026-11-18 to 19: 24 sightings from the build's
+own tests, 15 entered at the command post and 9 from the family app, and the 18 plans made from them).
 
 ## What it does
 
