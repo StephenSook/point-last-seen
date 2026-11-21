@@ -154,6 +154,29 @@ async function deleteMembers(auth: RetentionAuth, id: string, uids: readonly str
 }
 
 /**
+ * The sign-ins command removed from drill id (members.ts clears their claims, so the scan by claim cannot find them):
+ * read from the drill's removal records, they are deleted when, read again now, they are still anonymous, hold no
+ * claims or still this drill's, and have not been used since the close. Runs before the drill is deleted, so a failed
+ * delete is retried with the records still there. Returns how many were deleted (or would be, in a dry run).
+ */
+async function deleteRemoved(db: Firestore, auth: RetentionAuth, id: string, closedAtMs: number, dryRun: boolean): Promise<number> {
+  const uids = (await db.collection(`incidents/${id}/removed`).listDocuments()).map(d => d.id);
+  let deleted = 0;
+  for (let i = 0; i < uids.length; i += 100) {
+    const { users } = await auth.getUsers(uids.slice(i, i + 100).map(uid => ({ uid })));
+    const still = users.filter(u => anonymous(u) && (incOf(u) === "" || incOf(u) === id) && lastUsedMs(u) < closedAtMs).map(u => u.uid);
+    if (dryRun || still.length === 0) {
+      deleted += still.length;
+      continue;
+    }
+    const r = await auth.deleteUsers(still);
+    deleted += r.successCount;
+    if (r.failureCount > 0) throw new Error(`${r.failureCount} removed sign-in delete(s) failed`);
+  }
+  return deleted;
+}
+
+/**
  * Purges every drill closed more than 30 days before nowMs that is not on the keep-list, and finishes every purge a
  * previous run left recorded. With dryRun, it lists the same and writes nothing.
  */
@@ -208,6 +231,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
       const closedAtMs = dryRun ? scanCutoffMs : await startPurge(db, id, nowMs, scanCutoffMs);
       if (closedAtMs === null) continue;
       out.files += await sweepMedia(bucket, id, dryRun);
+      out.users += await deleteRemoved(db, auth, id, closedAtMs, dryRun);
       if (!dryRun) {
         await deleteCodes(id);
         await db.recursiveDelete(db.doc(`incidents/${id}`));

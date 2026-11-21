@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
+  their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
+  deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.
+  Source: review (claims check of the privacy policy and LIMITS against retention). Verified: new cases (an idle
+  removed sign-in deleted; one that joined another drill, one used after the close and a person's kept; a dry run
+  counts and deletes nothing) failed first, then pass; 362 functions and rules tests and the typecheck pass.
 - scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
   lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
   probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
