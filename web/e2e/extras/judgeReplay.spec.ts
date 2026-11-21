@@ -101,3 +101,38 @@ test("a run with a label of its own shows it under the replay heading; a label t
   await expect(page.getByTestId("run-label")).toHaveCount(0);
 });
 
+
+// Made-up passes for the harness run (alfa's report r2, bravo's sighting s2), served as the tool would write them.
+const PASSES_URL = "**/extras/passes/harness-run.passes.json";
+const passes = (source = "gps-logger") => JSON.stringify({
+  version: 1, runId: "harness-run", source, basis: "reports", trackFromMs: 0, trackToMs: 1,
+  passes: [{ teamId: "alfa", eventId: "r2", distanceM: 38, atMs: Date.UTC(2026, 10, 22, 18, 12), accuracyM: 8 }],
+});
+
+test("with a passes file beside the run, the replay lists each team's closest pass, tied to its report", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 200, contentType: "application/json", body: passes() }));
+  await page.goto(harness);
+  const block = page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("closest-passes");
+  await expect(block.getByRole("heading", { name: "Closest passes" })).toBeVisible();
+  await expect(block.locator('li[data-event-id="r2"]')).toHaveText(/^Alfa was 38 m from the role-player at \d\d:\d\d, at its report then \(its phone's GPS: within 8 m\)\.$/);
+  await expect(block.locator("li").filter({ hasText: "Bravo sent no report placed by its phone's GPS" })).toHaveCount(1);
+  // The track itself is never published, and the block says so.
+  await expect(block).toContainText("The track itself is not published.");
+});
+
+test("a passes file from a synthetic track is refused in words, and no pass is listed", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 200, contentType: "application/json", body: passes("synthetic") }));
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("closest-passes-refused")).toHaveText("The closest-pass file cannot be used. The file comes from a synthetic track, made up for tests.");
+  await expect(section.locator("li[data-event-id]")).toHaveCount(0);
+});
+
+test("with no passes file, nothing about passes shows", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 404, body: "" }));
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("replay-code")).toBeVisible();
+  await expect(section.getByTestId("closest-passes")).toHaveCount(0);
+  await expect(section.getByTestId("closest-passes-refused")).toHaveCount(0);
+});
