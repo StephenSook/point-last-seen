@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): a photo naming a person in any form is not kept
+- What: the photo rule's person words now cover plurals (bodies, corpses, niños, mujeres), Spanish words (niño, niña,
+  hombre, mujer, persona, cuerpo and others), more body parts (ankle, wrist, torso, neck and others), remains and
+  corpse, and a word spelled out letter by letter ("m.a.n", "W-O-M-A-N"). A person word inside a longer word
+  (handbag, backpack, manual) is still an object. The entry for the photo rule said 12 tests; it was 11.
+- Source: review (a person photo whose caption said "remains", "bodies", "niño" or "m.a.n" became a clue).
+- Verified: tests of every reviewed form and of the longer words failed before the change and pass after; all
+  core tests pass.
+
 ### fix(ios): the photo reader gets Apple's model from the model session file
 - What: the photo reader built Apple's on-device model itself, and the rules gate allows that only in
   ModelSessionFactory.swift. ModelSessionFactory now gives the vision check and the photo session, and the reader
@@ -54,7 +63,7 @@ finding) and how it was verified. Newest first.
   characters.
 - Source: the photo clue feature. On the simulator, Apple's model shown the family's description matched a black
   cap and a green knit hat to "red baseball cap"; shown nothing, it described both correctly, so code compares.
-- Verified: 12 tests (person and body words discard, state words such as "walking stick" kept, kind and color
+- Verified: 11 tests (person and body words discard, state words such as "walking stick" kept, kind and color
   matching with the family's color names, unknown color never confirms, the quote is in the text, cleaning) failed
   to compile before the change and pass after; all core tests pass.
 

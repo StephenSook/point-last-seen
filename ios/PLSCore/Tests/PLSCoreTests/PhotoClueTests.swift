@@ -30,6 +30,21 @@ import Testing
         }
     }
 
+    /// Plurals, Spanish, more body parts and a word spelled out letter by letter are a person too.
+    @Test func everyWayOfNamingAPersonIsNotKept() {
+        for object in ["remains", "bodies by a creek", "a corpse", "corpses", "niño", "niña con gorra", "niños", "hombre", "mujer",
+                       "persona", "cuerpo", "shoe with an ankle", "a wrist with a watch", "torso", "m.a.n", "m a n", "W-O-M-A-N", "babies"] {
+            #expect(PhotoClue.decide(Self.photo(object, .red, .other), profile: Self.worn, segmentIds: []) == .discarded(PhotoClue.personMessage), "\(object)")
+        }
+    }
+
+    /// A person word inside a longer word is not a person: a handbag, a backpack, a manual.
+    @Test func aPersonWordInsideAnotherWordIsKept() {
+        for object in ["handbag", "backpack", "manual", "mandolin", "armband", "legging"] {
+            #expect(Self.clue(PhotoClue.decide(Self.photo(object, .red, .other), profile: Self.worn, segmentIds: [])) != nil, "\(object)")
+        }
+    }
+
     /// State words a report uses for a person ("walking", "sitting", "safe") are not a person in a photo.
     @Test func anObjectNamedWithAStateWordIsKept() {
         for object in ["walking stick", "sitting pad", "safety vest", "fine-knit glove"] {

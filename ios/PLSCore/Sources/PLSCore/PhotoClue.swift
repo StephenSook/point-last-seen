@@ -43,7 +43,7 @@ public enum PhotoClue {
 
     public static func decide(_ photo: PhotoDescription, profile: ModelProfile, segmentIds: [String]) -> Outcome {
         let object = cleaned(photo.object, kind: photo.kind)
-        if photo.showsPerson || !Set(words(photo.object)).isDisjoint(with: personWords) { return .discarded(personMessage) }
+        if photo.showsPerson || namesAPerson(photo.object) { return .discarded(personMessage) }
         let phrase = match(photo, profile: profile)
         var reading = ReportReading.unclear(quote: object)
         reading.kind = .clue
@@ -84,6 +84,29 @@ public enum PhotoClue {
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
         }
+    }
+
+    /// True when any word of the object names a person or part of one: a plural (bodies, niños, mujeres) or a word
+    /// spelled out letter by letter ("m.a.n", "W-O-M-A-N") counts. A person word inside a longer word (handbag) does not.
+    static func namesAPerson(_ object: String) -> Bool {
+        let tokens = words(object)
+        var joined: [String] = []
+        var letters = ""
+        for t in tokens {
+            if t.count == 1 { letters += t; continue }
+            if !letters.isEmpty { joined.append(letters); letters = "" }
+        }
+        if !letters.isEmpty { joined.append(letters) }
+        return (tokens + joined).contains { w in forms(w).contains(where: personWords.contains) }
+    }
+
+    /// A word and its singular forms: bodies -> body, mujeres -> mujer, niños -> niño.
+    static func forms(_ w: String) -> [String] {
+        var all = [w]
+        if w.count > 4, w.hasSuffix("ies") { all.append(String(w.dropLast(3)) + "y") }
+        if w.count > 3, w.hasSuffix("es") { all.append(String(w.dropLast(2))) }
+        if w.count > 3, w.hasSuffix("s") { all.append(String(w.dropLast())) }
+        return all
     }
 
     static func words(_ s: String) -> [String] {
@@ -133,7 +156,10 @@ public enum PhotoClue {
         "gentleman", "guy", "boy", "girl", "child", "children", "kid", "kids", "baby", "toddler", "teen", "hiker",
         "hikers", "searcher", "searchers", "subject", "patient", "victim", "body", "he", "she", "him", "her", "they",
         "them", "grandma", "grandpa", "grandmother", "grandfather", "mom", "mother", "dad", "father",
-        "hand", "hands", "finger", "fingers", "face", "faces", "arm", "arms", "leg", "legs", "foot", "feet", "head",
-        "shoulder", "knee", "skin",
+        "hand", "finger", "face", "arm", "leg", "foot", "feet", "head", "shoulder", "knee", "skin", "ankle", "wrist", "torso",
+        "neck", "elbow", "thumb", "toe", "chest", "shin", "thigh", "fist", "eye",
+        "remains", "corpse", "cadaver",
+        "persona", "gente", "hombre", "mujer", "chico", "chica", "niño", "niña", "nino", "nina", "bebé", "bebe", "señor",
+        "señora", "senor", "senora", "cuerpo", "cadáver", "restos", "mano", "cara", "brazo", "pierna", "pie",
     ]
 }
