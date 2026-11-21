@@ -211,6 +211,24 @@ family app has none to ground: its note read fills only kind, label, summary and
 the family picks the direction and colours and sends footwear and carried empty; and a camera clip's colours come
 from the video frames, with no note and no profile in the request (no server prompt template names the profile).
 
+## search-report.json (hand-written)
+
+A team sometimes types its search report into the sighting form ("Segment 4 searched, subject not seen"). Before a
+sighting is saved, the form checks the note with `readsAsSearchReport` in `shared/engine-ts/src/searchReport.ts`, with
+no model, and when it answers yes says "This reads as a search report, not a sighting." It only warns: the sighting
+can still be saved with one more tap. English only. A note reads as a search report when both hold:
+
+- It has a search result: one of the words `searched`, `cleared`, `swept`, `combed`, or one of the phrases `no sign`,
+  `nothing found`, `not found`, `no trace`, or a segment named done (`segment AB done`, `segment 4 finished`,
+  `segment AE is complete`). `covered` is not one ("a man covered in mud" is a sighting).
+- It has no sighting word: `saw`, `seen`, `spotted`, `sighted`, `caller`, `walking`, `heading`, `wearing`, `heard`,
+  `found`, `footprint(s)`, `track(s)`, `shoe(s)`, `clothing`. A sighting word with `not`, `never`, `no`, `wasn't`
+  or `nobody` one or two words before it does not count ("subject not seen", "no one saw"), and neither does
+  `found` after `nothing`. Pronouns are not sighting words ("no sign of him" is a search report).
+
+Words are whole words in any case, and either apostrophe counts. Each case names the clause it tests, and every clause
+with two sides has a case on each.
+
 ## found-kind.json (hand-written)
 
 A model can read "Found a blue coat by the creek in BO" as the person found. A found event moves no probability and

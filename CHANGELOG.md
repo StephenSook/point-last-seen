@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Search-report check: `readsAsSearchReport` (`shared/engine-ts/src/searchReport.ts`) says whether a sighting note reads
+  as a search report: a search-result word or phrase, or a segment named done, with no sighting word, where a sighting
+  word within two words after a negation does not count. English only, no model.
+  `shared/test-vectors/search-report.json` holds 44 hand-written cases, one on each side of each clause, and a README
+  section gives the rule, so the phones can match it. Source: review (a team's search report typed into the sighting
+  form). Verified: the vector test failed first, then passed (45); the engine suite (434) and typecheck pass.
 - Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
   1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
   ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:

@@ -9,6 +9,7 @@ export { deriveClearedEffect, deriveClueEffect, isWellFormedEffect, malformedEve
 export { validateReading } from "./validate";
 export { groundReading } from "./ground";
 export { correctFoundKind, FOUND_AS_CLUE_REASON } from "./found";
+export { readsAsSearchReport, SEARCH_REPORT_LINE } from "./searchReport";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
 export { looksEnglish } from "./language";
