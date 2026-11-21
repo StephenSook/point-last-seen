@@ -19,7 +19,7 @@ profile, notes, photos and camera clips from their own app, and decides which of
 | Platform | Who uses it | How a judge tries it |
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
-| iPhone searcher app | Searchers in the field | TestFlight (the public link is not published yet) |
+| iPhone searcher app | Searchers in the field | TestFlight once Apple clears review (no public link yet); its recorded on-device and cloud runs are in [docs/evidence/ios](docs/evidence/ios) |
 | Android family app | The missing person's family | A signed APK as a GitHub release asset (no release is published yet) |
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { clockLabel, elapsedLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, sliderScale, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
+import { clockLabel, durationLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, reportCount, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -137,19 +137,29 @@ describe("markTimes and nextMarkTime", () => {
   });
 });
 
-describe("elapsedLabel", () => {
-  it("elapsedLabel pads hours, minutes and seconds", () => {
-    expect(elapsedLabel(T0 + 42 * MIN + 10_000, T0)).toBe("00:42:10");
-    expect(elapsedLabel(T0 + 3 * 3_600_000 + 5_000, T0)).toBe("03:00:05");
-    expect(elapsedLabel(T0 - 1, T0)).toBe("00:00:00");
+describe("durationLabel", () => {
+  it("says the time since the start in whole minutes, with hours past the first hour", () => {
+    expect(durationLabel(0)).toBe("0 min");
+    expect(durationLabel(-1)).toBe("0 min");
+    expect(durationLabel(42 * MIN + 59_999)).toBe("42 min");
+    expect(durationLabel(60 * MIN)).toBe("1 h 0 min");
+    expect(durationLabel(21 * 60 * MIN + 18 * MIN + 34_000)).toBe("21 h 18 min");
   });
 });
 
-describe("valueText", () => {
-  it("says the clock time and how far in, for the slider's announcement", () => {
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 45, 10), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:45, 42 minutes in");
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 4, 30), Date.UTC(2026, 10, 22, 14, 3), "UTC")).toBe("14:04, 1 minute in");
-    expect(valueText(Date.UTC(2026, 10, 22, 14, 45), Date.UTC(2026, 10, 22, 14, 3), "America/New_York")).toBe("09:45, 42 minutes in");
+describe("reportCount and valueText", () => {
+  it("counts the reports that had arrived by a time, out of every arrived report", () => {
+    const d = data();
+    expect(reportCount(d, T0)).toEqual({ shown: 0, total: 6 });
+    // Arrivals at +2.5, +5 and +6 by then; +8, +10 and +11 later.
+    expect(reportCount(d, T0 + 6 * MIN)).toEqual({ shown: 3, total: 6 });
+    expect(reportCount(d, T0 + 11 * MIN)).toEqual({ shown: 6, total: 6 });
+  });
+
+  it("the replay's one clock, which the slider also announces: time since the start, then the report", () => {
+    expect(valueText(T0 + 21 * 60 * MIN + 18 * MIN + 34_000, T0, { shown: 24, total: 24 })).toBe("21 h 18 min, report 24 of 24");
+    expect(valueText(T0 + 42 * MIN, T0, { shown: 3, total: 24 })).toBe("42 min, report 3 of 24");
+    expect(valueText(T0, T0, { shown: 0, total: 24 })).toBe("0 min, report 0 of 24");
   });
 });
 
@@ -167,11 +177,31 @@ describe("sliderScale", () => {
   });
 });
 
-describe("playbackStep", () => {
-  it("the whole window plays in 30 seconds and stops at the end", () => {
-    const w = { startMs: T0, endMs: T0 + 60 * MIN, priorInUseFromMs: T0 };
-    expect(PLAY_WINDOW_IN_MS).toBe(30_000);
-    expect(playbackStep(T0, 15_000, w)).toBe(T0 + 30 * MIN);
-    expect(playbackStep(T0 + 59 * MIN, 15_000, w)).toBe(T0 + 60 * MIN);
+describe("playStops", () => {
+  it("Play holds on the first stored map, each report after it and the end, never in the span with no map", () => {
+    const d = data();
+    const w = replayWindow(d)!;
+    // The prior came into use at +3; reports arrive after it at +5, +6, +8 and +10; the window ends at +11 (an
+    // acknowledgement, which moves no map, so it is a stop only as the end).
+    expect(playStops(d, w)).toEqual([3, 5, 6, 8, 10, 11].map((m) => T0 + m * MIN));
+    expect(PLAY_STOP_MS).toBe(1_500);
+  });
+
+  it("with no stored map at any time, Play still steps report by report from the start", () => {
+    const d = fromLive(replayView(), [
+      streamed(eventDoc({ eventId: "a", priorVersion: 1, clientTimeMs: T0, deviceId: "d9" }), T0 + MIN),
+      streamed(eventDoc({ eventId: "b", priorVersion: 1, clientTimeMs: T0 + 2 * MIN, deviceId: "d9" }), T0 + 3 * MIN),
+    ], [])!;
+    const w = replayWindow(d)!;
+    expect(w.priorInUseFromMs).toBe(Number.POSITIVE_INFINITY);
+    expect(playStops(d, w)).toEqual([T0, T0 + MIN, T0 + 3 * MIN]);
+  });
+
+  it("Play starts on the first stop from the end or the span before it, and otherwise from where the slider is", () => {
+    const stops = [3, 5, 6, 11].map((m) => T0 + m * MIN);
+    expect(playFrom(stops, T0 + 11 * MIN)).toBe(T0 + 3 * MIN);
+    expect(playFrom(stops, T0 + MIN)).toBe(T0 + 3 * MIN);
+    expect(playFrom(stops, T0 + 5.5 * MIN)).toBe(T0 + 6 * MIN);
+    expect(playFrom(stops, T0 + 6 * MIN)).toBe(T0 + 6 * MIN);
   });
 });

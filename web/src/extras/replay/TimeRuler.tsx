@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import type { ReplayData } from "./replayData";
-import { elapsedLabel, nextMark, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
+import { nextMark, reportCount, rulerModel, sliderScale, valueText, type MarkKind } from "./ruler";
 import type { ReplayWindow } from "./stateAt";
 
 // The SVG is drawn in CSS pixels at the track's measured width, so labels and shapes are never stretched.
@@ -28,12 +28,17 @@ function Mark({ kind, x }: { kind: MarkKind; x: number }) {
   }
 }
 
-export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
+/**
+ * The scrubber under the replay map: Play at its left (none with reduced motion), then the time track with its one
+ * clock over the head. The span before the current prior came into use has no stored map and is shaded.
+ */
+export function TimeRuler({ data, w, tMs, onChange, timeZone, play }: {
   data: ReplayData;
   w: ReplayWindow;
   tMs: number;
   onChange: (t: number) => void;
   timeZone: string;
+  play: { playing: boolean; toggle(): void } | null;
 }): JSX.Element {
   const track = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(600);
@@ -66,14 +71,28 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
   }
 
   const head = toX(tMs);
+  // The replay's one clock. The slider announces the same words, so the bubble itself is not read twice.
+  const clock = valueText(tMs, w.startMs, reportCount(data, tMs));
+  // No stored map from the window start until the current prior came into use (the whole window when never).
+  const unstoredX = w.priorInUseFromMs > w.startMs ? toX(Math.min(w.priorInUseFromMs, w.endMs)) : 0;
   return (
-    <div className="extras-ruler">
-      {/* The clock is in the facts line above; the slider announces both, so this readout is not read twice. */}
-      <div className="extras-ruler-clock" aria-hidden="true">
-        <span>Elapsed</span> <span className="extras-ruler-elapsed">{elapsedLabel(tMs, w.startMs)}</span>
-      </div>
+    <div className="extras-scrubber">
+      {play && (
+        <button type="button" className="btn extras-scrubber-play" onClick={play.toggle}>
+          {play.playing ? "Pause" : "Play"}
+        </button>
+      )}
       <div className="extras-ruler-track" ref={track}>
+        <div className="extras-ruler-bubble" aria-hidden="true" style={{ left: `${Math.min(Math.max(head, 0), W)}px` }} data-edge={head < 90 ? "start" : head > W - 90 ? "end" : undefined}>
+          {clock}
+        </div>
         <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+          {unstoredX > 0 && (
+            <>
+              <rect className="extras-ruler-unstored" x={0} y={0} width={unstoredX} height={SCALE_Y} />
+              {unstoredX >= 100 && <text className="extras-ruler-unstored-label" x={4} y={9}>No stored map</text>}
+            </>
+          )}
           <line className="extras-ruler-scale" x1={0} x2={W} y1={SCALE_Y} y2={SCALE_Y} />
           {m.ticks.map((t) => (
             <g key={t.tMs}>
@@ -97,7 +116,7 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone }: {
           step={1000}
           value={scale.valueOf(tMs)}
           aria-label="Replay time"
-          aria-valuetext={valueText(tMs, w.startMs, timeZone)}
+          aria-valuetext={clock}
           onChange={(e) => onChange(scale.timeOf(Number(e.target.value)))}
           onKeyDown={onKeyDown}
         />

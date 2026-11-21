@@ -9,7 +9,7 @@ import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { runNumbers, runNumbersLine } from "../extras/runNumbers";
 import { PURPOSE_LINE } from "../purpose";
-import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, ANDROID_RELEASE_URL, TESTFLIGHT_URL, d2Copy, fetchedTime, judgeLinks, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 // Said while the server is still setting the practice search up and the page is starting it again by itself.
@@ -99,23 +99,9 @@ export function JudgePage() {
     : modelLines({ cloudModelWeb: RC_DEFAULTS.cloud_model_web, cloudModelSource: "default", fetchedAt: null, killCloud: false });
   return (
     <main className="judge">
-      <p className="wordmark">Point Last Seen</p>
-      <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
-      <p data-testid="judge-advice" className="judge-advice">{ADVICE_LINE}</p>
-      <nav aria-label="Links" className="judge-links">
-        <a href="/">Command post</a>
-        <a href="https://github.com/StephenSook/point-last-seen" target="_blank" rel="noopener noreferrer">Source code</a>
-      </nav>
-      {/* The three-minute route, in order; each step jumps to its section on this page. */}
-      <ol aria-label="Three minutes, in order" className="judge-route">
-        <li><a href="#practice-h">Try a practice search</a></li>
-        <li><a href={runFile ? "#extras-replay-h" : "#d1-h"}>Watch the drill replay</a></li>
-        <li><a href="#d2-h">Get this laptop ready</a></li>
-        <li><a href="#model-h">See the cloud model</a></li>
-      </ol>
       <p className="drill">{DRILL_LINE}</p>
       <h1>Judge's door</h1>
-      <p className="muted">No login and no key. About three minutes.</p>
+      <p className="muted">No login. About three minutes.</p>
 
       <section aria-labelledby="practice-h">
         <h2 id="practice-h" className="label">Try a practice search</h2>
@@ -141,8 +127,11 @@ export function JudgePage() {
         </section>
       )}
 
-      {/* A run the reader refuses still reaches the replay section, which says why in plain words. */}
+      {/* A run the reader refuses still reaches the replay section, which says why in plain words. It opens at its end,
+          the live map, so it is the page's first picture, under the practice card. */}
       <JudgeExtras run={runFile} />
+
+      <p data-testid="judge-advice" className="judge-advice">{ADVICE_LINE}</p>
 
       <section aria-labelledby="model-h">
         <h2 id="model-h" className="label">Cloud model</h2>
@@ -180,6 +169,19 @@ export function JudgePage() {
           <p>{runNumbersLine(numbers)}</p>
         </section>
       )}
+      <footer className="judge-footer">
+        <p className="wordmark">Point Last Seen</p>
+        <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
+        <nav aria-label="Links" className="judge-links">
+          {judgeLinks({ android: ANDROID_RELEASE_URL, testflight: TESTFLIGHT_URL }).map((l) =>
+            l.external ? (
+              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
+            ) : (
+              <a key={l.label} href={l.href}>{l.label}</a>
+            ),
+          )}
+        </nav>
+      </footer>
     </main>
   );
 }
