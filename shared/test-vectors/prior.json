@@ -280,6 +280,29 @@
         2.8,
         0.38
       ]
+    },
+    {
+      "name": "present_shares_sum_to_zero_neutral",
+      "input": {
+        "mass": [
+          0.5,
+          0.5
+        ],
+        "relativeM": [
+          10.0,
+          0.0
+        ],
+        "shares": {
+          "up": 0.0,
+          "level": 0.0,
+          "down": 1.0
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        1.0,
+        1.0
+      ]
     }
   ]
 }

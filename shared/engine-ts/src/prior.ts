@@ -58,13 +58,17 @@ export function linearWeights(mass: number[], nearFrac: number[], nearShare: num
  */
 export function elevationWeights(mass: number[], relativeM: (number | null)[], shares: { up: number; level: number; down: number },
   levelBandM: number): number[] {
+  if ([shares.up, shares.level, shares.down].some(v => !Number.isFinite(v) || v < 0)) {
+    throw new Error("The elevation shares must be finite and not negative");
+  }
   const cls = relativeM.map(r => (r === null ? null : r > levelBandM ? "up" : r < -levelBandM ? "down" : "level"));
   const classMass = { up: 0, level: 0, down: 0 };
   cls.forEach((c, j) => { if (c) classMass[c] += mass[j]!; });
   const total = classMass.up + classMass.level + classMass.down;
   const present = (["up", "level", "down"] as const).filter(c => classMass[c] > 0);
-  if (total <= 0 || present.length <= 1) return mass.map(() => 1);
   const shareSum = present.reduce((n, c) => n + shares[c], 0);
+  // No mass, one class only, or no share for any class that has mass: nothing to move toward, so nothing changes.
+  if (total <= 0 || present.length <= 1 || shareSum <= 0) return mass.map(() => 1);
   return cls.map(c => (c === null || classMass[c] <= 0 ? 1 : ((shares[c] / shareSum) * total) / classMass[c]));
 }
 

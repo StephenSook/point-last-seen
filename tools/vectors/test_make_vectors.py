@@ -216,6 +216,16 @@ def test_elevation_weights_return_an_empty_class_share_pro_rata_and_leave_no_dat
     assert mv.elevation_weights([0.3, 0.7], [None, None], shares, 3.0) == [1.0, 1.0]
 
 
+def test_elevation_weights_refuse_bad_shares_and_stay_neutral_when_present_shares_sum_to_zero():
+    import pytest
+    mv = _mv()
+    # Only uphill and level hold mass, and both have share 0: nothing to move toward, so nothing changes.
+    assert mv.elevation_weights([0.5, 0.5], [10.0, 0.0], {"up": 0.0, "level": 0.0, "down": 1.0}, 3.0) == [1.0, 1.0]
+    for bad in ({"up": -0.1, "level": 0.5, "down": 0.6}, {"up": float("nan"), "level": 0.5, "down": 0.5}):
+        with pytest.raises(ValueError):
+            mv.elevation_weights([0.5, 0.5], [10.0, -10.0], bad, 3.0)
+
+
 def test_urgency_follows_the_cdc_40f_line_and_ignores_clothing():
     mv = _mv()
     assert [mv.urgency_level(t, w) for t, w in [(40, False), (41, True), (41, False), (39, True)]] == ["cold", "cool_wet", "none", "cold"]

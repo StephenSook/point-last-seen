@@ -77,6 +77,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Engine and reference: elevationWeights refuses a negative or non-finite share, and returns neutral weights when the
+  classes that hold mass have shares summing to zero (it gave NaN before); a generated vector covers the zero-sum
+  case. Source: review (second-model). Verified: a reference test and the vector failed first, then pass; engine suite
+  389; reference suite 19.
 - Engine: the elevation layer's constants (ELEVATION_PARAMS, from a top-level elevation block in
   shared/constants/engine-params.json with its own source line) stay outside EngineParams, so stored incidents and the
   published run, which carry no copy, still pass every reader (the replay reader derives its required engine fields

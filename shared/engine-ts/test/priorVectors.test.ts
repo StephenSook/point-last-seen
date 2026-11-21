@@ -19,7 +19,7 @@ describe("prior vectors", () => {
 
 describe("elevation-weight vectors (Koester, Lost Person Behavior, dementia p.164)", () => {
   it("has the elevation cases", () => {
-    expect(vectors.elevationWeights.map(c => c.name)).toEqual(["every_class", "no_uphill_pro_rata", "no_data_unchanged", "band_edge_is_level", "zero_mass_neutral", "all_no_data_neutral", "uneven_mass"]);
+    expect(vectors.elevationWeights.map(c => c.name)).toEqual(["every_class", "no_uphill_pro_rata", "no_data_unchanged", "band_edge_is_level", "zero_mass_neutral", "all_no_data_neutral", "uneven_mass", "present_shares_sum_to_zero_neutral"]);
   });
   for (const c of vectors.elevationWeights) {
     it(c.name, () => {
@@ -27,5 +27,12 @@ describe("elevation-weight vectors (Koester, Lost Person Behavior, dementia p.16
       expectVector(elevationWeights(mass, relativeM as (number | null)[], shares, levelBandM), c.expected);
     });
   }
+});
+
+describe("elevationWeights refuses shares that are not shares", () => {
+  it("throws on a negative or non-finite share", () => {
+    expect(() => elevationWeights([0.5, 0.5], [10, -10], { up: -0.1, level: 0.5, down: 0.6 }, 3)).toThrow(/share/);
+    expect(() => elevationWeights([0.5, 0.5], [10, -10], { up: Number.NaN, level: 0.5, down: 0.5 }, 3)).toThrow(/share/);
+  });
 });
 
