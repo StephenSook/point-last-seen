@@ -5,7 +5,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { closesDrill, deleteEndedDrills, DRILL_RETENTION_MS, keptUntil, PURGES, recordDrillClosed } from "../src/retention";
+import { closesDrill, deleteEndedDrills, DRILL_RETENTION_MS, keptUntil, PURGES, recordDrillClosed, startPurge } from "../src/retention";
 import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const bucket = getStorage(adminApp).bucket();
@@ -104,14 +104,120 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(DRILL_RETENTION_MS).toBe(30 * DAY);
   });
 
-  it("keeps the development and judge seed drills always, and the Kennesaw drill until 2027-01-01", async () => {
-    for (const id of ["drill-dev-1", "drill-judge-1", "drill-kennesaw-1"]) await drill(id, closed(60));
-    expect((await deleteEndedDrills(admin.db, bucket, admin.auth, NOW)).deleted).toEqual([]);
-    expect(keptUntil("drill-kennesaw-1")).toBe(Date.UTC(2027, 0, 1));
-    expect(keptUntil("drill-dev-1")).toBe(Number.POSITIVE_INFINITY);
-    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, Date.UTC(2027, 0, 1));
+  it("keeps the development, judge seed, filmed and test drills until 2027-01-01, then deletes them like any other", async () => {
+    const kept = ["drill-dev-1", "drill-judge-1", "drill-kennesaw-1", "drill-test-1"];
+    for (const id of kept) await drill(id, closed(60));
+    const during = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(during.deleted).toEqual([]);
+    expect(during.kept).toEqual(kept);
+    // One end date for every kept drill: judging ends 2026-12-16, and nothing needs them after the year.
+    for (const id of kept) expect(keptUntil(id)).toBe(Date.UTC(2027, 0, 1));
+    expect(keptUntil("drill-other")).toBe(0);
+    const after = await deleteEndedDrills(admin.db, bucket, admin.auth, Date.UTC(2027, 0, 1));
+    expect(after.deleted).toEqual(kept);
+    expect(after.kept).toEqual([]);
+  });
+
+  it("purges a kept drill once its end date passes even if nobody closed it, and never an open drill that is not kept", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-test-1", {});
+    await drill("OPEN-OTHER", {});
+    const gone = await member("drill-test-1");
+    const before = await deleteEndedDrills(admin.db, bucket, admin.auth, END - 1);
+    expect(before.deleted).toEqual([]);
+    expect((await inc("drill-test-1").get()).exists).toBe(true);
+    const at = await deleteEndedDrills(admin.db, bucket, admin.auth, END);
+    expect(at.deleted).toEqual(["drill-test-1"]);
+    expect((await inc("drill-test-1").get()).exists).toBe(false);
+    for (const p of media("drill-test-1")) expect(await exists(p)).toBe(false);
+    expect(await userExists(gone)).toBe(false);
+    const rec = (await purge("drill-test-1").get()).data()!;
+    expect(rec["doneAt"]).toBeInstanceOf(Timestamp);
+    expect(rec["closedAtMs"]).toBe(END);
+    expect((await inc("OPEN-OTHER").get()).exists).toBe(true);
+  });
+
+  it("purges a kept drill that is closed but has no closedAt once its end date passes", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-kennesaw-1", { status: "closed" });
+    expect((await deleteEndedDrills(admin.db, bucket, admin.auth, END - 1)).deleted).toEqual([]);
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, END);
     expect(r.deleted).toEqual(["drill-kennesaw-1"]);
-    expect(r.kept).toEqual(["drill-dev-1", "drill-judge-1"]);
+    expect((await inc("drill-kennesaw-1").get()).exists).toBe(false);
+    expect((await purge("drill-kennesaw-1").get()).get("closedAtMs")).toBe(END);
+  });
+
+  it("stamps an open kept drill closed at its end date before purging it, and not in a dry run", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-dev-1", {});
+    const dry = await deleteEndedDrills(admin.db, bucket, admin.auth, END, { dryRun: true });
+    expect(dry.deleted).toEqual(["drill-dev-1"]);
+    expect((await inc("drill-dev-1").get()).get("closedAt")).toBeUndefined();
+    // A run whose media step fails leaves the incident, now closed at its end date, for the next run.
+    const failing = { getFiles: async () => { throw new Error("storage down"); } } as unknown as B;
+    const r = await deleteEndedDrills(admin.db, failing, admin.auth, END + 3_600_000);
+    expect(r.failed).toEqual(["drill-dev-1"]);
+    expect(((await inc("drill-dev-1").get()).get("closedAt") as Timestamp).toMillis()).toBe(END);
+  });
+
+  it("a retried purge of a kept drill uses the same sign-in cutoff, its end date, as the first try", async () => {
+    const END = Date.UTC(2027, 0, 1), HOUR = 3_600_000;
+    await drill("drill-dev-1", {});
+    const idle = await member("drill-dev-1", true, END - 5 * DAY);
+    const late = await member("drill-dev-1", true, END + 2 * HOUR);
+    const failing = { getFiles: async () => { throw new Error("storage down"); } } as unknown as B;
+    expect((await deleteEndedDrills(admin.db, failing, admin.auth, END + HOUR)).failed).toEqual(["drill-dev-1"]);
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, END + 3 * HOUR);
+    expect(r.deleted).toEqual(["drill-dev-1"]);
+    expect((await purge("drill-dev-1").get()).get("closedAtMs")).toBe(END);
+    expect(await userExists(idle)).toBe(false);
+    expect(await userExists(late)).toBe(true);
+  });
+
+  it("keeps a kept drill's real close: its closedAt is never overwritten and is the sign-in cutoff", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    const realClose = END - 10 * DAY;
+    await drill("drill-judge-1", { status: "closed", closedAt: Timestamp.fromMillis(realClose) });
+    const before = await member("drill-judge-1", true, realClose - DAY);
+    const after = await member("drill-judge-1", true, realClose + DAY);
+    const failing = { getFiles: async () => { throw new Error("storage down"); } } as unknown as B;
+    await deleteEndedDrills(admin.db, failing, admin.auth, END);
+    expect(((await inc("drill-judge-1").get()).get("closedAt") as Timestamp).toMillis()).toBe(realClose);
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, END + DAY);
+    expect(r.deleted).toEqual(["drill-judge-1"]);
+    expect((await purge("drill-judge-1").get()).get("closedAtMs")).toBe(realClose);
+    expect(await userExists(before)).toBe(false);
+    expect(await userExists(after)).toBe(true);
+  });
+
+  it("startPurge: a kept drill's close recorded after the scan is kept and becomes the cutoff", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-test-1", { status: "closed", closedAt: Timestamp.fromMillis(END - 10 * DAY) });
+    expect(await startPurge(admin.db, "drill-test-1", END, END)).toBe(END - 10 * DAY);
+    expect(((await inc("drill-test-1").get()).get("closedAt") as Timestamp).toMillis()).toBe(END - 10 * DAY);
+    expect((await purge("drill-test-1").get()).get("closedAtMs")).toBe(END - 10 * DAY);
+  });
+
+  it("startPurge: an open kept drill is closed at its end date, never over a later close, and records that cutoff", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-dev-1", {});
+    expect(await startPurge(admin.db, "drill-dev-1", END, END)).toBe(END);
+    expect(((await inc("drill-dev-1").get()).get("closedAt") as Timestamp).toMillis()).toBe(END);
+    await drill("drill-judge-1", { status: "closed", closedAt: Timestamp.fromMillis(END + 60_000) });
+    expect(await startPurge(admin.db, "drill-judge-1", END, END)).toBe(END);
+    expect(((await inc("drill-judge-1").get()).get("closedAt") as Timestamp).toMillis()).toBe(END + 60_000);
+  });
+
+  it("startPurge: a stale run never reopens a purge another run finished, and resumes an unfinished one with its cutoff", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await purge("FINISHED").set({ startedAt: Timestamp.fromMillis(END), closedAtMs: END - 40 * DAY, doneAt: Timestamp.fromMillis(END) });
+    expect(await startPurge(admin.db, "FINISHED", END + DAY, END - 40 * DAY)).toBeNull();
+    const rec = (await purge("FINISHED").get()).data()!;
+    expect(rec["doneAt"]).toBeInstanceOf(Timestamp);
+    expect(rec["closedAtMs"]).toBe(END - 40 * DAY);
+    await purge("HALFWAY").set({ startedAt: Timestamp.fromMillis(END), closedAtMs: END - 40 * DAY });
+    expect(await startPurge(admin.db, "HALFWAY", END + DAY, END)).toBe(END - 40 * DAY);
+    expect(await startPurge(admin.db, "NOTHING", END, END)).toBeNull();
   });
 
   it("deletes the anonymous sign-ins that belonged only to the deleted drill", async () => {
