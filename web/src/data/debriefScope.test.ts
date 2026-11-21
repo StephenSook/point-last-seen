@@ -42,12 +42,14 @@ describe("debrief scope", () => {
     expect(outside).toEqual([]);
   });
 
-  it("the paper debrief sheet's files never import the debrief data module or Firestore", () => {
+  it("the paper debrief sheet's files never import the debrief data module or Firestore, nor name the collection", () => {
     for (const rel of PAPER_SHEET) {
       const code = readFileSync(join(SRC, rel), "utf8");
-      expect(code, rel).not.toMatch(/data\/debriefs|firebase\/firestore/);
+      // Nor names the stored collection, so no other module that builds collection(..., "debriefs") is a way in.
+      expect(code, rel).not.toMatch(/data\/debriefs|firebase\/firestore|["']debriefs["']/);
     }
-    // The check can fail: the debrief section itself imports the data module.
+    // The check can fail: the debrief section imports the data module, and the data module names the collection.
     expect(readFileSync(join(SRC, "command/DebriefSection.tsx"), "utf8")).toMatch(/data\/debriefs/);
+    expect(readFileSync(join(SRC, "data/debriefs.ts"), "utf8")).toMatch(/["']debriefs["']/);
   });
 });
