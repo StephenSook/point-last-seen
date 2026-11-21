@@ -2252,3 +2252,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/harness/first-report.html` no longer moves from saving to confirming to done on 400 ms timers; each step waits for its button ("Server has it", "Confirm done", "Server refuses"), and `e2e/harness/firstReport.spec.ts` presses them. A 400 ms step could pass between two of Playwright's polls (its interval grows to a second), so the check sometimes never saw "Confirming..." and timed out on "Saving the report...".
 - Source: review (the check failed about one run in five locally and once in CI).
 - Verified: typecheck passes; both checks passed 30 times in a row (`--repeat-each 5`, three runs); the hygiene guard passes.
+
+### perf(web): the judge page and the command post each load their own code
+- What: `web/src/main.tsx` loads `CommandPost` and `JudgePage` with `React.lazy`, so the app was one 2.5 MB `main` script and is now a 223 KB `main`, a 161 KB `CommandPost` chunk and an 18 KB `JudgePage` chunk. On a placeholder build the judge page's unique script bytes fell from 3.94 MB to 3.78 MB: the shared code (Firebase, MapLibre for the replay, reCAPTCHA) still loads, and a deeper cut needs Firestore set up only where it is used and a second look at prefetching the replay.
+- Source: UI review (one 2.5 MB script on every page).
+- Verified: a new no-backend check, `e2e/routeChunks.spec.ts` (the judge page loads no `CommandPost` chunk and its own `JudgePage` chunk; the command post loads its chunk), failed on the old build and passes on the new one with every no-backend check (45); typecheck, web unit suite and the hygiene guard pass.
