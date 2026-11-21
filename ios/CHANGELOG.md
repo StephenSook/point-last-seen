@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): an outbox entry keeps the found-kind reason on the phone
+- What: an outbox entry can carry the reason a model's "found" was read as a clue, so the report's receipt
+  can show it after the app restarts. It is the phone's own note, never part of the event; an entry written
+  before the field reads as having none.
+- Source: the found-kind rule (the receipt shows the reason).
+- Verified: a test that the reason survives a reopen, stays out of the event, and that an older entry decodes
+  without it failed to compile before the change and passes after; all core tests pass.
+
 ### test(ios): the privacy manifest test expects the eight declared types
 - What: the app test of the privacy manifest still expected the three types the manifest declared before the
   label work, so the iPhone app suite failed on main after that change. CI runs the core package only, and the
