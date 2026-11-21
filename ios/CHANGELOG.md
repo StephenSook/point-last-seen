@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the test matrix records the iPhone runs on build 8
+- What: the iPhone on-device and cloud rows of docs/TEST-MATRIX.md now cite build 8 (commit 8dfa5358):
+  1,793 ms on Apple's model and 1,343 ms in the cloud, both guided with no stage notes, each with build 7's
+  time beside it.
+- Source: the phone route check on build 8.
+- Verified: scripts/test_test_matrix.py passes.
+
 ### docs(evidence): the iPhone route check on build 8
 - What: docs/evidence/ios/iphone-2026-11-20-build8 holds the route-check file build 8 (commit 8dfa5358,
   the first with the iOS 26.0 minimum) wrote on an iPhone 17 Pro, iOS 27.2.1, copied off the phone, with a
