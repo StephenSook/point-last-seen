@@ -2540,6 +2540,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
 - Verified: run alone against the live site, the retract check passes.
 
+### test(data): a phone case pending on the web must still fail there
+- What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
+- Source: review (parity with the iPhone's vector test).
+- Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
+
 ### fix(command): a post whose sign-in moved to another search says so
 - What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
 - Source: review (a command who opens a practice search loses command).

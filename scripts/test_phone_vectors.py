@@ -50,7 +50,9 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    # A Mexican number in dot form is not a coordinate: a pair needs a minus after its mark, 4 to 7
                    # decimals and no phone cue before it.
                    "33.12345678, 33.87654321", "55.12345678, 55.87654321", "33.12345678, -103.3496",
-                   "33.12345678 / -81.12345678", "33.1234, -84.5678"]
+                   "33.12345678 / -81.12345678", "33.1234, -84.5678",
+                   # A known gap, pending on every platform (#298): a colon breaks the run, so times after a cue survive.
+                   "5:55 01:42", "5:55 01:42", "5:55 07:14", "5:55 01:42"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
@@ -80,7 +82,9 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   ("Seen 11/19/2026 14:03 404-555-0142", "Seen 11/19/2026 14:03 [number removed]"),
                   ("Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos", "Seen at 14:03, [number removed]"),
                   # A frequency joined to any other digits goes with the run.
-                  ("Radio 155.160 404 5550142", "Radio [number removed]")]
+                  ("Radio 155.160 404 5550142", "Radio [number removed]"),
+                  # The same known gap beside a kept date (#298).
+                  ("Seen 14 May 5:55 01:42", "Seen 14 May [number removed]")]
 
 
 def number_chars(text: str) -> bool:

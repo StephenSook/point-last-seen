@@ -119,6 +119,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test(vectors): five shared phone-number cases for a known gap, pending on every platform: a colon breaks a digit
+  run, so a number written as two times after a cue or beside a month ("Call 5:55 01:42 May", "May 5:55 01:42", "Text
+  5:55 07:14 May", "Call May 5:55 01:42") survives; the fifth, "Seen 14 May 5:55 01:42", is an exact case that keeps
+  the date. They are cases to remove, never to keep; issue #298 tracks closing the gap. LIMITS now counts 108 cases,
+  each platform still passing its 103, and the vectors README gives the reason. Source: review (phone rule gap found
+  by an automated security review, ruled a documented gap). Verified: test_phone_vectors.py (the pinned lists and the
+  LIMITS count) passes; the web phone runner passes 144 with the five skipped as pending; the public hygiene guard
+  passes.
 - docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
   has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
   path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
