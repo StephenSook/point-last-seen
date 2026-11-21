@@ -29,6 +29,8 @@ struct ReportReader {
     /// The language screen before any cloud read, from the bundled word lists. If they cannot be read
     /// it is nil, and no note goes to the cloud.
     var language: LanguageScreen? = try? BundledConstants.languageScreen()
+    /// The grounding rule run on every reading; when it cannot be loaded the fields it checks are blanked.
+    var grounding: Grounding? = try? BundledConstants.grounding()
     /// Counts tokens with Apple's model (a seam for tests).
     var estimateTokens: @Sendable (String, [any Tool]) async -> Int = { await ModelSessionFactory.estimateTokens(report: $0, tools: $1) }
     /// The count is a call into Apple's model and can stall like any model call (spike S1 on the
@@ -68,6 +70,7 @@ struct ReportReader {
             killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         context.language = language
+        context.grounding = grounding
         context.profile = situation.profile
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())
