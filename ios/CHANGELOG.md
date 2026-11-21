@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the privacy manifest declares what the app's SDKs collect, and a check holds it to the label
+- What: the app's privacy manifest declared three data types (precise location, user ID, other user content),
+  but the build's Firebase SDKs declare five more in their own manifests (device ID, crash data, other
+  diagnostic data, other data types) and Firebase Performance sends performance traces. The app's manifest now
+  declares all eight, none used for tracking, and ios/app-privacy-label.json records the App Store privacy
+  label to enter. scripts/check_privacy_label.py fails a build when any bundled manifest collects a type the
+  label does not list, links data the label says is not linked, uses data for tracking, or when the app's own
+  manifest does not declare exactly the label's types.
+- Source: review (App Store submission prep: the union of build 8's 36 bundled manifests).
+- Verified: seven tests of the check failed before it existed and pass after, including one that the committed
+  manifest and label agree; on build 8's App Store IPA the check fails on exactly the five types its own
+  manifest lacked, and no SDK type is off the label.
+
 ### fix(ios): the route check runs only in the practice drill
 - What: the route check said "practice incidents only" but ran in any drill or judge incident; its cloud
   route sends the reader's tools, the subject's description included, so a live drill (such as Kennesaw)

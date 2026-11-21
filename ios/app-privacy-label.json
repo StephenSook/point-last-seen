@@ -1,0 +1,14 @@
+{
+  "note": "The App Store privacy label for the iPhone app, entered by hand in App Store Connect (App Privacy). scripts/check_privacy_label.py fails a build when any bundled privacy manifest collects data this file does not list, and when the app's own manifest does not declare exactly these types.",
+  "tracking": false,
+  "types": {
+    "PreciseLocation": {"linked": true, "purposes": ["AppFunctionality"]},
+    "UserID": {"linked": true, "purposes": ["AppFunctionality"]},
+    "OtherUserContent": {"linked": true, "purposes": ["AppFunctionality"]},
+    "DeviceID": {"linked": false, "purposes": ["AppFunctionality"]},
+    "CrashData": {"linked": false, "purposes": ["AppFunctionality"]},
+    "PerformanceData": {"linked": false, "purposes": ["AppFunctionality", "Analytics"]},
+    "OtherDiagnosticData": {"linked": false, "purposes": ["AppFunctionality", "Analytics"]},
+    "OtherDataTypes": {"linked": false, "purposes": ["Analytics"]}
+  }
+}
