@@ -79,3 +79,11 @@ describe("memberRows: never the caller or a command account, and never two ident
     expect(labels).toEqual(["Team 1 searcher (aa001111)", "Team 1 searcher (bb001111)"]);
   });
 });
+
+describe("memberRows: a members record decides; events decide only when there is none", () => {
+  it("lists an account whose record says family even though an old event of it was command", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows({ u1: { role: "family", team: null } }, [{ authorUid: "u1", role: "command", teamId: null }], new Set(), [], null);
+    expect(rows.map((r) => [r.uid, r.label])).toEqual([["u1", "Family member"]]);
+  });
+});

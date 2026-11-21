@@ -30,9 +30,9 @@ export type MemberRow = { uid: string; role: "searcher" | "family"; teamId: stri
 
 /**
  * Everyone command can remove: the members records joined with the authors of the incident's events (an account that
- * joined before the records existed is known only by what it wrote). Never listed: the caller, and any account ever
- * seen as command (in a members record or in any of its events, whichever came first). A members record wins over an
- * event for role and team. People with the same label are told apart by the end of their id, longer until every label
+ * joined before the records existed is known only by what it wrote). Never listed: the caller, and command. A members
+ * record decides an account's role and team (the server decides removal from it); for an account with no record, any
+ * command event of it keeps it off the list. People with the same label are told apart by the end of their id, longer until every label
  * is distinct. Removed members come last.
  */
 export function memberRows(
@@ -43,7 +43,10 @@ export function memberRows(
   selfUid: string | null = null,
 ): MemberRow[] {
   const command = new Set<string>(selfUid ? [selfUid] : []);
-  for (const e of events) if (e["role"] === "command" && typeof e["authorUid"] === "string") command.add(e["authorUid"]);
+  for (const e of events) {
+    const uid = e["authorUid"];
+    if (e["role"] === "command" && typeof uid === "string" && !(uid in members)) command.add(uid);
+  }
   for (const [uid, m] of Object.entries(members)) if (m.role === "command") command.add(uid);
   const known = new Map<string, { role: string; teamId: string | null }>();
   for (const e of events) {
