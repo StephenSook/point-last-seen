@@ -2501,6 +2501,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
 
+### test(data): a fixed-seed fuzz holds the run-of-times step to the shared rule
+- What: `phoneNumbersFuzz.test.ts` compares `removePhoneNumbers` with the shared rule on its own (`removeByRule`, now exported) over 90,000 generated notes with a fixed seed: noise, focused runs of times, and planted ten-digit numbers in five forms (grouped, bracketed, spoken, written as times, a spoken digit before times) after cues and plain words. It checks that a note with no run, or one NFKC changes, comes out exactly as the shared rule gives it; that outside the runs the README lets stay, no more digits survive; that a planted number survives only where the shared rule leaves it or where it is itself a run that may stay (rising times, no cue); and that every run that may stay does. The rule for which runs may stay is written again in the test from the README, in tokens and gaps, so a slip in either copy shows. Three leaky stand-ins (keep the note as written; keep every run, joined or cued; drop a typed private-use character) must each be flagged.
+- Source: review (keep the differential fuzz as a committed test).
+- Verified: the five tests pass (37,000+ of the notes hold a run; all four properties at zero); each stand-in is flagged; the web unit suite, typecheck, build, gates and hygiene guard pass.
+
+### test(data): the run-of-times fuzz compares byte for byte with the README written again
+- What: the fuzz's digit-count checks could miss a leak by construction: a rejected run the shared rule mostly keeps refilled the count budget, a kept run was found again by text so the wrong copy could be blanked, the exact check covered only notes with no run, and the generator never put a spoken digit after the times, wrote two or four times, used most cue words or put punctuation between a cue and the run. The test now builds the README's output itself (the text between decided runs through the shared rule, each decided run kept or replaced, from tokens and gaps rather than the rule's parts) and requires `removePhoneNumbers` to match it byte for byte on every note. A planted number may survive only wholly inside a kept run or where the shared rule alone leaves it. The generator gains those forms and contexts, half its runs rise, and it uses mulberry32: the old generator's low bits repeated in short cycles and never drew some noise tokens. Floors hold the counts of notes with a run, with a kept run and with a typed private-use character.
+- Source: review (Gemini, fourth round on the phone rule's fuzz harness: two critical, two high, two medium findings about the oracle).
+- Verified: 90,000 notes agree byte for byte (25,557 hold a run, 4,762 keep one); no planted number gets through; each wrong stand-in is flagged, and a looser README that ignores joins is caught by the planted-number check; the web unit suite and typecheck pass.
+
+### test(data): the fuzz keeps noise off planted numbers and knows street names
+- What: at 1,000,000 notes two planted numbers read as getting through, but noise had glued onto a trailing spoken digit ("zerodouble", "nineat"), so it was no longer a digit, and a later digit completed the sequence by chance; the planted text now has a separator on each side. Three notes differed because the test's copy of the README joined a run to a street name's number (`四67th Ave`), which the shared rule never joins; the copy now has the same exception, and the shared README says so.
+- Source: review (a 1,000,000-note check before merge).
+- Verified: 1,000,000 notes on each of three random seeds (1544260262, 171560246, 1015165312): 0 differing, 0 planted numbers through, 0 isolation breaks, about 274,000 notes with a run and 49,500 keeping one per seed; the fixed-seed test passes (7).
 ### feat(judge): the Measured block says every count is from our own test runs
 - What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
 - Source: review (every judge-facing number says where it came from).
@@ -2510,6 +2524,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
 - Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
 
+### test(data): the web rule gives every stored output in the shared phone corpus
+- What: `phoneCorpus.test.ts` requires the committed corpus to be exactly what the generator writes for the current rule (its `rule` field is the SHA-256 of `phoneNumbers.ts`, so a rule change fails the test until the file is written again), at least 9,000 rows with the shared replacement, the stored output for every row with every mismatch listed, and the README to name the file's SHA-256. A planted wrong output in 50 rows is caught exactly once.
+- Source: review (one corpus every platform checks).
+- Verified: the five tests pass; the web unit suite (1216), typecheck, the gates and the hygiene guard pass.
 ### fix(command): Problem reports follow the rail's lead instead of preceding it
 - What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
 - Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).

@@ -51,6 +51,10 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    # decimals and no phone cue before it.
                    "33.12345678, 33.87654321", "55.12345678, 55.87654321", "33.12345678, -103.3496",
                    "33.12345678 / -81.12345678", "33.1234, -84.5678",
+                   # A run of times right after a phone cue, or out of clock order, is a number written as times.
+                   "21:25 5:50 1:42", "21:25, 5:50, 1:42", "12:12 5:55 01:42", "4:04 5:55 01:42",
+                  "4:04 5:55 16:42", "4:04 5:55 06:42", "4:04 5:55 16:43",
+                  "4:04 5:55 6:42",
                    # A known gap, pending on every platform (#298): a colon breaks the run, so times after a cue survive.
                    "5:55 01:42", "5:55 01:42", "5:55 07:14", "5:55 01:42"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
@@ -63,6 +67,8 @@ REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "202
                  # The three marks that never join a number: a degree, a percent and a time's colon.
                  "GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%",
                  "Seen 14:03 14:30",
+                 # A run of times is search information too: each time after a kept time keeps its place.
+                 "The possible times are 14:03, 14:10, 14:17.",
                  # A coordinate pair across a semicolon or a bullet, and radio frequencies (1 to 3 digits, a full stop,
                  # 3 digits), are search information.
                  "GPS 33.7490; -84.3880", "Radio 155.160 | 154.205", "GPS 33.7490 \u2022 -84.3880",
@@ -72,6 +78,14 @@ REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "202
                  # phone, a cell ping or a call's place is a clue, and its coordinates stay.
                  "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733", "Call came from 33.7866, -84.3733"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
+                  # A run of times, then a number apart from it: the times stay, the number goes.
+                  ("Times 14:03, 14:10, 14:17. Call 404 555 0142", "Times 14:03, 14:10, 14:17. Call [number removed]"),
+                  # A spoken digit joined to a run of times makes it part of a number: the shared rule decides it.
+                  # A written digit between a cue and a run of times does not hide the cue.
+                  ("Call 5 at 4:04 5:55 06:44 tonight", "Call 5 at [number removed] tonight"),
+                  # A month name beside a run of times reads its hour as a day: the shared rule decides the run.
+                  ("1.4045, -55.0142 14 May 6:00 7:00", "[number removed] May 6:00 7:00"),
+                  ("Call four 4:04 5:55 6:42", "Call [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.
                   ("Seen 11/19/2026 404-555-0142", "Seen 11/19/2026 [number removed]"),
