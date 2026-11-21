@@ -27,6 +27,8 @@ const ALLOWED = new Set([
   "command/DebriefPaperRead.tsx",
   "command/CommandPost.tsx",
   "harness/debriefHarness.tsx",
+  // The dev-only measurement page for the sheet read: it reads a SAMPLE photo and stores nothing.
+  "harness/sheetMeasure.tsx",
   // The paper sheet's on-device read: it turns a photo into the debrief form's boxes, and saves nothing itself.
   "ai/debriefSheetRead.ts",
   "ai/debriefSheetRead.test.ts",
