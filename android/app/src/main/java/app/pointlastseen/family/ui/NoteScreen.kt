@@ -18,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteOutcome
 
 sealed class NoteUi {
@@ -51,6 +53,8 @@ fun NoteScreen(
     onSort: (text: String, cloudConsent: Boolean) -> Unit,
     onAdd: (FamilyNoteReading) -> Unit,
     onBack: () -> Unit,
+    model: ModelState = ModelState(DeviceModelStatus.UNAVAILABLE),
+    onGetModel: () -> Unit = {},
 ) {
     FamilyScaffold(mode, killCloud) {
         when (ui) {
@@ -61,6 +65,17 @@ fun NoteScreen(
                 val focus = remember { FocusRequester() }
                 LaunchedEffect(Unit) { focus.requestFocus() }
                 Sentence("I remembered something.")
+                // Ready, downloading, or offered (with its button); nothing for a phone without a model.
+                when (model.status) {
+                    DeviceModelStatus.AVAILABLE, DeviceModelStatus.DOWNLOADING -> Note(Copy.model(model))
+                    DeviceModelStatus.DOWNLOADABLE -> {
+                        Note(Copy.model(model))
+                        OtherAction(Copy.GET_MODEL, onClick = onGetModel)
+                    }
+                    else -> Unit
+                }
+                // Whatever the status says after it (unknown, say), a failed download is shown.
+                if (model.downloadFailed) Note(Copy.MODEL_FAILED)
                 OutlinedTextField(
                     text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
                     minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
@@ -69,8 +84,16 @@ fun NoteScreen(
             }
             is NoteUi.Done -> when (val o = ui.outcome) {
                 NoteOutcome.NeedsConsent -> {
-                    Sentence("This phone has no on-device model. Send this note to the cloud to sort it?")
-                    MainAction("Send to the cloud") { onSort(ui.text, true) }
+                    if (model.status == DeviceModelStatus.AVAILABLE) {
+                        // The model arrived while the question was open: the same note now sorts here, no cloud needed.
+                        Sentence(Copy.model(model))
+                        MainAction("Sort it on this phone") { onSort(ui.text, false) }
+                    } else {
+                        Sentence("${Copy.model(model)} Send this note to the cloud to sort it?")
+                        MainAction("Send to the cloud") { onSort(ui.text, true) }
+                        if (model.downloadFailed) Note(Copy.MODEL_FAILED)
+                        if (model.status == DeviceModelStatus.DOWNLOADABLE) OtherAction(Copy.GET_MODEL, onClick = onGetModel)
+                    }
                     Note("Or sort it yourself, on this phone:")
                     ManualKind(ui.text, onAdd)
                 }
@@ -82,7 +105,7 @@ fun NoteScreen(
                 is NoteOutcome.Read -> {
                     var label by remember(o) { mutableStateOf(o.reading.label) }
                     Sentence("Suggested: ${KIND_LABEL[o.reading.kind] ?: o.reading.kind}")
-                    Note(if (o.route.path == "on_device") "Read on this phone" else "Read in the cloud")
+                    Note(Copy.readWhere(o.route, o.modelStatus))
                     OutlinedTextField(label, { label = it.take(FamilyNote.MAX_LABEL) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     MainAction("Add to profile", enabled = label.isNotBlank()) { onAdd(o.reading.copy(label = label.trim())) }
                 }

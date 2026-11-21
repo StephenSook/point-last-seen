@@ -41,7 +41,8 @@ sealed class NoteOutcome {
     data object PossibleEvidence : NoteOutcome()
     data object Invalid : NoteOutcome()
     data object Failed : NoteOutcome()
-    data class Read(val reading: FamilyNoteReading, val route: RouteRecord, val cleanedNote: String) : NoteOutcome()
+    /** [modelStatus] is the on-device model's state the note was routed on, so the screen can say why a read went to the cloud. */
+    data class Read(val reading: FamilyNoteReading, val route: RouteRecord, val cleanedNote: String, val modelStatus: DeviceModelStatus) : NoteOutcome()
 }
 
 /**
@@ -98,7 +99,7 @@ class FamilyNote(
             model = if (reply.source == Source.ON_DEVICE) ON_DEVICE_MODEL else env.modelName, reason = reason,
             latencyMs = reply.latencyMs, sdkReported = true, blocked = null, decidedAtMs = env.nowMs(),
         )
-        return NoteOutcome.Read(reading, route, cleaned)
+        return NoteOutcome.Read(reading, route, cleaned, env.status)
     }
 
     private suspend fun signedIn(): Boolean = try {
