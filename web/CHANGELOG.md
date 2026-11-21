@@ -2116,6 +2116,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (one mark per cell: dot capped near 35% of the cell; codes only at zoom or hover; on the phone the white dots covered the fills).
 - Verified: new `labelFit` unit tests and a new harness check (three steps out, every dot at most 35% of its cell, no code on a cell under 40 px, the pointer shows a cell's code and moving off hides it) failed first (25 dots over the cap), then passed; the crowded map check now states that codes wait and that pointing at AB names it; the full harness suite (173), the extras suite (70), typecheck, web unit suite and the hygiene guard pass. On the deployed post the phone cells were about 26 px and the laptop cells about 57 px.
 
+### fix(data): any punctuation or symbol between digit groups joins a phone number
+- What: `removePhoneNumbers` kept a number whose groups were split by a character outside its separator list: a middle dot (U+00B7), a hyphenation point (U+2027), a bullet, an underscore, a star, a bar or a bracket ("Call 404 555·0142" was stored as written). A gap between two parts now joins them unless it holds ":", "%" or "°", which mark a time, a percent and a degree; a gap never holds a letter or a digit, since those are parts. Debrief notes, sighting text and sheet reads all go through this rule.
+- Source: review (cross-family, privacy).
+- Verified: new tests in `phoneNumbers.test.ts` failed first on the old rule (the 9 split shapes), then pass; spaces of every width, an em dash, full stops and full-width forms still go; a degree-sign GPS pair, degrees-minutes-seconds, a percent list and two times stay. Against the draft shared cases (15 new removals, 4 new keeps) all 77 pass on the web; 1052 web unit tests, the typecheck, the gates, the build and 43 no-backend browser checks pass.
+
+### fix(data): a semicolon, bar, ! or ? never joins a phone number
+- What: the marks that never join two digit groups are now : % ° ; | ! and ?. With only the first three, a semicolon or a bar joined, and notes main kept were erased: "GPS 33.7490; -84.3880", "Seen 2026-11-19; 3 searchers", "Radio 155.160 | 154.205", "Check-ins 08:30; 11:45; 14:03". None of the seven sits inside a phone number; a number split by a bar ("404 | 555 | 0142") is kept, as on main.
+- Source: review (cross-family).
+- Verified: the new keep test failed first ("GPS [number removed]"), then passes, with the same notes after "?" and "!"; 80 draft shared cases pass on the web; 1051 web unit tests and the typecheck pass.
 ### test(prior): a 30 s timeout on the prior rebuild tests
 - What: every describe block in `rebuild.test.ts` and `cameraPrior.test.ts` runs with `{ timeout: 30_000 }`. Each case builds a whole prior, and on a loaded machine two of them passed vitest's 5 s default (5.4 s and 5.7 s) and failed once, then passed alone.
 - Source: review.
@@ -2136,6 +2145,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the photo read had the paper sheet read's 30 s limit; measured, its first read took 20 s on a fast Mac and the sheet's 31 s).
 - Verified: a new unit test (the limit is more than twice the slowest measured photo read in `docs/evidence/web/2026-11-21-photo-read-chrome.json`, at least 90 s, and CommandPost passes it) and a new harness check in `e2e/harness/photos.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
 
+### fix(data): only : % ° stay apart; coordinates and radio frequencies keep their own spans
+- What: the never-join set is back to : % and °, so a phone number split by a bar, a semicolon, "!" or "?" is removed ("404 | 555 | 0142", "404;555;0142"). Two spans keep the search information those marks used to protect by accident: a decimal coordinate pair may have a semicolon, bullet, middle dot, bar or slash between its two numbers ("GPS 33.7490; -84.3880"), and a radio frequency (1 to 3 digits, a full stop, exactly 3 digits, not in a dotted chain, no "+" before it) is kept like a date ("Radio 155.160 | 154.205", "155.160-155.175"). Beside a short piece either span goes with the run; beside a whole number of seven or more digits only the number goes. Check-in times or a date and a count joined by a semicolon are removed, as they already were with a comma.
+- Source: review (cross-family, privacy ruling).
+- Verified: new tests failed first (the four marks kept; the coordinate and frequency notes removed), then pass; "404.555 0142" and "Call 404.555.0142" are still removed; 87 draft shared cases pass on the web; the phone and vector suites pass (121).
+
+### fix(data): a frequency joined to other digits goes; a coordinate across a bar needs a minus
+- What: a radio frequency is kept only when nothing but other frequencies joins it, so a phone number never keeps a frequency's shape ("Call 404.555-0142 #123" had kept "404.555"; "Radio 155.160 404 5550142" is now removed whole). Two decimals across a semicolon, bullet, middle dot, bar or slash are a coordinate pair only with a minus after the mark ("GPS 33.7490 | -84.3880"); without one they can be two phone numbers ("020.79460958 / 020.79460959" had been kept whole). The comma rule is unchanged.
+- Source: review (cross-family, privacy).
+- Verified: both cases failed first, then pass; the coordinate and frequency keeps still pass; 89 draft shared cases and 350 data tests pass on the web.
+
+### fix(data): no zero-led degrees, and frequencies only in a run of frequencies
+- What: a coordinate's whole degrees never start with a zero (0.1276 still counts), so a London number written "020.79460958" next to a coordinate is removed, after a comma too. A radio frequency is 25 to 999 MHz with no leading zero, and a run keeps its frequencies only when every digit group in it is one: candidates with a joined neighbour outside the set drop out until none does ("Call 404.555 0.142 1234567" had kept "404.555").
+- Source: review (cross-family, privacy).
+- Verified: the new tests failed first, then pass; 94 draft shared cases and 1105 web unit tests (with the draft file) pass; the typecheck passes.
 ### feat(ai): an on-device-only wording builder, for pages that must never build a cloud model
 - What: `wordingOnDeviceParams()` in `web/src/ai/replanWording.ts` is the plan wording's own on-device options and JSON constraint with mode ONLY_ON_DEVICE and no cloud params, and `wordingOnDeviceGenerator(ai)` in `web/src/ai/client.ts` builds it with the on-device-only request options. The command post still words plans with PREFER_ON_DEVICE (`wordingGenerator`); this builder is for measurement pages, which a guard keeps from building any cloud model.
 - Source: on-device evidence runs (a wording measurement page tripped the harness no-cloud guard).
