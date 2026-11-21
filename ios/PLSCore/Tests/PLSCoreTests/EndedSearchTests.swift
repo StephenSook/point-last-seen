@@ -26,7 +26,10 @@ import Testing
 
     @Test func aReportRefusedAfterTheSearchEndedSaysSo() {
         #expect(EchoText.deliveryLine(.rejected(reason: "permission-denied"), searchEnded: true) == "Not taken: the search had ended.")
-        #expect(EchoText.deliveryLine(.rejected(reason: "unavailable"), searchEnded: true) == "Not taken: the search had ended.")
+        // Only the rules' refusal is the search ending: a report refused for anything else keeps its own line.
+        #expect(EchoText.deliveryLine(.rejected(reason: "unavailable"), searchEnded: true) == EchoText.deliveryLine(.rejected(reason: "unavailable")))
+        #expect(EchoText.deliveryLine(.rejected(reason: Outbox.conflictReason), searchEnded: true)
+                == EchoText.deliveryLine(.rejected(reason: Outbox.conflictReason)))
         // Delivered stays delivered, and one still on the phone waits for the server's answer.
         #expect(EchoText.deliveryLine(.acked, searchEnded: true) == "Delivered")
         #expect(EchoText.deliveryLine(.pending, searchEnded: true) == "On this phone only")

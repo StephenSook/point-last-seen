@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): only the rules' refusal reads as the search having ended
+- What: in an ended search's read-only list, a refused report says "Not taken: the search had ended." only when the
+  server refused it under the security rules (permission-denied). A report refused for anything else (an id
+  conflict, an encoding failure, a refusal from before the end) keeps its own line.
+- Source: review of the ended-search change.
+- Verified: the receipt test now checks an id conflict and an unavailable refusal keep their lines; it failed
+  before the change and passes after; 450 PLSCore tests pass.
+
 ### docs(limits): an iPhone in a search command ends, and removing a member who left
 - What: LIMITS says what an iPhone shows when command ends its search (the command post's line, read-only reports,
   no Send), when it learns it (at once with signal, otherwise at its next check in signal), and what a report sent

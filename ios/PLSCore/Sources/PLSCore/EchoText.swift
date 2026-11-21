@@ -93,7 +93,8 @@ public enum EchoText {
 
     /// The receipt's delivery line in a search that has ended: a report the server refused says why.
     public static func deliveryLine(_ state: OutboxState, searchEnded: Bool) -> String {
-        if searchEnded, case .rejected = state { return "Not taken: the search had ended." }
+        // Only the security rules' refusal is the search ending; a report refused for anything else keeps its line.
+        if searchEnded, case .rejected(reason: "permission-denied") = state { return "Not taken: the search had ended." }
         return deliveryLine(state)
     }
 
