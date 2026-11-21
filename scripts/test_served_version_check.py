@@ -57,6 +57,7 @@ def test_a_build_behind_main_on_a_production_file_fails_and_names_it(tmp_path):
 def test_main_moving_only_tests_changelogs_docs_and_harness_pages_needs_no_deploy(tmp_path):
     r, head = repo_with_main(tmp_path)
     new = commit(r, {"web/e2e/a.spec.ts": "x\n", "web/CHANGELOG.md": "x\n", "web/src/app.test.ts": "x\n",
+                     "shared/test-vectors/phone-numbers.json": "{}\n",
                      "shared/engine-ts/test/b.ts": "x\n", "web/harness/map.html": "x\n", "docs/x.md": "b\n",
                      "README.md": "x\n"}, "tests and docs only")
     git(r, "update-ref", "refs/remotes/origin/main", new)
@@ -120,5 +121,5 @@ def test_the_input_list_covers_what_the_hosted_build_reads():
     assert {"web", "shared", "firebase.json", "package.json", "package-lock.json"} <= set(sv.INPUTS)
     # Tests, e2e specs, harness pages and markdown are left out.
     excluded = " ".join(p for p in sv.INPUTS if p.startswith(":(exclude"))
-    for word in ("web/e2e", "web/harness", "web/extras-harness", "*.test.ts", "*.md", "/test/"):
+    for word in ("web/e2e", "web/harness", "web/extras-harness", "*.test.ts", "*.md", "/test/", "shared/test-vectors"):
         assert word in excluded

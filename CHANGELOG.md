@@ -77,6 +77,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Probe: the served-version check no longer counts shared/test-vectors as a production input (no production code
+  imports them; the phone and found rules only name them in comments), so a main change to the vectors alone asks for
+  no deploy. Source: review (the check asked for a deploy over phone-numbers.json). Verified: the test-only main
+  change and input-list tests failed first with a vectors file added, then pass (12); live, the check now names only
+  the 2 web files that differ.
 - Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
   rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
   runner passes all 58 cases in CI on this commit.
