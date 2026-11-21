@@ -107,6 +107,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
+  has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
+  path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  judge page for on-device claims; only the README's three lines claimed more than ran.
 - functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
   read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
   deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
