@@ -2544,3 +2544,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
 - Source: review (parity with the iPhone's vector test).
 - Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
+
+### feat(data): command can ask for a new searcher or family join code
+- What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: new unit tests failed first, then passed (4); typecheck passes.
