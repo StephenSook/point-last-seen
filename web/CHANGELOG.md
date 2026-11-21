@@ -2524,3 +2524,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
 - Source: review (the Android app already shows the time of a cloud read).
 - Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.
+
+### test(data): a phone case pending on the web must still fail there
+- What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
+- Source: review (parity with the iPhone's vector test).
+- Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
