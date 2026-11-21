@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
+  data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
+  mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
+  record, a photo upload the incident and the removal record. Source: review (closed-incident writes found during End
+  this search review). Verified: a storage case (after the close, a clip and a photo upload are refused and an
+  existing photo still reads) failed first, then passes; all 176 rules and Storage tests and the gates pass.
 - rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
   and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
   makes. Source: review (closed-incident writes found during End this search review). Verified:
