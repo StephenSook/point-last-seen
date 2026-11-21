@@ -1,5 +1,5 @@
 import { familyConsentToPhoto } from "./familyConsent";
-import { deployedOnly, expect, joinCommand, syntheticSignJpeg, test, withDebugToken } from "./fixtures";
+import { deployedOnly, expect, joinCommand, openDetails, syntheticSignJpeg, test, withDebugToken } from "./fixtures";
 
 // Deployed-only (the photo is read back through Storage). One consented cloud read must leave one
 // "hybrid-inference" custom trace in a Performance Monitoring upload, with its four attributes.
@@ -13,6 +13,7 @@ test("a consented cloud photo read is traced as hybrid-inference with its route"
     if (/firebaselogging|firebaseperformance|cc-api-data/.test(r.url()) && r.method() === "POST") uploads.push(r.postData() ?? "");
   });
   const incident = await joinCommand(page);
+  await openDetails(page);
   await page.locator('input[type="file"]').setInputFiles({ name: "sign.jpg", mimeType: "image/jpeg", buffer: await syntheticSignJpeg(page) });
   // The cloud read needs the family's consent for this photo: given as the family app gives it.
   const sha = await page.locator(".photo").first().getAttribute("data-sha256");

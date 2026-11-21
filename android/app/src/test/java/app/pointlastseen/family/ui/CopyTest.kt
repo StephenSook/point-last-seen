@@ -1,6 +1,8 @@
 package app.pointlastseen.family.ui
 
 import app.pointlastseen.family.ai.DeviceModelStatus
+import app.pointlastseen.family.ai.ModelState
+import app.pointlastseen.family.data.RouteRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -42,12 +44,29 @@ class CopyTest {
         assertEquals("Cloud reading is paused. You can still type everything in.", Copy.KILL_CLOUD)
     }
 
-    @Test fun aboutThisPhone() {
-        assertEquals("This phone has no on-device model.", Copy.aboutModel(DeviceModelStatus.UNAVAILABLE))
-        assertEquals("This phone has an on-device model.", Copy.aboutModel(DeviceModelStatus.AVAILABLE))
-        assertEquals("An on-device model can be downloaded to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADABLE))
-        assertEquals("An on-device model is downloading to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADING))
-        assertEquals("This phone could not report its on-device model.", Copy.aboutModel(DeviceModelStatus.UNKNOWN))
+    @Test fun theModelSentenceForEachState() {
+        assertEquals("This phone has no on-device model.", Copy.model(ModelState(DeviceModelStatus.UNAVAILABLE)))
+        assertEquals("Ready on this phone.", Copy.model(ModelState(DeviceModelStatus.AVAILABLE)))
+        assertEquals("An on-device model can be downloaded to this phone.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADABLE)))
+        assertEquals("The on-device model is downloading.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADING)))
+        assertEquals("The on-device model is downloading: 40%.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADING, 40, 100)))
+        assertEquals("This phone could not report its on-device model.", Copy.model(ModelState(DeviceModelStatus.UNKNOWN)))
+    }
+
+    @Test fun aReadSaysWhereItRanHowLongItTookAndWhyItWentToTheCloud() {
+        fun route(path: String, reason: String, ms: Long) = RouteRecord("android", path, "sdk", "m", reason, ms, true, null, 1)
+        assertEquals("Read on this phone in 1.2 s.", Copy.readWhere(route("on_device", "on_device_default", 1234), DeviceModelStatus.AVAILABLE))
+        assertEquals("Read in the cloud in 3.5 s. The on-device model could not read it.", Copy.readWhere(route("cloud", "sdk_fallback", 3497), DeviceModelStatus.AVAILABLE))
+        assertEquals("Read in the cloud in 0.9 s. This phone has no on-device model.", Copy.readWhere(route("cloud", "on_device_unavailable", 900), DeviceModelStatus.UNAVAILABLE))
+        assertEquals("Read in the cloud in 2.0 s. The on-device model is not downloaded yet.", Copy.readWhere(route("cloud", "on_device_unavailable", 2000), DeviceModelStatus.DOWNLOADABLE))
+        assertEquals("Read in the cloud in 2.0 s. The on-device model is still downloading.", Copy.readWhere(route("cloud", "on_device_unavailable", 2000), DeviceModelStatus.DOWNLOADING))
+        assertEquals("Read in the cloud in 2.0 s. This phone could not report its on-device model.", Copy.readWhere(route("cloud", "on_device_unavailable", 2000), DeviceModelStatus.UNKNOWN))
+        assertEquals("Read in the cloud in 12.3 s.", Copy.readWhere(route("cloud", "other", 12345), DeviceModelStatus.UNKNOWN))
+    }
+
+    @Test fun theDownloadOfferAndItsFailure() {
+        assertEquals("Get the on-device model", Copy.GET_MODEL)
+        assertEquals("The on-device model could not be downloaded. Try again on Wi-Fi.", Copy.MODEL_FAILED)
     }
 
     /** News about the missing person comes only by phone from the search lead, never from the app. */

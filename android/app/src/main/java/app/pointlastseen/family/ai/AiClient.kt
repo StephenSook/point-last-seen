@@ -2,6 +2,7 @@ package app.pointlastseen.family.ai
 
 import app.pointlastseen.family.config.RcValues
 import com.google.firebase.Firebase
+import com.google.firebase.ai.DownloadStatus
 import com.google.firebase.ai.FirebaseAI
 import com.google.firebase.ai.InferenceMode
 import com.google.firebase.ai.InferenceSource
@@ -10,6 +11,9 @@ import com.google.firebase.ai.OnDeviceModelStatus
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.PublicPreviewAPI
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import java.util.Base64
 
 /** SDK values mapped to the app's own, so the logic above stays free of SDK types. */
@@ -23,6 +27,14 @@ object AiMapping {
         OnDeviceModelStatus.DOWNLOADING -> DeviceModelStatus.DOWNLOADING
         OnDeviceModelStatus.UNAVAILABLE -> DeviceModelStatus.UNAVAILABLE
         else -> DeviceModelStatus.UNKNOWN
+    }
+
+    fun download(d: DownloadStatus): ModelDownload = when (d) {
+        is DownloadStatus.DownloadStarted -> ModelDownload.Started(d.bytesToDownload)
+        is DownloadStatus.DownloadInProgress -> ModelDownload.Progress(d.totalBytesDownloaded)
+        is DownloadStatus.DownloadCompleted -> ModelDownload.Done
+        is DownloadStatus.DownloadFailed -> ModelDownload.Failed(d.exception.message)
+        else -> ModelDownload.Failed("unknown download status")
     }
 
     /** With kill_cloud on, the hybrid mode is pinned to this phone whatever the caller asked. */
@@ -59,6 +71,11 @@ class AiClient(private val rc: () -> RcValues) {
         val r = noteModel(AiMapping.mode(mode, rc().killCloud)).generateObject(NoteReply.firebaseAISchema(), prompt)
         ModelReply(noteReplyText(r), AiMapping.source(r.response.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
     }
+
+    /** Downloads the on-device model (when its status is DOWNLOADABLE), reporting each step. */
+    fun downloadModel(): Flow<ModelDownload> =
+        noteModel(InferenceMode.PREFER_ON_DEVICE).onDeviceExtension?.download()?.map(AiMapping::download)
+            ?: flowOf(ModelDownload.Failed("this phone has no on-device model"))
 
     /** checkStatus() for "About this phone". */
     suspend fun deviceModelStatus(): DeviceModelStatus = runCatching {

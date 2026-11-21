@@ -690,6 +690,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
+          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
+          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
+          <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
           {editingProfile ? (
             <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
@@ -778,78 +782,78 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               })
             }
           />
-          {incident && (
-            <ConditionsForm
-              conditions={conditionsOf(incident)}
-              open={incident.status !== "closed"}
-              onSave={(c) => setConditions(pls.db, incidentId, c)}
+          {/* Opened less often: command reads these when it needs them. */}
+          <details className="rail-details" data-testid="rail-details">
+            <summary className="label">Details</summary>
+            {incident && (
+              <ConditionsForm
+                conditions={conditionsOf(incident)}
+                open={incident.status !== "closed"}
+                onSave={(c) => setConditions(pls.db, incidentId, c)}
+              />
+            )}
+            {questions && (
+              <FamilyChannel
+                questions={questions}
+                open={incident?.status === "open"}
+                searchState={searchStateOf(incident)}
+                onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
+                onTell={(next) => tellFamily(pls.db, incidentId, next)}
+              />
+            )}
+            {incident && segments.length > 0 && (
+              <PriorSwitch
+                model={incident.priorModel ?? "rings"}
+                graph={graph?.state ?? "loading"}
+                hasPlaces={places.length > 0}
+                onApply={applyModel}
+              />
+            )}
+            {incident && segments.length > 0 && (
+              <LayerSwitches
+                layers={incident.priorLayers ?? { linear: false, wedge: false }}
+                terrain={incident.terrain ?? "temperate_flat"}
+                rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
+                terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
+                hasBearing={bearing !== null}
+                model={incident.priorModel ?? "rings"}
+                vehicleInvolved={profile?.command?.vehicle?.involved === true}
+                onApply={applyPrior}
+              />
+            )}
+            <PhotoTray
+              key={tray.epoch}
+              photos={photos}
+              loadError={tray.error}
+              deviceState={device}
+              onCheckDevice={checkDevice}
+              downloadPct={downloadPct}
+              onAddFiles={addPhotoFiles}
+              readOnLaptop={readPhotoHere}
+              readInCloud={readPhotoCloud}
+              onDecide={(p, cues, route, d) =>
+                // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
+                saveIfStillStored(
+                  () => photoStillStored(pls.storage, incidentId, p.sha256),
+                  () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
+                )
+              }
             />
-          )}
-          {questions && (
-            <FamilyChannel
-              questions={questions}
-              open={incident?.status === "open"}
-              searchState={searchStateOf(incident)}
-              onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
-              onTell={(next) => tellFamily(pls.db, incidentId, next)}
+            {debriefError && (
+              <p className="error" role="alert">
+                {debriefError}
+              </p>
+            )}
+            <DebriefSection
+              cleared={clearedSegments(events)}
+              debriefs={debriefs}
+              teams={teams}
+              onSave={(segmentId, input, existing, clearedEventId) =>
+                saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
+              }
             />
-          )}
-          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
-          {debriefError && (
-            <p className="error" role="alert">
-              {debriefError}
-            </p>
-          )}
-          <DebriefSection
-            cleared={clearedSegments(events)}
-            debriefs={debriefs}
-            teams={teams}
-            onSave={(segmentId, input, existing, clearedEventId) =>
-              saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
-            }
-          />
-          {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
-          <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
-          {incident && segments.length > 0 && (
-            <PriorSwitch
-              model={incident.priorModel ?? "rings"}
-              graph={graph?.state ?? "loading"}
-              hasPlaces={places.length > 0}
-              onApply={applyModel}
-            />
-          )}
-          {incident && segments.length > 0 && (
-            <LayerSwitches
-              layers={incident.priorLayers ?? { linear: false, wedge: false }}
-              terrain={incident.terrain ?? "temperate_flat"}
-              rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
-              terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
-              hasBearing={bearing !== null}
-              model={incident.priorModel ?? "rings"}
-              vehicleInvolved={profile?.command?.vehicle?.involved === true}
-              onApply={applyPrior}
-            />
-          )}
-          <PhotoTray
-            key={tray.epoch}
-            photos={photos}
-            loadError={tray.error}
-            deviceState={device}
-            onCheckDevice={checkDevice}
-            downloadPct={downloadPct}
-            onAddFiles={addPhotoFiles}
-            readOnLaptop={readPhotoHere}
-            readInCloud={readPhotoCloud}
-            onDecide={(p, cues, route, d) =>
-              // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
-              saveIfStillStored(
-                () => photoStillStored(pls.storage, incidentId, p.sha256),
-                () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
-              )
-            }
-          />
-          <MergeLanes lanes={lanes} />
+            <MergeLanes lanes={lanes} />
+          </details>
         </aside>
       </div>
     </div>

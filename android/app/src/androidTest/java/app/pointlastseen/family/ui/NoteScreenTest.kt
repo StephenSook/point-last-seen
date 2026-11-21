@@ -11,11 +11,14 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNoteReading
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteOutcome
 import app.pointlastseen.family.data.RouteRecord
 import app.pointlastseen.family.ui.theme.PaperTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -44,15 +47,77 @@ class NoteScreenTest {
         assertEquals("old mill" to true, sent)
     }
 
+    @Test fun theNoteScreenSaysWhenTheModelIsReadyOnThisPhone() {
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.AVAILABLE)) } }
+        rule.onNodeWithText("Ready on this phone.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun withADownloadableModelTheConsentQuestionOffersTheModel() {
+        var asked = false
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(
+                    null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {},
+                    model = ModelState(DeviceModelStatus.DOWNLOADABLE), onGetModel = { asked = true },
+                )
+            }
+        }
+        rule.onNodeWithText("An on-device model can be downloaded to this phone. Send this note to the cloud to sort it?").assertIsDisplayed()
+        rule.onNodeWithText("Get the on-device model").performScrollTo().performClick()
+        assertTrue(asked)
+    }
+
+    @Test fun onceTheModelIsReadyTheConsentQuestionSortsTheSameNoteOnThisPhone() {
+        var sent: Pair<String, Boolean>? = null
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(
+                    null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { t, c -> sent = t to c }, onAdd = {}, onBack = {},
+                    model = ModelState(DeviceModelStatus.AVAILABLE),
+                )
+            }
+        }
+        rule.onNodeWithText("Ready on this phone.").assertIsDisplayed()
+        rule.onNodeWithText("Send to the cloud").assertDoesNotExist()
+        rule.onNodeWithText("Sort it on this phone").performScrollTo().performClick()
+        assertEquals("old mill" to false, sent)
+    }
+
+    @Test fun aFailedDownloadShowsOnTheNoteScreen() {
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.DOWNLOADABLE, downloadFailed = true))
+            }
+        }
+        rule.onNodeWithText(Copy.MODEL_FAILED).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Get the on-device model").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun aFailedDownloadStillShowsWhenTheStatusIsUnknown() {
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.UNKNOWN, downloadFailed = true))
+            }
+        }
+        rule.onNodeWithText(Copy.MODEL_FAILED).performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun aSuggestionIsLabelledEditableAndShowsWhereItWasRead() {
         var added: FamilyNoteReading? = null
-        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill")
+        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill", DeviceModelStatus.UNAVAILABLE)
         rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(read, "old mill"), onSort = { _, _ -> }, onAdd = { added = it }, onBack = {}) } }
         rule.onNodeWithText("Suggested: a place they like to go").assertIsDisplayed()
-        rule.onNodeWithText("Read in the cloud").assertIsDisplayed()
+        rule.onNodeWithText("Read in the cloud in 0.9 s. This phone has no on-device model.").assertIsDisplayed()
         rule.onNodeWithText("The old mill").performTextReplacement("Old mill on Route 9")
         rule.onNodeWithText("Add to profile").performScrollTo().performClick()
         assertEquals(FamilyNoteReading("place", "Old mill on Route 9", "s", "old mill"), added)
+    }
+
+    @Test fun aReadOnThisPhoneSaysSoWithItsTime() {
+        val local = RouteRecord("android", "on_device", "sdk", "gemini-nano (ML Kit Prompt API)", "on_device_default", 1234, true, null, 1)
+        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), local, "old mill", DeviceModelStatus.AVAILABLE)
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(read, "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {}) } }
+        rule.onNodeWithText("Read on this phone in 1.2 s.").assertIsDisplayed()
     }
 
     @Test fun possibleEvidenceShowsTheProtocolAndNoModelResult() {

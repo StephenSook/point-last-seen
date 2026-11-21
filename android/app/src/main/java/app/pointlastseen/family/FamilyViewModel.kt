@@ -1,6 +1,8 @@
 package app.pointlastseen.family
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
@@ -18,6 +20,9 @@ import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
 import app.pointlastseen.family.ai.FirebaseClipDeps
 import app.pointlastseen.family.ai.JoinedClipDeps
+import app.pointlastseen.family.ai.LatestOnly
+import app.pointlastseen.family.ai.ModelReadiness
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteEnv
 import app.pointlastseen.family.config.FirebaseRcSource
 import app.pointlastseen.family.config.RcStore
@@ -129,14 +134,21 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // The last profile that reached the disk: edit marks compare against it, so an edit whose save failed is
     // marked by the next save that works.
     private var lastSaved: SubjectProfile = profile
-    var deviceStatus by mutableStateOf(DeviceModelStatus.UNKNOWN)
+    // The on-device model as the screens show it: checked each time the app comes to the front, and
+    // downloaded at the first check on Wi-Fi (on mobile data the family is asked first).
+    var model by mutableStateOf(ModelState())
         private set
+    val deviceStatus: DeviceModelStatus get() = model.status
+    private val modelReadiness = ModelReadiness(viewModelScope, ai::deviceModelStatus, ai::downloadModel, ::unmetered) { model = it }
     var joinBusy by mutableStateOf(false)
         private set
     var joinError by mutableStateOf<String?>(null)
         private set
     var noteUi by mutableStateOf<NoteUi>(NoteUi.Idle)
         private set
+    // A sort that ends after the family left the note screen (or started another sort) is dropped, so its
+    // answer, a consent question included, can never land on a later note. Declared before init: Back can run early.
+    private val noteSorts = LatestOnly()
     var clipUi by mutableStateOf<ClipUi>(ClipUi.Idle)
         private set
     var clipLabel by mutableStateOf<String?>(null)
@@ -201,7 +213,6 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         rc.start()
         viewModelScope.launch { writer.run() }
         session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); startJoined(it) }
-        viewModelScope.launch { deviceStatus = ai.deviceModelStatus() }
         // A topic drop FCM never confirmed (offline when leaving) is tried again.
         viewModelScope.launch { familyTopic.retryPending() }
     }
@@ -256,6 +267,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun back() {
         nav = Nav.back(nav)
+        noteSorts.drop()
         noteUi = NoteUi.Idle
         if (clipUi !is ClipUi.Busy) clipUi = ClipUi.Idle
     }
@@ -356,8 +368,19 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The family asked for the on-device model (on mobile data the app does not start it by itself). */
+    fun getModel() = modelReadiness.getModel()
+
+    /** Wi-Fi or another network that is not billed by the byte. */
+    private fun unmetered(): Boolean {
+        val cm = getApplication<Application>().getSystemService(ConnectivityManager::class.java) ?: return false
+        return cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+    }
+
     /** Back in the foreground: a watch the server ended is started again (the next refusal checks membership). */
     fun onForeground() {
+        // Every return to the front, the first one included: the model may have arrived while the app was away.
+        modelReadiness.refresh()
         val incidentId = session.incidentId() ?: return
         // Still unconfirmed (no answer at start): ask now rather than wait for the next scheduled try.
         if (!joins.confirmed() && membershipCheck?.isActive != true) {
@@ -475,13 +498,23 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     // I remembered something
     fun sortNote(text: String, consent: Boolean) {
+        val mine = noteSorts.begin()
         noteUi = NoteUi.Busy
         viewModelScope.launch {
-            val env = NoteEnv(deviceStatus, consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
+            // A fresh check, not the shown state: another app may have finished the shared model's download.
+            val env = NoteEnv(modelReadiness.current(), consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
             val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
-            noteUi = NoteUi.Done(outcome, text)
+            if (noteSorts.isLatest(mine)) noteUi = NoteUi.Done(outcome, text)
         }
+    }
+
+    /** From the profile: what was typed is saved first, then the note opens (before joining a search too). */
+    fun remember(edited: SubjectProfile) {
+        saveProfile(edited)
+        noteSorts.drop()
+        noteUi = NoteUi.Idle
+        open(Screen.NOTE)
     }
 
     fun addNote(r: FamilyNoteReading) {

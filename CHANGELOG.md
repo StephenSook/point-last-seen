@@ -126,6 +126,59 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - Rules: closedAt on an incident is server-owned, like mode and expiresAt, so no client can move a drill's deletion;
   command still closes a drill. Source: review (drill retention). Verified: a new rules test failed first (command
   could write closedAt), then passes; the functions suite passes (270).
+- README gains How we built it: the AI paths (all through Firebase AI Logic), the Firebase products, the apps'
+  frameworks, the engine and its Swift port, the shared rules Android ports, the data, the checks, and the build
+  process with evidence in the repository (Claude Code; Codex reviews on pull requests). Source: review. Verified:
+  every item against a dependency or import in the shipped code.
+- README, judges line: the published run is now described as test family reports and plans, the run label's new words;
+  scripts/test_readme_run_label.py fails CI when README.md stops containing the label's description (it reads
+  web/public/evidence/published-run.json). Source: review (the README and the judge card must say the same thing).
+  Verified: the test failed first on the old words, then passes.
+- SECURITY row 6: the four server prompt templates are locked, with the read-back: locked true and the same template
+  text by SHA-256, an identical-text write refused (HTTP 400 FAILED_PRECONDITION), template calls still answering 200
+  after the lock, and the publish dry run matching the repository. Source: review (Firebase recommends locking
+  templates used in production). Verified: GET of each template after modifyLock; the refused PATCH; serviceruntime
+  request counts per minute (TemplateGenerateContent 200 at 01:56:52Z and 01:57:52Z); scripts/template_publish.py dry
+  run.
+- README, judges line: the published run is described in the judge card's own words again (the run file's label:
+  Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19), not a separate count. Source:
+  review (the README and the judge card must say the same thing). Verified: the README contains the label text of the
+  live /evidence/published-run.json.
+- LIMITS: Apple's Foundation Models acceptable-use terms, quoted (no official use in connection with law enforcement
+  or criminal justice; no decisions without human supervision with a material impact on individual rights in high-risk
+  domains); the iPhone reads with a model only in drill and judge incidents (ReadPlan.swift) and command approves
+  every assignment change; we cannot verify Apple permits use on an official search. Source: review. Verified: both
+  quotes word for word from Apple's Acceptable use requirements for the Foundation Models framework page (read
+  2026-11-21); ReadPlan.modelModes is drill and judge.
+- Production checklist: the minimum_version_android item no longer waits for the repo to go public on 2026-11-28; the
+  repo is public and /releases/latest opens the android-judge release with its APK, so the key is raised only when a
+  newer release APK is published. Source: review. Verified: /releases/latest answers 200 and resolves to
+  releases/tag/android-judge for a signed-out request.
+- README, judges line: the judge page names the cloud model and says whether the laptop's built-in model is ready (it
+  does not name an on-device model). Source: review. Verified against web/src/judge/judge.ts.
+- SECURITY row 1b: App Attest PASSED on a physical iPhone (2026-11-20, Ad Hoc Release build, App Attest production:
+  attestation and assertion exchanges 200, Firestore reads VALID before enforcement); it said PENDING. Source: review.
+  Verified: Cloud Monitoring reads at 21:22Z and 21:28Z on 2026-11-20; docs/TEST-MATRIX.md build 8 rows.
+- README and SECURITY: four calls use server prompt templates, not three; the web photo read calls pls-photo-cues-v1
+  (photoTemplateGenerator in web/src/ai/client.ts, used by CommandPost's readPhotoCloud since 65ee825a), so SECURITY
+  row 6, the call-table intro and the photo row say so. Source: review. Verified against
+  web/src/command/CommandPost.tsx:455.
+- served_version_check compares the served commit's production inputs with origin/main's instead of checking ancestry,
+  and refuses a shallow clone, a missing origin/main and an unknown served commit. Source: review (second-model).
+  Verified: 12 real-git tests; the live site fails today because main's engine changes are not deployed.
+- Daily probe: a new step fails when the live site is not built from main's production inputs
+  (scripts/served_version_check.py reads /version.json and compares the served commit's web app, shared engine and
+  data, hosting config and package files, without tests, e2e specs, harness pages or markdown, with origin/main's; it
+  also fails a dirty build, a shallow clone, a missing origin/main and a served commit the repository does not have).
+  Content is compared, not ancestry: a squash merge with the same code passes, a build from a branch ahead of main
+  with other code fails, and a test-only main commit asks for no deploy. The probe checks out full history for it.
+  The production checklist records the cron's measured lag (about 8 h) and that the 2026-11-19 scheduled run failed
+  because an Actions budget blocked it before it started. Source: review (the live site lagged main after a merge;
+  a second-model review found ancestry accepted a branch build with other web code). Verified: 12 tests against real
+  git repositories (behind main, ahead of main with other code, squash-equivalent, test-only main change, a checked
+  out feature branch, a missing commit, dirty, no origin/main, shallow); live it fails today, correctly: the site
+  serves 17c20055 and 16 production files on main differ, starting with shared/engine-ts/src/found.ts. The retire
+  date is pinned in scripts/test_judging_window.py.
 - LIMITS, Search model: only a sighting seen later than every prior input moves the start; the first-missing time is
   not stored; a confirmed camera clip always moves the start, so command checks its time first. Source: review.
   Verified against web/src/prior/sightingPrior.ts and web/src/prior/cameraPrior.ts.
