@@ -977,7 +977,7 @@ final class AppModel {
     /// never kept or sent. True once the clue is in the journal.
     func submitPhoto(_ image: CGImage) async -> Bool {
         guard !sending, canReadPhoto else { return false }
-        guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
+        guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         if !mission.isPractice { await trySignIn() }
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
@@ -997,8 +997,12 @@ final class AppModel {
             problem = why
             return false
         case let .clue(clue):
-            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: modelName, reason: .onDeviceDefault,
-                                    latencyMs: latencyMs, sdkReported: false, blocked: nil, decidedAtMs: submittedAt)
+            // Possible evidence follows the evidence protocol, as a typed report does: command decides, no
+            // reading is stored, and the receipt shows how to handle it.
+            let evidence = screen.isPossibleEvidence(clue.rawText)
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: evidence ? .evidenceProtocol : .guided, model: modelName,
+                                    reason: evidence ? .possibleEvidence : .onDeviceDefault, latencyMs: latencyMs,
+                                    sdkReported: false, blocked: nil, decidedAtMs: submittedAt)
             let validation = ReadingValidator.validate(clue.reading, knownSegmentIds: mission.grid.map(\.segmentId), rawText: clue.rawText)
             return journal(ReadOutcome(reading: clue.reading, route: route, validation: validation), rawText: clue.rawText, inputMethod: .photo,
                            position: position, mission: mission, uid: uid, identity: identity, store: store,

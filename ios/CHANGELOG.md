@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a photo of possible evidence follows the evidence protocol
+- What: when a photo report's words could be evidence (the same evidence terms a typed report is checked against,
+  for example "bloody knife"), it goes to command under the evidence protocol, as a typed report does: no reading
+  is stored, command decides, and the receipt shows how to handle it. Before, it became an ordinary clue.
+- Source: review.
+- Verified: a test with a "bloody knife" photo failed (an ordinary clue) before the change and passes after; all
+  219 app tests pass.
+
 ### fix(ios): a report read after its mission changed is not journalled
 - What: a typed, picked or photo report is journalled only if the mission it was read for is still the one loaded
   (same incident, team and signed-in owner). Before, only the journal itself was checked, so a report read while the

@@ -180,6 +180,19 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(model.problem == PhotoClue.personMessage)
     }
 
+    /// A photo whose words could be evidence follows the evidence protocol, like a typed report: command decides,
+    /// no reading is stored, and the receipt shows how to handle it.
+    @Test func aPhotoOfPossibleEvidenceGoesToCommand() async throws {
+        let knife = PhotoDescription(showsPerson: false, object: "bloody knife", color: .gray, kind: .other)
+        let (model, store) = try photoModel(.described(knife, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.route?.reason == .possibleEvidence)
+        #expect(doc.effect == .none(why: .needsCommand) && doc.reading == nil)
+        #expect(doc.rawText == "Photo: bloody knife." && doc.inputMethod == .photo)
+    }
+
     @Test func aPhotoThatCouldNotBeReadSendsNothing() async throws {
         let (model, store) = try photoModel(.failed)
         await model.load(try quietMission())
