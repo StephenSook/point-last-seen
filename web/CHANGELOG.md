@@ -2185,3 +2185,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
 - Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
 - Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
+
+### feat(data): a segment read from Firestore keeps its prior version
+- What: the segment listener reads each document through `segmentFromDoc`, which now keeps the document's `priorVersion` (left unset when missing or not a number). Every prior write stamps it on every segment and ROW, so a rebuild can tell a segment from an older grid.
+- Source: review (follow-up, approved).
+- Verified: `segmentDoc.test.ts` failed first (no export), then passes: the version kept, unset when missing or a string, null for unreadable geometry.
