@@ -221,7 +221,9 @@ function routeWords(route: RouteRecord): string {
  * Null while no report has arrived.
  */
 export function lastReportRoute(shown: readonly ReplayEvent[]): string | null {
-  const last = shown.findLast((e) => !NOT_A_REPORT.includes(e.type));
+  // A loop, not findLast: the run exporter type-checks this file against an older library list.
+  let last: ReplayEvent | undefined;
+  for (let i = shown.length - 1; i >= 0 && !last; i--) if (!NOT_A_REPORT.includes(shown[i]!.type)) last = shown[i];
   if (!last) return null;
   const r = checkedRoute(last);
   if (!r) return "Route not reported";
