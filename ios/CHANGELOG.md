@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a number from the rules is used only while the reading stays valid
+- What: the rules fill a model reading's empty numbers only after the model's own reading has passed validation, and
+  the filled reading is used only if it passes too. Otherwise the model's reading stands without the fill (no "Numbers
+  read by rules." line). Before, the fill ran first, so a stated value out of range (coverage 400) could make a
+  valid reading fail and skip the one quote retry Apple's model gets.
+- Source: review of the numbers fix.
+- Verified: tests for a fill that would break a valid reading and for the quote retry with such a fill failed on the
+  earlier rule and pass now; 436 PLSCore tests pass.
+
 ### fix(ios-core): the parser reads only stated search numbers
 - What: the rules parser now also reads the numbers a model leaves empty, so three misreadings were fixed. A time that
   says when something happens ("next radio check in 30 minutes", "every 2 hours", "in about 1 hour") is no longer read

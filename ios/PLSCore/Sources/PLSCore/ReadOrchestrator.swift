@@ -236,10 +236,16 @@ public enum ReadOrchestrator {
                         r = Self.zerosNotStated(r)
                         r.evidenceQuote = Self.withoutAddedMark(r.evidenceQuote, text)
                     }
-                    let (stated, filled) = Self.statedNumbers(r, from: parse(text, context))
-                    r = stated
                     let v = validate(r, context, text)
-                    if v.isOK { numbersFromRules = filled; return finish(r, path: path, stage: .guided) }
+                    if v.isOK {
+                        // Numbers the model left empty come from the rules, but only while the reading stays valid.
+                        let (stated, filled) = Self.statedNumbers(r, from: parse(text, context))
+                        if filled, validate(stated, context, text).isOK {
+                            numbersFromRules = true
+                            return finish(stated, path: path, stage: .guided)
+                        }
+                        return finish(r, path: path, stage: .guided)
+                    }
                     notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
                     if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
                         quoteRetried = true

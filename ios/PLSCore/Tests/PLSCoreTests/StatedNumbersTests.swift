@@ -81,6 +81,23 @@ import Testing
         #expect(o.route.path == .rules && near(o.reading.coverage, 0.7) && !o.numbersFromRules)
     }
 
+    /// A fill that would make a valid reading invalid is not used: the model's reading stands without it, and the
+    /// quote retry still sees only the model's own reasons.
+    @Test func aFillThatBreaksTheReadingIsDropped() async {
+        let o = await modelRead("Cleared segment AE, coverage 400, nothing found.", ids: ["AE"])
+        #expect(o.reading.coverage == nil && !o.numbersFromRules && o.route.stage == .guided)
+    }
+
+    @Test func theQuoteRetryIsNotSkippedBecauseOfAFill() async {
+        let text = "Cleared segment AE, coverage 400, nothing found."
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AE"], evidenceQuote: "")),
+                                      .success(reading(segmentIds: ["AE"], evidenceQuote: text))]
+        let o = await ReadOrchestrator.read(text: text, context: context(), runner: r, clock: FixedClock(ms: [1_000, 1_850, 2_000]))
+        #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
+        #expect(o.route.stage == .guided && o.reading.coverage == nil)
+    }
+
     @Test func theReceiptLineSaysTheNumbersCameFromTheRules() {
         #expect(EchoText.numbersByRules == "Numbers read by rules.")
     }
