@@ -191,6 +191,22 @@ const NOT_A_REPORT: readonly EventDoc["type"][] = ["confirmation", "retraction",
 // The run reader's own check of a route record (the exporter's too), so the line never shows a value it would refuse.
 const routeCheck = RUN_TYPES.event["route"];
 
+/** The event's route record when it has one the reader accepts, else null. */
+function checkedRoute(e: ReplayEvent): RouteRecord | null {
+  const route: unknown = e.doc.route;
+  if (route === null || route === undefined || !routeCheck || routeCheck(route, "route") !== null) return null;
+  return route as RouteRecord;
+}
+
+/**
+ * Whether any event in the run carries a route record the reader accepts. A run with none (the published development
+ * run records no route on any report) gets no route line at all: "Route not reported" at every step would read as a
+ * broken feature.
+ */
+export function runCarriesRoutes(events: readonly ReplayEvent[]): boolean {
+  return events.some((e) => checkedRoute(e) !== null);
+}
+
 function routeWords(route: RouteRecord): string {
   if (route.path === "cloud") return "Read in the cloud";
   // The browser's own model runs only on a computer; the phone apps read on the phone.
@@ -207,9 +223,8 @@ function routeWords(route: RouteRecord): string {
 export function lastReportRoute(shown: readonly ReplayEvent[]): string | null {
   const last = shown.findLast((e) => !NOT_A_REPORT.includes(e.type));
   if (!last) return null;
-  const route: unknown = last.doc.route;
-  if (route === null || route === undefined || !routeCheck || routeCheck(route, "route") !== null) return "Route not reported";
-  const r = route as RouteRecord;
+  const r = checkedRoute(last);
+  if (!r) return "Route not reported";
   const words = routeWords(r);
   const named = (r.path === "cloud" || r.path === "on_device") && r.model.trim() !== "";
   return named ? `${words}, model ${r.model}` : words;

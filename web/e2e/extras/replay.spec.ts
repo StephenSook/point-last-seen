@@ -62,6 +62,19 @@ test("the facts line says how the latest report was read, and by which model", a
   await expect(dialog.locator(".extras-replay-facts")).toContainText("Last report: Read in the cloud");
 });
 
+test("a run with no route on any report shows no route line at any time", async ({ page }) => {
+  await page.goto(`${harness}?routes=none`);
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Replay" }).click();
+  const dialog = page.getByRole("dialog", { name: "Replay" });
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect(dialog.locator(".extras-replay-facts")).toContainText("reports arrived");
+  await expect(dialog.getByTestId("replay-route")).toHaveCount(0);
+  await expect(dialog.getByText("Route not reported")).toHaveCount(0);
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });

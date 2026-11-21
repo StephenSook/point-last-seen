@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, mergeModel, viewState, type EventDoc, type PublishedRun } from "../hostApp";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
-import { fromLive, fromPublishedRun, lastReportRoute, mmssToMs, pendingLine } from "./replayData";
+import { fromLive, fromPublishedRun, lastReportRoute, mmssToMs, pendingLine, runCarriesRoutes } from "./replayData";
 import { runDevice, runEvent } from "../testdata/replayIncident";
 import { MAX_RUN_EVENTS, PUBLISHED_RUN_VERSION, type PublishedRunV1, type RunCameraReading, type RunSegment } from "./runContract";
 
@@ -601,5 +601,32 @@ describe("lastReportRoute", () => {
     const odd = eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + MIN, route: { ...cloud, path: "satellite" } as never });
     const data = fromLive(replayView(), [streamed(odd, T0 + MIN)], [])!;
     expect(lastReportRoute(data.events)).toBe("Route not reported");
+  });
+});
+
+describe("runCarriesRoutes", () => {
+  const cloud = { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "consented_cloud_read", latencyMs: 1577, sdkReported: true, blocked: null, decidedAtMs: T0 };
+  const read = (events: unknown[]) => {
+    const r = fromPublishedRun(run({ events: events as never }));
+    if (!r.ok) throw new Error(r.reason);
+    return r.data;
+  };
+
+  // The published development run records no route on any report: a line saying "Route not reported" at every step
+  // would read as a broken feature, so the panel shows none.
+  it("a run whose events all have route null carries no route", () => {
+    const events = ["a", "b", "c"].map((id, i) => runEvent(eventDoc({ eventId: id, clientTimeMs: T0 + i * MIN }), T0 + i * MIN));
+    expect(events.every((e) => e.route === null)).toBe(true);
+    expect(runCarriesRoutes(read(events).events)).toBe(false);
+  });
+
+  it("one report with a route is enough, wherever it falls in the run", () => {
+    const events = ["a", "b", "c"].map((id, i) => runEvent(eventDoc({ eventId: id, clientTimeMs: T0 + i * MIN }), T0 + i * MIN));
+    expect(runCarriesRoutes(read([...events.slice(0, 2), { ...events[2]!, route: cloud }]).events)).toBe(true);
+  });
+
+  it("a live route the reader would refuse does not count as one", () => {
+    const odd = eventDoc({ eventId: "s1", type: "sighting", clientTimeMs: T0 + MIN, route: { ...cloud, path: "satellite" } as never });
+    expect(runCarriesRoutes(fromLive(replayView(), [streamed(odd, T0 + MIN)], [])!.events)).toBe(false);
   });
 });
