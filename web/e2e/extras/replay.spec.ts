@@ -46,6 +46,35 @@ test("the clock and the elapsed time are each labelled, shown once, and the elap
   expect(font).not.toContain("DSEG7");
 });
 
+test("the facts line says how the latest report was read, and by which model", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const dialog = await openReplay(page);
+  const route = dialog.getByTestId("replay-route");
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await expect(route).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Next report" }).click();
+  await expect(route).toHaveText("Last report: Read on the laptop, model chrome-built-in");
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect(route).toHaveText("Last report: Read in the cloud, model gemini-3.5-flash-lite");
+  await expect(dialog.locator(".extras-replay-facts")).toContainText("Last report: Read in the cloud");
+});
+
+test("a run with no route on any report shows no route line at any time", async ({ page }) => {
+  await page.goto(`${harness}?routes=none`);
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Replay" }).click();
+  const dialog = page.getByRole("dialog", { name: "Replay" });
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect(dialog.locator(".extras-replay-facts")).toContainText("reports arrived");
+  await expect(dialog.getByTestId("replay-route")).toHaveCount(0);
+  await expect(dialog.getByText("Route not reported")).toHaveCount(0);
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });

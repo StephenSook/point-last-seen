@@ -47,6 +47,7 @@ import Testing
                              estimateTokens: { _, _ in 100 })
         r.makeRunner = { _, _, _ in Recording(paths: paths) }
         r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        r.cloudRouteAvailable = true          // the cloud route as on iOS 27; this runner needs no model
         var s = situation(mode: "drill")
         s.networkOnline = true
         s.cloudConsent = true
@@ -55,6 +56,32 @@ import Testing
         let cloud = await r.read("cleared segment AC, nothing found", situation: s)
         #expect(onDevice.route.path == .onDevice && cloud.route.path == .cloud)
         #expect(paths.m.withLock { $0 } == [.onDevice, .cloud])
+    }
+
+    /// With no cloud route (iOS 26) a read never goes to the cloud, even with signal and consent and
+    /// Apple's model off: it reads by rules.
+    @Test func withNoCloudRouteAReadNeverGoesToTheCloud() async throws {
+        final class Paths: @unchecked Sendable { let m = Mutex<[RoutePath]>([]) }
+        let paths = Paths()
+        struct Recording: ReadModelRunner {
+            let paths: Paths
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                paths.m.withLock { $0.append(path) }
+                return .success(ReportReading.unclear(quote: String(text.prefix(40))))
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Recording(paths: paths) }
+        r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        r.cloudRouteAvailable = false
+        var s = situation(mode: "drill")
+        s.networkOnline = true
+        s.cloudConsent = true
+        s.onDeviceOff = true
+        let o = await r.read("cleared segment AC, nothing found", situation: s)
+        #expect(o.route.path == .rules && paths.m.withLock { $0 }.isEmpty)
     }
 
     /// A note that does not look English is not sent to the cloud even with signal and consent when
@@ -74,6 +101,7 @@ import Testing
                              estimateTokens: { _, _ in 100 })
         r.makeRunner = { _, _, _ in Recording(paths: paths) }
         r.deviceStatus = { OnDeviceStatus(available: false, localeSupported: true, contextSize: 4096, variant: "test") }
+        r.cloudRouteAvailable = true          // the cloud route as on iOS 27; this runner needs no model
         var s = situation(mode: "drill")
         s.networkOnline = true
         s.cloudConsent = true

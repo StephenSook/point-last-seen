@@ -6,12 +6,14 @@ import { harnessIncident } from "../testdata/replayIncident";
 
 // Made-up harness data for the replay e2e. Dev server only; never in the production build.
 // ?pending=1 adds a command write still on its way to the server; ?reports=none keeps the built prior and drops every
-// report and plan, as a new practice search has.
+// report and plan, as a new practice search has; ?routes=none drops every report's route, as the published
+// development run has none.
 const params = new URLSearchParams(location.search);
 const incident = harnessIncident({ pending: params.get("pending") === "1" });
 const empty = params.get("reports") === "none";
+const noRoutes = params.get("routes") === "none";
 const { view } = incident;
-const events = empty ? [] : incident.events;
+const events = empty ? [] : noRoutes ? incident.events.map((e) => ({ ...e, route: null })) : incident.events;
 const plans = empty ? [] : incident.plans;
 const state: PostState = { view, events, plans, profile: null, denied: false, offline: false };
 

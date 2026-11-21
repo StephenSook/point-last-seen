@@ -43,6 +43,7 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
   own model, with the cloud as the fallback where a call allows it).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
+  The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules.
   This follows Firebase iOS SDK 13.0.0, which removed the SDK's own `SystemLanguageModel` and `HybridModel` and says to
   use `ai.geminiLanguageModel(name:)` directly with Apple's Foundation Models framework (`FirebaseAI/CHANGELOG.md`,
   lines 69 to 74 at tag 13.2.0, the version this app pins); `ios/PLS/AI/ModelSessionFactory.swift` does exactly that.
