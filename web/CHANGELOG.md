@@ -1978,6 +1978,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the approved texts for the App Store submission.
 - Verified: new `src/legalPages.test.ts` checks that the privacy page's main text equals the policy file and that the support page's text is exactly its approved lines; it failed 3 of 3 on the DRAFT pages, then passed. The browser checks in `e2e/publicPages.spec.ts` follow the new headings and links; the no-backend set (41) passes against a fresh build, with the web unit suite (938), CI's Python gates and the hygiene guard.
 
+### fix(command): on a laptop the command post never scrolls the document
+- What: `.post` is the window's height (`100dvh`), positioned, with overflow hidden, and each `.rail` is positioned, so absolutely placed children (the visually hidden spoken lines, such as What changed's status) stay inside their rail's scroll instead of making the document taller; phones keep the one-column page that scrolls (`overflow: visible` there). New harness page `harness/post-layout.html` with the real post grid and What changed section.
+- Source: UI review (the document was 1040 px in a 900 px window, so focus or scrollIntoView moved the app and hid the header; 7,730 px on the live joined post).
+- Verified: `e2e/harness/postLayout.spec.ts` (laptop: no document scroll, focus scrolls the rail, header stays at the top; phone: the page still scrolls) failed first (1,879 px in 900), then passed; the full harness suite passes except the triage measurement (needs the build env file); the no-backend set (35) passes. New deployed check `e2e/postLayout.spec.ts` failed on the live site (7,730 px in 900) and runs again after the deploy.
+
 ### test(command): the live What changed check knows the confirmed-sighting banners
 - What: `e2e/change.spec.ts` also accepts "New last known point: ..." (a confirmed sighting with a place that rebuilt the map) and the clue line with "It was not seen after the current last known point, so it counts as a clue." added, on screen and in the spoken line, with each banner form named once.
 - Source: a confirmed sighting on the test drill now shows these banners, which the check refused.
