@@ -92,3 +92,12 @@ test("each assignment is one line: the team, its task and its reason", async ({ 
   const items = page.getByTestId("suggested-plan").getByRole("listitem");
   await expect(items).toHaveText(["Team 1 Search AA. Highest.", "Team 2 Search AB. Next."]);
 });
+
+test("while the plan is worded, the card says so and that the first time can take up to a minute", async ({ page }) => {
+  await page.goto("/harness/plan.html?slow=1");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  const waiting = page.getByRole("status").filter({ hasText: "Wording the plan" });
+  await expect(waiting).toHaveText("Wording the plan. The first time on this laptop can take up to a minute.");
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(waiting).toHaveCount(0);
+});

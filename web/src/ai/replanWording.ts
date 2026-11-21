@@ -247,3 +247,11 @@ export function planWordingJson(teamIds: readonly string[] | null): PlanWordingS
     },
   };
 }
+
+/**
+ * How long the command post waits for a plan's wording before it uses the fixed wording. On Chrome's built-in model a
+ * page's first wording took 19.8 s on a fast Mac and later ones 2 to 3 s, past the 15 s a cloud request gets
+ * (evidence: docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json). A cloud request keeps its own 15 s limit
+ * (REPLY_TIMEOUT_MS, set on the SDK request), so a cloud fallback is no slower.
+ */
+export const WORDING_WAIT_MS = 60_000;
