@@ -81,13 +81,20 @@ import Testing
         #expect(o.route.path == .rules && near(o.reading.coverage, 0.7) && !o.numbersFromRules)
     }
 
-    /// A fill that would make a valid reading invalid is not used: the model's reading stands without it, and the
-    /// quote retry still sees only the model's own reasons.
-    @Test func aFillThatBreaksTheReadingIsDropped() async {
-        let o = await modelRead("Cleared segment AE, coverage 400, nothing found.", ids: ["AE"])
-        #expect(o.reading.coverage == nil && !o.numbersFromRules && o.route.stage == .guided)
+    /// A stated number the app refuses is never silently dropped: the model's reading is not used without it (its
+    /// effort numbers could then clear the area), and the read ends where the rules alone end, refused.
+    @Test(arguments: [
+        "Cleared segment AE, coverage 400, nothing found.",
+        "Cleared segment AE, coverage -.7, after 30 minutes with 2 searchers.",
+    ])
+    func aStatedNumberTheAppRefusesIsNotDropped(text: String) async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(reading(segmentIds: ["AE"], minutes: 30, searchers: 2, evidenceQuote: text))]
+        let o = await ReadOrchestrator.read(text: text, context: context(), runner: r, clock: FixedClock(ms: [1_000, 1_850]))
+        #expect(o.route.path == .rules && !o.validation.isOK && !o.numbersFromRules)
     }
 
+    /// The quote retry still sees only the model's own reasons: a refused stated number does not skip it.
     @Test func theQuoteRetryIsNotSkippedBecauseOfAFill() async {
         let text = "Cleared segment AE, coverage 400, nothing found."
         let r = FakeRunner()
@@ -95,7 +102,15 @@ import Testing
                                       .success(reading(segmentIds: ["AE"], evidenceQuote: text))]
         let o = await ReadOrchestrator.read(text: text, context: context(), runner: r, clock: FixedClock(ms: [1_000, 1_850, 2_000]))
         #expect(r.calls == [.guided(.onDevice), .guided(.onDevice)])
-        #expect(o.route.stage == .guided && o.reading.coverage == nil)
+        #expect(o.route.path == .rules && !o.validation.isOK)
+    }
+
+    /// The permissive line's own coverage keeps a stated percent: "1%" is 0.01, as the parser reads it.
+    @Test func aPermissiveLineKeepsAStatedPercent() {
+        #expect(near(PermissiveLine.parse("cleared|AE|1%", known: ["AE"])?.coverage, 0.01))
+        #expect(near(PermissiveLine.parse("KIND: cleared, SEGMENTS: AE, COVERAGE: 1 percent", known: ["AE"])?.coverage, 0.01))
+        #expect(near(PermissiveLine.parse("cleared|AE|0.7", known: ["AE"])?.coverage, 0.7))
+        #expect(near(PermissiveLine.parse("cleared|AE|80%", known: ["AE"])?.coverage, 80))
     }
 
     @Test func theReceiptLineSaysTheNumbersCameFromTheRules() {

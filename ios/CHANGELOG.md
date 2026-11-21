@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a stated number the app refuses refuses the read, and a permissive percent stays a percent
+- What: when the rules find a number the report states that the app refuses (coverage 400, or -.7), the model's
+  reading is no longer used without it, because its effort numbers could then clear the area; the read goes on as
+  the rules alone end it, refused ("Could not read this report. Ask command."), with a stage note. The quote retry
+  still sees only the model's own reasons. The permissive line's coverage keeps a stated percent ("cleared|AE|1%" is
+  0.01, as the parser reads it, not a whole ratio).
+- Source: second review of the numbers fix.
+- Verified: tests for both refused values, the quote retry and the permissive percent failed before the change and
+  pass after; 442 PLSCore tests pass.
+
 ### fix(ios-core): the parser reads search times, signs and percents exactly
 - What: "in 30 minutes" is a search time again ("cleared AE in 45 minutes") unless a word a little before says what
   happens next ("radio check in 30 minutes", "back in an hour", "will report again in 20 minutes"); a unit joined by

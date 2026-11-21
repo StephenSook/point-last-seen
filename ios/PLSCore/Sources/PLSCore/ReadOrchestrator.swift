@@ -238,21 +238,27 @@ public enum ReadOrchestrator {
                     }
                     let v = validate(r, context, text)
                     if v.isOK {
-                        // Numbers the model left empty come from the rules, but only while the reading stays valid.
+                        // Numbers the model left empty come from the rules, checked once the model's reading is valid.
                         let (stated, filled) = Self.statedNumbers(r, from: parse(text, context))
-                        if filled, validate(stated, context, text).isOK {
+                        guard filled else { return finish(r, path: path, stage: .guided) }
+                        let vf = validate(stated, context, text)
+                        if vf.isOK {
                             numbersFromRules = true
                             return finish(stated, path: path, stage: .guided)
                         }
-                        return finish(r, path: path, stage: .guided)
+                        // A number the report states that the app refuses is never silently dropped (the model's
+                        // effort numbers could then clear the area): the read goes on as the rules alone would end it.
+                        notes.append("guided \(guidedPath.rawValue): stated number refused \(Self.reasons(vf))")
+                        next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
+                    } else {
+                        notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
+                        if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
+                            quoteRetried = true
+                            retryingQuote = true
+                            continue
+                        }
+                        next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                     }
-                    notes.append("guided \(guidedPath.rawValue): invalid \(Self.reasons(v))\(Self.quoteNote(v, r.evidenceQuote))")
-                    if guidedPath == .onDevice, !quoteRetried, v == .invalid(reasons: ["quote_not_in_text"]) {
-                        quoteRetried = true
-                        retryingQuote = true
-                        continue
-                    }
-                    next = RouterPolicy.afterFailure(.parseFailed, path: path, stage: .guided)
                 case let .failure(f):
                     if raw != nil { notes.append("guided \(guidedPath.rawValue): \(f.rawValue)") }
                     note(f, &blocked)
@@ -414,7 +420,8 @@ public struct PermissiveLine: Sendable, Equatable {
             if knownSet.contains(id) && !ids.contains(id) && ids.count < 3 { ids.append(id) }
         }
         let covTokens = Tokens(fields["coverage"] ?? "").lower
-        let coverage = NumberWords.parse(covTokens, at: 0)?.0
+        // A stated percent keeps its meaning, as the parser reads it: "1%" is 0.01.
+        let coverage = NumberWords.parse(covTokens, at: 0).map { v, n in ReportParser.percentAfter(covTokens, at: n) ? ReportParser.percent(v) : v }
         return PermissiveLine(kind: kind, segmentIds: ids, coverage: coverage)
     }
 
