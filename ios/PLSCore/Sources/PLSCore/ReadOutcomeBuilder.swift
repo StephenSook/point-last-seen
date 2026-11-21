@@ -180,8 +180,10 @@ public enum ReadOutcomeBuilder {
 /// no year included), a time, a coordinate pair in range (not after a "+"), a ZIP+4 code after a state, a month-name date, a number with a
 /// unit. It stays only when the rest of the run is nothing or whole numbers of seven or more digits
 /// (which are removed); when any other piece of 1 to 6 digits is left beside it, the whole run is
-/// removed, since that piece could be part of a number. A number with an ordinal ending (67th) never
-/// joins others. A removed run keeps its line breaks.
+/// removed, since that piece could be part of a number. A time keeps its place only at the start of a
+/// run or after a date: joined after other digits it could be a number's last four (1 404 555 01:42), so it
+/// goes with the run. A street name (67th Ave: one to three digits, an ordinal ending, a street word)
+/// never joins others. A removed run keeps its line breaks.
 public enum PhoneNumbers {
     public static let replacement = "[number removed]"
     static let digitWords: Set<String> = ["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
@@ -194,8 +196,13 @@ public enum PhoneNumbers {
         "jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july",
         "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december",
     ]
-    /// A number with one of these endings is an ordinal (67th Ave) and never joins other digits.
+    /// A number with one of these endings, before a street word, is a street name (67th Ave) and never
+    /// joins other digits.
     static let ordinals: Set<String> = ["st", "nd", "rd", "th"]
+    static let streets: Set<String> = [
+        "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "pl", "place", "way",
+        "ct", "court", "pkwy", "parkway", "hwy", "highway", "ter", "terrace", "cir", "circle", "sq", "square", "trl", "trail",
+    ]
     /// Endings glued to a number that make it a quantity (5km, 3pm).
     static let units: Set<String> = [
         "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph", "kg", "lb", "lbs", "cm", "mm",
@@ -224,24 +231,41 @@ public enum PhoneNumbers {
                   onlySeparators(s[parts[i].range.upperBound..<parts[i + 1].range.lowerBound]) else { continue }
             parts[i].digits = extra
         }
-        for i in parts.indices where parts[i].written && i + 1 < parts.count && !parts[i + 1].written
-            && parts[i + 1].range.lowerBound == parts[i].range.upperBound && ordinals.contains(word(s, parts[i + 1])) {
-            parts[i].alone = true
+        // An ordinal stays apart only as a street name: one to three digits, its ending, then a street word
+        // (67th Ave). A longer group, or one with no street word after it, is still part of a number.
+        for i in parts.indices where parts[i].written && parts[i].digits <= 3 && i + 2 < parts.count && !parts[i + 1].written
+            && parts[i + 1].range.lowerBound == parts[i].range.upperBound && ordinals.contains(word(s, parts[i + 1]))
+            && !parts[i + 2].written && streets.contains(word(s, parts[i + 2])) {
+            let gap = s[parts[i + 1].range.upperBound..<parts[i + 2].range.lowerBound]
+            if !gap.isEmpty, gap.allSatisfy(\.isWhitespace) { parts[i].alone = true }
         }
-        let kept = searchSpans(s, parts)
+        let spans = searchSpans(s, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         var out = s
         var k = parts.count - 1
         while k >= 0 {
             guard parts[k].digits > 0 else { k -= 1; continue }
             var start = k
-            while start > 0, joins(s, parts[start - 1], parts[start]) { start -= 1 }
+            // A dropped time's hour joins its minutes across the colon, so its minutes go with the run too.
+            while start > 0, joins(s, parts[start - 1], parts[start]) || spans.glued.contains(start - 1) { start -= 1 }
             if (start...k).reduce(0, { $0 + parts[$1].digits }) >= 7 {
-                let pieces = pieces(start, k, kept)
-                if pieces.contains(where: { (1...6).contains($0.reduce(0) { $0 + parts[$1].digits }) }) {
+                let outside = pieces(start, k, spans.kept)
+                // A short piece seen with every span found, with the spans kept after dropping times, or with
+                // each dropped time's colon still a break, takes the whole run: dropping a time must never
+                // make the rest of the run look like a whole number (GA 40455-5014 2:30 555-0142).
+                func short(_ ps: [[Int]]) -> Bool { ps.contains { (1...6).contains($0.reduce(0) { $0 + parts[$1].digits }) } }
+                let split = outside.flatMap { p -> [[Int]] in
+                    var groups: [[Int]] = [[]]
+                    for i in p {
+                        if !groups[groups.count - 1].isEmpty, spans.glued.contains(i - 1) { groups.append([]) }
+                        groups[groups.count - 1].append(i)
+                    }
+                    return groups
+                }
+                if short(outside) || short(pieces(start, k, spans.found)) || short(split) {
                     replace(&out, s, parts, start, k)
                 } else {
-                    for piece in pieces.reversed() { replace(&out, s, parts, piece.first!, piece.last!) }
+                    for piece in outside.reversed() { replace(&out, s, parts, piece.first!, piece.last!) }
                 }
             }
             k = start - 1
@@ -286,8 +310,10 @@ public enum PhoneNumbers {
     /// separator), a time (14:03), a coordinate pair in range (33.7490, -84.3880), a ZIP+4 code after a
     /// state (GA 30301-1234), a month-name date (Nov 19 2026, 19 November 2026) and a number with a unit
     /// (5km). A grouped count is not one of them: with three groups it has seven or more digits, and is
-    /// read as a phone number (privacy wins ties).
-    static func searchSpans(_ s: String, _ parts: [Part]) -> Set<Int> {
+    /// read as a phone number (privacy wins ties). Returned as three sets: every span found, the spans kept
+    /// once a time joined before its hour to digits that are not a date is dropped, and the hour of each
+    /// dropped time (which joins its minutes).
+    static func searchSpans(_ s: String, _ parts: [Part]) -> (found: Set<Int>, kept: Set<Int>, glued: Set<Int>) {
         func gap(_ a: Int, _ b: Int) -> Substring { s[parts[a].range.upperBound..<parts[b].range.lowerBound] }
         func len(_ i: Int) -> Int { s[parts[i].range].count }
         func text(_ i: Int) -> Substring { s[parts[i].range] }
@@ -303,15 +329,18 @@ public enum PhoneNumbers {
         var kept = Set<Int>()
         // Written dates found below, each as its three parts; two that share a part cancel each other.
         var dates: [ClosedRange<Int>] = []
+        // Month-name dates' digits, and times (hour, minutes).
+        var monthDates = Set<Int>()
+        var times: [ClosedRange<Int>] = []
         for i in parts.indices {
             if !parts[i].written {
                 guard months.contains(word(s, parts[i])) else { continue }
                 if isDay(i + 1), gapMatches(gap(i, i + 1), [(isDot, 0, 1), (isSpace, 1, 2)]) {
-                    kept.insert(i + 1)
-                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [(isComma, 0, 1), (isSpace, 1, 2)]) { kept.insert(i + 2) }
+                    monthDates.insert(i + 1)
+                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [(isComma, 0, 1), (isSpace, 1, 2)]) { monthDates.insert(i + 2) }
                 } else if isDay(i - 1), gapMatches(gap(i - 1, i), [(isSpace, 1, 2)]) {
-                    kept.insert(i - 1)
-                    if isYear(i + 1), gapMatches(gap(i, i + 1), [(isComma, 0, 1), (isSpace, 1, 2)]) { kept.insert(i + 1) }
+                    monthDates.insert(i - 1)
+                    if isYear(i + 1), gapMatches(gap(i, i + 1), [(isComma, 0, 1), (isSpace, 1, 2)]) { monthDates.insert(i + 1) }
                 }
                 continue
             }
@@ -331,7 +360,7 @@ public enum PhoneNumbers {
                 kept.insert(i)
             }
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
-                kept.formUnion([i, i + 1])
+                times.append(i...(i + 1))
             }
             // A decimal pair after a "+" is an international number, not a coordinate.
             let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
@@ -343,8 +372,18 @@ public enum PhoneNumbers {
                 kept.formUnion([i, i + 1])
             }
         }
-        for d in dates where !dates.contains(where: { $0 != d && $0.overlaps(d) }) { kept.formUnion(d) }
-        return kept
+        var inDates = monthDates
+        for d in dates where !dates.contains(where: { $0 != d && $0.overlaps(d) }) { inDates.formUnion(d) }
+        let found = kept.union(inDates).union(times.flatMap { Array($0) })
+        // A time keeps its place only after a date's digits (or at the start of a run): joined before its hour
+        // to any other digits (a ZIP+4 code too) it could be a number's last four, so it is dropped and its
+        // hour joins its minutes. Only the hour's side is checked: "at 14:03, 404-555-0142" keeps its time.
+        let dropped = times.filter { r in
+            let outside = r.lowerBound - 1
+            return outside >= 0 && joins(s, parts[outside], parts[r.lowerBound]) && !inDates.contains(outside)
+        }
+        let live = times.filter { !dropped.contains($0) }
+        return (found, kept.union(inDates).union(live.flatMap { Array($0) }), Set(dropped.map(\.lowerBound)))
     }
 
     /// Whether digits join the date at parts[first...last] by the date's own separator, on either side.
@@ -407,7 +446,8 @@ public enum PhoneNumbers {
     static func isComma(_ c: Character) -> Bool { c == "," }
 
     /// A coordinate pair's middle: at most two spaces, then a comma (at most two spaces and an optional
-    /// minus after it) or a minus.
+    /// minus after it), or one or two spaces then a minus. A bare minus between two decimals
+    /// (44.2071-23.4567) is a dotted number, not a pair.
     static func coordinateGap(_ gap: Substring) -> Bool {
         var rest = gap[...]
         var n = 0
@@ -417,7 +457,7 @@ public enum PhoneNumbers {
             n = 0
             while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
             if rest.first == "-" { rest = rest.dropFirst() }
-        } else if rest.first == "-" {
+        } else if rest.first == "-", n >= 1 {
             rest = rest.dropFirst()
         } else {
             return false
