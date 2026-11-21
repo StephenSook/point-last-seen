@@ -2027,3 +2027,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the draft line now reads "Draft for the current reports." (it said "from this laptop" while What ran could name the cloud), and a fallback plan no longer adds a notice sentence such as "The cloud step did not answer. The plan below uses fixed wording.": its route mark (Fixed wording) shows it, and What ran says why the model was not used. Each assignment stays one line: the team, its task and its reason, as the team's phone receives them.
 - Source: UI review (the card said "Draft from this laptop" and "The cloud step did not answer" together, while What ran said cloud).
 - Verified: a new harness check in `e2e/harness/plan.spec.ts` (a fallback shows Fixed wording, no notice sentence, the reason under What ran, no "this laptop") failed first, then passed; a second check pins one line per assignment (it passed before and after); the plan checks (10), web unit suite (983), typecheck and the hygiene guard pass.
+
+### fix(command): the header's match code is labelled Radio check
+- What: the command post header labels the match code "Radio check" instead of "MATCH": the code teams read over the radio, where the same code means the same prior version and the same reports. The drill line and the wordmark are unchanged; `data-testid="convergence-code"` stays. The live layout and judge checks look for the new label.
+- Source: UI review ("MATCH" did not say what the code is for).
+- Verified: the live layout check with the new label failed on the live site ("MATCH"), and runs again after the deploy; typecheck, web unit suite and the hygiene guard pass.
