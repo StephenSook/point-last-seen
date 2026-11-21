@@ -88,12 +88,31 @@ public enum PhotoClue {
     /// at all: splitting it could cut the negation off an item ("not wearing a red cap and green jacket").
     static func phrases(_ profile: ModelProfile) -> [String] {
         let text = [profile.clothingLastWorn, profile.appearance].compactMap { $0 } + (profile.mobilityAids ?? [])
-        return text.filter { !negated($0) }.flatMap { part in
-            part.replacingOccurrences(of: #"\s+(and|with)\s+"#, with: ",", options: [.regularExpression, .caseInsensitive])
-                .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "." })
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
+        return text.filter { !negated($0) }.flatMap { field in
+            field.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "." }).flatMap { items(in: String($0)) }
         }
+    }
+
+    /// One comma-separated part of a field split into items at "and" and "with". A piece that names no item stays with
+    /// its neighbour, so all of an item's colors count together: "red and blue cap" is one item, as is "red cap with a
+    /// blue brim".
+    static func items(in segment: String) -> [String] {
+        let pieces = segment.replacingOccurrences(of: #"\s+(and|with)\s+"#, with: "\u{1F}", options: [.regularExpression, .caseInsensitive])
+            .split(separator: "\u{1F}").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        var out: [String] = []
+        var before: [String] = []
+        for piece in pieces {
+            if !Set(words(piece)).isDisjoint(with: allKindWords) {
+                out.append((before + [piece]).joined(separator: " and "))
+                before = []
+            } else if out.isEmpty {
+                before.append(piece)
+            } else {
+                out[out.count - 1] += " with " + piece
+            }
+        }
+        if !before.isEmpty { out.append(before.joined(separator: " and ")) }
+        return out
     }
 
     static func negated(_ text: String) -> Bool {
@@ -202,7 +221,7 @@ public enum PhotoClue {
     /// Where the words describing an item stop, reading back from it: articles, possessives, verbs and joining words.
     static let modifierStops: Set<String> = [
         "a", "an", "the", "her", "his", "their", "my", "our", "your", "some", "this", "that", "wearing", "wears", "wore",
-        "carrying", "carries", "carried", "had", "has", "have", "was", "is", "are", "also", "or", "in", "on", "of", "plus",
+        "carrying", "carries", "carried", "had", "has", "have", "was", "is", "are", "also", "or", "and", "with", "in", "on", "of", "plus",
         "un", "una", "el", "la", "los", "las", "con",
     ]
 

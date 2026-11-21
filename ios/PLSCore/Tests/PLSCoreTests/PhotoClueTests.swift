@@ -134,6 +134,11 @@ import Testing
             #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile(said)) == .unknown, "\(said)")
         }
         #expect(Self.matches(Self.photo("green jacket", .green, .coat), Self.profile("not wearing a red cap and green jacket")) == .unknown)
+        // Two colors on one item, however the family joined them, are not one color.
+        #expect(Self.matches(Self.photo("blue cap", .blue, .hat), Self.profile("red and blue cap")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("red cap with a blue brim")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("a red cap and white sneakers")) == .consistent)
+        #expect(Self.matches(Self.photo("red and blue cap", .blue, .hat), Self.profile("blue cap")) == .unknown)
         // A negation in one field leaves the other fields as they are.
         #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("a red cap", appearance: "no glasses")) == .consistent)
         // The caption and the color field disagree, in any of the caption's colors.

@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): an item's colors all count together, however the family joined them
+- What: a profile field is split into items at "and" and "with", but a piece that names no item now stays with its
+  neighbour, so "red and blue cap" and "red cap with a blue brim" are each one item with two colors, and a one-color
+  photo of the cap is unknown, not consistent. Separate items still split ("a red cap and white sneakers").
+- Source: review.
+- Verified: tests with "red and blue cap" and "red cap with a blue brim" failed (consistent) before the change and pass
+  after; "a red cap and white sneakers" still matches a red cap; all 416 core tests pass.
+
 ### fix(ios-core): gear names count with a hyphen or in the plural
 - What: gear named after a body part is recognised with a space or a hyphen between the words and in the plural
   ("neck-gaiter", "wrist watches", "hand-warmers", "knee braces", "head lamps"), so a clean read of ordinary gear is no
