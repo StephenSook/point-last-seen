@@ -2544,3 +2544,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
 - Source: review (parity with the iPhone's vector test).
 - Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
+
+### feat(command): the sighting form asks before saving a note that reads as a search report
+- What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.

@@ -4,7 +4,7 @@
 // no field of the stored event holds it, and phone numbers are removed from
 // the note (by the shared rule, see data/phoneNumbers) before it is stored or read.
 
-import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
+import { readsAsSearchReport, SEARCH_REPORT_LINE, type ClothingColor, type Direction, type RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
 import { receiptLines } from "../ai/receipt";
 import type { SightingCues, SightingRead } from "../ai/sightingText";
@@ -34,6 +34,10 @@ type Props = {
   onClose: () => void;
   /** Command has paused cloud reading (Remote Config kill_cloud): the form offers no cloud read and says why. */
   cloudPaused?: boolean;
+  /** Segments that can take a debrief (cleared ones): a search report placed in one can go to its debrief instead. */
+  debriefable?: ReadonlySet<string>;
+  /** Opens that segment's debrief with the note in it; nothing is saved until command saves the debrief. */
+  onDebrief?: (segmentId: string, note: string) => void;
 };
 
 const CLOUD_PAUSED = "Cloud reading is paused by command.";
@@ -43,7 +47,7 @@ function localInput(ms: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onDebrief }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -68,6 +72,9 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const noteNow = useRef(note);
   noteNow.current = note;
   const [error, setError] = useState<string | null>(null);
+  // The note a team's search report was typed as ("Segment 4 searched, subject not seen"): Save asked once whether it
+  // is a sighting. It only warns, in English only: a second tap saves it as typed, and an edit asks again.
+  const [reportAsked, setReportAsked] = useState<string | null>(null);
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
   const [quote, setQuote] = useState("");
@@ -94,6 +101,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // they no longer describe it, so they go; the fields it filled stay, since they may have been checked by hand.
   function changeNote(text: string) {
     setNote(text);
+    setReportAsked(null);
     if (readState === "none") return;
     setReadState("none");
     setRan(null);
@@ -147,10 +155,18 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    await saveSighting(reportAsked === note);
+  }
+
+  async function saveSighting(asked: boolean) {
     setError(null);
     const observedAtMs = new Date(when).getTime();
     if (!Number.isFinite(observedAtMs)) {
       setError("Enter the time it was seen.");
+      return;
+    }
+    if (!asked && readsAsSearchReport(note)) {
+      setReportAsked(note);
       return;
     }
     setSaving(true);
@@ -313,6 +329,21 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         <p className="error" role="alert">
           {error}
         </p>
+      )}
+      {reportAsked !== null && reportAsked === note && (
+        <div className="note-state" role="alert">
+          <p>{SEARCH_REPORT_LINE}</p>
+          <div className="row">
+            {placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
+              <button type="button" className="btn ghost" onClick={() => onDebrief(placeSegmentId, note)} disabled={saving}>
+                Add it to segment {placeSegmentId}'s debrief
+              </button>
+            )}
+            <button type="button" className="btn ghost" onClick={() => saveSighting(true)} disabled={saving}>
+              Save as a sighting anyway
+            </button>
+          </div>
+        </div>
       )}
       <div className="row">
         <button type="submit" className="btn" disabled={saving}>

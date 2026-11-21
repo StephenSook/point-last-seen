@@ -258,3 +258,39 @@ test("while the note is read on this laptop, the form says so and that the first
   await page.getByRole("button", { name: "Model answers" }).click();
   await expect(waiting).toHaveCount(0);
 });
+
+test("a note that reads as a search report asks before it is saved as a sighting, and saves on the second tap", async ({ page }) => {
+  await page.goto("/harness/sighting.html");
+  await page.getByRole("combobox", { name: /^Place\b/ }).selectOption("AB");
+  await page.getByRole("textbox", { name: "Note" }).fill("Segment 4 searched, subject not seen.");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  const warn = page.getByRole("alert").filter({ hasText: "This reads as a search report, not a sighting." });
+  await expect(warn).toBeVisible();
+  await expect(page.getByTestId("saved")).toHaveText("");
+  // AB is not cleared in this harness, so there is no debrief to add it to.
+  await expect(page.getByRole("button", { name: /debrief/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Save as a sighting anyway" }).click();
+  await expect(page.getByTestId("saved-note")).toHaveText("Segment 4 searched, subject not seen.");
+});
+
+test("a search report placed in a cleared segment can go to that segment's debrief instead, and nothing is saved", async ({ page }) => {
+  await page.goto("/harness/sighting.html?cleared=AB");
+  await page.getByRole("combobox", { name: /^Place\b/ }).selectOption("AB");
+  await page.getByRole("textbox", { name: "Note" }).fill("No sign of him along the fence.");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await page.getByRole("button", { name: "Add it to segment AB's debrief" }).click();
+  await expect(page.getByTestId("debrief")).toHaveText('AB: No sign of him along the fence.');
+  await expect(page.getByTestId("saved")).toHaveText("");
+});
+
+test("a sighting saves on the first tap, and an edited note drops the search-report warning", async ({ page }) => {
+  await page.goto("/harness/sighting.html");
+  const note = page.getByRole("textbox", { name: "Note" });
+  await note.fill("Swept the creek bank, no trace.");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByText("This reads as a search report, not a sighting.")).toBeVisible();
+  await note.fill("Swept the creek bank, saw a man in a red coat.");
+  await expect(page.getByText("This reads as a search report, not a sighting.")).toHaveCount(0);
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await expect(page.getByTestId("saved-note")).toHaveText("Swept the creek bank, saw a man in a red coat.");
+});
