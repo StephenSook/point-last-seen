@@ -2147,6 +2147,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence runs for the judge (the two rows had no tracked run).
 - Verified: typecheck, the test matrix check and the hygiene guard pass; the pages ran in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model).
 
+### fix(ai): a plan's wording is asked for in that plan's own shape
+- What: `planWordingJson(teamIds)` in `web/src/ai/replanWording.ts` is the wording's JSON schema for one plan: exactly one assignment per team, `teamId` limited to that plan's teams (the general schema when there are none). `wordingParams(model, teamIds)` gives it to both the cloud (`responseJsonSchema`) and this laptop (`responseConstraint`); CommandPost's `suggest` passes its draft's teams. The cited mode line (`replanWording.ts:47`) does not move.
+- Source: on-device evidence (Chrome's model repeated the teams up to the general schema's 12 items, and code rejected 4 of 6 wordings).
+- Verified: new unit tests (the schema's count and team list, both routes get it, the command post passes its draft's teams) failed first, then passed; typecheck, web unit suite (1051), the test matrix check and the hygiene guard pass.
+
+### test(evidence): plan wording on Chrome's model with the per-plan schema
+- What: `docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json`: the same made-up plan worded six times on the committed measurement page with the per-plan schema; the plan wording row in `docs/TEST-MATRIX.md` cites it beside the earlier run.
+- Found: code accepted 6 of 6 (2 of 6 before), all on device, no Google request; the first wording in a new page took 19,773 ms, over the command post's 15 s wording limit, the rest 2.1 to 3.2 s.
+- Source: on-device evidence runs for the judge.
+- Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
+
 ### fix(command): wait up to 90 s for a note read on this laptop, and say why
 - What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
 - Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).

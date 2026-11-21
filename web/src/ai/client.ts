@@ -39,13 +39,13 @@ export function generatorFor(model: TextModel): WordingDeps["generate"] {
 }
 
 /** Plan wording on the SDK's PREFER_ON_DEVICE mode (wordingParams), cloud and on-device parameters both set. */
-export function wordingGenerator(ai: AI, model: string): WordingDeps["generate"] {
-  return generatorFor(getGenerativeModel(ai, wordingParams(model), { timeout: REPLY_TIMEOUT_MS }));
+export function wordingGenerator(ai: AI, model: string, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+  return generatorFor(getGenerativeModel(ai, wordingParams(model, teamIds), { timeout: REPLY_TIMEOUT_MS }));
 }
 
 /** Plan wording on this laptop only (ONLY_ON_DEVICE), with the wording's own on-device options: for measurement pages. */
-export function wordingOnDeviceGenerator(ai: AI): WordingDeps["generate"] {
-  return generatorFor(getGenerativeModel(ai, wordingOnDeviceParams(), PRIVATE_REQUEST_OPTIONS));
+export function wordingOnDeviceGenerator(ai: AI, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+  return generatorFor(getGenerativeModel(ai, wordingOnDeviceParams(teamIds), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** The caller's note read on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
