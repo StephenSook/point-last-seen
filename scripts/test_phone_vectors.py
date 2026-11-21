@@ -26,7 +26,7 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    "+44.2071, -23.4567",
                    # A bare minus between decimals is how a number is written; an ordinal joins unless a street word follows.
                    "44.2071-23.4567", "4550 142nd",
-                   # A time shields itself only after a date, never joined to other digits before its hour.
+                   # A time shields itself only after a date or another kept time, never joined to other digits before its hour.
                    "1 404 555 01:42", "GA 40455-5014 2:30",
                    "GA 40455-5014 2:30 555-0142",
                    # Spanish digit words count like English ones, so a number spelled in Spanish inside an English
@@ -61,6 +61,8 @@ REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "202
                  # The three marks that never join a number: a degree, a percent and a time's colon.
                  "GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%",
                  "Seen 14:03 14:30",
+                 # A run of times is search information too: each time after a kept time keeps its place.
+                 "The possible times are 14:03, 14:10, 14:17.",
                  # A coordinate pair across a semicolon or a bullet, and radio frequencies (1 to 3 digits, a full stop,
                  # 3 digits), are search information.
                  "GPS 33.7490; -84.3880", "Radio 155.160 | 154.205", "GPS 33.7490 \u2022 -84.3880",
@@ -70,6 +72,8 @@ REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "202
                  # phone, a cell ping or a call's place is a clue, and its coordinates stay.
                  "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733", "Call came from 33.7866, -84.3733"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
+                  # A run of times before a number: the times stay, the number goes.
+                  ("Times 14:03, 14:10, 14:17, 404 555 0142", "Times 14:03, 14:10, 14:17, [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.
                   ("Seen 11/19/2026 404-555-0142", "Seen 11/19/2026 [number removed]"),

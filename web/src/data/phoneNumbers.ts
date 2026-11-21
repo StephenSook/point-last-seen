@@ -271,12 +271,13 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   const digitsOf = (r: Span) => range(r.first, r.last).filter((i) => parts[i]!.written);
   const found = new Set([...kept, ...spans.flatMap(digitsOf)]);
   // A time joined before its hour to digits that are not search information could be a phone number's last four
-  // digits (1 404 555 01:42), so it is dropped and goes with them; a date then a time keep each other.
+  // digits (1 404 555 01:42), so it is dropped and goes with them; a date then a time keep each other, and so do
+  // kept times in a row (14:03, 14:10, 14:17). A time after a dropped one is dropped too, so privacy still wins.
   const glued = new Set<number>();
   for (;;) {
-    const inDates = new Set(spans.filter((r) => !r.isTime).flatMap(digitsOf));
+    const inSpans = new Set(spans.flatMap(digitsOf));
     const joinedOutside = (inside: number, outside: number) =>
-      outside >= 0 && outside < parts.length && joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!) && !inDates.has(outside);
+      outside >= 0 && outside < parts.length && joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!) && !inSpans.has(outside);
     const drop = spans.filter((r) => r.isTime && joinedOutside(r.first, r.first - 1));
     if (drop.length === 0) break;
     spans = spans.filter((r) => !drop.includes(r));
