@@ -107,6 +107,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
+  read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
+  deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
+  purge marker present: removal refused, no record written) failed first, then passes; 364 functions and rules tests
+  pass; no live drill has a purge marker.
 - functions: removeMember refuses a missing or expired incident (permission-denied, not_command), as
   deleteIncidentMediaNow and rotateJoinCode do, reading it inside its transaction, so no removal record is written
   under a deleted drill; a closed search still allows a removal. Source: review (deferred minor from member removal).

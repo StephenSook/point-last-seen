@@ -3,6 +3,7 @@ import type { Auth } from "firebase-admin/auth";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { assertCurrentCommand } from "./authz.js";
+import { PURGES } from "./retention.js";
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const UID = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -42,11 +43,14 @@ export async function handleRemoveMember(db: Firestore, auth: Pick<Auth, "getUse
   const removedRef = db.doc(`incidents/${incidentId}/removed/${uid}`);
   const memberRef = db.doc(`incidents/${incidentId}/members/${uid}`);
   await db.runTransaction(async tx => {
-    const [incident, removed, member] = await Promise.all([tx.get(db.doc(`incidents/${incidentId}`)), tx.get(removedRef), tx.get(memberRef)]);
+    const [incident, purge, removed, member] = await Promise.all([tx.get(db.doc(`incidents/${incidentId}`)),
+      tx.get(db.doc(`${PURGES}/${incidentId}`)), tx.get(removedRef), tx.get(memberRef)]);
     // As in media.ts: claims outlive an incident, so a missing or expired one refuses its command too (and no removal
     // record is written under a deleted drill). A closed search still allows a removal.
     const exp = incident.get("expiresAt") as { toMillis(): number } | null | undefined;
-    if (!incident.exists || (exp != null && exp.toMillis() <= Date.now())) {
+    // A drill whose retention purge has started (its marker exists) takes no new removal record, which the purge
+    // could otherwise miss and leave under the deleted drill (retention.ts).
+    if (!incident.exists || (exp != null && exp.toMillis() <= Date.now()) || purge.exists) {
       throw new HttpsError("permission-denied", refusal, { reason: "not_command" });
     }
     if (removed.exists) return;

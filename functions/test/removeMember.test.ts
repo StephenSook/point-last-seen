@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { handleJoin } from "../src/join";
 import { handleRemoveMember } from "../src/members";
+import { PURGES } from "../src/retention";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
 const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
@@ -182,6 +183,12 @@ describe("the incident must still be there", () => {
     await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
     await admin.db.doc("incidents/I1").update({ expiresAt: null, status: "closed", closedReason: "found" });
     expect(await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher })).toEqual({ removed: true });
+  });
+  it("refuses removal once the drill's purge has started, so no record is left under a deleted drill", async () => {
+    await admin.db.doc("incidents/I1").update({ status: "closed", closedReason: "training_ended" });
+    await admin.db.doc(`${PURGES}/I1`).set({ startedAt: new Date(), closedAtMs: 1 });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
+    expect((await admin.db.doc(`incidents/I1/removed/${searcher}`).get()).exists).toBe(false);
   });
 });
 
