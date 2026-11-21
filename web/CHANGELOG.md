@@ -2346,3 +2346,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a close written offline stays queued across a reload, but the reloaded post offered End this search again, so command could queue a second close. While this browser holds a close the server has not confirmed, End this search now shows only "Ending the search..." and offers nothing more; it stays mounted, so if the server refuses the close the confirm comes back with the error.
 - Source: review (Codex, second round, low: reloading during a pending close allows a second submission).
 - Verified: a new harness check (`?queued=1`) failed first, then passed with the whole harness (213); typecheck and the hygiene guard pass.
+
+### fix(command): the post offers no new reports while this browser holds a close
+- What: the add buttons and open forms followed the server-confirmed close only, so after a reload with a cached close plus another pending edit (say, a rebuild queued offline), the post showed "Ending the search..." and still offered Add sighting until that edit cleared, though the server had the search closed. `writesOpen` in `web/src/data/endSearch.ts` is false once either the server or this browser has the search closed; the add buttons, the open forms and the first-report card follow it. The ended line still follows the server.
+- Source: review (Codex, third round: reloading can make a confirmed closure look pending).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.

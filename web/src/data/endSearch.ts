@@ -36,3 +36,11 @@ export function endSearch(db: Firestore, incidentId: string, reason: EndReason):
 export function confirmedStatus(prev: string | undefined, status: string | undefined, pending: boolean): string | undefined {
   return pending ? prev : status;
 }
+
+/**
+ * Whether the post offers new reports: not once the server has the search closed, and not while this browser holds a
+ * close of its own (queued, or cached with another pending edit after a reload), since the rules refuse them either way.
+ */
+export function writesOpen(serverStatus: string | undefined, localStatus: string | undefined): boolean {
+  return serverStatus !== "closed" && localStatus !== "closed";
+}

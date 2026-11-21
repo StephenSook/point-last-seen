@@ -35,3 +35,14 @@ describe("confirmedStatus: the status the server last confirmed", () => {
     expect(confirmedStatus("closed", "closed", true)).toBe("closed");
   });
 });
+
+describe("writesOpen: whether the post offers new reports", () => {
+  it("offers none once either the server or this browser has the search closed", async () => {
+    const { writesOpen } = await import("./endSearch");
+    expect(writesOpen("open", "open")).toBe(true);
+    expect(writesOpen(undefined, "open")).toBe(true);
+    expect(writesOpen("closed", "open")).toBe(false);
+    expect(writesOpen(undefined, "closed")).toBe(false);
+    expect(writesOpen("open", "closed")).toBe(false);
+  });
+});

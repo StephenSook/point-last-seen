@@ -45,7 +45,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { endedLine, endSearch } from "../data/endSearch";
+import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
@@ -412,13 +412,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
   // The server's last confirmed status decides, so neither a pending close nor a pending later edit flips it.
   const ended = endedLine(view?.serverStatus, incident?.closedReason);
+  // No new reports once the server or this browser has the search closed (the rules refuse them either way).
+  const closedHere = !writesOpen(view?.serverStatus, incident?.status);
   // A form already open (or opened before another tab ended the search) goes too.
   useEffect(() => {
-    if (!ended) return;
+    if (!closedHere) return;
     setAdding(false);
     setClipping(false);
     setPin(null);
-  }, [ended]);
+  }, [closedHere]);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -854,7 +856,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
-          {incident && !ended && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+          {incident && !closedHere && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
@@ -891,7 +893,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || !!ended}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || closedHere}>
               Add sighting
             </button>
           )}
@@ -911,7 +913,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || !!ended}>
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
               Add camera clip
             </button>
           )}
@@ -1031,7 +1033,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <button
           type="button"
           className="btn"
-          disabled={!incident || clipping || !!ended}
+          disabled={!incident || clipping || closedHere}
           onClick={() => {
             setAdding(true);
             requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));
