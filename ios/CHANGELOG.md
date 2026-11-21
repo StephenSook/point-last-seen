@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the test matrix records the iOS 26.5 simulator run
+- What: a new iPhone row in docs/TEST-MATRIX.md: iOS 26, on-device then rules with no cloud route, run on the
+  iOS 26.5 simulator, with what ran and what could not (no on-device model in the simulator).
+- Source: review (minimum iOS version).
+- Verified: scripts/test_test_matrix.py passes.
+
 ### docs(evidence): the iPhone app on an iOS 26.5 simulator
 - What: docs/evidence/ios/ios26-5-simulator-2026-11-20 records the app at the iOS 26.0 target on an iOS 26.5
   simulator: the app's tests passed (203, the four iOS 27-only tests skipped), and on 10 drill sentences
