@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Engine: correctFoundKind(reading, note, names) in `shared/engine-ts/src/found.ts` runs found-kind.json. A `found`
+  reading becomes a clue when the note has "found a/an/some/the" then a known object and no word says the person was
+  found (him, her, them, subject, person, patient, located, safe, breathing, "with us", or a word of the profile's
+  names); its item (up to three words) and feature come from the note as the phones' rules parser reads them, and
+  FOUND_AS_CLUE_REASON ("Read as a clue: an object was found, not the person.") is returned for the UI and the
+  receipt. Any other reading comes back unchanged. Source: the found-kind vectors. Verified: the new engine test
+  (every case, the reason, the input left untouched, and each case's parserKind against a copy of ReportParser.kind)
+  failed first (no export), then passed; the engine's 331 tests, typecheck and lint pass, with every existing vector;
+  the web's 919 unit tests and CI's Python gates pass.
 - Vectors: new `shared/test-vectors/found-kind.json` (16 hand-written cases) and its README section: a model reading
   of kind `found` checked against its note. "Found a blue coat by the creek in BO" and "Found a shoe on the path in
   segment BP" become clues with their item and feature from the note; "Found him by the creek, he is safe", "Found
