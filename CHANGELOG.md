@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
+  report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
+  over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
+  file.
 - README, judges paragraph: the judge page's Measured block and where its numbers come from
   (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
   is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
