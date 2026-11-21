@@ -14,13 +14,17 @@ public struct ReadOutcome: Sendable, Equatable {
     /// "guided on_device: timed out after 20 s", "permissive on_device: unparsed"); empty when the first
     /// stage answered. Kept with the read for the route check; never stored in the event.
     public var stageNotes: [String]
+    /// Set when a model's "found" was read as a clue (the found-kind rule): the reason the receipt shows.
+    public var foundKindReason: String?
 
-    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed, stageNotes: [String] = []) {
+    public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed,
+                stageNotes: [String] = [], foundKindReason: String? = nil) {
         self.reading = reading
         self.route = route
         self.validation = validation
         self.cloudTransport = cloudTransport
         self.stageNotes = stageNotes
+        self.foundKindReason = foundKindReason
     }
 }
 

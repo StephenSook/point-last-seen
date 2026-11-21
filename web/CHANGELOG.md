@@ -1954,6 +1954,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: nothing wrote incident.conditions, so the phones' urgency chip never showed.
 - Verified: typecheck clean; web unit suite (928) and CI's Python gates pass; the full harness suite passes except the triage measurement, which needs the build env file this worktree lacks and passes where it is present; the deployed check runs after the deploy.
 
+### test(judge): the route-order check goes with the numbered route
+- What: `e2e/judge.spec.ts` no longer checks that the numbered route follows the page's sections; the judge page's first screen dropped the route list, and `e2e/judgeRun.spec.ts` now asserts the list is gone.
+- Source: merge with main (the judge page opens with the door, the practice card and the replay).
+- Verified: the full no-backend browser set and the web unit suite pass.
+
 ### feat(web): static privacy and support pages, readable with no script
 - What: `web/privacy.html` and `web/support.html` are Vite inputs beside the app (`vite.config.ts` `build.rollupOptions.input`), styled by `src/theme/pages.css` with the app's fonts and colours. Their text is in the HTML the server sends, so a reviewer's fetch, a browser with scripts off and a visitor the service worker already controls (its precache serves `/privacy` as `privacy.html`) read the same words. Support says what the app is, that this version runs practice searches only, and links help on GitHub issues; both carry a DRAFT line until their wording is approved.
 - Source: the App Store submission needs public privacy and support pages.

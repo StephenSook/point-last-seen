@@ -60,6 +60,8 @@ public struct OutboxEntry: Sendable, Equatable, Codable {
     public var doc: EventDoc
     public var state: OutboxState
     public var lastError: String?
+    /// The phone's own note for the receipt when a model's "found" was read as a clue; never part of the event.
+    public var foundKindReason: String? = nil
 
     public var eventId: String { doc.eventId }
 }
@@ -105,12 +107,12 @@ public struct Outbox: Sendable {
 
     /// Adds a new event. The identical event again is an idempotent retry; a different event
     /// under the same id throws `Conflict` and changes nothing.
-    public mutating func add(_ doc: EventDoc) throws {
+    public mutating func add(_ doc: EventDoc, foundKindReason: String? = nil) throws {
         if let existing = entries.first(where: { $0.eventId == doc.eventId }) {
             guard existing.doc == doc else { throw Conflict(eventId: doc.eventId) }
             return
         }
-        try commit(entries + [OutboxEntry(doc: doc, state: .pending, lastError: nil)])
+        try commit(entries + [OutboxEntry(doc: doc, state: .pending, lastError: nil, foundKindReason: foundKindReason)])
     }
 
     public mutating func markAcked(_ eventId: String) throws {
