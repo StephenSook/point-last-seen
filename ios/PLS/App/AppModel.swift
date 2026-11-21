@@ -1176,7 +1176,12 @@ final class AppModel {
         // (the searcher left, the token stopped naming it, the account changed), even if it was loaded again
         // since: it goes nowhere. The same mission reloaded or with a new plan, with no drop, keeps its report.
         guard store === self.store, drops == missionDrops, let current = self.mission, current.incidentId == mission.incidentId,
-              current.teamId == mission.teamId, current.mode == mission.mode else { return false }
+              current.teamId == mission.teamId, current.mode == mission.mode else {
+            // The mission was dropped while the words were read (the search ended, the token moved): they wait for
+            // review, so a later mission never takes them on a plain second tap.
+            if store === self.store, drops != missionDrops { problem = Self.teamChanged }
+            return false
+        }
         // The task that read it was cancelled: the report is not journalled, and its words stay in the field.
         guard !Task.isCancelled else { return false }
         do {

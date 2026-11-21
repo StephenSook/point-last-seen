@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): words cut off because the mission was dropped wait for review
+- What: when the mission is dropped while a typed report is being read (the search ended, the token moved), the
+  words are not journaled, as before, and now they also wait for review: the phone shows "Your team changed while
+  this was sending. Check your new task, then send again if it still applies." and a later mission takes them only
+  through "Send to my new team" or after an edit, never on a plain second tap.
+- Source: review of the ended-search change.
+- Verified: a test where the search ends during the read failed before the change and passes after; 255 app tests
+  pass.
+
 ### fix(ios): an ended search can still be left, so its sign-in can be deleted
 - What: Ready check offers "Leave this search" while an ended search is on screen, not only while a search is
   loaded, so a searcher whose search ended can still delete the phone's sign-in; leaving clears the ended search.

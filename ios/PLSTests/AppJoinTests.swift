@@ -593,6 +593,34 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(backend.deletes == 1 && m.endedSearch == nil && !m.offersLeave)
     }
 
+    /// Words whose send was cut off because the search ended wait for review: a later mission never takes them on a
+    /// plain second tap.
+    @Test func wordsCutOffByAnEndedSearchWaitForReview() async throws {
+        final class Box: @unchecked Sendable { var reader: FakeMissionReader?; var model: AppModel? }
+        let box = Box()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        box.reader = reader
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                         readReport: { text, _, _, _ in
+            await MainActor.run { box.reader?.onIncident?(IncidentState(status: "closed", closedReason: "suspended")) }
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .clue
+            return ReadOutcome(reading: reading, route: route, validation: .ok)
+        }, joinBackend: FakeJoinBackend(), missionReader: reader)
+        box.model = m
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-send-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        #expect(m.mission != nil)
+        let text = "Found a glove by the creek"
+        #expect(await m.submit(text, inputMethod: .typed) == text)
+        #expect(m.mission == nil && store.entries.isEmpty && m.heldForReview == text)
+    }
+
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
     /// given back, T1's assignment is spoken again.
     @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {
