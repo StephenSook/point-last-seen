@@ -409,15 +409,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
-  // What searchers and family flagged with Report a problem; a searcher is named by the team its reports carry. A
-  // refused read keeps the flags and says they may be out of date.
+  // What searchers and family flagged with Report a problem. A searcher is named by the team of its latest report (a
+  // rejoin can move it to another team); a refused read keeps the flags and says they may be out of date.
   const [flags, setFlags] = useState<Flag[]>([]);
   const [flagsStale, setFlagsStale] = useState(false);
   useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags, () => setFlagsStale(true))), [pls, incidentId, denied]);
   const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const flagAuthor = (uid: string, role: Flag["role"]) => {
     if (role === "family") return "Family member";
-    const teamId = events.find((e) => e["authorUid"] === uid)?.["teamId"];
+    let latest: (typeof events)[number] | undefined;
+    for (const e of events) if (e["authorUid"] === uid && (!latest || Number(e["clientTimeMs"]) > Number(latest["clientTimeMs"]))) latest = e;
+    const teamId = latest?.["teamId"];
     const team = teams.find((t) => t.teamId === teamId)?.name;
     return team ? `${team} searcher` : "A searcher";
   };
