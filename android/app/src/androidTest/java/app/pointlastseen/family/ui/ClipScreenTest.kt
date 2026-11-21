@@ -45,6 +45,25 @@ class ClipScreenTest {
         assertEquals(270, f.facingDeg)
     }
 
+    /** The drill film is our concern, not a family's: only a drill or judge search asks about it. */
+    @Test fun aRealSearchDoesNotAskAboutTheDrillFilm() {
+        rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = "door.mp4", ui = ClipUi.Idle, onPick = {}, onRead = {}, onConfirm = {}, onBack = {}) } }
+        rule.onNodeWithText("It may be shown in the drill film (optional)").assertDoesNotExist()
+    }
+
+    @Test fun aDrillAsksAboutTheFilmAndSendsTheAnswer() {
+        var form: ClipForm? = null
+        rule.setContent { PaperTheme { ClipScreen("drill", false, clipLabel = "door.mp4", ui = ClipUi.Idle, onPick = {}, onRead = { form = it }, onConfirm = {}, onBack = {}) } }
+        tick("The person in the clip agrees")
+        tick("I own this footage or have the owner's OK")
+        tick("Send it to the cloud to read it")
+        tick("It may be shown in the drill film (optional)")
+        rule.onNodeWithText("When the clip starts (HH:MM)").performScrollTo().performTextInput("14:01")
+        tick("The camera's clock is right")
+        rule.onNodeWithText("Read the clip").performScrollTo().performClick()
+        assertEquals(true, form!!.publicUse)
+    }
+
     @Test fun whileReadingTheScreenSaysSoAndBackStaysAvailable() {
         var back = 0
         rule.setContent { PaperTheme { ClipScreen(null, false, "door.mp4", ClipUi.Busy, onPick = {}, onRead = {}, onConfirm = {}, onBack = { back++ }) } }

@@ -1,21 +1,19 @@
 package app.pointlastseen.family.ui
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 
 /**
- * The status card: one sentence, a quiet grey ring, and what the family can send.
- * Writes the server refused stay visible with Try again. Once the person is found
+ * The status card: one sentence, then what the family can send, a sighting first; the profile, About and
+ * leaving follow, quieter. Writes the server refused stay visible with Try again. Once the person is found
  * or the search is closed there is nothing left to send. A family may leave a search
  * still open after confirming it (a wrong code, the wrong search).
  */
@@ -37,13 +35,9 @@ fun StatusScreen(
     /** Leaving a search still open, after the family confirms it. */
     onLeaveOpen: () -> Unit = {},
 ) {
-    val ring = MaterialTheme.colorScheme.outline
     val open = status != "found" && status != "closed"
     var asking by rememberSaveable { mutableStateOf(false) }
     FamilyScaffold(mode, killCloud) {
-        Canvas(Modifier.size(56.dp).clearAndSetSemantics { }) {
-            drawCircle(ring, radius = size.minDimension / 2 - 4.dp.toPx(), style = Stroke(width = 3.dp.toPx()))
-        }
         Sentence(Copy.status(status))
         Note(Copy.newsByPhone(subjectName))
         if (unsaved) Note("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
@@ -54,21 +48,24 @@ fun StatusScreen(
             OtherAction("Try again", onClick = onRetry)
         }
         if (open) {
+            OtherAction("Someone saw them") { onOpen(Screen.SIGHTING) }
+            OtherAction("I remembered something") { onOpen(Screen.NOTE) }
             OtherAction("Share a camera clip") { onOpen(Screen.CLIP) }
             OtherAction("Add recent photos") { onOpen(Screen.PHOTOS) }
-            OtherAction("I remembered something") { onOpen(Screen.NOTE) }
-            OtherAction("Someone saw them") { onOpen(Screen.SIGHTING) }
         }
-        OtherAction("Edit profile") { onOpen(Screen.PROFILE) }
-        OtherAction("About this phone") { onOpen(Screen.ABOUT) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuietAction("Edit profile") { onOpen(Screen.PROFILE) }
+            QuietAction("About this phone") { onOpen(Screen.ABOUT) }
+        }
         when {
+            // Found or closed: leaving is the one thing left to do, so it stays a full button.
             !open -> OtherAction("Leave this search", onClick = onLeave)
             asking -> {
                 Note(Copy.LEAVE_CONFIRM)
                 MainAction("Leave") { asking = false; onLeaveOpen() }
                 OtherAction("Stay") { asking = false }
             }
-            else -> OtherAction("Leave this search") { asking = true }
+            else -> QuietAction("Leave this search") { asking = true }
         }
     }
 }

@@ -5,6 +5,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -36,7 +38,8 @@ class SightingScreenTest {
         rule.onNodeWithText("30 min ago").performScrollTo().performClick()
         rule.onNodeWithText("Where").performScrollTo().performTextInput("gas station on Elm")
         rule.onNodeWithText("North").performScrollTo().performClick()
-        rule.onNodeWithText("Top: blue").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Top: blue").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Bottom: black").performScrollTo().performClick()
         rule.onNodeWithText("What they said").performScrollTo().performTextInput("saw her walking fast")
         rule.onNodeWithText("Send to command").performScrollTo().assertIsEnabled().performClick()
         val s = sent!!
@@ -44,7 +47,18 @@ class SightingScreenTest {
         assertEquals("gas station on Elm", s.place)
         assertEquals("n", s.direction)
         assertEquals("blue", s.topColor)
+        assertEquals("black", s.bottomColor)
         assertEquals("saw her walking fast", s.note)
+    }
+
+    /** Each colour chip shows the colour's name under its Top or Bottom label; TalkBack still hears "Top: blue". */
+    @Test fun colourChipsShowTheNameUnderTheirLabel() {
+        rule.setContent { PaperTheme { SightingScreen(null, false, busy = false, error = null, nowMs = { now }, onSend = {}, onBack = {}) } }
+        rule.onNodeWithText("Top").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Bottom").performScrollTo().assertIsDisplayed()
+        assertEquals(0, rule.onAllNodesWithText("Top: blue", useUnmergedTree = true).fetchSemanticsNodes().size)
+        assertEquals(2, rule.onAllNodesWithText("blue", useUnmergedTree = true).fetchSemanticsNodes().size)
+        rule.onNodeWithContentDescription("Bottom: blue").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun sendIsDisabledDuringTheWrite() {
