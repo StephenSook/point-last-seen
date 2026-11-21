@@ -2181,6 +2181,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence runs for the judge.
 - Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
 
+### fix(command): wait up to 90 s for a note read on this laptop, and say why
+- What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
+- Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
+- Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
+
 ### fix(command): wait up to 60 s for a plan's wording, and say why
 - What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
 - Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
