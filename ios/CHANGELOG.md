@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): a model's "found" for an object is checked against the note (shared rule)
+- What: a Swift port of the shared found-kind rule (shared/test-vectors/found-kind.json, reference
+  shared/engine-ts/src/found.ts). A model's found becomes a clue only when every "found" in the note is
+  followed by a determiner and a known object, every word of the note is one an object-found note may hold,
+  and no word could name the person (person words or a profile name); name-like colour, size and place words
+  count only where they describe the object or follow a determiner. Any other note keeps the model's kind.
+  The corrected reading takes its item and feature from the note, and the reason is "Read as a clue: an
+  object was found, not the person. The model said found; check the note."
+- Source: the found-kind rule (shared vectors).
+- Verified: the runner over all 53 cases failed to compile before the type existed and passes after; this
+  phone's rules parser gives each case's parserKind; 930 notes that also say the person was found, over
+  2,000 with a family word, a name or a second find, and every name-like word where a name would stand are
+  never corrected; no person word is an object-note word.
+
 ### build(ios): the release check runs the privacy label check on every exported build
 - What: ios/scripts/archive_release.sh now runs scripts/check_privacy_label.py on the exported app, so a release
   build fails its checks when any bundled privacy manifest collects data the App Store label does not list.
