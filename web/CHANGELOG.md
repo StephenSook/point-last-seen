@@ -2301,3 +2301,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
 - Source: UI review (too many words on the working screen).
 - Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): the write and the line for ending a search
+- What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
+- Source: review (an "End this search" control for command).
+- Verified: new unit tests in `endSearch.test.ts` (the write's shape; the reasons equal the list in `firestore.rules`, read from the file; the line for each reason, for no reason or an unknown one, and none while open) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
