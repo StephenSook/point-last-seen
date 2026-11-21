@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the eval notes record the clue line that was tried and not shipped
+- What: docs/evidence/eval/README.md now says that Apple's model reads a report of a found object as the
+  person found, that two prompt lines were measured against it, and why neither shipped (one moved the
+  error, the other traded two errors for two others). It says the 10 tuning sentences give no accuracy
+  number.
+- Source: review (the clue-versus-found measurements).
+- Verified: the wordings and outcomes match the two measured runs of each line; no number is quoted.
+
 ### docs: the test matrix records the iPhone runs on build 8
 - What: the iPhone on-device and cloud rows of docs/TEST-MATRIX.md now cite build 8 (commit 8dfa5358):
   1,793 ms on Apple's model and 1,343 ms in the cloud, both guided with no stage notes, each with build 7's
