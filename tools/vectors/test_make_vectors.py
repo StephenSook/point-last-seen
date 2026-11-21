@@ -189,6 +189,33 @@ def test_linear_weights_are_neutral_at_or_above_the_isrid_share():
     assert all(abs(w - 1) < 1e-3 for w in near_below)
 
 
+def test_elevation_weights_give_each_class_its_isrid_share():
+    # Koester, Lost Person Behavior, dementia p.164, temperate: uphill 19%, same 39%, downhill 42%. Level is within
+    # 3 m of the start (ours: the source defines no band).
+    mv = _mv()
+    shares = {"up": 0.19, "level": 0.39, "down": 0.42}
+    mass = [0.25, 0.25, 0.25, 0.25]
+    w = mv.elevation_weights(mass, [10.0, 0.0, -10.0, -20.0], shares, 3.0)
+    new = [m * x for m, x in zip(mass, w)]
+    assert abs(new[0] - 0.19) < 1e-12 and abs(new[1] - 0.39) < 1e-12 and abs(new[2] + new[3] - 0.42) < 1e-12
+    assert abs(sum(new) - sum(mass)) < 1e-12
+
+
+def test_elevation_weights_return_an_empty_class_share_pro_rata_and_leave_no_data_alone():
+    mv = _mv()
+    shares = {"up": 0.19, "level": 0.39, "down": 0.42}
+    # No uphill segment: level and downhill split the classified mass 39:42.
+    w = mv.elevation_weights([0.5, 0.5], [0.0, -10.0], shares, 3.0)
+    assert abs(0.5 * w[0] - 39 / 81) < 1e-12 and abs(0.5 * w[1] - 42 / 81) < 1e-12
+    # A segment with no elevation keeps its weight; the others share only their own mass.
+    w = mv.elevation_weights([0.2, 0.4, 0.4], [None, 5.0, -5.0], shares, 3.0)
+    assert w[0] == 1.0 and abs(0.4 * w[1] - 0.8 * 0.19 / 0.61) < 1e-12
+    # The band edge counts as level; zero mass or one class only changes nothing.
+    assert mv.elevation_weights([0.5, 0.5], [3.0, -3.0], shares, 3.0) == [1.0, 1.0]
+    assert mv.elevation_weights([0.0, 0.0], [10.0, -10.0], shares, 3.0) == [1.0, 1.0]
+    assert mv.elevation_weights([0.3, 0.7], [None, None], shares, 3.0) == [1.0, 1.0]
+
+
 def test_urgency_follows_the_cdc_40f_line_and_ignores_clothing():
     mv = _mv()
     assert [mv.urgency_level(t, w) for t, w in [(40, False), (41, True), (41, False), (39, True)]] == ["cold", "cool_wet", "none", "cold"]

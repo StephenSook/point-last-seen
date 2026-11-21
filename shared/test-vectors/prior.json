@@ -100,5 +100,186 @@
         1.0
       ]
     }
+  ],
+  "elevationWeights": [
+    {
+      "name": "every_class",
+      "input": {
+        "mass": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ],
+        "relativeM": [
+          10.0,
+          0.0,
+          -10.0,
+          -20.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        0.76,
+        1.56,
+        0.84,
+        0.84
+      ]
+    },
+    {
+      "name": "no_uphill_pro_rata",
+      "input": {
+        "mass": [
+          0.5,
+          0.5
+        ],
+        "relativeM": [
+          0.0,
+          -10.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        0.9629629629629629,
+        1.037037037037037
+      ]
+    },
+    {
+      "name": "no_data_unchanged",
+      "input": {
+        "mass": [
+          0.2,
+          0.4,
+          0.4
+        ],
+        "relativeM": [
+          null,
+          5.0,
+          -5.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        1.0,
+        0.6229508196721312,
+        1.3770491803278688
+      ]
+    },
+    {
+      "name": "band_edge_is_level",
+      "input": {
+        "mass": [
+          0.5,
+          0.5
+        ],
+        "relativeM": [
+          3.0,
+          -3.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "zero_mass_neutral",
+      "input": {
+        "mass": [
+          0.0,
+          0.0
+        ],
+        "relativeM": [
+          10.0,
+          -10.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "all_no_data_neutral",
+      "input": {
+        "mass": [
+          0.3,
+          0.7
+        ],
+        "relativeM": [
+          null,
+          null
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "uneven_mass",
+      "input": {
+        "mass": [
+          0.1,
+          0.3,
+          0.05,
+          0.15,
+          0.4
+        ],
+        "relativeM": [
+          7.5,
+          -2.0,
+          2.9,
+          -30.0,
+          12.0
+        ],
+        "shares": {
+          "up": 0.19,
+          "level": 0.39,
+          "down": 0.42
+        },
+        "levelBandM": 3.0
+      },
+      "expected": [
+        0.38,
+        1.1142857142857143,
+        1.1142857142857143,
+        2.8,
+        0.38
+      ]
+    }
   ]
 }

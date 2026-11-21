@@ -77,6 +77,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Vector reference: elevation_weights in tools/vectors/make_vectors.py (each segment uphill, level within 3 m of the
+  start, or downhill, weighted to the class shares; an empty class returns its share pro rata; no elevation keeps
+  weight 1) and seven generated elevationWeights cases in shared/test-vectors/prior.json. Source: review (terrain
+  layer, approved). Verified: 2 reference tests failed first, then pass; the generator check passes.
 - drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
   segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
   tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
