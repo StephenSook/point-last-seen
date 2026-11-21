@@ -3,6 +3,16 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-21
+
+- Vectors: new `shared/test-vectors/found-kind.json` (16 hand-written cases) and its README section: a model reading
+  of kind `found` checked against its note. "Found a blue coat by the creek in BO" and "Found a shoe on the path in
+  segment BP" become clues with their item and feature from the note; "Found him by the creek, he is safe", "Found
+  Mr. Lee near the bench" (a profile name), "Found his coat and then found him", "found a man" and a sighting stay as
+  they are. Each case also records the phones' rules parser's own kind for the note. Source: a model read those two
+  notes as the person found. Verified: the file is well formed JSON and every value is one the reading schema allows;
+  the engine rule that runs it follows in the next commit.
+
 ## 2026-11-20
 
 - Drill day, iPhone cloud-reading switch (part of the iPhone sections): it is on for Stephen's iPhone in this drill

@@ -201,3 +201,27 @@ Where it applies: the web and the iPhone, which read a searcher's or a caller's 
 family app has none to ground: its note read fills only kind, label, summary and evidenceQuote; on a family sighting
 the family picks the direction and colours and sends footwear and carried empty; and a camera clip's colours come
 from the video frames, with no note and no profile in the request (no server prompt template names the profile).
+
+## found-kind.json (hand-written)
+
+A model can read "Found a blue coat by the creek in BO" as the person found. A found event moves no probability and
+the command post labels it Found, so the coat's clue value is lost and a commander reads Found. After grounding,
+each platform that reads a report's kind checks a `found` reading against its note with `correctFoundKind` in
+`shared/engine-ts/src/found.ts`: when the note has "found a", "found an", "found some" or "found the" followed by a
+known object (coat, shoe, glasses, keys, ...), and no word says the person was found (the rules parser's subject
+words him, her, them, subject, person, patient; located, safe, breathing, "with us"; or a word of one of the
+profile's names), the reading becomes a clue. Its item is up to three words after the determiner and its feature
+comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
+(`reason`, `FOUND_AS_CLUE_REASON`) is shown in the UI and the receipt. Any other reading comes back unchanged, so a
+possible person-found is never downgraded.
+
+- `cases[]`: `{ name, note, names, kindIn, kindOut, item?, feature?, corrected, parserKind }`. Give a blank reading
+  of kind `kindIn`, check it against `note` and the profile's `names`, and expect kind `kindOut` and `corrected`;
+  a corrected case also expects `item` and `feature`, and an unchanged one the reading as given.
+- `parserKind` is what the phones' rules parser (`ReportParser.kind`) gives the same note. It equals `kindOut`
+  except where the rule is deliberately more careful than the parser: the parser reads no profile names ("Found Mr.
+  Lee", `unclear`), calls "found a man" a clue, and does not read safe, breathing or "with us". The engine test checks
+  each `parserKind` against a copy of the parser's rule.
+
+Where it applies: the iPhone, whose searcher reads produce a kind. The web and the Android family app never produce
+kind `found` from a model; the web runs the vector against the engine.

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "note": "A model reading of kind found, checked against its note by a fixed rule (shared/engine-ts/src/found.ts, correctFoundKind). When the note says an object was found (found a, an, some or the, then a known object) and nothing says the person was found (a subject word, located, safe, with us, breathing, or one of the profile's names), the reading becomes a clue, with its item and feature read from the note, and the reason is shown. Any other reading is returned unchanged. parserKind is what the phones' rules parser (ReportParser.kind) gives the same note, so a platform can check its parser agrees.",
+  "reason": "Read as a clue: an object was found, not the person.",
+  "cases": [
+    { "name": "coat_by_creek", "note": "Found a blue coat by the creek in BO", "names": [], "kindIn": "found", "kindOut": "clue", "item": "blue coat", "feature": "creek_or_drainage", "corrected": true, "parserKind": "clue" },
+    { "name": "shoe_on_path", "note": "Found a shoe on the path in segment BP", "names": [], "kindIn": "found", "kindOut": "clue", "item": "shoe", "feature": "trail", "corrected": true, "parserKind": "clue" },
+    { "name": "slipper_by_creek", "note": "found a slipper by the creek in AC, tracks heading downstream", "names": [], "kindIn": "found", "kindOut": "clue", "item": "slipper", "feature": "creek_or_drainage", "corrected": true, "parserKind": "clue" },
+    { "name": "glasses_no_place", "note": "Found the glasses", "names": [], "kindIn": "found", "kindOut": "clue", "item": "glasses", "feature": "none", "corrected": true, "parserKind": "clue" },
+    { "name": "some_keys_on_road", "note": "Found some keys on the road", "names": [], "kindIn": "found", "kindOut": "clue", "item": "keys", "feature": "road", "corrected": true, "parserKind": "clue" },
+    { "name": "him_safe", "note": "Found him by the creek, he is safe", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "found" },
+    { "name": "subject_located", "note": "Subject located near the barn", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "found" },
+    { "name": "found_the_person", "note": "Found the person on the trail", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "found" },
+    { "name": "coat_then_him", "note": "Found his coat and then found him", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "found" },
+    { "name": "coat_and_safe", "note": "Found a coat, and she is safe with us", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "clue" },
+    { "name": "profile_name", "note": "Found Mr. Lee near the bench", "names": ["Arthur Lee", "Art"], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "unclear" },
+    { "name": "jacket_and_profile_name", "note": "Found a jacket, Art is with the medic", "names": ["Arthur Lee", "Art"], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "clue" },
+    { "name": "found_a_man_not_an_object", "note": "Found a man sitting by the creek", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "clue" },
+    { "name": "breathing", "note": "Found a woman under the bridge, breathing", "names": [], "kindIn": "found", "kindOut": "found", "corrected": false, "parserKind": "clue" },
+    { "name": "sighting_untouched", "note": "Sighting: man in a red jacket", "names": [], "kindIn": "sighting", "kindOut": "sighting", "corrected": false, "parserKind": "sighting" },
+    { "name": "clue_untouched", "note": "Found a glove by the road", "names": [], "kindIn": "clue", "kindOut": "clue", "corrected": false, "parserKind": "clue" }
+  ]
+}
