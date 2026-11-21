@@ -217,3 +217,17 @@ test("closing the Details that holds the section stops every camera track", asyn
   await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeVisible();
   await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
 });
+
+test("while it reads, the paper read says the first read can be slow, so a long wait does not look stuck", async ({ page }) => {
+  await page.addInitScript(() => {
+    const decode = window.createImageBitmap.bind(window);
+    window.createImageBitmap = ((...a: Parameters<typeof createImageBitmap>) =>
+      new Promise((resolve) => setTimeout(resolve, 1500)).then(() => decode(...a))) as typeof createImageBitmap;
+  });
+  await page.goto("/harness/debrief.html?paper=sample");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Read the paper sheet" }).click();
+  await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
+  await expect(row.getByRole("status")).toHaveText("Reading the sheet on this laptop. The first read can take up to a minute.");
+  await expect(row.getByLabel("Minutes searched", { exact: true })).toHaveValue("45");
+});

@@ -308,7 +308,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
           </button>
         </>
       )}
-      {phase === "reading" && <p role="status">Reading the sheet on this laptop...</p>}
+      {phase === "reading" && <p role="status">Reading the sheet on this laptop. The first read can take up to a minute.</p>}
       {message && (
         <p className="error" role="alert">
           {message}
