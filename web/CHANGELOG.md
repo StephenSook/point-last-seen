@@ -2218,3 +2218,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
 - Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
 - Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.
+
+### fix(command): walkers use only the route graph loaded for this grid
+- What: the command post keeps the loaded route graph with the grid it was loaded for (`graphFor`) and clears it on a grid change, so after a site change a walker run can never use the old site's routes with the new site's cells; until the new graph loads, walkers wait as on any load.
+- Source: review (cross-family).
+- Verified: `graphFor` failed first (no export), then passes (own grid; another grid; loading; no grid); 1089 web unit tests and the typecheck pass.

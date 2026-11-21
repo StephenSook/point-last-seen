@@ -6,6 +6,11 @@ import { indexRouteGraph, type RouteGraph, type WalkerResult, type WalkerRouteGr
 
 export type GraphLoad = { state: "ok"; graph: WalkerRouteGraph } | { state: "absent" } | { state: "invalid" } | { state: "unavailable" };
 
+/** A loaded route graph, used only for the grid it was loaded for: after a site change the old site's routes never run. */
+export function graphFor(gridId: string | undefined, loaded: { gridId: string; load: GraphLoad } | null): GraphLoad | null {
+  return loaded && gridId !== undefined && loaded.gridId === gridId ? loaded.load : null;
+}
+
 export async function loadRouteGraph(url: string, fetchFn: (url: string) => Promise<Response> = fetch): Promise<GraphLoad> {
   let res: Response;
   try {
