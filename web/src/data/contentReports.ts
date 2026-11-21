@@ -3,6 +3,7 @@
 // its author; command reads them all, newest first.
 
 import { collection, onSnapshot, type Firestore } from "firebase/firestore";
+import { removePhoneNumbers } from "./phoneNumbers";
 
 /** Mirrors shared/schemas/content-report.schema.json. */
 export type ContentReport = {
@@ -44,7 +45,9 @@ export function reportFromDoc(reportId: string, d: Record<string, unknown>): Fla
   if (typeof authorUid !== "string" || !oneOf(ROLES, role) || !oneOf(TARGETS, target) || !oneOf(REASONS, reason)) return null;
   if (targetId !== null && typeof targetId !== "string") return null;
   const at = createdAt && typeof (createdAt as { toMillis?: unknown }).toMillis === "function" ? (createdAt as { toMillis: () => number }).toMillis() : null;
-  return { reportId, authorUid, role, target, targetId, reason, ...(typeof note === "string" && note !== "" ? { note } : {}), createdAtMs: at };
+  // The reporter's app removes phone numbers before it stores the note, but no rule enforces that, so it is done here too.
+  const shown = typeof note === "string" ? removePhoneNumbers(note).trim() : "";
+  return { reportId, authorUid, role, target, targetId, reason, ...(shown !== "" ? { note: shown } : {}), createdAtMs: at };
 }
 
 /** "Team 1 searcher flagged a report: personal information that should not be shared." */

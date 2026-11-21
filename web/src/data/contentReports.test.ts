@@ -28,3 +28,10 @@ describe("content reports for command", () => {
     expect(sortNewestFirst([a, b, c]).map((r) => r.reportId)).toEqual(["c", "b", "a"]);
   });
 });
+
+describe("content reports, after review", () => {
+  it("never shows a phone number from a note", () => {
+    const f = reportFromDoc("r1", doc({ note: "Wrong: call (404) 555-0142 for her" }))!;
+    expect(f.note).toBe("Wrong: call [number removed] for her");
+  });
+});
