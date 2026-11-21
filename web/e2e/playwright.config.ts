@@ -8,6 +8,8 @@ export default defineConfig({
   // Harness specs need the dev server: e2e/harness.config.ts runs harness/**, and the
   // extras lane's e2e/extras.config.ts runs extras/**.
   testIgnore: ["harness/**", "extras/**"],
+  // Checks about the placeholder-key build run only in the no-backend run (ci.config.ts); this runner serves real keys.
+  grepInvert: /@placeholder-build/,
   timeout: 60_000,
   retries: 0,
   reporter: [["list"]],

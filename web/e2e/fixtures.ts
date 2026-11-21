@@ -29,17 +29,22 @@ export function deployedOnly(): void {
   }
 }
 
+// The no-backend run's build carries placeholder keys (ci-build-check). Google refuses its App Check token request
+// and its anonymous sign-up with HTTP 400, at a moment that races a check's last line. Only those two refusals,
+// with the placeholder key in the URL, are not counted; the live site's keys never match.
+const PLACEHOLDER_REFUSAL = /^https:\/\/(?:www\.google\.com\/recaptcha\/enterprise\/clr\?k=ci-build-check|identitytoolkit\.googleapis\.com\/v1\/accounts:signUp\?key=ci-build-check)(?:&|$)/;
+
 /** Collects console errors and uncaught page errors for the whole test. */
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: async ({ page }, use) => {
     const errors: string[] = [];
     page.on("console", (m) => {
-      if (m.type() === "error") errors.push(m.text());
+      if (m.type() === "error" && !PLACEHOLDER_REFUSAL.test(m.location().url)) errors.push(m.text());
     });
     page.on("pageerror", (e) => errors.push(e.message));
     // Console lines for failed loads carry no URL, so record each failing response too.
     page.on("response", (r) => {
-      if (r.status() >= 400) errors.push(`HTTP ${r.status()} ${r.request().method()} ${r.url().split("?")[0]}`);
+      if (r.status() >= 400 && !(r.status() === 400 && PLACEHOLDER_REFUSAL.test(r.url()))) errors.push(`HTTP ${r.status()} ${r.request().method()} ${r.url().split("?")[0]}`);
     });
     await use(errors);
   },
