@@ -2266,3 +2266,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the join form showed every error in one line under both fields, with no `aria-invalid`, no `aria-describedby`, and the focus left where it was. Now an error about one field ("Enter the incident id."; "The join code has 8 characters." or "That code did not match this incident.") sits under that field, marks it `aria-invalid`, is its description, and takes the focus there; any other error stays under the form. `joinErrorField` in `web/src/data/join.ts` says which field an error is about.
 - Source: UI review (the join error was not beside its field).
 - Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(theme): a disabled outline button reads at 4.5:1 on a raised panel
+- What: `.btn.ghost:disabled` used fg-4 text, 4.33:1 on bg-2 (the sighting form and photo panels), a pair the theme never allows. It now uses fg-3 text (well over 4.5:1) with a dashed edge, so it still reads as off.
+- Source: UI review (disabled outline buttons on bg-2).
+- Verified: a new harness check, `e2e/harness/disabledGhost.spec.ts` (text-to-surface ratio and edge style from computed styles), failed at 4.33 first and now passes with the whole harness (204); typecheck, web unit suite and the hygiene guard pass.
