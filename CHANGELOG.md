@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone vectors: the ten run-of-times cases are no longer pending on Android, whose port of the rule is merged (main
+  30479df3); `docs/LIMITS.md` counts Android at 113 of 113, the iPhone at 103 and the web at 113. Source: the Android
+  port merged. Verified: `scripts/test_phone_vectors.py` passes (6), and the Android port matched the web rule on all
+  60,113 notes of a generated corpus (local evidence, not in the repo).
 - Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
   document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
   command for another author's report and refused from a searcher or family seat, whether in command's shape or as their

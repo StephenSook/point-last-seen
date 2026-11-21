@@ -601,7 +601,7 @@
         "Call",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "phone_cue_before_a_run_of_times_with_commas",
@@ -612,7 +612,7 @@
         "Call",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "times_out_of_clock_order",
@@ -623,7 +623,7 @@
         "Try",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "phone_cue_before_times_written_as_a_number",
@@ -634,7 +634,7 @@
         "Call",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "phone_cue_and_a_tab_before_a_run_of_times",
@@ -645,7 +645,7 @@
         "Call",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "phone_cue_a_few_words_before_a_run_of_times",
@@ -656,7 +656,7 @@
         "Reach me at",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "phone_cue_and_a_bracket_before_a_run_of_times",
@@ -667,7 +667,7 @@
         "Call (",
         ") tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     }
   ],
   "mustKeep": [
@@ -678,7 +678,7 @@
     {
       "name": "times_run",
       "input": "The possible times are 14:03, 14:10, 14:17.",
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "segment_number",
@@ -827,13 +827,13 @@
       "name": "times_run_and_a_number",
       "input": "Times 14:03, 14:10, 14:17. Call 404 555 0142",
       "output": "Times 14:03, 14:10, 14:17. Call [number removed]",
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "spoken_digit_joined_to_a_run_of_times",
       "input": "Call four 4:04 5:55 6:42",
       "output": "Call [number removed]",
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "date_beside_number",
