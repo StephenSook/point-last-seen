@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Search-report vectors: the shared README names each field of `search-report.json` and which platforms read it (the
+  engine test and the web sighting form, for now), so a later port knows the contract. Source: review. Verified: the
+  hygiene guard passes in public mode.
 - Search-report check: `readsAsSearchReport` (`shared/engine-ts/src/searchReport.ts`) says whether a sighting note reads
   as a search report: a search-result word or phrase, or a segment named done, with no sighting word, where a sighting
   word within two words after a negation does not count. English only, no model.

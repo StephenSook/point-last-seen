@@ -229,6 +229,12 @@ can still be saved with one more tap. English only. A note reads as a search rep
 Words are whole words in any case, and either apostrophe counts. Each case names the clause it tests, and every clause
 with two sides has a case on each.
 
+Fields: `schemaVersion` (1); `note`, what the file is; `line`, the exact warning a platform shows; and `cases`, each with
+`name`, `note` (the sighting text), `report` (true when the note reads as a search report) and `clause` (the rule
+clause the case tests: `result_phrase`, `covered_dropped`, `segment_done`, `sighting_word`, `found_negated`,
+`negation`, `pronoun`, `english_only` or `whole_words`). Read by `shared/engine-ts/test/searchReport.test.ts`; the web
+sighting form is the only platform that uses the rule for now, and a phone that adds it matches every case.
+
 ## found-kind.json (hand-written)
 
 A model can read "Found a blue coat by the creek in BO" as the person found. A found event moves no probability and
