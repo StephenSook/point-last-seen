@@ -2048,6 +2048,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
 
+### feat(judge): a Measured block with the stored numbers, refusing an old file
+- What: the judge page reads `/evidence/measured.json` (`web/src/judge/measured.ts` `loadMeasured`, `measuredLines`) and shows, under "Stored on our servers", where stored report reads and plan wording ran (on the device, by the cloud model, by fixed rules) with each route's median time, and the cloud model's spend per day. Beside an on-device count of none, a line says why (an iPhone's practice drill keeps its reads on the phone; a plan is worded on the laptop only with Chrome's built-in model). No number is typed in the page; a file older than 30 days or one it cannot read shows a line and no numbers.
+- Source: review (a measured block on a judged surface).
+- Verified: 6 new unit tests failed first (no module), then pass; a new no-backend browser check reads the served file's counts on the page and refuses a 2020 file; 1010 web unit tests, typecheck, the build and 44 no-backend browser checks pass.
+
+### fix(judge): the Measured block counts reads with no route recorded
+- What: when the file counts reads with no route recorded, the block says "n with no route recorded", so the parts add up to the total; a non-integer unknown count makes the file unreadable.
+- Source: review (the parts should add up to the total).
+- Verified: a new unit test failed first, then passes (7).
 ### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
 - What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
 - Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
@@ -2491,6 +2500,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
+
+### feat(judge): the Measured block says every count is from our own test runs
+- What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
+- Source: review (every judge-facing number says where it came from).
+- Verified: `src/judge/measured.test.ts` (the source line and the iPhone row) failed first, then passed (7); `e2e/judgeRun.spec.ts` now checks the served line; typecheck, 225 and 72 no-backend browser checks and the build pass.
+### test(e2e): checks never spend the judges' practice searches
+- What: the live browser run skips any check tagged `@quota` unless `PLS_ALLOW_QUOTA=1` is set, and the two checks that start a real practice search (judge.spec's first practice start and endSearch.spec) are tagged, so a deploy check spends at most two of the judges' 50 a UTC day and only when asked to. A new guard, `src/practiceQuota.test.ts`, scans every file under `web/e2e`, the workflows and the scripts: a press of the "Try a practice search" button, the button held in a variable, a request to `/startJudgeSession` or a `startJudgeSession` callable must sit in a `@quota` test or behind a `page.route` stub whose every `continue()` is behind a POST check. It proves itself on six planted samples (an untagged start, a tagged one, two good stubs, a stub that lets the start through, a held button, a helper's request) and refuses to pass on a scan of fewer than 80 browser-check files or 40 others.
+- Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
+- Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
 
 ### fix(command): Problem reports follow the rail's lead instead of preceding it
 - What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.

@@ -59,7 +59,8 @@ test("the Android link opens a published judge release for a signed-out browser"
   expect(await res.text()).toMatch(/point-last-seen-family-[0-9a-f]{8}\.apk/);
 });
 
-test("a practice search opens a labelled training incident on the real park map, with no code, reopens without the join form, and its first report moves the top three", async ({ page }) => {
+// It starts a real practice search, one of the judges' 50 a day: tagged @quota, it runs only with PLS_ALLOW_QUOTA=1.
+test("a practice search opens a labelled training incident on the real park map, with no code, reopens without the join form, and its first report moves the top three", { tag: "@quota" }, async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
   await page.getByRole("button", { name: "Try a practice search" }).click();

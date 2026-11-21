@@ -19,6 +19,17 @@ class NavTest {
         assertEquals(Screen.STATUS, Nav.back(Nav.open(Nav.start(joined = true, gone = true), Screen.QUESTION)).screen)
     }
 
+    /** Once the search has ended, no sending screen opens, and one already open goes back to the status card. */
+    @Test fun anEndedSearchOpensNoSendingScreenAndLeavesOneThatIsOpen() {
+        val s = Nav.start(joined = true, gone = true)
+        for (t in listOf(Screen.CLIP, Screen.PHOTOS, Screen.SIGHTING, Screen.QUESTION)) {
+            assertEquals(t, Nav.open(s, t).screen)
+            assertEquals(Screen.STATUS, Nav.open(s, t, ended = true).screen)
+            assertEquals(Screen.STATUS, Nav.ended(Nav.open(s, t)).screen)
+        }
+        for (t in listOf(Screen.PROFILE, Screen.ABOUT, Screen.NOTE)) assertEquals(t, Nav.ended(Nav.open(s, t)).screen)
+    }
+
     @Test fun shesGoneShowsCallFirstBeforeAnythingElse() {
         val s = Nav.shesGone(Nav.start(joined = false, gone = false))
         assertEquals(Screen.CALL_FIRST, s.state.screen)

@@ -60,7 +60,8 @@ describe("startJudgeSession", () => {
     expect((await inc(incidentId).collection("profile").doc("command").get()).exists).toBe(false);
     expect(await size(incidentId, "events")).toBe(0);
     expect(await claims(uid)).toEqual({ inc: incidentId, role: "command", team: null });
-    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1 });
+    // The cap it enforces rides with the count, so the quota probe reads the deployed cap, not a checkout's.
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1, cap: 3 });
   });
   it("a visitor who comes back while the sandbox is live gets the same one, and nothing more is counted", async () => {
     const uid = await freshUid();
@@ -84,6 +85,30 @@ describe("startJudgeSession", () => {
     // The ended one is left to the cleanup job; the new start never writes or clears it.
     expect((await inc(first).collection("events").doc("x").get()).exists).toBe(true);
     expect(await used()).toBe(2);
+  });
+  it("a copy never carries the seed's end of search: no closedReason, no closedAt, and it starts open", async () => {
+    await inc("SEED").update({ closedReason: "training_ended", closedAt: Timestamp.fromMillis(NOW - DAY) });
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
+    const doc = (await inc(incidentId).get()).data()!;
+    expect(doc.status).toBe("open");
+    expect(doc).not.toHaveProperty("closedReason");
+    expect(doc).not.toHaveProperty("closedAt");
+  });
+  it("a practice search the visitor ended is not handed back: the next start (after the hourly limit) is a new incident", async () => {
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    await inc(first).update({ status: "closed", closedReason: "training_ended" });
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 20 * 60_000, cfg)).rejects.toMatchObject({ code: "resource-exhausted" });
+    const second = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 2 * HOUR, cfg)).incidentId;
+    expect(second).toMatch(attemptId(uid));
+    expect(second).not.toBe(first);
+    expect((await inc(second).get()).get("status")).toBe("open");
+    expect(await claims(uid)).toEqual({ inc: second, role: "command", team: null });
+  });
+  it("the day's counter, which anyone may read, holds only the count and the cap, start after start", async () => {
+    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
+    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW + 60_000, cfg);
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 2, cap: 3 });
   });
   it("the daily cap holds per UTC day, each day on its own counter (review: a late call could reset a new day)", async () => {
     await counterAt(NOW).set({ count: 3 });
@@ -293,6 +318,14 @@ describe("startJudgeSession hands out the role only for the visitor's current at
     await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, pause)).rejects.toMatchObject({ code: "unavailable" });
     expect(await claims(uid)).toEqual({ inc: newer, role: "command", team: null });
     expect(first).not.toBe(newer);
+  });
+  it("a start that finds the sandbox closed by the time it hands out the role grants nothing (review: close during a start)", async () => {
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    await admin.auth.setCustomUserClaims(uid, null);
+    const pause = { ...cfg, beforeClaims: async () => { await inc(first).update({ status: "closed", closedReason: "training_ended" }); } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, pause)).rejects.toMatchObject({ code: "unavailable" });
+    expect(await claims(uid)).toEqual({});
   });
 });
 

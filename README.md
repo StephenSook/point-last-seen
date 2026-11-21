@@ -7,6 +7,9 @@ start a practice search of your own (a copy of the development drill on a real p
 which cloud model the command post is using, and check whether this laptop's own built-in model is ready. The page
 also replays the development drill's published run (Piedmont Park, Atlanta: test family reports and plans,
 2026-11-18 to 19).
+Its Measured block shows where stored report reads and plan wording ran and the cloud model's spend, all computed by
+`scripts/measured_export.py` from the route records each read and plan stores and from AI Logic's token counts
+(`web/public/evidence/measured.json`).
 
 ## What it does
 
@@ -21,7 +24,7 @@ profile, notes, photos and camera clips from their own app, and decides which of
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
 | iPhone searcher app | Searchers in the field | TestFlight once Apple clears review (no public link yet); its recorded on-device and cloud runs are in [docs/evidence/ios](docs/evidence/ios) |
-| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-21, `point-last-seen-family-0c9766ea.apk` in android-judge-2) |
+| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-21, `point-last-seen-family-8d448c60.apk` in android-judge-4) |
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 

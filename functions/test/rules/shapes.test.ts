@@ -198,4 +198,12 @@ describe("ops/storage is the one public doc: readable without sign-in, writable 
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "ops/storage"), { lifecycleOk: true }));
     await assertFails(setDoc(doc(dbAs(null), "ops/storage"), { lifecycleOk: true }));
   });
+  it("a day's judge practice count is readable too, for the quota probe; nobody writes it", async () => {
+    await admin.db.doc("ops/judgeSessions-2026-11-21").set({ count: 12 });
+    await admin.db.doc("ops/judgeSessions-latest").set({ count: 1 });
+    await assertSucceeds(getDoc(doc(dbAs(null), "ops/judgeSessions-2026-11-21")));
+    await assertFails(getDoc(doc(dbAs(null), "ops/judgeSessions-latest")));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "ops/judgeSessions-2026-11-21"), { count: 0 }));
+    await assertFails(setDoc(doc(dbAs(null), "ops/judgeSessions-2026-11-21"), { count: 0 }));
+  });
 });

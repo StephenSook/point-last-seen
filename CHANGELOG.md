@@ -5,6 +5,31 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Docs: the README's Android row and the production checklist name android-judge-4
+  (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
+  README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
+  judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-4 tag;
+  the hygiene guard passes.
+- Chore(schemas): the content-report schema's web type is built: `shared/schemas/content-report.schema.json` named its
+  TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops
+  "pending:" and the schema parity gate checks it on every run. Source: review (the content-report schema's owner asked
+  for "pending:" to go in whichever PR merged second). Verified: the schema parity gate reports "ok content-report # ts:
+  7 fields" and 0 failures; the hygiene guard passes.
+- Fix(rules): a closedReason copied onto an open incident never blocks its edits: the closedReason clause now applies
+  only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open"
+  (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused.
+  Setting a reason still needs status "closed" and one of the three values. Source: review (Codex: closing the seed
+  drill would make every new practice search refuse ordinary edits). Verified: a new rules test (an open incident
+  carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first;
+  all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+- Feat(rules): command ends a search with one of three reasons: the incident update rule takes an optional
+  `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`.
+  Command could already close an incident; it now says why. A searcher or the family still cannot write the incident,
+  and a closed incident still takes no edits, so its reason stays as written. Source: review (an "End this search"
+  control for command). Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted
+  from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a
+  closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the
+  rules gate and its tests, the gates and the hygiene guard pass.
 - Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
   document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
   command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
@@ -82,6 +107,101 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
+  report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
+  over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
+  file.
+- README, judges paragraph: the judge page's Measured block and where its numbers come from
+  (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
+  is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
+- web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
+  report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
+  --check passes; the numbers are the script's output, not typed.
+- scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
+  route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
+  (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
+  scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
+  on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
+  pass.
+- functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
+  handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
+  Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one
+  not-yet-cleared removed sign-in counted 3 before the fix and counts 2 after, as the live run deletes 2; 362
+  functions and rules tests pass.
+- docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
+  review (claims check).
+- functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
+  their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
+  deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.
+  Source: review (claims check of the privacy policy and LIMITS against retention). Verified: new cases (an idle
+  removed sign-in deleted; one that joined another drill, one used after the close and a person's kept; a dry run
+  counts and deletes nothing) failed first, then pass; 362 functions and rules tests and the typecheck pass.
+- scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
+  lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
+  probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
+  probe tests pass.
+- functions test: the day's judge counter, which anyone may read, holds only its count and cap start after start.
+  Source: review (judge quota probe, publicly readable counter). Verified: the case passes, and fails when the counter
+  write gains another field.
+- scripts: the judge quota probe reads its doc with a Firestore batchGet, so only a reply naming that exact doc
+  missing counts as an unused day (a database or endpoint 404 now fails instead of reading as a full quota), and it
+  prefers the cap stored with the count over the checkout's. Source: review (cross-family, round 1 on the judge quota
+  probe). Verified: new cases (batchGet missing, found, wrong name, empty, error; a deployed cap of 45 below the
+  checkout's 50; a malformed cap) failed first, then pass; a live run before the rules deploy still fails closed with
+  HTTP 403.
+- functions: startJudgeSession writes the daily cap it enforces into the day's counter (ops/judgeSessions-<day>.cap)
+  with the count, so the quota probe reads the deployed cap rather than a checkout's. Source: review (cross-family,
+  round 1 on the judge quota probe). Verified: the first-start case now expects { count: 1, cap: 3 } and failed first,
+  then passes; all functions tests pass.
+- ci: judge-quota.yml runs the judge quota probe hourly (minute 41) through judging, with the CI App Check debug
+  token; a failed run emails the repo owner. Source: review (judge quota probe, approved). Verified: the gates
+  (workflow paths, ci-local mirror) pass.
+- scripts: judge_quota_probe.py reads today's ops/judgeSessions doc (never starts a session) and exits 1 when fewer
+  than 10 of the day's judge practice searches are left; the cap is read from functions/src/judgeSession.ts, a failed
+  read fails, a missing doc is an unused day, and it retires after 2026-12-17. Its tests run in CI and ci-local.
+  Source: review (judge quota probe, approved). Verified: test_judge_quota_probe.py (7 cases) failed first (no
+  script), then passes; a live run before the rules deploy failed closed with HTTP 403.
+- rules: ops/judgeSessions-YYYY-MM-DD, which holds only that UTC day's count of judge practice searches, is readable
+  without sign-in like ops/storage, so a probe can watch the judges' quota without a credential; nobody writes it from
+  a client. Source: review (judge quota probe, approved). Verified: a shapes case (a day's doc readable,
+  ops/judgeSessions-latest not, no client write) failed first, then passes.
+- rules: isOpen counts a missing status as open (get('status', 'open')), as the apps and the Storage rules read it, so
+  an incident with no status field still takes clip readings, reports and plans. The closed-incident reading test now
+  proves its point: a valid completion succeeds on an open record and the same completion is refused after the close.
+  Source: review (cross-family, round 1 on closed-incident writes). Verified: a no-status case failed first, then
+  passes; the completion test fails if the open check is dropped; all 177 rules tests pass. Every live incident has a
+  status.
+- rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
+  data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
+  mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
+  record, a photo upload the incident and the removal record. Source: review (closed-incident writes found during End
+  this search review). Verified: a storage case (after the close, a clip and a photo upload are refused and an
+  existing photo still reads) failed first, then passes; all 176 rules and Storage tests and the gates pass.
+- rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
+  and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
+  makes. Source: review (closed-incident writes found during End this search review). Verified:
+  rules/closedIncident.test.ts (a reading starts while open, not after the close; an open record cannot be completed
+  or taken over after it) failed first, then passes; all rules tests pass.
+- docs(limits): removing a member. Command removes a searcher or family member (removeMember): its app can no longer
+  read or write the search, open screens included (measured live: two open listeners refused within a second), and
+  that account cannot rejoin. The four remaining limits: a new sign-in rejoins until the role's code is replaced
+  (rotateJoinCode, which stops every older code of that role); media links already received keep working until the
+  drill's media is deleted; a clip upload in progress can finish within the hour; and an account that joined before
+  membership records began and has since joined another search cannot be removed for up to an hour. The Leave
+  paragraph no longer says command has no way to remove a member. Source: review (member removal, approved wording).
+- functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
+  close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
+  searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before
+  the grant; the start fails unavailable and no claims are set) failed first, then passes; all functions and rules
+  tests and the gates pass.
+- functions: a practice search the visitor ended (status closed) is no longer handed back on the next start: like an
+  expired one, it gives a new session, subject to the same hourly limit per visitor, so Try a practice search after
+  End this search starts fresh instead of reopening the ended post. Source: review (practice copies after End this
+  search). Verified: a new case (an ended sandbox: refused within the hour as resource-exhausted, then a new open
+  incident with the command role) failed first, then passes; 353 functions and rules tests and the gates pass.
+- functions: a judge's practice copy never carries the seed's end of search: closedReason and closedAt join
+  NOT_COPIED, so a copy starts open with neither. Source: review (practice copies after End this search). Verified: a
+  new case with an ended seed failed first, then passes; judgeSession tests pass.
 - rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
   command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
   Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
@@ -3321,18 +3441,3 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
-
-### feat(rules): command ends a search with one of three reasons
-- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
-- Source: review (an "End this search" control for command).
-- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
-
-### fix(rules): a closedReason copied onto an open incident never blocks its edits
-- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
-- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
-- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
-
-### chore(schemas): the content-report schema's web type is built
-- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
-- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
-- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.
