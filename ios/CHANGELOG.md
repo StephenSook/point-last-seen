@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### test(ios): the privacy manifest test expects the eight declared types
+- What: the app test of the privacy manifest still expected the three types the manifest declared before the
+  label work, so the iPhone app suite failed on main after that change. CI runs the core package only, and the
+  app suite had not been run before that merge. The test now expects the label's eight types.
+- Source: the app suite (a test left behind by the privacy label change).
+- Verified: the test failed on main and passes after; all 207 app tests pass.
+
 ### feat(ios-core): a model's reading is checked for found right after grounding
 - What: the read runs the found-kind rule on a model's reading (Apple's model or the cloud, guided or plain
   text) right after grounding, with the subject's names, which stay in code and never reach a model. A
