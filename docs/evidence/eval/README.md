@@ -52,3 +52,17 @@ app; the result records how many rows a model actually read.
   compared.
 - About 20 rows give wide intervals: a difference between the arms has to be large to show.
 - The reports are drill sentences, not words from a real search.
+
+## Tuned before the key, and not shipped
+
+Before this key exists, the phone's read path was tuned on 10 other drill sentences in the simulator. Those
+sentences are tuning data, not a held-out set, so they give no accuracy number. One problem was found there and
+not fixed:
+
+- A report that an object was found ("Found a blue coat by the creek", "Found a shoe on the path") is read by
+  Apple's model as `found` (the person found), not as a `clue`.
+- Two prompt lines were tried, each read twice with the same sentences. "A report of an object (a coat, a shoe, a
+  bag) is a clue, not the person found." moved both object reports to `cleared`, still not `clue`. "Use kind found
+  only when the missing person is found. If the report found an object, such as a coat, a shoe or a bag, use kind
+  clue." made both `clue`, but a sighting then read as `found` and an unclear report as `cleared`: it traded two
+  errors for two others. Neither line shipped.
