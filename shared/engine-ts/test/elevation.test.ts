@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrior, DEFAULT_PARAMS } from "../src/index";
+import { buildPrior, DEFAULT_PARAMS, ELEVATION_PARAMS } from "../src/index";
 import { cell, grid, ipp } from "./gridFixtures";
 
 // The elevation layer (Koester, Lost Person Behavior, dementia p.164): with it on, the grid's classified mass sits
@@ -31,7 +31,9 @@ describe("buildPrior's elevation layer", () => {
     expect(() => buildPrior(g, ipp, "temperate_flat", { ...off, elevation: true }, null)).toThrow(/elevation/);
   });
 
-  it("takes its shares and band from the engine params, sourced to p.164", () => {
-    expect(DEFAULT_PARAMS.elevation).toEqual({ levelBandM: 3, temperate: { up: 0.19, level: 0.39, down: 0.42 } });
+  it("takes its shares and band from its own constants, sourced to p.164, and leaves the stored params as they were", () => {
+    expect(ELEVATION_PARAMS).toMatchObject({ levelBandM: 3, temperate: { up: 0.19, level: 0.39, down: 0.42 } });
+    expect(ELEVATION_PARAMS.source).toMatch(/p\. 164/);
+    expect(Object.keys(DEFAULT_PARAMS)).not.toContain("elevation");
   });
 });

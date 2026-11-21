@@ -5,7 +5,7 @@ import { difference } from "@turf/difference";
 import { featureCollection, point, polygon } from "@turf/helpers";
 import { intersect } from "@turf/intersect";
 import type { Feature, MultiPolygon, Polygon } from "geojson";
-import { DEFAULT_PARAMS } from "./params";
+import { DEFAULT_PARAMS, ELEVATION_PARAMS } from "./params";
 import type { EngineParams, Grid, LatLon, SegmentPrior, Terrain } from "./types";
 
 const RING_STEPS = 128;
@@ -136,7 +136,7 @@ export function buildPrior(
   }
 
   if (layers.elevation && elevations) {
-    const { levelBandM, temperate } = params.elevation;
+    const { levelBandM, temperate } = ELEVATION_PARAMS;
     const rel = grid.segments.map(s => {
       const m = elevations.bySegment[s.segmentId];
       return typeof m === "number" && Number.isFinite(m) ? m - elevations.startM : null;

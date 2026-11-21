@@ -77,6 +77,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Engine: the elevation layer's constants (ELEVATION_PARAMS, from a top-level elevation block in
+  shared/constants/engine-params.json with its own source line) stay outside EngineParams, so stored incidents and the
+  published run, which carry no copy, still pass every reader (the replay reader derives its required engine fields
+  from DEFAULT_PARAMS and refused the run); search.json is unchanged from main. Source: CI and review (second-model).
+  Verified: the replay suite (119) and the published-run test pass; engine suite and typecheck; web typecheck and unit
+  suite.
 - docs/evidence/isrid-dementia-p164.md gains the elevation table as printed (temperate uphill 19%, down 42%, same 39%;
   dry 50%, 38%, 13%; medians 75 and 60 ft temperate, 317 and 187 ft dry), says what the source does not give (no n, no
   band for Same, no urban column), and that the temperate shares are the engine's elevation layer. Source: review.

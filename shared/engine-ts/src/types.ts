@@ -342,8 +342,13 @@ export interface EngineParams {
   rings: { masses: number[]; temperate_flat: number[]; temperate_mountain: number[]; urban: number[] };
   nearFeature: { bufferM: number; nearShare: number; farShare: number };
   wedge: { halfAngleDeg: number; inside: number; outside: number };
-  /** Elevation layer: class shares from the start (temperate), and the level band in metres (ours). */
-  elevation: { levelBandM: number; temperate: { up: number; level: number; down: number } };
+}
+
+/** Elevation layer: class shares from the start (temperate, p.164) and the level band in metres (ours). */
+export interface ElevationParams {
+  levelBandM: number;
+  temperate: { up: number; level: number; down: number };
+  source: string;
 }
 
 export interface SegmentPrior {
