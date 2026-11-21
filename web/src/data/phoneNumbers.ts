@@ -59,6 +59,8 @@ const STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "F
 const COORDINATE_GAP = /^(?:[ \n]{0,2}[,;\u2022\u00b7|/][ \n]{0,2}-|[ \n]{1,2}-)$/;
 // A word that says the next digits are a phone number; one of these just before a decimal pair makes it two numbers.
 const PHONE_CUES = new Set(["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "tel\u00e9fono", "telefono", "celular", "n\u00famero", "numero"]);
+// The one short word that may sit between a cue and its number (Llame al 33.1234, -84.5678; Call at ...).
+const CUE_CONNECTORS = new Set(["al", "a", "at", "on", "to"]);
 const MONTH_DAY_GAP = /^\.?[ \n]{1,2}$/;
 const DAY_MONTH_GAP = /^[ \n]{1,2}$/;
 const YEAR_GAP = /^,?[ \n]{1,2}$/;
@@ -190,14 +192,16 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
     if (text(whole).length > 1 && text(whole).startsWith("0")) return false;
     return Number(`${text(whole)}.${text(frac)}`) <= max;
   };
-  // A phone cue just before part i: a "#" in the gap before it, or a cue word among the up to three words before it
-  // with no digits between (Call 33.1234, -84.5678; Llame al 33.1234, -84.5678).
+  // A phone cue just before part i: a "#" in the gap before it, or a cue word right before it (only spaces or a colon
+  // between), or with one connector word between (Call: 33.1234, -84.5678; Llame al 33.1234, -84.5678). A cue further
+  // back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place and stays.
   const cueBefore = (i: number) => {
     if (s.substring(i > 0 ? parts[i - 1]!.end : 0, parts[i]!.start).includes("#")) return true;
-    for (let j = i - 1; j >= Math.max(0, i - 3) && parts[j]!.digits === 0; j--) {
-      if (PHONE_CUES.has(word(s, parts[j]!))) return true;
-    }
-    return false;
+    const near = (a: number, b: number) => /^[ \n:]*$/.test(flat(s.substring(parts[a]!.end, parts[b]!.start)));
+    const isWord = (j: number) => j >= 0 && parts[j]!.digits === 0 && !parts[j]!.written;
+    if (isWord(i - 1) && near(i - 1, i) && PHONE_CUES.has(word(s, parts[i - 1]!))) return true;
+    return isWord(i - 2) && isWord(i - 1) && CUE_CONNECTORS.has(word(s, parts[i - 1]!)) && near(i - 2, i - 1) && near(i - 1, i)
+      && PHONE_CUES.has(word(s, parts[i - 2]!));
   };
   const kept = new Set<number>();
   const frequencies: number[] = [];

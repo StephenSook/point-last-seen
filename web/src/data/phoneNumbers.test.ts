@@ -189,5 +189,11 @@ describe("removePhoneNumbers: a Mexican number in dot form is not a coordinate p
       expect(removePhoneNumbers(s)).toBe(s);
     }
   });
+  it("a cue word further back names a thing, not a number to dial: the clue's coordinates stay", () => {
+    for (const s of ["Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733", "Call came from 33.7866, -84.3733",
+      "Celular encontrado en 33.7866, -84.3733"]) {
+      expect(removePhoneNumbers(s)).toBe(s);
+    }
+  });
 });
 
