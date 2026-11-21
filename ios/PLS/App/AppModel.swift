@@ -1020,7 +1020,8 @@ final class AppModel {
         case let .clue(clue):
             // Possible evidence follows the evidence protocol, as a typed report does: command decides, no
             // reading is stored, and the receipt shows how to handle it.
-            let evidence = screen.isPossibleEvidence(clue.rawText)
+            // The whole caption as the model gave it, before any cut, and the words as stored.
+            let evidence = screen.isPossibleEvidence(photo.object) || screen.isPossibleEvidence(clue.rawText)
             let route = RouteRecord(platform: .ios, path: .onDevice, stage: evidence ? .evidenceProtocol : .guided, model: modelName,
                                     reason: evidence ? .possibleEvidence : .onDeviceDefault, latencyMs: latencyMs,
                                     sdkReported: false, blocked: nil, decidedAtMs: submittedAt)

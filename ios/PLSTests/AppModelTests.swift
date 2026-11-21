@@ -222,6 +222,17 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(store.entries.isEmpty)
     }
 
+    /// The evidence screen reads the model's whole caption, before any cut: an evidence word past 200 characters counts.
+    @Test func evidenceAfterTheCaptionCutStillGoesToCommand() async throws {
+        let long = String(repeating: "worn ", count: 45) + "backpack with bloodstains"
+        let bag = PhotoDescription(showsPerson: false, object: long, color: .green, kind: .bag)
+        let (model, store) = try photoModel(.described(bag, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.effect == .none(why: .needsCommand))
+    }
+
     /// While an earlier photo is still being read, a new one is not started and nothing is sent.
     @Test func aPhotoWhileAnotherIsReadSendsNothing() async throws {
         let (model, store) = try photoModel(.busy)

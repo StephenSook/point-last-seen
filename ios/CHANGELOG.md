@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): the evidence screen reads a photo's whole caption, before any cut
+- What: a photo's caption is screened for evidence as the model gave it, before it is cut to 200 characters for the
+  report's words, so an evidence word late in a very long caption still sends the photo to command.
+- Source: review.
+- Verified: a test with "bloodstains" past character 200 failed (an ordinary clue) before the change and passes after;
+  the app model tests pass.
+
 ### fix(ios): a report is dropped when sign-in moves the phone to another team or mode
 - What: each report path notes the incident, team and mode of the mission on screen before sign-in. If sign-in then
   leaves a different incident, team or mode loaded, the report is not journalled ("Your team changed while this was
