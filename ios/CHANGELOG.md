@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the iPhone Live Activity on a real phone's lock screen (build 9)
+- What: evidence folder docs/evidence/ios/iphone-2026-11-20-build9-live-activity with the Live Activity as
+  it showed on an iPhone 17 Pro's lock screen during a training drill ("Training drill. Nobody is missing." /
+  "Your segments: AE" / "All reports delivered."), and a README naming the build, the capture method and what
+  it does not show.
+- Source: device evidence for the Live Activity.
+- Verified: captured over USB with devicectl from build 0.1.0 (9) and cropped inside the card, so the lock
+  screen's clock, wallpaper and notifications are not in it; the full screenshot was deleted.
+
 ### fix(ios-core): Spanish digit words count as a phone number's digits
 - What: the iPhone's phone-number rule counts the Spanish digit words cero, uno, dos, tres, cuatro, cinco,
   seis, siete, ocho and nueve (any capitals) like the English ones, so "Call cuatro cero cuatro cinco cinco
