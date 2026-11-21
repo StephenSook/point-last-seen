@@ -3,6 +3,18 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-21
+
+### fix(ios-core): a photo matches the family's description only when the rule is sure
+- What: when the photo rule cannot read a described item for sure, the match is unknown, never consistent: a
+  phrase with a negation ("no red cap", "not wearing a hat"), a word right before the item that is neither a listed
+  color nor a style word ("teal cap", "red plaid cap"), or a caption whose own color disagrees with the color
+  field. The color is taken only from the words right before the item, so in "black hair wearing a red cap" the
+  cap is red. Coats and shirts are different kinds now.
+- Source: review (a teal cap, a black cap beside "black hair", "No red cap" and a caption the color field
+  contradicted each matched a red cap).
+- Verified: tests of each case failed before the change and pass after; all core tests pass.
+
 ## 2026-11-20
 
 ### fix(ios-core): a photo naming a person in any form is not kept

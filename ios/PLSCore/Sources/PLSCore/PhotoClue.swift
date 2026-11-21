@@ -53,26 +53,30 @@ public enum PhotoClue {
         return .clue(Clue(rawText: "Photo: \(object).", reading: reading, matchedPhrase: phrase))
     }
 
-    /// The first described item of the same kind whose color agrees (or that names no color).
+    /// The first described item of the same kind whose color agrees, or that names no color. Whatever the rule cannot
+    /// read for sure gives no match (unknown), never consistent: a phrase with a negation ("no red cap"), a word right
+    /// before the item that is neither a listed color nor a style word ("teal cap", "red plaid cap"), or a caption whose
+    /// own color disagrees with the color field. A color counts only in the words right before the item, so in "black
+    /// hair wearing a red cap" the cap is red.
     static func match(_ photo: PhotoDescription, profile: ModelProfile) -> String? {
-        guard let group = group(photo.kind) else { return nil }
+        let items = kindWords[photo.kind, default: []]
+        guard !items.isEmpty else { return nil }
+        let captionColors = Set(words(photo.object).compactMap(color))
+        if !captionColors.isEmpty, !captionColors.contains(photo.color) { return nil }
         for phrase in phrases(profile) {
             let w = words(phrase)
-            guard let kind = PhotoObjectKind.allCases.first(where: { !kindWords[$0, default: []].isDisjoint(with: w) }),
-                  self.group(kind) == group else { continue }
-            let colors = Set(w.compactMap(color))
+            guard w.allSatisfy({ !negations.contains($0) }), let at = w.firstIndex(where: items.contains) else { continue }
+            var modifiers: [String] = []
+            var i = at - 1
+            while i >= 0, !modifierStops.contains(w[i]), !allKindWords.contains(w[i]) {
+                modifiers.append(w[i])
+                i -= 1
+            }
+            guard modifiers.allSatisfy({ color($0) != nil || styleWords.contains($0) }) else { continue }
+            let colors = Set(modifiers.compactMap(color))
             if colors.isEmpty || (photo.color != .unknown && colors.contains(photo.color)) { return phrase }
         }
         return nil
-    }
-
-    /// Coats and shirts are one group: a hoodie is either. "Other" never matches.
-    static func group(_ kind: PhotoObjectKind) -> String? {
-        switch kind {
-        case .other: return nil
-        case .coat, .shirt: return "upper"
-        default: return kind.rawValue
-        }
     }
 
     /// The family's described items, one per phrase, as they wrote them.
@@ -147,6 +151,27 @@ public enum PhotoClue {
         .phone: ["phone", "cellphone", "smartphone"],
         .keys: ["key", "keys"],
         .wallet: ["wallet"],
+    ]
+
+    static let allKindWords: Set<String> = kindWords.values.reduce(into: Set<String>()) { $0.formUnion($1) }
+
+    /// A phrase with one of these says what the person did not have, so it never matches.
+    static let negations: Set<String> = ["no", "not", "without", "never", "nor", "none", "sin", "ni", "nunca"]
+
+    /// Where the words describing an item stop, reading back from it: articles, possessives, verbs and joining words.
+    static let modifierStops: Set<String> = [
+        "a", "an", "the", "her", "his", "their", "my", "our", "your", "some", "this", "that", "wearing", "wears", "wore",
+        "carrying", "carries", "carried", "had", "has", "have", "was", "is", "are", "also", "or", "in", "on", "of", "plus",
+        "un", "una", "el", "la", "los", "las", "con",
+    ]
+
+    /// Words before an item that say its style, not its color.
+    static let styleWords: Set<String> = [
+        "baseball", "knit", "knitted", "winter", "rain", "wool", "woolen", "woollen", "leather", "wooden", "wood", "metal",
+        "aluminum", "folding", "quad", "running", "tennis", "hiking", "walking", "sun", "reading", "rubber", "canvas",
+        "cotton", "puffy", "puffer", "hooded", "zip", "button", "long", "short", "sleeve", "sleeved", "old", "new", "worn",
+        "faded", "light", "dark", "bright", "pale", "small", "large", "big", "little", "warm", "thin", "thick", "heavy",
+        "wide", "brimmed", "bucket", "trucker", "golf", "ski", "snow", "slip", "lace", "laced", "velcro",
     ]
 
     /// Words for a person or part of one in a photo's object. Not the state words a report uses for a person

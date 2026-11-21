@@ -83,13 +83,37 @@ import Testing
         #expect(c.reading.matchesProfile == .unknown)
     }
 
-    @Test func coatsAndShirtsAreOneGroupAndOtherIsNeverAMatch() throws {
-        let hoodie = try #require(Self.clue(PhotoClue.decide(Self.photo("gray sweatshirt", .gray, .coat), profile: Self.profile("gray hoodie"), segmentIds: [])))
-        #expect(hoodie.reading.matchesProfile == .consistent)
+    @Test func coatsAndShirtsAreDifferentKindsAndOtherIsNeverAMatch() throws {
+        let shirt = try #require(Self.clue(PhotoClue.decide(Self.photo("gray sweatshirt", .gray, .shirt), profile: Self.profile("gray hoodie"), segmentIds: [])))
+        #expect(shirt.reading.matchesProfile == .consistent)
+        let coat = try #require(Self.clue(PhotoClue.decide(Self.photo("gray jacket", .gray, .coat), profile: Self.profile("gray hoodie"), segmentIds: [])))
+        #expect(coat.reading.matchesProfile == .unknown)
         let other = try #require(Self.clue(PhotoClue.decide(Self.photo("red thing", .red, .other), profile: Self.worn, segmentIds: [])))
         #expect(other.reading.matchesProfile == .unknown)
         let none = try #require(Self.clue(PhotoClue.decide(Self.photo("red baseball cap", .red, .hat), profile: Self.profile(), segmentIds: [])))
         #expect(none.reading.matchesProfile == .unknown)
+    }
+
+    static func matches(_ photo: PhotoDescription, _ profile: ModelProfile) -> ProfileMatch? {
+        clue(PhotoClue.decide(photo, profile: profile, segmentIds: []))?.reading.matchesProfile
+    }
+
+    /// Anything the rule cannot read for sure gives unknown, never consistent.
+    @Test func whenUnsureTheMatchIsUnknown() {
+        // A color the family used that is not on the list.
+        #expect(Self.matches(Self.photo("green cap", .green, .hat), Self.profile("teal cap")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("red plaid cap")) == .unknown)
+        // Only the words right before the item give its color.
+        #expect(Self.matches(Self.photo("black cap", .black, .hat), Self.profile("black hair wearing a red cap")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("black hair wearing a red cap")) == .consistent)
+        // A negation.
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("no red cap")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("not wearing a hat")) == .unknown)
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("sin gorra, a coat")) == .unknown)
+        // The caption and the color field disagree.
+        #expect(Self.matches(Self.photo("black cap", .red, .hat), Self.profile("red cap")) == .unknown)
+        // A style word is not a color; with no color named, the kind decides.
+        #expect(Self.matches(Self.photo("red cap", .red, .hat), Self.profile("a baseball cap")) == .consistent)
     }
 
     @Test func theReadingIsAClueWhoseQuoteIsInTheText() throws {
