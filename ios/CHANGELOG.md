@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs(evidence): the iPhone route check on build 8
+- What: docs/evidence/ios/iphone-2026-11-20-build8 holds the route-check file build 8 (commit 8dfa5358,
+  the first with the iOS 26.0 minimum) wrote on an iPhone 17 Pro, iOS 27.2.1, copied off the phone, with a
+  README. Apple's on-device model read the drill sentence guided in 1,793 ms and the cloud model guided in
+  1,343 ms, both as cleared, segment BO, with no stage notes.
+- Source: the phone route check on build 8.
+- Verified: the file is the one copied off the phone and parses as JSON; it holds no name, account or
+  phone number; the README's numbers match the file.
+
 ### docs: the iOS 26 matrix row names its call without a pipe
 - What: the new iPhone row cited `killCloud: config.killCloud || !cloudRouteAvailable`; the matrix check
   splits rows on "|", so it read the row as having too many columns. The row now cites
