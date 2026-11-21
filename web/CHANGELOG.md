@@ -1983,6 +1983,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (the document was 1040 px in a 900 px window, so focus or scrollIntoView moved the app and hid the header; 7,730 px on the live joined post).
 - Verified: `e2e/harness/postLayout.spec.ts` (laptop: no document scroll, focus scrolls the rail, header stays at the top; phone: the page still scrolls) failed first (1,879 px in 900), then passed; the full harness suite passes except the triage measurement (needs the build env file); the no-backend set (35) passes. New deployed check `e2e/postLayout.spec.ts` failed on the live site (7,730 px in 900) and runs again after the deploy.
 
+### test(command): the live What changed check knows the confirmed-sighting banners
+- What: `e2e/change.spec.ts` also accepts "New last known point: ..." (a confirmed sighting with a place that rebuilt the map) and the clue line with "It was not seen after the current last known point, so it counts as a clue." added, on screen and in the spoken line, with each banner form named once.
+- Source: a confirmed sighting on the test drill now shows these banners, which the check refused.
+- Verified: the check failed on the live site with the older-sighting banner, then passed live; the patterns accept each banner form and refuse a truncated one.
+
 ### feat(command): the sighting form shows when, where, the note and Save first
 - What: in Add sighting, Seen at, Place, the Note with Read the note and its status lines, and Save sighting come first; Going, Top, Bottom, Footwear, Carrying, Reported by and the callback wait under a closed "More details". A read that fills the fields opens More details, so every filled field is in view when the form says "Check every field."
 - Source: UI review (Save sat about 950 px below the top of the form).
