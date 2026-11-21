@@ -25,3 +25,20 @@ test("on a phone the map credit covers no cell label", async ({ page }) => {
   const hit = boxes.filter((b) => b.left < credit.x + credit.width && b.right > credit.x && b.top < credit.y + credit.height && b.bottom > credit.y);
   expect(hit).toEqual([]);
 });
+
+test("on a phone a bar at the bottom keeps Add sighting and Plan in reach", async ({ page }) => {
+  await withDebugToken(page);
+  await joinCommand(page);
+  await expect(page.locator(".seg-code:visible").first()).toBeVisible({ timeout: 20_000 });
+  const bar = page.getByRole("navigation", { name: "Quick actions" });
+  await expect(bar).toBeVisible();
+  const box = (await bar.boundingBox())!;
+  expect(Math.round(box.y + box.height)).toBe(844);
+  // Plan: the plan comes into view.
+  await bar.getByRole("button", { name: "Plan" }).click();
+  await expect(page.locator("#plan-h")).toBeInViewport();
+  // Add sighting: the form opens and comes into view, without hunting for the button down the page.
+  await bar.getByRole("button", { name: "Add sighting" }).click();
+  await expect(page.getByRole("form", { name: "Add sighting" }).getByLabel("Seen at")).toBeInViewport();
+  await page.getByRole("form", { name: "Add sighting" }).getByRole("button", { name: "Cancel" }).click();
+});
