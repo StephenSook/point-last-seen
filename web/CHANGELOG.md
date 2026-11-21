@@ -2267,6 +2267,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (the join error was not beside its field).
 - Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
 
+### fix(command): the Sightings list shows three at a time, those waiting for a decision first
+- What: the Sightings panel listed every sighting, decided or not, so on a phone a busy drill pushed the rest of the rail thousands of pixels down (the test drill's post was 12,579 px tall at 390 px wide). It now lists the sightings waiting for command first, then the decided ones, shows three, and offers "Show all N sightings"; a line under the heading says how many are waiting ("6 waiting for a decision."). The sightings harness gains `?many=1`; the live retraction check now sees the report listed before it checks that it leaves.
+- Source: UI review at phone width (too many words on the working screen).
+- Verified: new harness checks in `e2e/harness/sightings.spec.ts` (three shown, waiting ones first, Show all reveals all eight with the decided last; no button for three or fewer) failed first, then passed with the existing sightings checks (5); typecheck, web unit suite and the hygiene guard pass.
+
 ### perf(web): the judge page and the command post each load their own code
 - What: `web/src/main.tsx` loads `CommandPost` and `JudgePage` with `React.lazy`, so the app was one 2.5 MB `main` script and is now a 223 KB `main`, a 161 KB `CommandPost` chunk and an 18 KB `JudgePage` chunk. On a placeholder build the judge page's unique script bytes fell from 3.94 MB to 3.78 MB: the shared code (Firebase, MapLibre for the replay, reCAPTCHA) still loads, and a deeper cut needs Firestore set up only where it is used and a second look at prefetching the replay.
 - Source: UI review (one 2.5 MB script on every page).

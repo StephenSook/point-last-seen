@@ -24,8 +24,12 @@ type Props = {
 };
 
 /** Sightings beside the profile: a person at command confirms or rejects each one. */
+// A phone shows a few at a time: the ones waiting for command first, the rest one press away.
+const SHOWN = 3;
+
 export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
   const [error, setError] = useState<{ id: string; text: string } | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
@@ -43,11 +47,16 @@ export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
   }
 
   if (cards.length === 0) return null;
+  // Waiting ones first, each group keeping its order (newest seen first).
+  const ordered = [...cards.filter((c) => c.status === "awaiting"), ...cards.filter((c) => c.status !== "awaiting")];
+  const waiting = cards.length - ordered.filter((c) => c.status !== "awaiting").length;
+  const shown = all ? ordered : ordered.slice(0, SHOWN);
   return (
     <section aria-labelledby="sightings-h">
       <h2 id="sightings-h" className="label">Sightings</h2>
+      {waiting > 0 && <p className="muted small">{waiting === 1 ? "1 waiting for a decision." : `${waiting} waiting for a decision.`}</p>}
       <ul className="sightings">
-        {cards.map((c) => {
+        {shown.map((c) => {
           const seg = segmentOf(c);
           const id = c.sighting.eventId;
           return (
@@ -87,6 +96,11 @@ export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
           );
         })}
       </ul>
+      {!all && ordered.length > SHOWN && (
+        <button type="button" className="btn ghost" onClick={() => setAll(true)}>
+          Show all {ordered.length} sightings
+        </button>
+      )}
     </section>
   );
 }
