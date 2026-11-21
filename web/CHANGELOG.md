@@ -2306,3 +2306,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
 - Source: review (an "End this search" control for command).
 - Verified: new unit tests in `endSearch.test.ts` (the write's shape; the reasons equal the list in `firestore.rules`, read from the file; the line for each reason, for no reason or an unknown one, and none while open) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): an End this search control with an inline confirm
+- What: `web/src/command/EndSearch.tsx` is one button, "End this search", that opens an inline confirm asking why (person found, search suspended, training ended). End search stays disabled until a reason is picked, shows "Ending the search..." while the write is out, and on a refused write says "Could not end the search. Check the connection and try again." with the confirm still open. Cancel closes it and writes nothing. A new harness page (`web/harness/end-search.html`) renders it with a stand-in write.
+- Source: review (an "End this search" control for command).
+- Verified: three new harness checks in `e2e/harness/endSearch.spec.ts` (Cancel writes nothing; a picked reason is written once, with the button held while it is out; a refused write keeps the confirm open) failed before the component existed, then passed with the whole harness (211); typecheck, web unit suite and the hygiene guard pass.
