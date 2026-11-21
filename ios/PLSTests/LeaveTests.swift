@@ -4,13 +4,15 @@ import Testing
 @testable import PLS
 
 /// A searcher leaves the search on this phone: the mission goes, the team's topic is left, the
-/// anonymous account is signed out, and the join form shows again. Client only.
+/// anonymous account is deleted on the server and signed out, and the join form shows again.
 @MainActor
 @Suite struct LeaveTests {
     /// The phone's account: signing out leaves no user, and the next user is new, with no claims.
     final class Account: @unchecked Sendable {
         var uid: String? = "uid-1"
         var signOuts = 0
+        /// Whether the account was still signed in when the delete was asked for.
+        var signedInAtDelete: Bool?
     }
 
     func model(_ account: Account, _ backend: FakeJoinBackend, topics: FakePushTopics = FakePushTopics(),
@@ -84,5 +86,46 @@ import Testing
         #expect(store.entries.count == 1)
         #expect(await m.leaveSearch() == false)
         #expect(m.mission?.teamId == "T1" && account.signOuts == 0 && m.problem == AppModel.leaveBlocked)
+        #expect(backend.deletes == 0 && m.leaveRefusal == AppModel.leaveBlocked)
+    }
+
+    /// Leaving deletes this phone's account on the server while it is still signed in (the callable acts on
+    /// its caller), then signs out; nothing more needs saying.
+    @Test func leavingDeletesTheAccountOnTheServer() async throws {
+        let account = Account(), backend = FakeJoinBackend()
+        let m = try model(account, backend)
+        await m.trySignIn()
+        backend.onDelete = { account.signedInAtDelete = account.uid != nil }
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 1 && account.signedInAtDelete == true && account.signOuts == 1)
+        #expect(m.mission == nil && m.joinMessage == nil)
+    }
+
+    /// When the delete fails (no signal, or the server refused), nothing changes: the phone stays in the search,
+    /// signed in and on the team's topic, and says to try again in signal, so no sign-in is left behind.
+    @Test func whenTheDeleteFailsThePhoneStaysInTheSearch() async throws {
+        let account = Account(), backend = FakeJoinBackend(), topics = FakePushTopics()
+        backend.deleteAnswer = false
+        let m = try model(account, backend, topics: topics)
+        await m.trySignIn()
+        await m.topicFollow?.value
+        #expect(await m.leaveSearch() == false)
+        #expect(backend.deletes == 1 && account.signOuts == 0 && m.signedIn && m.mission?.teamId == "T1")
+        #expect(topics.ops == ["+pls-drill-dev-1-T1"])
+        #expect(m.problem == AppModel.leaveNeedsDelete && m.leaveRefusal == AppModel.leaveNeedsDelete)
+    }
+
+    /// A delete whose reply was lost (the server deleted the account, then the signal dropped) is safe to try
+    /// again: the server, or the phone's own Auth, answers that the account is gone, and the phone leaves as normal.
+    @Test func leavingAgainAfterALostReplyLeavesAsNormal() async throws {
+        let account = Account(), backend = FakeJoinBackend()
+        backend.deleteAnswer = false
+        let m = try model(account, backend)
+        await m.trySignIn()
+        #expect(await m.leaveSearch() == false)
+        backend.deleteAnswer = true
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 2 && account.signOuts == 1 && m.mission == nil)
+        #expect(m.joinMessage == nil && m.problem == nil && m.leaveRefusal == nil)
     }
 }
