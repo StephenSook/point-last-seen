@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- scripts: judge_quota_probe.py reads today's ops/judgeSessions doc (never starts a session) and exits 1 when fewer
+  than 10 of the day's judge practice searches are left; the cap is read from functions/src/judgeSession.ts, a failed
+  read fails, a missing doc is an unused day, and it retires after 2026-12-17. Its tests run in CI and ci-local.
+  Source: review (judge quota probe, approved). Verified: test_judge_quota_probe.py (7 cases) failed first (no
+  script), then passes; a live run before the rules deploy failed closed with HTTP 403.
 - rules: ops/judgeSessions-YYYY-MM-DD, which holds only that UTC day's count of judge practice searches, is readable
   without sign-in like ops/storage, so a probe can watch the judges' quota without a credential; nobody writes it from
   a client. Source: review (judge quota probe, approved). Verified: a shapes case (a day's doc readable,
