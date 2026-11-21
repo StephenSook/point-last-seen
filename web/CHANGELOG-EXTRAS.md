@@ -4,6 +4,8 @@ Extras: web/src/extras/**, web/extras-harness/**, web/e2e/extras/**, web/CHANGEL
 
 ## 2026-11-21
 
+- Test: the paper read's privacy check refuses any object URL, not only one left open: a URL made and then revoked would still have put the photo in a URL, and the old check (made minus revoked) passed it. Source: second-model review of the reader. Verified: with a made-and-revoked URL planted in the read for the check only, it failed (1 made, 0 expected); without it, it passes; the planted line was never committed.
+
 - Change: while a paper debrief sheet is read, the line says "Reading the sheet on this laptop. The first read can take up to a minute.", so the wait up to the 90 s limit (a first read took 31 s in the measurement) does not look stuck. Source: review of the time limit. Verified: a new browser check (the line shown while the photo is prepared, then the read) failed first, then passes; the paper and debrief browser checks 20 of 20; web unit tests 1028 of 1028; web typecheck exit 0; the CI gate section passed.
 
 - Fix: closing the command post rail's Details while the paper debrief read has the laptop camera open stops every camera track and drops a camera request still waiting; a read already on screen stays, so command's checks are kept. Before, a closed Details kept the read mounted with the camera running out of sight. The debrief harness can hold the section under a Details (`?details=1`). Source: second-model review of the reader; the web lane asked that the check assert every track ended. Verified: a new browser check (camera open, Details closed: every track ended; opened again: no camera running) failed first, then passes; the paper and debrief browser checks 19 of 19; web typecheck exit 0.

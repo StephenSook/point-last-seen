@@ -103,7 +103,9 @@ test("the photo is never kept: no storage, and no object URL left open", async (
   expect(kept.idb).toBe(0);
   expect(kept.local).toBe(0);
   expect(kept.session).toBe(0);
-  expect(kept.urls.made - kept.urls.revoked).toBe(0);
+  // No object URL for the photo at all: one made and then revoked would still have put the photo in a URL.
+  expect(kept.urls.made).toBe(0);
+  expect(kept.urls.revoked).toBe(0);
 });
 
 // A stand-in camera: counts each request and keeps its tracks, so the check can see every one end. With `manual`,
