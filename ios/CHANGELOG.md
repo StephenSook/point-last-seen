@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report whose task was cancelled while it was read is not journalled
+- What: the journal adds a typed, picked or photo report only if the task that read it was not cancelled meanwhile.
+  A photo read's model work runs in a task of its own, so cancelling the caller did not stop the report from being
+  journalled.
+- Source: review.
+- Verified: a test that cancels the photo read's task failed (the report was journalled) before the change and passes
+  after; 234 app tests pass.
+
 ### fix(ios): a report is checked against a mission-drop count taken after sign-in
 - What: the app counts every time the mission is dropped (never a reload of the same one). Each report path takes
   the mission and that count after sign-in, and the journal adds the report only if no drop happened since, the

@@ -203,6 +203,25 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(doc.route?.stage == .evidenceProtocol && doc.effect == .none(why: .needsCommand))
     }
 
+    /// A report whose task was cancelled while it was read is not journalled.
+    @Test func aCancelledPhotoReadSendsNothing() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in
+                                 withUnsafeCurrentTask { $0?.cancel() }
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cancel-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        let image = try Self.onePixel()
+        let sent = await Task { await model.submitPhoto(image) }.value
+        #expect(sent == false)
+        #expect(store.entries.isEmpty)
+    }
+
     /// While an earlier photo is still being read, a new one is not started and nothing is sent.
     @Test func aPhotoWhileAnotherIsReadSendsNothing() async throws {
         let (model, store) = try photoModel(.busy)
