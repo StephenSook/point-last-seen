@@ -77,6 +77,9 @@ final class AppModel {
     @ObservationIgnored private var planWatchId = 0
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
+    /// Counts every time the mission is dropped (never on a reload of the same one): a report read across a drop is
+    /// not journalled, even when the same mission was loaded again meanwhile.
+    @ObservationIgnored private var missionDrops = 0
     /// The incident and team the server's claims grant this phone, kept when the mission could not
     /// be read, so it can be read again without sending the code again.
     private var membership: (incidentId: String, teamId: String)?
@@ -585,8 +588,9 @@ final class AppModel {
     /// The token no longer names this phone's mission: it stops listening and loads nothing.
     private func dropMission() async { dropMissionNow() }
 
-    private func dropMissionNow() {
+    func dropMissionNow() {
         missionGeneration += 1
+        missionDrops += 1
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
@@ -885,8 +889,11 @@ final class AppModel {
     /// Reads the report, builds the one event and journals it. The Firestore write is never
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
-        guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
-        if !mission.isPractice { await trySignIn() }
+        guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Checked against the mission loaded after sign-in, which can reload it under the new session.
+        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
@@ -910,7 +917,7 @@ final class AppModel {
         }
 
         return journal(outcome, rawText: text, inputMethod: inputMethod, position: position, mission: mission, uid: uid,
-                       identity: identity, store: store, submittedAt: submittedAt, readDone: readDone)
+                       identity: identity, store: store, drops: drops, submittedAt: submittedAt, readDone: readDone)
     }
 
     /// The subject's names from the shared profile, for the found-kind rule only; they never reach a model.
@@ -968,6 +975,7 @@ final class AppModel {
     }
 
     static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
+    static let missionChanged = "The mission changed before the report was read. Check the Ready check."
     static let photoReadBusy = "The last photo is still being read. Try again in a moment."
 
     /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
@@ -978,8 +986,11 @@ final class AppModel {
     /// never kept or sent. True once the clue is in the journal.
     func submitPhoto(_ image: CGImage) async -> Bool {
         guard !sending, canReadPhoto else { return false }
-        guard let mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
-        if !mission.isPractice { await trySignIn() }
+        guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Checked against the mission loaded after sign-in, which can reload it under the new session.
+        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
@@ -1011,7 +1022,7 @@ final class AppModel {
                                     sdkReported: false, blocked: nil, decidedAtMs: submittedAt)
             let validation = ReadingValidator.validate(clue.reading, knownSegmentIds: mission.grid.map(\.segmentId), rawText: clue.rawText)
             return journal(ReadOutcome(reading: clue.reading, route: route, validation: validation), rawText: clue.rawText, inputMethod: .photo,
-                           position: position, mission: mission, uid: uid, identity: identity, store: store,
+                           position: position, mission: mission, uid: uid, identity: identity, store: store, drops: drops,
                            submittedAt: submittedAt, readDone: nowMs())
         }
     }
@@ -1019,8 +1030,11 @@ final class AppModel {
     /// A report the searcher picked from the list: no model runs, the person's choices stand.
     func submitPick(_ choice: PickListChoice) async -> Bool {
         guard !sending else { return false }
-        guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
-        if !mission.isPractice { await trySignIn() }
+        guard let pending = mission, let identity, let store else { problem = "No pack loaded."; return false }
+        if !pending.isPractice { await trySignIn() }
+        // Checked against the mission loaded after sign-in, which can reload it under the new session.
+        guard let mission = self.mission else { problem = Self.missionChanged; return false }
+        let drops = missionDrops
         guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
         sending = true
         defer { sending = false }
@@ -1028,19 +1042,19 @@ final class AppModel {
         let position = await location.fix(timeout: 10)
         if let position { lastFix = position }
         return journal(PickList.outcome(choice, nowMs: submittedAt), rawText: "", inputMethod: .picklist, position: position,
-                       mission: mission, uid: uid, identity: identity, store: store, submittedAt: submittedAt, readDone: submittedAt)
+                       mission: mission, uid: uid, identity: identity, store: store, drops: drops, submittedAt: submittedAt, readDone: submittedAt)
     }
 
     /// Builds the one event, journals it (the Firestore write is never awaited), recomputes the
     /// posterior and writes the timings. True once the event is in the journal.
     private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
-                         mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
+                         mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore, drops: Int,
                          submittedAt: Double, readDone: Double) -> Bool {
-        // The journal changed while the report was read (the practice drill ended), or the mission did
-        // (the searcher left, the token stopped naming it, another join): it goes nowhere. The same
-        // mission reloaded or with a new plan is still the same mission, so its report stays.
-        guard store === self.store, let current = self.mission, current.incidentId == mission.incidentId,
-              current.teamId == mission.teamId, current.owner == mission.owner else { return false }
+        // The journal changed while the report was read (the practice drill ended), or the mission was dropped
+        // (the searcher left, the token stopped naming it, the account changed), even if it was loaded again
+        // since: it goes nowhere. The same mission reloaded or with a new plan, with no drop, keeps its report.
+        guard store === self.store, drops == missionDrops, let current = self.mission, current.incidentId == mission.incidentId,
+              current.teamId == mission.teamId else { return false }
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,

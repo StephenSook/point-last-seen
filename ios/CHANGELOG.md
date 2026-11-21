@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report is checked against a mission-drop count taken after sign-in
+- What: the app counts every time the mission is dropped (never a reload of the same one). Each report path takes
+  the mission and that count after sign-in, and the journal adds the report only if no drop happened since, the
+  journal is the same and the loaded mission is the same incident and team. This closes two gaps in the earlier
+  check: a mission dropped and loaded again while a report was read (same incident, team and owner) no longer lets
+  the stale read through, and a sign-in at Send that reloads the mission under the new session no longer loses the
+  report (the old check compared owners against a copy taken before sign-in).
+- Source: review.
+- Verified: tests of a drop and restore during a photo read, and of a sign-in that reloads the mission with a new
+  owner, failed before the change and pass after; 233 app tests pass.
+
 ### fix(ios-core): a possessive or a gear name is an object, not a person, in a photo caption
 - What: before the person check, a photo caption drops possessives ("men's jacket", "girls' shoes", "child’s mitten")
   and a short list of gear names ("neck gaiter", "chest pack", "wrist watch", "hand warmers", "face mask" and the

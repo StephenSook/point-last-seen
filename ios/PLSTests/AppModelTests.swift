@@ -241,6 +241,52 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(store.entries.isEmpty)
     }
 
+    /// A mission dropped and loaded again while the photo is read is not the same mission: the read is dropped.
+    @Test func aPhotoReadAcrossADropAndRestoreIsDropped() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in
+                                 box.model?.dropMissionNow()
+                                 await box.model?.load(mission)
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("restore-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// A sign-in at Send that reloads the mission under the new session keeps the report: the mission it is checked
+    /// against is the one loaded after sign-in.
+    @Test func aSignInThatReloadsTheMissionKeepsTheReport() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        var owned = mission
+        owned.owner = AccountSession(uid: "uid-1", generation: 9)
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: {
+                                 await box.model?.dropMissionNow()
+                                 await box.model?.load(owned)
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                             joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("signin-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        #expect(store.entries.count == 1)
+    }
+
     /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
     @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
         let box = ModelBox()
