@@ -44,6 +44,9 @@ object Copy {
 
     const val SEARCH_ENDED_LEAD_CALLS = "The search has ended. Your search lead will call you."
 
+    /** A send started after the search ended: the server takes no new data for it. */
+    const val SEARCH_ENDED_NOT_SENT = "The search has ended, so this was not sent."
+
     /** The on-device model in one sentence: ready, offered, downloading (with its percent when known), or absent. */
     fun model(m: ModelState): String = when (m.status) {
         DeviceModelStatus.AVAILABLE -> "Ready on this phone."

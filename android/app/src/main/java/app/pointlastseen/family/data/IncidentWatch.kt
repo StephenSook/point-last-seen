@@ -95,6 +95,9 @@ class IncidentWatch(
         fun statusFor(info: IncidentInfo?, currentIncident: String?): String? =
             info?.takeIf { currentIncident != null && it.incidentId == currentIncident }?.status
 
+        /** Whether the search this phone is in now has ended (found or closed): it then takes no new data. */
+        fun ended(info: IncidentInfo?, currentIncident: String?): Boolean = statusFor(info, currentIncident) in setOf("found", "closed")
+
         /** Why command ended the search this phone is in now; null for any other search's snapshot. */
         fun closedReasonFor(info: IncidentInfo?, currentIncident: String?): String? =
             info?.takeIf { currentIncident != null && it.incidentId == currentIncident }?.closedReason
