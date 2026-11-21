@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs(evidence): the iPhone app on an iOS 26.5 simulator
+- What: docs/evidence/ios/ios26-5-simulator-2026-11-20 records the app at the iOS 26.0 target on an iOS 26.5
+  simulator: the app's tests passed (203, the four iOS 27-only tests skipped), and on 10 drill sentences
+  Apple's model said it was available but every read failed for lack of model assets in the simulator, so
+  each was read by rules and none went to the cloud. It says plainly that a read by Apple's model on iOS 26
+  is not shown.
+- Source: review (minimum iOS version).
+- Verified: the counts match the test run and the probe output.
+
 ### docs: the iPhone's cloud route needs iOS 27
 - What: README and LIMITS now say plainly: "The iPhone's cloud route needs iOS 27; on iOS 26 it reads on
   the device, then by rules." LIMITS adds why (Gemini runs in a Foundation Models session, which iOS 26
