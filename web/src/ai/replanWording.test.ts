@@ -280,3 +280,19 @@ describe("the wording's schema for one plan: one entry per team, only that plan'
     expect(src).toMatch(/wordingGenerator\(aiClient\(pls\.app, rc\.useLimitedUseTokens\), rc\.cloudModelWeb, draft\.assignments\.map\(\(a\) => a\.teamId\)\)/);
   });
 });
+
+describe("how long the command post waits for a plan's wording", () => {
+  it("is more than twice the slowest wording measured on Chrome's built-in model, and the command post uses it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { WORDING_WAIT_MS, REPLY_TIMEOUT_MS } = await import("./replanWording");
+    const replies = ["2026-11-21-plan-wording-chrome.json", "2026-11-21-plan-wording-schema-chrome.json"].flatMap((f) =>
+      (JSON.parse(readFileSync(new URL(`../../../docs/evidence/web/${f}`, import.meta.url), "utf8")) as { sessions: { runs: { replyMs: number }[] }[] }).sessions.flatMap((s) => s.runs.map((r) => r.replyMs)),
+    );
+    const slowest = Math.max(...replies);
+    expect(slowest).toBeGreaterThan(REPLY_TIMEOUT_MS);
+    expect(WORDING_WAIT_MS).toBeGreaterThan(2 * slowest);
+    // The cloud request keeps its own 15 s limit, so a cloud fallback is no slower than before.
+    expect(REPLY_TIMEOUT_MS).toBe(15_000);
+    expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/wordPlan\(draft, \{ generate, now: \(\) => Date\.now\(\), timeoutMs: WORDING_WAIT_MS,/);
+  });
+});
