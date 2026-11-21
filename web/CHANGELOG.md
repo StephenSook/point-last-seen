@@ -2043,6 +2043,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (android-judge-2 was published; the link should follow the newest build).
 - Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).
 
+### test(command): the shared-link check runs as a visitor who has not joined
+- What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
+- Source: the live run after the reopening change.
+- Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
+
 ### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
 - What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
 - Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).

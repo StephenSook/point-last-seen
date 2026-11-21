@@ -10,6 +10,9 @@ test("each cleared segment shows its debrief, or offers to add one", async ({ pa
   await expect(s.getByTestId("debrief-AB")).toContainText("Worked: Line search along the creek");
   await expect(s.getByTestId("debrief-AB")).toContainText("Didn't work: Radio dead zone");
   await expect(s.getByTestId("debrief-AB")).toContainText("By Team 2");
+  await expect(s.getByTestId("debrief-AB")).toContainText("Coverage stated by the team: 50%");
+  await expect(s.getByTestId("debrief-AB")).toContainText("Clues: Wrapper by the footbridge");
+  await expect(s.getByTestId("debrief-AB")).toContainText("Hazards: Fast water at the ford");
 });
 
 test("command adds a debrief for a cleared segment, tied to its clear", async ({ page }) => {
@@ -37,9 +40,15 @@ test("editing a debrief starts from what is stored and saves it as an edit", asy
   const row = page.getByTestId("debrief-AB");
   await row.getByRole("button", { name: "Edit debrief" }).click();
   await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("30");
+  await expect(row.getByLabel("Coverage the team stated (percent, optional)")).toHaveValue("50");
   await row.getByLabel("Time it took (minutes)").fill("35");
   await row.getByRole("button", { name: "Save debrief" }).click();
-  await expect.poll(() => saved(page)).toEqual({ segmentId: "AB", input: { tookMinutes: 35, worked: "Line search along the creek", didNotWork: "Radio dead zone" }, existing: true, clearedEventId: "b".repeat(32) });
+  await expect.poll(() => saved(page)).toEqual({
+    segmentId: "AB",
+    input: { tookMinutes: 35, worked: "Line search along the creek", didNotWork: "Radio dead zone", coverageStatedPct: 50, clues: "Wrapper by the footbridge", hazards: "Fast water at the ford" },
+    existing: true,
+    clearedEventId: "b".repeat(32),
+  });
 });
 
 test("a refused save says so and keeps the form open", async ({ page }) => {
@@ -50,4 +59,32 @@ test("a refused save says so and keeps the form open", async ({ page }) => {
   await row.getByRole("button", { name: "Save debrief" }).click();
   await expect(row.getByRole("alert")).toHaveText("The debrief was not saved. Try again.");
   await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("10");
+});
+
+test("command records the coverage the team stated, and its clues and hazards, and the row shows them", async ({ page }) => {
+  await page.goto("/harness/debrief.html");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Add debrief" }).click();
+  await row.getByLabel("Time it took (minutes)").fill("45");
+  await row.getByLabel("Coverage the team stated (percent, optional)").fill("75");
+  await row.getByLabel("Clues: what and where (optional)").fill("Blue scarf on trail marker 4");
+  await row.getByLabel("Hazards: what and where (optional)").fill("Loose rock by the overlook");
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect.poll(() => saved(page)).toEqual({
+    segmentId: "AA",
+    input: { tookMinutes: 45, coverageStatedPct: 75, clues: "Blue scarf on trail marker 4", hazards: "Loose rock by the overlook" },
+    existing: false,
+    clearedEventId: "a".repeat(32),
+  });
+});
+
+test("a stated coverage over 100 is refused with the reason, and nothing is saved", async ({ page }) => {
+  await page.goto("/harness/debrief.html");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Add debrief" }).click();
+  await row.getByLabel("Time it took (minutes)").fill("45");
+  await row.getByLabel("Coverage the team stated (percent, optional)").fill("101");
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect(row.getByRole("alert")).toHaveText("Coverage stated: a whole number from 0 to 100, or empty.");
+  await expect(page.getByTestId("saved")).toHaveText("");
 });
