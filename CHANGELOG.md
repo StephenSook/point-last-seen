@@ -82,6 +82,24 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: rotateJoinCode reads the incident inside its transaction, so a search command ends at the same moment
+  cannot get a new code. Source: review (cross-family, round 1 on join code rotation). Verified: the closed, practice
+  and expired refusals still pass; 346 functions and rules tests pass.
+- functions: joinIncident's last step (commitJoin) runs in ONE transaction that re-reads the code (it still exists and
+  admits this role to this incident), the incident (still open and unexpired), the removal record, and a limited
+  invite's use count, then counts the use and writes the members record. A code rotated away, a search ended or an
+  account removed while a join is in flight now refuses that join instead of admitting it, and the separate use-count
+  transaction is gone. Source: review (cross-family, round 1 on join code rotation). Verified: commitJoin cases
+  (admits with a live code; refuses after a rotation, a close or a removal; a single-use invite counted once and
+  refused the second time) failed first (no export), then pass; all functions and rules tests pass.
+- functions: rotateJoinCode (callable, App Check enforced): command gives its incident's searchers or family a new
+  join code. In one transaction it creates the new code's doc (its incident, its one role, createdAt, rotatedBy) and
+  deletes every code of that role for the incident, the seeded one and any extra (a reviewer's or judges'), so a
+  removed person cannot rejoin with a new sign-in and an old code. It returns the code once, with the number of codes
+  replaced; only its hash is stored. The caller must be command now (its current claims, authz.ts); command's own
+  code, a practice sandbox, a closed search, and a missing or expired incident are refused. Source: review (App Review
+  guideline 1.2 blocking, approved). Verified: rotateJoinCode.test.ts (7 cases) failed first (no module), then passes;
+  343 functions and rules tests, the typecheck and the gates pass.
 - docs: the App Review drill's seed record (drill-review-1): what it holds, the three commands that seeded it, and the
   checks (read-back of mode drill, the segment contract at prior version 1, 8-character codes kept in the Keychain
   only, and a live searcher join that then deleted its own sign-in). Source: review (App Review needs a dedicated
