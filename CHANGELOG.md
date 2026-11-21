@@ -82,6 +82,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removal decides from a server-owned membership record, and privileged callers are checked by their
+  current claims. joinIncident writes incidents/{id}/members/{uid} (role, team, joinedAt) in one transaction with its
+  check of the removal records; removeMember reads that record (or, for an account that joined before it existed, its
+  current claims) and records the removal in a transaction, so a member who has since joined another incident can
+  still be removed and a join racing a removal is serialized. removeMember and deleteIncidentMediaNow require the
+  caller's current claims to name the incident as command and the caller not to be removed (authz.ts), not only its
+  token. Cleanup clears the claims and revokes refresh tokens only while the claims still name this incident; only a
+  missing account counts as done, and any other failure is reported (calling again finishes it). Source: review
+  (cross-family, approved fixes). Verified: new tests failed first, then pass (the members record at join; removal of
+  a moved member, whose new claims stay; a command members record; a stale command token refused on both callables; a
+  removed command refused; a cleanup failure reported after the record; a gone account); the media checks failed with
+  the check removed; 316 functions and rules tests and the typecheck pass.
 - rules: a removed account is refused at once. Firestore's isMember and the event create check, and Storage's
   isMember, require that incidents/{id}/removed/{uid} does not exist, so a member command removed can neither read nor
   write the incident, nor upload, while its ID token still carries the claims; command reads the removal records and

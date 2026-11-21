@@ -113,8 +113,6 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     ? !live || incident.get("setupReady") !== true
     : expiresAt != null && !live;
   if (!incident.exists || incident.get("status") !== "open" || expired) denied();
-  // Command removed this account from the incident (members.ts): it cannot join it again.
-  if ((await db.doc(`incidents/${id}/removed/${uid}`).get()).exists) denied();
   let team: string | null = null;
   if (role === "searcher") {
     const t = await db.doc(`incidents/${id}/teams/${teamId}`).get();
@@ -131,6 +129,14 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     });
     if (!ok) denied();
   }
+  // One transaction with the removal records (members.ts): an account command removed cannot join again, and the
+  // members record (role and team, server-owned) is what removal decides from, whatever the claims say later.
+  const joined = await db.runTransaction(async tx => {
+    if ((await tx.get(db.doc(`incidents/${id}/removed/${uid}`))).exists) return false;
+    tx.set(db.doc(`incidents/${id}/members/${uid}`), { role, team, joinedAt: FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!joined) denied();
   await getAuth().setCustomUserClaims(uid, { inc: id, role, team });
   return { ok: true, incidentId: id };
 }

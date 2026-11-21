@@ -58,7 +58,7 @@ export const deleteClipOnConsentEnd = onDocumentDeleted(
  */
 export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
-  request => handleDeleteMedia(getFirestore(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
+  request => handleDeleteMedia(getFirestore(), getAuth(), getStorage().bucket(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
 );
 
 /**

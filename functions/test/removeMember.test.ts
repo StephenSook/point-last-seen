@@ -97,3 +97,55 @@ describe("a removed member cannot join the same incident again with that account
     expect(await handleJoin(fresh, { joinCode: CODE, role: "searcher", teamId: "T1" })).toMatchObject({ ok: true, incidentId: "I1" });
   });
 });
+
+describe("removal decides from the membership record, not the account's current claims", () => {
+  it("joining writes a server-owned members record with the role and team", async () => {
+    const fresh = (await admin.auth.createUser({})).uid;
+    await handleJoin(fresh, { joinCode: CODE, role: "searcher", teamId: "T1" });
+    const m = await admin.db.doc(`incidents/I1/members/${fresh}`).get();
+    expect(m.get("role")).toBe("searcher");
+    expect(m.get("team")).toBe("T1");
+    expect(m.get("joinedAt")).toBeTruthy();
+  });
+  it("removes a member who has since joined another incident; its new incident's claims and sessions are left alone", async () => {
+    const moved = (await admin.auth.createUser({})).uid;
+    await handleJoin(moved, { joinCode: CODE, role: "searcher", teamId: "T1" });
+    await admin.auth.setCustomUserClaims(moved, { inc: "I2", role: "searcher", team: "T1" });
+    expect(await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: moved })).toEqual({ removed: true });
+    expect((await admin.db.doc(`incidents/I1/removed/${moved}`).get()).get("role")).toBe("searcher");
+    expect((await admin.auth.getUser(moved)).customClaims?.["inc"]).toBe("I2");
+  });
+  it("a member record that says command cannot be removed, whatever its claims say now", async () => {
+    await admin.db.doc(`incidents/I1/members/${searcher}`).set({ role: "command", team: null, joinedAt: new Date() });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
+  });
+});
+
+describe("the caller's current claims, not only its token", () => {
+  it("refuses a caller whose token says command but whose current claims do not", async () => {
+    await expectCode(handleRemoveMember(admin.db, admin.auth, caller(searcher, { inc: "I1", role: "command" }), { incidentId: "I1", uid: family }), "permission-denied");
+    expect((await admin.db.doc(`incidents/I1/removed/${family}`).get()).exists).toBe(false);
+  });
+  it("refuses a command account that has itself been removed", async () => {
+    await admin.db.doc(`incidents/I1/removed/${cmd}`).set({ removedAt: new Date(), removedBy: otherCmd, role: "command" });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: family }), "permission-denied");
+  });
+});
+
+describe("cleanup", () => {
+  it("a failure other than a missing account is reported, after the record is written", async () => {
+    const flaky = {
+      getUser: (uid: string) => admin.auth.getUser(uid),
+      setCustomUserClaims: () => Promise.reject(Object.assign(new Error("backend down"), { code: "auth/internal-error" })),
+      revokeRefreshTokens: (uid: string) => admin.auth.revokeRefreshTokens(uid),
+    };
+    await expect(handleRemoveMember(admin.db, flaky, asCmd(), { incidentId: "I1", uid: searcher })).rejects.toThrow("backend down");
+    expect((await admin.db.doc(`incidents/I1/removed/${searcher}`).get()).exists).toBe(true);
+  });
+  it("a member whose account is already gone is removed without error", async () => {
+    await admin.auth.deleteUser(family);
+    await admin.db.doc(`incidents/I1/members/${family}`).set({ role: "family", team: null, joinedAt: new Date() });
+    expect(await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: family })).toEqual({ removed: true });
+  });
+});
+
