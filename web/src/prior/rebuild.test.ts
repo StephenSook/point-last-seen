@@ -131,3 +131,17 @@ describe("a rebuild needs the map's segments", SLOW, () => {
   });
 });
 
+describe("a rebuild needs the incident's current grid", SLOW, () => {
+  const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const, priorVersion: 3 };
+  const layers = { linear: false, wedge: false };
+  it("rebuilds when every segment was written at the incident's prior version", () => {
+    expect(() => rebuildPrior(SEGS.map((x) => ({ ...x, priorVersion: 3 })), site, layers, null)).not.toThrow();
+  });
+  it("refuses a segment from an older prior (a cached grid after a reseed) or with no version", () => {
+    const stale = SEGS.map((x, i) => ({ ...x, priorVersion: i === 4 ? 2 : 3 }));
+    expect(() => rebuildPrior(stale, site, layers, null)).toThrow("The map's segments have not all loaded yet.");
+    const unversioned = SEGS.map((x, i) => (i === 4 ? x : { ...x, priorVersion: 3 }));
+    expect(() => rebuildPrior(unversioned, site, layers, null)).toThrow("The map's segments have not all loaded yet.");
+  });
+});
+

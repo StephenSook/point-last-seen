@@ -61,6 +61,8 @@ export function rebuildPrior(
     gridId: string; attribution: string; ipp: { lat: number; lon: number }; terrain: Terrain;
     /** Each segment's elevation in metres, from the site's elevation file; needed only by the elevation layer. */
     elevationM?: Readonly<Record<string, number>>;
+    /** The incident's prior version: every segment must carry it, or the grid on hand is an older one. */
+    priorVersion?: number;
   },
   layers: PriorLayers,
   travelBearingDeg: number | null,
@@ -75,6 +77,11 @@ export function rebuildPrior(
   // closed: every segment it names as a neighbour, upstream or downstream is in it, so a missing name is a missing segment.
   const have = new Set(segments.map((s) => s.segmentId));
   if (segments.some((s) => [...s.neighbors, ...s.upstream, ...s.downstream].some((id) => !have.has(id)))) {
+    throw new Error("The map's segments have not all loaded yet.");
+  }
+  // Every prior write stamps its version on every segment, so a segment from another version is from an older grid (a
+  // cached snapshot after a reseed): rebuilding on it would save a new version over part of the current grid.
+  if (site.priorVersion !== undefined && segments.some((s) => s.priorVersion !== site.priorVersion)) {
     throw new Error("The map's segments have not all loaded yet.");
   }
   const grid = gridFromDocs(segments, site.gridId, site.attribution);

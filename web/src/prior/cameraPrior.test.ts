@@ -19,7 +19,7 @@ const SEGS: SegmentDoc[] = Array.from({ length: 9 }, (_, i) => {
     segmentId: String.fromCharCode(65 + r + 1) + String.fromCharCode(65 + c + 1),
     geometry: { type: "Polygon", coordinates: [[[w, s], [w + D_LON, s], [w + D_LON, s + D_LAT], [w, s + D_LAT], [w, s]]] },
     centroid: { lat: s + D_LAT / 2, lon: w + D_LON / 2 },
-    areaM2: 125 * 125, priorPoa: 0.05, neighbors: [], upstream: [], downstream: [],
+    areaM2: 125 * 125, priorPoa: 0.05, neighbors: [], upstream: [], downstream: [], priorVersion: 7,
   };
 });
 const CAMERA = { lat: IPP.lat + D_LAT, lon: IPP.lon };
@@ -122,6 +122,14 @@ describe("a confirm before the map's segments load", SLOW, () => {
     expect(() => cameraPriorWrites([], incident, cam, null)).toThrow("The map's segments have not loaded yet.");
     expect(() => cameraPriorWrites([], { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } }, cam, null))
       .toThrow("The map's segments have not loaded yet.");
+  });
+});
+
+describe("a confirm against a stale grid", SLOW, () => {
+  it("is refused before anything is built when a segment is from an older prior", () => {
+    const cam = buildCameraSighting(clip, writer);
+    const stale = SEGS.map((x, i) => (i === 0 ? { ...x, priorVersion: 6 } : x));
+    expect(() => cameraPriorWrites(stale, incident, cam, null)).toThrow("The map's segments have not all loaded yet.");
   });
 });
 
