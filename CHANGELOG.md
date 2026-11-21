@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README gains How we built it: the AI paths (all through Firebase AI Logic), the Firebase products, the apps'
+  frameworks, the engine and its Swift port, the shared rules Android ports, the data, the checks, and the build
+  process with evidence in the repository (Claude Code; Codex reviews on pull requests). Source: review. Verified:
+  every item against a dependency or import in the shipped code.
 - README, judges line: the published run is now described as test family reports and plans, the run label's new words;
   scripts/test_readme_run_label.py fails CI when README.md stops containing the label's description (it reads
   web/public/evidence/published-run.json). Source: review (the README and the judge card must say the same thing).

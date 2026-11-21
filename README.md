@@ -58,6 +58,29 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 Status: built for #BuildHybridAI 2026. Training drill use only: every drill uses made-up data, and nobody in any drill
 is missing.
 
+## How we built it
+
+- AI, all through Firebase AI Logic: on the web, the Firebase JS SDK's hybrid inference (the laptop's built-in model
+  in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the cloud, for plan wording); on
+  iPhone, Apple's Foundation Models on the device and Gemini in the cloud; on Android, Firebase AI Logic's on-device
+  and cloud models. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
+  the listed models and bounds each reply.
+- Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
+  AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
+  rules; Cloud Functions (joining, judge sandboxes, media deletion, push notices); Remote Config; Cloud Messaging;
+  Hosting; Crashlytics and Performance on iPhone and Android, and Analytics on Android.
+- Apps: the web command post in React and Vite, offline with vite-plugin-pwa, with MapLibre GL maps on PMTiles
+  basemaps from OpenStreetMap data; the iPhone app in SwiftUI with MapLibre Native, Live Activities (ActivityKit),
+  App Intents and swift-crypto; the Android family app in Kotlin with Jetpack Compose (Material 3).
+- One search engine in TypeScript (`shared/engine-ts`, with Turf.js and @noble/hashes), ported to Swift for the
+  iPhone (`ios/PLSCore`). The Android app ports the shared rules it needs (evidence screen, ids, language, phone
+  numbers). Shared JSON test vectors keep every port in step.
+- Data: ISRID lost-person statistics for the starting map and the linear-feature layer, and real park grids
+  (Piedmont Park, Kennesaw Mountain) built by `tools/grid-builder`.
+- Checks: Vitest, Playwright with axe-core, pytest, the Firebase Emulator Suite, Swift Testing, JUnit and Compose UI
+  tests, GitHub Actions, Socket dependency scanning and gitleaks.
+- Built with Claude Code across parallel sessions; OpenAI Codex reviewed pull requests.
+
 ## Layout
 
 - `shared/`: schemas, constants, test vectors, the TypeScript engine, server prompt templates and the site grids
