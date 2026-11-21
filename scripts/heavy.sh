@@ -41,7 +41,8 @@ for slot in 1 2; do
 done
 waited_s=0
 while :; do
-  holder="$("$(command -v lsof || echo /usr/sbin/lsof)" -t "$LOCK_DIR/heavy-suite-1.lock" 2>/dev/null | head -1)"
+  # lockf and the command it runs both hold the file, listed in no set order, so every holder is named.
+  holder="$("$(command -v lsof || echo /usr/sbin/lsof)" -t "$LOCK_DIR/heavy-suite-1.lock" 2>/dev/null | sort -n | paste -sd ' ' -)"
   echo "heavy: both heavy-suite slots are busy; waiting on $LOCK_DIR/heavy-suite-1.lock (held by PID ${holder:-unknown}) for $((waited_s / 60)) min"
   under_slot "$STEP_S" "$LOCK_DIR/heavy-suite-1.lock" "$@"
   rc=$?

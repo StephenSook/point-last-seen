@@ -1,5 +1,6 @@
 """scripts/ci-local.sh: pick platforms by flag, and a missing tool is reported as NOT RUN with exit 2, never as a pass."""
 import subprocess
+import time
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("ci-local.sh")
@@ -143,6 +144,29 @@ def run_unlocked(*args: str, lock_dir: Path, wrap: list[str] | None = None, step
     return subprocess.run([*(wrap or []), "bash", str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=timeout)
 
 
+def holders(out: str) -> list[str]:
+    """The PIDs a waiting line names as holding the busy slot ("held by PID 123 124")."""
+    return out.split("held by PID ", 1)[1].split(")", 1)[0].split() if "held by PID " in out else []
+
+
+def run_until_waiting(cmd: list[str], env: dict, release, timeout: int = 60) -> subprocess.CompletedProcess:
+    """Run cmd, call release() once it prints its waiting line, then let it finish. A slot held for a fixed time could
+    be let go before a slow, loaded machine even printed the line, and then the line named nobody."""
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+    out, released = [], False
+    deadline = time.monotonic() + timeout
+    for line in proc.stdout:
+        out.append(line)
+        if not released and "held by PID" in line:
+            release()
+            released = True
+        if time.monotonic() > deadline:
+            proc.kill()
+            break
+    proc.wait(timeout=timeout)
+    return subprocess.CompletedProcess(cmd, proc.returncode, "".join(out), "")
+
+
 def hold(lock: Path, seconds: int):
     holder = subprocess.Popen(["lockf", "-k", str(lock), "sleep", str(seconds)])
     import time
@@ -174,12 +198,14 @@ def test_with_one_slot_busy_the_run_takes_the_other_at_once(tmp_path):
 
 @needs_lockf
 def test_with_both_slots_busy_it_names_the_holder_while_it_waits_then_runs(tmp_path):
-    first = hold(tmp_path / "heavy-suite-1.lock", 3)
-    second = hold(tmp_path / "heavy-suite-2.lock", 30)
+    first = hold(tmp_path / "heavy-suite-1.lock", 60)
+    second = hold(tmp_path / "heavy-suite-2.lock", 60)
     try:
-        r = run_unlocked("--ios", lock_dir=tmp_path, step_s="1", timeout=30)
+        env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": str(Path.home()), "CI_LOCAL_HIDE": "swift",
+               "PLS_HEAVY_LOCK_DIR": str(tmp_path), "PLS_HEAVY_LOCK_STEP_S": "1"}
+        r = run_until_waiting(["bash", str(SCRIPT), "--ios"], env, first.kill)
         assert r.returncode == 2, r.stdout
-        assert "both heavy-suite slots are busy" in r.stdout and f"held by PID {first.pid}" in r.stdout
+        assert "both heavy-suite slots are busy" in r.stdout and str(first.pid) in holders(r.stdout), r.stdout
     finally:
         first.kill()
         second.kill()
@@ -198,10 +224,10 @@ def test_heavy_runs_a_direct_command_in_a_slot_and_passes_its_exit_code_back(tmp
     env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "PLS_HEAVY_LOCK_DIR": str(tmp_path), "PLS_HEAVY_LOCK_STEP_S": "1"}
     ok = subprocess.run(["bash", str(HEAVY), "bash", "-c", 'echo "in=$PLS_HEAVY_LOCK"; exit 3'], capture_output=True, text=True, env=env, timeout=30)
     assert ok.returncode == 3 and "in=1" in ok.stdout
-    first, second = hold(tmp_path / "heavy-suite-1.lock", 3), hold(tmp_path / "heavy-suite-2.lock", 30)
+    first, second = hold(tmp_path / "heavy-suite-1.lock", 60), hold(tmp_path / "heavy-suite-2.lock", 60)
     try:
-        waited = subprocess.run(["bash", str(HEAVY), "true"], capture_output=True, text=True, env=env, timeout=30)
-        assert waited.returncode == 0 and f"held by PID {first.pid}" in waited.stdout
+        waited = run_until_waiting(["bash", str(HEAVY), "true"], env, first.kill)
+        assert waited.returncode == 0 and str(first.pid) in holders(waited.stdout), waited.stdout
     finally:
         first.kill()
         second.kill()
@@ -209,3 +235,26 @@ def test_heavy_runs_a_direct_command_in_a_slot_and_passes_its_exit_code_back(tmp
                             capture_output=True, text=True, env=env, timeout=30)
     assert nested.returncode == 0
     assert subprocess.run(["bash", str(HEAVY)], capture_output=True, text=True, env=env).returncode == 64
+
+
+@needs_lockf
+def test_the_waiting_line_names_the_holder_even_when_another_process_has_the_file_open(tmp_path):
+    # lsof lists every process with the lock file open, the waiter's own lockf attempt too, lowest PID first. Naming
+    # only the first one listed named a waiter on a busy machine, and the tests above failed at random.
+    lock = tmp_path / "heavy-suite-1.lock"
+    lock.touch()
+    opener = subprocess.Popen(["bash", "-c", f"exec 3<'{lock}'; sleep 30"])
+    first = second = None
+    try:
+        for _ in range(50):
+            if str(opener.pid) in subprocess.run(["lsof", "-t", str(lock)], capture_output=True, text=True).stdout.split():
+                break
+            time.sleep(0.1)
+        first, second = hold(lock, 60), hold(tmp_path / "heavy-suite-2.lock", 60)
+        env = {"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "PLS_HEAVY_LOCK_DIR": str(tmp_path), "PLS_HEAVY_LOCK_STEP_S": "1"}
+        waited = run_until_waiting(["bash", str(HEAVY), "true"], env, first.kill)
+        assert opener.pid < first.pid and str(first.pid) in holders(waited.stdout), waited.stdout
+    finally:
+        for proc in (opener, first, second):
+            if proc is not None:
+                proc.kill()
