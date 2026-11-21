@@ -23,6 +23,10 @@ function Harness() {
         rings={new URLSearchParams(location.search).get("rings") === "custom" ? [0.5, 1, 2.5, 10] : undefined}
         terrainNote={new URLSearchParams(location.search).has("note") ? "Default terrain column (urban), not verified for this site." : undefined}
         hasBearing={false}
+        elevation={(() => {
+          const e = new URLSearchParams(location.search).get("elevation");
+          return e === null ? undefined : { available: true, startHasElevation: e !== "nostart" };
+        })()}
         vehicleInvolved
         model={new URLSearchParams(location.search).get("model") === "walkers" ? "walkers" : "rings"}
         onApply={(layers, terrain) => {
