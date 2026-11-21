@@ -10,7 +10,7 @@ export async function removeMember(functions: Functions, incidentId: string, uid
 }
 
 /** The sentence for a failed removal: the server's reason when it gave one, and never the person's fault for a
- *  refused App Check token or a dropped link. */
+ *  refused sign-in or App Check token or a dropped link. */
 export function removeErrorMessage(e: unknown): string {
   const o = typeof e === "object" && e !== null ? (e as { code?: unknown; details?: unknown }) : {};
   const code = typeof o.code === "string" ? o.code : "";
@@ -19,7 +19,7 @@ export function removeErrorMessage(e: unknown): string {
   if (reason === "command_target") return "Command cannot be removed.";
   if (reason === "not_command") return "Only command can remove someone.";
   if (reason === "not_member") return "That person is no longer in this search.";
-  if (code.endsWith("unauthenticated")) return "Refused by App Check. Try a normal browser window.";
+  if (code.endsWith("unauthenticated")) return "Refused: sign-in or App Check. Reload the page and try again.";
   if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
   return "Could not remove them. Try again.";
 }

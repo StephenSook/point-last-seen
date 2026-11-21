@@ -11,7 +11,7 @@ describe("removeErrorMessage: why a removal failed, in the words command needs",
     expect(removeErrorMessage(err("not-found", "not_member"))).toBe("That person is no longer in this search.");
   });
   it("never blames the person for an App Check or network failure", () => {
-    expect(removeErrorMessage(err("unauthenticated"))).toBe("Refused by App Check. Try a normal browser window.");
+    expect(removeErrorMessage(err("unauthenticated"))).toBe("Refused: sign-in or App Check. Reload the page and try again.");
     expect(removeErrorMessage(err("unavailable"))).toBe("No connection. Try again when the link is back.");
     expect(removeErrorMessage(new Error("boom"))).toBe("Could not remove them. Try again.");
     expect(removeErrorMessage(null)).toBe("Could not remove them. Try again.");

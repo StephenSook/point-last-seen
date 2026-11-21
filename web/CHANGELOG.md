@@ -2341,3 +2341,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the callable can answer before the removal record reaches the listener, and in that gap the row offered Remove from this drill again for the same person. The People panel now marks a person Removed as soon as the call succeeds on this seat. Each row also carries `data-member` (the account id) so a check can find one person's row.
 - Source: review (Codex: a successful removal can be submitted again).
 - Verified: a new harness check (`?noecho=1`, where no removal record arrives) failed first, then passed with the People checks (5); typecheck and the hygiene guard pass.
+
+### fix(data): a refused sign-in no longer reads as an App Check refusal on removal
+- What: the callable answers "unauthenticated" for a rejected sign-in token as well as for a refused App Check token, so "Refused by App Check. Try a normal browser window." could send command the wrong way. It now reads "Refused: sign-in or App Check. Reload the page and try again."
+- Source: review (Codex, low: a rejected sign-in token is reported as an App Check failure).
+- Verified: the unit test's expected sentence was changed first and failed, then passed with the whole file (8).
