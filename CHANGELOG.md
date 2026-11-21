@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Drill day: the runbook names the header's match code by its new label, Radio check. Source: review. Verified
+  against web/src/command/CommandPost.tsx.
 - LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
   about 2.2 by 3.9 km, rings to 12.8 km), so most of the probability sits beyond the drill area; the grid is not
   extended before the deadline, since one-batch prior rebuilds cap a 125 m grid near 490 segments (about half the
