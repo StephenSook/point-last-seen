@@ -63,8 +63,9 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       allow read: if isMember(incidentId);
-      // Incidents are created by admin tools only. Command may edit an open incident, but mode and
-      // expiresAt are server-owned (a sandbox cannot be extended) and closing is final.
+      // Incidents are created by admin tools only. Command may edit an open incident, but mode,
+      // expiresAt and closedAt are server-owned (a sandbox cannot be extended, a drill's retention cannot be moved)
+      // and closing is final.
       allow create: if false;
       allow update: if isCommand(incidentId)
         && resource.data.get('status', 'open') != 'closed'
@@ -74,7 +75,7 @@ service cloud.firestore {
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))
         && !request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt',
-                'setupReady', 'setupId', 'setupStartedAtMs'])
+                'setupReady', 'setupId', 'setupStartedAtMs', 'closedAt'])
         // The prior moves one version at a time, and its inputs change only with that step, so two seats
         // rebuilding from the same version cannot both land.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',

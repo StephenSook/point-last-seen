@@ -66,6 +66,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Rules: closedAt on an incident is server-owned, like mode and expiresAt, so no client can move a drill's deletion;
+  command still closes a drill. Source: review (drill retention). Verified: a new rules test failed first (command
+  could write closedAt), then passes; the functions suite passes (270).
 - Judge page route-order check: waits for the replay region before reading the route's targets, since the replay step
   points at #d1-h until the run file loads and that section then goes away; without the wait it timed out in CI.
   Source: CI. Verified: the check passed 3 runs in a row locally and the full no-backend set passes (34).

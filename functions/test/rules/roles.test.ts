@@ -114,6 +114,12 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { status: "open" }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "x" }, { merge: true }));
   });
+  it("closedAt is the server's: command closes a drill but cannot write when, so retention cannot be moved", async () => {
+    const db = dbAs(C, commandClaims);
+    await assertFails(setDoc(doc(db, "incidents/I1"), { closedAt: new Date(Date.now() - 60 * 86400_000) }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { status: "closed", closedAt: new Date(Date.now() - 60 * 86400_000) }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { status: "closed" }, { merge: true }));
+  });
   it("no client creates an incident", async () => {
     await assertFails(setDoc(doc(dbAs(C, { inc: "I3", role: "command", team: null }), "incidents/I3"), { name: "New", mode: "drill", status: "open" }));
   });
