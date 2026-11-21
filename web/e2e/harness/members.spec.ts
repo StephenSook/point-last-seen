@@ -44,3 +44,10 @@ test("a successful removal shows Removed at once, before the removal record arri
   await expect(row).toContainText("Removed");
   await expect(row.getByRole("button")).toHaveCount(0);
 });
+
+test("once a list read is refused, the panel says it may be out of date and offers no removal", async ({ page }) => {
+  await page.goto("/harness/members.html?stale=1");
+  const panel = page.getByRole("region", { name: "People" });
+  await expect(panel).toContainText("This list may be out of date. Reload the page before removing anyone.");
+  await expect(panel.getByRole("button", { name: "Remove from this drill" })).toHaveCount(0);
+});

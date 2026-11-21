@@ -19,6 +19,7 @@ function Harness() {
       <p className="small">Synthetic members, not drill data.</p>
       <MembersPanel
         rows={rows}
+        stale={q.get("stale") === "1"}
         onRemove={async (uid) => {
           const reason = q.get("fail");
           if (reason) throw Object.assign(new Error("refused"), { code: "functions/permission-denied", details: { reason } });

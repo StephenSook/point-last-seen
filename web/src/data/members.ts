@@ -74,12 +74,12 @@ export function memberRows(
 }
 
 /**
- * Command's live view of the members records and the removal records. A refused read changes nothing: before any read
- * succeeds the lists start empty (so the list falls back to event authors), and after one it keeps what it showed,
- * so a removed person never looks removable again.
+ * Command's live view of the members records and the removal records. A refused read keeps what was shown (so a removed
+ * person never looks removable again) and calls onRefused: Firestore stops a listener after a refusal, so the list
+ * may be out of date from then on.
  */
 export function subscribeMembers(db: Firestore, incidentId: string, onMembers: (m: Record<string, MemberDoc>) => void,
-  onRemoved: (uids: Set<string>) => void): () => void {
+  onRemoved: (uids: Set<string>) => void, onRefused: () => void = () => undefined): () => void {
   const stopMembers = onSnapshot(collection(db, "incidents", incidentId, "members"), (s) => {
     const m: Record<string, MemberDoc> = {};
     for (const d of s.docs) {
@@ -87,8 +87,8 @@ export function subscribeMembers(db: Firestore, incidentId: string, onMembers: (
       if (typeof role === "string") m[d.id] = { role, team: typeof team === "string" ? team : null };
     }
     onMembers(m);
-  }, () => undefined);
+  }, () => onRefused());
   const stopRemoved = onSnapshot(collection(db, "incidents", incidentId, "removed"), (s) => onRemoved(new Set(s.docs.map((d) => d.id))),
-    () => undefined);
+    () => onRefused());
   return () => { stopMembers(); stopRemoved(); };
 }

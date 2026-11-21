@@ -14,8 +14,8 @@ vi.mock("firebase/functions", () => ({ httpsCallable: () => () => Promise.resolv
 describe("subscribeMembers: a refusal after a good read keeps what was shown", () => {
   it("does not forget removals (or members) when a later read is refused", async () => {
     const { subscribeMembers } = await import("./members");
-    const members = vi.fn(), removed = vi.fn();
-    subscribeMembers({} as never, "I1", members, removed);
+    const members = vi.fn(), removed = vi.fn(), refused = vi.fn();
+    subscribeMembers({} as never, "I1", members, removed, refused);
     const docs = (ids: string[], data: Record<string, unknown> = {}) => ({ docs: ids.map((id) => ({ id, get: (k: string) => data[k] })) });
     listeners["removed"]!.next(docs(["u1"]));
     listeners["members"]!.next(docs(["u2"], { role: "searcher", team: "T1" }));
@@ -23,5 +23,7 @@ describe("subscribeMembers: a refusal after a good read keeps what was shown", (
     listeners["members"]!.error();
     expect(removed.mock.calls.map((c) => [...(c[0] as Set<string>)])).toEqual([["u1"]]);
     expect(members.mock.calls).toHaveLength(1);
+    // Firestore stops a listener after a refusal, so the page is told the list may be out of date.
+    expect(refused).toHaveBeenCalledTimes(2);
   });
 });

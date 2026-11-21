@@ -2361,3 +2361,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the People list left out any account with a command event, so a command account that later rejoined the same drill as family (its members record then says family, and the server allows its removal) could not be removed. A members record now decides an account's role and team; only an account with no record is kept off the list by a command event of it.
 - Source: review (Codex, second round: an old command event hides a member the server can remove).
 - Verified: a new unit test in `members.test.ts` (a family record with an earlier command event is listed) failed first, then passed with the file; the hygiene guard passes.
+
+### fix(command): once a People read is refused, the panel says the list may be out of date
+- What: Firestore stops a listener after it refuses it, and the members and removal lists then kept their last read with no sign it had stopped, so a person another command seat had removed could still be offered for removal. `subscribeMembers` now reports a refusal; the panel then says "This list may be out of date. Reload the page before removing anyone." and offers no removal, while the last good lists stay shown.
+- Source: review (Codex, second round: a refused listener leaves People silently stale).
+- Verified: the listener unit test (`membersListen.test.ts`, mocked) now also expects the refusal to be reported, and failed first; a new harness check (`?stale=1`) failed on the panel without the change and passes with it (6 People checks); typecheck and the hygiene guard pass.

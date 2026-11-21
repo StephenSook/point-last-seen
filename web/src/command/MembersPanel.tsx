@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { removeErrorMessage, type MemberRow } from "../data/members";
 
-export function MembersPanel({ rows, onRemove }: { rows: readonly MemberRow[]; onRemove: (uid: string) => Promise<void> }) {
+/** stale: a read of the members or removal records was refused, so the list may be out of date; nothing is offered. */
+export function MembersPanel({ rows, onRemove, stale = false }: { rows: readonly MemberRow[]; onRemove: (uid: string) => Promise<void>; stale?: boolean }) {
   const [asking, setAsking] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<{ uid: string; line: string } | null>(null);
@@ -29,13 +30,14 @@ export function MembersPanel({ rows, onRemove }: { rows: readonly MemberRow[]; o
   return (
     <section aria-labelledby="people-h">
       <h2 id="people-h" className="label">People</h2>
+      {stale && <p className="small">This list may be out of date. Reload the page before removing anyone.</p>}
       <ul className="people">
         {rows.map((r) => (
           <li key={r.uid} data-member={r.uid}>
             <span>{r.label}</span>
             {r.removed || doneHere.has(r.uid) ? (
               <span className="tag">Removed</span>
-            ) : asking === r.uid ? (
+            ) : stale ? null : asking === r.uid ? (
               <div className="confirm">
                 <p className="small">Remove {r.label}? They lose access at once and cannot join again.</p>
                 <div className="row">

@@ -410,7 +410,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The people command can remove: the server's members records and the authors of the incident's reports.
   const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
   const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
-  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids)), [pls, incidentId, denied]);
+  // A refused read stops its listener for good, so the panel says the list may be out of date and offers no removal.
+  const [membersStale, setMembersStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids, () => setMembersStale(true))), [pls, incidentId, denied]);
   const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
   const conditions = conditionsOf(incident);
@@ -1010,7 +1012,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
-            <MembersPanel rows={people} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
+            <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
           </details>
         </aside>
       </div>
