@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README, judges line: the published run is now described as test family reports and plans, the run label's new words;
+  scripts/test_readme_run_label.py fails CI when README.md stops containing the label's description (it reads
+  web/public/evidence/published-run.json). Source: review (the README and the judge card must say the same thing).
+  Verified: the test failed first on the old words, then passes.
 - SECURITY row 6: the four server prompt templates are locked, with the read-back: locked true and the same template
   text by SHA-256, an identical-text write refused (HTTP 400 FAILED_PRECONDITION), template calls still answering 200
   after the lock, and the publish dry run matching the repository. Source: review (Firebase recommends locking

@@ -5,7 +5,7 @@ A search-planning aid for search and rescue training drills, for a person with d
 **Judges: open https://buildhybridai-2026-yg3m.web.app/judge.** It needs no account and no key. From there you can
 start a practice search of your own (a copy of the development drill on a real park grid, open for 24 hours), see
 which cloud model the command post is using, and check whether this laptop's own built-in model is ready. The page
-also replays the development drill's published run (Piedmont Park, Atlanta: the build's own test reports and plans,
+also replays the development drill's published run (Piedmont Park, Atlanta: test family reports and plans,
 2026-11-18 to 19).
 
 ## What it does
