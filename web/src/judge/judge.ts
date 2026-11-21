@@ -15,7 +15,7 @@ export const ADVICE_LINE =
 const REPO = "https://github.com/StephenSook/point-last-seen";
 
 /** The Android family app's published release; null until the release is public, so no dead link ships. */
-export const ANDROID_RELEASE_URL: string | null = null;
+export const ANDROID_RELEASE_URL: string | null = `${REPO}/releases/tag/android-judge`;
 /** The iPhone app's TestFlight public link; null until Apple clears review. */
 export const TESTFLIGHT_URL: string | null = null;
 
