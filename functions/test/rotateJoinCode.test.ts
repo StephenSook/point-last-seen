@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { handleRotateJoinCode } from "../src/codes";
-import { handleJoin } from "../src/join";
+import { commitJoin, handleJoin, hashJoinCode } from "../src/join";
 import { admin, clearFirestore, closeClients } from "./helpers";
 
 const hash = (code: string) => createHash("sha256").update(code, "utf8").digest("hex");
@@ -105,3 +105,32 @@ describe("refusals", () => {
     await expectCode(handleRotateJoinCode(admin.db, admin.auth, { uid: ghost, token: { inc: "GONE", role: "command" } }, { incidentId: "GONE", role: "searcher" }), "permission-denied", "not_command");
   });
 });
+
+describe("the join's last step re-checks everything in one transaction (a rotation or a close can land mid-join)", () => {
+  const args = (uid: string, code: string) => ({ codeRef: admin.db.doc(`joinCodes/${hashJoinCode(code)}`), incidentId: "I1", role: "searcher", team: "T1", uid });
+  it("admits with a live code and writes the members record", async () => {
+    const u = (await admin.auth.createUser({})).uid;
+    expect(await commitJoin(admin.db, args(u, SEARCHER))).toBe(true);
+    expect((await admin.db.doc(`incidents/I1/members/${u}`).get()).get("role")).toBe("searcher");
+  });
+  it("refuses once the code was rotated away, once the search closed, or once the account was removed", async () => {
+    const u = (await admin.auth.createUser({})).uid;
+    await handleRotateJoinCode(admin.db, admin.auth, asCmd(), { incidentId: "I1", role: "searcher" });
+    expect(await commitJoin(admin.db, args(u, SEARCHER))).toBe(false);
+    await admin.db.doc(`joinCodes/${hash(SEARCHER)}`).set({ incidentId: "I1", roles: ["searcher"] });
+    await admin.db.doc("incidents/I1").update({ status: "closed" });
+    expect(await commitJoin(admin.db, args(u, SEARCHER))).toBe(false);
+    await admin.db.doc("incidents/I1").update({ status: "open" });
+    await admin.db.doc(`incidents/I1/removed/${u}`).set({ removedAt: new Date(), removedBy: cmd, role: "searcher" });
+    expect(await commitJoin(admin.db, args(u, SEARCHER))).toBe(false);
+    expect((await admin.db.doc(`incidents/I1/members/${u}`).get()).exists).toBe(false);
+  });
+  it("counts a limited invite's use in the same transaction, and refuses the last use twice", async () => {
+    await admin.db.doc(`joinCodes/${hash("LMTX2345")}`).set({ incidentId: "I1", roles: ["searcher"], maxUses: 1, uses: 0 });
+    const a = (await admin.auth.createUser({})).uid, b = (await admin.auth.createUser({})).uid;
+    expect(await commitJoin(admin.db, { ...args(a, "LMTX2345") })).toBe(true);
+    expect(await commitJoin(admin.db, { ...args(b, "LMTX2345") })).toBe(false);
+    expect((await admin.db.doc(`joinCodes/${hash("LMTX2345")}`).get()).get("uses")).toBe(1);
+  });
+});
+

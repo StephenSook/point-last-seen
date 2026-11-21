@@ -82,6 +82,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: joinIncident's last step (commitJoin) runs in ONE transaction that re-reads the code (it still exists and
+  admits this role to this incident), the incident (still open and unexpired), the removal record, and a limited
+  invite's use count, then counts the use and writes the members record. A code rotated away, a search ended or an
+  account removed while a join is in flight now refuses that join instead of admitting it, and the separate use-count
+  transaction is gone. Source: review (cross-family, round 1 on join code rotation). Verified: commitJoin cases
+  (admits with a live code; refuses after a rotation, a close or a removal; a single-use invite counted once and
+  refused the second time) failed first (no export), then pass; all functions and rules tests pass.
 - functions: rotateJoinCode (callable, App Check enforced): command gives its incident's searchers or family a new
   join code. In one transaction it creates the new code's doc (its incident, its one role, createdAt, rotatedBy) and
   deletes every code of that role for the incident, the seeded one and any extra (a reviewer's or judges'), so a
