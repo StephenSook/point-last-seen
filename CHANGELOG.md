@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
+  its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
+  whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review
+  (App Review account deletion, approved). Verified: deleteMyAccount.test.ts (deletes the caller and keeps its
+  reports; ok when already gone; leaves another user; refuses an unsigned caller) failed first (no module), then
+  passes; all functions tests and the typecheck pass.
 - LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
   command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
   join function's claims; teams are admin-written); no other doc claims one (git grep).
