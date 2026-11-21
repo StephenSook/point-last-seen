@@ -26,6 +26,9 @@ carries, and how the finished run reaches the judge page.
 2. Open **Ready check** (top right). Under "Before you leave signal", every row must read ready: "Signed in"; "Pack:
    loaded"; "App version 0.1.0: current"; "On-device model: ready (AFM 3 Core Advanced)". If the model row says Apple
    Intelligence is off or still downloading, fix that in Settings while there is signal.
+   If a phone's model row still does not read ready before leaving signal, write down which phone and why (for example
+   "Apple Intelligence still downloading"): that phone's reports are read in the cloud when cloud reading is on and it
+   has signal, and by its rules otherwise, and the note explains a missing on-device count after the drill.
 3. Tap **Allow location** and allow it.
 4. On the first start of a drill, iOS asks "Allow Live Activities from Point Last Seen?". Tap **Allow** while there is
    still signal, so the lock screen shows the team's status: "Training drill. Nobody is missing.", "Your segments:
