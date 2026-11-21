@@ -85,6 +85,16 @@ class PhoneNumbersTest {
         }
     }
 
+    /** Kept times in a row keep each other; a time after a dropped time, or after a number's digits, still goes. */
+    @Test fun aRunOfTimesStaysWhileATimeAfterANumberGoes() {
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+        assertEquals("Times 14:03, 14:10, 14:17, [number removed]", PhoneNumbers.remove("Times 14:03, 14:10, 14:17, 404 555 0142"))
+        for (note in listOf("Call 1 404 555 01:42", "Call GA 40455-5014 2:30")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("404") || out.contains("01:42") || out.contains("5014"))
+        }
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))

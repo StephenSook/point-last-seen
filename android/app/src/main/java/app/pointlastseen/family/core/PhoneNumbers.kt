@@ -297,18 +297,20 @@ object PhoneNumbers {
         val found = kept + spans.flatMap { digitsOf(it.first) }
         // A time joined before its hour to digits that are not search information could be a phone number's last four
         // digits (1 404 555 01:42), so it is dropped and goes with them; a date then a time (11/19/2026 14:03) keep each
-        // other. Only the hour's side is checked: the minutes are two digits, and a note says "at 14:03, 404-555-0142".
+        // other, and so do kept times in a row (14:03, 14:10, 14:17). A time after a dropped one is dropped too, so
+        // privacy still wins. Only the hour's side is checked: the minutes are two digits, and a note says "at 14:03,
+        // 404-555-0142".
         // A valid date always stays: when someone was seen is search information, and it leaks nothing once the number
         // beside it is gone.
         // The hour of each time dropped below: it joins its minutes across the colon.
         val glued = mutableSetOf<Int>()
         do {
-            // A time keeps its place only after a date's digits: after any other digits (a ZIP+4 code too) it could be a
-            // number's last four.
-            val inDates = spans.filter { !it.second }.flatMap { digitsOf(it.first) }.toSet()
-            // Whether the part [outside] (next to [inside]) joins it and is not part of a date.
+            // A time keeps its place only after a kept date's or time's digits: after any other digits (a ZIP+4 code
+            // too) it could be a number's last four.
+            val inSpans = spans.flatMap { digitsOf(it.first) }.toSet()
+            // Whether the part [outside] (next to [inside]) joins it and is not part of a kept date or time.
             fun joinedOutside(inside: Int, outside: Int) = outside in parts.indices &&
-                joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inDates
+                joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)]) && outside !in inSpans
             val drop = spans.filter { (r, isTime) -> isTime && joinedOutside(r.first, r.first - 1) }
             spans.removeAll(drop)
             glued += drop.map { it.first.first }
