@@ -91,3 +91,32 @@ export async function familyConsentToPhoto(incidentId: string, sha: string): Pro
     if (!res.ok && res.status !== 409) throw new Error(`photoConsents write: HTTP ${res.status}`);
   }
 }
+
+/** A fresh family member of the incident, joined the way the family app joins (for removal checks). */
+export type FamilyMember = { uid: string; idToken: string; appCheck: string };
+
+export async function freshFamilyMember(incidentId: string): Promise<FamilyMember> {
+  refuseJudgeSeed(incidentId);
+  const s = await familySession(webConfig(), incidentId);
+  return { uid: s.uid, idToken: s.idToken, appCheck: s.appCheck };
+}
+
+/** The HTTP status of the member reading the incident doc now (200 while a member, 403 once removed). */
+export async function incidentReadStatus(m: FamilyMember, incidentId: string): Promise<number> {
+  const cfg = webConfig();
+  const res = await fetch(`https://firestore.googleapis.com/v1/projects/${cfg.projectId}/databases/(default)/documents/incidents/${incidentId}`, {
+    headers: { authorization: `Bearer ${m.idToken}`, "x-firebase-appcheck": m.appCheck, referer: referer() },
+  });
+  return res.status;
+}
+
+/** The HTTP status of the same account joining the incident again as family (refused once removed). */
+export async function rejoinStatus(m: FamilyMember, incidentId: string): Promise<number> {
+  const cfg = webConfig();
+  const res = await fetch(`https://us-central1-${cfg.projectId}.cloudfunctions.net/joinIncident`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${m.idToken}`, "x-firebase-appcheck": m.appCheck, referer: referer() },
+    body: JSON.stringify({ data: { incidentId, joinCode: required("PLS_SMOKE_FAMILY_CODE"), role: "family" } }),
+  });
+  return res.status;
+}

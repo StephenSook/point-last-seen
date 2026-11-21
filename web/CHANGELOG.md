@@ -2351,3 +2351,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when the removal records' listener was refused after a good read, it replaced them with an empty set, so a removed person with an old report got Remove from this drill again. A refused read now changes nothing: the lists start empty before any read succeeds, and keep what they showed after one.
 - Source: review (Codex: a failed removal listener makes removed people appear eligible again).
 - Verified: a new unit test, `membersListen.test.ts` (Firestore's listener mocked: a good read, then a refusal on each collection), failed first, then passed with the members tests (9); typecheck and the hygiene guard pass.
+
+### test(web): the deployed removal check removes a member it made, on the test drill
+- What: the deployed check ran on a practice copy, but practice copies carry no reports, so the People panel there had no one to list. It now runs on the test drill: a fresh family member joins over the public APIs (as the family app does, `freshFamilyMember` in `e2e/familyConsent.ts`), command finds that account's row by `data-member` and removes it, and then that account's read of the incident is refused (403) and it cannot join again (403). The member the check makes is the one it removes.
+- Source: review (Codex: the end-to-end test cannot reach the callable with practice setup).
+- Verified: the check and its fixture compile (`playwright test --list`); it runs after deploy and needs the members records the join function now writes. It was not run against the current site, where it would leave its fresh member unremoved.
