@@ -84,6 +84,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   web/src/extras/ExtrasDock.tsx:19, web/src/extras/debrief/DebriefSheets.tsx:39,71 and
   web/src/extras/print/PrintSession.tsx:56 (DEBRIEF_BLANKS), and the live site at 0c9766e serving Print debrief
   sheets.
+- Probe: the served-version check no longer counts shared/test-vectors as a production input (no production code
+  imports them; the phone and found rules only name them in comments), so a main change to the vectors alone asks for
+  no deploy. Source: review (the check asked for a deploy over phone-numbers.json). Verified: the test-only main
+  change and input-list tests failed first with a vectors file added, then pass (12); live, the check now names only
+  the 2 web files that differ.
 - README's Android row and the production checklist point at the latest judge release (/releases/latest,
   android-judge-2 on 2026-11-21 with point-last-seen-family-0c9766ea.apk and its SHA-256 file). Source: review.
   Verified: /releases/latest answers 200 signed out and resolves to releases/tag/android-judge-2; the release lists
