@@ -62,7 +62,7 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
 4. Check the printout before handing it out:
    - One page per sheet. The footer reads "IAP Page 1 of 1".
    - Block 7 starts "Training drill. Nobody is missing. Do not dial 911."
-   - The match code in block 7 is the code in the command post header (MATCH).
+   - The match code in block 7 is the code in the command post header, labelled Radio check.
 5. Open **More**, then **Print radio cards**. The same box is on this page, also off; tick it to put the names and
    approach notes on every card. Print with the same settings, and cut along the dashed line. Give each team its own
    card.

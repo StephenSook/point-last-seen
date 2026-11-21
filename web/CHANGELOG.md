@@ -2028,6 +2028,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (the card said "Draft from this laptop" and "The cloud step did not answer" together, while What ran said cloud).
 - Verified: a new harness check in `e2e/harness/plan.spec.ts` (a fallback shows Fixed wording, no notice sentence, the reason under What ran, no "this laptop") failed first, then passed; a second check pins one line per assignment (it passed before and after); the plan checks (10), web unit suite (983), typecheck and the hygiene guard pass.
 
+### fix(command): the header's match code is labelled Radio check
+- What: the command post header labels the match code "Radio check" instead of "MATCH": the code teams read over the radio, where the same code means the same prior version and the same reports. The drill line and the wordmark are unchanged; `data-testid="convergence-code"` stays. The live layout and judge checks look for the new label.
+- Source: UI review ("MATCH" did not say what the code is for).
+- Verified: the live layout check with the new label failed on the live site ("MATCH"), and runs again after the deploy; typecheck, web unit suite and the hygiene guard pass.
+
 ### fix(command): a reopened practice search says it is opening, not show the join form
 - What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
 - Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).

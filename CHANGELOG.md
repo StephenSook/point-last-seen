@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Drill day: the runbook names the header's match code by its new label, Radio check. Source: review. Verified
+  against web/src/command/CommandPost.tsx.
 - LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
   about 2.2 by 3.9 km, rings to 12.8 km), so most of the probability sits beyond the drill area; the grid is not
   extended before the deadline, since one-batch prior rebuilds cap a 125 m grid near 490 segments (about half the
@@ -75,6 +77,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
+  rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
+  runner passes all 58 cases in CI on this commit.
+- Phone-number vectors: six cases for Spanish digit words (cero to nueve), pending on all three platforms: a number
+  spelled in Spanish ("Call cuatro cero cuatro ..."), the same with capitals and dashes, Spanish words mixed with
+  written digits, a Spanish sentence and a run of six Spanish digit words that stay, and a time before a
+  Spanish-spelled number. The shared rule in shared/test-vectors/README.md names the words; LIMITS states 58 cases,
+  each platform passing 52 until its port lands. Source: review (an English note could carry a number spelled in
+  Spanish digit words past the phone rule). Verified: scripts/test_phone_vectors.py (the required lists and the LIMITS
+  counts) failed first, then passes.
 - Rules: a debrief takes the optional coverageStatedPct (integer 0 to 100), clues and hazards (strings up to 500);
   anything else in them is refused. Source: review (paper debrief read). Verified: a new rules test (accepts the
   fields at their bounds; refuses -1, 101, 75.5, a string, null, 501 characters and non-strings) failed first, then

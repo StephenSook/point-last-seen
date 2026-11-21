@@ -57,7 +57,7 @@ test("a practice search opens a labelled training incident on the real park map,
   await expect(page).toHaveURL(/\?incident=judge-/, { timeout: 30_000 });
   await expect(page.locator(".post-head")).toContainText("Training drill. Practice search; nobody is missing.", { timeout: 20_000 });
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".post-head")).toContainText("MATCH");
+  await expect(page.locator(".post-head")).toContainText("Radio check");
   // Reopened (a reload), the post says it is opening the practice search while it reconnects: the join form,
   // which a practice search never needs, must not show at any moment.
   await page.addInitScript(() => {
