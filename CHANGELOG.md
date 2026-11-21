@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
+  after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
+  check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
+  the test passes, and fails with the deleted-account branch of the current-claims check removed; all functions and
+  rules tests pass.
 - functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
   its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
   whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review

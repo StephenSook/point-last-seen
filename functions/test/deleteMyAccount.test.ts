@@ -1,6 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { getStorage } from "firebase-admin/storage";
 import { handleDeleteMyAccount } from "../src/account";
-import { admin, clearFirestore, closeClients } from "./helpers";
+import { handleDeleteMedia } from "../src/media";
+import { handleRemoveMember } from "../src/members";
+import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
   const err = await p.then(() => null, (e: unknown) => e);
@@ -38,3 +41,18 @@ describe("deleteMyAccount: the caller deletes its own sign-in", () => {
     await expectCode(handleDeleteMyAccount(admin.auth, null), "unauthenticated");
   });
 });
+
+describe("a deleted account's token, still valid for up to an hour, grants no command action", () => {
+  it("removeMember and deleteIncidentMediaNow refuse a command that deleted its own sign-in", async () => {
+    const cmd = await admin.auth.createUser({});
+    await admin.auth.setCustomUserClaims(cmd.uid, { inc: "I1", role: "command", team: null });
+    const member = await admin.auth.createUser({});
+    await admin.auth.setCustomUserClaims(member.uid, { inc: "I1", role: "searcher", team: "T1" });
+    await handleDeleteMyAccount(admin.auth, cmd.uid);
+    const oldToken = { uid: cmd.uid, token: { inc: "I1", role: "command" } };
+    await expectCode(handleRemoveMember(admin.db, admin.auth, oldToken, { incidentId: "I1", uid: member.uid }), "permission-denied");
+    await expectCode(handleDeleteMedia(admin.db, admin.auth, getStorage(adminApp).bucket(), oldToken, { incidentId: "I1" }), "permission-denied");
+    expect((await admin.db.doc(`incidents/I1/removed/${member.uid}`).get()).exists).toBe(false);
+  });
+});
+
