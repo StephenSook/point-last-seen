@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): every line break keeps its line when a number is removed
+- What: a number split across lines is replaced line by line, one "[number removed]" per line, and now a next line
+  (U+0085), a line separator and a paragraph separator count as line breaks there too, as they do in the web and
+  Android rules. Before, "call 555<U+0085>1234 now" became one "[number removed]" with the break gone.
+- Source: the web rule's fixed-seed corpus run through the iPhone rule.
+- Verified: a test for each of the three breaks failed before the change and passes after; 449 PLSCore tests pass.
+
 ### feat(ios-core): a run of clock times is decided as a whole before the phone rule
 - What: before the shared phone rule, a run of two or more clock times (h:mm or hh:mm in ASCII digits, joined by
   spaces and commas, with no number beside it) is decided as a whole, as the web and Android rules do. In clock order

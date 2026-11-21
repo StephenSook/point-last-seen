@@ -444,12 +444,16 @@ public enum PhoneNumbers {
         return pieces
     }
 
+    /// The line breaks a note may hold, as the web and Android rules read them: CRLF, LF, CR, a next line (U+0085), a
+    /// line separator and a paragraph separator.
+    static let lineBreaks: Set<Character> = ["\r\n", "\n", "\r", "\u{0085}", "\u{2028}", "\u{2029}"]
+
     /// Replaces parts[first...last] (with a leading + or ( when the run starts there), keeping any line breaks.
     static func replace(_ out: inout String, _ s: String, _ parts: [Part], _ first: Int, _ last: Int) {
         var lower = parts[first].range.lowerBound
         while lower > s.startIndex, "+(".contains(s[s.index(before: lower)]) { lower = s.index(before: lower) }
         let upper = parts[last].range.upperBound
-        let breaks = s[lower..<upper].filter { $0 == "\n" || $0 == "\r" || $0 == "\r\n" }.count
+        let breaks = s[lower..<upper].filter(lineBreaks.contains).count
         out.replaceSubrange(lower..<upper, with: Array(repeating: replacement, count: breaks + 1).joined(separator: "\n"))
     }
 
