@@ -45,7 +45,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
+import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
@@ -181,6 +181,14 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // An error about one field shows under that field, marks it invalid and takes the focus there.
+  const errField = err ? joinErrorField(err) : null;
+  const incidentInput = useRef<HTMLInputElement>(null);
+  const codeInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (errField === "incident") incidentInput.current?.focus();
+    if (errField === "code") codeInput.current?.focus();
+  }, [err, errField]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -222,13 +230,25 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
       <form onSubmit={submit}>
         <label>
           Incident id
-          <input value={incidentId} onChange={(e) => setIncidentId(e.target.value)} autoComplete="off" />
+          <input ref={incidentInput} value={incidentId} onChange={(e) => setIncidentId(e.target.value)} autoComplete="off"
+            aria-invalid={errField === "incident" ? true : undefined} aria-describedby={errField === "incident" ? "join-incident-error" : undefined} />
         </label>
+        {err && errField === "incident" && (
+          <p className="error" role="alert" id="join-incident-error">
+            {err}
+          </p>
+        )}
         <label>
           Join code
-          <input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} />
+          <input ref={codeInput} value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false}
+            aria-invalid={errField === "code" ? true : undefined} aria-describedby={errField === "code" ? "join-code-error" : undefined} />
         </label>
-        {err && (
+        {err && errField === "code" && (
+          <p className="error" role="alert" id="join-code-error">
+            {err}
+          </p>
+        )}
+        {err && errField === null && (
           <p className="error" role="alert">
             {err}
           </p>
