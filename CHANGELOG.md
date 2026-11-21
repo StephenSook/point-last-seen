@@ -77,6 +77,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test-vectors: phone-numbers.json grows from 58 to 103 cases (59 remove, 35 keep, 9 exact) for the shared separator
+  rule (any mark between digit groups joins them except : % and the degree sign) and its coordinate and
+  radio-frequency spans, with scripts/test_phone_vectors.py's required lists and LIMITS (pass counts 103/103/103; the
+  accepted keeps, the over-removals, the eastern-longitude trade-off and the drill iPhone's build 9 note). Source:
+  review (privacy). Verified: all 103 pass on the web (vitest), the iPhone (swift test) and Android (gradle
+  PhoneVectorsTest) with none pending; the validator passes.
 - LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
   ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
   known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,
