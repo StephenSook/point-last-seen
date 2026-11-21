@@ -66,6 +66,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions/src/retention.ts: closedAtPatch and recordDrillClosed write the server's closedAt once, when a drill
+  becomes closed; deleteEndedDrills deletes every drill closed more than 30 days ago (media prefixes first, then the
+  incident recursively, then its orphaned anonymous sign-ins), keeps drill-dev-1, drill-judge-1 and drill-kennesaw-1
+  until 2027-01-01, leaves a drill whose media cannot be deleted for the next run, and has a dry run. Source: review
+  (drill retention, approved). Verified: 9 emulator tests failed first (no module), then pass.
 - Rules: closedAt on an incident is server-owned, like mode and expiresAt, so no client can move a drill's deletion;
   command still closes a drill. Source: review (drill retention). Verified: a new rules test failed first (command
   could write closedAt), then passes; the functions suite passes (270).
