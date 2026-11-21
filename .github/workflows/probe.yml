@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history: the served-version step checks the live build holds main's newest web commit.
+          # Full history and origin/main: the served-version step compares the live build with main's inputs.
           fetch-depth: 0
       - name: AI Logic refuses a call with no App Check token
         env:
@@ -45,7 +45,7 @@ jobs:
       - name: Every model we name is still listed, with no shutdown before judging ends
         if: always()
         run: python3 -I scripts/models_probe.py
-      - name: The live site serves main's newest web change (hosting is deployed by hand)
+      - name: The live site is built from main's production inputs (hosting is deployed by hand)
         if: always()
         env:
           PLS_SITE: ${{ inputs.site }}

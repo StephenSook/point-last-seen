@@ -66,14 +66,22 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
-- Daily probe: a new step fails when the live site does not serve main's newest web change
-  (scripts/served_version_check.py reads /version.json and checks that main's newest commit touching web, shared,
-  firebase.json or the package files is the served commit or its ancestor, and that the build was not dirty); the
-  probe now checks out full history for it. The production checklist records the cron's measured lag (about 8 h) and
-  that the 2026-11-19 scheduled run failed because an Actions budget blocked it before it started. Source: review (the
-  live site lagged main after a merge). Verified: 4 unit tests; against the live site it passes (17c20055); given an
-  older served commit (424e5f9c) it fails, naming 3 web commits not deployed; the retire date is pinned in
-  scripts/test_judging_window.py.
+- served_version_check compares the served commit's production inputs with origin/main's instead of checking ancestry,
+  and refuses a shallow clone, a missing origin/main and an unknown served commit. Source: review (second-model).
+  Verified: 12 real-git tests; the live site fails today because main's engine changes are not deployed.
+- Daily probe: a new step fails when the live site is not built from main's production inputs
+  (scripts/served_version_check.py reads /version.json and compares the served commit's web app, shared engine and
+  data, hosting config and package files, without tests, e2e specs, harness pages or markdown, with origin/main's; it
+  also fails a dirty build, a shallow clone, a missing origin/main and a served commit the repository does not have).
+  Content is compared, not ancestry: a squash merge with the same code passes, a build from a branch ahead of main
+  with other code fails, and a test-only main commit asks for no deploy. The probe checks out full history for it.
+  The production checklist records the cron's measured lag (about 8 h) and that the 2026-11-19 scheduled run failed
+  because an Actions budget blocked it before it started. Source: review (the live site lagged main after a merge;
+  a second-model review found ancestry accepted a branch build with other web code). Verified: 12 tests against real
+  git repositories (behind main, ahead of main with other code, squash-equivalent, test-only main change, a checked
+  out feature branch, a missing commit, dirty, no origin/main, shallow); live it fails today, correctly: the site
+  serves 17c20055 and 16 production files on main differ, starting with shared/engine-ts/src/found.ts. The retire
+  date is pinned in scripts/test_judging_window.py.
 - SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
   Logic hands the trigger a template call already expanded (the template's system instruction and output schema, no
   template name), so the trigger cannot tell them apart; template use is shown by the apps' code. Source: review.
