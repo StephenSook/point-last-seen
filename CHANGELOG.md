@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
+  1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
+  ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
+  `docs/evidence/web/2026-11-21-note-read-offline-deployed.json` and its screenshot. Source: review (the iPhone already
+  has a network-off row). Verified: `scripts/test_test_matrix.py` passes; the hygiene guard passes.
 - Docs: the README's Android row and the production checklist name android-judge-4
   (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
@@ -115,6 +120,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   by an automated security review, ruled a documented gap). Verified: test_phone_vectors.py (the pinned lists and the
   LIMITS count) passes; the web phone runner passes 144 with the five skipped as pending; the public hygiene guard
   passes.
+- docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
+  has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
+  path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  judge page for on-device claims; only the README's three lines claimed more than ran.
 - functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
   read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
   deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
