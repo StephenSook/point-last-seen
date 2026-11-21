@@ -137,6 +137,39 @@ test("the command post's replay dialog carries the drill line, since nothing els
   await expect(dialog.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(1);
 });
 
+// A SYNTHETIC role-player track for the harness incident, made up for this check: 41 points 30 s apart from T0, walking
+// north-east across the four cells. It has the import tool's shape.
+const HARNESS_T0 = 1_795_372_800_000;
+const syntheticTrack = JSON.stringify({
+  version: 1, source: "synthetic", gridId: "harness", runId: "harness-run", breaks: [],
+  points: Array.from({ length: 41 }, (_, i) => [HARNESS_T0 + i * 30_000, 33.7805 + i * 0.00015, -84.3695 + i * 0.00015]),
+});
+
+test("a track loaded from this computer is drawn up to the slider time, labelled synthetic, and never sent anywhere", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const dialog = await openReplay(page);
+  const sent: string[] = [];
+  page.on("request", (r) => { if (r.method() !== "GET" || /track/i.test(r.url())) sent.push(`${r.method()} ${r.url()}`); });
+  await dialog.getByLabel("Load a GPS track from this computer").setInputFiles({ name: "synthetic.track.json", mimeType: "application/json", buffer: Buffer.from(syntheticTrack) });
+  await expect(dialog.getByTestId("track-label")).toHaveText("SYNTHETIC track, made up for tests. Run harness-run, grid harness. Shown on this computer only.");
+  const map = dialog.locator(".extras-replay-map");
+  // At the end (16 minutes in) the walk has 33 points behind it and the place now.
+  await expect(map).toHaveAttribute("data-track-points", "34");
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  await slider.focus();
+  await page.keyboard.press("Home");
+  // The window starts a minute after T0, exactly on the third recorded fix: three points walked.
+  await expect(map).toHaveAttribute("data-track-points", "3");
+  expect(sent).toEqual([]);
+});
+
+test("a file that is not a track is refused in words, and nothing is drawn", async ({ page }) => {
+  const dialog = await openReplay(page);
+  await dialog.getByLabel("Load a GPS track from this computer").setInputFiles({ name: "x.json", mimeType: "application/json", buffer: Buffer.from('{"hello":1}') });
+  await expect(dialog.getByRole("alert")).toHaveText("This track cannot be shown. This is not a track file from the import tool.");
+  await expect(dialog.locator(".extras-replay-map")).not.toHaveAttribute("data-track-points", /.+/);
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });

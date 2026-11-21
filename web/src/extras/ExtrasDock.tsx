@@ -154,7 +154,8 @@ function ActiveExtrasDock({ view, state, vs, map, loadElevation, deleteMedia }: 
         <ExtrasDialog title={replayTitle} onClose={closeDialog} returnFocus={more} className="extras-replay-dialog">
           <ExtrasBoundary>
             <Suspense fallback={<p>Loading.</p>}>
-              <LazyReplayPanel data={replayData} />
+              {/* The command post can draw a role-player's GPS track from a file on this computer (never uploaded). */}
+              <LazyReplayPanel data={replayData} trackInput />
             </Suspense>
           </ExtrasBoundary>
           <div className="extras-dialog-actions"><button type="button" onClick={closeDialog}>Close</button></div>

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type JSX } from "react";
 import { MapView, type MapLibreMap } from "../hostApp";
+import { attachTrack, readTrack, trackCollection, trackUpTo, type Track } from "../track/track";
 import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
 import { lastReportRoute, pendingLine, runCarriesRoutes, type ReplayData } from "./replayData";
@@ -28,15 +29,16 @@ function useReducedMotion(): boolean {
 /**
  * The replay of one incident: its map at the chosen time, the sightings trail and the time ruler. It prints the drill
  * line itself unless the page around it already does (`drillLine={false}`, the judge page, which shows it above its
- * heading).
+ * heading). With `trackInput` (the command post only) it can draw a role-player's GPS track from a file on this
+ * computer; the track is never uploaded, and the judge page never offers it.
  */
-export function ReplayPanel({ data, drillLine = true }: { data: ReplayData; drillLine?: boolean }): JSX.Element {
+export function ReplayPanel({ data, drillLine = true, trackInput = false }: { data: ReplayData; drillLine?: boolean; trackInput?: boolean }): JSX.Element {
   const w = useMemo(() => replayWindow(data), [data]);
   if (w === null) return <p>No report has arrived yet, so there is nothing to replay.</p>;
-  return <ReplayBody data={data} w={w} drillLine={drillLine} />;
+  return <ReplayBody data={data} w={w} drillLine={drillLine} trackInput={trackInput} />;
 }
 
-function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow; drillLine: boolean }) {
+function ReplayBody({ data, w, drillLine, trackInput }: { data: ReplayData; w: ReplayWindow; drillLine: boolean; trackInput: boolean }) {
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const reduced = useReducedMotion();
   const stops = useMemo(() => playStops(data, w), [data, w]);
@@ -52,6 +54,9 @@ function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const changed = useMemo(() => changedSegments(data, tMs), [data, w, key]);
   const [map, setMap] = useState<MapLibreMap | null>(null);
+  const [track, setTrack] = useState<Track | null>(null);
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const walked = useMemo(() => (track ? trackUpTo(track, tMs) : null), [track, tMs]);
 
   // The outline goes on before the trail, so the trail's dots sit on top of it.
   useEffect(() => {
@@ -72,6 +77,31 @@ function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow;
     if (!map) return;
     attachTrail(map as unknown as ExtrasMapLike).set(trailCollections(frame));
   }, [map, frame]);
+  // The role-player's track, only once a file is loaded: drawn under nothing else the replay owns, above the map.
+  useEffect(() => {
+    if (!map || !track) return;
+    const t = attachTrack(map as unknown as ExtrasMapLike);
+    return () => t.remove();
+  }, [map, track]);
+  useEffect(() => {
+    if (!map || !walked) return;
+    attachTrack(map as unknown as ExtrasMapLike).set(trackCollection(walked));
+  }, [map, walked]);
+
+  // Read in this browser only: the file never leaves this computer.
+  async function loadTrack(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    let json: unknown;
+    try {
+      json = JSON.parse(await f.text());
+    } catch {
+      json = null;
+    }
+    const r = readTrack(json);
+    setTrack(r.ok ? r.track : null);
+    setTrackError(r.ok ? null : r.reason);
+  }
 
   const step = (dir: 1 | -1) => {
     const t = nextMarkTime(marks, tMs, dir);
@@ -93,6 +123,7 @@ function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow;
           className="extras-replay-map"
           data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}
           data-outlined={changed.join(" ")}
+          data-track-points={walked ? String(walked.lines.reduce((n, l) => n + l.length, 0)) : undefined}
         >
           <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
         </div>
@@ -126,6 +157,21 @@ function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow;
         <button type="button" className="btn ghost" onClick={() => step(-1)} disabled={prev === null}>Previous report</button>
         <button type="button" className="btn ghost" onClick={() => step(1)} disabled={next === null}>Next report</button>
       </div>
+      {trackInput && (
+        <div className="extras-track-load">
+          <label>
+            Load a GPS track from this computer{" "}
+            <input type="file" accept=".json,application/json" onChange={(e) => void loadTrack(e)} />
+          </label>
+          <p className="muted">The role-player's track from the import tool. It is read here and never uploaded.</p>
+          {trackError && <p role="alert">This track cannot be shown. {trackError}</p>}
+          {track && (
+            <p data-testid="track-label">
+              {track.synthetic ? "SYNTHETIC track, made up for tests." : "The role-player's GPS track."} Run {track.runId}, grid {track.gridId}. Shown on this computer only.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
