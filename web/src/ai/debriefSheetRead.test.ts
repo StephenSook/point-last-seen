@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import { COVERAGE_TICKS, SAMPLE_VALUES } from "../extras/debrief/debriefSheet";
 import { REPLACEMENT } from "../data/phoneNumbers";
-import { cleanSheet, DEBRIEF_SHEET_JSON, DEBRIEF_SHEET_OPTS, debriefSheetParams, readDebriefSheetOnDevice, type SheetDeps } from "./debriefSheetRead";
+import { cleanSheet, DEBRIEF_SHEET_JSON, DEBRIEF_SHEET_OPTS, debriefSheetParams, readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS, type SheetDeps } from "./debriefSheetRead";
 
 // The read is opened from segment AA's debrief, so AA is the segment the sheet must be for.
 const ctx = { segmentId: "AA", segmentIds: ["AA", "AB", "BC"], teams: [{ teamId: "alfa", name: "Alfa" }, { teamId: "T2", name: "Team 2" }] };
@@ -99,6 +100,16 @@ function deps(over: Partial<SheetDeps> = {}): SheetDeps & { calls: number } {
   };
   return d;
 }
+
+describe("the sheet read's time limit", () => {
+  it("is longer than the slowest read measured on Chrome's built-in model, and the command post uses it", () => {
+    const ev = JSON.parse(readFileSync(new URL("../../../docs/evidence/web/2026-11-21-debrief-sheet-chrome.json", import.meta.url), "utf8")) as { runs: { replyMs: number }[] };
+    const slowest = Math.max(...ev.runs.map((r) => r.replyMs));
+    expect(slowest).toBeGreaterThan(30_000);
+    expect(SHEET_READ_TIMEOUT_MS).toBeGreaterThan(2 * slowest);
+    expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/debriefSheetGenerator\(ai\(\)\)\(b\), timeoutMs: SHEET_READ_TIMEOUT_MS/);
+  });
+});
 
 describe("readDebriefSheetOnDevice", () => {
   it("reads the sheet on this laptop and cleans it", async () => {
