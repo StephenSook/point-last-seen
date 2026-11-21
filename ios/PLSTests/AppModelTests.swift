@@ -404,6 +404,47 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(reads.n == 0 && store.entries.isEmpty && model.problem == AppModel.teamChanged)
     }
 
+    /// After "your team changed", the kept words are not sent by a second tap: only "Send to my new team" (or editing
+    /// them first) sends them, to the team now on screen.
+    @Test func wordsKeptAfterATeamChangeNeedAReviewBeforeTheyAreSent() async throws {
+        final class State: @unchecked Sendable { var signed = false; var switched = false }
+        let state = State()
+        let box = ModelBox()
+        let reads = Calls()
+        var newTeam = try quietMission()
+        newTeam.teamId = "T2"
+        let model = AppModel(signIn: SignIn(isSignedIn: { state.signed }, attempt: {
+                                 if !state.switched {
+                                     state.switched = true
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(newTeam)
+                                 }
+                                 state.signed = true
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 reads.n += 1
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                         reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("review-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        let words = "Cleared AC, nothing found"
+        #expect(await model.submit(words, inputMethod: .typed) == words)
+        #expect(model.problem == AppModel.teamChanged && model.heldForReview == words)
+        // A second tap with the same words sends nothing.
+        #expect(await model.submit(words, inputMethod: .typed) == words)
+        #expect(reads.n == 0 && store.entries.isEmpty)
+        // "Send to my new team" sends them, to the team on screen now.
+        #expect(await model.sendToNewTeam(words, inputMethod: .typed) == "")
+        #expect(reads.n == 1 && store.entries.first?.doc.teamId == "T2" && model.heldForReview == nil)
+    }
+
     /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
     @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
         let box = ModelBox()

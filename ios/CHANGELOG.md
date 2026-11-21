@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): words kept after a team change are sent again only once reviewed
+- What: when a typed report is not sent because the team changed meanwhile, the message now says "Your team changed
+  while this was sending. Check your new task, then send again if it still applies.", and the kept words are held:
+  Send stays off for them until they are edited, or the searcher taps "Send to my new team", which sends them to the
+  team now on screen. A plain second tap no longer files them under the new team unread.
+- Source: review.
+- Verified: a test (the team changes at sign-in; a second tap sends nothing and calls no reader; "Send to my new team"
+  sends to T2) failed to compile before the change and passes after; 241 app tests pass.
+
 ### fix(ios): a report whose mission changes while it waits gets no model call
 - What: the app keeps the mission on screen (incident, team and mode) as a key any thread can read. After the GPS
   fix, and right before every model call (the typed reader's token count and stages, the photo's person question and

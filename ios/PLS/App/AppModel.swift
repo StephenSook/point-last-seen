@@ -199,6 +199,9 @@ final class AppModel {
     /// Whether this phone has the cloud route (iOS 27); without it the live gate keeps the cloud off (a seam for tests).
     var cloudRouteAvailable = ModelSessionFactory.cloudRouteSupported { didSet { refreshGate() } }
     private(set) var mission: Mission? { didSet { missionKey.set(MissionKey(mission)) } }
+    /// Words that were not sent because the team changed meanwhile; Send stays off for them until they are edited or
+    /// the searcher taps "Send to my new team".
+    private(set) var heldForReview: String?
     /// The mission on screen as a key any thread can read (a report's check before each model call).
     @ObservationIgnored let missionKey = MissionKeyBox()
     private(set) var store: EventStore?
@@ -889,7 +892,21 @@ final class AppModel {
     /// journaled on this phone, the same words when it was not, so nothing the searcher said is lost.
     func submit(_ text: String, inputMethod: InputMethod) async -> String {
         guard !sending else { return text }
-        return await send(text, inputMethod: inputMethod) ? "" : text
+        // Words kept because the team changed while they were sending go out again only through "Send to my new team",
+        // or once the searcher has edited them: a plain second tap would file them under the new team unread.
+        if let held = heldForReview {
+            if held == text { problem = Self.teamChanged; return text }
+            heldForReview = nil
+        }
+        let sent = await send(text, inputMethod: inputMethod)
+        if !sent, problem == Self.teamChanged { heldForReview = text }
+        return sent ? "" : text
+    }
+
+    /// The searcher checked the new task and sends the kept words to the team now on screen.
+    func sendToNewTeam(_ text: String, inputMethod: InputMethod) async -> String {
+        heldForReview = nil
+        return await submit(text, inputMethod: inputMethod)
     }
 
     /// Reads the report, builds the one event and journals it. The Firestore write is never
@@ -999,7 +1016,7 @@ final class AppModel {
     }
 
     static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
-    static let teamChanged = "Your team changed while this was sending. Send it again."
+    static let teamChanged = "Your team changed while this was sending. Check your new task, then send again if it still applies."
     static let photoReadBusy = "The last photo is still being read. Try again in a moment."
 
     /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
