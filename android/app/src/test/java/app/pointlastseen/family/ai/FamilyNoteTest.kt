@@ -157,6 +157,12 @@ class FamilyNoteTest {
         assertEquals("the old mill", out.reading.label)
     }
 
+    @Test fun aReadKeepsTheModelStateItWasRoutedOn() = runTest {
+        val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 42))
+        val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.DOWNLOADING, consent = true)) as NoteOutcome.Read
+        assertEquals(DeviceModelStatus.DOWNLOADING, out.modelStatus)
+    }
+
     @Test fun aCloudAnswerWithALocalModelIsTheSdkFallback() = runTest {
         val model = FakeModel(ModelReply(goodJson, Source.IN_CLOUD, 5))
         val out = FamilyNote(model, screen, signedIn, english).read(note, env(DeviceModelStatus.AVAILABLE, consent = true)) as NoteOutcome.Read

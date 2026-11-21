@@ -1,5 +1,6 @@
 package app.pointlastseen.family.ai
 
+import com.google.firebase.ai.DownloadStatus
 import com.google.firebase.ai.InferenceMode
 import com.google.firebase.ai.InferenceSource
 import com.google.firebase.ai.OnDeviceModelStatus
@@ -20,6 +21,14 @@ class AiMappingTest {
         assertEquals(DeviceModelStatus.DOWNLOADING, AiMapping.status(OnDeviceModelStatus.DOWNLOADING))
         assertEquals(DeviceModelStatus.UNAVAILABLE, AiMapping.status(OnDeviceModelStatus.UNAVAILABLE))
         assertEquals(DeviceModelStatus.UNKNOWN, AiMapping.status(null))
+    }
+
+    @Test fun sdkDownloadStepsMapToOurs() {
+        // The SDK's constructors are Kotlin-internal, so the test builds them by reflection.
+        fun <T> make(c: Class<T>, n: Long): T = c.getDeclaredConstructor(Long::class.javaPrimitiveType).apply { isAccessible = true }.newInstance(n)
+        assertEquals(ModelDownload.Started(100L), AiMapping.download(make(DownloadStatus.DownloadStarted::class.java, 100L)))
+        assertEquals(ModelDownload.Progress(40L), AiMapping.download(make(DownloadStatus.DownloadInProgress::class.java, 40L)))
+        assertEquals(ModelDownload.Done, AiMapping.download(DownloadStatus.DownloadCompleted))
     }
 
     @Test fun noteModesMapToSdkModes() {

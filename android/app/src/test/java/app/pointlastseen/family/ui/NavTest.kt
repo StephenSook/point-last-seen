@@ -78,6 +78,16 @@ class NavTest {
         assertEquals(Screen.ABOUT, Nav.open(notJoined, Screen.ABOUT).screen)
     }
 
+    /** Writing down what the family remembers is preparation: it sorts into the profile on this phone, no search needed. */
+    @Test fun aNoteOpensBeforeJoiningAndReturnsToTheProfile() {
+        for (start in listOf(Nav.start(joined = false, gone = false), Nav.start(joined = false, gone = true), Nav.start(joined = true, gone = false))) {
+            val note = Nav.open(start, Screen.NOTE)
+            assertEquals(Screen.NOTE, note.screen)
+            assertEquals(Screen.PROFILE, Nav.back(note).screen)
+            assertEquals(Screen.PROFILE, Nav.systemBack(note)?.screen)
+        }
+    }
+
     @Test fun theSystemBackGestureReturnsToTheHomeScreenAndOnlyClosesTheAppThere() {
         val status = Nav.start(joined = true, gone = true)
         for (t in listOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING, Screen.ABOUT, Screen.PROFILE)) {

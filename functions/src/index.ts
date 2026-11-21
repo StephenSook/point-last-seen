@@ -13,6 +13,7 @@ import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
+import { deleteEndedDrills, recordDrillClosed } from "./retention.js";
 
 if (getApps().length === 0) initializeApp();
 
@@ -76,6 +77,31 @@ export const deleteEndedSandboxesJob = onSchedule(
     console.log(JSON.stringify({ event: "deleteEndedSandboxes", deleted: ids.length }));
   },
 );
+
+/**
+ * deleteEndedDrills (daily): deletes each drill 30 days after the search command closed it, with its events, plans,
+ * clips, photos and packs, and the anonymous sign-ins whose only incident it was (retention.ts). The development, judge
+ * seed and filmed drills are kept. Counts only in the log line, never an id or a person.
+ */
+export const deleteEndedDrillsJob = onSchedule(
+  { schedule: "every day 07:41", timeZone: "UTC", region: "us-central1", maxInstances: 1, timeoutSeconds: 540 },
+  async () => {
+    const r = await deleteEndedDrills(getFirestore(), getStorage().bucket(), getAuth(), Date.now());
+    console.log(JSON.stringify({ event: "deleteEndedDrills", deleted: r.deleted.length, kept: r.kept.length, failed: r.failed.length, stale: r.stale.length, files: r.files, users: r.users }));
+  },
+);
+
+/**
+ * recordDrillClosed (Firestore trigger on incident updates): when a drill becomes closed, writes closedAt, the close
+ * write's own commit time, once and only if absent (a transaction). That makes a repeated delivery harmless, so retry
+ * is on: a transient failure is tried again instead of leaving the drill with no closedAt.
+ */
+export const recordDrillClosedTrigger = onDocumentUpdated({ document: "incidents/{incidentId}", region: "us-central1", retry: true },
+  async event => {
+    const after = event.data?.after;
+    if (!after) return;
+    await recordDrillClosed(getFirestore(), event.params.incidentId, event.data?.before.data(), after.data(), after.updateTime);
+  });
 
 /**
  * cloudGuard (AI Logic beforeGenerateContent): every generateContent call through AI Logic, templated or not,

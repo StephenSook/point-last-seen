@@ -188,6 +188,7 @@ def _commit(project: str, writes: list[dict]) -> None:
 
 def add_code(project: str, incident_id: str, role: str, account: str, expires: str | None = None) -> int:
     _check_extra(incident_id, role, account)
+    refuse_purged(project, incident_id, _token())
     service = KEYCHAIN_SERVICES[role]
     code = make_rotated_code({keychain_read(KEYCHAIN_SERVICES[r], incident_id) for r in ROLES})
     keychain_store(service, account, code)
@@ -237,6 +238,29 @@ def to_value(v):
 
 def _token() -> str:
     return subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def purge_record_exists(project: str, incident_id: str, token: str, fetch=urllib.request.urlopen) -> bool:
+    """Whether the drill retention job holds a purge record for this id (a drill it purged or is purging). Any answer
+    but 200 or 404 stops the seed, so an unreadable record never counts as absent."""
+    url = (f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/"
+           f"ops/drillPurges/items/{incident_id}")
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "x-goog-user-project": project})
+    try:
+        with fetch(req, timeout=30):
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise SystemExit(f"could not read the purge record for {incident_id}: HTTP {e.code}; nothing was written") from None
+
+
+def refuse_purged(project: str, incident_id: str, token: str) -> None:
+    """A purged drill's id is never used again: old sign-ins still carry it in their claims, and its purge would
+    resume on the new drill."""
+    if purge_record_exists(project, incident_id, token):
+        raise SystemExit(f"{incident_id} was purged by the drill retention job; choose a new incident id. "
+                         "Nothing was written.")
 
 
 def create_doc(project: str, path: str, data: dict, token: str, server_time_fields=("createdAt",)) -> None:
@@ -311,6 +335,7 @@ def main(argv: list[str]) -> int:
     project, incident_id, name, teams = argv[0], argv[1], argv[2], check_teams(argv[3:])
     params = json.loads((ROOT / "shared/constants/engine-params.json").read_text())["params"]
     token = _token()
+    refuse_purged(project, incident_id, token)
     codes = make_codes()
     docs = join_code_docs(incident_id)
     for r in ROLES:

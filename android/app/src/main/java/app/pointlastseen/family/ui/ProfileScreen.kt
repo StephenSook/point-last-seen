@@ -99,6 +99,7 @@ fun ProfileScreen(
     onJoin: (SubjectProfile) -> Unit,
     gone: Boolean,
     onBack: () -> Unit,
+    onRemember: (SubjectProfile) -> Unit = {},
 ) {
     var p by remember(profile) { mutableStateOf(profile) }
     var age by remember(profile) { mutableStateOf(profile.ageYears?.toString() ?: "") }
@@ -127,6 +128,7 @@ fun ProfileScreen(
             // Gone but not joined yet (for example, back from the join screen): joining is the next step.
             Sentence("Join the search to share this profile.")
             MainAction("Join with a code") { onJoin(edited()) }
+            OtherAction("I remembered something") { onRemember(edited()) }
         } else if (gone) {
             Sentence("Their profile")
             OtherAction("Back", onClick = onBack)
@@ -134,6 +136,7 @@ fun ProfileScreen(
             Sentence("Who might go missing?")
             MainAction("She's gone") { onGone(edited()) }
             if (!joined) OtherAction("Join with a code") { onJoin(edited()) }
+            OtherAction("I remembered something") { onRemember(edited()) }
         }
 
         Heading("Searchers see this")

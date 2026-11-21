@@ -13,7 +13,9 @@ data class NavStep(val state: NavState, val publishProfile: Boolean = false)
  * written once the family has both said she is gone and joined the incident.
  */
 object Nav {
-    private val ACTIONS = setOf(Screen.CLIP, Screen.PHOTOS, Screen.NOTE, Screen.SIGHTING)
+    // A note is not among them: writing down what the family remembers is preparation, and it sorts into the
+    // profile on this phone, so it opens before a search is joined too.
+    private val ACTIONS = setOf(Screen.CLIP, Screen.PHOTOS, Screen.SIGHTING)
 
     fun start(joined: Boolean, gone: Boolean) =
         NavState(if (joined && gone) Screen.STATUS else Screen.PROFILE, gone, joined)
