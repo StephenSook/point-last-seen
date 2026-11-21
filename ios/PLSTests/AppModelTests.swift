@@ -138,6 +138,17 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
                 profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
     }
 
+    /// Ready check's sign-in line: hidden in the practice drill, which never signs in; otherwise it says where sign-in is.
+    @Test func thePracticeDrillShowsNoSignInLine() async throws {
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
+        await model.load(try quietMission())
+        #expect(model.signInLine == "Not signed in. Stay in signal.")
+        var practice = try quietMission()
+        practice.isPractice = true
+        await model.load(practice)
+        #expect(model.signInLine == nil)
+    }
+
     /// A photo model with a fake reader and a journal; the reader's answer is fixed per test.
     func photoModel(_ answer: PhotoReadResult, available: Bool = true) throws -> (AppModel, EventStore) {
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
