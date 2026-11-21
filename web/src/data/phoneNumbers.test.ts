@@ -146,8 +146,15 @@ describe("removePhoneNumbers: coordinates and radio frequencies are search infor
     expect(removePhoneNumbers("Call +404.555 014.555")).not.toMatch(/\d/);
     expect(removePhoneNumbers("Radio 155.160 404")).toBe(`Radio ${REPLACEMENT}`);
   });
-  it("beside a whole number of seven or more digits, the frequency stays and only the number goes", () => {
-    expect(removePhoneNumbers("Radio 155.160 404 5550142")).toBe(`Radio 155.160 ${REPLACEMENT}`);
+  it("a frequency joined to any other digits goes with the run, so a phone number never keeps a frequency's shape", () => {
+    expect(removePhoneNumbers("Radio 155.160 404 5550142")).toBe(`Radio ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call 404.555-0142 #123")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 0142 ext 12")).not.toMatch(/404|555/);
+  });
+  it("a pair across a semicolon, bullet, middle dot, bar or slash is a coordinate only with a minus: two numbers are removed", () => {
+    for (const g of [" / ", " | ", "; ", " \u2022 "]) {
+      expect(removePhoneNumbers(`Call 020.79460958${g}020.79460959`)).not.toMatch(/\d/);
+    }
   });
 });
 
