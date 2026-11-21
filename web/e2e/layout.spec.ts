@@ -21,8 +21,8 @@ test.describe("phone layout", () => {
     await joinCommand(page);
     const code = await page.getByTestId("convergence-code").boundingBox();
     expect(code!.height, "one line of 20 px digits").toBeLessThan(40);
-    // Labelled MATCH, so it does not read as the join code.
-    await expect(page.locator(".post-head")).toContainText("MATCH");
+    // Labelled Radio check, so it does not read as the join code: teams read this code over the radio.
+    await expect(page.locator(".post-head")).toContainText("Radio check");
     await expect(page.locator(".post-head .label", { hasText: /^Code$/ })).toHaveCount(0);
   });
 });

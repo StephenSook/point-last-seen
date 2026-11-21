@@ -2017,3 +2017,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when the banner and the spoken line are the same words (a sighting waiting for command's confirmation), the banner is hidden from assistive technology and the live line speaks it, so a screen reader and the accessibility tree have the line once instead of twice. A banner with different spoken words is unchanged. The change harness gains `?confirm=1`.
 - Source: UI review (What changed showed "Sighting saved. Confirm it under Sightings to move the map." twice).
 - Verified: a new harness check in `e2e/harness/change.spec.ts` (the line once in the section's accessibility tree, still shown and still the live line) failed first (twice), then passed with the change and beat checks (8); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(command): the header's match code is labelled Radio check
+- What: the command post header labels the match code "Radio check" instead of "MATCH": the code teams read over the radio, where the same code means the same prior version and the same reports. The drill line and the wordmark are unchanged; `data-testid="convergence-code"` stays. The live layout and judge checks look for the new label.
+- Source: UI review ("MATCH" did not say what the code is for).
+- Verified: the live layout check with the new label failed on the live site ("MATCH"), and runs again after the deploy; typecheck, web unit suite and the hygiene guard pass.

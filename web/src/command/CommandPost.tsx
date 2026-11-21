@@ -668,7 +668,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <span className="drill">{incident?.drillLabel ?? DRILL_LINE}</span>
         <span className="incident">{view?.incident?.name ?? incidentId}</span>
         <span className="code">
-          <span className="label">MATCH</span>
+          {/* The match code teams read over the radio: the same code means the same prior version and reports. */}
+          <span className="label">Radio check</span>
           <span className="num" data-testid="convergence-code">{vs?.code ?? "----"}</span>
         </span>
         <ExtrasDock
