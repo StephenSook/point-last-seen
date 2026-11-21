@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a read that outlives the searcher's own Leave holds nothing for review
+- What: words whose mission was dropped while they were read wait for review ("Send to my new team"), but not when
+  the drop was the searcher's own Leave: leaving was their choice, so a read that finishes after it keeps the words
+  in the field without the team-changed message or the review hold.
+- Source: second review of the ended-search change.
+- Verified: a test where Leave completes while a typed report is being read failed before the change and passes
+  after; the AppJoin and AppModel suites pass.
+
 ### fix(ios): the ended search's line goes with an account change
 - What: a change of account already cleared the ended search and its reports; it now also clears the ended line from
   the join form's message, so the next account never sees the previous one's "Search ended: ..." reason.
