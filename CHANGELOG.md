@@ -77,6 +77,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
+  route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
+  (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
+  scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
+  on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
+  pass.
 - drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
   segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
   tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
