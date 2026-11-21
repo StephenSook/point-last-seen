@@ -89,7 +89,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
         <p>No draft yet.</p>
       ) : (
         <>
-          <p className="muted">Draft from this laptop for the current reports.</p>
+          <p className="muted">Draft for the current reports.</p>
           {limit && (
             <p className="error" role="status">
               {limit}
@@ -106,7 +106,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
             <span className="tag">Suggested</span>
             <RouteGlyph route={suggested.route} />
           </div>
-          {suggested.notice && <p className="muted" role="status">{suggested.notice}</p>}
+          {/* A fallback shows only as the route mark (Fixed wording); why the model was not used is in What ran. */}
           <ul>
             {suggested.wording.assignments.map((a) => (
               <li key={a.teamId}>

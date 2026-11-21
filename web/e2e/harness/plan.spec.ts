@@ -74,3 +74,21 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
   await receipt.getByText("What ran", { exact: true }).click();
   await expect(receipt).toContainText("Sent: nothing left this laptop.");
 });
+
+test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {
+  await page.goto("/harness/plan.html?fallback=1");
+  await expect(page.getByText(/this laptop/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Suggest plan" }).click();
+  const plan = page.getByTestId("suggested-plan");
+  await expect(plan).toContainText("Fixed wording");
+  await expect(plan.getByText("The cloud step did not answer. The plan below uses fixed wording.")).toHaveCount(0);
+  await plan.getByText("What ran").click();
+  await expect(plan.getByText("Not used: the model call failed. The plan uses fixed wording from code.")).toBeVisible();
+});
+
+test("each assignment is one line: the team, its task and its reason", async ({ page }) => {
+  await page.goto("/harness/plan.html");
+  await page.getByRole("button", { name: "Suggest plan" }).click();
+  const items = page.getByTestId("suggested-plan").getByRole("listitem");
+  await expect(items).toHaveText(["Team 1 Search AA. Highest.", "Team 2 Search AB. Next."]);
+});
