@@ -25,10 +25,15 @@ async function drill(id: string, over: Record<string, unknown>): Promise<void> {
   for (const p of media(id)) await put(p);
 }
 
-async function member(incidentId: string, anonymous = true): Promise<string> {
-  const u = await admin.auth.createUser(anonymous ? {} : { email: `${Math.random().toString(36).slice(2)}@example.com` });
-  await admin.auth.setCustomUserClaims(u.uid, { inc: incidentId, role: "searcher", team: "T1" });
-  return u.uid;
+let uidN = 0;
+/** A sign-in claimed by incidentId, last used at lastUsedMs (default: before every test drill closed). */
+async function member(incidentId: string, anonymous = true, lastUsedMs = Date.UTC(2026, 9, 1)): Promise<string> {
+  const uid = `u${uidN++}-${Math.random().toString(36).slice(2, 8)}`;
+  const used = new Date(lastUsedMs).toUTCString();
+  const r = await admin.auth.importUsers([{ uid, ...(anonymous ? {} : { email: `${uid}@example.com` }),
+    customClaims: { inc: incidentId, role: "searcher", team: "T1" }, metadata: { creationTime: used, lastSignInTime: used } }]);
+  if (r.failureCount) throw new Error(`importUsers failed: ${r.errors[0]?.error.message}`);
+  return uid;
 }
 const userExists = async (uid: string) => admin.auth.getUser(uid).then(() => true, () => false);
 const purge = (id: string) => admin.db.doc(`${PURGES}/${id}`);
@@ -122,6 +127,47 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect(await userExists(withEmail)).toBe(true);
   });
 
+  it("keeps a sign-in used after the drill closed: it may belong to a person who is still using the app", async () => {
+    await drill("OLD", closed(31));
+    const active = await member("OLD", true, NOW - 2 * DAY);
+    const idle = await member("OLD");
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(r.users).toBe(1);
+    expect(await userExists(active)).toBe(true);
+    expect(await userExists(idle)).toBe(false);
+  });
+
+  it("drops a purge record whose incident id is in use again, and deletes nothing of the new incident", async () => {
+    await drill("REUSED", {});
+    const newMember = await member("REUSED");
+    await admin.db.doc("joinCodes/h9").set({ incidentId: "REUSED", roles: ["command"] });
+    await purge("REUSED").set({ startedAt: Timestamp.fromMillis(NOW - DAY), closedAtMs: NOW - 40 * DAY });
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(r.deleted).toEqual([]);
+    expect(r.stale).toEqual(["REUSED"]);
+    expect((await inc("REUSED").get()).exists).toBe(true);
+    expect((await inc("REUSED").collection("events").get()).size).toBe(1);
+    for (const p of media("REUSED")) expect(await exists(p)).toBe(true);
+    expect((await admin.db.doc("joinCodes/h9").get()).exists).toBe(true);
+    expect(await userExists(newMember)).toBe(true);
+    expect((await purge("REUSED").get()).exists).toBe(false);
+  });
+
+  it("deletes a join code written while the purge ran, by a last sweep after the incident is gone", async () => {
+    await drill("OLD", closed(31));
+    let calls = 0;
+    const racing = {
+      getFiles: async (q: { prefix: string }) => {
+        // Calls 1 to 3 are the first media sweep; call 4 starts the sweep after the incident is deleted.
+        if (++calls === 4) await admin.db.doc("joinCodes/late").set({ incidentId: "OLD", roles: ["searcher"] });
+        return bucket.getFiles(q);
+      },
+    } as unknown as B;
+    const r = await deleteEndedDrills(admin.db, racing, admin.auth, NOW);
+    expect(r.deleted).toEqual(["OLD"]);
+    expect((await admin.db.doc("joinCodes/late").get()).exists).toBe(false);
+  });
+
   it("keeps a sign-in that joined another incident after the user list was read", async () => {
     await drill("OLD", closed(31));
     const moved = await member("OLD");
@@ -163,7 +209,7 @@ describe("deleteEndedDrills: 30 days after the close", () => {
   it("finishes an interrupted purge from its record, even with the incident root already gone", async () => {
     await drill("HALF", closed(40));
     const gone = await member("HALF");
-    await purge("HALF").set({ startedAt: Timestamp.fromMillis(NOW - DAY) });
+    await purge("HALF").set({ startedAt: Timestamp.fromMillis(NOW - DAY), closedAtMs: NOW - 40 * DAY });
     await inc("HALF").delete();
     expect((await inc("HALF").collection("events").get()).size).toBe(1);
     const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);

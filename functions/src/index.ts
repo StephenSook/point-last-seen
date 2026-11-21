@@ -87,7 +87,7 @@ export const deleteEndedDrillsJob = onSchedule(
   { schedule: "every day 07:41", timeZone: "UTC", region: "us-central1", maxInstances: 1, timeoutSeconds: 540 },
   async () => {
     const r = await deleteEndedDrills(getFirestore(), getStorage().bucket(), getAuth(), Date.now());
-    console.log(JSON.stringify({ event: "deleteEndedDrills", deleted: r.deleted.length, kept: r.kept.length, failed: r.failed.length, files: r.files, users: r.users }));
+    console.log(JSON.stringify({ event: "deleteEndedDrills", deleted: r.deleted.length, kept: r.kept.length, failed: r.failed.length, stale: r.stale.length, files: r.files, users: r.users }));
   },
 );
 

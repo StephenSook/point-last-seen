@@ -70,6 +70,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention, second review round: a purge record keeps the drill's close time and resumes only while its
+  incident is gone; a record whose id is in use again is dropped without deleting anything; a sign-in is deleted only
+  if nobody used it since the drill closed (a person joining anything refreshes their token first); a last join-code
+  sweep runs after the incident is deleted; the job's log line counts dropped records. Source: review (second-model).
+  Verified: 3 new tests (a reused id, a sign-in used after the close, a join code written during the purge) failed
+  first, then pass; functions suite 278; ci-local gates, ts and rules pass.
 - LIMITS, Drill data retention: the purge record and the next-run finish, join codes, the last media sweep, the
   commit-time closedAt and the re-read before a sign-in is deleted. Source: review. Verified against
   functions/src/retention.ts and functions/src/index.ts.

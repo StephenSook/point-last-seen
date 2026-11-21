@@ -4,11 +4,13 @@
 //   close event never moves it. Closing is final in the rules, so closedAt is never cleared.
 // - deleteEndedDrills (daily) purges each drill whose closedAt is more than 30 days old. It first writes a purge
 //   record outside the incident (ops/drillPurges/items/{id}), then deletes the media prefixes, the drill's join codes,
-//   the incident with everything under it, a last media sweep (an upload made during the purge; with the incident
-//   gone the rules refuse new ones), and the anonymous sign-ins whose only incident it was, each re-read just before
-//   it is deleted. The record is cleared only when every step succeeded, so a run that fails partway is finished by
-//   the next one from the record, even when the incident root is already gone. The keep-list protects the drills the
-//   judge page and the film use. A drill closed before closedAt existed has none and is never deleted by this job.
+//   the incident with everything under it, a last media and join-code sweep (anything written during the purge; with
+//   the incident gone the rules refuse new uploads), and the anonymous sign-ins whose only incident it was and that
+//   nobody has used since the drill closed, each re-read just before it is deleted. The record is cleared only when
+//   every step succeeded, so a run that fails partway is finished by the next one from the record, even when the
+//   incident root is already gone; a record whose incident id is in use again is dropped without deleting anything.
+//   The keep-list protects the drills the judge page and the film use. A drill closed before closedAt existed has
+//   none and is never deleted by this job.
 import type { Auth, UserRecord } from "firebase-admin/auth";
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { getStorage } from "firebase-admin/storage";
@@ -56,11 +58,13 @@ export async function recordDrillClosed(db: Firestore, incidentId: string, befor
   });
 }
 
-export type RetentionResult = { deleted: string[]; kept: string[]; failed: string[]; files: number; users: number };
+export type RetentionResult = { deleted: string[]; kept: string[]; failed: string[]; stale: string[]; files: number; users: number };
 type RetentionAuth = Pick<Auth, "listUsers" | "getUsers" | "deleteUsers">;
 
 const anonymous = (u: UserRecord) => u.providerData.length === 0 && !u.email && !u.phoneNumber;
 const incOf = (u: UserRecord) => String(u.customClaims?.["inc"] ?? "");
+// When the sign-in was last used: its last token refresh, else its last sign-in, else its creation.
+const lastUsedMs = (u: UserRecord) => Date.parse(u.metadata.lastRefreshTime ?? u.metadata.lastSignInTime ?? u.metadata.creationTime);
 
 async function sweepMedia(bucket: Pick<Bucket, "getFiles">, id: string, dryRun: boolean): Promise<number> {
   let n = 0;
@@ -89,14 +93,16 @@ async function anonymousMembers(auth: RetentionAuth, ids: ReadonlySet<string>): 
 }
 
 /**
- * Deletes the sign-ins in uids that, read again now, are still anonymous and still belong to incident id. Returns
- * how many were deleted (or would be, in a dry run); throws when any delete failed, so the purge record stays.
+ * Deletes the sign-ins in uids that, read again now, are still anonymous, still belong to incident id and have not
+ * been used since the drill closed (a person joining anything refreshes their token first, so a sign-in in use is
+ * never idle). Returns how many were deleted (or would be, in a dry run); throws when any delete failed, so the purge
+ * record stays.
  */
-async function deleteMembers(auth: RetentionAuth, id: string, uids: readonly string[], dryRun: boolean): Promise<number> {
+async function deleteMembers(auth: RetentionAuth, id: string, uids: readonly string[], closedAtMs: number, dryRun: boolean): Promise<number> {
   let deleted = 0;
   for (let i = 0; i < uids.length; i += 100) {
     const { users } = await auth.getUsers(uids.slice(i, i + 100).map(uid => ({ uid })));
-    const still = users.filter(u => anonymous(u) && incOf(u) === id).map(u => u.uid);
+    const still = users.filter(u => anonymous(u) && incOf(u) === id && lastUsedMs(u) < closedAtMs).map(u => u.uid);
     if (dryRun || still.length === 0) {
       deleted += still.length;
       continue;
@@ -115,28 +121,42 @@ async function deleteMembers(auth: RetentionAuth, id: string, uids: readonly str
 export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "getFiles">, auth: RetentionAuth,
   nowMs: number, opts: { dryRun?: boolean } = {}): Promise<RetentionResult> {
   const dryRun = opts.dryRun === true;
-  const out: RetentionResult = { deleted: [], kept: [], failed: [], files: 0, users: 0 };
-  const due = new Set((await db.collection(PURGES).listDocuments()).map(d => d.id));
+  const out: RetentionResult = { deleted: [], kept: [], failed: [], stale: [], files: 0, users: 0 };
+  // When each due drill closed: from the incident for a newly due drill, from its record for a resumed purge.
+  const due = new Map<string, number>();
   for (const doc of (await db.collection("incidents").where("mode", "==", "drill").get()).docs) {
     const at = doc.get("closedAt");
     if (doc.get("status") !== "closed" || !(at instanceof Timestamp) || at.toMillis() >= nowMs - DRILL_RETENTION_MS) continue;
     if (keptUntil(doc.id) > nowMs) out.kept.push(doc.id);
-    else due.add(doc.id);
+    else due.set(doc.id, at.toMillis());
   }
-  // The keep-list wins over a recorded purge too.
-  for (const id of [...due]) if (keptUntil(id) > nowMs) due.delete(id);
-  const members = await anonymousMembers(auth, due);
-  for (const id of [...due].sort()) {
+  // A recorded purge resumes only while its incident is gone. An incident at that id that is not itself due is a new
+  // one using the id again: the record is dropped and nothing is deleted, its sign-ins included.
+  const records = await db.collection(PURGES).get();
+  const roots = records.empty ? [] : await db.getAll(...records.docs.map(r => db.doc(`incidents/${r.id}`)));
+  records.docs.forEach((r, i) => {
+    if (due.has(r.id) || keptUntil(r.id) > nowMs) return;
+    const closedAtMs = r.get("closedAtMs");
+    if (roots[i]?.exists || typeof closedAtMs !== "number") out.stale.push(r.id);
+    else due.set(r.id, closedAtMs);
+  });
+  if (!dryRun) await Promise.all(out.stale.map(id => db.doc(`${PURGES}/${id}`).delete()));
+  const members = await anonymousMembers(auth, new Set(due.keys()));
+  const deleteCodes = async (id: string) => {
+    const codes = await db.collection("joinCodes").where("incidentId", "==", id).get();
+    await Promise.all(codes.docs.map(c => c.ref.delete()));
+  };
+  for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
-      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs) }, { merge: true });
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs }, { merge: true });
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {
-        const codes = await db.collection("joinCodes").where("incidentId", "==", id).get();
-        await Promise.all(codes.docs.map(c => c.ref.delete()));
+        await deleteCodes(id);
         await db.recursiveDelete(db.doc(`incidents/${id}`));
         out.files += await sweepMedia(bucket, id, false);
+        await deleteCodes(id);
       }
-      out.users += await deleteMembers(auth, id, members.get(id) ?? [], dryRun);
+      out.users += await deleteMembers(auth, id, members.get(id) ?? [], closedAtMs, dryRun);
       if (!dryRun) await db.doc(`${PURGES}/${id}`).delete();
       out.deleted.push(id);
     } catch {
@@ -144,5 +164,6 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
     }
   }
   out.kept.sort();
+  out.stale.sort();
   return out;
 }
