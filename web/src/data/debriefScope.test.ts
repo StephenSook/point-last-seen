@@ -13,6 +13,10 @@ const PAPER_SHEET = [
   "extras/ExtrasDock.tsx",
 ];
 
+// The model client builds the sheet's on-device read. It may name the sheet, and like the sheet's files it never
+// reads a stored debrief.
+const MODEL_CLIENT = ["ai/client.ts", "ai/client.test.ts"];
+
 // A debrief is a note for the team after a search, never a coverage claim: no code that builds the map, the
 // probabilities or the plans may read one. Only these files may name debriefs at all.
 const ALLOWED = new Set([
@@ -26,6 +30,7 @@ const ALLOWED = new Set([
   "ai/debriefSheetRead.ts",
   "ai/debriefSheetRead.test.ts",
   ...PAPER_SHEET,
+  ...MODEL_CLIENT,
 ]);
 
 const SRC = fileURLToPath(new URL("..", import.meta.url));
@@ -45,8 +50,8 @@ describe("debrief scope", () => {
     expect(outside).toEqual([]);
   });
 
-  it("the paper debrief sheet's files never import the debrief data module or Firestore, nor name the collection", () => {
-    for (const rel of PAPER_SHEET) {
+  it("the paper debrief sheet's files and the model client never import the debrief data module or Firestore, nor name the collection", () => {
+    for (const rel of [...PAPER_SHEET, ...MODEL_CLIENT]) {
       const code = readFileSync(join(SRC, rel), "utf8");
       // Nor names the stored collection, so no other module that builds collection(..., "debriefs") is a way in.
       expect(code, rel).not.toMatch(/data\/debriefs|firebase\/firestore|["']debriefs["']/);
