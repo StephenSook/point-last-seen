@@ -2530,6 +2530,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: live suite (the clip check failed twice in three runs after the rules deploy).
 - Verified: the 200 heights give 100 distinct SHA-256s and 24 match stored readings on drill-test-1 (read-only); 18 colours in steps of 32 give 18 distinct clips; the harness clip, frames and triage checks pass (28); the live check passed twice in a row.
 
+### test(web): the removal check signs in fresh and joins the test drill itself
+- What: in the full live suite the removal check used the run's shared signed-in account, which by then could hold a practice search's claims (the judge checks start practice searches on it). Its cached token still showed command of the test drill, so the post offered Remove, but `removeMember` checks the caller's current claims and refused with "Only command can remove someone." The check now starts from an empty browser and joins the test drill as command itself. (Its cleanup removed the fresh member it had made, as designed.)
+- Source: live suite after the People panel deploy (the check failed with that refusal; the removal record its cleanup wrote is on the test drill).
+- Verified: run alone against the live site, it passes end to end (the fresh member is removed from the People panel; its read is refused, its session refresh fails with TOKEN_EXPIRED, and its rejoin is refused).
+
+### test(web): the retract check finds its report under Sightings whatever else is waiting
+- What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
+- Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
+- Verified: run alone against the live site, the retract check passes.
+
 ### test(e2e): the receipt's Sent line is checked against the request that left
 - What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
 - Source: review (make the receipt's honesty something a test proves).
