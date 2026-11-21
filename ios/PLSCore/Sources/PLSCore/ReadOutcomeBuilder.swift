@@ -330,11 +330,24 @@ public enum PhoneNumbers {
         func isDay(_ i: Int) -> Bool { written(i) && len(i) <= 2 && (1...31).contains(value(i) ?? 0) }
         func isYear(_ i: Int) -> Bool { written(i) && len(i) == 4 && (1900...2100).contains(value(i) ?? 0) }
         func degrees(_ whole: Int, _ frac: Int, _ max: Double) -> Bool {
-            guard written(whole), written(frac), gap(whole, frac) == ".", len(whole) <= 3, (4...8).contains(len(frac)),
+            // 4 to 7 decimals: 8 after a 2-digit area code is a Mexican number (33.12345678).
+            guard written(whole), written(frac), gap(whole, frac) == ".", len(whole) <= 3, (4...7).contains(len(frac)),
                   Int(text(whole)) != nil, Int(text(frac)) != nil, let v = Double("\(text(whole)).\(text(frac))") else { return false }
             // Whole degrees never start with a zero (0.1276 is fine; 020.79460958 is a London number).
             if len(whole) > 1, text(whole).hasPrefix("0") { return false }
             return v <= max
+        }
+        // A phone cue just before part i: a "#" in the gap before it, or a cue word right before it (only spaces or a
+        // colon between), or with one connector word between (Call: 33.1234, -84.5678; Llame al 33.1234, -84.5678). A
+        // cue further back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place.
+        func cueBefore(_ i: Int) -> Bool {
+            let start = i > 0 ? parts[i - 1].range.upperBound : s.startIndex
+            if s[start..<parts[i].range.lowerBound].contains("#") { return true }
+            func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).allSatisfy { $0.isWhitespace || $0 == ":" } }
+            func isWord(_ j: Int) -> Bool { j >= 0 && parts[j].digits == 0 && !parts[j].written }
+            if isWord(i - 1), near(i - 1, i), phoneCues.contains(word(s, parts[i - 1])) { return true }
+            return isWord(i - 2) && isWord(i - 1) && cueConnectors.contains(word(s, parts[i - 1])) && near(i - 2, i - 1)
+                && near(i - 1, i) && phoneCues.contains(word(s, parts[i - 2]))
         }
         var kept = Set<Int>()
         // Radio frequency candidates (146.520), each as its whole part's index; kept below only in a run of frequencies.
@@ -376,7 +389,7 @@ public enum PhoneNumbers {
             }
             // A decimal pair after a "+" is an international number, not a coordinate.
             let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
-            if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
+            if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)), !cueBefore(i) {
                 kept.formUnion(i...(i + 3))
             }
             // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3
@@ -479,32 +492,23 @@ public enum PhoneNumbers {
     static func isDot(_ c: Character) -> Bool { c == "." }
     static func isComma(_ c: Character) -> Bool { c == "," }
 
-    /// A coordinate pair's middle: at most two spaces, then a comma (at most two spaces and an optional
-    /// minus after it); or a semicolon, bullet, middle dot, bar or slash with at most two spaces around it and a
-    /// minus after it (two decimals across one of those with no minus can be two phone numbers: 020.79460958 /
-    /// 020.79460959); or one or two spaces then a minus. A bare minus between two decimals (44.2071-23.4567) is a
-    /// dotted number, not a pair.
+    /// A coordinate pair's middle: a comma, semicolon, bullet, middle dot, bar or slash (with at most two spaces around
+    /// it) then a minus, or one or two spaces then a minus. The minus is the western longitude every drill site has: two
+    /// decimals with no minus between them can be two phone numbers (33.12345678, 33.87654321 is two Mexican numbers),
+    /// and a bare minus between two decimals (44.2071-23.4567) is a dotted number.
     static func coordinateGap(_ gap: Substring) -> Bool {
         var rest = gap[...]
         var n = 0
         while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
-        if rest.first == "," {
+        if let c = rest.first, coordinateMarks.contains(c) {
             rest = rest.dropFirst()
             n = 0
             while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
-            if rest.first == "-" { rest = rest.dropFirst() }
-        } else if let c = rest.first, coordinateMarks.contains(c) {
-            rest = rest.dropFirst()
-            n = 0
-            while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
-            guard rest.first == "-" else { return false }
-            rest = rest.dropFirst()
-        } else if rest.first == "-", n >= 1 {
-            rest = rest.dropFirst()
-        } else {
+        } else if n == 0 {
             return false
         }
-        return rest.isEmpty
+        guard rest.first == "-" else { return false }
+        return rest.dropFirst().isEmpty
     }
 
     /// Whether a gap is exactly a sequence of character classes, each repeated `min` to `max` times. The
@@ -519,17 +523,21 @@ public enum PhoneNumbers {
         return rest.isEmpty
     }
 
-    static let coordinateMarks: Set<Character> = [";", "\u{2022}", "\u{00B7}", "|", "/"]
+    static let coordinateMarks: Set<Character> = [",", ";", "\u{2022}", "\u{00B7}", "|", "/"]
+    /// Words that say the next digits are a phone number; one just before a decimal pair makes it two numbers.
+    static let phoneCues: Set<String> = ["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "teléfono", "telefono",
+                                         "celular", "número", "numero"]
+    /// The one short word that may sit between a cue and its number (Llame al 33.1234, -84.5678; Call at ...).
+    static let cueConnectors: Set<String> = ["al", "a", "at", "on", "to"]
 
     /// The marks that never join a number: a time (14:03), a percent (45%) and a degree (33.7490°) are search
     /// information. Every other mark joins, so 404|555|0142 and 404;555;0142 are removed; a coordinate pair or a radio
     /// frequency between such marks stays through its own span (searchSpans).
     static let notASeparator: Set<Unicode.Scalar> = [":", "%", "\u{00B0}"]
 
-    /// What may sit between the parts of one number: at most three characters of anything but a mark in
-    /// `notASeparator` (a gap holds no letter or digit, since those are parts, so every space, punctuation mark and
-    /// symbol joins); a line break (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number
-    /// split across lines.
+    /// What may sit between the parts of one number: any amount of anything but a mark in `notASeparator` (a gap holds
+    /// no letter or digit, since those are parts, so every space, punctuation mark and symbol joins). A line break (CRLF,
+    /// LF or CR) with any indentation after it counts as one, as a pasted number split across lines.
     static func onlySeparators(_ s: Substring) -> Bool {
         var gap: [Character] = []
         var i = s.startIndex
@@ -543,7 +551,7 @@ public enum PhoneNumbers {
                 gap.append(c)
             }
         }
-        return gap.count <= 4 && !gap.contains { $0.unicodeScalars.contains(where: notASeparator.contains) }
+        return !gap.contains { $0.unicodeScalars.contains(where: notASeparator.contains) }
     }
 }
 

@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a decimal pair is a coordinate only with a minus and no phone cue before it
+- What: the iPhone's phone-number rule matches the final shared rule. A decimal pair stays as a coordinate only with
+  the western longitude's minus after its mark (comma included), with 4 to 7 decimals, and with no phone cue right
+  before it (a "#", or call, tel, phone, cell, mobile, number, llame, llamar, teléfono, celular or número, alone or
+  with one connector word such as "al" or "at"), so "Call 33.12345678, 33.87654321" (two Mexican numbers) is removed
+  while "Phone found at 33.7866, -84.3733" stays. The gap cap is gone: any amount of separators joins, as on web and
+  Android. An eastern pair with no minus ("-33.8688, 151.2093") is now read as numbers; the iPhone test that kept it
+  now expects that.
+- Source: the shared phone-number rule (web and Android), a privacy gap found in review.
+- Verified: the 103 cases of the pending shared vector file, run locally, failed on the previous commit's rule (15
+  issues) and pass after; new unit tests for the cues pass; all 402 core tests pass.
+
 ### fix(ios-core): any mark but a time, percent or degree joins a phone number's groups
 - What: the iPhone's phone-number rule now joins a number's groups across any mark except ":" "%" and "°" (a time, a
   percent and a degree stay search information), so a number split by a middle dot, hyphenation point, bullet,

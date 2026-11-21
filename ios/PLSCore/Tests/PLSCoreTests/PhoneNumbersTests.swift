@@ -179,7 +179,19 @@ import Testing
     @Test func aDecimalPairAfterAPlusIsANumber() {
         #expect(PhoneNumbers.scrub("Call +44.2071, -23.4567") == "Call [number removed]")
         #expect(PhoneNumbers.scrub("GPS 33.7490, -84.3880") == "GPS 33.7490, -84.3880")
-        #expect(PhoneNumbers.scrub("GPS -33.8688, 151.2093") == "GPS -33.8688, 151.2093")
+        // A pair is kept only with the western longitude's minus after its mark, which every drill site has: two
+        // decimals with no minus between them can be two phone numbers, so an eastern pair is read as numbers.
+        #expect(PhoneNumbers.scrub("GPS -33.8688, 151.2093") == "GPS -[number removed]")
+    }
+
+    /// A phone cue right before a decimal pair (a "#", a cue word, or a cue word and one connector) makes it numbers;
+    /// a cue further back names a thing, so the pair stays.
+    @Test func aPhoneCueBeforeADecimalPairMakesItNumbers() {
+        #expect(PhoneNumbers.scrub("Call 33.12345678, 33.87654321") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Llame al 33.1234, -84.5678") == "Llame al [number removed]")
+        #expect(PhoneNumbers.scrub("Number: 33.1234, -84.5678") == "Number: [number removed]")
+        #expect(PhoneNumbers.scrub("#33.1234, -84.5678") == "#[number removed]")
+        #expect(PhoneNumbers.scrub("Phone found at 33.7866, -84.3733") == "Phone found at 33.7866, -84.3733")
     }
 
     /// Digit groups that only look like a date are still numbers: no month 13, no year 5551.
