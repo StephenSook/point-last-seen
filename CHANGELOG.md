@@ -77,6 +77,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
+  ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
+  known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,
+  web/src/prior/rebuild.ts and web/public/extras/terrain/.
 - Engine and reference: elevationWeights refuses a negative or non-finite share, and returns neutral weights when the
   classes that hold mass have shares summing to zero (it gave NaN before); a generated vector covers the zero-sum
   case. Source: review (second-model). Verified: a reference test and the vector failed first, then pass; engine suite
