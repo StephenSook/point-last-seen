@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): an iOS 26 path for each iOS 27 call; the cloud route needs iOS 27
+- What: every call the app makes that needs iOS 27 now has an iOS 26 path. The model's variant name
+  (iOS 27) reads as a plain name on iOS 26. Below iOS 26.4 the model cannot count tokens, so the
+  reader uses the characters-per-token estimate. Apple's model's errors on iOS 26
+  (LanguageModelSession.GenerationError) map to the same read failures as LanguageModelError on iOS 27.
+  The cloud route runs Gemini in a FoundationModels session, which needs iOS 27: below that the reader
+  keeps the cloud off (as the kill switch does), so a read is Apple's model, then rules, and the runner's
+  cloud case refuses. Nothing changes on iOS 27.
+- Source: review (minimum iOS version).
+- Verified: tests for the plain name, the estimate, the iOS 26 error mapping, the cloud route from iOS 27
+  and a read that never goes to the cloud without the route failed to compile before the change and
+  pass after; the iOS 27 error tests are marked iOS 27; tests that need the cloud route say so.
+
 ### fix(ios-core): the phone rule's last three cases, as on Android
 - What: the iPhone's phone rule now matches Android's on the five shared cases still pending on the
   iPhone. A bare minus between two decimals (44.2071-23.4567) is a dotted number, not a coordinate pair:

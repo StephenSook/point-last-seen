@@ -8,10 +8,23 @@ import PLSCore
 enum ModelSessionFactory {
     static func onDeviceStatus(locale: Locale = .current) -> OnDeviceStatus {
         let model = SystemLanguageModel.default
-        // The simulator reports an empty variant name; fall back to a plain name.
-        let name = model.variant.displayName.trimmingCharacters(in: .whitespaces)
+        // iOS 26 has no variant name, and the simulator reports an empty one: both read as a plain name.
+        var shown = ""
+        if #available(iOS 27, *) { shown = model.variant.displayName }
         return OnDeviceStatus(available: model.isAvailable, localeSupported: model.supportsLocale(locale),
-                              contextSize: model.contextSize, variant: name.isEmpty ? "Apple on-device model" : name)
+                              contextSize: model.contextSize, variant: variantName(shown))
+    }
+
+    static func variantName(_ shown: String) -> String {
+        let name = shown.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "Apple on-device model" : name
+    }
+
+    /// The cloud route runs Gemini in a FoundationModels session, which needs iOS 27. On iOS 26 the route
+    /// is off, so a read is Apple's model, then rules.
+    static var cloudRouteSupported: Bool {
+        if #available(iOS 27, *) { return true }
+        return false
     }
 
     /// Why the on-device model is not available, for the Ready check.
@@ -36,6 +49,8 @@ enum ModelSessionFactory {
     /// Tokens for one guided read: instructions, tools, schema and the report. Falls back to
     /// a characters-per-token estimate when the count is not available.
     static func estimateTokens(report: String, tools: [any Tool]) async -> Int {
+        // The model counts tokens from iOS 26.4; before that, the estimate.
+        guard #available(iOS 26.4, *) else { return tokenEstimate(report) }
         let model = SystemLanguageModel.default
         do {
             // Apple's model gets no tools, so none are counted.
@@ -43,12 +58,29 @@ enum ModelSessionFactory {
                                    model.tokenCount(for: report), model.tokenCount(for: ReportReadingG.generationSchema)]
             return parts.reduce(0, +)
         } catch {
-            return 1200 + report.count / 3
+            return tokenEstimate(report)
         }
     }
 
+    /// A characters-per-token estimate, with room for the instructions and the schema.
+    static func tokenEstimate(_ report: String) -> Int { 1200 + report.count / 3 }
+
     /// Maps a thrown model error to the read failure the router understands.
     static func failure(from error: any Error) -> ReadFailure {
+        if #available(iOS 27, *), let f = failureFromIOS27Types(error) { return f }
+        switch error {
+        // What Apple's model throws on iOS 26.
+        case let e as LanguageModelSession.GenerationError: return failure(generation: e)
+        case is CancellationError: return .cancelled
+        case is URLError: return .network
+        case is DecodingError: return .parseFailed
+        default: return .other
+        }
+    }
+
+    /// The error types of iOS 27: Apple's model, Gemini in the same kind of session, and the parser.
+    @available(iOS 27, *)
+    static func failureFromIOS27Types(_ error: any Error) -> ReadFailure? {
         switch error {
         case let e as LanguageModelError:
             switch e {
@@ -75,14 +107,23 @@ enum ModelSessionFactory {
             case .invalidResponse: return CloudFailure.classify(.invalidResponse, statusCode: nil)
             @unknown default: return .other
             }
-        case is CancellationError:
-            return .cancelled
-        case is URLError:
-            return .network
-        case is DecodingError, is GeneratedContent.ParsingError:
+        case is GeneratedContent.ParsingError:
             return .parseFailed
         default:
-            return .other
+            return nil
+        }
+    }
+
+    /// Apple's model's errors on iOS 26 (deprecated on iOS 27 for LanguageModelError).
+    static func failure(generation e: LanguageModelSession.GenerationError) -> ReadFailure {
+        switch e {
+        case .guardrailViolation: return .guardrailBlock
+        case .refusal: return .refusal
+        case .exceededContextWindowSize: return .contextExceeded
+        case .unsupportedLanguageOrLocale, .assetsUnavailable: return .unavailable
+        case .decodingFailure: return .parseFailed
+        case .rateLimited, .concurrentRequests, .unsupportedGuide: return .other
+        @unknown default: return .other
         }
     }
 }
@@ -91,7 +132,7 @@ extension ModelSessionFactory {
     /// A cloud error as the retry sees it: a 429 (the SDK reports it as a rate limit, with the
     /// server's retry delay when one was sent) retries; everything else is a read failure.
     static func cloudAttempt<T: Sendable>(failing error: any Error, now: Date = .now) -> CloudAttempt<T> {
-        if case let .rateLimited(r) = error as? LanguageModelError {
+        if #available(iOS 27, *), case let .rateLimited(r)? = error as? LanguageModelError {
             return .rateLimited(retryAfterSeconds: r.resetDate.map { $0.timeIntervalSince(now) })
         }
         return .done(.failure(failure(from: error)))
@@ -114,6 +155,8 @@ struct FoundationModelRunner: ReadModelRunner {
                 return .failure(ModelSessionFactory.failure(from: error))
             }
         case .cloud:
+            // Gemini in a FoundationModels session needs iOS 27; the reader keeps the route off before that.
+            guard #available(iOS 27, *) else { return .failure(.unavailable) }
             // A 429 retries once after a short wait (CloudRetry); each try is a new session.
             return await CloudRetry.run(sleep: { try? await Task.sleep(for: .seconds($0)) }) {
                 let session = LanguageModelSession(model: ai.geminiLanguageModel(name: cloudModel), tools: tools, instructions: ReportPrompt.guided)
