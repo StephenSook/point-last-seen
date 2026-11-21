@@ -903,6 +903,23 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           </details>
         </aside>
       </div>
+      {/* On a phone the rails run below the map, so the two actions command needs most stay in reach at the bottom. */}
+      <nav className="phone-bar" aria-label="Quick actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!incident || clipping}
+          onClick={() => {
+            setAdding(true);
+            requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));
+          }}
+        >
+          Add sighting
+        </button>
+        <button type="button" className="btn ghost" onClick={() => document.getElementById("plan-h")?.scrollIntoView({ block: "start" })}>
+          Plan
+        </button>
+      </nav>
     </div>
   );
 }

@@ -2047,3 +2047,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
+
+### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
+- What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
+- Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
+- Verified: a new deployed check in `e2e/phone.spec.ts` (the bar at the bottom of a 390 by 844 window; Plan brings the plan into view; Add sighting opens the form in view) failed on the live site (no bar) and runs again after the deploy; the post layout harness, the no-backend set (43), web unit suite (1000), typecheck and the hygiene guard pass.
