@@ -710,6 +710,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onSave={saveSighting}
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
+              cloudPaused={rc.killCloud}
               onClose={() => {
                 setAdding(false);
                 setPin(null);

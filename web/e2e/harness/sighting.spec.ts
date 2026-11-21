@@ -200,3 +200,23 @@ test("a read with no field changed by hand fills every field and says nothing ab
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
   await expect(page.getByText("Suggested from the note. Check every field.", { exact: true })).toBeVisible();
 });
+
+test("with cloud reading paused by command, the form says so and offers no cloud read", async ({ page }) => {
+  await page.goto("/harness/sighting.html?paused=1");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await expect(page.getByText("Cloud reading is paused by command.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Read in the cloud" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "I consent for this note" })).toHaveCount(0);
+});
+
+test("a cloud read refused because command paused cloud reading says so and offers no cloud read", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud&paused=late");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await page.getByRole("button", { name: "I consent for this note" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Cloud reading is paused by command. Fill the fields by hand." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "I consent for this note" })).toHaveCount(0);
+  await expect(page.getByText("The note could not be read.")).toHaveCount(0);
+});
