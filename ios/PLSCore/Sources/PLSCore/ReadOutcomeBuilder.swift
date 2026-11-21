@@ -243,13 +243,15 @@ public enum PhoneNumbers {
         // A note NFKC changes skips the times step: folding can turn other characters into the ASCII digits a run is
         // made of. Compared scalar by scalar, since String equality calls a decomposed note unchanged.
         guard s.unicodeScalars.elementsEqual(text.unicodeScalars) else { return byRule(s) }
-        let parts = ruleParts(s)
         let scalars = Array(s.unicodeScalars)
-        func offset(_ i: String.Index) -> Int { s.unicodeScalars.distance(from: s.startIndex, to: i) }
+        // The step decides on the note's code points, as the web and Android rules do: a mark or selector that a
+        // grapheme cluster would fold into a word or a digit (Call\u{034F}, 15:55\u{FE0F}, #\u{FE0F}\u{20E3}) never hides a
+        // cue or moves a part's end.
+        let parts = scalarRuleParts(scalars)
         var startsAt: [Int: Int] = [:], endsAt: [Int: Int] = [:]
         for (k, p) in parts.enumerated() {
-            startsAt[offset(p.range.lowerBound)] = k
-            endsAt[offset(p.range.upperBound)] = k
+            startsAt[p.start] = k
+            endsAt[p.end] = k
         }
         func slice(_ r: Range<Int>) -> String {
             var v = String.UnicodeScalarView()
@@ -260,16 +262,16 @@ public enum PhoneNumbers {
         for run in timesRuns(scalars) {
             // The run must be a whole number of the shared rule's parts, and no digit, written or spoken, may join it.
             guard let first = startsAt[run.lowerBound], let last = endsAt[run.upperBound] else { continue }
-            let joined = (first > 0 && joins(s, parts[first - 1], parts[first]))
-                || (last + 1 < parts.count && joins(s, parts[last], parts[last + 1]))
+            let joined = (first > 0 && joins(scalars, parts[first - 1], parts[first]))
+                || (last + 1 < parts.count && joins(scalars, parts[last], parts[last + 1]))
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00), which changes how the
             // shared rule groups the digits around it, so such a run stays with the text around it.
-            func month(_ i: Int) -> Bool { i >= 0 && i < parts.count && !parts[i].written && months.contains(word(s, parts[i])) }
+            func month(_ i: Int) -> Bool { i >= 0 && i < parts.count && !parts[i].written && months.contains(word(scalars, parts[i])) }
             if joined || month(first - 1) || month(last + 1) { continue }
             let runText = slice(run)
             // In clock order with no cue it is search information (14:03, 14:10, 14:17); otherwise it could be a
             // number written as times (Call 21:25 5:50 1:42), and the whole run goes: when in doubt, remove.
-            out += byRule(slice(from..<run.lowerBound)) + (inClockOrder(runText) && !cuedRun(s, parts, first) ? runText : replacement)
+            out += byRule(slice(from..<run.lowerBound)) + (inClockOrder(runText) && !cuedRun(scalars, parts, first) ? runText : replacement)
             from = run.upperBound
         }
         return out + byRule(slice(from..<scalars.count))
@@ -378,16 +380,88 @@ public enum PhoneNumbers {
     /// Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it,
     /// or a "#". A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one
     /// of the three words, so "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
-    static func cuedRun(_ s: String, _ parts: [Part], _ first: Int) -> Bool {
+    static func cuedRun(_ u: [Unicode.Scalar], _ parts: [ScalarPart], _ first: Int) -> Bool {
         var j = first - 1, words = 0
         while j >= 0, words < cueWindow {
             if parts[j].digits > 0 { j -= 1; continue }
-            if timeCues.contains(word(s, parts[j])) { return true }
+            if timeCues.contains(word(u, parts[j])) { return true }
             words += 1
             j -= 1
         }
-        let from = j >= 0 ? parts[j].range.upperBound : s.startIndex
-        return s[from..<parts[first].range.lowerBound].contains("#")
+        // By code point: a keycap's "#" (#\u{FE0F}\u{20E3}) is a "#".
+        return u[(j >= 0 ? parts[j].end : 0)..<parts[first].start].contains("#")
+    }
+
+    /// A part as the web and Android rules read it, by code point: a run of digits (a decimal digit in any script, a
+    /// Chinese numeral digit or another number character), counting them, or a run of letters, one digit if it is a
+    /// spoken digit. Offsets are scalar offsets into the note.
+    struct ScalarPart {
+        var start: Int
+        var end: Int
+        var digits: Int
+        let written: Bool
+        var alone = false
+    }
+
+    static let chineseDigits = Set("〇零一二三四五六七八九幺".unicodeScalars)
+    static func isRuleDigit(_ c: Unicode.Scalar) -> Bool { isNumber(c) || chineseDigits.contains(c) }
+
+    static func word(_ u: [Unicode.Scalar], _ p: ScalarPart) -> String {
+        var v = String.UnicodeScalarView()
+        v.append(contentsOf: u[p.start..<p.end])
+        return String(v).lowercased()
+    }
+
+    /// The parts of the note as the shared rule reads them, by code point: a spoken repeat counted, and a street name's
+    /// number set apart.
+    static func scalarRuleParts(_ u: [Unicode.Scalar]) -> [ScalarPart] {
+        var parts: [ScalarPart] = []
+        var i = 0
+        while i < u.count {
+            if isRuleDigit(u[i]) {
+                var j = i
+                while j < u.count, isRuleDigit(u[j]) { j += 1 }
+                parts.append(ScalarPart(start: i, end: j, digits: j - i, written: true))
+                i = j
+            } else if isLetter(u[i]) {
+                // A word stops at a Chinese numeral, which is a digit here.
+                var j = i
+                while j < u.count, isLetter(u[j]), !isRuleDigit(u[j]) { j += 1 }
+                let p = ScalarPart(start: i, end: j, digits: 0, written: false)
+                parts.append(ScalarPart(start: i, end: j, digits: digitWords.contains(word(u, p)) ? 1 : 0, written: false))
+                i = j
+            } else {
+                i += 1
+            }
+        }
+        for i in parts.indices.dropLast() {
+            guard let extra = repeats[word(u, parts[i])], !parts[i].written, parts[i + 1].digits > 0,
+                  joinsGap(u[parts[i].end..<parts[i + 1].start]) else { continue }
+            parts[i].digits = extra
+        }
+        for i in parts.indices where parts[i].written && parts[i].digits <= 3 && i + 2 < parts.count && !parts[i + 1].written
+            && parts[i + 1].start == parts[i].end && ordinals.contains(word(u, parts[i + 1]))
+            && !parts[i + 2].written && streets.contains(word(u, parts[i + 2])) {
+            let gap = u[parts[i + 1].end..<parts[i + 2].start]
+            if !gap.isEmpty, gap.allSatisfy(isKotlinSpace) { parts[i].alone = true }
+        }
+        return parts
+    }
+
+    /// Whether part a joins the part b right after it into one number, by code point.
+    static func joins(_ u: [Unicode.Scalar], _ a: ScalarPart, _ b: ScalarPart) -> Bool {
+        a.digits > 0 && b.digits > 0 && !a.alone && !b.alone && joinsGap(u[a.end..<b.start])
+    }
+
+    /// A gap that joins two parts: anything but a mark in `notASeparator`, as `onlySeparators` reads it.
+    static func joinsGap(_ gap: ArraySlice<Unicode.Scalar>) -> Bool { !gap.contains(where: notASeparator.contains) }
+
+    /// Kotlin's whitespace: Java's (with the information separators U+001C to U+001F) plus every space separator.
+    static func isKotlinSpace(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
+        default: return ["\t", "\n", "\u{0B}", "\u{0C}", "\r", "\u{1C}", "\u{1D}", "\u{1E}", "\u{1F}"].contains(c)
+        }
     }
 
     /// The shared rule on its own, as every platform runs it, without the run-of-times step.

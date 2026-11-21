@@ -133,6 +133,17 @@ import Testing
         for e in c.exact { #expect(Array(PhoneNumbers.scrub(e.input).utf8) == Array(e.output.utf8), "\(e.name)") }
     }
 
+    /// The step reads the note by code point, as the web and Android rules do, so a mark or selector that a grapheme
+    /// cluster would fold into a word or a digit never hides a cue or moves the run's end.
+    @Test(arguments: [
+        ("Call\u{034F} 4:04 15:55", "Call\u{034F} [number removed]"),
+        ("Call 4:04 15:55\u{FE0F}", "Call [number removed]\u{FE0F}"),
+        ("Code #\u{FE0F}\u{20E3}4:04 15:55", "Code #\u{FE0F}\u{20E3}[number removed]"),
+    ])
+    func marksAndSelectorsNeverHideACue(input: String, output: String) {
+        #expect(Array(PhoneNumbers.scrub(input).utf8) == Array(output.utf8))
+    }
+
     /// A "#" between the run and the words read before it is a cue too.
     @Test func aHashBeforeTheRunIsACue() {
         #expect(PhoneNumbers.scrub("Code #4:04 5:55 6:42 tonight") == "Code #[number removed] tonight")

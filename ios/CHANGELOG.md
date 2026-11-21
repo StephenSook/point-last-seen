@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the run-of-times step reads the note by code point
+- What: the run-of-times step now decides on the note's code points, with the web and Android rules' own parts
+  (digits and words by code point, a spoken repeat counted, a street name's number apart), instead of the iPhone's
+  grapheme-based parts. A combining mark or selector that a grapheme cluster folds into a word or a digit no longer
+  hides a cue or moves the run's end: "Call<U+034F> 4:04 15:55", "Call 4:04 15:55<U+FE0F>" and a keycap "#"
+  before a run each kept a number the web removes. The text between decided runs still follows the shared rule.
+- Source: review of the run-of-times port against the web rule.
+- Verified: the three inputs as tests failed before the change and pass after; 451 PLSCore tests pass; the web
+  rule's corpus (60,116 rows) still matches byte for byte; all 116 cases of the run-of-times vectors file pass with
+  none pending on the iPhone.
+
 ### test(ios-core): a case pending on the iPhone must still fail there
 - What: the test that ran every case marked pending on the iPhone and expected it to pass (true only while every mark
   was a port already done) now expects the opposite: a pending case is a known gap, so it must still fail here with
