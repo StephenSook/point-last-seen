@@ -82,6 +82,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- scripts: the heavy-slot waiting line names every process with the busy slot's lock file open (lsof -t, sorted,
+  joined) instead of the first one listed, and the slot tests hold a slot until the waiting line appears, then let it
+  go (run_until_waiting), instead of for a fixed 3 s. lsof lists every opener, a waiter's own lockf attempt too,
+  lowest PID first, and a loaded machine could take longer than 3 s to print the line, so two tests failed at random
+  when several sessions ran the gates. Source: review. Verified:
+  test_the_waiting_line_names_the_holder_even_when_another_process_has_the_file_open failed on the old script (it
+  named the opener), then passes; scripts/test_ci_local.py passes 13/13 in five runs, three of them at the same time.
+- scripts/heavy.sh names every process with the busy slot's lock file open (lsof -t, sorted, joined) instead of the
+  first one listed, and the slot tests check that the holder is among them. lsof lists every opener, the waiter's own
+  lockf attempt too, lowest PID first, so on a busy machine the waiting line named a waiter and two tests failed at
+  random when several sessions ran the gates. Source: review. Verified:
+  test_the_waiting_line_names_the_holder_even_when_another_process_has_the_file_open failed on the old script (it
+  named the opener, not the holder), then passes; scripts/test_ci_local.py passes 13/13 three runs in a row.
 - tools/seed: the incident is read before the segments are listed, so the commit's updateTime precondition fails a run
   that a concurrent seed overtook between the reads, before any write; listed first, the stale list passed with the
   newer updateTime and left a mixed grid. Source: review (cross-family). Verified:
