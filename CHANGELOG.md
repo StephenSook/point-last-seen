@@ -15,6 +15,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   joiner sequences and emoji modifiers; `tools/vectors/phone_corpus_cli.ts --write` writes it and `--check` exits 1
   unless the file is exactly what it would write. Source: review (one corpus every platform checks, so a port that
   drifts fails its own CI). Verified: `--write` then `--check` passes; the web test that imports the generator passes.
+- Phone vectors README: the colon-gap paragraph says the remaining gap is two times beside a month name; two times after
+  a cue with no month are removed whole by the run-of-times step. Source: review (merging the run-of-times step with the
+  colon-gap cases). Verified: the vector tests pass; the hygiene guard passes.
+- Phone vectors README: the list of search information that can sit inside a digit run no longer names "a number with a
+  unit"; no platform's rule keeps one there (a short quantity glued to a unit, `5km`, stays because it never reaches
+  seven digits). Source: review (the iPhone port's notes). Verified: the hygiene guard passes.
+- Phone vectors: the 12 run-of-times cases are no longer pending on the iPhone, whose port is merged (main 20391d1f);
+  `docs/LIMITS.md` counts every platform at 116 of 116. Source: the iPhone port merged. Verified:
+  `scripts/test_phone_vectors.py` passes; the iPhone port matched the web rule on every row of the generated corpora
+  (local evidence, not in the repo).
 - Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
   210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
   `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
@@ -91,6 +101,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   times were removed as a phone number). Verified: the two new cases failed on the web first, then passed with every
   phone case (146); `scripts/test_phone_vectors.py` (the cases pinned, well formed, and the LIMITS counts) passes; web
   unit suite (1166), typecheck, the gates (329) and the hygiene guard pass.
+- Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
+  1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
+  ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
+  `docs/evidence/web/2026-11-21-note-read-offline-deployed.json` and its screenshot. Source: review (the iPhone already
+  has a network-off row). Verified: `scripts/test_test_matrix.py` passes; the hygiene guard passes.
 - Docs: the README's Android row and the production checklist name android-judge-4
   (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
@@ -193,6 +208,29 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test(vectors): five shared phone-number cases for a known gap, pending on every platform: a colon breaks a digit
+  run, so a number written as two times after a cue or beside a month ("Call 5:55 01:42 May", "May 5:55 01:42", "Text
+  5:55 07:14 May", "Call May 5:55 01:42") survives; the fifth, "Seen 14 May 5:55 01:42", is an exact case that keeps
+  the date. They are cases to remove, never to keep; issue #298 tracks closing the gap. LIMITS now counts 108 cases,
+  each platform still passing its 103, and the vectors README gives the reason. Source: review (phone rule gap found
+  by an automated security review, ruled a documented gap). Verified: test_phone_vectors.py (the pinned lists and the
+  LIMITS count) passes; the web phone runner passes 144 with the five skipped as pending; the public hygiene guard
+  passes.
+- docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
+  has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
+  path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  judge page for on-device claims; only the README's three lines claimed more than ran.
+- functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
+  read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
+  deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
+  purge marker present: removal refused, no record written) failed first, then passes; 364 functions and rules tests
+  pass; no live drill has a purge marker.
+- functions: removeMember refuses a missing or expired incident (permission-denied, not_command), as
+  deleteIncidentMediaNow and rotateJoinCode do, reading it inside its transaction, so no removal record is written
+  under a deleted drill; a closed search still allows a removal. Source: review (deferred minor from member removal).
+  Verified: a new case (missing incident and expired incident refused with no record written; a closed one allowed)
+  failed first, then passes; 363 functions and rules tests and the typecheck pass.
 - evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
   report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
   over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written

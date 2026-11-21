@@ -141,6 +141,11 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
 - `pendingOn` (optional, on any case): the platforms (`ios`, `web`, `android`) whose rule does not pass that case
   yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
   is removed from the list. Every runner checks all three case types.
+  The five `colon_gap_*` cases are pending on every platform: a known gap, not behaviour we want. A colon breaks a
+  digit run, so a number written as two times beside a month name ("Call 5:55 01:42 May") survives (two times after a
+  cue with no month beside them are removed whole by the run-of-times step); issue
+  #298 tracks closing it. Four are `mustRemove` and one is `exact` (it keeps the date beside the times); none is ever
+  moved to `mustKeep`.
 
 The rule below is the shared one. Its reference is the Android family app's
 `android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`, and the iPhone's matches it; where a
@@ -154,7 +159,7 @@ a time, a percent and a degree and so never join (a CRLF, or a line break with i
 a joiner
 inside a gap counts as nothing; a gap never holds a letter or a digit, since those are parts of their own). Search
 information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
-ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+ZIP+4 code after a state, a month-name date); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
 digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
 follows it (`67th Ave`, `142nd St`: St, Ave, Rd, Blvd, Dr, Ln, Way, Pl, Ct, Pkwy, Hwy or their full forms); otherwise

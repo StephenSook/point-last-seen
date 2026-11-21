@@ -13,8 +13,8 @@ Its Measured block shows where stored report reads and plan wording ran and the 
 
 ## What it does
 
-Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model
-and redraws the probability shading of their segments. When a connection returns, the command post merges every
+Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model,
+where the phone has one, and redraws the probability shading of their segments. When a connection returns, the command post merges every
 report and drafts new assignments, and a person at command approves every assignment change. The family shares a
 profile, notes, photos and camera clips from their own app, and decides which of them may be read in the cloud.
 
@@ -45,7 +45,8 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Four calls
   use server prompt templates; `docs/SECURITY.md` lists every call.
 - On-device reads on the web and on Android use Firebase AI Logic's hybrid inference (the browser's or the phone's
-  own model, with the cloud as the fallback where a call allows it).
+  own model, with the cloud as the fallback where a call allows it). On Android this is the code path only: it has not
+  been run on a phone with Gemini Nano (`docs/TEST-MATRIX.md`).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
   The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules.
@@ -67,7 +68,7 @@ is missing.
 - AI, all through Firebase AI Logic: on the web, the Firebase JS SDK's hybrid inference (the laptop's built-in model
   in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the cloud, for plan wording); on
   iPhone, Apple's Foundation Models on the device and Gemini in the cloud; on Android, Firebase AI Logic's on-device
-  and cloud models. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
+  path (code path only, not run on a phone with Gemini Nano) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
   the listed models and bounds each reply.
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
