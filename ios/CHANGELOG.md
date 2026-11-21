@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios): the phone shows at once when command ends its search
+- What: while a search is loaded, the phone listens to its incident, so when command ends the search the phone
+  shows it at once instead of at its next access check, which could be long after. It shows the command post's own
+  line ("Search ended: training ended. No new reports are taken.", with the reason command gave, or "Search ended.
+  No new reports are taken." without one), drops the mission so nothing more can be sent, and keeps that search's
+  reports on the task screen, read-only. A report the server refused because the search had ended says "Not taken:
+  the search had ended." and offers no retry. The same line and list come from every way the phone learns it: the
+  listener, the access check, a push it opens, and a load at launch. A new mission clears it. Any status other than
+  closed keeps the older "This incident is not open for searching."
+- Source: review of End this search (a phone with the report screen open kept offering Send).
+- Verified: tests for the line per reason, the refused receipt, the listener ending the search at once (an open
+  snapshot and a late snapshot change nothing), the access check and a push carrying the reason, and the ended
+  search's reports until a new mission; each failed before the change and passes after. 450 PLSCore and 251 app
+  tests pass.
+
 ### fix(ios): only a cleared report is filled, and only a stated coverage refuses the read
 - What: numbers matter only to a cleared report, so a sighting or clue is no longer filled from the rules ("There were
   200 people at the entrance" no longer costs a valid sighting). In a cleared report, a stated coverage the app

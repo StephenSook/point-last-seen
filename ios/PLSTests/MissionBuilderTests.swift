@@ -34,15 +34,17 @@ enum DrillDocs {
         return docs.compactMap { if case let .object(f)? = $0["fields"] { .object(f.mapValues(plain)) } else { nil } }
     }
 
-    static func incident(status: String = "open", priorVersion: Double = 5) throws -> JSONValue {
+    static func incident(status: String = "open", priorVersion: Double = 5, closedReason: String? = nil) throws -> JSONValue {
         let constants = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: root.appendingPathComponent("shared/constants/engine-params.json")))
-        return .object([
+        var fields: [String: JSONValue] = [
             "name": .string("Drill dev 1"), "mode": .string("drill"), "drillLabel": .string("DRILL"), "status": .string(status),
             "ipp": .null, "ippSource": .string("typed"), "plsTimeMs": .null, "terrain": .string("urban"),
             "priorVersion": .number(priorVersion), "priorModel": .string("rings"), "priorSeed": .number(20261122),
             "priorInputEventIds": .array([.string("e1")]), "engineParams": constants["params"] ?? .null, "gridId": .null,
             "conditions": .object(["tempF": .number(38), "wet": .bool(true), "setAtMs": .number(1000)]),
-        ])
+        ]
+        if let closedReason { fields["closedReason"] = .string(closedReason) }
+        return .object(fields)
     }
 
     static func plan(segmentIds: [String], task: String = "Walk the creek bank.", version: Double = 2, team: String = "T1") -> JSONValue {
@@ -119,7 +121,7 @@ enum DrillDocs {
 
     @Test func aMissionThatCannotBeTrustedIsRefusedInWords() throws {
         let segments = try DrillDocs.segments()
-        #expect(throws: MissionBuilder.Failure.notOpen) {
+        #expect(throws: MissionBuilder.Failure.notOpen("This incident is not open for searching.")) {
             try MissionBuilder.build(incidentId: "d", teamId: "T1", docs: MissionDocs(incident: try DrillDocs.incident(status: "found"), segments: segments),
                                      bundledParams: params)
         }

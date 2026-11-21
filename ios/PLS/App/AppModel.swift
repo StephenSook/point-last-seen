@@ -77,6 +77,9 @@ final class AppModel {
     /// Names the plan listener in place: a callback from a retired one (queued before it stopped)
     /// is ignored, also after a move away and back to the same team.
     @ObservationIgnored private var planWatchId = 0
+    /// Stops listening for the loaded mission's incident (command ending the search), named like the plan listener.
+    @ObservationIgnored private var stopIncidentWatch: (@Sendable () -> Void)?
+    @ObservationIgnored private var incidentWatchId = 0
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
     /// Counts every time the mission is dropped (never on a reload of the same one): a report read across a drop is
@@ -415,10 +418,13 @@ final class AppModel {
             // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
             guard generation == missionGeneration else { return .superseded }
             watchPlans(incidentId: incidentId, teamId: teamId)
+            watchIncident(incidentId: incidentId)
             followTopicSoon()
             await refreshAlerts()
             return .loaded
         } catch let failure as MissionBuilder.Failure {
+            // A search that is no longer open keeps its reports on screen, with the line saying why.
+            if case let .notOpen(line) = failure { endedSearch = EndedSearch(incidentId: incidentId, line: line) }
             return .failed(failure)
         } catch MissionReadError.accessDenied {
             return .denied
@@ -502,6 +508,38 @@ final class AppModel {
     var signInLine: String? {
         guard mission?.isPractice != true else { return nil }
         return signedIn ? "Signed in" : "Not signed in. Stay in signal."
+    }
+
+    /// A search command ended while this phone was in it: its id and what the phone says.
+    struct EndedSearch: Equatable {
+        let incidentId: String
+        let line: String
+    }
+    private(set) var endedSearch: EndedSearch?
+    /// The ended search's reports, shown read-only on the task screen.
+    var endedEntries: [OutboxEntry] {
+        guard let incidentId = endedSearch?.incidentId else { return [] }
+        return store?.entries.filter { $0.doc.incidentId == incidentId } ?? []
+    }
+
+    /// Command ended the search this phone is in: the mission goes, so nothing more can be sent to it, the phone says
+    /// so in the command post's words, and that search's reports stay on screen, read-only.
+    private func searchEnded(incidentId: String, line: String) {
+        dropMissionNow()
+        endedSearch = EndedSearch(incidentId: incidentId, line: line)
+        joinMessage = line
+    }
+
+    /// Listens to the loaded mission's incident, so a search command ends shows as ended at once, not at the next
+    /// access check. A callback from a retired listener, or for a mission no longer loaded, changes nothing.
+    private func watchIncident(incidentId: String) {
+        stopIncidentWatch?()
+        incidentWatchId += 1
+        let id = incidentWatchId
+        stopIncidentWatch = missionReader.watchIncident(incidentId: incidentId) { [weak self] state in
+            guard let self, self.incidentWatchId == id, !state.isOpen, self.mission?.incidentId == incidentId else { return }
+            self.searchEnded(incidentId: incidentId, line: state.endedLine)
+        }
     }
 
     static let leaveNeedsDelete = "Could not delete this phone's sign-in. Stay in signal, then leave again."
@@ -623,6 +661,9 @@ final class AppModel {
         stopPlanWatch?()
         stopPlanWatch = nil
         planWatchId += 1
+        stopIncidentWatch?()
+        stopIncidentWatch = nil
+        incidentWatchId += 1
         mission = nil
         offersAlerts = false
         // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
@@ -704,9 +745,8 @@ final class AppModel {
         case .unread:
             // The server could not be reached: the offline path, for the same user only.
             if heldByThisUser, matchesLoaded() { requestTaskOpen(in: session) } else { joinMessage = Self.missionUnread }
-        case .failed(.notOpen):
-            await dropMission()
-            joinMessage = MissionBuilder.Failure.notOpen.message
+        case let .failed(.notOpen(line)):
+            searchEnded(incidentId: incidentId, line: line)
         case let .failed(failure):
             joinMessage = failure.message
         case .denied:
@@ -836,10 +876,9 @@ final class AppModel {
             // The claims are unchanged, but command may have closed the incident: when its status
             // can be read and is no longer open, the mission goes. With no signal it stays.
             let generation = missionGeneration
-            guard let status = try? await missionReader.incidentStatus(incidentId: incidentId),
-                  check == accessCheck, isCurrent(session), generation == missionGeneration, status != "open" else { return }
-            await dropMission()
-            joinMessage = MissionBuilder.Failure.notOpen.message
+            guard let state = try? await missionReader.incidentState(incidentId: incidentId),
+                  check == accessCheck, isCurrent(session), generation == missionGeneration, !state.isOpen else { return }
+            searchEnded(incidentId: incidentId, line: state.endedLine)
             return
         }
         // Another incident or team now: the old mission, its plan listener and its spoken updates
@@ -872,6 +911,8 @@ final class AppModel {
     /// any sound and before the phone's own voice stands in: a drop, a newer load or a newer plan
     /// meanwhile keeps it silent.
     func load(_ mission: Mission) async {
+        // A mission on screen again replaces any search that ended.
+        endedSearch = nil
         let newIncident = self.mission?.incidentId != mission.incidentId
         let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
         // Another incident or team, or a task that changed or was taken away: whatever was being said

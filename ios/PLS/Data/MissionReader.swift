@@ -7,6 +7,26 @@ enum MissionReadError: Error, Equatable {
     case accessDenied
 }
 
+/// An incident's state as the phone needs it: whether it is open, and why command ended it.
+struct IncidentState: Sendable, Equatable {
+    var status: String?
+    var closedReason: String?
+
+    init(status: String?, closedReason: String?) {
+        self.status = status
+        self.closedReason = closedReason
+    }
+
+    init(incident: JSONValue) {
+        if case let .string(s)? = incident["status"] { status = s } else { status = nil }
+        if case let .string(r)? = incident["closedReason"] { closedReason = r } else { closedReason = nil }
+    }
+
+    var isOpen: Bool { status == "open" }
+    /// What the phone says once the incident is not open (the command post's own line for a search it ended).
+    var endedLine: String { EchoText.endedLine(status: status, closedReason: closedReason) }
+}
+
 /// Reads the member-readable documents a mission is built from.
 protocol MissionReader: Sendable {
     /// `fromServer` reads only from the server (a push tap), never from the cache; it throws when
@@ -15,9 +35,12 @@ protocol MissionReader: Sendable {
     /// Calls `onPlan` with the latest approved plan now and whenever command approves a newer one;
     /// the result stops listening.
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void
-    /// The incident's `status` ("open" while searching); nil when it has none. Throws when it
+    /// The incident's status ("open" while searching) and the reason command gave for ending it. Throws when it
     /// cannot be read.
-    func incidentStatus(incidentId: String) async throws -> String?
+    func incidentState(incidentId: String) async throws -> IncidentState
+    /// Calls `onState` with the incident's state now and whenever it changes (command ends the search); the result
+    /// stops listening.
+    func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void
 }
 
 extension MissionReader {
@@ -49,8 +72,19 @@ struct FirestoreMissionReader: MissionReader {
         }
     }
 
-    func incidentStatus(incidentId: String) async throws -> String? {
-        try await Firestore.firestore().collection("incidents").document(incidentId).getDocument().data()?["status"] as? String
+    func incidentState(incidentId: String) async throws -> IncidentState {
+        let data = try await Firestore.firestore().collection("incidents").document(incidentId).getDocument().data()
+        return IncidentState(status: data?["status"] as? String, closedReason: data?["closedReason"] as? String)
+    }
+
+    func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void {
+        let registration = Firestore.firestore().collection("incidents").document(incidentId).addSnapshotListener { snapshot, _ in
+            guard let data = snapshot?.data() else { return }
+            let state = IncidentState(status: data["status"] as? String, closedReason: data["closedReason"] as? String)
+            Task { @MainActor in onState(state) }
+        }
+        let box = Registration(registration)
+        return { box.remove() }
     }
 
     func watchLatestPlan(incidentId: String, onPlan: @escaping @MainActor (JSONValue) -> Void) -> @Sendable () -> Void {

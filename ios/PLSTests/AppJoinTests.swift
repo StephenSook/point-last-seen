@@ -79,11 +79,21 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     }
 
     private(set) var statusReads = 0
-    func incidentStatus(incidentId: String) async throws -> String? {
+    func incidentState(incidentId: String) async throws -> IncidentState {
         statusReads += 1
         guard let docs else { throw URLError(.notConnectedToInternet) }
-        if case let .string(s)? = docs.incident["status"] { return s }
-        return nil
+        return IncidentState(incident: docs.incident)
+    }
+
+    /// The incident listener: which incidents were watched, how many watches stopped, and the callback to send a
+    /// snapshot of the incident's state through.
+    private(set) var incidentWatching: [String] = []
+    private(set) var incidentStops = 0
+    var onIncident: (@MainActor (IncidentState) -> Void)?
+    func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void {
+        incidentWatching.append(incidentId)
+        onIncident = onState
+        return { [weak self] in self?.incidentStops += 1 }
     }
 }
 
@@ -91,10 +101,10 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
 /// before gets it back from the token's claims.
 @MainActor
 @Suite struct AppJoinTests {
-    func drillDocs(status: String = "open") throws -> MissionDocs {
+    func drillDocs(status: String = "open", closedReason: String? = nil) throws -> MissionDocs {
         let segments = try DrillDocs.segments()
         let first = segments.compactMap { if case let .string(id)? = $0["segmentId"], id != "ROW" { id } else { nil } }.first ?? ""
-        return MissionDocs(incident: try DrillDocs.incident(status: status), segments: segments,
+        return MissionDocs(incident: try DrillDocs.incident(status: status, closedReason: closedReason), segments: segments,
                            plan: DrillDocs.plan(segmentIds: [first]), sharedProfile: DrillDocs.shared)
     }
 
@@ -498,9 +508,45 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         reader.docs = nil
         await m.trySignIn()
         #expect(m.mission?.teamId == "T1")
-        reader.docs = try drillDocs(status: "closed")
+        reader.docs = try drillDocs(status: "closed", closedReason: "suspended")
         await m.trySignIn()
-        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == "This incident is not open for searching.")
+        let line = "Search ended: search suspended. No new reports are taken."
+        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == line && m.endedSearch?.line == line)
+    }
+
+    /// Command ends the search while the phone is open on it: the incident listener says so at once, in the command
+    /// post's own words, and the mission goes, so nothing more can be sent to it.
+    @Test func aSearchEndedWhileOpenIsShownAtOnce() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && reader.incidentWatching == ["drill-dev-1"])
+        reader.onIncident?(IncidentState(status: "open", closedReason: nil))
+        #expect(m.mission != nil && m.endedSearch == nil)
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        let line = "Search ended: training ended. No new reports are taken."
+        #expect(m.mission == nil && m.endedSearch?.incidentId == "drill-dev-1" && m.endedSearch?.line == line)
+        #expect(m.joinMessage == line && reader.incidentStops == 1 && reader.stops == 1)
+    }
+
+    /// The ended search's reports stay on screen, read-only, until a new mission loads.
+    @Test func theEndedSearchKeepsItsReportsUntilANewMission() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.mission == nil && m.endedEntries.count == 1)
+        // A snapshot for the ended search after it ended changes nothing.
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        #expect(m.endedSearch?.line == "Search ended: person found. No new reports are taken.")
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && m.endedSearch == nil && m.endedEntries.isEmpty)
     }
 
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
@@ -762,7 +808,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     @Test func aMissionThatCannotBeReadSaysWhy() async throws {
         let closed = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs(status: "found")))
         await closed.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
-        #expect(closed.joinMessage == MissionBuilder.Failure.notOpen.message && closed.mission == nil)
+        #expect(closed.joinMessage == "This incident is not open for searching." && closed.mission == nil)
         let offline = model(FakeJoinBackend(), FakeMissionReader(docs: nil))
         await offline.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
         #expect(offline.joinMessage == AppModel.missionUnread && offline.mission == nil)

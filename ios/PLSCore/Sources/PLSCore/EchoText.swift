@@ -80,6 +80,23 @@ public enum EchoText {
     /// A read's time in seconds with one decimal.
     public static func seconds(_ ms: Double) -> String { String(format: "%.1f s", ms / 1000) }
 
+    /// The reasons command can give for ending a search, with the command post's own labels (web endSearch.ts).
+    static let endReasons: [String: String] = ["found": "Person found", "suspended": "Search suspended", "training_ended": "Training ended"]
+
+    /// What the phone says once its search is no longer open: for a search command ended, the command post's own
+    /// line, with its reason when the phone knows it; for any other status, that the incident is not open.
+    public static func endedLine(status: String?, closedReason: String?) -> String {
+        guard status == "closed" else { return "This incident is not open for searching." }
+        guard let label = closedReason.flatMap({ endReasons[$0] }) else { return "Search ended. No new reports are taken." }
+        return "Search ended: \(label.lowercased()). No new reports are taken."
+    }
+
+    /// The receipt's delivery line in a search that has ended: a report the server refused says why.
+    public static func deliveryLine(_ state: OutboxState, searchEnded: Bool) -> String {
+        if searchEnded, case .rejected = state { return "Not taken: the search had ended." }
+        return deliveryLine(state)
+    }
+
     public static func deliveryLine(_ state: OutboxState) -> String {
         switch state {
         case .pending: return "On this phone only"
