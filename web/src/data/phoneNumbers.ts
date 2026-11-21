@@ -2,9 +2,9 @@
 // line from the Android family app (android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt) and
 // checked against shared/test-vectors/phone-numbers.json. Seven or more digits in a row are a number: written
 // digits (any script, full-width folded, Chinese numerals, circled and other number characters) and spoken digit
-// words count alike, joined by any separators (spaces, punctuation and symbols, any number of them, but never
-// : % ° ; | ! or ?, which mark a time, a percent or a degree or end a field; a line break with its indent counts as
-// one, and accents or joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
+// words count alike, joined by any separators (spaces, punctuation and symbols, any number of them, but never ":"
+// "%" or "°", which mark a time, a percent or a degree; a line break with its indent counts as one, and accents or
+// joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
 //
 // Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a ZIP+4
 // code after a state, a month-name date. It stays only when the rest of the run is nothing or whole numbers of
@@ -52,9 +52,10 @@ const STREETS = new Set(["ave", "avenue", "st", "street", "rd", "road", "blvd", 
 // US state and territory codes, written in capitals (GA 30301-1234); lower case would match common words.
 const STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR", "GU", "VI"]);
 
-// Matched against a gap after flat(), so a space is " " and a line break "\n". A comma (with up to two spaces around
-// it, and a minus after), or a minus with a space before it: a bare minus between two decimals is a dotted number.
-const COORDINATE_GAP = /^(?:[ \n]{0,2},[ \n]{0,2}-?|[ \n]{1,2}-)$/;
+// Matched against a gap after flat(), so a space is " " and a line break "\n". A comma, semicolon, bullet, middle dot,
+// bar or slash (with up to two spaces around it, and a minus after), or a minus with a space before it: a bare minus
+// between two decimals is a dotted number.
+const COORDINATE_GAP = /^(?:[ \n]{0,2}[,;\u2022\u00b7|/][ \n]{0,2}-?|[ \n]{1,2}-)$/;
 const MONTH_DAY_GAP = /^\.?[ \n]{1,2}$/;
 const DAY_MONTH_GAP = /^[ \n]{1,2}$/;
 const YEAR_GAP = /^,?[ \n]{1,2}$/;
@@ -213,6 +214,14 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
     if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.test(flat(gap(i + 1, i + 2), true)) && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
       for (const j of range(i, i + 3)) kept.add(j);
     }
+    // A radio frequency (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a dotted chain
+    // (404.555.0142) and not after a "+". Beside any other short piece it goes with the run, as every span does.
+    if (written(i + 1) && gap(i, i + 1) === "." && len(i) <= 3 && len(i + 1) === 3 && isAsciiNumber(text(i)) && isAsciiNumber(text(i + 1))
+      && !(i > 0 && parts[i - 1]!.digits > 0 && gap(i - 1, i) === ".") && !(written(i + 2) && gap(i + 1, i + 2) === ".")
+      && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
+      kept.add(i);
+      kept.add(i + 1);
+    }
     if (len(i) === 5 && written(i + 1) && gap(i, i + 1) === "-" && len(i + 1) === 4 && i > 0 && !parts[i - 1]!.written && STATES.has(text(i - 1)) && gap(i - 1, i) === " ") {
       kept.add(i);
       kept.add(i + 1);
@@ -301,9 +310,10 @@ function isDate(s: string, a: Part, b: Part, c: Part): boolean {
   return between(x, 1, 31) && between(y, 1, 31) && (between(x, 1, 12) || between(y, 1, 12));
 }
 
-// The marks that never join a number: a time (14:03), a percent (45%) and a degree (33.7490°) are search information,
-// and ; | ! ? end a field or a clause (GPS 33.7490; -84.3880, Radio 155.160 | 154.205); none sits inside a phone number.
-const NOT_A_SEPARATOR = ":%°;|!?";
+// The marks that never join a number: a time (14:03), a percent (45%) and a degree (33.7490°) are search information.
+// Every other mark joins, so 404|555|0142 and 404;555;0142 are removed; a coordinate pair or a radio frequency between
+// such marks stays through its own span (searchSpans).
+const NOT_A_SEPARATOR = ":%°";
 
 /**
  * What may sit between the parts of one number, read after flat(): anything but a mark in NOT_A_SEPARATOR, any amount
