@@ -7,6 +7,9 @@ public enum EchoText {
     /// the map only once command confirms it.
     /// In the practice drill (`practice`) there is no command to ask, so "Ask command." becomes what
     /// to do in a real search; every other line stays the same.
+    /// The receipt's line when a number in the reading came from the rules parser, not the model.
+    public static let numbersByRules = "Numbers read by rules."
+
     public static func effectLine(_ effect: Effect, type: EventType, practice: Bool) -> String {
         let line = effectLine(effect, type: type)
         let ask = "Ask command."
@@ -49,6 +52,14 @@ public enum EchoText {
     /// Why a report was kept off a route, shown under it; nil when nothing was refused.
     public static func refusalLine(_ route: RouteRecord) -> String? {
         route.reason == .notEnglish ? "This note doesn't look like English, so it isn't sent to the cloud to be read. Pick instead of typing." : nil
+    }
+
+    /// Under a report read from a photo: it was read on the phone and the photo was not kept, and when code found it
+    /// like the family's description, that too. Nil for any other report.
+    public static func photoLine(inputMethod: InputMethod, reading: JSONValue?) -> String? {
+        guard inputMethod == .photo else { return nil }
+        let kept = "Read from a photo on this phone. The photo was not kept."
+        return reading?["matchesProfile"] == .string(ProfileMatch.consistent.rawValue) ? kept + " Like the family's description." : kept
     }
 
     /// Why the router chose a route, in plain words for the route check screen.

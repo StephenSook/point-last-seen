@@ -19,6 +19,12 @@ function Harness() {
       <header className="post-head">
         <span className="drill">Synthetic layout, not drill data.</span>
       </header>
+      {/* ?offline=1: the line the command post shows when the link drops, between the header and the body. */}
+      {new URLSearchParams(location.search).get("offline") === "1" && (
+        <p className="error" role="status">
+          No connection. Showing the last data received.
+        </p>
+      )}
       <div className="post-body">
         <aside className="rail" aria-label="Teams">
           {filler(40, "Team")}

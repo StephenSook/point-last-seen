@@ -3,9 +3,10 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoOnDevice } from "../ai/photoCues";
+import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
+import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
@@ -22,7 +23,7 @@ import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
 import { revokedAtMs, usePhotoTray } from "../photos/usePhotoTray";
 import { readStoredPhotoInCloud } from "../photos/cloudRead";
-import { REPLY_TIMEOUT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
+import { WORDING_WAIT_MS, wordPlan, type PlanDraft, type WordedPlan } from "../ai/replanWording";
 import { parseRc, startRemoteConfig, type WebRc } from "../config/rc";
 import { onDeviceAvailable } from "../ai/gate";
 import { NOTE_READ_TIMEOUT_MS, readSightingText, readSightingTextInCloud } from "../ai/sightingText";
@@ -30,37 +31,48 @@ import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } 
 import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
 import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
+import { buildConfirmation, buildRetraction, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
-import { sightingCards } from "./sightingCards";
+import { sightingCards, type SightingCard } from "./sightingCards";
 import { PURPOSE_LINE } from "../purpose";
 import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
+import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
+import { FlagsPanel } from "./FlagsPanel";
+import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
+import { MembersPanel } from "./MembersPanel";
+import { endedLine, endSearch, writesOpen } from "../data/endSearch";
+import { EndSearch } from "./EndSearch";
+import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { ReportsPanel } from "./ReportsPanel";
+import { reportCards } from "./reportCards";
+import { FirstReportCard, type FirstReportState } from "./FirstReportCard";
+import { FIRST_REPORT_LINE, firstReportInput, offerFirstReport } from "./firstReport";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
 import { perfSink } from "../telemetry/perf";
 import { recordInference } from "../telemetry/trace";
 import { LayerSwitches } from "./LayerSwitches";
 import { PriorSwitch, WALKER_SENTENCE, type PriorChoice } from "./PriorSwitch";
-import { loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
+import { graphFor, loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
-import { priorWrites, rebuildPrior } from "../prior/rebuild";
+import { assertCurrentGrid, elevationDropNote, elevationDropReason, priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
+import { elevationFor, loadElevationM } from "../prior/elevation";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
@@ -73,6 +85,7 @@ import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
+import type { PaperRead } from "./DebriefPaperRead";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -174,6 +187,14 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // An error about one field shows under that field, marks it invalid and takes the focus there.
+  const errField = err ? joinErrorField(err) : null;
+  const incidentInput = useRef<HTMLInputElement>(null);
+  const codeInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (errField === "incident") incidentInput.current?.focus();
+    if (errField === "code") codeInput.current?.focus();
+  }, [err, errField]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -215,13 +236,25 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
       <form onSubmit={submit}>
         <label>
           Incident id
-          <input value={incidentId} onChange={(e) => setIncidentId(e.target.value)} autoComplete="off" />
+          <input ref={incidentInput} value={incidentId} onChange={(e) => setIncidentId(e.target.value)} autoComplete="off"
+            aria-invalid={errField === "incident" ? true : undefined} aria-describedby={errField === "incident" ? "join-incident-error" : undefined} />
         </label>
+        {err && errField === "incident" && (
+          <p className="error" role="alert" id="join-incident-error">
+            {err}
+          </p>
+        )}
         <label>
           Join code
-          <input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} />
+          <input ref={codeInput} value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false}
+            aria-invalid={errField === "code" ? true : undefined} aria-describedby={errField === "code" ? "join-code-error" : undefined} />
         </label>
-        {err && (
+        {err && errField === "code" && (
+          <p className="error" role="alert" id="join-code-error">
+            {err}
+          </p>
+        )}
+        {err && errField === null && (
           <p className="error" role="alert">
             {err}
           </p>
@@ -253,6 +286,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const rcNow = useRef(rc);
   rcNow.current = rc;
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
+  // The team picked in the Teams strip: its name reads in fg-1 and its assigned cells are outlined on the map.
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
@@ -376,7 +411,41 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
+  // What searchers and family flagged with Report a problem. A searcher is named by the team of its latest report (a
+  // rejoin can move it to another team); a refused read keeps the flags and says they may be out of date.
+  const [flags, setFlags] = useState<Flag[]>([]);
+  const [flagsStale, setFlagsStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags, () => setFlagsStale(true))), [pls, incidentId, denied]);
+  const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  // A flagged report is named to the second, so two from one segment in the same minute read apart.
+  const reportClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const flagAuthor = (uid: string, role: Flag["role"]) => {
+    if (role === "family") return "Family member";
+    const teamId = latestTeamOf(uid, events);
+    const team = teams.find((t) => t.teamId === teamId)?.name;
+    return team ? `${team} searcher` : "A searcher";
+  };
+  // The people command can remove: the server's members records and the authors of the incident's reports.
+  const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
+  const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
+  // A refused read stops its listener for good, so the panel says the list may be out of date and offers no removal.
+  const [membersStale, setMembersStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids, () => setMembersStale(true))), [pls, incidentId, denied]);
+  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
+  // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
+  // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
+  // The server's last confirmed status decides, so neither a pending close nor a pending later edit flips it.
+  const ended = endedLine(view?.serverStatus, incident?.closedReason);
+  // No new reports once the server or this browser has the search closed (the rules refuse them either way).
+  const closedHere = !writesOpen(view?.serverStatus, incident?.status);
+  // A form already open (or opened before another tab ended the search) goes too.
+  useEffect(() => {
+    if (!closedHere) return;
+    setAdding(false);
+    setClipping(false);
+    setPin(null);
+  }, [closedHere]);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -427,8 +496,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const suggest = (): Promise<WordedPlan> => {
     if (!draft) return Promise.reject(new Error("no draft"));
-    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb);
-    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
+    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb, draft.assignments.map((a) => a.teamId));
+    return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: WORDING_WAIT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
       // A model asked whose answer was not used is traced on its own, so it is never hidden behind the fixed wording.
       if (w.attempt) traced(w.attempt.route);
       traced(w.route);
@@ -452,6 +521,53 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     setPin(null);
   };
   const cards = useMemo(() => sightingCards(events as unknown as EventDoc[]), [events]);
+  // Command's decision on a sighting card: the Sightings panel's buttons, and the practice search's first report.
+  // Why this seat's last confirm rebuilt without the elevation layer; shown in Prior until the next rebuild here.
+  const [elevationNote, setElevationNote] = useState<string | null>(null);
+  const decideSighting = async (c: SightingCard, d: "confirmed" | "rejected"): Promise<string | void> => {
+    const priorIncident = incident?.ipp && incident.gridId
+      ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM }
+      : null;
+    // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
+    // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
+    // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
+    if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
+      const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
+      await writePrior(pls.db, incidentId, prior, built);
+      setElevationNote(prior.layersNote ?? null);
+      return prior.layersNote;
+    }
+    if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
+    // A family camera clip: command's confirmation and the camera prior, in one batch.
+    if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
+    const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
+    await writePrior(pls.db, incidentId, prior, built);
+    setElevationNote(prior.layersNote ?? null);
+    return prior.layersNote;
+  };
+  // The practice search's one-click first report (firstReport.ts): saved like a typed report, then, once the server
+  // has it, confirmed through decideSighting like a press of Confirm.
+  const [firstReport, setFirstReport] = useState<FirstReportState & { eventId?: string }>({ phase: "idle" });
+  const addFirstReport = () => {
+    const input = firstReportInput(segments, Date.now());
+    if (!input) return;
+    const doc = buildSightingEvent(input, writer());
+    setFirstReport({ phase: "saving", eventId: doc.eventId });
+    write(doc);
+  };
+  useEffect(() => {
+    const id = firstReport.eventId;
+    if (firstReport.phase !== "saving" || !id) return;
+    const w = writes[id];
+    if (w?.state === "rejected") return setFirstReport({ phase: "idle", error: "The report was not saved. Check the connection and try again." });
+    const card = cards.find((c) => c.sighting.eventId === id);
+    if (w?.state !== "acked" || !card) return;
+    setFirstReport({ phase: "confirming", eventId: id });
+    decideSighting(card, "confirmed").then(
+      () => setFirstReport({ phase: "idle" }),
+      (e: unknown) => setFirstReport({ phase: "idle", error: e instanceof Error ? e.message : "The report was saved but not confirmed. Confirm it under Sightings." }),
+    );
+  }, [firstReport, writes, cards]);
   const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
   const readNote = async (text: string) => {
     const t0 = Date.now();
@@ -485,11 +601,21 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   });
   const readPhotoHere = async (p: TrayPhoto) => {
     const t0 = Date.now();
-    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: 30_000 });
+    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: PHOTO_READ_TIMEOUT_MS });
     if (!("cues" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);
     return { cues: r.cues, route, sentBytes: 0 };
+  };
+  // A team's paper debrief sheet, read on this laptop only: there is no cloud read of a sheet, and the photo is not kept.
+  const readSheetHere: PaperRead = async (jpegBase64, segmentId) => {
+    const t0 = Date.now();
+    const ctx = { segmentId, segmentIds: segments.map((s) => s.segmentId), teams };
+    const r = await readDebriefSheetOnDevice(jpegBase64, ctx, { available: (o) => onDeviceAvailable(o), generate: (b) => debriefSheetGenerator(ai())(b), timeoutMs: SHEET_READ_TIMEOUT_MS });
+    if (!("read" in r)) return r;
+    const route = photoRoute("on_device", Date.now() - t0);
+    traced(route);
+    return { read: r.read, route };
   };
   const readPhotoCloud = async (p: TrayPhoto) => {
     // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
@@ -539,12 +665,22 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
   const [profileError, setProfileError] = useState<string | null>(null);
   // The site's route graph for the walker prior, beside its basemap.
-  const [graph, setGraph] = useState<GraphLoad | null>(null);
+  // The route graph, bound to the grid it was loaded for, so a site change never runs walkers on the old site's routes.
+  const [graphLoaded, setGraphLoaded] = useState<{ gridId: string; load: GraphLoad } | null>(null);
+  const graph = graphFor(incident?.gridId, graphLoaded);
   const [flow, setFlow] = useState<{ key: string; tracks: Track[] } | null>(null);
+  // Each segment's elevation, from the site's elevation file: the elevation layer's input. Bound to the grid it was
+  // loaded for, so a grid change never uses another site's heights.
+  const [elevationLoaded, setElevationLoaded] = useState<{ gridId: string; m: Record<string, number> | null } | null>(null);
+  const elevationM = elevationFor(incident?.gridId, elevationLoaded);
   useEffect(() => {
     if (!incident?.gridId) return;
     let live = true;
-    void loadRouteGraph(`/tiles/${incident.gridId}.graph.json`).then((g) => live && setGraph(g));
+    const graphGrid = incident.gridId;
+    void loadRouteGraph(`/tiles/${graphGrid}.graph.json`).then((g) => live && setGraphLoaded({ gridId: graphGrid, load: g }));
+    const gridId = incident.gridId;
+    setElevationLoaded(null);
+    void loadElevationM(gridId).then((m) => live && setElevationLoaded({ gridId, m }));
     return () => {
       live = false;
     };
@@ -556,13 +692,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
-      const layers = incident.priorLayers ?? { linear: false, wedge: false };
-      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+      const stored = incident.priorLayers ?? { linear: false, wedge: false };
+      const layers = usableLayers(stored, segments, incident.ipp, elevationM);
+      setElevationNote(elevationDropNote(elevationDropReason(stored, segments, incident.ipp, elevationM)) ?? null);
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
     }
     if (graph?.state !== "ok") throw new Error("Walkers need this site's route graph.");
+    // Walkers write every segment too, so they run only on the whole current grid.
+    assertCurrentGrid(segments, incident.priorVersion);
     const g = graph.graph;
     if (!g.projection) throw new Error("This site's route graph has no projection.");
     const start = nearestWalkerStation(g, projectWalkerPoint(g.projection, incident.ipp));
@@ -582,7 +722,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+    setElevationNote(null);
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
     const w = priorWrites(rebuilt, incident, layers, terrain);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
   };
@@ -622,19 +763,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   // Confirm: the camera sighting and its confirmation (create-only, not awaited), then one batch
   // that rebuilds the ring prior from the camera with the wedge on and the sighting as an input.
-  const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void> } => {
+  const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void>; note?: string } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     // Everything is built first; if any part cannot be built, nothing is written.
     const { events: built, prior } = cameraConfirmWrites(
       { sha256: o.sha256, reading: o.reading, route: o.route, clipStartMs: input.clipStartMs, clockConfirmed: input.clockConfirmed, cameraFacingDeg: input.cameraFacingDeg, camera: input.camera },
       [writer(), writer()],
       segments,
-      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams },
+      { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM },
       o.bearingDeg,
     );
     setPin(null);
+    setElevationNote(prior.layersNote ?? null);
     // One batch: the sighting, its confirmation and the prior land together or not at all.
-    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built) };
+    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built), ...(prior.layersNote ? { note: prior.layersNote } : {}) };
   };
   const saveProfile = (p: FamilyProfile, opened: FamilyProfile) => {
     setProfileError(null);
@@ -707,15 +849,21 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           No connection. Showing the last data received.
         </p>
       )}
+      {ended && (
+        <p role="status" data-testid="ended-line">
+          {ended}
+        </p>
+      )}
       {unreadablePlanLine(state.unreadablePlans ?? []) && (
         <p className="error" role="status" data-testid="unreadable-plans">
           {unreadablePlanLine(state.unreadablePlans ?? [])}
         </p>
       )}
       <div className="post-body">
-        <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
+        <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
+        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
@@ -734,8 +882,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
+          {incident && !closedHere && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+            <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
+          )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
@@ -768,7 +919,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || closedHere}>
               Add sighting
             </button>
           )}
@@ -788,7 +939,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding}>
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
               Add camera clip
             </button>
           )}
@@ -798,24 +949,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               const at = c.sighting.position ?? (c.camera ? placedCameras[c.sighting.eventId] : undefined);
               return at ? segmentContaining(at, segments) : null;
             }}
-            onDecide={async (c, d) => {
-              const priorIncident = incident?.ipp && incident.gridId
-                ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams }
-                : null;
-              // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
-              // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
-              // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
-              if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
-                const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
-                await writePrior(pls.db, incidentId, prior, built);
-                return;
-              }
-              if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
-              // A family camera clip: command's confirmation and the camera prior, in one batch.
-              if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
-              const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
-              await writePrior(pls.db, incidentId, prior, built);
-            }}
+            onDecide={decideSighting}
             onPlace={(c) =>
               setPicker(() => (p: LatLon) => {
                 setPicker(null);
@@ -836,6 +970,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
             </summary>
+            {/* Every report, each one command can take back: a retraction event the map stops counting on every device. */}
+            <ReportsPanel
+              cards={reportCards(events as unknown as EventDoc[], incident?.priorInputEventIds ?? [])}
+              teams={teams}
+              onRetract={async (c) => write(buildRetraction(c.report, writer()))}
+            />
             {incident && conditions && (
               <ConditionsForm conditions={conditions} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
             )}
@@ -863,6 +1003,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
                 terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
                 hasBearing={bearing !== null}
+                layersNote={elevationNote ?? undefined}
+                elevation={{
+                  available: elevationM !== undefined,
+                  startHasElevation: (() => {
+                    const start = incident.ipp && elevationM ? segmentContaining(incident.ipp, segments) : null;
+                    return start !== null && elevationM?.[start] !== undefined;
+                  })(),
+                }}
                 model={incident.priorModel ?? "rings"}
                 vehicleInvolved={profile?.command?.vehicle?.involved === true}
                 onApply={applyPrior}
@@ -898,11 +1046,32 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onSave={(segmentId, input, existing, clearedEventId) =>
                 saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
               }
+              paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
+            {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
+            {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
         </aside>
       </div>
+      {/* On a phone the rails run below the map, so the two actions command needs most stay in reach at the bottom. */}
+      <nav className="phone-bar" aria-label="Quick actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!incident || clipping || closedHere}
+          onClick={() => {
+            setAdding(true);
+            requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));
+          }}
+        >
+          Add sighting
+        </button>
+        <button type="button" className="btn ghost" onClick={() => document.getElementById("plan-h")?.scrollIntoView({ block: "start" })}>
+          Plan
+        </button>
+      </nav>
     </div>
   );
 }

@@ -2057,3 +2057,446 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: when the file counts reads with no route recorded, the block says "n with no route recorded", so the parts add up to the total; a non-integer unknown count makes the file unreadable.
 - Source: review (the parts should add up to the total).
 - Verified: a new unit test failed first, then passes (7).
+### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
+- What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
+- Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
+- Verified: a new deployed check in `e2e/phone.spec.ts` (the bar at the bottom of a 390 by 844 window; Plan brings the plan into view; Add sighting opens the form in view) failed on the live site (no bar) and runs again after the deploy; the post layout harness, the no-backend set (43), web unit suite (1000), typecheck and the hygiene guard pass.
+
+### fix(map): on a phone the walker model's sentence spans the foot of the map
+- What: at phone width the walker model's sentence under the map ("The walker model is a prior for planning. It does not predict where a person is.") spans the map's width just above the credit line, in one or two lines; it was held to the map's width minus 320 px, a column about 70 px wide that ran down the map's left edge. The laptop layout is unchanged. The map harness gains `?note`.
+- Source: UI review (on a phone the walker caption box covered the map's left edge).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` (at 390 by 844 the sentence is at most 40 px tall, wider than 60% of the map, and clear of the credit line) failed first (138 px tall), then passed with the other map checks (16); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(map): a change chip never covers another cell's percent or code
+- What: a change chip ("+0.2 pts") sat 16 px above its cell's dot whatever was there, so on a dense grid it covered the cell above's percent. Now each chip is placed after the plates and codes, on every camera move: above the dot, else right, else left, else below its own plate, whichever covers nothing. When every place covers something, it takes the one that covers the least (another cell's code before a percent, another chip last) and hides what it covers while it is there; those cells are still named in the ranked list. `chipPlace` in `web/src/map/labelFit.ts`; plates carry their segment id.
+- Source: UI review (on a laptop the "+0.2 pts" chip covered BC's percentage).
+- Verified: new `chipPlace` unit tests failed first, then passed; a new harness check in `e2e/harness/change.spec.ts` (at 1440 by 900 and 1100 by 700, then zoomed out two steps, every chip inside the map and none over a visible percent or code) failed on main ("+14.7 pts over 7.5%", "3.5%", "1.0%" two steps out), then passed with the change and map checks; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(prior): rebuilds carry the site's elevations for the elevation layer
+- What: `rebuildPrior` takes the site's per-segment elevations (`site.elevationM`) and, when the elevation layer is on, gives the engine the start segment's elevation from the rebuild's own start point (`segmentElevations`), so a rebuild from a new last known point measures from that point; it refuses without the file or with the start outside every segment. `cameraPriorWrites` passes them through (camera and sighting confirms). `loadElevationM` reads the site's elevation file (the one the terrain display reads) into a per-segment mean.
+- Source: review (terrain layer, approved).
+- Verified: new tests failed first, then pass: `rebuild.test.ts` (equals buildPrior with the start's elevation; ROW kept; refusals), `cameraPrior.test.ts` (from the camera's place; refusal without elevations), `elevation.test.ts` (this grid's file; no file, another grid's, broken, offline).
+
+### feat(command): a Downhill and level ground switch where terrain ships
+- What: the Prior panel shows a third switch, off by default, only when the site's elevation file loads (the Kennesaw drill grid). Its line gives the ISRID shares from the engine's constants (42% downhill, 39% about level, 19% uphill; p. 164; no n printed) and says the 3 m band is ours. It is disabled on urban terrain ("the source has no urban split") and when the start point's segment has no elevation; choosing the urban table turns it off. Like the other switches it asks before it rebuilds. The command post loads the file once per grid and passes the elevations to every rebuild (layers, the prior model switch, camera and sighting confirms).
+- Source: review (terrain layer, approved).
+- Verified: 4 new harness checks failed first, then pass (15 in layers.spec.ts); 1031 web unit tests, typecheck, the build and 43 no-backend browser checks pass; the Kennesaw file covers all 338 segments.
+### chore(e2e): the harness and extras dev servers take their port from the environment
+- What: `e2e/harness.config.ts` reads `PLS_HARNESS_PORT` (default 5175) and `e2e/extras.config.ts` reads `PLS_EXTRAS_PORT` (default 5176) through `e2e/harnessPort.ts`, which refuses anything but a whole number from 1024 to 65535. Each server starts with `--strictPort`, so two worktrees running the same suite at once collided on one port; now each can use its own. CI and an unset variable behave as before.
+- Source: review (two worktrees' harness runs failed on a busy port 5175).
+- Verified: new `src/e2eConfig.test.ts` (defaults 5175 and 5176, the variables move base URL, server command and ready URL, bad values refused) failed first, then passed; the map harness checks pass with `PLS_HARNESS_PORT=5185` (16); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): the Teams strip picks a team and outlines its cells
+- What: the Teams rail is a narrow strip (160 px, was 200 px), so the map gets the width. Each team is a button: pressing it makes that team the active one (its name in fg-1, the others in fg-4) and outlines its assigned cells on the map in 2 px fg-1 on a bg-0 casing, under the cyan outline of the newest change; pressing it again clears the pick. With no team picked every name reads in fg-2; before, no team could ever be active, so every name was fg-4 grey. The map element names the outlined cells in `data-team-outline`. New harness `web/harness/teams.html`.
+- Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
+- Verified: new harness checks in `e2e/harness/teams.spec.ts` (strip at most 168 px; names fg-2 with none picked; a click and the Enter key pick a team, recolour the names and outline its cells; a second press clears; a team with no task outlines nothing) failed first (rail 200 px, no team buttons), then passed; a screenshot shows Team 2's cells AB and AC outlined; typecheck, web unit suite and the hygiene guard pass.
+
+### fix(prior): the elevation layer never blocks a confirmation
+- What: `usableLayers` keeps the elevation layer on only where the site's elevations are loaded and the start point is inside a segment that has one. A camera or sighting confirm whose new start is outside every segment, or one made while the file is missing, now rebuilds and saves the prior with the layer off instead of throwing before the confirmation is written. Turning the prior model back to rings does the same.
+- Source: review (cross-family, high).
+- Verified: new tests failed first, then pass: `usableLayers` (kept; turned off without the file, outside, or with no start elevation; other layers untouched) and the camera confirm with no file and outside the grid (equal to the ring prior from that point).
+
+### fix(command): elevations bound to their grid; a saved layer can always be turned off
+- What: the command post keeps the loaded elevation map with the grid it was loaded for (`elevationFor`) and clears it on a grid change, so a slow load never applies another site's heights (Piedmont's segment ids also exist in the Kennesaw file). The elevation switch now also shows wherever the saved layer is on, even when the site's file did not load, so command can turn it off; it turns on only where the start has an elevation.
+- Source: review (cross-family, medium).
+- Verified: new tests failed first, then pass: `elevationFor` (own grid; another grid; loading) and the harness check for a saved layer whose file did not load (16 in layers.spec.ts); 1036 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild before the map's segments load
+- What: `rebuildPrior` refuses an empty segment list ("The map's segments have not loaded yet."). Segments arrive through their own listener, so a sighting or camera confirm made after the incident and events loaded but before the segments did would have saved the confirmation, the new start and a new prior version with all mass outside the grid, leaving every stored segment's old probability in place. Every rebuild path goes through `rebuildPrior`, so all are covered.
+- Source: review (cross-family, high).
+- Verified: new tests failed first ("expected [Function] to throw"), then pass: `rebuildPrior([])` and `cameraPriorWrites([])` with the elevation layer off and on; 1038 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild from a partly loaded grid
+- What: `rebuildPrior` refuses a segment list in which a segment names a neighbour, upstream or downstream segment that is not in the list ("The map's segments have not all loaded yet."). A cached snapshot can hold only some segments, and the listener drops a document with unreadable geometry; a confirm from either would have saved a new prior version over part of the grid and left the rest on the old prior. Both shipped grids are closed and connected (no dangling names; neighbours symmetric), so any partial set is caught.
+- Source: review (cross-family, high).
+- Verified: a new test failed first ("expected [Function] to throw"), then passes: a linked 9-segment grid rebuilds, 8 of its 9 are refused, and dangling upstream or downstream names are refused; 1039 web unit tests, typecheck, 179 harness checks, the build and 43 no-backend browser checks pass; closure and connectivity checked on shared/grid/*.grid.json.
+
+### fix(command): the Prior panel says its switches are rings settings under walkers
+- What: with the walkers prior in use, the Prior panel adds "These apply when the prior is rebuilt as rings.", since the stored layers (elevation included) are kept for the rings rebuild. The elevation line says "the source prints no sample size" instead of "no n printed"; LIMITS matches.
+- Source: review.
+- Verified: the new harness check failed first without the line, then passes (17 in layers.spec.ts).
+### test(harness): at phone width the map and change harnesses keep the map in the tall row
+- What: the phone layout's `.map-wrap { order: -1 }` moved the map ahead of the harness's drill line, into its auto row, so at 900 px and below the harness map was 0 px tall and the drill line sat over the cells; checks run there (the small and crowded map checks at 300 by 420) measured a map with no height. The drill line now has `order: -2` in `web/src/harness/mapHarness.tsx` and `changeHarness.tsx`, so the map keeps the tall row, as on the command post.
+- Source: found while adding a pointer check to the map harness at 300 by 420 (the pointer landed on the drill line).
+- Verified: new checks in `e2e/harness/map.spec.ts` (at 390 by 844 both harness maps are over 500 px tall and the canvas is the top element at their centre) failed first (0 px), then passed with every map and change check (25); typecheck and the hygiene guard pass.
+
+### feat(map): one mark per cell: small dots, and codes with zoom or the pointer
+- What: a cell's dot is now at most 35% as wide as the smaller side of the cell on screen (it could be the whole cell), so on a phone the fills carry the map instead of white dots. A cell's code shows only when the cell is 40 px or more on its smaller side, so codes come with zoom; under that, pointing at a cell shows its code on the centre. Both are decided again on every camera move (`DOT_CAP_SHARE` and `CODE_MIN_CELL_PX` in `web/src/map/labelFit.ts`). The dot keeps its fg-2 colour and bg-0 ring, which hold 3:1 against every probability step. The live phone and accessibility checks wait on a new `mapDrawn` fixture (codes in the page and the map settled), since a phone shows no codes until zoomed in.
+- Source: UI review (one mark per cell: dot capped near 35% of the cell; codes only at zoom or hover; on the phone the white dots covered the fills).
+- Verified: new `labelFit` unit tests and a new harness check (three steps out, every dot at most 35% of its cell, no code on a cell under 40 px, the pointer shows a cell's code and moving off hides it) failed first (25 dots over the cap), then passed; the crowded map check now states that codes wait and that pointing at AB names it; the full harness suite (173), the extras suite (70), typecheck, web unit suite and the hygiene guard pass. On the deployed post the phone cells were about 26 px and the laptop cells about 57 px.
+
+### fix(data): any punctuation or symbol between digit groups joins a phone number
+- What: `removePhoneNumbers` kept a number whose groups were split by a character outside its separator list: a middle dot (U+00B7), a hyphenation point (U+2027), a bullet, an underscore, a star, a bar or a bracket ("Call 404 555·0142" was stored as written). A gap between two parts now joins them unless it holds ":", "%" or "°", which mark a time, a percent and a degree; a gap never holds a letter or a digit, since those are parts. Debrief notes, sighting text and sheet reads all go through this rule.
+- Source: review (cross-family, privacy).
+- Verified: new tests in `phoneNumbers.test.ts` failed first on the old rule (the 9 split shapes), then pass; spaces of every width, an em dash, full stops and full-width forms still go; a degree-sign GPS pair, degrees-minutes-seconds, a percent list and two times stay. Against the draft shared cases (15 new removals, 4 new keeps) all 77 pass on the web; 1052 web unit tests, the typecheck, the gates, the build and 43 no-backend browser checks pass.
+
+### fix(data): a semicolon, bar, ! or ? never joins a phone number
+- What: the marks that never join two digit groups are now : % ° ; | ! and ?. With only the first three, a semicolon or a bar joined, and notes main kept were erased: "GPS 33.7490; -84.3880", "Seen 2026-11-19; 3 searchers", "Radio 155.160 | 154.205", "Check-ins 08:30; 11:45; 14:03". None of the seven sits inside a phone number; a number split by a bar ("404 | 555 | 0142") is kept, as on main.
+- Source: review (cross-family).
+- Verified: the new keep test failed first ("GPS [number removed]"), then passes, with the same notes after "?" and "!"; 80 draft shared cases pass on the web; 1051 web unit tests and the typecheck pass.
+### test(prior): a 30 s timeout on the prior rebuild tests
+- What: every describe block in `rebuild.test.ts` and `cameraPrior.test.ts` runs with `{ timeout: 30_000 }`. Each case builds a whole prior, and on a loaded machine two of them passed vitest's 5 s default (5.4 s and 5.7 s) and failed once, then passed alone.
+- Source: review.
+- Verified: a scratch 6 s test in a block with the option passed and failed without it (deleted after); 52 prior tests and the typecheck pass.
+### feat(command): the practice search offers a one-click first report that moves the map
+- What: on a practice search, until command has confirmed or rejected any report, the rail opens with "Try a report": "A park worker saw a man in a blue coat at the south end of the park, in segment CD, 10 minutes ago." and one button, "Add and confirm this report". It saves the sighting the way the sighting form does (seen 10 minutes before now, blue top, from park staff, labelled a drill inject), waits until the server has it, then confirms it through the same handler as the Sightings panel's Confirm (`decideSighting`, pulled out of the panel's inline handler unchanged), so the prior is rebuilt from it as the new last known point. The card says which step it is on and why it stopped. Rules in `web/src/command/firstReport.ts`, card in `FirstReportCard.tsx`, harness `web/harness/first-report.html`.
+- Why CD: a local simulation on the seed drill (every segment tried as the confirmed place through `sightingConfirmWrites` and `viewState`, local evidence, not in the repo) found confirming at CD changes all three of the top three (BO, BP, BH to CC, CD, CE). The seed's start point is beside the lake, so a report there would barely move the map. The card names the segment, and a test checks CD is in the southern quarter of the practice grid.
+- Source: UI review (a seeded one-click first report on the practice search that visibly reorders the top three).
+- Verified: new unit tests (`firstReport.test.ts`: when it is offered, the saved sighting, the words against the shipped grid) and harness checks (`e2e/harness/firstReport.spec.ts`: the card's words, the steps, a refused save) failed first, then passed; the live practice check in `e2e/judge.spec.ts` now presses the button and asserts the card closes and none of the old top three is still in the top three; typecheck, web unit suite (1032) and the hygiene guard pass.
+
+### test(evidence): time the command post's photo read on Chrome's built-in model
+- What: a dev-server-only measurement page, `web/harness/photo-measure.html` (`src/harness/photoMeasure.tsx`), runs the command post's on-device photo read three times on a synthetic figure (no real person) on a bare Firebase app, and reports each reply's time, its inference source and every request to a Google or Firebase host. The result is `docs/evidence/web/2026-11-21-photo-read-chrome.json`: first read 20,032 ms, then 3,208 and 2,726 ms, all on device, no Google request.
+- Source: review (the sheet read's first read took 31 s against a 30 s limit; the photo read had the same limit and had never been timed).
+- Verified: typecheck and the hygiene guard pass; the page was run in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model and reports it unavailable).
+
+### fix(photos): the command post waits up to 90 s for a photo read on this laptop, and says why
+- What: the on-device photo read's limit is `PHOTO_READ_TIMEOUT_MS` (90 s) in `web/src/ai/photoCues.ts`, used by CommandPost's `readPhotoHere`; it was 30 s. While a photo is read on this laptop, the Family photos tray says "Reading on this laptop. The first read can take up to a minute." (before, only the button greyed out). The photos harness gains `?slow=1`.
+- Source: review (the photo read had the paper sheet read's 30 s limit; measured, its first read took 20 s on a fast Mac and the sheet's 31 s).
+- Verified: a new unit test (the limit is more than twice the slowest measured photo read in `docs/evidence/web/2026-11-21-photo-read-chrome.json`, at least 90 s, and CommandPost passes it) and a new harness check in `e2e/harness/photos.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### fix(data): only : % ° stay apart; coordinates and radio frequencies keep their own spans
+- What: the never-join set is back to : % and °, so a phone number split by a bar, a semicolon, "!" or "?" is removed ("404 | 555 | 0142", "404;555;0142"). Two spans keep the search information those marks used to protect by accident: a decimal coordinate pair may have a semicolon, bullet, middle dot, bar or slash between its two numbers ("GPS 33.7490; -84.3880"), and a radio frequency (1 to 3 digits, a full stop, exactly 3 digits, not in a dotted chain, no "+" before it) is kept like a date ("Radio 155.160 | 154.205", "155.160-155.175"). Beside a short piece either span goes with the run; beside a whole number of seven or more digits only the number goes. Check-in times or a date and a count joined by a semicolon are removed, as they already were with a comma.
+- Source: review (cross-family, privacy ruling).
+- Verified: new tests failed first (the four marks kept; the coordinate and frequency notes removed), then pass; "404.555 0142" and "Call 404.555.0142" are still removed; 87 draft shared cases pass on the web; the phone and vector suites pass (121).
+
+### fix(data): a frequency joined to other digits goes; a coordinate across a bar needs a minus
+- What: a radio frequency is kept only when nothing but other frequencies joins it, so a phone number never keeps a frequency's shape ("Call 404.555-0142 #123" had kept "404.555"; "Radio 155.160 404 5550142" is now removed whole). Two decimals across a semicolon, bullet, middle dot, bar or slash are a coordinate pair only with a minus after the mark ("GPS 33.7490 | -84.3880"); without one they can be two phone numbers ("020.79460958 / 020.79460959" had been kept whole). The comma rule is unchanged.
+- Source: review (cross-family, privacy).
+- Verified: both cases failed first, then pass; the coordinate and frequency keeps still pass; 89 draft shared cases and 350 data tests pass on the web.
+
+### fix(data): no zero-led degrees, and frequencies only in a run of frequencies
+- What: a coordinate's whole degrees never start with a zero (0.1276 still counts), so a London number written "020.79460958" next to a coordinate is removed, after a comma too. A radio frequency is 25 to 999 MHz with no leading zero, and a run keeps its frequencies only when every digit group in it is one: candidates with a joined neighbour outside the set drop out until none does ("Call 404.555 0.142 1234567" had kept "404.555").
+- Source: review (cross-family, privacy).
+- Verified: the new tests failed first, then pass; 94 draft shared cases and 1105 web unit tests (with the draft file) pass; the typecheck passes.
+### feat(ai): an on-device-only wording builder, for pages that must never build a cloud model
+- What: `wordingOnDeviceParams()` in `web/src/ai/replanWording.ts` is the plan wording's own on-device options and JSON constraint with mode ONLY_ON_DEVICE and no cloud params, and `wordingOnDeviceGenerator(ai)` in `web/src/ai/client.ts` builds it with the on-device-only request options. The command post still words plans with PREFER_ON_DEVICE (`wordingGenerator`); this builder is for measurement pages, which a guard keeps from building any cloud model.
+- Source: on-device evidence runs (a wording measurement page tripped the harness no-cloud guard).
+- Verified: a new unit test (ONLY_ON_DEVICE, the same on-device options as the command post's, no cloud params) failed first, then passed; the harness no-cloud guard and the client tests pass; typecheck passes.
+
+### test(evidence): the sighting-note read and plan wording measured on Chrome's built-in model
+- What: two dev-server-only measurement pages run the command post's own code paths on a bare Firebase app: `web/harness/note-measure.html` reads five made-up drill notes (`readSightingText`, ONLY_ON_DEVICE) and `web/harness/wording-measure.html` words one made-up plan three times (`wordPlan`, PREFER_ON_DEVICE), keeping each raw reply and the check's reason. Results in `docs/evidence/web/2026-11-21-note-read-chrome.json` and `2026-11-21-plan-wording-chrome.json`; the two "Not run" rows in `docs/TEST-MATRIX.md` now cite them.
+- Found: the first note read took 27,900 ms against the command post's 30 s limit; 14 of 15 note fields right ("grey" read as unknown). Plan wording ran on device every time (3.1 to 12.3 s) but code accepted only 2 of 6 wordings; the one recorded rejection was a reply that repeated the teams up to the schema's 12 items.
+- Source: on-device evidence runs for the judge (the two rows had no tracked run).
+- Verified: typecheck, the test matrix check and the hygiene guard pass; the pages ran in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model).
+
+### fix(ai): a plan's wording is asked for in that plan's own shape
+- What: `planWordingJson(teamIds)` in `web/src/ai/replanWording.ts` is the wording's JSON schema for one plan: exactly one assignment per team, `teamId` limited to that plan's teams (the general schema when there are none). `wordingParams(model, teamIds)` gives it to both the cloud (`responseJsonSchema`) and this laptop (`responseConstraint`); CommandPost's `suggest` passes its draft's teams. The cited mode line (`replanWording.ts:47`) does not move.
+- Source: on-device evidence (Chrome's model repeated the teams up to the general schema's 12 items, and code rejected 4 of 6 wordings).
+- Verified: new unit tests (the schema's count and team list, both routes get it, the command post passes its draft's teams) failed first, then passed; typecheck, web unit suite (1051), the test matrix check and the hygiene guard pass.
+
+### test(evidence): plan wording on Chrome's model with the per-plan schema
+- What: `docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json`: the same made-up plan worded six times on the committed measurement page with the per-plan schema; the plan wording row in `docs/TEST-MATRIX.md` cites it beside the earlier run.
+- Found: code accepted 6 of 6 (2 of 6 before), all on device, no Google request; the first wording in a new page took 19,773 ms, over the command post's 15 s wording limit, the rest 2.1 to 3.2 s.
+- Source: on-device evidence runs for the judge.
+- Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
+
+### fix(data): a Mexican number in dot form is not a coordinate pair
+- What: a decimal pair is a coordinate only with a minus before its second number (after a comma too, now), 4 to 7 decimals in each, and no phone cue just before it (call, tel, phone, cell, mobile, number, #, llame, llamar, teléfono or telefono, celular, número or numero, within the three words before it). "Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496" and "33.12345678 / -81.12345678" had all been kept whole. Every drill site is in the western hemisphere; an eastern pair with no minus is now removed.
+- Source: review (cross-family, post-merge, privacy).
+- Verified: the four strings and the cue list failed first, then pass; "Ubicación 33.12345, -84.5678" and "GPS 33.7490, -84.3880" stay; 100 draft shared cases and 1118 web unit tests (with the draft file) pass; the typecheck passes.
+### fix(command): wait up to 90 s for a note read on this laptop, and say why
+- What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
+- Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
+- Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
+
+### feat(data): a segment read from Firestore keeps its prior version
+- What: the segment listener reads each document through `segmentFromDoc`, which now keeps the document's `priorVersion` (left unset when missing or not a number). Every prior write stamps it on every segment and ROW, so a rebuild can tell a segment from an older grid.
+- Source: review (follow-up, approved).
+- Verified: `segmentDoc.test.ts` failed first (no export), then passes: the version kept, unset when missing or a string, null for unreadable geometry.
+
+### fix(prior): no rebuild from a stale grid
+- What: `rebuildPrior` takes the incident's `priorVersion` and refuses ("The map's segments have not all loaded yet.") when any segment carries another version or none. After a reseed, a cached snapshot can hold the older grid with the same id; a confirm or layer change on it would have saved a new version over part of the current grid. The command post's layer and model rebuilds and every camera and sighting confirm pass the version. The sighting prior tests run with the 30 s timeout the other prior tests use.
+- Source: review (cross-family, follow-up, approved).
+- Verified: new tests failed first, then pass: a stale or unversioned segment is refused, and a confirm against a stale grid is refused before anything is built. Every stored incident's segments and ROW (48 of 48) carry their incident's version, read live. 1080 web unit tests and the typecheck pass.
+
+### fix(prior): only an older grid blocks a rebuild; walkers check the grid first
+- What: the grid checks move into `assertCurrentGrid` (none loaded, some missing, or a segment older than the incident's version). A segment newer than the incident is now allowed, so an incident copied mid-rebuild can still rebuild instead of refusing forever. A walker run, which writes every segment too, makes the same check before it starts, so it never commits a new version over a stale segment list.
+- Source: review (cross-family).
+- Verified: new tests failed first, then pass: a newer segment rebuilds; `assertCurrentGrid` passes the whole current grid and refuses empty, partial and older ones; 1082 web unit tests and the typecheck pass.
+### fix(data): a phone cue counts only right before a coordinate pair
+- What: a cue word voids a coordinate pair only when it sits right before it (spaces or a colon between) or with one connector between (al, a, at, on, to); a "#" before it still counts. A cue further back names a thing, not a number to dial, so a clue's place stays: "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733" and "Call came from 33.7866, -84.3733" had been removed. "Call 33.1234, -84.5678" and "Llame al 33.1234, -84.5678" are still removed.
+- Source: review.
+- Verified: the new keep test failed first, then passes; the cue cases still pass; 103 draft shared cases and 370 data tests pass on the web.
+### test(config): the web's Remote Config defaults equal the published template's
+- What: a unit test in `web/src/config/rc.test.ts` checks that every key in `RC_DEFAULTS` has the same value as that key's default in `remoteconfig.template.json`. A browser whose fetch is refused or that is offline runs on the built-in defaults, so they must be the published values.
+- Why: Remote Config allows 60 fetch requests a minute per project per caller (the project's quota, read from Service Usage); for a web client the caller is its IP. The project's own request counts (Cloud Monitoring, last 24 h) show 90 to 200 fetches an hour from our test runs, with 2 to 34 refused with 429 only in the busiest hours. A judge's browser fetches about twice in 12 hours (the SDK's default minimum fetch interval, which the web keeps), so it should never meet the limit; if one is ever refused, it now provably runs the same configuration.
+- Source: review (the 429 seen in live checks).
+- Verified: the test passes, and it failed when a default was changed (`kill_cloud: true`), then passed again restored; web unit suite and the hygiene guard pass.
+
+### fix(command): wait up to 60 s for a plan's wording, and say why
+- What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
+- Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
+- Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.
+
+### fix(command): walkers use only the route graph loaded for this grid
+- What: the command post keeps the loaded route graph with the grid it was loaded for (`graphFor`) and clears it on a grid change, so after a site change a walker run can never use the old site's routes with the new site's cells; until the new graph loads, walkers wait as on any load.
+- Source: review (cross-family).
+- Verified: `graphFor` failed first (no export), then passes (own grid; another grid; loading; no grid); 1089 web unit tests and the typecheck pass.
+### test(e2e): the live run's saved session keeps Remote Config's cache, so tests stop refetching it
+- What: `e2e/auth.setup.ts` waits until Remote Config has stored its fetch (IndexedDB `firebase_remote_config`, a `last_successful_fetch_timestamp_millis` key) and Performance Monitoring its config (localStorage `@firebase/performance/config`) before saving the session every live test reuses. Setup had saved before either was written, so each test fetched both again, about 80 fetches a run against the project's 60 a minute per caller; runs were refused partway with HTTP 429 (seen as console errors, the "(default)" model on the judge page, and a missing trace).
+- Source: review (Remote Config 429 in live checks; Cloud Monitoring showed 49 fetches in one minute from one run).
+- Verified: the saved session now holds 8 Remote Config records and the Performance key; a full live run on cb464fcb made 4 Remote Config fetches (Cloud Monitoring, per minute) instead of about 80, with no 429, and ran in 46 s instead of 1.8 min; the hygiene guard passes.
+
+### test(e2e): the rail order check waits for the family section before reading Details
+- What: `e2e/railOrder.spec.ts` waits for the family section's heading (it draws when the family's questions arrive, which can come after the map's labels) before it lists the headings under Details.
+- Source: the faster live run (cached Remote Config) read Details before the questions arrived.
+- Verified: the rail order, smoke and judge checks pass live on cb464fcb (23); the hygiene guard passes.
+
+### feat(command): a suggested plan shows beside the approved one, team by team
+- What: when a plan is already approved, a suggestion's card shows a table, "The approved plan and this suggestion": each team's segments now and suggested with the share of the probability those segments hold on the current map ("AB, 20.0%"), "Same" where a team's segments do not change, and a last row, "In these segments", with each plan's total (a segment two teams share counts once). `planCompare` in `web/src/command/planCompare.ts`; CommandPost passes the latest approved plan. With no approved plan the suggestion shows on its own. The plan harness gains `?current=1`.
+- Source: review (compare a suggested change with the current result side by side before approving).
+- Verified: new unit tests (`planCompare.test.ts`: pairs, unchanged and one-sided teams, shared segments counted once) and harness checks in `e2e/harness/plan.spec.ts` (the table's rows and totals; no table without an approved plan) failed first, then passed; plan harness (13), typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): command can write a retraction of any report
+- What: `buildRetraction(target, writer)` in `web/src/data/sightings.ts` is command's retraction: a new event that points at the report (`targetEventId`), changes nothing itself (effect none), and carries the target's training-inject flag. Every device's engine stops counting the report; a retraction from command counts for any author's report, as the rules allow (only command may retract another author's event).
+- Source: command-side "Retract report".
+- Verified: `web/src/data/retraction.test.ts` (the shape, and that it equals the document the rules suite writes as command, `functions/test/rules/retraction-event.json`) failed first, then passed; the rules suite on the emulator passes (292), with a new block proving command's shape is accepted and a searcher or family seat is refused; web unit suite and the hygiene guard pass.
+
+### feat(command): Reports lists every report, and command can retract one
+- What: a "Reports" section under Details lists every clue, sighting, camera sighting, cleared and found report, newest first: who sent it (team, family, caller, camera or command), the kind, the segments it names and the time, then its note. "Retract" asks inline ("Retract this report? It stays in this list, struck through, and stops changing the map.") and writes command's retraction (`buildRetraction`). A retracted report stays, struck through, with "Retracted by command." or "Retracted by its author."; which retractions count is the map's own rule. A report that set the current start point says why it is not retracted there (retracting it would not move the start). A retracted sighting leaves the Sightings list. Ten show at first, then "Show all N". `reportCards` in `web/src/command/reportCards.ts`, `ReportsPanel.tsx`, harness `web/harness/reports.html`.
+- Source: command-side "Retract report" (good command practice; reports are user content command can remove).
+- Verified: new unit tests (`reportCards.test.ts`: the kinds listed, the map's retraction rule, the start point, one card per report) and harness checks (`e2e/harness/reports.spec.ts`: order and header lines, ask then Keep it or Retract report, author retraction and start point lines, a refused write) failed first, then passed; a live check in `e2e/beat.spec.ts` retracts a report on the test drill and checks it after a reload; full harness suite (196), typecheck, web unit suite and the hygiene guard pass.
+
+### feat(prior): a confirm that drops the elevation layer says why
+- What: `elevationDropReason` names why a rebuild turns the elevation layer off (no elevation file loaded for this site; the new start is outside the mapped segments; the new start's segment has no elevation), `usableLayers` uses it, and `elevationDropNote` words it for command. `cameraPriorWrites` (camera, family camera and sighting confirms) returns that line as `layersNote` when it drops the layer; it is shown, never stored.
+- Source: review (follow-up).
+- Verified: new tests failed first, then pass: each reason, none when the layer stays or is off, the note's wording, and the camera confirm's note with no file and outside the grid (none when kept).
+
+### feat(command): command sees why a confirm rebuilt without downhill and level ground
+- What: when a confirm turns the elevation layer off, the line ("Rebuilt without downhill and level ground: the new start is outside the mapped segments.") shows where command confirmed: after the camera clip panel's "Confirmed. Prior rebuilt as vN." and on the Sightings card. The Prior panel shows it under its switches on this seat until the next layer change here. Switching the prior model back to rings with the site's file missing says the same.
+- Source: review (follow-up).
+- Verified: three new harness checks failed first, then pass (clip, sightings, layers); 1146 web unit tests, the typecheck, 201 harness checks, the build and 43 no-backend browser checks pass. One harness check (firstReport.spec) failed once and passed on rerun; it imports none of these files.
+### test(harness): the first report harness waits for the test at each step
+- What: `web/harness/first-report.html` no longer moves from saving to confirming to done on 400 ms timers; each step waits for its button ("Server has it", "Confirm done", "Server refuses"), and `e2e/harness/firstReport.spec.ts` presses them. A 400 ms step could pass between two of Playwright's polls (its interval grows to a second), so the check sometimes never saw "Confirming..." and timed out on "Saving the report...".
+- Source: review (the check failed about one run in five locally and once in CI).
+- Verified: typecheck passes; both checks passed 30 times in a row (`--repeat-each 5`, three runs); the hygiene guard passes.
+
+### fix(command): a join error sits under its field, marks it invalid and takes the focus
+- What: the join form showed every error in one line under both fields, with no `aria-invalid`, no `aria-describedby`, and the focus left where it was. Now an error about one field ("Enter the incident id."; "The join code has 8 characters." or "That code did not match this incident.") sits under that field, marks it `aria-invalid`, is its description, and takes the focus there; any other error stays under the form. `joinErrorField` in `web/src/data/join.ts` says which field an error is about.
+- Source: UI review (the join error was not beside its field).
+- Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(command): the Sightings list shows three at a time, those waiting for a decision first
+- What: the Sightings panel listed every sighting, decided or not, so on a phone a busy drill pushed the rest of the rail thousands of pixels down (the test drill's post was 12,579 px tall at 390 px wide). It now lists the sightings waiting for command first, then the decided ones, shows three, and offers "Show all N sightings"; a line under the heading says how many are waiting ("6 waiting for a decision."). The sightings harness gains `?many=1`; the live retraction check now sees the report listed before it checks that it leaves.
+- Source: UI review at phone width (too many words on the working screen).
+- Verified: new harness checks in `e2e/harness/sightings.spec.ts` (three shown, waiting ones first, Show all reveals all eight with the decided last; no button for three or fewer) failed first, then passed with the existing sightings checks (5); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(command): the offline line sits under the header without shifting the post
+- What: the command post was a two-row grid (header, then body), so a status line between them (the offline line "No connection. Showing the last data received.", or the unreadable-plans line) became an extra grid child with a paragraph's margins: it sat 15 px below the header and pushed the map and rails down. The post is now a flex column: the header, any status line at its own height (no margin, a thin rule under it), then the body filling the rest of the window. The post layout harness gains `?offline=1`.
+- Source: UI review (the offline banner shifted the whole screen).
+- Verified: a new harness check in `e2e/harness/postLayout.spec.ts` (the line sits right under the header, at most two lines tall, the body starts under it and still reaches the bottom of the window, nothing scrolls the document) failed first (15 px gap), then passed; the full harness suite (200), web unit suite and the hygiene guard pass.
+
+### perf(web): the judge page and the command post each load their own code
+- What: `web/src/main.tsx` loads `CommandPost` and `JudgePage` with `React.lazy`, so the app was one 2.5 MB `main` script and is now a 223 KB `main`, a 161 KB `CommandPost` chunk and an 18 KB `JudgePage` chunk. On a placeholder build the judge page's unique script bytes fell from 3.94 MB to 3.78 MB: the shared code (Firebase, MapLibre for the replay, reCAPTCHA) still loads, and a deeper cut needs Firestore set up only where it is used and a second look at prefetching the replay.
+- Source: UI review (one 2.5 MB script on every page).
+- Verified: a new no-backend check, `e2e/routeChunks.spec.ts` (the judge page loads no `CommandPost` chunk and its own `JudgePage` chunk; the command post loads its chunk), failed on the old build and passes on the new one with every no-backend check (45); typecheck, web unit suite and the hygiene guard pass.
+
+### revert(web): the judge page and the command post load as one bundle again
+- What: reverts the per-page code split. With `CommandPost` loaded lazily, the stylesheets its modules import (MapLibre's among them) were injected after `base.css` instead of before it, so every rule of equal specificity flipped. `.maplibregl-map { position: relative }` then beat `.map { position: absolute; inset: 0 }`, and the deployed command post drew a map 0 px tall at every width. The deploy was rolled back within four minutes; the split saved about 160 KB, too little to justify auditing every reordered rule before the drill.
+- Source: live suite after deploy (the map drew no plates on the test drill, and on a phone it was 0 px tall).
+- Verified: `web/src/main.tsx` and the route-chunk check are back to their state before the split; the built page links MapLibre's stylesheet before `base.css` again (checked in the built `index.html`), and every no-backend check passes (45).
+
+### test(web): CI checks that the built stylesheets leave the map filling its frame
+- What: a new no-backend check, `web/e2e/mapCascade.spec.ts`, runs at 1440 px and 390 px on the built app. The join page loads the command post's code and every stylesheet it uses; the check puts a `.map-wrap` frame holding a `.map.maplibregl-map` element (the classes the map's container carries) on the page and asserts it is absolutely placed and the full 400 px tall. A build whose stylesheet order lets MapLibre's `position: relative` win fails it.
+- Source: live suite after deploy (a 0 px map that no CI check could see).
+- Verified: it failed at both widths on the build that drew the 0 px map (`position: relative`), and passes on the build with the split reverted, with every no-backend check (45).
+
+### fix(theme): a disabled outline button reads at 4.5:1 on a raised panel
+- What: `.btn.ghost:disabled` used fg-4 text, 4.33:1 on bg-2 (the sighting form and photo panels), a pair the theme never allows. It now uses fg-3 text (well over 4.5:1) with a dashed edge, so it still reads as off.
+- Source: UI review (disabled outline buttons on bg-2).
+- Verified: a new harness check, `e2e/harness/disabledGhost.spec.ts` (text-to-surface ratio and edge style from computed styles), failed at 4.33 first and now passes with the whole harness (204); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(map): an empty map says it is waiting for the search area
+- What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
+- Source: UI review (too many words on the working screen).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.
+
+### test(web): the live suite's sign-in step no longer waits for caches the join page never writes
+- What: `web/e2e/auth.setup.ts` waits for the Remote Config and Performance Monitoring caches before saving the session, but only the joined command post starts either. Run without the drill fixture (no join), the step always failed with "Remote Config's fetch was never stored in this browser". It now waits for them only when it joined, and saves the session at once otherwise.
+- Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
+- Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
+
+### feat(data): the write and the line for ending a search
+- What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
+- Source: review (an "End this search" control for command).
+- Verified: new unit tests in `endSearch.test.ts` (the write's shape; the reasons equal the list in `firestore.rules`, read from the file; the line for each reason, for no reason or an unknown one, and none while open) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): an End this search control with an inline confirm
+- What: `web/src/command/EndSearch.tsx` is one button, "End this search", that opens an inline confirm asking why (person found, search suspended, training ended). End search stays disabled until a reason is picked, shows "Ending the search..." while the write is out, and on a refused write says "Could not end the search. Check the connection and try again." with the confirm still open. Cancel closes it and writes nothing. A new harness page (`web/harness/end-search.html`) renders it with a stand-in write.
+- Source: review (an "End this search" control for command).
+- Verified: three new harness checks in `e2e/harness/endSearch.spec.ts` (Cancel writes nothing; a picked reason is written once, with the button held while it is out; a refused write keeps the confirm open) failed before the component existed, then passed with the whole harness (211); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): command ends the search from the post, and the post shows it ended
+- What: the command post puts End this search at the foot of Details. Once the incident is closed, a line under the header says "Search ended: <reason>. No new reports are taken.", the control goes, and Add sighting, Add camera clip and the phone bar's Add sighting are disabled (the rules take no new reports on a closed incident). `IncidentDoc` gains `closedReason`.
+- Source: review (an "End this search" control for command).
+- Verified: a new deployed check, `e2e/endSearch.spec.ts` (ends a fresh practice copy with Training ended, then checks the line, the disabled buttons, the control gone, and the line after a reload), failed on the live site at the missing control before this change; it runs after deploy, because the join needs the hosting origin. Typecheck, web unit suite (1151), the whole harness (211), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): the post says a search ended only once the server has the close
+- What: Firestore shows this browser's own pending write to the incident listener at once, so the post said "Search ended" (and dropped the confirm) before the server had accepted the close, and offline it said so while the server still took reports. The incident listener now reads metadata changes and reports `incidentPending`; `endedLine` takes whether the server has the close, and the post shows the ended line only then. Until the server acknowledges, the confirm stays up saying it is ending.
+- Source: review (Codex: the post shows a search as ended before the server accepts the close).
+- Verified: a new unit test in `endSearch.test.ts` (no ended line for a close the server does not have yet) failed first, then passed; typecheck, web unit suite (1152), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): ending a search closes any open report form and the first-report card
+- What: the add buttons were disabled once a search ended, but a sighting form or camera clip panel already open (or opened in another tab before the close) still offered Save and Confirm, and a practice search ended before its first report still offered "Add and confirm this report". Once the server has the close, the post now closes both forms and hides the first-report card.
+- Source: review (Codex: the closed post still offers writes).
+- Verified: the deployed check `e2e/endSearch.spec.ts` now opens Add sighting before ending the search and expects the form gone after; it runs after deploy. Typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### fix(command): the End search confirm stays held after the close, and focus follows it
+- What: after the server took the close, the confirm briefly offered End search again until the post removed it; it now stays held with "Ending the search..." until then. Opening the confirm puts the focus on the first reason, and Cancel puts it back on End this search.
+- Source: review (Codex: a resubmission gap, and keyboard focus dropped on open and on Cancel).
+- Verified: two harness checks in `e2e/harness/endSearch.spec.ts` (the button stays disabled after the server has it; focus on open and on Cancel) failed first, then passed with the whole harness; typecheck and the hygiene guard pass.
+
+### fix(command): a pending edit never makes an ended search look open again
+- What: the ended line waited for the incident doc to have no pending write, so after a confirmed close any later offline edit to the incident (a prior rebuild, say, which the rules then refuse) marked the doc pending and brought back the add buttons and End this search until the server answered. The incident listener now keeps `serverStatus`, the status the server last confirmed (`confirmedStatus` in `web/src/data/endSearch.ts`: a snapshot holding this browser's pending write leaves it as it was), and the post shows the search ended from that.
+- Source: review (Codex, second round: a pending prior edit makes a closed search look open again).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite (1153), the whole harness, the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a close queued on this browser offers no second close
+- What: a close written offline stays queued across a reload, but the reloaded post offered End this search again, so command could queue a second close. While this browser holds a close the server has not confirmed, End this search now shows only "Ending the search..." and offers nothing more; it stays mounted, so if the server refuses the close the confirm comes back with the error.
+- Source: review (Codex, second round, low: reloading during a pending close allows a second submission).
+- Verified: a new harness check (`?queued=1`) failed first, then passed with the whole harness (213); typecheck and the hygiene guard pass.
+
+### fix(command): the post offers no new reports while this browser holds a close
+- What: the add buttons and open forms followed the server-confirmed close only, so after a reload with a cached close plus another pending edit (say, a rebuild queued offline), the post showed "Ending the search..." and still offered Add sighting until that edit cleared, though the server had the search closed. `writesOpen` in `web/src/data/endSearch.ts` is false once either the server or this browser has the search closed; the add buttons, the open forms and the first-report card follow it. The ended line still follows the server.
+- Source: review (Codex, third round: reloading can make a confirmed closure look pending).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### feat(data): the call and the words for removing a member
+- What: `web/src/data/members.ts` calls the `removeMember` callable (incident id and the member's uid) and turns a failure into one sentence: the server's own reason when it gives one (yourself, another command, not command, no longer a member), "Refused by App Check. Try a normal browser window." for a refused token, "No connection. Try again when the link is back." offline, and "Could not remove them. Try again." otherwise.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): the list of people command can remove
+- What: `memberRows` in `web/src/data/members.ts` joins the server's members records with the authors of the incident's events (an account that joined before the records existed is known only by what it wrote). Command is never listed; a members record wins over an event for role and team; searchers read "<team> searcher" and family "Family member"; two people with one label are told apart by the last four characters of their id; removed members come last, marked removed.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a People panel where command removes someone from the drill
+- What: `web/src/command/MembersPanel.tsx` lists each searcher and family member with "Remove from this drill". Pressing it asks inline ("Remove <who>? They lose access at once and cannot join again.") with Remove and Cancel; a refused removal gives the server's reason under the row with the confirm still open; a removed person shows "Removed" and no action. A harness page (`web/harness/members.html`) renders it with synthetic members and a stand-in call.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new harness checks in `e2e/harness/members.spec.ts` (never lists command; Cancel removes nothing and Remove marks the person removed; a refusal says why; someone already removed has no action) failed with the component moved aside, then passed with the whole harness; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): the People panel on the command post
+- What: the command post lists, under Details, everyone command can remove (the server's members records and the authors of the incident's reports), with Remove from this drill calling the `removeMember` callable; removal records mark a person Removed. `subscribeMembers` in `web/src/data/members.ts` reads both collections, and a refused read (before the rules that let command read them are deployed) reads as empty, so the list falls back to report authors. `memberRows` now takes plain event records.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: a new deployed check, `e2e/removeMember.spec.ts` (on a fresh practice copy: the People panel lists the copied reports' authors, never command, and removing one reaches the server and is refused as not a member of that copy, which removes no one), failed on the live site at the missing panel before this change; it runs after deploy. Typecheck, web unit suite (1154), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(data): the People list never offers the caller or any account seen as command
+- What: `memberRows` kept the first role it saw for an account, so a searcher who later joined as command (or the caller's own earlier reports) still got Remove from this drill while the members records were loading or refused. It now leaves out the caller (the command post passes its own uid) and any account with a command members record or any command event, whichever came first.
+- Source: review (Codex: the panel can offer to remove the caller or another command account).
+- Verified: a new unit test in `members.test.ts` (the caller, an account with a later command event, and an account with a command record are all left out) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(data): two people in the People list never share a label
+- What: people with the same label were told apart by the last four characters of their id, so two ids ending alike gave two identical rows (and confirms) that removed different people. The ending now grows, two characters at a time, until every label in the group is distinct.
+- Source: review (Codex: two people can have identical labels and confirmations).
+- Verified: a new unit test in `members.test.ts` (two ids with the same last four characters get distinct labels) failed first, then passed with the whole file (8); the hygiene guard passes.
+
+### fix(command): a removal shows Removed at once, so it cannot be sent twice
+- What: the callable can answer before the removal record reaches the listener, and in that gap the row offered Remove from this drill again for the same person. The People panel now marks a person Removed as soon as the call succeeds on this seat. Each row also carries `data-member` (the account id) so a check can find one person's row.
+- Source: review (Codex: a successful removal can be submitted again).
+- Verified: a new harness check (`?noecho=1`, where no removal record arrives) failed first, then passed with the People checks (5); typecheck and the hygiene guard pass.
+
+### fix(data): a refused sign-in no longer reads as an App Check refusal on removal
+- What: the callable answers "unauthenticated" for a rejected sign-in token as well as for a refused App Check token, so "Refused by App Check. Try a normal browser window." could send command the wrong way. It now reads "Refused: sign-in or App Check. Reload the page and try again."
+- Source: review (Codex, low: a rejected sign-in token is reported as an App Check failure).
+- Verified: the unit test's expected sentence was changed first and failed, then passed with the whole file (8).
+
+### fix(data): a refused read of the members or removal records keeps what was shown
+- What: when the removal records' listener was refused after a good read, it replaced them with an empty set, so a removed person with an old report got Remove from this drill again. A refused read now changes nothing: the lists start empty before any read succeeds, and keep what they showed after one.
+- Source: review (Codex: a failed removal listener makes removed people appear eligible again).
+- Verified: a new unit test, `membersListen.test.ts` (Firestore's listener mocked: a good read, then a refusal on each collection), failed first, then passed with the members tests (9); typecheck and the hygiene guard pass.
+
+### test(web): the deployed removal check removes a member it made, on the test drill
+- What: the deployed check ran on a practice copy, but practice copies carry no reports, so the People panel there had no one to list. It now runs on the test drill: a fresh family member joins over the public APIs (as the family app does, `freshFamilyMember` in `e2e/familyConsent.ts`), command finds that account's row by `data-member` and removes it, and then that account's read of the incident is refused (403) and it cannot join again (403). The member the check makes is the one it removes.
+- Source: review (Codex: the end-to-end test cannot reach the callable with practice setup).
+- Verified: the check and its fixture compile (`playwright test --list`); it runs after deploy and needs the members records the join function now writes. It was not run against the current site, where it would leave its fresh member unremoved.
+
+### fix(data): a members record decides who is listed, over an old command event
+- What: the People list left out any account with a command event, so a command account that later rejoined the same drill as family (its members record then says family, and the server allows its removal) could not be removed. A members record now decides an account's role and team; only an account with no record is kept off the list by a command event of it.
+- Source: review (Codex, second round: an old command event hides a member the server can remove).
+- Verified: a new unit test in `members.test.ts` (a family record with an earlier command event is listed) failed first, then passed with the file; the hygiene guard passes.
+
+### fix(command): once a People read is refused, the panel says the list may be out of date
+- What: Firestore stops a listener after it refuses it, and the members and removal lists then kept their last read with no sign it had stopped, so a person another command seat had removed could still be offered for removal. `subscribeMembers` now reports a refusal; the panel then says "This list may be out of date. Reload the page before removing anyone." and offers no removal, while the last good lists stay shown.
+- Source: review (Codex, second round: a refused listener leaves People silently stale).
+- Verified: the listener unit test (`membersListen.test.ts`, mocked) now also expects the refusal to be reported, and failed first; a new harness check (`?stale=1`) failed on the panel without the change and passes with it (6 People checks); typecheck and the hygiene guard pass.
+
+### test(web): the removal check cleans up after itself and proves the sessions were revoked
+- What: if the deployed removal check failed before removing its fresh family member (the row never showing, say), or the fixture failed after the join, the account stayed joined to the test drill. Both now remove that account through `removeMember` as a command session of their own (`removeAsCommand` in `e2e/familyConsent.ts`). The check also expects the removed account's session refresh to be refused (400), since the removal record alone already refuses reads and rejoins, and only the refresh shows the sessions were revoked.
+- Source: review (Codex, second round: a failed test can leave the fresh account active; the test can pass while revocation failed).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### test(web): the removal check's cleanup fails loudly and waits for the revocation
+- What: the cleanup returned removeMember's status and its callers dropped it, so a failed cleanup left the family account joined without a word; it now throws unless the server removed the account. The fixture records the account just before the join is sent, so a join that went through with its answer lost is still cleaned up (an account the server says never joined counts as clean). The check waits for the removed account's session refresh to fail with `TOKEN_EXPIRED` (the server writes the removal record before it revokes the sessions, and any malformed token also gives a 400), and until it has seen that, a failure removes the account again, which retries the revocation. The cleanup's own command account stays joined, since command cannot remove itself; it holds no reports.
+- Source: review (Codex, third round: cleanup ignores failed removals, checks revocation too early, accepts any 400, and misses a lost join answer).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### fix(command): a refused People read with no one listed still says so
+- What: with no one to list the People panel showed nothing, so when a read was refused before any rows loaded, command saw neither the list nor the warning. The panel now shows its heading and "This list may be out of date. Reload the page before removing anyone." whenever a read was refused, even with no rows.
+- Source: review (Codex, third round, low: a first-load refusal can hide the stale warning).
+- Verified: a new harness check (`?stale=1&empty=1`) failed first, then passed with the People checks (7); typecheck passes.
+
+### feat(data): command reads the "Report a problem" flags
+- What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: new unit tests in `contentReports.test.ts` failed first, then passed; with the schema from the branch that adds it, the schema parity gate reports `ContentReport` ok (7 fields, enum values equal); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a Problem reports panel for command
+- What: `web/src/command/FlagsPanel.tsx` lists the "Report a problem" flags newest first, one line each ("Family member flagged the family's description: wrong or misleading."), with the time and the reporter's note in quotes. With no flags there is no panel. A harness page (`web/harness/flags.html`) renders it with synthetic flags.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: two new harness checks in `e2e/harness/flags.spec.ts` failed with the component moved aside, then passed with the whole harness; web unit suite and the hygiene guard pass.
+
+### feat(command): the command post shows Problem reports at the top of its right rail
+- What: the command post listens to the incident's "Report a problem" flags and shows the Problem reports panel first in the right rail whenever there is one (a flag can be about personal information, so it is not tucked under Details). A searcher is named by the team its reports carry ("Team 1 searcher", or "A searcher" before it has sent one); family reads "Family member"; times are local hours and minutes.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: typecheck, web unit suite (1151), the whole harness (210), the build and every no-backend check (45) pass, with the hygiene guard. No deployed check: command cannot create a flag, and the family's channel is not exercised on the live drill, so the panel's lines are covered by the harness.
+
+### fix(data): a Problem report's note never shows a phone number
+- What: the reporter's app removes phone numbers before it stores a note, but the rules only check the note's type and length, so a note could carry one and the panel showed it verbatim. `reportFromDoc` now runs `removePhoneNumbers` (the same remover the sighting notes use) on every note before it is shown.
+- Source: review (Codex: private details in notes are shown verbatim).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a Problem report with no stored time sorts last, not first
+- What: a flag with no server time was sorted first as if it were still being saved, but command writes no flags, so on the command post a missing time only means a malformed document; it now sorts last. The test that assumed the old order now checks plain newest-first order.
+- Source: review (Codex, low: a malformed timestamp can move an old flag to the top).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a refused Problem reports read keeps the flags and says so
+- What: the flags listener replaced the list with nothing on a refusal, so command saw the same screen as with no reports, and Firestore does not restart a listener it has refused. `subscribeFlags` now keeps what was shown and reports the refusal, so the page can say the list may be out of date.
+- Source: review (Codex: a failed listener silently removes the panel).
+- Verified: a new unit test, `contentReportsListen.test.ts` (Firestore's listener mocked: a good read, then a refusal), failed first, then passed; typecheck passes.
+
+### feat(data): a Problem report names the report or task it flags
+- What: a flag read only "flagged a report" or "flagged their task", so with no note command could not tell which of several sightings to open. `flagTarget` in `web/src/data/contentReports.ts` names it when it is on hand: "a report from 04:21 in segment AE" (the report's time and first segment) or "their task in plan v3" (the plan the flagged task came from); otherwise the plain words stay. `flagLine` takes it.
+- Source: review (Codex: command cannot identify the flagged report or task).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(command): Problem reports names what was flagged, shows three, and says when it is out of date
+- What: the panel now names each flagged item ("a report from 04:21 in segment AE", "their task in plan v3") with `flagTarget`; shows the newest three with "Show all N problem reports", so a run of flags never pushes the working rail out of view; lets a long unbroken note wrap instead of pushing the page sideways; marks its list as a list for screen readers; and, once a read is refused, says "These reports may be out of date. Reload the page." (even with no flags shown). The command post passes the incident's reports and plans for the names and the refusal from `subscribeFlags`.
+- Source: review (Codex: command cannot identify the flagged item; the list can push working controls out of view; a long note overflows; a refused read hides the panel; Safari can drop list semantics).
+- Verified: three new harness checks in `e2e/harness/flags.spec.ts` (the named report; three shown then Show all, with no sideways overflow; the out-of-date line with no flags) failed first, then passed with the flags checks (5); the first check now expects the named report. Typecheck, web unit suite (1161), the whole harness (218), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a flagging searcher is named by the team of its latest report
+- What: the flag's author label took the team of the first event the account wrote, so a searcher who rejoined on another team was named by the old one ("Team 1 searcher flagged their task" for a Team 2 task). It now takes the team of the account's latest report.
+- Source: review (Codex: a flag can name the wrong team).
+- Verified: typecheck passes; the label's lookup is a two-line change in `CommandPost.tsx`, which no harness renders, so it rests on the review and the deployed post.
+
+### fix(data): a flagging searcher's team comes from its latest report by server time
+- What: the author label picked the report with the largest phone time, so a phone clock set back between a Team 1 report and a newer Team 2 report kept the old team, and a report with no time stopped every later match. `latestTeamOf` in `web/src/data/contentReports.ts` orders by server time, then the report's own time, and skips reports with neither; the command post uses it.
+- Source: review (Codex, second round: the team lookup can keep the old team after a rejoin).
+- Verified: a new unit test in `contentReports.test.ts` (a skewed phone clock and a report with no time) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(command): a flagged report is named to the second, and never as "Invalid Date"
+- What: two reports from one segment in the same minute were both named "a report from 14:03 in segment AE", so with no note command still could not tell which was flagged; the command post now names a flagged report to the second ("14:03:07"). A report time outside the date range now falls back to "a report" instead of "a report from Invalid Date".
+- Source: review (Codex, second round: same-minute reports get identical labels; an out-of-range time renders as Invalid Date).
+- Verified: a new unit test in `contentReports.test.ts` (an out-of-range time gives the plain words) failed first, then passed with the file (8); typecheck and the hygiene guard pass.
+
+### fix(command): each report's time shows its seconds
+- What: a Problem report names a flagged report to the second ("a report from 14:03:42 in segment AE"), but the Reports rows showed only hours and minutes, so two reports from one segment in the same minute still could not be matched to the flag. Report rows now show seconds too.
+- Source: review (Codex, third round: command still cannot match a flag to the right report).
+- Verified: a new harness check in `e2e/harness/reports.spec.ts` failed first, then passed with the whole harness (219); the existing report checks match on the time's start and still pass; typecheck and the hygiene guard pass.
+
+### fix(data): a report the server timed outranks one it did not, for the flagger's team
+- What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
+- Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.

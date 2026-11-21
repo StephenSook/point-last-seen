@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
-import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore, type DocumentReference, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 
 export type JoinRole = "command" | "searcher" | "family";
@@ -74,6 +74,36 @@ function inviteUsable(code: DocumentSnapshot): boolean {
   return max == null || (typeof max === "number" && ((code.get("uses") as number) ?? 0) < max);
 }
 
+/** As above, for the incident: open, and unexpired (a judge sandbox needs a future expiry and a finished setup). */
+function incidentLive(incident: DocumentSnapshot): boolean {
+  const expiresAt = incident.get("expiresAt");
+  const live = expiresAt instanceof Timestamp && expiresAt.toMillis() > Date.now();
+  const expired = incident.get("mode") === "judge" ? !live || incident.get("setupReady") !== true : expiresAt != null && !live;
+  return incident.exists && incident.get("status") === "open" && !expired;
+}
+
+/**
+ * The join's last step, in ONE transaction: the code still exists and still admits this role to this incident
+ * (codes.ts can rotate it away at any moment), the incident is still open (command can end it), the account has not
+ * been removed (members.ts), a limited invite still has a use (counted here), and then the server-owned members
+ * record (role and team) is written. Removal decides from that record. Any of these documents changing mid-join
+ * makes Firestore retry the transaction against the new state. Returns false when the join must be refused.
+ */
+export async function commitJoin(db: Firestore,
+  j: { codeRef: DocumentReference; incidentId: string; role: string; team: string | null; uid: string }): Promise<boolean> {
+  return db.runTransaction(async tx => {
+    const [code, incident, removed] = await Promise.all([
+      tx.get(j.codeRef), tx.get(db.doc(`incidents/${j.incidentId}`)), tx.get(db.doc(`incidents/${j.incidentId}/removed/${j.uid}`)),
+    ]);
+    const roles = code.get("roles");
+    if (!code.exists || code.get("incidentId") !== j.incidentId || !Array.isArray(roles) || roles.length !== 1 || roles[0] !== j.role) return false;
+    if (!inviteUsable(code) || !incidentLive(incident) || removed.exists) return false;
+    if (code.get("maxUses") != null) tx.update(j.codeRef, { uses: FieldValue.increment(1) });
+    tx.set(db.doc(`incidents/${j.incidentId}/members/${j.uid}`), { role: j.role, team: j.team, joinedAt: FieldValue.serverTimestamp() });
+    return true;
+  });
+}
+
 /**
  * Checks the join code and sets the caller's custom claims { inc, role, team }. Code hashes live in
  * joinCodes/{sha256(code)} = { incidentId, roles }, a collection no client can read: a hash of a 40-bit code
@@ -104,31 +134,16 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   }
   if (incidentId !== undefined && incidentId !== id) denied();
   if (!inviteUsable(code)) denied();
-  const incident = await db.doc(`incidents/${id}`).get();
   // A judge sandbox needs a future timestamp expiry and a finished setup (setupReady === true), as the security
-  // rules' liveFor requires; any other incident may have no expiry, but a set one counts.
-  const expiresAt = incident.get("expiresAt");
-  const live = expiresAt instanceof Timestamp && expiresAt.toMillis() > Date.now();
-  const expired = incident.get("mode") === "judge"
-    ? !live || incident.get("setupReady") !== true
-    : expiresAt != null && !live;
-  if (!incident.exists || incident.get("status") !== "open" || expired) denied();
+  // rules' liveFor requires; any other incident may have no expiry, but a set one counts. commitJoin checks again.
+  if (!incidentLive(await db.doc(`incidents/${id}`).get())) denied();
   let team: string | null = null;
   if (role === "searcher") {
     const t = await db.doc(`incidents/${id}/teams/${teamId}`).get();
     if (!t.exists) denied();
     team = teamId!;
   }
-  // Count a use of a limited invite atomically, refusing if another caller took the last one meanwhile.
-  if (code.get("maxUses") != null) {
-    const ok = await db.runTransaction(async tx => {
-      const fresh = await tx.get(codeRef);
-      if (!inviteUsable(fresh)) return false;
-      tx.update(codeRef, { uses: FieldValue.increment(1) });
-      return true;
-    });
-    if (!ok) denied();
-  }
+  if (!(await commitJoin(db, { codeRef, incidentId: id, role, team, uid }))) denied();
   await getAuth().setCustomUserClaims(uid, { inc: id, role, team });
   return { ok: true, incidentId: id };
 }

@@ -42,3 +42,10 @@ export function signInErrorMessage(e: unknown): string {
   if (code === "auth/network-request-failed") return "No connection. Try again when the link is back.";
   return "Could not sign in. Try again.";
 }
+
+/** The field a join error is about, so the form can show it under that field; null for an error about the whole form. */
+export function joinErrorField(message: string): "incident" | "code" | null {
+  if (message === "Enter the incident id.") return "incident";
+  if (message === "The join code has 8 characters." || message === "That code did not match this incident.") return "code";
+  return null;
+}

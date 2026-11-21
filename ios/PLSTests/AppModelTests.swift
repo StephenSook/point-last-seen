@@ -1,7 +1,19 @@
+import CoreGraphics
 import Foundation
 import PLSCore
 import Testing
 @testable import PLS
+
+/// Auth whose token claims cannot be read: the loaded mission stays, so a test does not depend on the Auth user this
+/// simulator happens to hold.
+final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
+    func ensureSignedIn() async -> Bool { true }
+    func callJoin(_ payload: [String: String]) async throws -> JSONValue { throw JoinCallError.refused }
+    func refreshClaims() async throws -> [String: JSONValue] { throw JoinCallError.refused }
+    func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? { nil }
+    /// The server deletes the account, so a test's Leave goes through.
+    func deleteMyAccount() async -> Bool { true }
+}
 
 @MainActor
 @Suite struct AppModelTests {
@@ -114,7 +126,7 @@ import Testing
         let model = AppModel(signIn: signIn, uid: uid, measurements: FakeMeasurementWriter(), readReport: { text, situation, config, screen in
             log.events.append("read")
             return await ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: config, screen: screen).read(text, situation: situation)
-        })
+        }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("order-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -126,6 +138,415 @@ import Testing
         Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
                 assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
                 profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+    }
+
+    /// Ready check's sign-in line: hidden in the practice drill, which never signs in; otherwise it says where sign-in is.
+    @Test func thePracticeDrillShowsNoSignInLine() async throws {
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
+        await model.load(try quietMission())
+        #expect(model.signInLine == "Not signed in. Stay in signal.")
+        var practice = try quietMission()
+        practice.isPractice = true
+        await model.load(practice)
+        #expect(model.signInLine == nil)
+    }
+
+    /// A photo model with a fake reader and a journal; the reader's answer is fixed per test.
+    func photoModel(_ answer: PhotoReadResult, available: Bool = true) throws -> (AppModel, EventStore) {
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in answer }, photoReaderAvailable: { available }, joinBackend: NoClaimsJoinBackend())
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        return (model, store)
+    }
+
+    static func onePixel() throws -> CGImage {
+        let ctx = try #require(CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                         space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        return try #require(ctx.makeImage())
+    }
+
+    /// A photo of a described item is one clue report, written by code, read on this phone.
+    @Test func aPhotoOfSomethingFoundIsJournalledAsAClue() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red baseball cap", color: .red, kind: .hat)
+        let (model, store) = try photoModel(.described(cap, model: "test-model", latencyMs: 1500))
+        var mission = try quietMission()
+        mission.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("a red baseball cap")]))
+        await model.load(mission)
+        #expect(model.canReadPhoto)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.inputMethod == .photo && doc.rawText == "Photo: red baseball cap.")
+        #expect(doc.reading?["kind"] == .string("clue") && doc.reading?["matchesProfile"] == .string("consistent"))
+        #expect(doc.route?.path == .onDevice && doc.route?.model == "test-model" && doc.route?.latencyMs == 1500)
+        #expect(model.problem == nil)
+    }
+
+    @Test func aPhotoThatShowsAPersonIsNotKeptOrSent() async throws {
+        let person = PhotoDescription(showsPerson: true, object: "red baseball cap", color: .red, kind: .hat)
+        let (model, store) = try photoModel(.described(person, model: "test-model", latencyMs: 1500))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+        #expect(model.problem == PhotoClue.personMessage)
+    }
+
+    /// A photo whose words could be evidence follows the evidence protocol, like a typed report: command decides,
+    /// no reading is stored, and the receipt shows how to handle it.
+    @Test func aPhotoOfPossibleEvidenceGoesToCommand() async throws {
+        let knife = PhotoDescription(showsPerson: false, object: "bloody knife", color: .gray, kind: .other)
+        let (model, store) = try photoModel(.described(knife, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.route?.reason == .possibleEvidence)
+        #expect(doc.effect == .none(why: .needsCommand) && doc.reading == nil)
+        #expect(doc.rawText == "Photo: bloody knife." && doc.inputMethod == .photo)
+    }
+
+    /// An evidence word past the item's 40 characters still sends the photo through the evidence protocol.
+    @Test func evidenceLateInALongCaptionStillGoesToCommand() async throws {
+        let bag = PhotoDescription(showsPerson: false, object: "weathered camouflage backpack with bloodstains", color: .green, kind: .bag)
+        let (model, store) = try photoModel(.described(bag, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.effect == .none(why: .needsCommand))
+    }
+
+    /// A report whose task was cancelled while it was read is not journalled.
+    @Test func aCancelledPhotoReadSendsNothing() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 withUnsafeCurrentTask { $0?.cancel() }
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cancel-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        let image = try Self.onePixel()
+        let sent = await Task { await model.submitPhoto(image) }.value
+        #expect(sent == false)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// The evidence screen reads the model's whole caption, before any cut: an evidence word past 200 characters counts.
+    @Test func evidenceAfterTheCaptionCutStillGoesToCommand() async throws {
+        let long = String(repeating: "worn ", count: 45) + "backpack with bloodstains"
+        let bag = PhotoDescription(showsPerson: false, object: long, color: .green, kind: .bag)
+        let (model, store) = try photoModel(.described(bag, model: "m", latencyMs: 1))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.route?.stage == .evidenceProtocol && doc.effect == .none(why: .needsCommand))
+    }
+
+    /// While an earlier photo is still being read, a new one is not started and nothing is sent.
+    @Test func aPhotoWhileAnotherIsReadSendsNothing() async throws {
+        let (model, store) = try photoModel(.busy)
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty && model.problem == AppModel.photoReadBusy)
+    }
+
+    @Test func aPhotoThatCouldNotBeReadSendsNothing() async throws {
+        let (model, store) = try photoModel(.failed)
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+        #expect(model.problem == AppModel.photoReadFailed)
+    }
+
+    @MainActor final class ModelBox { var model: AppModel? }
+
+    /// A read that finishes after the searcher left the search is dropped: nothing is journalled for that mission.
+    @Test func aPhotoReadThatOutlivesItsMissionIsDropped() async throws {
+        let box = ModelBox()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 _ = await box.model?.leaveSearch()
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(model.mission == nil)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// A mission dropped and loaded again while the photo is read is not the same mission: the read is dropped.
+    @Test func aPhotoReadAcrossADropAndRestoreIsDropped() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 box.model?.dropMissionNow()
+                                 await box.model?.load(mission)
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("restore-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// A sign-in at Send that reloads the mission under the new session keeps the report: the mission it is checked
+    /// against is the one loaded after sign-in.
+    @Test func aSignInThatReloadsTheMissionKeepsTheReport() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        var owned = mission
+        owned.owner = AccountSession(uid: "uid-1", generation: 9)
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: {
+                                 await box.model?.dropMissionNow()
+                                 await box.model?.load(owned)
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                             joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("signin-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        #expect(store.entries.count == 1)
+    }
+
+    /// A sign-in at Send that moves the phone to another team, or into a search where no model may read, drops the
+    /// report: it was made for the mission on screen, so it must not be journalled under another one.
+    @Test func aSignInThatChangesTheTeamOrModeDropsTheReport() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        var otherTeam = try quietMission()
+        otherTeam.teamId = "T2"
+        var liveSearch = try quietMission()
+        liveSearch.mode = "search"
+        for replacement in [otherTeam, liveSearch] {
+            let box = ModelBox()
+            let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: {
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(replacement)
+                                     return true
+                                 }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                                 readPhoto: { _, _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                                 joinBackend: NoClaimsJoinBackend())
+            box.model = model
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("team-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+            model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+            await model.load(try quietMission())
+            #expect(await model.submitPhoto(try Self.onePixel()) == false, "\(replacement.teamId) \(replacement.mode)")
+            #expect(store.entries.isEmpty && model.problem == AppModel.teamChanged)
+        }
+    }
+
+    final class Calls: @unchecked Sendable { var n = 0 }
+
+    /// A mission that changes while the report waits for its GPS fix (another incident, or a mode where no model may
+    /// read) gets no model call at all: the reader is never asked, and nothing is journalled.
+    @Test func aMissionSwitchDuringTheGPSWaitStartsNoReader() async throws {
+        var live = try quietMission()
+        live.mode = "search"
+        var other = try quietMission()
+        other.incidentId = "I2"
+        for replacement in [live, other] {
+            let box = ModelBox()
+            let reads = Calls()
+            let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                                 readReport: { text, _, _, _ in
+                                     reads.n += 1
+                                     let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                             reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                     return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                                 },
+                                 fixPosition: { _ in
+                                     await box.model?.load(replacement)
+                                     return nil
+                                 }, joinBackend: NoClaimsJoinBackend())
+            box.model = model
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("gps-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+            model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+            await model.load(try quietMission())
+            #expect(await model.submit("Cleared AC", inputMethod: .typed) == "Cleared AC")
+            #expect(reads.n == 0 && store.entries.isEmpty && model.problem == AppModel.teamChanged, "\(replacement.incidentId) \(replacement.mode)")
+        }
+    }
+
+    @Test func aModeSwitchDuringTheGPSWaitStartsNoPhotoRead() async throws {
+        var live = try quietMission()
+        live.mode = "search"
+        let box = ModelBox()
+        let reads = Calls()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 reads.n += 1
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true },
+                             fixPosition: { _ in
+                                 await box.model?.load(live)
+                                 return nil
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("gpsphoto-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(reads.n == 0 && store.entries.isEmpty && model.problem == AppModel.teamChanged)
+    }
+
+    /// After "your team changed", the kept words are not sent by a second tap: only "Send to my new team" (or editing
+    /// them first) sends them, to the team now on screen.
+    @Test func wordsKeptAfterATeamChangeNeedAReviewBeforeTheyAreSent() async throws {
+        final class State: @unchecked Sendable { var signed = false; var switched = false }
+        let state = State()
+        let box = ModelBox()
+        let reads = Calls()
+        var newTeam = try quietMission()
+        newTeam.teamId = "T2"
+        let model = AppModel(signIn: SignIn(isSignedIn: { state.signed }, attempt: {
+                                 if !state.switched {
+                                     state.switched = true
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(newTeam)
+                                 }
+                                 state.signed = true
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 reads.n += 1
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                         reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("review-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        let words = "Cleared AC, nothing found"
+        #expect(await model.submit(words, inputMethod: .typed) == words)
+        #expect(model.problem == AppModel.teamChanged && model.heldForReview == words)
+        // A second tap with the same words sends nothing.
+        #expect(await model.submit(words, inputMethod: .typed) == words)
+        #expect(reads.n == 0 && store.entries.isEmpty)
+        // "Send to my new team" sends them, to the team on screen now.
+        #expect(await model.sendToNewTeam(words, inputMethod: .typed) == "")
+        #expect(reads.n == 1 && store.entries.first?.doc.teamId == "T2" && model.heldForReview == nil)
+    }
+
+    /// An old "team changed" message never holds words that failed for another reason: each send starts with no message.
+    @Test func anOldTeamChangeMessageDoesNotHoldWordsThatFailedForAnotherReason() async throws {
+        final class State: @unchecked Sendable { var signed = false; var switched = false; var cancel = false }
+        let state = State()
+        let box = ModelBox()
+        var newTeam = try quietMission()
+        newTeam.teamId = "T2"
+        let model = AppModel(signIn: SignIn(isSignedIn: { state.signed }, attempt: {
+                                 if !state.switched {
+                                     state.switched = true
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(newTeam)
+                                 }
+                                 state.signed = true
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 if state.cancel { withUnsafeCurrentTask { $0?.cancel() } }
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                         reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-msg-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        _ = await model.submit("Cleared AC", inputMethod: .typed)
+        #expect(model.problem == AppModel.teamChanged)
+        // Edited words that fail for another reason (the read's task is cancelled) are not held for review.
+        state.cancel = true
+        let edited = "Cleared AC, nothing found"
+        _ = await Task { await model.submit(edited, inputMethod: .typed) }.value
+        #expect(model.heldForReview == nil)
+    }
+
+    /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
+    @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 await box.model?.load(mission)
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("reload-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        #expect(store.entries.count == 1)
+    }
+
+    /// The same for a typed report.
+    @Test func aTypedReadThatOutlivesItsMissionIsDropped() async throws {
+        let box = ModelBox()
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 _ = await box.model?.leaveSearch()
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none", reason: .onDeviceDefault,
+                                                         latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        _ = await model.submit("Cleared AC", inputMethod: .typed)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// The photo button shows only when Apple's model can read photos here, in a drill that lets a model read.
+    @Test func photosAreReadOnlyWhereAModelMayReadThem() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "cap", color: .red, kind: .hat)
+        let (off, _) = try photoModel(.described(cap, model: "m", latencyMs: 1), available: false)
+        await off.load(try quietMission())
+        #expect(off.canReadPhoto == false)
+        let (live, liveStore) = try photoModel(.described(cap, model: "m", latencyMs: 1))
+        var mission = try quietMission()
+        mission.mode = "search"
+        await live.load(mission)
+        #expect(live.canReadPhoto == false)
+        #expect(await live.submitPhoto(try Self.onePixel()) == false && liveStore.entries.isEmpty)
     }
 
     /// A found object read as a clue keeps its reason with the report on this phone, for the receipt, and the
@@ -143,7 +564,7 @@ import Testing
             reading.segmentIds = ["AC"]
             reading.item = "blue coat"
             return ReadOutcome(reading: reading, route: route, validation: .ok, foundKindReason: FoundKind.reason)
-        })
+        }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("found-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -154,6 +575,29 @@ import Testing
         #expect(await model.submit("Found a blue coat by the creek in AC", inputMethod: .typed) == "")
         #expect(store.entries.first?.foundKindReason == FoundKind.reason)
         #expect(seen.names == ["Bea", "Mama Bea"])
+    }
+
+    /// A read whose numbers came from the rules, not the model, keeps that with the report on this phone, for the
+    /// receipt's line; a read whose numbers were the model's keeps nothing.
+    @Test func numbersReadByRulesStayWithTheReport() async throws {
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 640, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .cleared
+            reading.segmentIds = ["AC"]
+            reading.coverage = 0.7
+            return ReadOutcome(reading: reading, route: route, validation: .ok, numbersFromRules: text.contains("rules"))
+        }, joinBackend: NoClaimsJoinBackend())
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("numbers-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submit("Cleared AC, coverage 0.7 (rules)", inputMethod: .typed) == "")
+        #expect(await model.submit("Cleared AC, coverage 0.7", inputMethod: .typed) == "")
+        #expect(store.entries.map(\.numbersFromRules) == [true, nil])
     }
 
     @Test func aFailedSignInReadsNothingAndSendsNothing() async throws {

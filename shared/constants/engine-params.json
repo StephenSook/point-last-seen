@@ -56,5 +56,14 @@
     "rings": "SOURCED: ISRID dementia distance from the IPP, km, 25/50/75/95%, Lost Person Behavior p. 164 (publisher's public sample https://www.dbs-sar.com/LPB/Dementia.pdf, read 2026-11-18): temperate mountain n = 95, temperate flat n = 175, urban n = 336; masses 0.25 per ring to 75%, 0.20 to 95%",
     "nearFeature": "SOURCED: ISRID track offset, 75% within 71 m",
     "wedge": "SOURCED: ISRID dispersion, 75% within 66 degrees each side (n = 11); factors 0.75 / (132/360) and 0.25 / (228/360)"
+  },
+  "elevation": {
+    "levelBandM": 3,
+    "temperate": {
+      "up": 0.19,
+      "level": 0.39,
+      "down": 0.42
+    },
+    "source": "SOURCED: ISRID dementia elevation change from the IPP, temperate, uphill 19% / same 39% / downhill 42%, Lost Person Behavior p. 164 (publisher's public sample, read 2026-11-18; no n printed); OURS: levelBandM, the 3 m band for 'same', which the source does not define. Kept outside params: the layer is off by default and stored incidents carry no copy."
   }
 }

@@ -21,7 +21,7 @@ struct ReadyCheckView: View {
     static let leaveLabel = "Leave this search"
     static let endPracticeLabel = "End the practice drill"
     static let endPracticeDetail = "Its reports are deleted from this phone. You can then join a search or start the practice drill again."
-    static let leaveDetail = "This phone stops getting this team's tasks and can join another search. Command still lists you until they remove you."
+    static let leaveDetail = "This phone stops getting this team's tasks and its sign-in is deleted, so it can join another search. Reports already sent stay with command."
 
     var body: some View {
         ScrollView {
@@ -49,7 +49,7 @@ struct ReadyCheckView: View {
                         .toggleStyle(FieldToggleStyle())
                 }
                 section("Before you leave signal") {
-                    row(model.signedIn ? "Signed in" : "Not signed in. Stay in signal.", icon: "person.badge.key")
+                    if let signIn = model.signInLine { row(signIn, icon: "person.badge.key") }
                     row(model.mission == nil ? "Pack: not loaded" : "Pack: loaded", icon: "shippingbox")
                     row(model.updatePrompt ?? "App version \(model.appVersion): current", icon: "arrow.down.app")
                     row(ModelSessionFactory.unavailableReason() ?? "On-device model: ready (\(ModelSessionFactory.onDeviceStatus().variant))",
@@ -74,8 +74,8 @@ struct ReadyCheckView: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(theme.accentColor)
                         .accessibilityIdentifier("leave-search")
-                        if leaveRefused {
-                            Text(AppModel.leaveBlocked).font(.title3.weight(.semibold))
+                        if leaveRefused, let reason = model.leaveRefusal {
+                            Text(reason).font(.title3.weight(.semibold))
                         }
                     }
                     .confirmationDialog(leaveTitle, isPresented: $confirmingLeave, titleVisibility: .visible) {

@@ -3,6 +3,7 @@
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
 import { withEngineDefaults, type EngineParams, type GridSegment, type PriorLayers, type Terrain } from "@pls/engine";
+import { confirmedStatus } from "./endSearch";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -10,6 +11,8 @@ export type IncidentDoc = {
   mode: "drill" | "judge";
   drillLabel?: string;
   status: "open" | "found" | "closed";
+  /** Why command ended the search (set only with status "closed"). */
+  closedReason?: string;
   priorVersion: number;
   priorInputEventIds?: string[];
   engineParams?: EngineParams;
@@ -37,12 +40,18 @@ export type SegmentDoc = MapSegment & {
   /** Share of the cell within 71 m of a road, trail, stream or water edge (the linear layer reads it; absent: 0). */
   nearFrac?: number;
   featureClasses?: GridSegment["featureClasses"];
+  /** The prior version this segment was last written at; every prior write stamps it on every segment and ROW. */
+  priorVersion?: number;
 };
 
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
 export type IncidentView = {
   incident: IncidentDoc | null;
+  /** True while the incident doc on hand includes this browser's own write the server has not acknowledged. */
+  incidentPending?: boolean;
+  /** The status the server last confirmed (a pending local write does not change it). */
+  serverStatus?: string;
   teams: Team[];
   segments: SegmentDoc[];
   /** Prior mass outside the grid: the reserved "ROW" segment. Null until the prior is built. */
@@ -58,6 +67,19 @@ export type IncidentView = {
 export function incidentFromDoc(data: Record<string, unknown>): IncidentDoc {
   const d = data as IncidentDoc;
   return { ...d, engineParams: withEngineDefaults(d.engineParams) };
+}
+
+/** A stored segment document as the command post reads it; null when its geometry cannot be read. */
+export function segmentFromDoc(segmentId: string, data: Record<string, unknown>): SegmentDoc | null {
+  const geometry = parseGeometry(data["geometryJson"]);
+  if (!geometry) return null;
+  return {
+    segmentId, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"],
+    neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]),
+    nearFrac: typeof data["nearFrac"] === "number" ? data["nearFrac"] : 0,
+    featureClasses: ids(data["featureClasses"]) as SegmentDoc["featureClasses"],
+    ...(typeof data["priorVersion"] === "number" ? { priorVersion: data["priorVersion"] } : {}),
+  } as SegmentDoc;
 }
 
 function parseGeometry(json: unknown): MapSegment["geometry"] | null {
@@ -81,8 +103,11 @@ export function subscribeIncident(
   const base = ["incidents", incidentId] as const;
 
   const unsubs: Unsubscribe[] = [
-    onSnapshot(doc(db, ...base), (s) => {
+    // With metadata changes, so the acknowledgement of this browser's own write (same data, no longer pending) arrives.
+    onSnapshot(doc(db, ...base), { includeMetadataChanges: true }, (s) => {
       view.incident = s.exists() ? incidentFromDoc(s.data()) : null;
+      view.incidentPending = s.metadata.hasPendingWrites;
+      view.serverStatus = confirmedStatus(view.serverStatus, view.incident?.status, s.metadata.hasPendingWrites);
       emit();
     }, onError),
     onSnapshot(collection(db, ...base, "segments"), (s) => {
@@ -90,18 +115,8 @@ export function subscribeIncident(
       view.rowPrior = typeof row === "number" ? row : null;
       view.segments = s.docs.flatMap((d) => {
         if (d.id === "ROW") return [];
-        const data = d.data();
-        const geometry = parseGeometry(data["geometryJson"]);
-        return geometry
-          ? [
-              {
-                segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"],
-                neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]),
-                nearFrac: typeof data["nearFrac"] === "number" ? data["nearFrac"] : 0,
-                featureClasses: ids(data["featureClasses"]) as SegmentDoc["featureClasses"],
-              } as SegmentDoc,
-            ]
-          : [];
+        const seg = segmentFromDoc(d.id, d.data());
+        return seg ? [seg] : [];
       });
       emit();
     }, onError),

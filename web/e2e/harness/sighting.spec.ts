@@ -248,3 +248,13 @@ test("a read that fills the fields opens More details, so every filled field is 
   await expect(page.getByRole("combobox", { name: "Top" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Top", includeHidden: true })).toHaveValue("red");
 });
+
+test("while the note is read on this laptop, the form says so and that the first read can take up to a minute", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  const waiting = page.getByRole("status").filter({ hasText: "Reading the note on this laptop" });
+  await expect(waiting).toHaveText("Reading the note on this laptop. The first read can take up to a minute.");
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(waiting).toHaveCount(0);
+});

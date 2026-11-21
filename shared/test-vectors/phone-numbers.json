@@ -291,6 +291,306 @@
         "Text",
         "if you see him."
       ]
+    },
+    {
+      "name": "middle_dot_last_gap",
+      "input": "Call 404 555\u00b70142 tonight",
+      "number": "404 555\u00b70142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "middle_dots",
+      "input": "Call 404\u00b7555\u00b70142 tonight",
+      "number": "404\u00b7555\u00b70142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "spaced_middle_dots",
+      "input": "Call 404 \u00b7 555 \u00b7 0142 tonight",
+      "number": "404 \u00b7 555 \u00b7 0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "hyphenation_points",
+      "input": "Call 404\u2027555\u20270142 tonight",
+      "number": "404\u2027555\u20270142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "bullets",
+      "input": "Call 404\u2022555\u20220142 tonight",
+      "number": "404\u2022555\u20220142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "no_break_spaces",
+      "input": "Call 404\u00a0555\u00a00142 tonight",
+      "number": "404\u00a0555\u00a00142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "thin_spaces",
+      "input": "Call 404\u2009555\u20090142 tonight",
+      "number": "404\u2009555\u20090142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "narrow_no_break_spaces",
+      "input": "Call 404\u202f555\u202f0142 tonight",
+      "number": "404\u202f555\u202f0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "em_dashes",
+      "input": "Call 404\u2014555\u20140142 tonight",
+      "number": "404\u2014555\u20140142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "full_stops",
+      "input": "Call 404.555.0142 tonight",
+      "number": "404.555.0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "fullwidth_digits_and_hyphens",
+      "input": "Call \uff14\uff10\uff14\uff0d\uff15\uff15\uff15\uff0d\uff10\uff11\uff14\uff12 tonight",
+      "number": "\uff14\uff10\uff14\uff0d\uff15\uff15\uff15\uff0d\uff10\uff11\uff14\uff12",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "underscores",
+      "input": "Call 404_555_0142 tonight",
+      "number": "404_555_0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "asterisks",
+      "input": "Call 404*555*0142 tonight",
+      "number": "404*555*0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "vertical_bars",
+      "input": "Call 404 | 555 | 0142 tonight",
+      "number": "404 | 555 | 0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "semicolons",
+      "input": "Call 404;555;0142 tonight",
+      "number": "404;555;0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "exclamation_marks",
+      "input": "Call 404!555!0142 tonight",
+      "number": "404!555!0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "question_marks",
+      "input": "Call 404?555?0142 tonight",
+      "number": "404?555?0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "square_brackets",
+      "input": "Call [404] 555 0142 tonight",
+      "number": "[404] 555 0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "frequency_shape_beside_short_piece",
+      "input": "Call 404.555 0142 tonight",
+      "number": "404.555 0142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "two_numbers_across_a_slash",
+      "input": "Call 020.79460958 / 020.79460959 tonight",
+      "number": "020.79460958 / 020.79460959",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "frequency_shape_with_extension",
+      "input": "Call 404.555-0142 #123 tonight",
+      "number": "404.555-0142 #123",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "london_number_beside_a_coordinate",
+      "input": "Call 020.79460958 | -0.1276 tonight",
+      "number": "020.79460958 | -0.1276",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "london_number_beside_a_coordinate_comma",
+      "input": "Call 020.79460958, -0.1276 tonight",
+      "number": "020.79460958, -0.1276",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "frequency_shapes_with_a_leading_zero_group",
+      "input": "Call 404.555 0.142 tonight",
+      "number": "404.555 0.142",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "frequency_shapes_beside_a_long_number",
+      "input": "Call 404.555 0.142 1234567 tonight",
+      "number": "404.555 0.142 1234567",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "mexico_numbers_as_a_pair",
+      "input": "Call 33.12345678, 33.87654321 tonight",
+      "number": "33.12345678, 33.87654321",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "mexico_numbers_as_a_pair_no_cue",
+      "input": "Seen 55.12345678, 55.87654321 tonight",
+      "number": "55.12345678, 55.87654321",
+      "forbidden": [],
+      "keep": [
+        "Seen",
+        "tonight"
+      ]
+    },
+    {
+      "name": "mexico_number_beside_a_longitude",
+      "input": "Call 33.12345678, -103.3496 tonight",
+      "number": "33.12345678, -103.3496",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "mexico_numbers_across_a_slash_no_cue",
+      "input": "Seen 33.12345678 / -81.12345678 tonight",
+      "number": "33.12345678 / -81.12345678",
+      "forbidden": [],
+      "keep": [
+        "Seen",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_before_a_coordinate_shape",
+      "input": "Llame al 33.1234, -84.5678 tonight",
+      "number": "33.1234, -84.5678",
+      "forbidden": [],
+      "keep": [
+        "Llame al",
+        "tonight"
+      ]
     }
   ],
   "mustKeep": [
@@ -377,6 +677,62 @@
     {
       "name": "six_spanish_digit_words",
       "input": "Equipo uno dos tres cuatro cinco seis listo"
+    },
+    {
+      "name": "gps_pair_with_degree_signs",
+      "input": "GPS 33.7490\u00b0, -84.3880\u00b0"
+    },
+    {
+      "name": "degrees_minutes_seconds",
+      "input": "GPS 33\u00b044'56\"N 84\u00b023'17\"W"
+    },
+    {
+      "name": "percent_list",
+      "input": "POA 45% 30% 15% 10%"
+    },
+    {
+      "name": "times_beside_each_other",
+      "input": "Seen 14:03 14:30"
+    },
+    {
+      "name": "gps_pair_after_semicolon",
+      "input": "GPS 33.7490; -84.3880"
+    },
+    {
+      "name": "radio_frequencies_with_bar",
+      "input": "Radio 155.160 | 154.205"
+    },
+    {
+      "name": "gps_pair_with_bullet",
+      "input": "GPS 33.7490 \u2022 -84.3880"
+    },
+    {
+      "name": "radio_frequency_list",
+      "input": "Radio 146.520, 155.160 and 462.550"
+    },
+    {
+      "name": "radio_frequency_range",
+      "input": "Radio 155.160-155.175"
+    },
+    {
+      "name": "radio_frequencies_low_band",
+      "input": "Radio 27.185 155.160 462.550"
+    },
+    {
+      "name": "typed_coordinate_in_spanish",
+      "input": "Ubicaci\u00f3n 33.12345, -84.5678"
+    },
+    {
+      "name": "phone_found_at_a_place",
+      "input": "Phone found at 33.7866, -84.3733"
+    },
+    {
+      "name": "cell_ping_place",
+      "input": "Cell ping 33.7866, -84.3733"
+    },
+    {
+      "name": "call_came_from_a_place",
+      "input": "Call came from 33.7866, -84.3733"
     }
   ],
   "exact": [
@@ -419,6 +775,11 @@
       "name": "time_then_spanish_spoken_number",
       "input": "Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
       "output": "Seen at 14:03, [number removed]"
+    },
+    {
+      "name": "frequency_beside_number",
+      "input": "Radio 155.160 404 5550142",
+      "output": "Radio [number removed]"
     }
   ]
 }

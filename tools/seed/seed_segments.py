@@ -7,8 +7,9 @@ priorLayers, gridAttribution, priorVersion, engineParams.rings.<terrain> from th
 created before its terrain existed can build that prior, and priorBuiltAt at the server's time). The incident update is the last write, so the incident never
 points at a grid whose segments are not there yet. Then it reads the segments back and checks the count.
 
-Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N
+Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N [--i-know-judging-is-open]
 """
+import datetime as dt
 import json
 import math
 import re
@@ -19,6 +20,11 @@ import urllib.request
 from pathlib import Path
 
 ENGINE_PARAMS = Path(__file__).resolve().parents[2] / "shared/constants/engine-params.json"
+# The drill every judge practice search is copied from, and the judging window: a practice copy taken while that seed is
+# reseeded could mix two sites, so the seed tool refuses to reseed it then unless the operator says so.
+JUDGE_SEED = Path(__file__).resolve().parents[2] / "shared/constants/judge-seed.json"
+JUDGING_FROM, JUDGING_TO = dt.date(2026, 11, 30), dt.date(2026, 12, 17)
+JUDGING_FLAG = "--i-know-judging-is-open"
 
 COMMIT_MAX = 500
 ID = re.compile(r"^[A-Z]{2}$")
@@ -146,9 +152,9 @@ def segment_ids(project: str, incident_id: str, token: str) -> set[str]:
             return ids
 
 
-def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str]:
-    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), and the
-    updateTime of the version read, which the commit is bound to."""
+def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str, int | None]:
+    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), the updateTime
+    of the version read, which the commit is bound to, and its stored priorVersion (None when it has none)."""
     url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/incidents/{incident_id}"
     doc = _request("GET", url, token, project)
     f = doc.get("fields", {})
@@ -156,19 +162,63 @@ def read_incident(project: str, incident_id: str, token: str, terrain: str) -> t
            .get("fields", {}).get(terrain))
     rings = None if col is None else [float(v.get("doubleValue", v.get("integerValue", "nan")))
                                       for v in col.get("arrayValue", {}).get("values", [])]
-    return rings, doc["updateTime"]
+    pv = f.get("priorVersion", {}).get("integerValue")
+    return rings, doc["updateTime"], (int(pv) if pv is not None else None)
+
+
+def version_problem(existing_ids: set[str], stored_version: int | None, new_version: int) -> str | None:
+    """Why a seed may not write at new_version, or None. A grid written over an existing one must raise the incident's
+    prior version: at the same version, a walker run or rebuild started before the reseed still sees its version
+    unchanged and commits its old results as the next one, leaving the new grid's other cells behind for good."""
+    if not existing_ids:
+        return None
+    if stored_version is None:
+        return "the incident has segments but no prior version; set one before reseeding"
+    if new_version <= stored_version:
+        return f"a reseed over an existing grid must raise the prior version above {stored_version} (got {new_version})"
+    return None
+
+
+def judging_problem(incident_id: str, today: dt.date, judging_flag: bool) -> str | None:
+    """Why the seed may not write today, or None: the practice seed is not reseeded while judging is open unless the
+    operator passes the flag (a practice copy taken during the reseed could mix two sites)."""
+    if judging_flag or incident_id != json.loads(JUDGE_SEED.read_text())["incidentId"]:
+        return None
+    if JUDGING_FROM <= today <= JUDGING_TO:
+        return (f"{incident_id} is the practice seed and judging is open ({JUDGING_FROM} to {JUDGING_TO}); a practice copy "
+                f"taken during the reseed could mix two sites. Pass {JUDGING_FLAG} to reseed anyway")
+    return None
+
+
+def parse_args(argv: list[str]) -> tuple[str, str, str, int, bool] | None:
+    """(project, incident id, segments file, prior version, judging flag), or None when the command line is wrong."""
+    flag = argv[5:] == [JUDGING_FLAG]
+    if len(argv) not in (5, 6) or argv[3] != "--prior-version" or (len(argv) == 6 and not flag) or not argv[4].isdigit():
+        return None
+    return argv[0], argv[1], argv[2], int(argv[4]), flag
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 5 or argv[3] != "--prior-version":
+    args = parse_args(argv)
+    if args is None:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
-    project, incident_id, path, _, version = argv
+    project, incident_id, path, version, judging_flag = args
+    why = judging_problem(incident_id, dt.datetime.now(dt.timezone.utc).date(), judging_flag)
+    if why:
+        print(f"seed_segments: REFUSED: {why}", file=sys.stderr)
+        return 1
     p = json.load(open(path))
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
+    # The incident first: its updateTime guards the commit, so a seed that lands after this read makes the commit fail
+    # before any write, and the segment list read next is never older than the version the commit is bound to.
+    stored, update_time, stored_version = read_incident(project, incident_id, token, p["terrain"])
     existing = segment_ids(project, incident_id, token)
-    stored, update_time = read_incident(project, incident_id, token, p["terrain"])
+    why = version_problem(existing, stored_version, int(version))
+    if why:
+        print(f"seed_segments: REFUSED: {why}", file=sys.stderr)
+        return 1
     problems = prewrite_problems(p, int(version))
     if problems:
         print(f"seed_segments: REFUSED, the apps could not read these docs: {problems[:5]}", file=sys.stderr)

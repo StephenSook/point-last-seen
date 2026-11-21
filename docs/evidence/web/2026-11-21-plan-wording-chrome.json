@@ -1,0 +1,81 @@
+{
+  "what": "The command post's plan wording (wordPlan with the wording's own on-device options and JSON constraint, the same as CommandPost's suggest uses on the built-in model), measured on a local page with the same code path (local page, same code path). One made-up plan (two teams, CC and CD, four ranked segments) worded three times in a row in a newly opened page, twice.",
+  "date": "2026-11-21",
+  "browser": "Stephen's Google Chrome stable on this Mac (macOS, Apple M5 Pro); the built-in model reported available for text; the Chrome and model versions were not recorded",
+  "page": "web/harness/wording-measure.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in. Sessions 1 and 2 ran a draft of the page that built the command post's own PREFER_ON_DEVICE model (wordingGenerator); every reply ran on device, so no cloud call was made. The committed page builds the same on-device options ONLY_ON_DEVICE (wordingOnDeviceGenerator), because a dev page never builds a cloud model.",
+  "note": "Session 1 recorded only the kind of failure; session 2's page also kept each raw reply and the check's reason. The command post gives a wording reply 15,000 ms (REPLY_TIMEOUT_MS).",
+  "sessions": [
+    {
+      "session": 1,
+      "runs": [
+        {
+          "run": 1,
+          "replyMs": 7228,
+          "inferenceSource": "on_device",
+          "accepted": false,
+          "failure": "rejected",
+          "reason": "not recorded"
+        },
+        {
+          "run": 2,
+          "replyMs": 7994,
+          "inferenceSource": "on_device",
+          "accepted": false,
+          "failure": "rejected",
+          "reason": "not recorded"
+        },
+        {
+          "run": 3,
+          "replyMs": 4568,
+          "inferenceSource": "on_device",
+          "accepted": false,
+          "failure": "rejected",
+          "reason": "not recorded"
+        }
+      ]
+    },
+    {
+      "session": 2,
+      "runs": [
+        {
+          "run": 1,
+          "replyMs": 3209,
+          "inferenceSource": "on_device",
+          "accepted": true,
+          "reasons": [
+            "T1 searches CC due to its highest percentage change.",
+            "T2 searches CD due to its highest percentage change."
+          ],
+          "summary": "Teams T1 and T2 are assigned to search CC and CD, respectively, based on their recently increased percentages."
+        },
+        {
+          "run": 2,
+          "replyMs": 3050,
+          "inferenceSource": "on_device",
+          "accepted": true,
+          "reasons": [
+            "CC is a high-priority segment.",
+            "CD is a high-priority segment."
+          ],
+          "summary": "T1 is assigned to CC because of its high priority, and T2 is assigned to CD for the same reason."
+        },
+        {
+          "run": 3,
+          "replyMs": 12340,
+          "inferenceSource": "on_device",
+          "accepted": false,
+          "failure": "rejected",
+          "reason": "team ids differ from the draft",
+          "detail": "the reply repeated T1 and T2 six times each, 12 assignments, the schema's maxItems"
+        }
+      ]
+    }
+  ],
+  "googleRequests": [],
+  "findings": [
+    "All six wordings ran on device as the SDK reported, from 3,050 to 12,340 ms, and the pages made no request to a Google or Firebase host.",
+    "Code accepted 2 of 6; the plan then showed the fixed wording for the other 4. The one rejection with a recorded reason was a reply that repeated the teams up to the schema's 12-item limit.",
+    "Both accepted wordings kept to the plan's segments and numbers; their reasons are generic (\"high-priority segment\")."
+  ],
+  "n": 6
+}

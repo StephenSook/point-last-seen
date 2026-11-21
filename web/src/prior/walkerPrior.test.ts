@@ -1,6 +1,6 @@
 import type { WalkerResult } from "@pls/engine";
 import { describe, expect, it } from "vitest";
-import { loadRouteGraph, walkerPriorWrites, runAgainstVersion, STALE_PRIOR } from "./walkerPrior";
+import { graphFor, loadRouteGraph, runAgainstVersion, STALE_PRIOR, walkerPriorWrites } from "./walkerPrior";
 
 // A stored route graph as the grid builder writes it: one trail edge of two stations between two nodes.
 const st = (x: number) => ({ x, y: 0, hx: 1, hy: 0, nx: 0, ny: 1, segmentId: "AA" });
@@ -63,3 +63,14 @@ describe("runAgainstVersion", () => {
     await expect(runAgainstVersion(7, () => version, async () => { version = 8; return "late"; })).rejects.toThrow(STALE_PRIOR);
   });
 });
+
+describe("graphFor: a loaded route graph is used only for the grid it was loaded for", () => {
+  it("gives the graph for its own grid, and nothing for another grid or while loading", () => {
+    const load = { state: "absent" } as const;
+    expect(graphFor("kennesaw-mountain-drill", { gridId: "kennesaw-mountain-drill", load })).toBe(load);
+    expect(graphFor("piedmont-park-dev", { gridId: "kennesaw-mountain-drill", load })).toBeNull();
+    expect(graphFor("kennesaw-mountain-drill", null)).toBeNull();
+    expect(graphFor(undefined, { gridId: "kennesaw-mountain-drill", load })).toBeNull();
+  });
+});
+

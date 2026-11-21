@@ -1,4 +1,5 @@
 import type { PrintModel } from "./printModel";
+import { localDateTime } from "./localTime";
 
 export const ICS204_EDITION = "v3.1";
 export const ICS204_BLOCK_TITLES = [
@@ -41,16 +42,9 @@ export type Ics204Sheet = {
   pages: number;
 };
 
-function dateTime(ms: number, timeZone: string): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(ms);
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return { date: `${values.month}/${values.day}/${values.year}`, time: `${values.hour}:${values.minute}` };
-}
 
 export function defaultTyped(model: PrintModel, timeZone: string): Ics204Typed {
-  const from = model.planApprovedAtMs === null ? null : dateTime(model.planApprovedAtMs, timeZone);
+  const from = model.planApprovedAtMs === null ? null : localDateTime(model.planApprovedAtMs, timeZone);
   return {
     dateFrom: from?.date ?? "", dateTo: "", timeFrom: from?.time ?? "", timeTo: "",
     branch: "", division: "", group: "", stagingArea: "", includeApproachNotes: false,
@@ -70,7 +64,7 @@ export function ics204Sheets(
   );
   if (typed.includeApproachNotes) specialInstructions.push(...approachLines);
 
-  const prepared = dateTime(model.printedAtMs, timeZone);
+  const prepared = localDateTime(model.printedAtMs, timeZone);
   const pages = Math.max(1, Math.ceil(model.teams.length / ICS204_ROWS_PER_SHEET));
   return Array.from({ length: pages }, (_, index) => {
     const start = index * ICS204_ROWS_PER_SHEET;

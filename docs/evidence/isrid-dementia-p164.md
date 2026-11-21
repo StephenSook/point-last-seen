@@ -1,4 +1,4 @@
-# ISRID dementia profile: distance and find-location tables
+# ISRID dementia profile: distance, elevation and find-location tables
 
 Source: Koester, *Lost Person Behavior*, "Dementia (Alzheimer's)", p. 164. Read from the publisher's public sample,
 https://www.dbs-sar.com/LPB/Dementia.pdf, on 2026-11-18. The text was extracted with `pdftotext -layout`, and the
@@ -19,6 +19,20 @@ The same table in miles: Urban 0.2, 0.7, 2.0, 7.8; Temperate Flat 0.2, 0.6, 1.5,
 In use: the Temperate Mtn, Temperate Flat and Urban columns are the prior's rings
 (`shared/constants/engine-params.json`, km) and the walkers' distances (`shared/constants/walker-params.json`, m).
 A Georgia SAR lead treats a suburb or a big park around Atlanta as urban, so new incidents start urban.
+
+## Elevation (vertical) change from the IPP (feet)
+
+| | Temperate Uphill | Temperate Down | Temperate Same | Dry Uphill | Dry Down | Dry Same |
+|---|---|---|---|---|---|---|
+| % | 19% | 42% | 39% | 50% | 38% | 13% |
+| 50% (feet) | 75 | 60 | | 317 | 187 | |
+
+The 25%, 75% and 95% rows are blank in the source, no n is printed for this table, and the source does not say how
+much change counts as "Same". There is no urban column.
+
+In use: the Temperate shares are the engine's elevation layer (`shared/constants/engine-params.json`, `elevation`), off
+by default, with "Same" taken as within 3 m of the start segment (ours). The layer refuses urban terrain, for which
+this table has no split. The Dry column is not used: the engine has no dry terrain.
 
 ## Find location (%)
 

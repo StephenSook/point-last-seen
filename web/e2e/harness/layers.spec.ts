@@ -104,3 +104,67 @@ test("an incident's terrain note shows under the ring source line, and nothing s
   await page.goto("/harness/layers.html?terrain=urban");
   await expect(page.getByTestId("terrain-note")).toHaveCount(0);
 });
+
+test("with no elevation file for the site there is no elevation switch", async ({ page }) => {
+  await page.goto("/harness/layers.html");
+  await expect(page.getByRole("switch", { name: "Downhill and level ground" })).toHaveCount(0);
+});
+
+test("with one, the elevation switch is off, names its source, and asks before it rebuilds", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=1");
+  const s = page.getByRole("region", { name: "Prior" });
+  const sw = s.getByRole("switch", { name: "Downhill and level ground" });
+  await expect(sw).not.toBeChecked();
+  await expect(s).toContainText("ISRID dementia, temperate (Lost Person Behavior p. 164): found 42% downhill, 39% about level and 19% uphill of the point last seen; the source prints no sample size.");
+  await expect(s).toContainText("About level means within 3 m of the start segment (our rule; the source gives none).");
+  await sw.click();
+  await expect(s).toContainText("Rebuild the prior? Every team's map and match code change.");
+  await s.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByTestId("applied")).toHaveText('{"linear":true,"wedge":false,"elevation":true} temperate_flat');
+});
+
+test("the elevation switch is not used on urban terrain or without the start's elevation", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=1&terrain=urban");
+  const s = page.getByRole("region", { name: "Prior" });
+  await expect(s.getByRole("switch", { name: "Downhill and level ground" })).toBeDisabled();
+  await expect(s).toContainText("Not used on urban terrain: the source has no urban split.");
+  await page.goto("/harness/layers.html?elevation=nostart");
+  await expect(page.getByRole("switch", { name: "Downhill and level ground" })).toBeDisabled();
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("Needs the start point inside a mapped segment that has an elevation.");
+});
+
+test("choosing the urban table turns the elevation switch off", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=1");
+  const s = page.getByRole("region", { name: "Prior" });
+  const sw = s.getByRole("switch", { name: "Downhill and level ground" });
+  await sw.click();
+  await expect(sw).toBeChecked();
+  await s.getByRole("combobox", { name: "Distance table" }).selectOption("urban");
+  await expect(sw).not.toBeChecked();
+  await expect(sw).toBeDisabled();
+});
+
+test("a saved elevation layer whose file no longer loads still shows, so command can turn it off", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=gone&stored=elevation");
+  const s = page.getByRole("region", { name: "Prior" });
+  const sw = s.getByRole("switch", { name: "Downhill and level ground" });
+  await expect(sw).toBeChecked();
+  await expect(sw).toBeEnabled();
+  await expect(s).toContainText("This site's elevation file did not load; you can turn the layer off.");
+  await sw.click();
+  await s.getByRole("button", { name: "Rebuild prior" }).click();
+  await expect(page.getByTestId("applied")).toHaveText('{"linear":true,"wedge":false,"elevation":false} temperate_flat');
+});
+
+test("under the walkers model the switches say they apply when the prior is rebuilt as rings", async ({ page }) => {
+  await page.goto("/harness/layers.html?model=walkers");
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("These apply when the prior is rebuilt as rings.");
+  await page.goto("/harness/layers.html");
+  await expect(page.getByRole("region", { name: "Prior" })).not.toContainText("These apply when the prior is rebuilt as rings.");
+});
+
+test("the Prior panel says why a confirm turned the elevation layer off", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=1&layersnote=1");
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+});
+

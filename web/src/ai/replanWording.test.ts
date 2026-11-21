@@ -242,3 +242,57 @@ describe("numbers in the model's wording", () => {
     expect(out.attempt).toMatchObject({ failure: "number", route: { path: "cloud" } });
   });
 });
+
+describe("the wording's on-device-only params (for measurement pages, which never build a cloud model)", () => {
+  it("are the command post's own on-device options, ONLY_ON_DEVICE, with no cloud params", async () => {
+    const { wordingOnDeviceParams } = await import("./replanWording");
+    const p = wordingOnDeviceParams();
+    expect(p.mode).toBe(InferenceMode.ONLY_ON_DEVICE);
+    expect(p.onDeviceParams).toEqual(wordingParams("gemini-3.5-flash-lite").onDeviceParams);
+    expect(p.inCloudParams).toBeUndefined();
+  });
+});
+
+describe("the wording's schema for one plan: one entry per team, only that plan's teams", () => {
+  it("fixes the number of assignments and names only the plan's teams", async () => {
+    const { planWordingJson, PLAN_WORDING_JSON } = await import("./replanWording");
+    const s = planWordingJson(["T1", "T2"]);
+    expect(s.properties.assignments.minItems).toBe(2);
+    expect(s.properties.assignments.maxItems).toBe(2);
+    expect(s.properties.assignments.items.properties.teamId).toEqual({ type: "string", enum: ["T1", "T2"] });
+    expect(s.required).toEqual(PLAN_WORDING_JSON.required);
+    // With no teams there is nothing to fix: the general schema.
+    expect(planWordingJson([])).toEqual(PLAN_WORDING_JSON);
+    expect(planWordingJson(null)).toEqual(PLAN_WORDING_JSON);
+  });
+
+  it("is what both the cloud and this laptop are asked for, when the plan's teams are given", async () => {
+    const { planWordingJson, wordingOnDeviceParams } = await import("./replanWording");
+    const p = wordingParams("gemini-3.5-flash-lite", ["T1", "T2"]);
+    expect(p.inCloudParams?.generationConfig?.responseJsonSchema).toEqual(planWordingJson(["T1", "T2"]));
+    expect(p.onDeviceParams?.promptOptions?.responseConstraint).toEqual(planWordingJson(["T1", "T2"]));
+    expect(wordingOnDeviceParams(["T1", "T2"]).onDeviceParams).toEqual(p.onDeviceParams);
+  });
+
+  it("the command post asks with its draft's own teams", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8");
+    expect(src).toMatch(/wordingGenerator\(aiClient\(pls\.app, rc\.useLimitedUseTokens\), rc\.cloudModelWeb, draft\.assignments\.map\(\(a\) => a\.teamId\)\)/);
+  });
+});
+
+describe("how long the command post waits for a plan's wording", () => {
+  it("is more than twice the slowest wording measured on Chrome's built-in model, and the command post uses it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { WORDING_WAIT_MS, REPLY_TIMEOUT_MS } = await import("./replanWording");
+    const replies = ["2026-11-21-plan-wording-chrome.json", "2026-11-21-plan-wording-schema-chrome.json"].flatMap((f) =>
+      (JSON.parse(readFileSync(new URL(`../../../docs/evidence/web/${f}`, import.meta.url), "utf8")) as { sessions: { runs: { replyMs: number }[] }[] }).sessions.flatMap((s) => s.runs.map((r) => r.replyMs)),
+    );
+    const slowest = Math.max(...replies);
+    expect(slowest).toBeGreaterThan(REPLY_TIMEOUT_MS);
+    expect(WORDING_WAIT_MS).toBeGreaterThan(2 * slowest);
+    // The cloud request keeps its own 15 s limit, so a cloud fallback is no slower than before.
+    expect(REPLY_TIMEOUT_MS).toBe(15_000);
+    expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/wordPlan\(draft, \{ generate, now: \(\) => Date\.now\(\), timeoutMs: WORDING_WAIT_MS,/);
+  });
+});

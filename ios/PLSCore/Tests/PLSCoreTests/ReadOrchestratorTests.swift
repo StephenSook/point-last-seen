@@ -546,6 +546,31 @@ final class LiveGateBox: @unchecked Sendable {
         return c
     }
 
+    /// The mission the report was made for is checked right before every model call: once it is not current (another
+    /// incident or team, or a mode where no model may read), no model runs and rules read the rest.
+    @Test func noModelRunsOnceTheMissionIsNotCurrent() async {
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.success(okReading())]
+        var c = rctx()
+        c.stillCurrent = { false }
+        let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls.isEmpty)
+        #expect(o.route.path == .rules && o.route.reason == .notDrillMode)
+    }
+
+    @Test func aMissionSwitchDuringTheOnDeviceCallStopsTheNextModelCall() async {
+        final class Flag: @unchecked Sendable { var current = true }
+        let flag = Flag()
+        let r = FakeRunner()
+        r.guidedResults[.onDevice] = [.failure(.other)]
+        r.permissiveResults = [.success("{}")]
+        r.duringOnDeviceCall = { flag.current = false }
+        var c = rctx()
+        c.stillCurrent = { flag.current }
+        _ = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+        #expect(r.calls == [.guided(.onDevice)])
+    }
+
     @Test func aKillSwitchFlippedDuringTheOnDeviceCallKeepsTheReportOffTheCloud() async {
         let box = LiveGateBox(LiveGate(networkOnline: true, cloudConsent: true, killCloud: false, incidentMode: "drill"))
         let r = FakeRunner()

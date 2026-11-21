@@ -29,9 +29,16 @@ struct ReportEchoView: View {
                 if let route = entry.doc.route, let refusal = EchoText.refusalLine(route) {
                     Text(refusal).font(.title3.weight(.semibold)).accessibilityIdentifier("refusal-line")
                 }
+                if let photo = EchoText.photoLine(inputMethod: entry.doc.inputMethod, reading: entry.doc.reading) {
+                    Text(photo).font(.title3.weight(.semibold)).accessibilityIdentifier("photo-line")
+                }
                 // A model's "found" read as a clue says so, always: the searcher checks the note.
                 if let reason = entry.foundKindReason {
                     Text(reason).font(.title3.weight(.semibold)).accessibilityIdentifier("found-kind-line")
+                }
+                // Numbers the rules read, not the model, say so, always: the receipt never credits a model with them.
+                if entry.numbersFromRules == true {
+                    Text(EchoText.numbersByRules).font(.title3.weight(.semibold)).accessibilityIdentifier("numbers-line")
                 }
                 // Proof is a glyph; the sentence is for filming and judges only.
                 if showSources, let route = entry.doc.route {

@@ -37,7 +37,8 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 - The sheet and radio cards can print the names the person answers to and the approach notes (one box, off by
   default)
 - Replay of the event log over time, from the current prior onward
-- Terrain display layer (USGS 3DEP; display only; the prior has no elevation term), for the Kennesaw drill grid only
+- Terrain (USGS 3DEP), for the Kennesaw drill grid only: a display layer, and a Downhill and level ground prior layer,
+  off by default (ISRID dementia shares, Lost Person Behavior p. 164; `docs/LIMITS.md`)
 
 ## How the models are called
 
@@ -135,7 +136,9 @@ Pass your project id to the Firebase CLI with `--project`. The publish scripts n
 9. Seed a drill: `python3 -I tools/seed/seed_drill.py <id> <incidentId> "<name>" T1 T2` (its join codes go to the
    macOS Keychain, never to the screen), then its segments: `npm run build-grid -w tools/grid-builder` (see
    `shared/grid/README.md`) and `python3 -I tools/seed/seed_segments.py <id> <incidentId> <segments.json>
-   --prior-version 1`.
+   --prior-version 1`. A reseed over an existing grid needs a higher `--prior-version`, and the practice seed
+   (`shared/constants/judge-seed.json`) is not reseeded from 2026-11-30 to 2026-12-17, while judging is open, unless
+   `--i-know-judging-is-open` is passed.
 10. Run the apps:
     - Web: `npm run dev -w web`. The reCAPTCHA key accepts only the hosting origins, so a local browser needs an
       App Check debug token (`self.FIREBASE_APPCHECK_DEBUG_TOKEN`).

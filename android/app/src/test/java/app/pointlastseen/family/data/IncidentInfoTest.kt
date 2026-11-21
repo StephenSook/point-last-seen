@@ -20,6 +20,15 @@ class IncidentInfoTest {
         assertEquals(1L, i.priorVersion)
     }
 
+    /** Command ends a search by closing it with a reason (found, suspended or training ended); any other value is none. */
+    @Test fun aClosedSearchReadsItsReason() {
+        assertEquals("found", IncidentInfo.from(mapOf("status" to "closed", "closedReason" to "found"))!!.closedReason)
+        assertEquals("training_ended", IncidentInfo.from(mapOf("status" to "closed", "closedReason" to "training_ended"))!!.closedReason)
+        assertNull(IncidentInfo.from(mapOf("status" to "closed", "closedReason" to "rescued"))!!.closedReason)
+        assertNull(IncidentInfo.from(mapOf("status" to "closed"))!!.closedReason)
+        assertNull(IncidentInfo.from(mapOf("status" to "open", "closedReason" to "found"))!!.closedReason)
+    }
+
     @Test fun noDocumentGivesNoIncident() {
         assertNull(IncidentInfo.from(null))
     }

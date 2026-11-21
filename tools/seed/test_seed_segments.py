@@ -130,3 +130,44 @@ def test_a_stored_ring_column_is_kept_and_a_different_one_refuses_the_seed():
     with pytest.raises(ValueError, match="urban"):
         seed.build_writes("proj", "drill-dev-1", {**payload(), "terrain": "urban"}, existing_ids=set(), prior_version=2,
                           stored_rings=[0.3, 1.0, 3.0, 12.0], incident_update_time=UT)
+
+
+def test_a_reseed_over_an_existing_grid_must_raise_the_prior_version():
+    # Review: a replacement grid written at the incident's own version let a walker run started before the reseed
+    # commit its old results as the next version, leaving the new cells behind for good.
+    assert seed.version_problem(set(), None, 1) is None
+    assert seed.version_problem({"AA", "ROW"}, 4, 5) is None
+    assert "raise" in seed.version_problem({"AA", "ROW"}, 4, 4)
+    assert "raise" in seed.version_problem({"AA", "ROW"}, 4, 3)
+    assert "prior version" in seed.version_problem({"AA", "ROW"}, None, 2)
+
+
+def test_the_incident_is_read_before_the_segments_are_listed():
+    # Review: listing segments first let a seed that committed between the two reads hand this run its new updateTime
+    # with the old segment list, so the guarded commit passed on a stale list and left a mixed grid. Read first, the
+    # incident's updateTime guards the commit, and a seed landing in between makes it fail before any write.
+    src = Path(seed.__file__).read_text()
+    body = src[src.index("def main("):]
+    assert body.index("read_incident(project, incident_id, token") < body.index("segment_ids(project, incident_id, token)")
+
+
+def test_the_practice_seed_is_never_reseeded_while_judging_is_open_without_saying_so():
+    # Ruling: a judge's practice copy taken while the seed is reseeded could mix two sites, so the seed tool refuses to
+    # reseed the practice seed from 2026-11-30 to 2026-12-17 (judging) unless the operator passes the flag.
+    import datetime as dt
+    seed_id = json.loads((Path(seed.__file__).resolve().parents[2] / "shared/constants/judge-seed.json").read_text())["incidentId"]
+    assert seed.judging_problem(seed_id, dt.date(2026, 11, 29), False) is None
+    assert "--i-know-judging-is-open" in seed.judging_problem(seed_id, dt.date(2026, 11, 30), False)
+    assert "--i-know-judging-is-open" in seed.judging_problem(seed_id, dt.date(2026, 12, 17), False)
+    assert seed.judging_problem(seed_id, dt.date(2026, 12, 18), False) is None
+    assert seed.judging_problem(seed_id, dt.date(2026, 12, 1), True) is None
+    assert seed.judging_problem("drill-test-1", dt.date(2026, 12, 1), False) is None
+
+
+def test_the_command_line_takes_the_judging_flag_only_at_the_end():
+    base = ["proj", "drill-x", "segs.json", "--prior-version", "3"]
+    assert seed.parse_args(base) == ("proj", "drill-x", "segs.json", 3, False)
+    assert seed.parse_args([*base, "--i-know-judging-is-open"]) == ("proj", "drill-x", "segs.json", 3, True)
+    assert seed.parse_args(base[:4]) is None
+    assert seed.parse_args([*base, "--force"]) is None
+

@@ -6,6 +6,7 @@
 
 import { collection, deleteField, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
 import type { StreamedEvent } from "./events";
+import { removePhoneNumbers } from "./phoneNumbers";
 
 export const MAX_MINUTES = 1440;
 export const MAX_NOTE = 500;
@@ -19,20 +20,33 @@ const COVERAGE_LINE = "Coverage stated: a whole number from 0 to 100, or empty."
 
 export type DebriefForm = { minutes: string; worked: string; didNotWork: string; coverage: string; clues: string; hazards: string };
 
+/**
+ * One note as it is stored: trimmed, with any phone number replaced (a debrief is read by everyone in the drill), and
+ * within MAX_NOTE both as typed and once replaced, since "[number removed]" can be longer than the number.
+ */
+function note(label: string, raw: string): { ok: true; value: string } | { ok: false; message: string } {
+  const typed = raw.trim();
+  if (typed.length > MAX_NOTE) return { ok: false, message: `${label}: ${MAX_NOTE} characters at most.` };
+  const value = removePhoneNumbers(typed);
+  if (value.length > MAX_NOTE) return { ok: false, message: `${label}: ${MAX_NOTE} characters at most once phone numbers are replaced.` };
+  return { ok: true, value };
+}
+
 /** The form's boxes as a debrief, or the one thing to fix. Coverage, clues and hazards are optional. */
 export function parseDebriefForm(f: DebriefForm): { ok: true; value: DebriefInput } | { ok: false; message: string } {
   const m = f.minutes.trim();
   if (!/^\d+$/.test(m) || Number(m) > MAX_MINUTES) return { ok: false, message: MINUTES_LINE };
-  const worked = f.worked.trim();
-  const didNotWork = f.didNotWork.trim();
-  if (worked.length > MAX_NOTE) return { ok: false, message: `What worked: ${MAX_NOTE} characters at most.` };
-  if (didNotWork.length > MAX_NOTE) return { ok: false, message: `What didn't work: ${MAX_NOTE} characters at most.` };
+  const w = note("What worked", f.worked);
+  if (!w.ok) return w;
+  const d = note("What didn't work", f.didNotWork);
+  if (!d.ok) return d;
   const c = f.coverage.trim();
   if (c !== "" && (!/^\d+$/.test(c) || Number(c) > 100)) return { ok: false, message: COVERAGE_LINE };
-  const clues = f.clues.trim();
-  const hazards = f.hazards.trim();
-  if (clues.length > MAX_NOTE) return { ok: false, message: `Clues: ${MAX_NOTE} characters at most.` };
-  if (hazards.length > MAX_NOTE) return { ok: false, message: `Hazards: ${MAX_NOTE} characters at most.` };
+  const cl = note("Clues", f.clues);
+  if (!cl.ok) return cl;
+  const h = note("Hazards", f.hazards);
+  if (!h.ok) return h;
+  const [worked, didNotWork, clues, hazards] = [w.value, d.value, cl.value, h.value];
   return {
     ok: true,
     value: {

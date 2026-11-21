@@ -10,10 +10,19 @@ import "../theme/base.css";
 
 // ?teams=N: a draft with N teams (default 2), to show the limit on how many a plan can name.
 const teamCount = Number(new URLSearchParams(location.search).get("teams") ?? "2");
+// ?current=1: a plan is already approved (T1 on AB, T2 on AC), and the ranking has percents, so the suggestion shows
+// beside it.
+const current = new URLSearchParams(location.search).get("current") === "1";
+const CURRENT = [{ teamId: "T1", segmentIds: ["AB"] }, { teamId: "T2", segmentIds: ["AC"] }];
+const RANK = [
+  { segmentId: "AA", rank: 1, poa: 0.31, priorPoa: 0.2, deltaPoa: 0.11 },
+  { segmentId: "AB", rank: 2, poa: 0.2, priorPoa: 0.25, deltaPoa: -0.05 },
+  { segmentId: "AC", rank: 3, poa: 0.05, priorPoa: 0.06, deltaPoa: -0.01 },
+];
 const DRAFT: PlanDraft = {
   eventSetHash: "a".repeat(64),
   priorVersion: 1,
-  rank: [],
+  rank: current ? RANK : [],
   assignments: teamCount === 2 ? [{ teamId: "T1", segmentIds: ["AA"] }, { teamId: "T2", segmentIds: ["AB"] }] : Array.from({ length: teamCount }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [`S${i + 1}`] })),
 };
 
@@ -37,6 +46,7 @@ function Harness() {
       <p className="drill">Synthetic plan, not drill data.</p>
       <WhatChanged
         draft={draft}
+        current={current ? CURRENT : null}
         teams={[{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }]}
         onSuggest={async () => {
           if (slow) await new Promise<void>((resolve) => (answer.current = resolve));

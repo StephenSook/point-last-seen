@@ -52,3 +52,14 @@ describe("signInErrorMessage", () => {
     expect(signInErrorMessage(new Error("x"))).toBe("Could not sign in. Try again.");
   });
 });
+
+describe("joinErrorField: which field a join error is about", () => {
+  it("puts each error beside the field it names, and the rest under the form", async () => {
+    const { joinErrorField } = await import("./join");
+    expect(joinErrorField("Enter the incident id.")).toBe("incident");
+    expect(joinErrorField("The join code has 8 characters.")).toBe("code");
+    expect(joinErrorField("That code did not match this incident.")).toBe("code");
+    expect(joinErrorField("No connection. Try again when the link is back.")).toBeNull();
+    expect(joinErrorField("Could not join. Check the incident id and the code.")).toBeNull();
+  });
+});

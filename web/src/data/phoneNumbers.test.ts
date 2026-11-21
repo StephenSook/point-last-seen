@@ -2,7 +2,7 @@
 // beyond the shared cases. The shared cases themselves run in phoneVectors.test.ts.
 
 import { describe, expect, it } from "vitest";
-import { removePhoneNumbers } from "./phoneNumbers";
+import { REPLACEMENT, removePhoneNumbers } from "./phoneNumbers";
 
 const DIGIT = /\p{Nd}/u;
 const noDigit = (text: string) => expect(removePhoneNumbers(text), text).not.toMatch(DIGIT);
@@ -100,3 +100,100 @@ describe("removePhoneNumbers, Spanish spoken digits", () => {
     expect(removePhoneNumbers(t)).toBe(t);
   });
 });
+
+describe("removePhoneNumbers: any punctuation or symbol between digit groups joins them", () => {
+  // Kept before this rule: only spaces, - . , ( ) / and dashes joined a number's groups.
+  const split = [
+    "404 555\u00b70142", "404\u00b7555\u00b70142", "404 \u00b7 555 \u00b7 0142", "404\u2027555\u20270142",
+    "404\u2022555\u20220142", "404_555_0142", "404*555*0142", "404 | 555 | 0142", "404;555;0142", "404!555!0142", "404?555?0142",
+    // A frequency's shape beside a short piece goes with the run: 404.555 0142 is a phone number.
+    "404.555 0142",
+  ];
+  it.each(split)("removes %j and keeps the words around it", (n) => {
+    const out = removePhoneNumbers(`Call ${n} tonight`);
+    expect(out).toBe(`Call ${REPLACEMENT} tonight`);
+  });
+  it("removes a bracketed group; the opening bracket stays, since a run starts at its first digit (or a + or ()", () => {
+    expect(removePhoneNumbers("Call [404] 555 0142 tonight")).toBe(`Call [${REPLACEMENT} tonight`);
+  });
+  it("still removes numbers split by spaces of every width, an em dash, full stops and full-width forms", () => {
+    for (const n of ["404\u00a0555\u00a00142", "404\u2009555\u20090142", "404\u202f555\u202f0142", "404\u2014555\u20140142", "404.555.0142",
+      "\uff14\uff10\uff14\uff0d\uff15\uff15\uff15\uff0d\uff10\uff11\uff14\uff12"]) {
+      expect(removePhoneNumbers(`Call ${n} tonight`)).toBe(`Call ${REPLACEMENT} tonight`);
+    }
+  });
+  it("never joins across a time's colon, a percent or a degree", () => {
+    for (const t of ["GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%", "Seen 14:03 14:30"]) {
+      expect(removePhoneNumbers(t)).toBe(t);
+    }
+  });
+});
+
+describe("removePhoneNumbers: coordinates and radio frequencies are search information", () => {
+  it("keeps a decimal coordinate pair with a semicolon, bullet, middle dot, bar or slash between", () => {
+    for (const g of ["; ", " \u2022 ", " \u00b7 ", " | ", " / "]) {
+      const t = `GPS 33.7490${g}-84.3880`;
+      expect(removePhoneNumbers(t)).toBe(t);
+    }
+  });
+  it("keeps a list of radio frequencies: 1 to 3 digits, a full stop, 3 digits", () => {
+    for (const t of ["Radio 155.160 | 154.205", "Radio 146.520, 155.160 and 462.550", "Radio 155.160-155.175", "Ch 155.160 154.205 146.520"]) {
+      expect(removePhoneNumbers(t)).toBe(t);
+    }
+  });
+  it("still removes a dotted number, a frequency after a +, and a frequency beside a short piece", () => {
+    expect(removePhoneNumbers("Call 404.555.0142")).toBe(`Call ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call +404.555 014.555")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Radio 155.160 404")).toBe(`Radio ${REPLACEMENT}`);
+  });
+  it("a frequency joined to any other digits goes with the run, so a phone number never keeps a frequency's shape", () => {
+    expect(removePhoneNumbers("Radio 155.160 404 5550142")).toBe(`Radio ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call 404.555-0142 #123")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 0142 ext 12")).not.toMatch(/404|555/);
+  });
+  it("a pair across a semicolon, bullet, middle dot, bar or slash is a coordinate only with a minus: two numbers are removed", () => {
+    for (const g of [" / ", " | ", "; ", " \u2022 "]) {
+      expect(removePhoneNumbers(`Call 020.79460958${g}020.79460959`)).not.toMatch(/\d/);
+    }
+  });
+});
+
+describe("removePhoneNumbers: a phone number written like a coordinate or a frequency", () => {
+  it("a coordinate's whole degrees never start with a zero, so a London number is not a latitude", () => {
+    for (const s of ["Call 020.79460958 / -020.79460959", "Call 020.79460958 | -0.1276", "Call 020.79460958, -0.1276"]) {
+      expect(removePhoneNumbers(s)).not.toMatch(/79460958/);
+    }
+    expect(removePhoneNumbers("GPS 51.5072, -0.1276")).toBe("GPS 51.5072, -0.1276");
+  });
+  it("a frequency is 25 to 999 with no leading zero, and one other group anywhere in the run removes it all", () => {
+    expect(removePhoneNumbers("Call 404.555 0.142")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 0.142 1234567")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Call 404.555 012.345")).not.toMatch(/\d/);
+    expect(removePhoneNumbers("Radio 27.185 155.160 462.550")).toBe("Radio 27.185 155.160 462.550");
+  });
+});
+
+describe("removePhoneNumbers: a Mexican number in dot form is not a coordinate pair", () => {
+  it("removes pairs that are two numbers: no minus after a comma, a phone cue before, or 8 decimals", () => {
+    for (const s of ["Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496", "33.12345678 / -81.12345678"]) {
+      expect(removePhoneNumbers(s)).not.toMatch(/\d/);
+    }
+  });
+  it("a phone cue just before a pair voids it, in English and Spanish, with or without accents", () => {
+    for (const cue of ["Call", "Tel:", "phone", "Cell", "mobile", "Number", "#", "Llame al", "llamar", "Tel\u00e9fono:", "telefono", "Celular", "N\u00famero", "numero"]) {
+      expect(removePhoneNumbers(`${cue} 33.1234, -84.5678`)).not.toMatch(/\d/);
+    }
+  });
+  it("keeps a typed coordinate pair with a minus and 4 to 7 decimals", () => {
+    for (const s of ["Ubicaci\u00f3n 33.12345, -84.5678", "GPS 33.7490, -84.3880", "Seen at 33.1234567, -84.1234567 near the creek"]) {
+      expect(removePhoneNumbers(s)).toBe(s);
+    }
+  });
+  it("a cue word further back names a thing, not a number to dial: the clue's coordinates stay", () => {
+    for (const s of ["Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733", "Call came from 33.7866, -84.3733",
+      "Celular encontrado en 33.7866, -84.3733"]) {
+      expect(removePhoneNumbers(s)).toBe(s);
+    }
+  });
+});
+

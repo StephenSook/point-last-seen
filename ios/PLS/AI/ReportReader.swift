@@ -20,6 +20,9 @@ struct ReportSituation {
     var onDeviceOff = false
     /// The subject's names, for the found-kind rule only (never sent to a model).
     var subjectNames: [String] = []
+    /// Whether the mission the report was made for is still on screen; checked before every model call, the token
+    /// count included. Nil: not checked.
+    var stillCurrent: (@Sendable () -> Bool)? = nil
 }
 
 /// Reads one field report and never throws. The decisions live in PLSCore's ReadOrchestrator;
@@ -63,6 +66,7 @@ struct ReportReader {
         // The evidence screen and the drill check come before any call that hands the text to a
         // model API, the token count included; then no count is needed at all.
         let modelAllowed = !screen.isPossibleEvidence(text) && situation.incidentMode.map(ReadPlan.modelModes.contains) == true
+            && situation.stillCurrent?() != false
         let tools = Self.tools(for: situation)
         var context = ReadContext(
             incidentMode: situation.incidentMode, knownSegmentIds: situation.knownSegmentIds,
@@ -80,6 +84,7 @@ struct ReportReader {
         context.grounding = grounding
         context.foundKind = foundKind
         context.subjectNames = situation.subjectNames
+        context.stillCurrent = situation.stillCurrent
         context.profile = situation.profile
         let runner = makeRunner(ai, config.cloudModelIOS, tools)
         let outcome = await ReadOrchestrator.read(text: text, context: context, runner: runner, clock: SystemClock())

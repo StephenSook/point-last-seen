@@ -97,8 +97,8 @@ final class EventStore {
     }
 
     /// Journals the event, then starts the write. Not async: the UI never waits for the server.
-    func append(_ doc: EventDoc, foundKindReason: String? = nil) throws {
-        try outbox.add(doc, foundKindReason: foundKindReason)
+    func append(_ doc: EventDoc, foundKindReason: String? = nil, numbersFromRules: Bool? = nil) throws {
+        try outbox.add(doc, foundKindReason: foundKindReason, numbersFromRules: numbersFromRules)
         entries = outbox.entries
         send(doc)
     }

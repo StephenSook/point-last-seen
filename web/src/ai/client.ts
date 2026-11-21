@@ -3,8 +3,9 @@
 
 import type { FirebaseApp } from "firebase/app";
 import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type TemplateRequest } from "firebase/ai";
-import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
+import { REPLY_TIMEOUT_MS, wordingOnDeviceParams, wordingParams, type WordingDeps } from "./replanWording";
 import { photoParams, type PhotoDeps } from "./photoCues";
+import { debriefSheetParams, type SheetDeps } from "./debriefSheetRead";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
@@ -38,8 +39,13 @@ export function generatorFor(model: TextModel): WordingDeps["generate"] {
 }
 
 /** Plan wording on the SDK's PREFER_ON_DEVICE mode (wordingParams), cloud and on-device parameters both set. */
-export function wordingGenerator(ai: AI, model: string): WordingDeps["generate"] {
-  return generatorFor(getGenerativeModel(ai, wordingParams(model), { timeout: REPLY_TIMEOUT_MS }));
+export function wordingGenerator(ai: AI, model: string, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+  return generatorFor(getGenerativeModel(ai, wordingParams(model, teamIds), { timeout: REPLY_TIMEOUT_MS }));
+}
+
+/** Plan wording on this laptop only (ONLY_ON_DEVICE), with the wording's own on-device options: for measurement pages. */
+export function wordingOnDeviceGenerator(ai: AI, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+  return generatorFor(getGenerativeModel(ai, wordingOnDeviceParams(teamIds), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** The caller's note read on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
@@ -80,6 +86,21 @@ export function photoGeneratorFor(model: ImageModel): PhotoDeps["generate"] {
 /** One family photo read on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
 export function photoGenerator(ai: AI): PhotoDeps["generate"] {
   return photoGeneratorFor(getGenerativeModel(ai, photoParams(), PRIVATE_REQUEST_OPTIONS));
+}
+
+export function debriefSheetGeneratorFor(model: ImageModel): SheetDeps["generate"] {
+  return async (jpegBase64) => {
+    const r = await model.generateContent([
+      { type: "text", text: "Read this debrief sheet." },
+      { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: jpegBase64 } },
+    ]);
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/** One paper debrief sheet read on this laptop (ONLY_ON_DEVICE); there is no cloud read of a sheet. Call it only after the gate says yes. */
+export function debriefSheetGenerator(ai: AI): SheetDeps["generate"] {
+  return debriefSheetGeneratorFor(getGenerativeModel(ai, debriefSheetParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** The consented cloud read of one photo through its server template: only the id and the JPEG leave the laptop. */

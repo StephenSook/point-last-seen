@@ -22,6 +22,21 @@ import Testing
         #expect(o.route.sdkReported == false)
     }
 
+    /// A report whose mission is no longer on screen gets no model call, not even the token count.
+    @Test func aReportWhoseMissionChangedGetsNoModelCall() async throws {
+        final class Count: @unchecked Sendable { let n = Mutex(0) }
+        let counted = Count(), made = Count()
+        var r = try reader()
+        r.estimateTokens = { _, _ in counted.n.withLock { $0 += 1 }; return 10 }
+        let real = r.makeRunner
+        r.makeRunner = { ai, model, tools in made.n.withLock { $0 += 1 }; return real(ai, model, tools) }
+        var s = situation(mode: "drill")
+        s.stillCurrent = { false }
+        let o = await r.read("cleared segment AC, coverage point eight", situation: s)
+        #expect(counted.n.withLock { $0 } == 0)
+        #expect(o.route.path == .rules)
+    }
+
     @Test func outsideADrillTheParserReadsIt() async throws {
         let o = await try reader().read("cleared segment AC, coverage point eight", situation: situation(mode: nil))
         #expect(o.route.path == .rules)

@@ -10,6 +10,16 @@ import Testing
         #expect(EchoText.effectLine(f) == "Cleared AB. Coverage 0.52. POD 41%.")
     }
 
+    /// A report read from a photo says so and that the photo was not kept; it says when it is like the description.
+    @Test func aPhotoReportSaysThePhotoWasNotKept() {
+        let kept = "Read from a photo on this phone. The photo was not kept."
+        #expect(EchoText.photoLine(inputMethod: .photo, reading: .object(["matchesProfile": .string("unknown")])) == kept)
+        #expect(EchoText.photoLine(inputMethod: .photo, reading: .object(["matchesProfile": .string("consistent")]))
+                == kept + " Like the family's description.")
+        #expect(EchoText.photoLine(inputMethod: .photo, reading: nil) == kept)
+        #expect(EchoText.photoLine(inputMethod: .typed, reading: .object(["matchesProfile": .string("consistent")])) == nil)
+    }
+
     @Test func noneReasonsSayWhatToDo() {
         #expect(EchoText.effectLine(.none(why: .soundOnly)) == "Calling alone is not counted for this person.")
         #expect(EchoText.effectLine(.none(why: .needsCommand)) == "Ask command.")

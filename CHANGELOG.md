@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
+  document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
+  command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
+  own retraction of someone else's report. Source: command-side "Retract report". Verified: the rules suite on the
+  emulator, 292 passed (events.test.ts 32, two new).
 - Drill day: the runbook names the header's match code by its new label, Radio check. Source: review. Verified
   against web/src/command/CommandPost.tsx.
 - LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
@@ -89,6 +94,269 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
   on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
   pass.
+- scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
+  lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
+  probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
+  probe tests pass.
+- functions test: the day's judge counter, which anyone may read, holds only its count and cap start after start.
+  Source: review (judge quota probe, publicly readable counter). Verified: the case passes, and fails when the counter
+  write gains another field.
+- scripts: the judge quota probe reads its doc with a Firestore batchGet, so only a reply naming that exact doc
+  missing counts as an unused day (a database or endpoint 404 now fails instead of reading as a full quota), and it
+  prefers the cap stored with the count over the checkout's. Source: review (cross-family, round 1 on the judge quota
+  probe). Verified: new cases (batchGet missing, found, wrong name, empty, error; a deployed cap of 45 below the
+  checkout's 50; a malformed cap) failed first, then pass; a live run before the rules deploy still fails closed with
+  HTTP 403.
+- functions: startJudgeSession writes the daily cap it enforces into the day's counter (ops/judgeSessions-<day>.cap)
+  with the count, so the quota probe reads the deployed cap rather than a checkout's. Source: review (cross-family,
+  round 1 on the judge quota probe). Verified: the first-start case now expects { count: 1, cap: 3 } and failed first,
+  then passes; all functions tests pass.
+- ci: judge-quota.yml runs the judge quota probe hourly (minute 41) through judging, with the CI App Check debug
+  token; a failed run emails the repo owner. Source: review (judge quota probe, approved). Verified: the gates
+  (workflow paths, ci-local mirror) pass.
+- scripts: judge_quota_probe.py reads today's ops/judgeSessions doc (never starts a session) and exits 1 when fewer
+  than 10 of the day's judge practice searches are left; the cap is read from functions/src/judgeSession.ts, a failed
+  read fails, a missing doc is an unused day, and it retires after 2026-12-17. Its tests run in CI and ci-local.
+  Source: review (judge quota probe, approved). Verified: test_judge_quota_probe.py (7 cases) failed first (no
+  script), then passes; a live run before the rules deploy failed closed with HTTP 403.
+- rules: ops/judgeSessions-YYYY-MM-DD, which holds only that UTC day's count of judge practice searches, is readable
+  without sign-in like ops/storage, so a probe can watch the judges' quota without a credential; nobody writes it from
+  a client. Source: review (judge quota probe, approved). Verified: a shapes case (a day's doc readable,
+  ops/judgeSessions-latest not, no client write) failed first, then passes.
+- rules: isOpen counts a missing status as open (get('status', 'open')), as the apps and the Storage rules read it, so
+  an incident with no status field still takes clip readings, reports and plans. The closed-incident reading test now
+  proves its point: a valid completion succeeds on an open record and the same completion is refused after the close.
+  Source: review (cross-family, round 1 on closed-incident writes). Verified: a no-status case failed first, then
+  passes; the completion test fails if the open check is dropped; all 177 rules tests pass. Every live incident has a
+  status.
+- rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
+  data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
+  mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
+  record, a photo upload the incident and the removal record. Source: review (closed-incident writes found during End
+  this search review). Verified: a storage case (after the close, a clip and a photo upload are refused and an
+  existing photo still reads) failed first, then passes; all 176 rules and Storage tests and the gates pass.
+- rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
+  and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
+  makes. Source: review (closed-incident writes found during End this search review). Verified:
+  rules/closedIncident.test.ts (a reading starts while open, not after the close; an open record cannot be completed
+  or taken over after it) failed first, then passes; all rules tests pass.
+- docs(limits): removing a member. Command removes a searcher or family member (removeMember): its app can no longer
+  read or write the search, open screens included (measured live: two open listeners refused within a second), and
+  that account cannot rejoin. The four remaining limits: a new sign-in rejoins until the role's code is replaced
+  (rotateJoinCode, which stops every older code of that role); media links already received keep working until the
+  drill's media is deleted; a clip upload in progress can finish within the hour; and an account that joined before
+  membership records began and has since joined another search cannot be removed for up to an hour. The Leave
+  paragraph no longer says command has no way to remove a member. Source: review (member removal, approved wording).
+- functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
+  close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
+  searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before
+  the grant; the start fails unavailable and no claims are set) failed first, then passes; all functions and rules
+  tests and the gates pass.
+- functions: a practice search the visitor ended (status closed) is no longer handed back on the next start: like an
+  expired one, it gives a new session, subject to the same hourly limit per visitor, so Try a practice search after
+  End this search starts fresh instead of reopening the ended post. Source: review (practice copies after End this
+  search). Verified: a new case (an ended sandbox: refused within the hour as resource-exhausted, then a new open
+  incident with the command role) failed first, then passes; 353 functions and rules tests and the gates pass.
+- functions: a judge's practice copy never carries the seed's end of search: closedReason and closedAt join
+  NOT_COPIED, so a copy starts open with neither. Source: review (practice copies after End this search). Verified: a
+  new case with an ended seed failed first, then passes; judgeSession tests pass.
+- rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
+  command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
+  Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
+  (cross-family, round 1 on the incident update whitelist). Verified: a new case (open to found refused, alone and
+  with another field; a found incident takes ordinary edits, cannot reopen, and closes with its reason) failed first,
+  then passes; two older cases that expected a bare found to succeed now expect it refused; all 173 rules tests pass.
+  No live incident has status found.
+- rules: command's update of the incident doc names only the fields the command post writes (traced in web/src/data
+  and web/src/prior; the iPhone and Android apps never update the incident): conditions, searchState, status,
+  closedReason, and the prior's priorVersion, priorInputEventIds, ipp, ippSource, priorLayers, terrain, priorModel,
+  priorSeed and priorBuiltAt. Every other field (mode, expiry, the grid, the name and labels, engineParams, codes,
+  media and setup state, closedAt) is admin-owned, replacing the deny list. The prior's one-step version rule and the
+  end-search rules are unchanged. Source: review (approved incident update whitelist). Verified:
+  rules/incidentUpdate.test.ts (each written field accepted; 15 other fields refused alone and riding along with an
+  allowed one; engineParams refused even with a version step; the version moves exactly one step) failed first on the
+  refused fields, then passes; two older cases that edited the name now edit searchState and assert a name edit is
+  refused; all 172 rules tests pass.
+- functions: rotateJoinCode reads the incident inside its transaction, so a search command ends at the same moment
+  cannot get a new code. Source: review (cross-family, round 1 on join code rotation). Verified: the closed, practice
+  and expired refusals still pass; 346 functions and rules tests pass.
+- functions: joinIncident's last step (commitJoin) runs in ONE transaction that re-reads the code (it still exists and
+  admits this role to this incident), the incident (still open and unexpired), the removal record, and a limited
+  invite's use count, then counts the use and writes the members record. A code rotated away, a search ended or an
+  account removed while a join is in flight now refuses that join instead of admitting it, and the separate use-count
+  transaction is gone. Source: review (cross-family, round 1 on join code rotation). Verified: commitJoin cases
+  (admits with a live code; refuses after a rotation, a close or a removal; a single-use invite counted once and
+  refused the second time) failed first (no export), then pass; all functions and rules tests pass.
+- functions: rotateJoinCode (callable, App Check enforced): command gives its incident's searchers or family a new
+  join code. In one transaction it creates the new code's doc (its incident, its one role, createdAt, rotatedBy) and
+  deletes every code of that role for the incident, the seeded one and any extra (a reviewer's or judges'), so a
+  removed person cannot rejoin with a new sign-in and an old code. It returns the code once, with the number of codes
+  replaced; only its hash is stored. The caller must be command now (its current claims, authz.ts); command's own
+  code, a practice sandbox, a closed search, and a missing or expired incident are refused. Source: review (App Review
+  guideline 1.2 blocking, approved). Verified: rotateJoinCode.test.ts (7 cases) failed first (no module), then passes;
+  343 functions and rules tests, the typecheck and the gates pass.
+- docs: the App Review drill's seed record (drill-review-1): what it holds, the three commands that seeded it, and the
+  checks (read-back of mode drill, the segment contract at prior version 1, 8-character codes kept in the Keychain
+  only, and a live searcher join that then deleted its own sign-in). Source: review (App Review needs a dedicated
+  drill). Verified: each check run on 2026-11-21 against the live project.
+- schemas: the content report's Android type is checked for parity (no longer pending), now that
+  android/.../family/data/ContentReport.kt is on main. Source: review (content reports). Verified:
+  check_schema_parity.py reports "ok content-report # android: 7 fields" and 0 failures across 14 schemas; the web and
+  iPhone types stay pending until they land.
+- rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
+  generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
+  500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
+  (499 letters plus an emoji, and a note with newlines, accepted; 500 letters plus an emoji, and 501 emoji, refused)
+  failed first, then passes; all 163 rules tests pass; the generator's --check is current.
+- rules test: a member command removed cannot file a content report, while another member still can (the report rule
+  goes through isMember, which checks the removal record). Source: review (content reports after member removal
+  landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;
+  all rules tests pass.
+- rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
+  only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
+  event, none for the family's description); command reads every report, the author only its own; nobody updates or
+  deletes one. The shape check is generated from content-report.schema.json (schema_ContentReport, createdAt ==
+  request.time). Source: review (App Review guideline 1.2, approved design). Verified: rules/contentReports.test.ts (5
+  cases) failed first on create and read, then passes; all 154 rules tests pass; the generator's --check is current.
+- schemas: content-report.schema.json, the shape of incidents/{id}/contentReports/{reportId}: a searcher or family
+  member flags the team's task, the family's description or one event, with a reason (abusive, personal_information,
+  wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
+  1.2). Platform types are pending in x-parity for the web, the iPhone and Android. Source: review (approved design; a
+  collection of its own, since event docs pin 25 keys). Verified: scripts/check_schema_parity.py ok (14 schemas).
+- functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
+  sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
+  delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
+  gone still gets { ok: true }. Source: review (cross-family, round 2 on deleteMyAccount). Verified: the command case
+  failed first, then passes; the no-claims case passes; 325 functions and rules tests and the typecheck pass.
+- functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
+  after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
+  check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
+  the test passes, and fails with the deleted-account branch of the current-claims check removed; all functions and
+  rules tests pass.
+- functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
+  its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
+  whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review
+  (App Review account deletion, approved). Verified: deleteMyAccount.test.ts (deletes the caller and keeps its
+  reports; ok when already gone; leaves another user; refuses an unsigned caller) failed first (no module), then
+  passes; all functions tests and the typecheck pass.
+- functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
+  redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
+  before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
+  once is retried and the claims then go; a removed account leaves a single-use invite unused; both failed first, then
+  pass; 318 functions and rules tests pass.
+- rules: command reads incidents/{id}/members/{uid} and no client writes one; Storage keeps within its two Firestore
+  lookups per request: a photo upload and every read check the incident and the removal record, and a clip upload
+  checks the incident and its consent record (a removed account cannot create one, since Firestore refuses its
+  writes). Source: review (cross-family, approved fixes). Verified: rules tests for the members records and for a
+  removed member's photo upload and clip read failed first, then pass; an active member's clip upload passes; all
+  rules and Storage tests pass. The emulator does not enforce the lookup limit, so that part rests on the documented
+  limit.
+- functions: removal decides from a server-owned membership record, and privileged callers are checked by their
+  current claims. joinIncident writes incidents/{id}/members/{uid} (role, team, joinedAt) in one transaction with its
+  check of the removal records; removeMember reads that record (or, for an account that joined before it existed, its
+  current claims) and records the removal in a transaction, so a member who has since joined another incident can
+  still be removed and a join racing a removal is serialized. removeMember and deleteIncidentMediaNow require the
+  caller's current claims to name the incident as command and the caller not to be removed (authz.ts), not only its
+  token. Cleanup clears the claims and revokes refresh tokens only while the claims still name this incident; only a
+  missing account counts as done, and any other failure is reported (calling again finishes it). Source: review
+  (cross-family, approved fixes). Verified: new tests failed first, then pass (the members record at join; removal of
+  a moved member, whose new claims stay; a command members record; a stale command token refused on both callables; a
+  removed command refused; a cleanup failure reported after the record; a gone account); the media checks failed with
+  the check removed; 316 functions and rules tests and the typecheck pass.
+- rules: a removed account is refused at once. Firestore's isMember and the event create check, and Storage's
+  isMember, require that incidents/{id}/removed/{uid} does not exist, so a member command removed can neither read nor
+  write the incident, nor upload, while its ID token still carries the claims; command reads the removal records and
+  no client writes one. Source: review (App Review guideline 1.2, approved design). Verified: rules/removed.test.ts (5
+  cases) and the storage case failed first, then pass; all 154 Firestore rules tests and 15 Storage tests pass.
+- functions: removeMember (callable, App Check enforced): command removes a searcher or family member of its own
+  incident. It records incidents/{id}/removed/{uid} first, then clears the member's claims and revokes its refresh
+  tokens (an ID token already issued stays valid up to an hour, so the record is what the rules check). Command cannot
+  remove itself or another command; a second removal is ok. joinIncident refuses a removed account with the usual join
+  failure. Source: review (App Review guideline 1.2, approved design). Verified: removeMember.test.ts (7 cases: the
+  removal and its order, family, a second removal, refused callers, refused targets, malformed input, the rejoin
+  refused and a new account still joining) failed first (no module), then passes; 305 functions tests and the
+  typecheck pass.
+- LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
+  command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
+  join function's claims; teams are admin-written); no other doc claims one (git grep).
+- docs: the Kennesaw seed record gains its prior version 3 reseed (temperate mountain terrain, set before the drill,
+  with the commands, the terrain note and the read-back), and README's extras line names the Downhill and level ground
+  prior layer instead of saying the prior has no elevation term. Source: review. Verified: read back from Firestore
+  (339 docs at version 3, same ids, segment_contract ok, no events or plans); README against
+  shared/engine-ts/src/prior.ts and web/src/command/LayerSwitches.tsx.
+- tools/seed: seed_segments.py refuses to reseed the practice seed (shared/constants/judge-seed.json) from 2026-11-30
+  to 2026-12-17, while judging is open, unless --i-know-judging-is-open is passed (judging_problem; parse_args takes
+  the flag only at the end). A judge's practice copy taken during such a reseed could mix two sites. README's seed
+  step says so, with the reseed's higher --prior-version. Source: review (ruling). Verified:
+  test_the_practice_seed_is_never_reseeded_while_judging_is_open_without_saying_so (both sides of 2026-11-30 and
+  2026-12-17, the flag, another incident) and test_the_command_line_takes_the_judging_flag_only_at_the_end failed
+  first, then pass; 44 seed tests pass.
+- scripts: the heavy-slot waiting line names every process with the busy slot's lock file open (lsof -t, sorted,
+  joined) instead of the first one listed, and the slot tests hold a slot until the waiting line appears, then let it
+  go (run_until_waiting), instead of for a fixed 3 s. lsof lists every opener, a waiter's own lockf attempt too,
+  lowest PID first, and a loaded machine could take longer than 3 s to print the line, so two tests failed at random
+  when several sessions ran the gates. Source: review. Verified:
+  test_the_waiting_line_names_the_holder_even_when_another_process_has_the_file_open failed on the old script (it
+  named the opener), then passes; scripts/test_ci_local.py passes 13/13 in five runs, three of them at the same time.
+- scripts/heavy.sh names every process with the busy slot's lock file open (lsof -t, sorted, joined) instead of the
+  first one listed, and the slot tests check that the holder is among them. lsof lists every opener, the waiter's own
+  lockf attempt too, lowest PID first, so on a busy machine the waiting line named a waiter and two tests failed at
+  random when several sessions ran the gates. Source: review. Verified:
+  test_the_waiting_line_names_the_holder_even_when_another_process_has_the_file_open failed on the old script (it
+  named the opener, not the holder), then passes; scripts/test_ci_local.py passes 13/13 three runs in a row.
+- tools/seed: the incident is read before the segments are listed, so the commit's updateTime precondition fails a run
+  that a concurrent seed overtook between the reads, before any write; listed first, the stale list passed with the
+  newer updateTime and left a mixed grid. Source: review (cross-family). Verified:
+  test_the_incident_is_read_before_the_segments_are_listed failed first, then passes; 42 seed tests pass.
+- tools/seed: a reseed over an existing grid must raise the prior version (version_problem; read_incident now returns
+  the stored priorVersion). At the same version, a walker run or rebuild started before the reseed still saw its
+  version unchanged and committed its old results as the next one, leaving the new grid's other cells behind for good.
+  Source: review (cross-family). Verified: test_a_reseed_over_an_existing_grid_must_raise_the_prior_version failed
+  first, then passes; 41 seed tests pass.
+- test-vectors README: the phone rule's separator sentence now describes the shared rule (any spaces, punctuation or
+  symbols join digit groups, except : % and the degree sign; a gap never holds a letter or a digit). Source: review.
+  Verified: read against web/src/data/phoneNumbers.ts and the 103 cases.
+- test-vectors: phone-numbers.json grows from 58 to 103 cases (59 remove, 35 keep, 9 exact) for the shared separator
+  rule (any mark between digit groups joins them except : % and the degree sign) and its coordinate and
+  radio-frequency spans, with scripts/test_phone_vectors.py's required lists and LIMITS (pass counts 103/103/103; the
+  accepted keeps, the over-removals, the eastern-longitude trade-off and the drill iPhone's build 9 note). Source:
+  review (privacy). Verified: all 103 pass on the web (vitest), the iPhone (swift test) and Android (gradle
+  PhoneVectorsTest) with none pending; the validator passes.
+- LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
+  ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
+  known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,
+  web/src/prior/rebuild.ts and web/public/extras/terrain/.
+- Engine and reference: elevationWeights refuses a negative or non-finite share, and returns neutral weights when the
+  classes that hold mass have shares summing to zero (it gave NaN before); a generated vector covers the zero-sum
+  case. Source: review (second-model). Verified: a reference test and the vector failed first, then pass; engine suite
+  389; reference suite 19.
+- Engine: the elevation layer's constants (ELEVATION_PARAMS, from a top-level elevation block in
+  shared/constants/engine-params.json with its own source line) stay outside EngineParams, so stored incidents and the
+  published run, which carry no copy, still pass every reader (the replay reader derives its required engine fields
+  from DEFAULT_PARAMS and refused the run); search.json is unchanged from main. Source: CI and review (second-model).
+  Verified: the replay suite (119) and the published-run test pass; engine suite and typecheck; web typecheck and unit
+  suite.
+- docs/evidence/isrid-dementia-p164.md gains the elevation table as printed (temperate uphill 19%, down 42%, same 39%;
+  dry 50%, 38%, 13%; medians 75 and 60 ft temperate, 317 and 187 ft dry), says what the source does not give (no n, no
+  band for Same, no urban column), and that the temperate shares are the engine's elevation layer. Source: review.
+  Verified against the publisher's sample PDF text.
+- Engine: an elevation prior layer, off by default (PriorLayers.elevation). elevationWeights matches the reference's
+  vectors; buildPrior applies it last, from the start's and each segment's elevation (SegmentElevations), keeps ROW,
+  and refuses urban terrain and a site with no elevations. Engine params gain elevation (temperate shares SOURCED to
+  p.164, the 3 m band OURS); search.json only gains that param. Source: review (terrain layer, approved). Verified: 7
+  vector cases and 4 buildPrior tests failed first, then pass; engine suite 387 and typecheck; web typecheck; ci-local
+  gates and ts.
+- Vector reference: elevation_weights in tools/vectors/make_vectors.py (each segment uphill, level within 3 m of the
+  start, or downhill, weighted to the class shares; an empty class returns its share pro rata; no elevation keeps
+  weight 1) and seven generated elevationWeights cases in shared/test-vectors/prior.json. Source: review (terrain
+  layer, approved). Verified: 2 reference tests failed first, then pass; the generator check passes.
+- drill-day, section 3: the printer settings add Two-sided: off (a printer that defaults to two-sided puts two teams'
+  sheets back to back), and a line before the steps says to print a test page on Saturday because the drill printer
+  reported low ink, or print at a library. Source: review. Verified: docs only.
+- drill-day, section 2 step 2: if a phone's on-device model row still does not read ready before leaving signal, write
+  down which phone and why, since its reports are then read in the cloud (cloud reading on, with signal) or by its
+  rules, and the note explains a missing on-device count after the drill. Source: review. Verified against the iPhone
+  read route (ios/PLSCore/Sources/PLSCore/ReadPlan.swift and the reader's cloud-only-with-consent fallback).
 - drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
   segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
   tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
@@ -3131,3 +3399,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
+
+### feat(rules): command ends a search with one of three reasons
+- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
+- Source: review (an "End this search" control for command).
+- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
+
+### fix(rules): a closedReason copied onto an open incident never blocks its edits
+- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
+- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
+- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+
+### chore(schemas): the content-report schema's web type is built
+- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
+- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
+- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.

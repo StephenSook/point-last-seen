@@ -1,0 +1,170 @@
+{
+  "status": "DRAFT, machine-reviewed, no native speaker yet. No code reads this file. A fluent Spanish speaker checks every word and sentence (CHECKLIST.md) before any of it moves into shared/constants or shared/test-vectors.",
+  "twinOf": "shared/constants/grounding-words.json",
+  "note": "Grounding should fold accents the way the evidence screen does, or marrón never matches. Words listed folded. este alone means this as well as east, so east counts only in a direction phrase (al este, hacia el este, rumbo al este, del este) or as oriente.",
+  "colorWords": {
+    "black": [
+      "negro",
+      "negra",
+      "negros",
+      "negras"
+    ],
+    "white": [
+      "blanco",
+      "blanca",
+      "blancos",
+      "blancas"
+    ],
+    "gray": [
+      "gris",
+      "grises"
+    ],
+    "brown": [
+      "marron",
+      "marrones",
+      "cafe",
+      "cafes"
+    ],
+    "tan": [
+      "beige",
+      "beis",
+      "caqui",
+      "canela"
+    ],
+    "red": [
+      "colorada",
+      "coloradas",
+      "colorado",
+      "colorados",
+      "roja",
+      "rojas",
+      "rojo",
+      "rojos"
+    ],
+    "orange": [
+      "anaranjada",
+      "anaranjadas",
+      "anaranjado",
+      "anaranjados",
+      "naranja",
+      "naranjas"
+    ],
+    "yellow": [
+      "amarillo",
+      "amarilla",
+      "amarillos",
+      "amarillas"
+    ],
+    "green": [
+      "verde",
+      "verdes"
+    ],
+    "blue": [
+      "azul",
+      "azules"
+    ],
+    "purple": [
+      "lila",
+      "lilas",
+      "morada",
+      "moradas",
+      "morado",
+      "morados",
+      "purpura",
+      "violeta"
+    ],
+    "pink": [
+      "rosa",
+      "rosado",
+      "rosada",
+      "rosados",
+      "rosadas"
+    ]
+  },
+  "directionWords": {
+    "n": [
+      "norte"
+    ],
+    "e": [
+      "al este",
+      "hacia el este",
+      "rumbo al este",
+      "rumbo este",
+      "del este",
+      "oriente"
+    ],
+    "s": [
+      "sur"
+    ],
+    "w": [
+      "oeste",
+      "al oeste",
+      "poniente"
+    ],
+    "ne": [
+      "noreste",
+      "nordeste"
+    ],
+    "se": [
+      "sureste",
+      "sudeste"
+    ],
+    "sw": [
+      "suroeste",
+      "sudoeste"
+    ],
+    "nw": [
+      "noroeste"
+    ],
+    "upstream": [
+      "rio arriba",
+      "arroyo arriba",
+      "aguas arriba"
+    ],
+    "downstream": [
+      "rio abajo",
+      "arroyo abajo",
+      "aguas abajo"
+    ]
+  },
+  "capitalLetters": {
+    "note": "O stands for west (oeste) in Spanish; N, E and S read the same.",
+    "n": "N",
+    "e": "E",
+    "s": "S",
+    "w": "O"
+  },
+  "stopWords": [
+    "el",
+    "la",
+    "los",
+    "las",
+    "un",
+    "una",
+    "unos",
+    "unas",
+    "con",
+    "del",
+    "que",
+    "su",
+    "sus",
+    "llevaba",
+    "traia",
+    "vestia",
+    "tenia",
+    "cerca",
+    "par",
+    "algo",
+    "como",
+    "tal",
+    "vez",
+    "quizas",
+    "posiblemente",
+    "puesto",
+    "puesta"
+  ],
+  "questions": [
+    "cafe for brown is common in Mexico and Central America, marron in Spain and parts of South America; both are kept. Should cafe count only beside a garment or 'de color' (camisa cafe), since cafe is also coffee?"
+  ],
+  "radio": "On the radio, say a direction as a whole word and read it back; never a letter. este and oeste, and noreste and noroeste, are easy to mishear."
+}
