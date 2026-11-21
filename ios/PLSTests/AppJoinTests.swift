@@ -581,6 +581,18 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.endedSearch == nil)
     }
 
+    /// The account can still be deleted from an ended search: Ready check offers Leave, and leaving clears it.
+    @Test func anEndedSearchCanStillBeLeft() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let backend = FakeJoinBackend()
+        let m = model(backend, reader)
+        await m.trySignIn()
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(m.mission == nil && m.offersLeave)
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 1 && m.endedSearch == nil && !m.offersLeave)
+    }
+
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
     /// given back, T1's assignment is spoken again.
     @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {

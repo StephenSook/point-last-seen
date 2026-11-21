@@ -520,6 +520,8 @@ final class AppModel {
         /// The account that was in the search; only its reports are shown.
         var owner: String? = nil
     }
+    /// Ready check offers Leave while a search is loaded, read again, or ended on screen.
+    var offersLeave: Bool { mission != nil || canRetryMission || endedSearch != nil }
     private(set) var endedSearch: EndedSearch?
     /// The ended search's reports, shown read-only on the task screen.
     var endedEntries: [OutboxEntry] {
@@ -600,6 +602,7 @@ final class AppModel {
         joinMessage = nil
         problem = nil
         leaveRefusal = nil
+        endedSearch = nil
         return true
     }
 

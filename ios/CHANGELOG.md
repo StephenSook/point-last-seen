@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): an ended search can still be left, so its sign-in can be deleted
+- What: Ready check offers "Leave this search" while an ended search is on screen, not only while a search is
+  loaded, so a searcher whose search ended can still delete the phone's sign-in; leaving clears the ended search.
+  Before, a search ended by the listener took Leave away until the next launch.
+- Source: review of the ended-search change (account deletion must stay reachable).
+- Verified: a test that Leave is offered after the end and that leaving deletes the account and clears the ended
+  search failed before the change and passes after; 255 app tests pass.
+
 ### fix(ios): an ended search stays with the account that was in it
 - What: the ended search records the account that was in it and lists only that account's reports, and a change of
   account clears it, so another user never sees the previous one's reports or words. A read that started for one
