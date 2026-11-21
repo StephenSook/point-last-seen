@@ -2032,3 +2032,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post header labels the match code "Radio check" instead of "MATCH": the code teams read over the radio, where the same code means the same prior version and the same reports. The drill line and the wordmark are unchanged; `data-testid="convergence-code"` stays. The live layout and judge checks look for the new label.
 - Source: UI review ("MATCH" did not say what the code is for).
 - Verified: the live layout check with the new label failed on the live site ("MATCH"), and runs again after the deploy; typecheck, web unit suite and the hygiene guard pass.
+
+### fix(command): a reopened practice search says it is opening, not show the join form
+- What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
+- Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).
+- Verified: new `src/command/connecting.test.ts` (practice, other incident, none) failed first (no module), then passed; the live practice check now reloads the practice search and requires that the join form never appears and the opening line does, which failed on the live site (the join form showed) and runs again after the deploy; the no-backend set (42), web unit suite (987), typecheck, CI's Python gates and the hygiene guard pass.
