@@ -180,6 +180,8 @@ final class AppModel {
     /// gate at once, so a kill-switch flip takes effect without a restart.
     var config = RemoteConfigValues.defaults { didSet { refreshGate() } }
     var cloudConsent = false { didSet { refreshGate() } }
+    /// Whether this phone has the cloud route (iOS 27); without it the live gate keeps the cloud off (a seam for tests).
+    var cloudRouteAvailable = ModelSessionFactory.cloudRouteSupported { didSet { refreshGate() } }
     private(set) var mission: Mission?
     private(set) var store: EventStore?
     private(set) var sending = false
@@ -859,7 +861,8 @@ final class AppModel {
     }
 
     func refreshGate() {
-        let online = connectivity.isOnline, consent = cloudConsent, kill = config.killCloud, mode = mission?.mode
+        // Without the cloud route (iOS 26) the cloud is off at every dispatch, as in the reader's first decision.
+        let online = connectivity.isOnline, consent = cloudConsent, kill = config.killCloud || !cloudRouteAvailable, mode = mission?.mode
         gate.update { $0 = LiveGate(networkOnline: online, cloudConsent: consent, killCloud: kill, incidentMode: mode) }
     }
 
@@ -926,9 +929,10 @@ final class AppModel {
     /// The release route check's two routes.
     enum CheckRoute: String, CaseIterable, Codable { case onDevice = "on_device", cloud }
 
-    /// The route check runs only on a practice incident: its cloud route sends the reader's tools,
-    /// the person's description included, and a real search's words go to the cloud only with consent.
-    var canRouteCheck: Bool { mission.map { ReadPlan.modelModes.contains($0.mode) } ?? false }
+    /// The route check runs only in the practice drill: its cloud route sends the reader's tools, the
+    /// person's description included, so only the practice drill's sample data may go. A live drill or a
+    /// real search's words go to the cloud only with the searcher's consent.
+    var canRouteCheck: Bool { mission.map { $0.isPractice && ReadPlan.modelModes.contains($0.mode) } ?? false }
 
     /// The fixed drill sentence the route check reads, about the team's first segment.
     static func routeCheckSentence(_ mission: Mission) -> String {

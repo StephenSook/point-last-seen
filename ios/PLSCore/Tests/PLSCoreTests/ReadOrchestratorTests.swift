@@ -368,6 +368,25 @@ private var clock: FixedClock { FixedClock(ms: [1_000, 1_850]) }      // one per
         #expect(o.reading.topColor == .unknown)
     }
 
+    /// With the live gate's cloud off (as on iOS 26), a reroute after Apple's model is unavailable reads by
+    /// rules: the cloud is never asked and no cloud transport is recorded. With the gate open it would go.
+    @Test func aClosedLiveGateKeepsARerouteOffTheCloud() async {
+        for kill in [true, false] {
+            let r = FakeRunner()
+            r.guidedResults[.onDevice] = [.failure(.unavailable)]
+            r.guidedResults[.cloud] = [.success(okReading())]
+            var c = rctx(online: true, consent: true)
+            c.killCloud = true
+            c.liveGate = { LiveGate(networkOnline: true, cloudConsent: true, killCloud: kill, incidentMode: "drill") }
+            let o = await ReadOrchestrator.read(text: report, context: c, runner: r, clock: clock)
+            if kill {
+                #expect(r.calls == [.guided(.onDevice)] && o.route.path == .rules && o.cloudTransport == .notUsed)
+            } else {
+                #expect(r.calls == [.guided(.onDevice), .guided(.cloud)] && o.route.path == .cloud)
+            }
+        }
+    }
+
     /// Apple's model sometimes leaves the quote empty. A read rejected only for its quote is asked once
     /// more, with a changed input (the report and a reminder), since greedy sampling gives the same answer
     /// to the same input. The validator is unchanged, so two rejections still fall to rules. The note says
