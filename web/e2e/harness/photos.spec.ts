@@ -71,3 +71,11 @@ test("a cloud photo read carries a closed What ran receipt with the bytes of the
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
   await expect(receipt).toContainText(/Sent: [0-9,]+ bytes of the photo, as base64\./);
 });
+
+test("while a photo is read on this laptop, the tray says so and that the first read can take a minute", async ({ page }) => {
+  await page.goto("/harness/photos.html?read=laptop&slow=1");
+  const row = page.locator("li.photo").first();
+  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await expect(row.getByRole("status").filter({ hasText: "Reading on this laptop" })).toHaveText("Reading on this laptop. The first read can take up to a minute.");
+  await expect(row.getByRole("status").filter({ hasText: "Reading on this laptop" })).toHaveCount(0, { timeout: 5_000 });
+});

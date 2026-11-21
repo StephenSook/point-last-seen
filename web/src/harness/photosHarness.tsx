@@ -20,6 +20,8 @@ const unchecked = q.get("unchecked") === "1";
 const noConsent = q.get("consent") === "none";
 // ?read=laptop|cloud: the read answers with fixed cues and its route, so the receipt can be checked.
 const readAs = q.get("read");
+// ?slow=1: the laptop read answers after 1.5 s, so the waiting line can be seen.
+const slow = q.get("slow") === "1";
 const cues = (): PhotoCues => ({ placeType: "park", placeName: "", signText: "Synthetic sign A", landmarks: [], outdoors: "yes", evidence: "" });
 const route = (path: "on_device" | "cloud"): RouteRecord => ({
   platform: "web", path, stage: "sdk", model: path === "on_device" ? "chrome-built-in" : "gemini-3.5-flash-lite",
@@ -53,7 +55,10 @@ function Harness() {
         onCheckDevice={async () => {}}
         downloadPct={null}
         onAddFiles={async () => {}}
-        readOnLaptop={async () => (readAs === "laptop" ? { cues: cues(), route: route("on_device"), sentBytes: 0 } : { refused: "no-on-device-model" })}
+        readOnLaptop={async () => {
+          if (slow) await new Promise((r) => setTimeout(r, 1500));
+          return readAs === "laptop" ? { cues: cues(), route: route("on_device"), sentBytes: 0 } : { refused: "no-on-device-model" };
+        }}
         readInCloud={async (p) =>
           readAs === "cloud"
             ? { cues: cues(), route: route("cloud"), sentBytes: 4 * Math.ceil(p.bytes.length / 3) }

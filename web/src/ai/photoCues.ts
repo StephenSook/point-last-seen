@@ -76,6 +76,13 @@ function parsed(text: string): PhotoCues | null {
   }
 }
 
+/**
+ * How long the command post waits for an on-device photo read. Chrome's first image read in a page is slow: 20 s for a
+ * photo on a fast Mac (docs/evidence/web/2026-11-21-photo-read-chrome.json), and 31 s for the paper sheet read on the
+ * same Mac, so a slower laptop needs far more than the 30 s it had.
+ */
+export const PHOTO_READ_TIMEOUT_MS = 90_000;
+
 export async function readPhotoOnDevice(
   jpegBase64: string,
   deps: PhotoDeps,

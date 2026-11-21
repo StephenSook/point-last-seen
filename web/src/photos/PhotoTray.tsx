@@ -55,12 +55,15 @@ function Thumb({ bytes }: { bytes: Uint8Array }) {
 export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downloadPct, onAddFiles, readOnLaptop, readInCloud, onDecide }: Props) {
   const [reads, setReads] = useState<Record<string, Read>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // The photo being read on this laptop: its first read in a page can take tens of seconds (PHOTO_READ_TIMEOUT_MS).
+  const [readingHere, setReadingHere] = useState<string | null>(null);
   const [decided, setDecided] = useState<Record<string, FamilyDecision>>({});
   const [saveError, setSaveError] = useState<Record<string, string | null>>({});
   const set = (sha: string, r: Read) => setReads((x) => ({ ...x, [sha]: r }));
 
   async function run(p: TrayPhoto, how: "laptop" | "cloud") {
     setBusy(p.sha256);
+    if (how === "laptop") setReadingHere(p.sha256);
     try {
       const r = how === "laptop" ? await readOnLaptop(p) : await readInCloud(p);
       if ("cues" in r) set(p.sha256, r);
@@ -70,6 +73,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
       set(p.sha256, { couldNot: "Couldn't read this photo." });
     } finally {
       setBusy(null);
+      setReadingHere(null);
     }
   }
 
@@ -121,6 +125,11 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
                   Read on this laptop
                 </button>
               </div>
+              {readingHere === p.sha256 && (
+                <p role="status" className="muted">
+                  Reading on this laptop. The first read can take up to a minute.
+                </p>
+              )}
               {r && "noModel" in r && (
                 <div role="status" className="note-state">
                   <p>This laptop has no local model. Nothing was sent.</p>
