@@ -6,6 +6,7 @@ import { loadPasses, passLines, passesUrl, readPasses } from "./passes";
 const MIN = 60_000;
 const run = harnessRun();
 // Made-up passes for the harness run: alfa's report r2 and bravo's sighting s2.
+// Each pass's time is its report's phone time plus the phone's measured offset (0 here); accuracy is the report's own.
 const file = () => ({
   version: 1,
   runId: "harness-run",
@@ -14,8 +15,8 @@ const file = () => ({
   trackFromMs: T0,
   trackToMs: T0 + 20 * MIN,
   passes: [
-    { teamId: "alfa", eventId: "r2", distanceM: 38, atMs: Date.UTC(2026, 10, 22, 18, 12), accuracyM: 8 },
-    { teamId: "bravo", eventId: "s2", distanceM: 240, atMs: Date.UTC(2026, 10, 22, 18, 30), accuracyM: null },
+    { teamId: "alfa", eventId: "r2", distanceM: 38, atMs: T0 + 16 * MIN, accuracyM: 5, clockChecked: true },
+    { teamId: "bravo", eventId: "s2", distanceM: 240, atMs: T0 + 12 * MIN, accuracyM: 5, clockChecked: false },
   ],
 });
 
@@ -36,6 +37,33 @@ describe("readPasses", () => {
     const withPlace = { ...file(), passes: [{ ...file().passes[0]!, lat: 33.9, lon: -84.6 }] };
     expect(readPasses(withPlace, run)).toEqual({ ok: false, reason: "The file has a field it should not: passes.lat." });
     expect(readPasses({ ...file(), track: [[T0, 33.9, -84.6]] }, run)).toEqual({ ok: false, reason: "The file has a field it should not: track." });
+  });
+
+  it("refuses a field with an empty name too, so it cannot hide an extra field after it", () => {
+    expect(readPasses({ "": true, ...file(), track: [[T0, 33.9, -84.6]] }, run)).toEqual({ ok: false, reason: 'The file has a field it should not: "".' });
+    const pass = { "": 1, ...file().passes[0]!, lat: 33.9 };
+    expect(readPasses({ ...file(), passes: [pass] }, run)).toEqual({ ok: false, reason: 'The file has a field it should not: passes."".' });
+  });
+
+  it("checks each pass against its report in the run: time, accuracy, GPS placing and the track's span", () => {
+    const pass = file().passes[0]!;
+    // A time that is not the report's phone time plus its measured offset.
+    expect(readPasses({ ...file(), passes: [{ ...pass, atMs: pass.atMs + 60_000 }] }, run)).toEqual({ ok: false, reason: "A pass's time is not its report's time." });
+    // An accuracy the report does not state.
+    expect(readPasses({ ...file(), passes: [{ ...pass, accuracyM: 1 }] }, run)).toEqual({ ok: false, reason: "A pass's GPS accuracy is not its report's." });
+    // Outside the span the track covers.
+    expect(readPasses({ ...file(), trackToMs: T0 + 10 * MIN }, run)).toEqual({ ok: false, reason: "A pass falls outside the role-player's track." });
+    // A report not placed by its phone's GPS (r2, marked here as placed by hand).
+    const handPlaced = { ...run, events: run.events.map((e) => (e.eventId === "r2" ? { ...e, positionSource: "manual" as const } : e)) };
+    expect(readPasses(file(), handPlaced)).toEqual({ ok: false, reason: "A pass names an event that is not that team's report placed by its phone's GPS." });
+  });
+
+  it("a pass whose phone clock was not measured is taken at the phone's own time", () => {
+    const pass = { ...file().passes[0]!, clockChecked: false };
+    expect(readPasses({ ...file(), passes: [pass] }, run).ok).toBe(true);
+    const offset = { ...run, devices: run.devices.map((d) => ({ ...d, clockOffsetMs: 30_000 })) };
+    expect(readPasses({ ...file(), passes: [{ ...pass, clockChecked: true }] }, offset)).toEqual({ ok: false, reason: "A pass's time is not its report's time." });
+    expect(readPasses({ ...file(), passes: [{ ...pass, clockChecked: true, atMs: pass.atMs + 30_000 }] }, offset).ok).toBe(true);
   });
 
   it("refuses a pass for a team the run lacks, or for an event that is not that team's report in the run", () => {
@@ -60,11 +88,15 @@ describe("passLines", () => {
     const r = readPasses(file(), run);
     if (!r.ok) throw new Error(r.reason);
     expect(passLines(r.file, run, "America/New_York")).toEqual([
-      { teamId: "alfa", eventId: "r2", text: "Alfa was 38 m from the role-player at 13:12, at its report then (its phone's GPS: within 8 m)." },
-      { teamId: "bravo", eventId: "s2", text: "Bravo was 240 m from the role-player at 13:30, at its report then." },
+      { teamId: "alfa", eventId: "r2", text: "Alfa was 38 m from the role-player at 13:56, at its report then (its phone's GPS: within 5 m)." },
+      { teamId: "bravo", eventId: "s2", text: "Bravo was 240 m from the role-player at 13:52, at its report then (its phone's GPS: within 5 m; its phone's clock was not checked)." },
     ]);
     const onlyAlfa = { ...r.file, passes: r.file.passes.slice(0, 1) };
-    expect(passLines(onlyAlfa, run, "UTC")[1]).toEqual({ teamId: "bravo", eventId: null, text: "Bravo sent no report placed by its phone's GPS while the role-player's track ran." });
+    expect(passLines(onlyAlfa, run, "UTC")[1]).toEqual({
+      teamId: "bravo",
+      eventId: null,
+      text: "No pass for Bravo: none of its reports placed by its phone's GPS came at a moment the role-player's track covers.",
+    });
   });
 });
 

@@ -1,23 +1,27 @@
 // Each team's closest pass to the role-player in a published drill run, as tools/extras/import_track.py wrote it: team,
-// event id, whole metres, time and the phone's stated accuracy. It holds no coordinate. The role-player's GPS track
-// itself is never published, so this page never fetches it; only this file, beside the run.
+// event id, whole metres, time, the phone's stated accuracy and whether its clock offset was measured. It holds no
+// coordinate. The role-player's GPS track itself is never published, so this page never fetches it; only this file,
+// beside the run. Each pass is checked against its report in the run; only the distance rests on the tool alone.
 
 import type { PublishedRunV1 } from "../replay/runContract";
 import { clockLabel } from "../replay/ruler";
 
-export type Pass = { teamId: string; eventId: string; distanceM: number; atMs: number; accuracyM: number | null };
+export type Pass = { teamId: string; eventId: string; distanceM: number; atMs: number; accuracyM: number | null; clockChecked: boolean };
 export type PassesFile = { version: 1; runId: string; source: "gps-logger"; basis: "reports"; trackFromMs: number; trackToMs: number; passes: Pass[] };
 export type PassLine = { teamId: string; eventId: string | null; text: string };
 
 /** A run the replay reader has accepted (its teams and events are of the contract's shape). */
-type RunLike = Pick<PublishedRunV1, "runId" | "teams" | "events">;
+type RunLike = Pick<PublishedRunV1, "runId" | "teams" | "events" | "devices">;
 
 const FILE_FIELDS = ["version", "runId", "source", "basis", "trackFromMs", "trackToMs", "passes"];
-const PASS_FIELDS = ["teamId", "eventId", "distanceM", "atMs", "accuracyM"];
+const PASS_FIELDS = ["teamId", "eventId", "distanceM", "atMs", "accuracyM", "clockChecked"];
 const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+/** The first key not in `allowed` (an empty name included), or undefined. */
+const extraKey = (o: Record<string, unknown>, allowed: string[]) => Object.keys(o).find((k) => !allowed.includes(k));
+const named = (k: string) => (k === "" ? '""' : k);
 
 /** The passes file beside the run, or null for a run id that could leave the folder. */
 export function passesUrl(runId: string): string | null {
@@ -28,8 +32,8 @@ export function passesUrl(runId: string): string | null {
 export function readPasses(json: unknown, run: RunLike): { ok: true; file: PassesFile } | { ok: false; reason: string } {
   const no = (reason: string) => ({ ok: false as const, reason });
   if (!isObj(json)) return no("The file is not a passes file.");
-  const extra = Object.keys(json).find((k) => !FILE_FIELDS.includes(k));
-  if (extra) return no(`The file has a field it should not: ${extra}.`);
+  const extra = extraKey(json, FILE_FIELDS);
+  if (extra !== undefined) return no(`The file has a field it should not: ${named(extra)}.`);
   if (json["version"] !== 1) return no("The file is not version 1.");
   if (json["runId"] !== run.runId) return no("The file is for another run.");
   if (json["source"] === "synthetic") return no("The file comes from a synthetic track, made up for tests.");
@@ -38,35 +42,54 @@ export function readPasses(json: unknown, run: RunLike): { ok: true; file: Passe
   if (!num(json["trackFromMs"]) || !num(json["trackToMs"]) || json["trackToMs"] < json["trackFromMs"]) return no("The file's track times cannot be read.");
   if (!Array.isArray(json["passes"])) return no("The file has no list of passes.");
   const teams = new Set(run.teams.map((t) => t.teamId));
-  const teamOf = new Map(run.events.map((e) => [e.eventId, e.teamId]));
+  const events = new Map(run.events.map((e) => [e.eventId, e]));
+  const offsets = new Map(run.devices.map((d) => [d.deviceId, d.clockOffsetMs]));
+  const from = json["trackFromMs"];
+  const to = json["trackToMs"];
   const seen = new Set<string>();
   const passes: Pass[] = [];
   for (const p of json["passes"] as unknown[]) {
     if (!isObj(p)) return no("A pass cannot be read.");
-    const bad = Object.keys(p).find((k) => !PASS_FIELDS.includes(k));
-    if (bad) return no(`The file has a field it should not: passes.${bad}.`);
-    const { teamId, eventId, distanceM, atMs, accuracyM } = p;
+    const bad = extraKey(p, PASS_FIELDS);
+    if (bad !== undefined) return no(`The file has a field it should not: passes.${named(bad)}.`);
+    const { teamId, eventId, distanceM, atMs, accuracyM, clockChecked } = p;
     if (typeof teamId !== "string" || !teams.has(teamId)) return no("A pass names a team the run does not have.");
     if (seen.has(teamId)) return no("A team has two passes.");
     seen.add(teamId);
-    if (typeof eventId !== "string" || teamOf.get(eventId) !== teamId) return no("A pass names an event that is not that team's report in the run.");
+    const e = typeof eventId === "string" ? events.get(eventId) : undefined;
+    if (!e || e.teamId !== teamId || e.role !== "searcher" || e.positionSource !== "gps" || !e.position) {
+      return no("A pass names an event that is not that team's report placed by its phone's GPS.");
+    }
     if (!num(distanceM) || !Number.isInteger(distanceM) || distanceM < 0) return no("A pass's distance is not a whole number of metres.");
-    if (!num(atMs)) return no("A pass's time cannot be read.");
-    if (accuracyM !== null && (!num(accuracyM) || accuracyM < 0)) return no("A pass's GPS accuracy cannot be read.");
-    passes.push({ teamId, eventId, distanceM, atMs, accuracyM });
+    if (!num(atMs) || typeof clockChecked !== "boolean") return no("A pass's time cannot be read.");
+    // The report's phone time, plus the phone's measured offset when the pass says it was measured.
+    const offset = offsets.get(e.deviceId);
+    if (clockChecked && !num(offset)) return no("A pass's time is not its report's time.");
+    if (atMs !== e.clientTimeMs + (clockChecked ? (offset as number) : 0)) return no("A pass's time is not its report's time.");
+    const stated = num(e.position.accuracyM) && e.position.accuracyM >= 0 ? e.position.accuracyM : null;
+    if (accuracyM !== stated) return no("A pass's GPS accuracy is not its report's.");
+    if (atMs < from || atMs > to) return no("A pass falls outside the role-player's track.");
+    passes.push({ teamId, eventId: e.eventId, distanceM, atMs, accuracyM: stated, clockChecked });
   }
   return { ok: true, file: { version: 1, runId: run.runId, source: "gps-logger", basis: "reports", trackFromMs: json["trackFromMs"], trackToMs: json["trackToMs"], passes } };
 }
 
-/** One line per team of the run, in team id order: its closest pass, or that it sent no GPS-placed report then. */
+/** One line per team of the run, in team id order: its closest pass, or that none of its GPS-placed reports came then. */
 export function passLines(file: PassesFile, run: Pick<PublishedRunV1, "teams">, timeZone: string): PassLine[] {
   const byTeam = new Map(file.passes.map((p) => [p.teamId, p]));
   return [...run.teams]
     .sort((a, b) => (a.teamId < b.teamId ? -1 : a.teamId > b.teamId ? 1 : 0))
     .map((t) => {
       const p = byTeam.get(t.teamId);
-      if (!p) return { teamId: t.teamId, eventId: null, text: `${t.name} sent no report placed by its phone's GPS while the role-player's track ran.` };
-      const acc = p.accuracyM === null ? "" : ` (its phone's GPS: within ${Math.round(p.accuracyM)} m)`;
+      if (!p) {
+        // Not "sent none": a report can fall in a gap in the track, where there is no place to measure from.
+        return { teamId: t.teamId, eventId: null, text: `No pass for ${t.name}: none of its reports placed by its phone's GPS came at a moment the role-player's track covers.` };
+      }
+      const notes = [
+        ...(p.accuracyM === null ? [] : [`its phone's GPS: within ${Math.round(p.accuracyM)} m`]),
+        ...(p.clockChecked ? [] : ["its phone's clock was not checked"]),
+      ];
+      const acc = notes.length > 0 ? ` (${notes.join("; ")})` : "";
       return { teamId: t.teamId, eventId: p.eventId, text: `${t.name} was ${p.distanceM} m from the role-player at ${clockLabel(p.atMs, timeZone)}, at its report then${acc}.` };
     });
 }

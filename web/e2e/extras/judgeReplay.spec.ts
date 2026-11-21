@@ -105,8 +105,9 @@ test("a run with a label of its own shows it under the replay heading; a label t
 // Made-up passes for the harness run (alfa's report r2, bravo's sighting s2), served as the tool would write them.
 const PASSES_URL = "**/extras/passes/harness-run.passes.json";
 const passes = (source = "gps-logger") => JSON.stringify({
-  version: 1, runId: "harness-run", source, basis: "reports", trackFromMs: 0, trackToMs: 1,
-  passes: [{ teamId: "alfa", eventId: "r2", distanceM: 38, atMs: Date.UTC(2026, 10, 22, 18, 12), accuracyM: 8 }],
+  version: 1, runId: "harness-run", source, basis: "reports", trackFromMs: 1_795_372_800_000, trackToMs: 1_795_372_800_000 + 20 * 60_000,
+  // r2's phone time (16 minutes after the harness's T0), its phone's measured offset 0, its own 5 m accuracy.
+  passes: [{ teamId: "alfa", eventId: "r2", distanceM: 38, atMs: 1_795_372_800_000 + 16 * 60_000, accuracyM: 5, clockChecked: true }],
 });
 
 test("with a passes file beside the run, the replay lists each team's closest pass, tied to its report", async ({ page }) => {
@@ -114,8 +115,8 @@ test("with a passes file beside the run, the replay lists each team's closest pa
   await page.goto(harness);
   const block = page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("closest-passes");
   await expect(block.getByRole("heading", { name: "Closest passes" })).toBeVisible();
-  await expect(block.locator('li[data-event-id="r2"]')).toHaveText(/^Alfa was 38 m from the role-player at \d\d:\d\d, at its report then \(its phone's GPS: within 8 m\)\.$/);
-  await expect(block.locator("li").filter({ hasText: "Bravo sent no report placed by its phone's GPS" })).toHaveCount(1);
+  await expect(block.locator('li[data-event-id="r2"]')).toHaveText(/^Alfa was 38 m from the role-player at \d\d:\d\d, at its report then \(its phone's GPS: within 5 m\)\.$/);
+  await expect(block.locator("li").filter({ hasText: "No pass for Bravo: none of its reports placed by its phone's GPS" })).toHaveCount(1);
   // The track itself is never published, and the block says so.
   await expect(block).toContainText("The track itself is not published.");
 });
