@@ -37,7 +37,7 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 
 ## How the models are called
 
-- Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Three calls
+- Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Four calls
   use server prompt templates; `docs/SECURITY.md` lists every call.
 - On-device reads on the web and on Android use Firebase AI Logic's hybrid inference (the browser's or the phone's
   own model, with the cloud as the fallback where a call allows it).

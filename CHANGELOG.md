@@ -66,6 +66,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README and SECURITY: four calls use server prompt templates, not three; the web photo read calls pls-photo-cues-v1
+  (photoTemplateGenerator in web/src/ai/client.ts, used by CommandPost's readPhotoCloud since 65ee825a), so SECURITY
+  row 6, the call-table intro and the photo row say so. Source: review. Verified against
+  web/src/command/CommandPost.tsx:455.
 - Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
   (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
   web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
