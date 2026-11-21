@@ -535,7 +535,9 @@ public enum PhoneNumbers {
     /// Replaces parts[first...last] (with a leading + or ( when the run starts there), keeping any line breaks.
     static func replace(_ out: inout String, _ s: String, _ parts: [Part], _ first: Int, _ last: Int) {
         var lower = parts[first].range.lowerBound
-        while lower > s.startIndex, "+(".contains(s[s.index(before: lower)]) { lower = s.index(before: lower) }
+        // By code point: a format character before the "+" (U+0600) never hides it.
+        let u = s.unicodeScalars
+        while lower > s.startIndex, "+(".unicodeScalars.contains(u[u.index(before: lower)]) { lower = u.index(before: lower) }
         let upper = parts[last].range.upperBound
         let breaks = s[lower..<upper].filter(lineBreaks.contains).count
         out.replaceSubrange(lower..<upper, with: Array(repeating: replacement, count: breaks + 1).joined(separator: "\n"))
@@ -577,7 +579,7 @@ public enum PhoneNumbers {
         // cue further back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place.
         func cueBefore(_ i: Int) -> Bool {
             let start = i > 0 ? parts[i - 1].range.upperBound : s.startIndex
-            if s[start..<parts[i].range.lowerBound].contains("#") { return true }
+            if s.unicodeScalars[start..<parts[i].range.lowerBound].contains("#") { return true }    // a keycap's "#" too
             func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).unicodeScalars.allSatisfy { $0 == ":" || readsAsSpace($0) } }
             func isWord(_ j: Int) -> Bool { j >= 0 && parts[j].digits == 0 && !parts[j].written }
             if isWord(i - 1), near(i - 1, i), phoneCues.contains(word(s, parts[i - 1])) { return true }
@@ -623,7 +625,8 @@ public enum PhoneNumbers {
                 times.append(i...(i + 1))
             }
             // A decimal pair after a "+" is an international number, not a coordinate.
-            let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
+            let plus = parts[i].range.lowerBound > s.startIndex
+                && s.unicodeScalars[s.unicodeScalars.index(before: parts[i].range.lowerBound)] == "+"
             if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)), !cueBefore(i) {
                 kept.formUnion(i...(i + 3))
             }

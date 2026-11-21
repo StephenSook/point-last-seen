@@ -32,4 +32,14 @@ import Testing
     func theSharedRuleReadsByCodePoint(input: String, output: String) {
         #expect(same(input, output))
     }
+
+    /// A "#" or a "+" a grapheme cluster would hide (a keycap, a format character before it) is read by code point.
+    @Test(arguments: [
+        ("#\u{FE0F}\u{20E3}33.1234, -84.5678", "#\u{FE0F}\u{20E3}[number removed]"),
+        ("\u{0600}+33.1234, -84.5678", "\u{0600}[number removed]"),
+        ("\u{0600}+146.520, 155.160", "\u{0600}[number removed]"),
+    ])
+    func aHashOrAPlusIsReadByCodePoint(input: String, output: String) {
+        #expect(same(input, output))
+    }
 }

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a "#" or "+" a grapheme cluster would hide is read by code point
+- What: the "#" before a decimal pair (a phone cue), the "+" before one (an international number) and the "+" or
+  "(" taken into a removed number are now read by code point, as the web and Android rules read them. A keycap
+  ("#<U+FE0F><U+20E3>") hid the "#", and a format character glued to the "+" (U+0600) hid the "+", so a cued pair
+  and a frequency-shaped number each stayed.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the three inputs as tests failed before the change and pass after; 453 PLSCore tests pass with the rest
+  of this review's fixes; both web corpora (60,116 and 9,116 rows) match byte for byte.
+
 ### fix(ios-core): the shared phone rule reads the note by code point
 - What: the shared phone rule now reads the note as the web and Android rules do. Parts are runs of code points (a
   letter-number such as U+10140 is a digit), and a mark or selector a grapheme cluster would fold into a word or a
