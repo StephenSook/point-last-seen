@@ -57,6 +57,15 @@ import Testing
         #expect(PhoneNumbers.scrub("call FOUR OH FOUR FIVE FIVE FIVE OH ONE FOUR TWO") == "call [number removed]")
     }
 
+    /// Spanish digit words count like English ones in any capitals; "un" and "una" are articles, not digits.
+    @Test func spanishDigitWordsAreANumber() {
+        #expect(PhoneNumbers.scrub("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Call CUATRO cero cuatro cinco cinco cinco cero uno cuatro dos") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("seis siete ocho nueve tres dos uno") == "[number removed]")
+        let articles = "Found un zapato y una chaqueta, team dos in AC"
+        #expect(PhoneNumbers.scrub(articles) == articles)
+    }
+
     /// A phone number written up against something shaped like search information still goes: nothing of it is left.
     @Test func aNumberShapedLikeSearchInformationStillGoes() {
         let cases: [(String, [String])] = [

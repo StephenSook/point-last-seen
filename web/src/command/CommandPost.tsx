@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type For
 import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoOnDevice } from "../ai/photoCues";
-import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, uploadPhoto } from "../data/photos";
+import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
 import { countMedia, deleteMediaNow } from "../data/media";
@@ -67,6 +67,8 @@ import { WhatChanged } from "./WhatChanged";
 import { FamilyChannel } from "./FamilyChannel";
 import { ConditionsForm } from "./ConditionsForm";
 import { conditionsOf, setConditions } from "../data/conditions";
+import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSummary";
+import { reachLine } from "./reach";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
@@ -272,6 +274,32 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (denied) return;
     return subscribeQuestions(pls.db, incidentId, setQuestions, () => setQuestions(null));
   }, [pls, incidentId, denied]);
+  // Photos command has saved a reading of: the Details summary counts the rest as to review.
+  const [reviewedPhotos, setReviewedPhotos] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (denied) return;
+    return subscribePhotoReadingIds(pls.db, incidentId, setReviewedPhotos, () => setReviewedPhotos(new Set()));
+  }, [pls, incidentId, denied]);
+  // When this browser last opened Details: family answers after it count as new. Kept per incident; without
+  // storage every answer counts until Details opens.
+  const seenKey = `pls:details-seen:${incidentId}`;
+  const [detailsSeenAt, setDetailsSeenAt] = useState(() => {
+    try {
+      return Number(localStorage.getItem(seenKey)) || 0;
+    } catch {
+      return 0;
+    }
+  });
+  const openedDetails = (open: boolean) => {
+    if (!open) return;
+    const now = Date.now();
+    setDetailsSeenAt(now);
+    try {
+      localStorage.setItem(seenKey, String(now));
+    } catch {
+      // No storage: the count clears for this page only.
+    }
+  };
 
   // The photo tray: loaded from Storage, emptied and reloaded on every delete, from this seat or (through the
   // incident's mediaRevokedAt, set by the server before it deletes anything) from any other seat.
@@ -337,6 +365,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
+  const conditions = conditionsOf(incident);
+  // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
+  const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
   // The latest incident, for checks after an await that began on an earlier render.
   const incidentNow = useRef(incident);
   incidentNow.current = incident;
@@ -690,6 +721,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
+          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
+          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
+          <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
           {editingProfile ? (
             <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
@@ -778,78 +813,81 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               })
             }
           />
-          {incident && (
-            <ConditionsForm
-              conditions={conditionsOf(incident)}
-              open={incident.status !== "closed"}
-              onSave={(c) => setConditions(pls.db, incidentId, c)}
+          {/* Command types the conditions at the start of a drill: in view until they are set, then under Details. */}
+          {incident && !conditions && (
+            <ConditionsForm conditions={null} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
+          )}
+          {/* Opened less often: command reads these when it needs them; the summary says what needs a person. */}
+          <details className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
+            <summary data-testid="rail-details-summary">
+              <span className="label">Details</span>
+              {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
+            </summary>
+            {incident && conditions && (
+              <ConditionsForm conditions={conditions} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
+            )}
+            {questions && (
+              <FamilyChannel
+                questions={questions}
+                open={incident?.status === "open"}
+                searchState={searchStateOf(incident)}
+                onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
+                onTell={(next) => tellFamily(pls.db, incidentId, next)}
+              />
+            )}
+            {incident && segments.length > 0 && (
+              <PriorSwitch
+                model={incident.priorModel ?? "rings"}
+                graph={graph?.state ?? "loading"}
+                hasPlaces={places.length > 0}
+                onApply={applyModel}
+              />
+            )}
+            {incident && segments.length > 0 && (
+              <LayerSwitches
+                layers={incident.priorLayers ?? { linear: false, wedge: false }}
+                terrain={incident.terrain ?? "temperate_flat"}
+                rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
+                terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
+                hasBearing={bearing !== null}
+                model={incident.priorModel ?? "rings"}
+                vehicleInvolved={profile?.command?.vehicle?.involved === true}
+                onApply={applyPrior}
+              />
+            )}
+            <PhotoTray
+              key={tray.epoch}
+              photos={photos}
+              loadError={tray.error}
+              deviceState={device}
+              onCheckDevice={checkDevice}
+              downloadPct={downloadPct}
+              onAddFiles={addPhotoFiles}
+              readOnLaptop={readPhotoHere}
+              readInCloud={readPhotoCloud}
+              onDecide={(p, cues, route, d) =>
+                // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
+                saveIfStillStored(
+                  () => photoStillStored(pls.storage, incidentId, p.sha256),
+                  () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
+                )
+              }
             />
-          )}
-          {questions && (
-            <FamilyChannel
-              questions={questions}
-              open={incident?.status === "open"}
-              searchState={searchStateOf(incident)}
-              onAsk={(text) => askFamily(pls.db, incidentId, text, pls.auth.currentUser?.uid ?? "")}
-              onTell={(next) => tellFamily(pls.db, incidentId, next)}
+            {debriefError && (
+              <p className="error" role="alert">
+                {debriefError}
+              </p>
+            )}
+            <DebriefSection
+              cleared={clearedSegments(events)}
+              debriefs={debriefs}
+              teams={teams}
+              onSave={(segmentId, input, existing, clearedEventId) =>
+                saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
+              }
             />
-          )}
-          <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
-          {debriefError && (
-            <p className="error" role="alert">
-              {debriefError}
-            </p>
-          )}
-          <DebriefSection
-            cleared={clearedSegments(events)}
-            debriefs={debriefs}
-            teams={teams}
-            onSave={(segmentId, input, existing, clearedEventId) =>
-              saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
-            }
-          />
-          {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
-          <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} />
-          {incident && segments.length > 0 && (
-            <PriorSwitch
-              model={incident.priorModel ?? "rings"}
-              graph={graph?.state ?? "loading"}
-              hasPlaces={places.length > 0}
-              onApply={applyModel}
-            />
-          )}
-          {incident && segments.length > 0 && (
-            <LayerSwitches
-              layers={incident.priorLayers ?? { linear: false, wedge: false }}
-              terrain={incident.terrain ?? "temperate_flat"}
-              rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
-              terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
-              hasBearing={bearing !== null}
-              model={incident.priorModel ?? "rings"}
-              vehicleInvolved={profile?.command?.vehicle?.involved === true}
-              onApply={applyPrior}
-            />
-          )}
-          <PhotoTray
-            key={tray.epoch}
-            photos={photos}
-            loadError={tray.error}
-            deviceState={device}
-            onCheckDevice={checkDevice}
-            downloadPct={downloadPct}
-            onAddFiles={addPhotoFiles}
-            readOnLaptop={readPhotoHere}
-            readInCloud={readPhotoCloud}
-            onDecide={(p, cues, route, d) =>
-              // Saved only after Storage confirms the photo is still there; an unchecked answer is never queued.
-              saveIfStillStored(
-                () => photoStillStored(pls.storage, incidentId, p.sha256),
-                () => savePhotoReading(pls.db, incidentId, photoReadingDoc(incidentId, p.sha256, cues, route, d, Date.now())),
-              )
-            }
-          />
-          <MergeLanes lanes={lanes} />
+            <MergeLanes lanes={lanes} />
+          </details>
         </aside>
       </div>
     </div>

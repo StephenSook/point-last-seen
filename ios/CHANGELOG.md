@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios-core): Spanish digit words count as a phone number's digits
+- What: the iPhone's phone-number rule counts the Spanish digit words cero, uno, dos, tres, cuatro, cinco,
+  seis, siete, ocho and nueve (any capitals) like the English ones, so "Call cuatro cero cuatro cinco cinco
+  cinco cero uno cuatro dos" is removed. "un" and "una" are articles and are not counted.
+- Source: the shared phone-number rule (shared/test-vectors/README.md), a privacy gap found in review.
+- Verified: a test of Spanish words, capitals and the articles failed before the change and passes after; all
+  core tests pass; the six new shared Spanish cases pass on the iPhone with it (58 of 58, run locally against
+  the pending vector file).
+
 ### docs: the test matrix's iOS 26 row cites its call's new line
 - What: the iOS 26 row cited `!cloudRouteAvailable` at ReportReader.swift:73; the found-kind change moved it to
   line 77, and the matrix check reads the cited line. The row now cites line 77.

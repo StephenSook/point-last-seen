@@ -3,6 +3,7 @@ package app.pointlastseen.family.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -15,11 +16,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -60,6 +63,27 @@ fun Note(text: String) {
 fun MainAction(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
         Text(text, fontSize = 18.sp)
+    }
+}
+
+/** Two smaller actions side by side, under the screen's one big action. */
+@Composable
+fun PairActions(first: String, onFirst: () -> Unit, second: String, onSecond: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onFirst, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
+            Text(first, fontSize = 15.sp, textAlign = TextAlign.Center)
+        }
+        OutlinedButton(onClick = onSecond, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
+            Text(second, fontSize = 15.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** A quiet action, for what the screen is not about (the profile, About, leaving): text only, still 48 dp tall. */
+@Composable
+fun QuietAction(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    TextButton(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 48.dp)) {
+        Text(text, fontSize = 16.sp)
     }
 }
 

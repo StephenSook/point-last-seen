@@ -46,6 +46,23 @@ describe("the public privacy and support pages", () => {
     expect(html).toContain('href="https://github.com/StephenSook/point-last-seen/issues"');
   });
 
+  // The policy's retention words must agree with the job that deletes drills (functions/src/retention.ts).
+  it("says how long drill data is kept exactly as the retention job keeps it", () => {
+    const md = read("../legal/privacy-policy.md");
+    const job = read("../../functions/src/retention.ts");
+    const days = Number(/DRILL_RETENTION_MS = (\d+) \* 86_400_000;/.exec(job)?.[1]);
+    const text = markdownText(md);
+    expect(text).toContain(`Drill data is deleted ${days} days after the search command closes the drill.`);
+    const keep = /const KEEP_UNTIL[^{]*\{([^}]*)\}/.exec(job)?.[1] ?? "";
+    // An entry may name a constant declared in the same file (const KEPT_UNTIL_MS = Date.UTC(2027, 0, 1)).
+    const named = new Map([...job.matchAll(/const (\w+) = (Date\.UTC\([^)]*\));/g)].map((m) => [m[1]!, m[2]!] as const));
+    const until = [...keep.matchAll(/:\s*([^,\n]+),/g)].map((m) => named.get(m[1]!.trim()) ?? m[1]!.trim());
+    // The policy names four kept drills and the one date they are deleted on.
+    expect(until).toHaveLength(4);
+    expect(new Set(until)).toEqual(new Set(["Date.UTC(2027, 0, 1)"]));
+    expect(text).toContain("The four drills we use for development, judging, testing and our film are deleted on January 1, 2027, or the next day if a step has to be retried.");
+  });
+
   it("neither page carries draft or placeholder text", () => {
     for (const p of ["../privacy.html", "../support.html"]) expect(read(p), p).not.toMatch(/DRAFT|placeholder|\[publication date\]/i);
   });

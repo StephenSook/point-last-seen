@@ -8,11 +8,10 @@ must give.
 - [ ] Publish only the Play Integrity release APK. Run `android/scan-apk.sh` on the exact signed APK (it
   runs inside `release.sh`): it must report 0 hits for debug tokens, token resources,
   `FIREBASE_APPCHECK_DEBUG_TOKEN` and the debug provider. A debug APK reports 5 and is never published.
-- [ ] Raise the Remote Config key `minimum_version_android` only after the repo is public (not before Sat
-  2026-11-28) and the release APK is a GitHub Release asset. The family app's update screen opens
-  https://github.com/StephenSook/point-last-seen/releases/latest, which is a 404 while the repo is private.
-  Check first: `gh repo view StephenSook/point-last-seen --json visibility` says PUBLIC, and
-  `gh release view --repo StephenSook/point-last-seen` lists an .apk asset.
+- [ ] Raise the Remote Config key `minimum_version_android` only when a newer release APK is a GitHub Release asset.
+  The family app's update screen opens https://github.com/StephenSook/point-last-seen/releases/latest. As of
+  2026-11-21 the repo is public and that link opens the android-judge release, with its APK, for a signed-out browser.
+  Check again before raising it: `gh release view --repo StephenSook/point-last-seen` lists the new .apk asset.
 
 - [ ] Publish only a release APK that includes c05f679 (clip consent written 32 days out). An older APK
   writes 30 days, which the rules refuse, so it cannot read clips. Check: `git merge-base --is-ancestor c05f679
@@ -67,6 +66,7 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 | App Check tokens (reCAPTCHA Enterprise, App Attest, DeviceCheck, Play Integrity) | 1 h token TTL, refreshed by the SDKs; no key or site key expires | Nothing to refresh; the daily probe checks AI Logic still refuses a call with no token |
 | App Check enforcement on AI Logic | ENFORCED since 2026-11-17 18:32 UTC (read back 2026-11-18) | Daily `appcheck_control.py --no-token-only` fails loudly if it changes |
 | Published run file (judge replay) | Carries `exportedAt`; the judge page applies no age limit | Nothing ages; the replay is a snapshot |
+| `deleteEndedDrillsJob` (Cloud Scheduler, daily 07:41 UTC) | Deletes a drill 30 days after it is closed, with its media and its orphaned anonymous sign-ins; keeps `drill-dev-1`, `drill-judge-1`, `drill-kennesaw-1` and `drill-test-1` until 2027-01-01 and purges them that day, open or closed | No end date; the log line counts deleted, kept, failed, files and users. Nothing is due before 30 days after the first close |
 | `deleteIncidentMedia` schedule (Cloud Scheduler, every 5 min) | Runs throughout | No end date; every run writes `ops/storage`, and a `checkedAt` older than 20 min or two failing runs in a row fail the daily probe |
 | Daily probe workflow (`probe.yml`, 13:23 UTC) | Runs; GitHub's cron starts it about 8 h late (scheduled runs began 21:22 to 21:41 UTC on 2026-11-18 to 20), and a run an Actions budget blocks fails without starting (2026-11-19). It also fails when the live site is not built from main's production inputs (`scripts/served_version_check.py`, a content compare that ignores tests and docs), since hosting is deployed by hand | Every probe script retires after 2026-12-17, pinned by the test |
 | GitHub 60-day inactivity cutoff for scheduled workflows (public repos) | Not reached: public now (checked 2026-11-21), last push about 2026-11-30, cutoff about 2027-01-29 | Line below checks the last push date |

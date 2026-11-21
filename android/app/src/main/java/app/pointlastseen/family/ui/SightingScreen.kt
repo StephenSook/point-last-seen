@@ -13,6 +13,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.pointlastseen.family.core.Colors
 import app.pointlastseen.family.data.FamilySightingInput
@@ -52,11 +54,20 @@ fun SightingScreen(
             WAYS.forEach { (label, v) -> FilterChip(selected = way == v, onClick = { way = v }, label = { Text(label) }) }
         }
         Note("What were they wearing?")
+        // Each chip shows the colour's name under its Top or Bottom label; TalkBack hears "Top: blue".
+        Note("Top")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TOP.forEach { c -> FilterChip(selected = top == c, onClick = { top = if (top == c) "unknown" else c }, label = { Text("Top: $c") }) }
+            TOP.forEach { c ->
+                FilterChip(selected = top == c, onClick = { top = if (top == c) "unknown" else c }, label = { Text(c) },
+                    modifier = Modifier.semantics { contentDescription = "Top: $c" })
+            }
         }
+        Note("Bottom")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TOP.forEach { c -> FilterChip(selected = bottom == c, onClick = { bottom = if (bottom == c) "unknown" else c }, label = { Text("Bottom: $c") }) }
+            TOP.forEach { c ->
+                FilterChip(selected = bottom == c, onClick = { bottom = if (bottom == c) "unknown" else c }, label = { Text(c) },
+                    modifier = Modifier.semantics { contentDescription = "Bottom: $c" })
+            }
         }
         OutlinedTextField(
             note, { note = it.take(2000) }, label = { Text("What they said") },

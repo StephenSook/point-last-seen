@@ -75,7 +75,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // typed or picked is never overwritten by a model's guess.
   const handEdited = useRef(new Set<"direction" | "topColor" | "bottomColor" | "footwear" | "carried">());
   const [keptEdits, setKeptEdits] = useState(false);
+  // The fields after the note wait under More details; a read that fills them opens it, so each one is checked.
+  const [moreOpen, setMoreOpen] = useState(false);
   function fill(c: { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote?: string }) {
+    setMoreOpen(true);
     const mine = handEdited.current;
     setQuote(c.evidenceQuote?.trim() ?? "");
     if (!mine.has("direction")) setDirection(c.direction);
@@ -193,48 +196,6 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         {place ? (placeSegmentId ? `Place: segment ${placeSegmentId}.` : "Place: outside the search area.") : "Click the map to place it."}
       </p>
       <label>
-        Going
-        <select value={direction} onChange={(e) => { handEdited.current.add("direction"); setDirection(e.target.value as Direction); }}>
-          {DIRECTIONS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </label>
-      <div className="two">
-        <label>
-          Top
-          <select value={topColor} onChange={(e) => { handEdited.current.add("topColor"); setTop(e.target.value as ClothingColor); }}>
-            {COLORS.map((c) => (
-              <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Bottom
-          <select value={bottomColor} onChange={(e) => { handEdited.current.add("bottomColor"); setBottom(e.target.value as ClothingColor); }}>
-            {COLORS.map((c) => (
-              <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <label>
-        Footwear
-        <input value={footwear} maxLength={40} onChange={(e) => { handEdited.current.add("footwear"); setFootwear(e.target.value); }} />
-      </label>
-      <label>
-        Carrying
-        <input value={carried} maxLength={40} onChange={(e) => { handEdited.current.add("carried"); setCarried(e.target.value); }} />
-      </label>
-      <label>
-        Reported by
-        <select value={reportedBy} onChange={(e) => setWho(e.target.value as SightingInput["reportedBy"])}>
-          {WHO.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </label>
-      <label>
         Note
         <textarea value={note} maxLength={2000} rows={3} onChange={(e) => changeNote(e.target.value)} aria-describedby="note-hint" />
       </label>
@@ -287,17 +248,62 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {readState === "timeout" && <p role="status">The read took too long. Fill the fields by hand.</p>}
       {readState === "not-english" && <p role="status">This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand.</p>}
       {readState === "changed" && <p role="status">The note changed while it was being read. Read it again.</p>}
-      <fieldset className="callback">
-        <legend>Callback (stays on this screen, cleared on save)</legend>
+      <details className="more-details" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+        <summary>More details</summary>
         <label>
-          Name
-          <input value={callbackName} onChange={(e) => setCallbackName(e.target.value)} autoComplete="off" />
+          Going
+          <select value={direction} onChange={(e) => { handEdited.current.add("direction"); setDirection(e.target.value as Direction); }}>
+            {DIRECTIONS.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </label>
+        <div className="two">
+          <label>
+            Top
+            <select value={topColor} onChange={(e) => { handEdited.current.add("topColor"); setTop(e.target.value as ClothingColor); }}>
+              {COLORS.map((c) => (
+                <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Bottom
+            <select value={bottomColor} onChange={(e) => { handEdited.current.add("bottomColor"); setBottom(e.target.value as ClothingColor); }}>
+              {COLORS.map((c) => (
+                <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label>
+          Footwear
+          <input value={footwear} maxLength={40} onChange={(e) => { handEdited.current.add("footwear"); setFootwear(e.target.value); }} />
         </label>
         <label>
-          Number
-          <input value={callbackNumber} onChange={(e) => setCallbackNumber(e.target.value)} autoComplete="off" inputMode="tel" />
+          Carrying
+          <input value={carried} maxLength={40} onChange={(e) => { handEdited.current.add("carried"); setCarried(e.target.value); }} />
         </label>
-      </fieldset>
+        <label>
+          Reported by
+          <select value={reportedBy} onChange={(e) => setWho(e.target.value as SightingInput["reportedBy"])}>
+            {WHO.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </label>
+        <fieldset className="callback">
+          <legend>Callback (stays on this screen, cleared on save)</legend>
+          <label>
+            Name
+            <input value={callbackName} onChange={(e) => setCallbackName(e.target.value)} autoComplete="off" />
+          </label>
+          <label>
+            Number
+            <input value={callbackNumber} onChange={(e) => setCallbackNumber(e.target.value)} autoComplete="off" inputMode="tel" />
+          </label>
+        </fieldset>
+      </details>
       {error && (
         <p className="error" role="alert">
           {error}

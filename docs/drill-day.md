@@ -27,7 +27,10 @@ carries, and how the finished run reaches the judge page.
    loaded"; "App version 0.1.0: current"; "On-device model: ready (AFM 3 Core Advanced)". If the model row says Apple
    Intelligence is off or still downloading, fix that in Settings while there is signal.
 3. Tap **Allow location** and allow it.
-4. Set **Allow cloud reading** in Ready check. On: when Apple's model is not available, does not support the phone's
+4. On the first start of a drill, iOS asks "Allow Live Activities from Point Last Seen?". Tap **Allow** while there is
+   still signal, so the lock screen shows the team's status: "Training drill. Nobody is missing.", "Your segments:
+   ..." and "All reports delivered." (`ios/PLSWidgets/TaskLiveActivity.swift`).
+5. Set **Allow cloud reading** in Ready check. On: when Apple's model is not available, does not support the phone's
    language, or the report is too long for it, Google's model reads the report (phone numbers removed) while there is
    signal. A report Apple's model refuses, cannot parse or takes too long on is not sent: the phone tries a plainer read
    or its rules instead. Off: every report stays on the phone (Apple's model, then the phone's rules). Stephen's
@@ -35,8 +38,8 @@ carries, and how the finished run reaches the judge page.
    choice. The switch is off by default and is not saved, so after any relaunch (a
    force-quit, a phone restart or a reinstall), open Ready check and turn it back on. The cloud route needs iOS 27;
    on iOS 26 it is off whatever the switch says.
-5. For filming, turn on **Say in words where each report was read (for filming)** under **Show sources**.
-6. Optional, in a practice drill only: **Ready check**, then **Check both read routes**. It saves a route-check file
+6. For filming, turn on **Say in words where each report was read (for filming)** under **Show sources**.
+7. Optional, in a practice drill only: **Ready check**, then **Check both read routes**. It saves a route-check file
    (section 5). Ready check also offers it in any drill or judge incident, including `drill-kennesaw-1`; do not run it
    there, because its cloud route sends the reader's tools, the person's description included.
 
@@ -112,7 +115,7 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
    xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source "Library/Application Support/PLS/outbox.json" --destination <folder>/outbox.json
    ```
 
-3. Copy a route-check file, if section 2's step 6 made one. Its name is shown on screen after "Saved".
+3. Copy a route-check file, if section 2's step 7 made one. Its name is shown on screen after "Saved".
 
    ```
    xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source Documents/route-check-<number>.json --destination <folder>/route-check-<number>.json
@@ -120,3 +123,44 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
 
 4. The outbox holds the drill's report text, with phone numbers already removed. Read it before any of it goes into
    the repository, and never commit it raw.
+
+## 6. The role-player's GPS track and each team's closest pass
+
+Do this only if the person playing the missing person carried a GPS logger (or a phone app that records a track).
+The track itself is that person's location: it stays on this computer, outside the repository, and is never committed
+or published unless the person gives written consent to publish it. Only each team's closest pass goes on the judge
+page.
+
+Before the drill:
+
+1. The role-player agrees, before the drill, that each team's closest-pass distance (rounded to the nearest 10 m, and
+   "within 10 m" when nearer) and its time will be published on the judge page. The track itself never is.
+2. Set the logger to record a point at least every 5 seconds and to export GPX. Start it before the drill starts.
+3. Write down the drill's start and end times with the time zone, for example `2026-11-22T13:00:00-05:00`.
+
+After the drill, once section 4 has replaced the published run:
+
+1. Copy the GPX file into a folder outside the repository whose name ends in `.local`, for example
+   `~/pls-tracks.local/`. The tool refuses to write the track anywhere inside the repository, where a build could
+   serve it or a commit could take it.
+2. From the repository root, run (use the run id section 4 printed):
+
+   ```
+   python3 -I tools/extras/import_track.py --gpx ~/pls-tracks.local/<file>.gpx \
+       --grid shared/grid/kennesaw-mountain-drill.grid.json --run web/public/evidence/published-run.json \
+       --from <start> --to <end> --source gps-logger \
+       --track-out ~/pls-tracks.local/<runId>.track.json \
+       --passes-out web/public/extras/passes/<runId>.passes.json
+   ```
+
+   It keeps only points inside the drill grid (plus 200 m) and inside the window, so the drive to the park never
+   reaches a file. Its last line says how many points it kept and dropped, and how many teams have a pass.
+3. If it stops on a jump ("reached at ... m/s"), the logger lost its fix there. Delete that point from a copy of the
+   GPX file and run it again. If it stops for another reason, it says why and writes nothing.
+4. Check that the passes file holds no place: `grep -c '"lat"' web/public/extras/passes/<runId>.passes.json` must
+   print 0. Commit the passes file with the published run. Never commit the track or the GPX file.
+5. On the judge page, under "Watch the drill replay", "Closest passes" lists one line per team: how far its nearest
+   report was from the role-player, rounded to the nearest 10 m ("within 10 m" when nearer), and when. Teams carried no logger, so a pass is measured only at the moments a
+   team sent a report placed by its phone's GPS.
+6. For the debrief, open the drill's replay on the command post, and choose "Load a GPS track from this computer" with
+   `~/pls-tracks.local/<runId>.track.json`. The path walked so far follows the slider. Nothing is uploaded.

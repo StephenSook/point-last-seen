@@ -101,3 +101,48 @@ test("a run with a label of its own shows it under the replay heading; a label t
   await expect(page.getByTestId("run-label")).toHaveCount(0);
 });
 
+
+// Made-up passes for the harness run (alfa's report r2, bravo's sighting s2), served as the tool would write them.
+const PASSES_URL = "**/extras/passes/harness-run.passes.json";
+const passes = (source = "gps-logger") => JSON.stringify({
+  version: 1, runId: "harness-run", source, basis: "reports", trackFromMs: 1_795_372_800_000, trackToMs: 1_795_372_800_000 + 20 * 60_000,
+  // r2's phone time (16 minutes after the harness's T0), its phone's measured offset 0, its own 5 m accuracy.
+  passes: [{ teamId: "alfa", eventId: "r2", distanceM: 40, atMs: 1_795_372_800_000 + 16 * 60_000, accuracyM: 5, clockChecked: true }],
+});
+
+test("with a passes file beside the run, the replay lists each team's closest pass, tied to its report", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 200, contentType: "application/json", body: passes() }));
+  await page.goto(harness);
+  const block = page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("closest-passes");
+  await expect(block.getByRole("heading", { name: "Closest passes" })).toBeVisible();
+  await expect(block.locator('li[data-event-id="r2"]')).toHaveText(/^Alfa was 40 m from the role-player at \d\d:\d\d, at its report then \(its phone's GPS: within 5 m\)\.$/);
+  // Bravo's GPS report lies inside the track's span, so no pass means the track had no fix then.
+  await expect(block.locator("li").filter({ hasText: "No pass for Bravo: its reports placed by its phone's GPS came only where the role-player's track has no fix." })).toHaveCount(1);
+  // The track itself is never published, and the block says so.
+  await expect(block).toContainText("The track itself is not published.");
+});
+
+test("a passes file from a synthetic track is refused in words, and no pass is listed", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 200, contentType: "application/json", body: passes("synthetic") }));
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("closest-passes-refused")).toHaveText("The closest-pass file cannot be used. The file comes from a synthetic track, made up for tests.");
+  await expect(section.locator("li[data-event-id]")).toHaveCount(0);
+});
+
+test("with no passes file, nothing about passes shows", async ({ page }) => {
+  await page.route(PASSES_URL, (r) => r.fulfill({ status: 404, body: "" }));
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("replay-code")).toBeVisible();
+  await expect(section.getByTestId("closest-passes")).toHaveCount(0);
+  await expect(section.getByTestId("closest-passes-refused")).toHaveCount(0);
+});
+
+test("the judge replay has no way to load a track: a person's track is never on the judge page", async ({ page }) => {
+  await page.goto(harness);
+  const section = page.getByRole("region", { name: "Watch the drill replay" });
+  await expect(section.getByTestId("replay-code")).toBeVisible();
+  await expect(page.getByLabel("Load a GPS track from this computer")).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+});
