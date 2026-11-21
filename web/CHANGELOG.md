@@ -2214,3 +2214,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/railOrder.spec.ts` waits for the family section's heading (it draws when the family's questions arrive, which can come after the map's labels) before it lists the headings under Details.
 - Source: the faster live run (cached Remote Config) read Details before the questions arrived.
 - Verified: the rail order, smoke and judge checks pass live on cb464fcb (23); the hygiene guard passes.
+
+### feat(command): a suggested plan shows beside the approved one, team by team
+- What: when a plan is already approved, a suggestion's card shows a table, "The approved plan and this suggestion": each team's segments now and suggested with the share of the probability those segments hold on the current map ("AB, 20.0%"), "Same" where a team's segments do not change, and a last row, "In these segments", with each plan's total (a segment two teams share counts once). `planCompare` in `web/src/command/planCompare.ts`; CommandPost passes the latest approved plan. With no approved plan the suggestion shows on its own. The plan harness gains `?current=1`.
+- Source: review (compare a suggested change with the current result side by side before approving).
+- Verified: new unit tests (`planCompare.test.ts`: pairs, unchanged and one-sided teams, shared segments counted once) and harness checks in `e2e/harness/plan.spec.ts` (the table's rows and totals; no table without an approved plan) failed first, then passed; plan harness (13), typecheck, web unit suite and the hygiene guard pass.

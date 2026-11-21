@@ -121,6 +121,11 @@ button, input, select { font: inherit; color: inherit; }
 .suggested-head { display: flex; align-items: center; justify-content: space-between; }
 .tag { font: 600 12px/1.2 var(--mono); text-transform: uppercase; color: var(--fg-1); }
 .teams .assign { display: block; color: var(--fg-3); font-size: 13px; }
+.compare { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { text-align: left; padding: 3px 6px 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.compare thead th { color: var(--fg-3); font-weight: 600; }
+.compare tr.changed td:last-child { color: var(--fg-1); }
+.compare tr.total th, .compare tr.total td { border-bottom: 0; color: var(--fg-2); }
 .teams .new { color: var(--fg-1); font-weight: 700; margin-left: 6px; }
 .map-wrap.picking { cursor: crosshair; }
 /* Command's "Every percent" switch, top right of the map. */
