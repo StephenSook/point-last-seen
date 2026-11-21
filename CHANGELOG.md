@@ -82,6 +82,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
+  review (claims check).
 - functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
   their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
   deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.

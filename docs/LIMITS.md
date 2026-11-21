@@ -318,7 +318,8 @@ each line says what the limit is and why.
   `closedAt` from every client, so no seat can move a drill's deletion. Closing is final, so `closedAt` is never
   cleared. A drill closed before this job existed has no `closedAt` and is not deleted by it (on 2026-11-21, before
   the rules made `closedAt` the server's, every drill was still open and none had a `closedAt`).
-- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. Each is read again just
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it, a member command removed
+  included (its claims were cleared, so it is found through the drill's removal records). Each is read again just
   before it is deleted and kept if it has joined another incident since or was used after the drill closed; a
   sign-in with an email, a phone number or another provider is a person's account and is kept. A failed sign-in
   delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close
