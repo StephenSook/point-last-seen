@@ -194,16 +194,19 @@ test("a photo cancelled before it is read never reaches the model", async ({ pag
     w.__decoded = false;
     const decode = window.createImageBitmap.bind(window);
     window.createImageBitmap = ((...a: Parameters<typeof createImageBitmap>) =>
-      new Promise((resolve) => setTimeout(resolve, 1500))
-        .then(() => decode(...a))
-        .finally(() => (w.__decoded = true))) as typeof createImageBitmap;
+      new Promise((resolve) => setTimeout(resolve, 1500)).then(() => decode(...a))) as typeof createImageBitmap;
+    // The photo is ready to read once its JPEG is encoded: mark that moment.
+    const encode = OffscreenCanvas.prototype.convertToBlob;
+    OffscreenCanvas.prototype.convertToBlob = function (...a: Parameters<typeof encode>) {
+      return encode.apply(this, a).finally(() => (w.__decoded = true));
+    };
   });
   await page.goto("/harness/debrief.html?paper=sample");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
   await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
   await row.getByRole("button", { name: "Cancel" }).click();
-  // Count reads only after the held photo has finished decoding, when a read could have started.
+  // Count reads only after the held photo has been decoded and encoded, when a read could have started.
   await page.waitForFunction(() => (window as unknown as { __decoded: boolean }).__decoded);
   await page.waitForTimeout(300);
   await expect(page.getByTestId("read-count")).toHaveText("0");
@@ -254,11 +257,12 @@ test("closing the Details while the camera is still being asked for drops that r
   });
   await page.locator("summary", { hasText: "Details" }).click();
   await page.evaluate(() => (window as unknown as { __closed: Promise<void> }).__closed);
+  // Opened again before the browser answers: asking again already works.
+  await page.locator("summary", { hasText: "Details" }).click();
+  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
   await page.evaluate(() => (window as unknown as { __grant: () => void }).__grant());
   await expect.poll(() => cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: true });
-  await page.locator("summary", { hasText: "Details" }).click();
   await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
-  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
 });
 
 test("a photo chosen while the camera is being asked for leaves the camera button usable", async ({ page }) => {
