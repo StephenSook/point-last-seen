@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the photo reader gets Apple's model from the model session file
+- What: the photo reader built Apple's on-device model itself, and the rules gate allows that only in
+  ModelSessionFactory.swift. ModelSessionFactory now gives the vision check and the photo session, and the reader
+  uses them.
+- Source: the rules gate (model builders belong in one file).
+- Verified: the rules gate failed on PhotoReader.swift and passes after; the app suite passes.
+
 ### feat(ios): the task screen takes a photo of something found; the receipt says it was not kept
 - What: a "Photo of something found" button on the task screen, shown only where Apple's model can read a photo,
   in a drill that lets a model read. It opens the camera (the photo library where there is no camera); the photo is

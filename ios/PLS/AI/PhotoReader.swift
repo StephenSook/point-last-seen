@@ -44,18 +44,14 @@ enum PhotoReader {
     static let timeoutSeconds: Double = 30
 
     /// True when Apple's model on this phone can read a photo: iOS 27, available, with the vision capability.
-    static var available: Bool {
-        guard #available(iOS 27, *) else { return false }
-        let model = SystemLanguageModel.default
-        return model.isAvailable && model.capabilities.contains(.vision)
-    }
+    static var available: Bool { ModelSessionFactory.photoReadingSupported }
 
     static func read(_ image: CGImage) async -> PhotoReadResult {
         guard #available(iOS 27, *), available else { return .failed }
         let name = ModelSessionFactory.onDeviceStatus().variant
         let start = Date()
         let answer = await Timeout.run(seconds: timeoutSeconds) { () -> PhotoReadG? in
-            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+            let session = ModelSessionFactory.photoSession(instructions: instructions)
             return try? await session.respond(generating: PhotoReadG.self, options: FoundationModelRunner.onDeviceOptions) {
                 prompt
                 Attachment(image)

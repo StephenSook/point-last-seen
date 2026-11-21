@@ -20,6 +20,18 @@ enum ModelSessionFactory {
         return name.isEmpty ? "Apple on-device model" : name
     }
 
+    /// Apple's on-device model can read a photo here: iOS 27, available, with the vision capability.
+    static var photoReadingSupported: Bool {
+        guard #available(iOS 27, *) else { return false }
+        let model = SystemLanguageModel.default
+        return model.isAvailable && model.capabilities.contains(.vision)
+    }
+
+    /// A session on Apple's on-device model for one photo read: no tools, nothing else in it.
+    static func photoSession(instructions: String) -> LanguageModelSession {
+        LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+    }
+
     /// The cloud route runs Gemini in a FoundationModels session, which needs iOS 27. On iOS 26 the route
     /// is off, so a read is Apple's model, then rules.
     static var cloudRouteSupported: Bool {
