@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Vectors README: the found-kind.json section describes the conservative rule (all three conditions, the two word
+  lists, segment ids, the reason the human sees) and the generated checks. Source: review. Verified: hygiene guard
+  and CI's Python gates pass.
 - Engine: correctFoundKind is conservative by construction. A found reading becomes a clue only when every "found" in
   the note is followed by a determiner and a known object, every word of the note is a known object-note word
   (OBJECT_NOTE_WORDS: determiners, objects, place, colour, direction and clue words, a short list of where and state
