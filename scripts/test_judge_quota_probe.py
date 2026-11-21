@@ -10,8 +10,11 @@ spec.loader.exec_module(jq)
 NOW = datetime(2026, 12, 2, 18, 30, tzinfo=timezone.utc)
 
 
-def doc(count):
-    return {"fields": {"count": {"integerValue": str(count)}}}
+def doc(count, cap=None):
+    f = {"count": {"integerValue": str(count)}}
+    if cap is not None:
+        f["cap"] = {"integerValue": str(cap)}
+    return {"fields": f}
 
 
 def test_the_cap_is_read_from_the_function_source_so_the_two_cannot_drift():
@@ -39,9 +42,20 @@ def test_a_malformed_doc_is_a_failure_not_a_pass():
     assert jq.evaluate({"fields": {"count": {"stringValue": "x"}}}, 50)[1] == ["the day's count is missing or not a number"]
 
 
-def test_a_failed_read_is_a_failure_and_404_is_an_empty_day():
-    assert jq.read_outcome(404) == (None, [])
-    assert jq.read_outcome(403) == (None, ["the counter read gave HTTP 403"])
+def test_the_deployed_cap_in_the_doc_wins_over_the_checkout():
+    assert jq.evaluate(doc(40, cap=45), 50) == (5, ["only 5 of 45 judge practice searches are left today (alarm below 10)"])
+    assert jq.evaluate({"fields": {"count": {"integerValue": "1"}, "cap": {"stringValue": "x"}}}, 50)[1] == ["the day's cap is not a number"]
+
+
+NAME = "projects/p/databases/(default)/documents/ops/judgeSessions-2026-12-02"
+
+
+def test_only_a_batch_get_that_names_this_doc_missing_is_an_empty_day():
+    assert jq.from_batch_get([{"missing": NAME, "readTime": "t"}], NAME) == (None, [])
+    assert jq.from_batch_get([{"found": {"name": NAME, **doc(3)}, "readTime": "t"}], NAME) == ({"name": NAME, **doc(3)}, [])
+    assert jq.from_batch_get([{"missing": NAME + "x"}], NAME)[1] == ["the counter read gave an unexpected reply"]
+    assert jq.from_batch_get([], NAME)[1] == ["the counter read gave an unexpected reply"]
+    assert jq.from_batch_get({"error": {"code": 404}}, NAME)[1] == ["the counter read gave an unexpected reply"]
 
 
 def test_it_retires_after_judging():

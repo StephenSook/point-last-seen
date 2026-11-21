@@ -43,19 +43,33 @@ def retired(now: datetime) -> bool:
 
 
 def evaluate(d, cap: int) -> tuple[int, list[str]]:
-    """Searches left today and the problems: none used when there is no doc yet."""
+    """Searches left today and the problems: none used when there is no doc yet. The cap startJudgeSession wrote
+    with the count (the deployed one) wins over the checkout's."""
     if d is None:
         return cap, []
-    raw = d.get("fields", {}).get("count", {}).get("integerValue")
+    fields = d.get("fields", {})
+    raw = fields.get("count", {}).get("integerValue")
     if raw is None or not str(raw).isdigit():
         return 0, ["the day's count is missing or not a number"]
+    if "cap" in fields:
+        deployed = fields["cap"].get("integerValue")
+        if deployed is None or not str(deployed).isdigit():
+            return 0, ["the day's cap is not a number"]
+        cap = int(deployed)
     left = max(cap - int(raw), 0)
     return left, ([] if left >= MIN_LEFT else [f"only {left} of {cap} judge practice searches are left today (alarm below {MIN_LEFT})"])
 
 
-def read_outcome(code: int):
-    """A 404 is a day with no search yet; any other error is a failed check."""
-    return (None, []) if code == 404 else (None, [f"the counter read gave HTTP {code}"])
+def from_batch_get(reply, name: str):
+    """The day's doc from a batchGet reply: only a reply that names this exact doc missing is an empty day, so a
+    database or endpoint failure can never read as a full quota."""
+    if isinstance(reply, list) and len(reply) == 1:
+        r = reply[0]
+        if r.get("missing") == name:
+            return None, []
+        if isinstance(r.get("found"), dict) and r["found"].get("name") == name:
+            return r["found"], []
+    return None, ["the counter read gave an unexpected reply"]
 
 
 def app_check_token(cfg: dict, debug: str) -> str:
@@ -79,16 +93,19 @@ def main() -> int:
     headers = {"Referer": SITE + "/"}
     if debug:
         headers["X-Firebase-AppCheck"] = app_check_token(cfg, debug)
-    name = doc_id(now)
-    url = f"https://firestore.googleapis.com/v1/projects/{cfg['projectId']}/databases/(default)/documents/ops/{name}?key={cfg['apiKey']}"
-    print(f"judge_quota_probe: reading ops/{name} {'with' if debug else 'without'} an App Check token")
-    problems: list[str] = []
+    name = f"projects/{cfg['projectId']}/databases/(default)/documents/ops/{doc_id(now)}"
+    url = f"https://firestore.googleapis.com/v1/projects/{cfg['projectId']}/databases/(default)/documents:batchGet?key={cfg['apiKey']}"
+    print(f"judge_quota_probe: reading ops/{doc_id(now)} {'with' if debug else 'without'} an App Check token")
+    req = urllib.request.Request(url, data=json.dumps({"documents": [name]}).encode(), method="POST",
+                                 headers={**headers, "Content-Type": "application/json"})
+    left = 0
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as r:
-            left, problems = evaluate(json.loads(r.read()), cap)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d, problems = from_batch_get(json.loads(r.read()), name)
+        if not problems:
+            left, problems = evaluate(d, cap)
     except urllib.error.HTTPError as e:
-        d, problems = read_outcome(e.code)
-        left = cap if not problems else 0
+        problems = [f"the counter read gave HTTP {e.code}"]
     for p in problems:
         print(f"judge_quota_probe: FAIL: {p}")
     if not problems:

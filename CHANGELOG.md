@@ -82,6 +82,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- scripts: the judge quota probe reads its doc with a Firestore batchGet, so only a reply naming that exact doc
+  missing counts as an unused day (a database or endpoint 404 now fails instead of reading as a full quota), and it
+  prefers the cap stored with the count over the checkout's. Source: review (cross-family, round 1 on the judge quota
+  probe). Verified: new cases (batchGet missing, found, wrong name, empty, error; a deployed cap of 45 below the
+  checkout's 50; a malformed cap) failed first, then pass; a live run before the rules deploy still fails closed with
+  HTTP 403.
 - functions: startJudgeSession writes the daily cap it enforces into the day's counter (ops/judgeSessions-<day>.cap)
   with the count, so the quota probe reads the deployed cap rather than a checkout's. Source: review (cross-family,
   round 1 on the judge quota probe). Verified: the first-start case now expects { count: 1, cap: 3 } and failed first,
