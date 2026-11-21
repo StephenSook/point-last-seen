@@ -64,6 +64,8 @@ import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
 import { WhatChanged } from "./WhatChanged";
 import { FamilyChannel } from "./FamilyChannel";
+import { ConditionsForm } from "./ConditionsForm";
+import { conditionsOf, setConditions } from "../data/conditions";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
@@ -770,6 +772,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               })
             }
           />
+          {incident && (
+            <ConditionsForm
+              conditions={conditionsOf(incident)}
+              open={incident.status !== "closed"}
+              onSave={(c) => setConditions(pls.db, incidentId, c)}
+            />
+          )}
           {questions && (
             <FamilyChannel
               questions={questions}
