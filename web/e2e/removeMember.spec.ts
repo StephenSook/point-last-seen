@@ -6,6 +6,10 @@ import { expect, joinCommand, test, withDebugToken } from "./fixtures";
 // refused, its session is revoked, and it cannot join again. The member this check makes is the one it removes: until
 // revocation is seen, a failure removes it again (removing twice is allowed, and retries the revocation) and a cleanup
 // that fails fails the run.
+// A fresh sign-in that joins the test drill itself: the run's shared account can hold a practice search's claims by now
+// (the judge checks start practice searches on it), and removeMember checks the caller's current claims.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("command removes a member from the People panel; the account is refused at once and cannot join again", async ({ page }) => {
   test.setTimeout(180_000);
   const incidentId = process.env["PLS_SMOKE_INCIDENT"] ?? "";
