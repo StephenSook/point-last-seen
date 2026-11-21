@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### test(ios-core): a case pending on the iPhone must still fail there
+- What: the test that ran every case marked pending on the iPhone and expected it to pass (true only while every mark
+  was a port already done) now expects the opposite: a pending case is a known gap, so it must still fail here with
+  the same checks the other vector tests make. A pending case that passes is a fixed gap whose mark must go, and the
+  test names it ("un-pend <name>"). A case pending on every platform, a real gap, no longer fails the iPhone's CI.
+- Source: the shared vectors' pending marks (a known gap pending on all three platforms).
+- Verified: with the run-of-times vectors file as it stands (12 cases marked pending on the iPhone, which the iPhone
+  now passes) the test fails and names all 12; with the file that adds five gaps pending on every platform it passes;
+  with main's file it passes. 450 PLSCore tests pass.
+
 ### fix(ios-core): the gap after a phone cue is read as the web and Android rules read it
 - What: when the rule asks whether a phone cue sits right before a decimal pair, the gap between them is now read as
   the web and Android rules read every gap: a mark or a format character (a zero-width space) is dropped, and a line
