@@ -261,7 +261,7 @@ each line says what the limit is and why.
   that refreshes and joins another incident in the moment between that last read and the delete is still deleted.
   Its person then signs in again and rejoins with a code; nothing they wrote is lost.
 - Kept until 2027-01-01 whatever their close, and purged on that date whether or not anyone closed them (the job
-  writes the server's `closedAt` on one still open, then deletes it the same way): `drill-dev-1` (the
+  closes one still open at that date, never over a real close, then deletes it the same way): `drill-dev-1` (the
   development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
   judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
   sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).

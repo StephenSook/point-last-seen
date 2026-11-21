@@ -70,6 +70,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention, review fix: a kept drill purged on its end date uses one sign-in cutoff on every run and retry (its
+  real close if it had one, else its end date), and an open one is closed at its end date in a transaction that never
+  overwrites a close that landed meanwhile (stampKeptClose). Source: review (second-model: a retry could widen the
+  cutoff; the stamp could overwrite a real close). Verified: 3 new tests (the stamp, the retry cutoff, a close after
+  the scan) failed first, then pass; functions suite 287.
 - Drill retention test: a kept drill that is closed but has no closedAt is purged once its end date passes, with the
   run's time as its close. Source: review. Verified: passes on the existing fix (this case takes the same path as an
   open kept drill, which failed first in the previous commit); retention tests 22.

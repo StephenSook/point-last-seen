@@ -62,6 +62,20 @@ export async function recordDrillClosed(db: Firestore, incidentId: string, befor
   });
 }
 
+/**
+ * Closes a kept drill at its end date for its purge: writes closedAt, in a transaction and only if it is still absent,
+ * so a real close that landed after the scan is never overwritten. Returns whether it wrote.
+ */
+export async function stampKeptClose(db: Firestore, incidentId: string, endMs: number): Promise<boolean> {
+  const ref = db.doc(`incidents/${incidentId}`);
+  return db.runTransaction(async tx => {
+    const now = await tx.get(ref);
+    if (!now.exists || now.get("closedAt") !== undefined) return false;
+    tx.update(ref, { closedAt: Timestamp.fromMillis(endMs) });
+    return true;
+  });
+}
+
 export type RetentionResult = { deleted: string[]; kept: string[]; failed: string[]; stale: string[]; files: number; users: number };
 type RetentionAuth = Pick<Auth, "listUsers" | "getUsers" | "deleteUsers">;
 
@@ -128,15 +142,16 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   const out: RetentionResult = { deleted: [], kept: [], failed: [], stale: [], files: 0, users: 0 };
   // When each due drill closed: from the incident for a newly due drill, from its record for a resumed purge.
   const due = new Map<string, number>();
-  // Open kept drills past their end date: each gets the server's closedAt before its purge starts.
+  // Open kept drills past their end date: each is closed at its end date before its purge starts.
   const closeFirst = new Set<string>();
   for (const doc of (await db.collection("incidents").where("mode", "==", "drill").get()).docs) {
     const at = doc.get("closedAt");
     const closedMs = at instanceof Timestamp ? at.toMillis() : null;
     const keep = keptUntil(doc.id);
-    // A kept drill goes once its end date passes, whether or not anyone closed it.
+    // A kept drill goes once its end date passes, whether or not anyone closed it. Its sign-in cutoff is its real
+    // close if it had one, else its end date, so every run and every retry use the same cutoff.
     if (keep > 0 && keep <= nowMs) {
-      due.set(doc.id, closedMs ?? nowMs);
+      due.set(doc.id, closedMs === null ? keep : Math.min(closedMs, keep));
       if (closedMs === null) closeFirst.add(doc.id);
       continue;
     }
@@ -171,7 +186,7 @@ export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "get
   };
   for (const [id, closedAtMs] of [...due].sort(([a], [b]) => a.localeCompare(b))) {
     try {
-      if (!dryRun && closeFirst.has(id)) await db.doc(`incidents/${id}`).update({ closedAt: FieldValue.serverTimestamp() });
+      if (!dryRun && closeFirst.has(id)) await stampKeptClose(db, id, keptUntil(id));
       if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs), closedAtMs, doneAt: FieldValue.delete(), staleAt: FieldValue.delete() }, { merge: true });
       out.files += await sweepMedia(bucket, id, dryRun);
       if (!dryRun) {
