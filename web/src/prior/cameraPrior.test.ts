@@ -113,3 +113,12 @@ describe("a camera rebuild keeps the elevation layer, measured from the camera's
   });
 });
 
+describe("a confirm before the map's segments load", () => {
+  it("is refused before anything is built, with the layer off or on", () => {
+    const cam = buildCameraSighting(clip, writer);
+    expect(() => cameraPriorWrites([], incident, cam, null)).toThrow("The map's segments have not loaded yet.");
+    expect(() => cameraPriorWrites([], { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } }, cam, null))
+      .toThrow("The map's segments have not loaded yet.");
+  });
+});
+

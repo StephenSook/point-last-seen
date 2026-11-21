@@ -68,6 +68,9 @@ export function rebuildPrior(
   params: EngineParams = DEFAULT_PARAMS,
 ): RebuiltPrior {
   if (layers.wedge && travelBearingDeg === null) throw new Error("The wedge needs a confirmed direction of travel.");
+  // Segments arrive through their own listener: a rebuild before they load would save a prior with every mass
+  // outside the grid and leave each stored segment's old probability in place.
+  if (segments.length === 0) throw new Error("The map's segments have not loaded yet.");
   const grid = gridFromDocs(segments, site.gridId, site.attribution);
   const elevations = layers.elevation ? segmentElevations(segments, site.ipp, site.elevationM) : undefined;
   const prior = buildPrior(grid, site.ipp, site.terrain, layers, travelBearingDeg, params, elevations);

@@ -110,3 +110,10 @@ describe("usableLayers: the elevation layer stays on only where it can measure t
   });
 });
 
+describe("a rebuild needs the map's segments", () => {
+  it("refuses while the segments have not loaded, so no prior is saved over a missing grid", () => {
+    const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
+    expect(() => rebuildPrior([], site, { linear: false, wedge: false }, null)).toThrow("The map's segments have not loaded yet.");
+  });
+});
+

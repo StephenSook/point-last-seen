@@ -2091,3 +2091,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post keeps the loaded elevation map with the grid it was loaded for (`elevationFor`) and clears it on a grid change, so a slow load never applies another site's heights (Piedmont's segment ids also exist in the Kennesaw file). The elevation switch now also shows wherever the saved layer is on, even when the site's file did not load, so command can turn it off; it turns on only where the start has an elevation.
 - Source: review (cross-family, medium).
 - Verified: new tests failed first, then pass: `elevationFor` (own grid; another grid; loading) and the harness check for a saved layer whose file did not load (16 in layers.spec.ts); 1036 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild before the map's segments load
+- What: `rebuildPrior` refuses an empty segment list ("The map's segments have not loaded yet."). Segments arrive through their own listener, so a sighting or camera confirm made after the incident and events loaded but before the segments did would have saved the confirmation, the new start and a new prior version with all mass outside the grid, leaving every stored segment's old probability in place. Every rebuild path goes through `rebuildPrior`, so all are covered.
+- Source: review (cross-family, high).
+- Verified: new tests failed first ("expected [Function] to throw"), then pass: `rebuildPrior([])` and `cameraPriorWrites([])` with the elevation layer off and on; 1038 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
