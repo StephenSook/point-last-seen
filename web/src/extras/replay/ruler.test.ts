@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { clockLabel, elapsedLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playbackStep, rulerModel, sliderScale, tickStepMs, valueText, PLAY_WINDOW_IN_MS } from "./ruler";
+import { clockLabel, elapsedLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -167,11 +167,31 @@ describe("sliderScale", () => {
   });
 });
 
-describe("playbackStep", () => {
-  it("the whole window plays in 30 seconds and stops at the end", () => {
-    const w = { startMs: T0, endMs: T0 + 60 * MIN, priorInUseFromMs: T0 };
-    expect(PLAY_WINDOW_IN_MS).toBe(30_000);
-    expect(playbackStep(T0, 15_000, w)).toBe(T0 + 30 * MIN);
-    expect(playbackStep(T0 + 59 * MIN, 15_000, w)).toBe(T0 + 60 * MIN);
+describe("playStops", () => {
+  it("Play holds on the first stored map, each report after it and the end, never in the span with no map", () => {
+    const d = data();
+    const w = replayWindow(d)!;
+    // The prior came into use at +3; reports arrive after it at +5, +6, +8 and +10; the window ends at +11 (an
+    // acknowledgement, which moves no map, so it is a stop only as the end).
+    expect(playStops(d, w)).toEqual([3, 5, 6, 8, 10, 11].map((m) => T0 + m * MIN));
+    expect(PLAY_STOP_MS).toBe(1_500);
+  });
+
+  it("with no stored map at any time, Play still steps report by report from the start", () => {
+    const d = fromLive(replayView(), [
+      streamed(eventDoc({ eventId: "a", priorVersion: 1, clientTimeMs: T0, deviceId: "d9" }), T0 + MIN),
+      streamed(eventDoc({ eventId: "b", priorVersion: 1, clientTimeMs: T0 + 2 * MIN, deviceId: "d9" }), T0 + 3 * MIN),
+    ], [])!;
+    const w = replayWindow(d)!;
+    expect(w.priorInUseFromMs).toBe(Number.POSITIVE_INFINITY);
+    expect(playStops(d, w)).toEqual([T0, T0 + MIN, T0 + 3 * MIN]);
+  });
+
+  it("Play starts on the first stop from the end or the span before it, and otherwise from where the slider is", () => {
+    const stops = [3, 5, 6, 11].map((m) => T0 + m * MIN);
+    expect(playFrom(stops, T0 + 11 * MIN)).toBe(T0 + 3 * MIN);
+    expect(playFrom(stops, T0 + MIN)).toBe(T0 + 3 * MIN);
+    expect(playFrom(stops, T0 + 5.5 * MIN)).toBe(T0 + 6 * MIN);
+    expect(playFrom(stops, T0 + 6 * MIN)).toBe(T0 + 6 * MIN);
   });
 });

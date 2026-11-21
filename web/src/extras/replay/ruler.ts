@@ -21,8 +21,8 @@ const LABEL_GAP_PX = 48;
 const MIN_BAND_PX = 2;
 /** A wait shorter than this is ordinary latency, not time without signal. */
 const SPAN_MIN_MS = MIN;
-/** The whole window plays in 30 seconds (ours). */
-export const PLAY_WINDOW_IN_MS = 30_000;
+/** Play holds each frame this long (ours): about a second and a half per report. */
+export const PLAY_STOP_MS = 1_500;
 
 export function tickStepMs(windowMs: number): 60_000 | 300_000 | 900_000 | 3_600_000 {
   if (windowMs <= 20 * MIN) return 60_000;
@@ -158,8 +158,22 @@ export function sliderScale(w: ReplayWindow): { max: number; valueOf(t: number):
   };
 }
 
-/** Playback: advance by dtMs of real time; the whole window takes PLAY_WINDOW_IN_MS. Stops at the end. */
-export function playbackStep(tMs: number, dtMs: number, w: ReplayWindow): number {
-  const rate = (w.endMs - w.startMs) / PLAY_WINDOW_IN_MS;
-  return Math.min(w.endMs, Math.max(w.startMs, tMs + dtMs * rate));
+/**
+ * The times Play holds on, in order: the first time with a stored map (the window start when no time has one), each
+ * report that arrives after it (never a plan acknowledgement, which moves no map) and the window end, the live map.
+ * The span before the current prior has no stored map, so Play never shows it; the slider still reaches it.
+ */
+export function playStops(data: ReplayData, w: ReplayWindow): number[] {
+  const first = Number.isFinite(w.priorInUseFromMs) ? Math.max(w.startMs, w.priorInUseFromMs) : w.startMs;
+  const times = new Set<number>([first, w.endMs]);
+  for (const e of data.events) if (e.arrivedAtMs !== null && e.arrivedAtMs > first && markKind(e) !== null) times.add(e.arrivedAtMs);
+  return [...times].filter((t) => t >= first && t <= w.endMs).sort((a, b) => a - b);
+}
+
+/** Where Play starts: the first stop when the slider is at the end or before the first stop, else the next stop. */
+export function playFrom(stops: readonly number[], tMs: number): number {
+  const first = stops[0] ?? tMs;
+  const last = stops[stops.length - 1] ?? tMs;
+  if (tMs >= last || tMs < first) return first;
+  return stops.find((s) => s >= tMs) ?? first;
 }

@@ -104,15 +104,31 @@ test("with reduced motion there is no Play button and Next report moves the slid
   await expect(slider).toHaveAttribute("aria-valuetext", /, 3 minutes in$/);
 });
 
-test("without reduced motion Play runs the replay to the end", async ({ page }) => {
+test("Play starts on the first stored map, holds about 1.5 s per report and ends on the live map", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });
   const end = await slider.getAttribute("max");
+  // Record whether the no-map line ever shows while playing.
+  await page.evaluate(() => {
+    const w = window as unknown as { sawNotStored: boolean };
+    w.sawNotStored = false;
+    new MutationObserver(() => {
+      if (document.querySelector('[data-testid="replay-not-stored"]')) w.sawNotStored = true;
+    }).observe(document.body, { subtree: true, childList: true });
+  });
+  const started = Date.now();
   await dialog.getByRole("button", { name: "Play" }).click();
   await expect(dialog.getByRole("button", { name: "Pause" })).toBeVisible();
-  await expect(slider).toHaveValue(end!, { timeout: 40_000 });
-  await expect(dialog.getByRole("button", { name: "Play" })).toBeVisible();
+  await expect(dialog.getByTestId("replay-code")).toBeVisible();
+  // The harness's prior came into use 5 minutes in; four reports arrive after it, so Play holds on five frames.
+  await expect(dialog.getByRole("button", { name: "Play" })).toBeVisible({ timeout: 15_000 });
+  const took = Date.now() - started;
+  expect(took).toBeGreaterThan(4_500);
+  expect(took).toBeLessThan(9_000);
+  await expect(slider).toHaveValue(end!);
+  expect(await page.evaluate(() => (window as unknown as { sawNotStored: boolean }).sawNotStored)).toBe(false);
+  await expect(dialog.getByTestId("replay-code")).toHaveText((await page.getByTestId("live-code").textContent())!);
 });
 
 test("the before-prior span shows the not-stored line and no percent plate", async ({ page }) => {

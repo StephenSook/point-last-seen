@@ -3,7 +3,7 @@ import { MapView, type MapLibreMap } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
 import { lastReportRoute, pendingLine, runCarriesRoutes, type ReplayData } from "./replayData";
-import { clockLabel, markTimes, nextMarkTime } from "./ruler";
+import { clockLabel, markTimes, nextMarkTime, playStops } from "./ruler";
 import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
 import { attachTrail, legText, legs, trailCollections, trailOrder, trailPoints } from "./trail";
@@ -34,9 +34,10 @@ export function ReplayPanel({ data }: { data: ReplayData }): JSX.Element {
 function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const reduced = useReducedMotion();
-  const { tMs, setT, playing, toggle } = usePlayback(w, reduced);
+  const stops = useMemo(() => playStops(data, w), [data, w]);
+  const { tMs, setT, playing, toggle } = usePlayback(w, stops, reduced);
   // Recompute the map only when the frame's content changes (an arrival, a plan, the prior mark), not on every
-  // animation frame: tMs moves the clock and the head line; the key moves the map.
+  // move of the slider: tMs moves the clock and the head line; the key moves the map.
   const key = frameKey(data, w, tMs);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const frame = useMemo(() => stateAt(data, tMs), [data, w, key]);
