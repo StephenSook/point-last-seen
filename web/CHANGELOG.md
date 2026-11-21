@@ -2316,3 +2316,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `memberRows` in `web/src/data/members.ts` joins the server's members records with the authors of the incident's events (an account that joined before the records existed is known only by what it wrote). Command is never listed; a members record wins over an event for role and team; searchers read "<team> searcher" and family "Family member"; two people with one label are told apart by the last four characters of their id; removed members come last, marked removed.
 - Source: review (command removes a searcher or family member from a drill).
 - Verified: four new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a People panel where command removes someone from the drill
+- What: `web/src/command/MembersPanel.tsx` lists each searcher and family member with "Remove from this drill". Pressing it asks inline ("Remove <who>? They lose access at once and cannot join again.") with Remove and Cancel; a refused removal gives the server's reason under the row with the confirm still open; a removed person shows "Removed" and no action. A harness page (`web/harness/members.html`) renders it with synthetic members and a stand-in call.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new harness checks in `e2e/harness/members.spec.ts` (never lists command; Cancel removes nothing and Remove marks the person removed; a refusal says why; someone already removed has no action) failed with the component moved aside, then passed with the whole harness; typecheck, web unit suite and the hygiene guard pass.
