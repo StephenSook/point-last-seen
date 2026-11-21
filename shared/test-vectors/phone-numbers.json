@@ -678,7 +678,7 @@
         "Call one:",
         "tonight"
       ],
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     }
   ],
   "mustKeep": [
@@ -844,13 +844,12 @@
       "name": "phone_cue_and_a_written_digit_before_a_run_of_times",
       "input": "Call 5 at 4:04 5:55 06:44 tonight",
       "output": "Call 5 at [number removed] tonight",
-      "pendingOn": ["ios", "android"]
+      "pendingOn": ["ios"]
     },
     {
       "name": "month_name_beside_a_run_of_times",
       "input": "1.4045, -55.0142 14 May 6:00 7:00",
-      "output": "[number removed] May 6:00 7:00",
-      "pendingOn": ["android"]
+      "output": "[number removed] May 6:00 7:00"
     },
     {
       "name": "spoken_digit_joined_to_a_run_of_times",

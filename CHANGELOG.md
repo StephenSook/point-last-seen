@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
+  210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
+  `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
+  36db65c7 (local evidence, not in the repo).
 - Phone rule: a run of times with a month name right before or after it goes to the shared rule. A month name reads the
   hour or minutes beside it as a day, so cutting the note at such a run changed how the shared rule grouped the digits
   around it: `1.4045, -55.0142 14 May 6:00 7:00` kept a whole number the shared rule alone removes. One exact case
