@@ -2052,3 +2052,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge page reads `/evidence/measured.json` (`web/src/judge/measured.ts` `loadMeasured`, `measuredLines`) and shows, under "Stored on our servers", where stored report reads and plan wording ran (on the device, by the cloud model, by fixed rules) with each route's median time, and the cloud model's spend per day. Beside an on-device count of none, a line says why (an iPhone's practice drill keeps its reads on the phone; a plan is worded on the laptop only with Chrome's built-in model). No number is typed in the page; a file older than 30 days or one it cannot read shows a line and no numbers.
 - Source: review (a measured block on a judged surface).
 - Verified: 6 new unit tests failed first (no module), then pass; a new no-backend browser check reads the served file's counts on the page and refuses a 2020 file; 1010 web unit tests, typecheck, the build and 44 no-backend browser checks pass.
+
+### fix(judge): the Measured block counts reads with no route recorded
+- What: when the file counts reads with no route recorded, the block says "n with no route recorded", so the parts add up to the total; a non-integer unknown count makes the file unreadable.
+- Source: review (the parts should add up to the total).
+- Verified: a new unit test failed first, then passes (7).

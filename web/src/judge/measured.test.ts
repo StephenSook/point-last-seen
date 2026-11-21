@@ -38,6 +38,12 @@ describe("measuredLines: the judge page's Measured block, from the committed fil
     expect(m.lines[1]).toBe("Plan wording, Nov 18 to Nov 21: 30 plans. 2 by the cloud model (median 1.5 s), 28 in fixed wording with no model. On the laptop: none stored yet. A plan is worded on the laptop only when its browser has Chrome's built-in model.");
   });
 
+  it("counts reads with no route recorded, so the parts add up to the total", () => {
+    const m = measuredLines({ ...file, reads: { ...block(0, null, 2, 2760, 50), reads: 55, unknown: 3 } }, AT);
+    if (m.state !== "ok") throw new Error(m.state);
+    expect(m.lines[0]).toContain("50 by fixed rules with no model, 3 with no route recorded.");
+  });
+
   it("refuses a file older than the limit, so stale numbers never show", () => {
     expect(MEASURED_MAX_AGE_DAYS).toBe(30);
     expect(measuredLines(file, AT + 30 * DAY).state).toBe("ok");

@@ -41,7 +41,7 @@ const isNum = (x: unknown): x is number => typeof x === "number" && Number.isFin
 const isCount = (c: unknown): c is Count =>
   typeof c === "object" && c !== null && Number.isInteger((c as Count).count) && ((c as Count).medianMs === null || isNum((c as Count).medianMs));
 const isBlock = (b: unknown): b is Block =>
-  typeof b === "object" && b !== null && [(b as Block).reads, (b as Block).rules].every(Number.isInteger)
+  typeof b === "object" && b !== null && [(b as Block).reads, (b as Block).rules, (b as Block).unknown].every(Number.isInteger)
   && isCount((b as Block).onDevice) && isCount((b as Block).cloud);
 
 const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -53,6 +53,7 @@ function blockLine(name: string, w: Window, b: Block, noun: string, onDevice: st
     ...(b.onDevice.count > 0 ? [`${b.onDevice.count} ${onDevice}${seconds(b.onDevice.medianMs)}`] : []),
     ...(b.cloud.count > 0 ? [`${b.cloud.count} ${cloud}${seconds(b.cloud.medianMs)}`] : []),
     ...(b.rules > 0 ? [`${b.rules} ${rules}`] : []),
+    ...(b.unknown > 0 ? [`${b.unknown} with no route recorded`] : []),
   ];
   const head = `${name}, ${day(w.from)} to ${day(w.to)}: ${b.reads}${noun}.`;
   return [head, parts.length ? `${parts.join(", ")}.` : "", b.onDevice.count === 0 ? none : ""].filter(Boolean).join(" ");
