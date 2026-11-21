@@ -70,6 +70,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention test: a kept drill that is closed but has no closedAt is purged once its end date passes, with the
+  run's time as its close. Source: review. Verified: passes on the existing fix (this case takes the same path as an
+  open kept drill, which failed first in the previous commit); retention tests 22.
 - Drill retention: a kept drill is purged once its end date (2027-01-01) passes, whether or not anyone closed it; an
   open one first gets the server's closedAt, then goes the same durable way (purge record, media, join codes, the
   incident, idle sign-ins). An open drill that is not kept is never touched. Source: review (an open drill is never

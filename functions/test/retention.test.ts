@@ -137,6 +137,16 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect((await inc("OPEN-OTHER").get()).exists).toBe(true);
   });
 
+  it("purges a kept drill that is closed but has no closedAt once its end date passes", async () => {
+    const END = Date.UTC(2027, 0, 1);
+    await drill("drill-kennesaw-1", { status: "closed" });
+    expect((await deleteEndedDrills(admin.db, bucket, admin.auth, END - 1)).deleted).toEqual([]);
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, END);
+    expect(r.deleted).toEqual(["drill-kennesaw-1"]);
+    expect((await inc("drill-kennesaw-1").get()).exists).toBe(false);
+    expect((await purge("drill-kennesaw-1").get()).get("closedAtMs")).toBe(END);
+  });
+
   it("writes the server's closedAt on an open kept drill past its date before purging it, and not in a dry run", async () => {
     const END = Date.UTC(2027, 0, 1);
     await drill("drill-dev-1", {});
