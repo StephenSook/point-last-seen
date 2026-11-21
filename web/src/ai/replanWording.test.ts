@@ -252,3 +252,31 @@ describe("the wording's on-device-only params (for measurement pages, which neve
     expect(p.inCloudParams).toBeUndefined();
   });
 });
+
+describe("the wording's schema for one plan: one entry per team, only that plan's teams", () => {
+  it("fixes the number of assignments and names only the plan's teams", async () => {
+    const { planWordingJson, PLAN_WORDING_JSON } = await import("./replanWording");
+    const s = planWordingJson(["T1", "T2"]);
+    expect(s.properties.assignments.minItems).toBe(2);
+    expect(s.properties.assignments.maxItems).toBe(2);
+    expect(s.properties.assignments.items.properties.teamId).toEqual({ type: "string", enum: ["T1", "T2"] });
+    expect(s.required).toEqual(PLAN_WORDING_JSON.required);
+    // With no teams there is nothing to fix: the general schema.
+    expect(planWordingJson([])).toEqual(PLAN_WORDING_JSON);
+    expect(planWordingJson(null)).toEqual(PLAN_WORDING_JSON);
+  });
+
+  it("is what both the cloud and this laptop are asked for, when the plan's teams are given", async () => {
+    const { planWordingJson, wordingOnDeviceParams } = await import("./replanWording");
+    const p = wordingParams("gemini-3.5-flash-lite", ["T1", "T2"]);
+    expect(p.inCloudParams?.generationConfig?.responseJsonSchema).toEqual(planWordingJson(["T1", "T2"]));
+    expect(p.onDeviceParams?.promptOptions?.responseConstraint).toEqual(planWordingJson(["T1", "T2"]));
+    expect(wordingOnDeviceParams(["T1", "T2"]).onDeviceParams).toEqual(p.onDeviceParams);
+  });
+
+  it("the command post asks with its draft's own teams", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8");
+    expect(src).toMatch(/wordingGenerator\(aiClient\(pls\.app, rc\.useLimitedUseTokens\), rc\.cloudModelWeb, draft\.assignments\.map\(\(a\) => a\.teamId\)\)/);
+  });
+});

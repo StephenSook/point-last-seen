@@ -2146,3 +2146,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Found: the first note read took 27,900 ms against the command post's 30 s limit; 14 of 15 note fields right ("grey" read as unknown). Plan wording ran on device every time (3.1 to 12.3 s) but code accepted only 2 of 6 wordings; the one recorded rejection was a reply that repeated the teams up to the schema's 12 items.
 - Source: on-device evidence runs for the judge (the two rows had no tracked run).
 - Verified: typecheck, the test matrix check and the hygiene guard pass; the pages ran in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model).
+
+### fix(ai): a plan's wording is asked for in that plan's own shape
+- What: `planWordingJson(teamIds)` in `web/src/ai/replanWording.ts` is the wording's JSON schema for one plan: exactly one assignment per team, `teamId` limited to that plan's teams (the general schema when there are none). `wordingParams(model, teamIds)` gives it to both the cloud (`responseJsonSchema`) and this laptop (`responseConstraint`); CommandPost's `suggest` passes its draft's teams. The cited mode line (`replanWording.ts:47`) does not move.
+- Source: on-device evidence (Chrome's model repeated the teams up to the general schema's 12 items, and code rejected 4 of 6 wordings).
+- Verified: new unit tests (the schema's count and team list, both routes get it, the command post passes its draft's teams) failed first, then passed; typecheck, web unit suite (1051), the test matrix check and the hygiene guard pass.
