@@ -66,6 +66,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY row 1b: App Attest PASSED on a physical iPhone (2026-11-20, Ad Hoc Release build, App Attest production:
+  attestation and assertion exchanges 200, Firestore reads VALID before enforcement); it said PENDING. Source: review.
+  Verified: Cloud Monitoring reads at 21:22Z and 21:28Z on 2026-11-20; docs/TEST-MATRIX.md build 8 rows.
 - README and SECURITY: four calls use server prompt templates, not three; the web photo read calls pls-photo-cues-v1
   (photoTemplateGenerator in web/src/ai/client.ts, used by CommandPost's readPhotoCloud since 65ee825a), so SECURITY
   row 6, the call-table intro and the photo row say so. Source: review. Verified against
