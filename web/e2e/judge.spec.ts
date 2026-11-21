@@ -47,7 +47,16 @@ test("the judge page links the iPhone's recorded runs and the test matrix, and n
   await expect(nav.getByRole("link", { name: "iPhone test runs" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/tree/main/docs/evidence/ios");
   await expect(nav.getByRole("link", { name: "Which model ran where" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/blob/main/docs/TEST-MATRIX.md");
   await expect(nav.getByRole("link", { name: /TestFlight/ })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Android family app" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/releases/tag/android-judge");
+  await expect(nav.getByRole("link", { name: "Android family app" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/releases/latest");
+});
+
+test("the Android link opens a published judge release for a signed-out browser", { tag: "@no-backend" }, async ({ request }) => {
+  // GitHub answers /releases/latest with the newest published release; it must be a judge build (android-judge or
+  // android-judge-N), never a draft or another release.
+  const res = await request.get("https://github.com/StephenSook/point-last-seen/releases/latest");
+  expect(res.status()).toBe(200);
+  expect(res.url()).toMatch(/\/releases\/tag\/android-judge(-\d+)?$/);
+  expect(await res.text()).toMatch(/point-last-seen-family-[0-9a-f]{8}\.apk/);
 });
 
 test("a practice search opens a labelled training incident on the real park map, with no code, and reopens without the join form", async ({ page }) => {

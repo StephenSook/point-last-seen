@@ -10,7 +10,8 @@ must give.
   `FIREBASE_APPCHECK_DEBUG_TOKEN` and the debug provider. A debug APK reports 5 and is never published.
 - [ ] Raise the Remote Config key `minimum_version_android` only when a newer release APK is a GitHub Release asset.
   The family app's update screen opens https://github.com/StephenSook/point-last-seen/releases/latest. As of
-  2026-11-21 the repo is public and that link opens the android-judge release, with its APK, for a signed-out browser.
+  2026-11-21 the repo is public and that link opens the latest judge release (android-judge-2), with its APK, for a
+  signed-out browser.
   Check again before raising it: `gh release view --repo StephenSook/point-last-seen` lists the new .apk asset.
 
 - [ ] Publish only a release APK that includes c05f679 (clip consent written 32 days out). An older APK
