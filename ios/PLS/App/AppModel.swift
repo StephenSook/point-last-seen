@@ -565,8 +565,11 @@ final class AppModel {
     var hasUnsettledReports: Bool {
         // Practice reports never go anywhere, so none is waiting to settle.
         guard practice == nil else { return false }
+        let ended = endedSearch?.incidentId
         return store?.entries.contains { entry in
-            switch entry.state {
+            // An ended search's reports can never settle (the server refuses them), so they never block Leave.
+            if entry.doc.incidentId == ended { return false }
+            return switch entry.state {
             case .pending, .checking: true
             case let .rejected(reason): Outbox.isRetryable(reason: reason)
             case .acked: false

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): an ended search's reports never block leaving it
+- What: a report the server refused because its search had ended is retryable in the journal, so it kept "Leave
+  this search" refused ("Some reports have not reached command yet") with no way to settle it, and with it the
+  sign-in could never be deleted. Leave now leaves out the ended search's reports when it checks for unsettled ones;
+  the server refuses them in any case.
+- Source: second review of the ended-search change.
+- Verified: a test where the rules refuse a report, the search ends and Leave then deletes the account failed
+  before the change and passes after; 256 app tests pass.
+
 ### fix(ios): the incident listener hears the server confirm a cached state
 - What: the incident listener now asks for metadata changes, so when the server confirms a state the phone first saw
   from its cache (only isFromCache changes), the listener still calls back and a real close is not missed.

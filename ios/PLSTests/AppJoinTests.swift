@@ -593,6 +593,29 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(backend.deletes == 1 && m.endedSearch == nil && !m.offersLeave)
     }
 
+    /// A report the server refused because the search ended can never settle, so it never blocks Leave (and with it
+    /// deleting the sign-in).
+    @Test func aReportRefusedByTheEndDoesNotBlockLeave() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let backend = FakeJoinBackend()
+        let m = model(backend, reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-leave-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        #expect(store.entries.first?.state == .rejected(reason: "permission-denied"))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 1 && m.endedSearch == nil)
+    }
+
     /// Words whose send was cut off because the search ended wait for review: a later mission never takes them on a
     /// plain second tap.
     @Test func wordsCutOffByAnEndedSearchWaitForReview() async throws {
