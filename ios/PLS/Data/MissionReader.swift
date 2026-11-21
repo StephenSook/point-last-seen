@@ -79,7 +79,8 @@ struct FirestoreMissionReader: MissionReader {
 
     func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void {
         let registration = Firestore.firestore().collection("incidents").document(incidentId).addSnapshotListener { snapshot, _ in
-            guard let data = snapshot?.data() else { return }
+            // Only the server's word ends a search: a cached state can be stale (a drill reset to open under its id).
+            guard let snapshot, !snapshot.metadata.isFromCache, let data = snapshot.data() else { return }
             let state = IncidentState(status: data["status"] as? String, closedReason: data["closedReason"] as? String)
             Task { @MainActor in onState(state) }
         }

@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): only the server's word ends a search on the phone
+- What: the incident listener ignores a snapshot that comes only from the phone's cache, so a stale cached "closed"
+  (a drill reset to open under the same id) cannot end a search that is open on the server. The server's snapshot
+  follows within seconds once the phone has signal.
+- Source: review of the ended-search change.
+- Verified: by reading Firestore's snapshot metadata (isFromCache) and the listener; the Firestore listener has no
+  test fake, so no unit test covers this line. 255 app tests pass.
+
 ### fix(ios-core): only the rules' refusal reads as the search having ended
 - What: in an ended search's read-only list, a refused report says "Not taken: the search had ended." only when the
   server refused it under the security rules (permission-denied). A report refused for anything else (an id
