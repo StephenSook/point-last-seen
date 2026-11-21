@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the parser reads only stated search numbers
+- What: the rules parser now also reads the numbers a model leaves empty, so three misreadings were fixed. A time that
+  says when something happens ("next radio check in 30 minutes", "every 2 hours", "in about 1 hour") is no longer read
+  as the minutes searched; "for 45 minutes" still is. A stated percent of 3 or less is made a ratio ("coverage 1%" was
+  read as a whole ratio, 100%; it is now 0.01), while larger stated values stay as stated for normalizing. A leading
+  dot keeps its number and sign (".7" was read as 7, so 0.07; it is now 0.7, and "-.7" stays negative and is refused).
+- Source: review of the numbers fix.
+- Verified: new parser tests for each case and its control failed before the change and pass after; 436 PLSCore
+  tests pass.
+
 ### fix(ios): numbers a model leaves empty are read from the report by the rules
 - What: Apple's on-device model returns every number in its reading empty, even one the report states, so a typed
   "cleared" report never moved the map on a phone with Apple Intelligence ("Cleared segment AE, coverage 0.7, nothing

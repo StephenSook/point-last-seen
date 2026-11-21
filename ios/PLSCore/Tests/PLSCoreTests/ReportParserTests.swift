@@ -110,4 +110,48 @@ import Testing
         #expect(ReportParser.minutesAgo("saw her an hour ago in AC") == 60)
         #expect(ReportParser.parse("swept AD for half an hour, three searchers", context: ctx).minutes == 30)
     }
+
+    // The parser also reads the numbers a model leaves empty, so it must read only search numbers, exactly.
+
+    private func near(_ a: Double?, _ b: Double) -> Bool { a.map { abs($0 - b) < 1e-9 } ?? false }
+
+
+    /// "In 30 minutes" is when something happens next, not how long the team searched.
+    @Test(arguments: [
+        "Searched segment AE with 2 searchers. Next radio check in 30 minutes.",
+        "Searched segment AE with 2 searchers, checking in every 2 hours.",
+        "Searched segment AE with 2 searchers. Back at base in about 1 hour.",
+    ])
+    func aTimeThatIsNotTheSearchIsNotItsMinutes(text: String) {
+        #expect(ReportParser.minutes(Tokens(text)) == nil)
+    }
+
+    @Test func searchMinutesStillRead() {
+        #expect(ReportParser.minutes(Tokens("Searched segment AE for 30 minutes, nothing found.")) == 30)
+        #expect(ReportParser.minutes(Tokens("Two hours in segment AE, nothing found.")) == 120)
+        #expect(ReportParser.minutes(Tokens("Searched AE for 45 minutes. Next radio check in 30 minutes.")) == 45)
+    }
+
+    /// A stated percent is a percent: "1%" is 0.01, never 1 read as a whole ratio (normalizing reads up to 3 as one).
+    @Test(arguments: [
+        ("Cleared segment AE, coverage 1%.", 0.01),
+        ("Cleared segment AE, coverage 1 percent.", 0.01),
+        ("Cleared segment AE, 1 percent coverage.", 0.01),
+        ("Cleared segment AE, coverage 3%.", 0.03),
+        ("Cleared segment AE, coverage 80%.", 0.8),
+        ("Cleared segment AE, 70 percent coverage.", 0.7),
+    ])
+    func aStatedPercentIsAPercent(text: String, ratio: Double) {
+        guard case let .ratio(r) = SearchMath.normalizeCoverage(ReportParser.coverage(Tokens(text))) else {
+            Issue.record("no ratio for \(text)"); return
+        }
+        #expect(near(r, ratio))
+    }
+
+    /// ".7" is 0.7 and "-.7" stays negative, so it is refused, never read as 7 (0.07).
+    @Test func aLeadingDotKeepsItsNumberAndItsSign() {
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage .7.")), 0.7))
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage -.7.")), -0.7))
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage 0.7.")), 0.7))
+    }
 }
