@@ -30,7 +30,9 @@ button, input, select { font: inherit; color: inherit; }
 .num { font-family: var(--ui); font-variant-numeric: tabular-nums; }
 .label { font: 600 12px/1.2 var(--mono); letter-spacing: 0.01em; text-transform: uppercase; color: var(--fg-3); }
 
-.post { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+/* On a laptop the post is exactly the window and only its rails scroll: nothing inside, absolutely placed or not,
+   can make the document taller. */
+.post { position: relative; display: grid; grid-template-rows: auto 1fr; height: 100%; height: 100dvh; overflow: hidden; }
 .post-head { display: flex; align-items: center; gap: 24px; padding: 10px 16px; background: var(--bg-1); border-bottom: 1px solid var(--line); }
 .drill { font-weight: 700; color: var(--fg-1); }
 .post-head .incident { color: var(--fg-2); }
@@ -38,7 +40,8 @@ button, input, select { font: inherit; color: inherit; }
 .post-head .code .num { font-size: 20px; letter-spacing: 0.08em; }
 
 .post-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 0; }
-.rail { background: var(--bg-1); border-right: 1px solid var(--line); padding: 12px; overflow: auto; min-height: 0; }
+/* position: relative keeps a rail's absolutely placed children (the visually hidden spoken lines) inside its scroll. */
+.rail { position: relative; background: var(--bg-1); border-right: 1px solid var(--line); padding: 12px; overflow: auto; min-height: 0; }
 .rail.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
 /* The sections command opens less often, under one closed disclosure at the foot of the rail. */
 .rail-details > summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; gap: 6px; }
@@ -84,7 +87,7 @@ button, input, select { font: inherit; color: inherit; }
 
 @media (max-width: 900px) {
   /* Phones: the map takes the first row and the page scrolls; rails follow it at full height. */
-  .post { height: auto; min-height: 100%; }
+  .post { height: auto; min-height: 100%; overflow: visible; }
   .post-body { grid-template-columns: 1fr; grid-template-rows: 55vh auto auto; }
   .map-wrap { order: -1; }
   /* The drill line takes its own row; the incident, the match code and More share the second. */
