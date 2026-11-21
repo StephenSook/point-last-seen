@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs(limits): Leave deletes the account first and needs signal
+- What: the LIMITS line on "Leave this search" now says the phone asks the server to delete its anonymous account
+  first, that leaving needs signal (every report settled, and a failed delete changes nothing and asks to try again),
+  that an account already gone counts as deleted, and that sent reports stay in the incident until its data is
+  deleted. It no longer says the old user's claims stay on the server.
+- Source: the Leave change before this entry.
+- Verified: each sentence checked against AppModel.leaveSearch and FirebaseJoinBackend.deleteMyAccount at this commit.
+
 ### feat(ios): Leave this search deletes the phone's account on the server
 - What: "Leave this search" first asks the server to delete this phone's anonymous account (the deleteMyAccount
   callable, with limited-use App Check tokens and nothing sent), while still signed in; only then does the phone leave
