@@ -189,6 +189,8 @@ object PhoneNumbers {
         fun isYear(i: Int) = written(i) && len(i) == 4 && (value(i) ?: 0) in 1900..2100
         fun degrees(whole: Int, frac: Int, max: Int): Boolean {
             if (!written(whole) || !written(frac) || gap(whole, frac) != "." || len(whole) > 3 || len(frac) !in 4..8) return false
+            // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
+            if (text(whole).length > 1 && text(whole).startsWith("0")) return false
             val v = "${text(whole)}.${text(frac)}".toDoubleOrNull() ?: return false
             return v <= max
         }
@@ -231,9 +233,10 @@ object PhoneNumbers {
             ) {
                 kept += i..(i + 3)
             }
-            // A radio frequency candidate (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a
-            // dotted chain (404.555.0142) and not after a "+". Kept below only when every number joined to it is one too.
+            // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3
+            // digits, not part of a dotted chain (404.555.0142) and not after a "+". Kept below only in a run of frequencies.
             if (written(i + 1) && gap(i, i + 1) == "." && len(i) <= 3 && len(i + 1) == 3 && ascii(i) && ascii(i + 1) &&
+                !text(i).startsWith("0") && (value(i) ?: -1) in 25..999 &&
                 !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == ".") && !(written(i + 2) && gap(i + 1, i + 2) == ".") &&
                 !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
             ) {
@@ -245,13 +248,21 @@ object PhoneNumbers {
                 kept += i..(i + 1)
             }
         }
-        // A frequency stays only when every number joined to it (the part before its whole, the part after its fraction)
-        // is a frequency too: "Radio 155.160 | 154.205" stays, while 404.555-0142 or "155.160 404 5550142" go whole.
-        for (w in frequencies) {
-            val beforeOk = w == 0 || !joins(s, parts[w - 1], parts[w]) || (w - 2) in frequencies
-            val afterOk = w + 2 >= parts.size || !joins(s, parts[w + 1], parts[w + 2]) || (w + 2) in frequencies
-            if (beforeOk && afterOk) kept += w..(w + 1)
+        // A frequency is search information only in a run made of nothing but frequencies: joined anywhere in its run to
+        // other digits (404.555-0142 #123, 404.555 100.142 1234567) it could be part of a phone number, so it goes with the
+        // run. Candidates with a joined neighbour outside the set drop out until none does.
+        var live: Set<Int> = frequencies
+        while (true) {
+            val inFrequency = live.flatMap { listOf(it, it + 1) }.toSet()
+            val alone = { inside: Int, outside: Int ->
+                outside !in parts.indices || outside in inFrequency ||
+                    !joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)])
+            }
+            val next = live.filter { alone(it, it - 1) && alone(it + 1, it + 2) }.toSet()
+            if (next.size == live.size) break
+            live = next
         }
+        for (w in live) kept += w..(w + 1)
         // Dates are found in order, so a date can overlap only the one before or after it in the list.
         val written = dates.filterIndexed { k, d ->
             !(k > 0 && dates[k - 1].last >= d.first) && !(k + 1 < dates.size && dates[k + 1].first <= d.last)
