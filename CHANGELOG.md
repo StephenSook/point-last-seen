@@ -75,6 +75,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Rules: a debrief takes the optional coverageStatedPct (integer 0 to 100), clues and hazards (strings up to 500);
+  anything else in them is refused. Source: review (paper debrief read). Verified: a new rules test (accepts the
+  fields at their bounds; refuses -1, 101, 75.5, a string, null, 501 characters and non-strings) failed first, then
+  passes; ci-local rules passes.
 - Debrief schema and type: three optional fields a team states on its paper debrief, coverageStatedPct (integer 0 to
   100; stated by the team, the engine never reads it, so no coverage claim comes from it), clues and hazards (strings
   up to 500). Existing debriefs stay valid. Source: review (paper debrief read). Verified: an engine test (no engine
