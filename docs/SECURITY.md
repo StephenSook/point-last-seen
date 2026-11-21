@@ -82,11 +82,11 @@ except the iOS report read, which streams.
 | Web command post | Suggested wording for a changed plan | Direct | On-device first, cloud fallback (`PREFER_ON_DEVICE`, `web/src/ai/replanWording.ts`) | Command clicks Suggest |
 | Web command post | A typed or pasted sighting note | Template `pls-sighting-note-v1` | Cloud only, after the on-device read | Command asks for the cloud read |
 | Web command post | One photo from the tray | Direct (`pls-photo-cues-v1` is published for it) | Cloud only, after the on-device read | Command asks for the cloud read, with the sender's consent recorded |
-| Web command post | A camera clip, or the seconds of it that matter | Direct (a template cannot pass the clip window) | Cloud only | Command asks for a clip read |
-| iOS searcher app | A spoken or typed field report | Direct, streaming | On-device first; cloud by the read router (`ios/PLS/AI/ModelSessionFactory.swift`) | The searcher sends a report |
+| Web command post | A camera clip, or the seconds of it that matter | Direct (a template cannot pass the clip window) | Cloud only, after an on-device check of the clip: a flagged clip sends only its flagged seconds, one with no motion or no person sends nothing unless command asks again (`web/src/camera/ClipIntake.tsx`) | Command asks for a clip read, with the three consents ticked |
+| iOS searcher app | A spoken or typed field report | Direct, streaming | Apple's model first. The cloud only when Apple's model is not available, does not support the phone's language or the report is over its token budget, and only while online, with **Allow cloud reading** on and `kill_cloud` off, on iOS 27 (`ios/PLSCore/Sources/PLSCore/RouterPolicy.swift`); otherwise the phone's rules | The searcher sends a report |
 | iOS searcher app | A spoken assignment change | Template `pls-voice-v1` | Cloud voice, falling back to the phone's voice | Command changes the team's assignment |
-| Android family app | A family note | Direct | Hybrid, from Remote Config `kill_cloud` and the caller's route | The family sends a note |
-| Android family app | A camera clip | Template `pls-clip-read-v1` | Cloud only, after the consent record is written | The family shares a clip |
+| Android family app | A family note | Direct | The phone's model when it has one. With none, the cloud only after the family taps "Send to the cloud", and never when `kill_cloud` is on or the note does not look English (`android/app/src/main/java/app/pointlastseen/family/ai/FamilyNote.kt`) | The family taps "Sort it"; the reading joins the profile only on "Add to profile" |
+| Android family app | A camera clip | Template `pls-clip-read-v1` | Cloud only, after the consent record is written | The family taps "Read the clip" after ticking the three consents |
 
 ## Data and media
 
