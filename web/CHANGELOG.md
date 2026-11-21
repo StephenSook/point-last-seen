@@ -2352,6 +2352,81 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, third round: reloading can make a confirmed closure look pending).
 - Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
 
+### feat(data): the call and the words for removing a member
+- What: `web/src/data/members.ts` calls the `removeMember` callable (incident id and the member's uid) and turns a failure into one sentence: the server's own reason when it gives one (yourself, another command, not command, no longer a member), "Refused by App Check. Try a normal browser window." for a refused token, "No connection. Try again when the link is back." offline, and "Could not remove them. Try again." otherwise.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): the list of people command can remove
+- What: `memberRows` in `web/src/data/members.ts` joins the server's members records with the authors of the incident's events (an account that joined before the records existed is known only by what it wrote). Command is never listed; a members record wins over an event for role and team; searchers read "<team> searcher" and family "Family member"; two people with one label are told apart by the last four characters of their id; removed members come last, marked removed.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a People panel where command removes someone from the drill
+- What: `web/src/command/MembersPanel.tsx` lists each searcher and family member with "Remove from this drill". Pressing it asks inline ("Remove <who>? They lose access at once and cannot join again.") with Remove and Cancel; a refused removal gives the server's reason under the row with the confirm still open; a removed person shows "Removed" and no action. A harness page (`web/harness/members.html`) renders it with synthetic members and a stand-in call.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new harness checks in `e2e/harness/members.spec.ts` (never lists command; Cancel removes nothing and Remove marks the person removed; a refusal says why; someone already removed has no action) failed with the component moved aside, then passed with the whole harness; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): the People panel on the command post
+- What: the command post lists, under Details, everyone command can remove (the server's members records and the authors of the incident's reports), with Remove from this drill calling the `removeMember` callable; removal records mark a person Removed. `subscribeMembers` in `web/src/data/members.ts` reads both collections, and a refused read (before the rules that let command read them are deployed) reads as empty, so the list falls back to report authors. `memberRows` now takes plain event records.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: a new deployed check, `e2e/removeMember.spec.ts` (on a fresh practice copy: the People panel lists the copied reports' authors, never command, and removing one reaches the server and is refused as not a member of that copy, which removes no one), failed on the live site at the missing panel before this change; it runs after deploy. Typecheck, web unit suite (1154), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(data): the People list never offers the caller or any account seen as command
+- What: `memberRows` kept the first role it saw for an account, so a searcher who later joined as command (or the caller's own earlier reports) still got Remove from this drill while the members records were loading or refused. It now leaves out the caller (the command post passes its own uid) and any account with a command members record or any command event, whichever came first.
+- Source: review (Codex: the panel can offer to remove the caller or another command account).
+- Verified: a new unit test in `members.test.ts` (the caller, an account with a later command event, and an account with a command record are all left out) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(data): two people in the People list never share a label
+- What: people with the same label were told apart by the last four characters of their id, so two ids ending alike gave two identical rows (and confirms) that removed different people. The ending now grows, two characters at a time, until every label in the group is distinct.
+- Source: review (Codex: two people can have identical labels and confirmations).
+- Verified: a new unit test in `members.test.ts` (two ids with the same last four characters get distinct labels) failed first, then passed with the whole file (8); the hygiene guard passes.
+
+### fix(command): a removal shows Removed at once, so it cannot be sent twice
+- What: the callable can answer before the removal record reaches the listener, and in that gap the row offered Remove from this drill again for the same person. The People panel now marks a person Removed as soon as the call succeeds on this seat. Each row also carries `data-member` (the account id) so a check can find one person's row.
+- Source: review (Codex: a successful removal can be submitted again).
+- Verified: a new harness check (`?noecho=1`, where no removal record arrives) failed first, then passed with the People checks (5); typecheck and the hygiene guard pass.
+
+### fix(data): a refused sign-in no longer reads as an App Check refusal on removal
+- What: the callable answers "unauthenticated" for a rejected sign-in token as well as for a refused App Check token, so "Refused by App Check. Try a normal browser window." could send command the wrong way. It now reads "Refused: sign-in or App Check. Reload the page and try again."
+- Source: review (Codex, low: a rejected sign-in token is reported as an App Check failure).
+- Verified: the unit test's expected sentence was changed first and failed, then passed with the whole file (8).
+
+### fix(data): a refused read of the members or removal records keeps what was shown
+- What: when the removal records' listener was refused after a good read, it replaced them with an empty set, so a removed person with an old report got Remove from this drill again. A refused read now changes nothing: the lists start empty before any read succeeds, and keep what they showed after one.
+- Source: review (Codex: a failed removal listener makes removed people appear eligible again).
+- Verified: a new unit test, `membersListen.test.ts` (Firestore's listener mocked: a good read, then a refusal on each collection), failed first, then passed with the members tests (9); typecheck and the hygiene guard pass.
+
+### test(web): the deployed removal check removes a member it made, on the test drill
+- What: the deployed check ran on a practice copy, but practice copies carry no reports, so the People panel there had no one to list. It now runs on the test drill: a fresh family member joins over the public APIs (as the family app does, `freshFamilyMember` in `e2e/familyConsent.ts`), command finds that account's row by `data-member` and removes it, and then that account's read of the incident is refused (403) and it cannot join again (403). The member the check makes is the one it removes.
+- Source: review (Codex: the end-to-end test cannot reach the callable with practice setup).
+- Verified: the check and its fixture compile (`playwright test --list`); it runs after deploy and needs the members records the join function now writes. It was not run against the current site, where it would leave its fresh member unremoved.
+
+### fix(data): a members record decides who is listed, over an old command event
+- What: the People list left out any account with a command event, so a command account that later rejoined the same drill as family (its members record then says family, and the server allows its removal) could not be removed. A members record now decides an account's role and team; only an account with no record is kept off the list by a command event of it.
+- Source: review (Codex, second round: an old command event hides a member the server can remove).
+- Verified: a new unit test in `members.test.ts` (a family record with an earlier command event is listed) failed first, then passed with the file; the hygiene guard passes.
+
+### fix(command): once a People read is refused, the panel says the list may be out of date
+- What: Firestore stops a listener after it refuses it, and the members and removal lists then kept their last read with no sign it had stopped, so a person another command seat had removed could still be offered for removal. `subscribeMembers` now reports a refusal; the panel then says "This list may be out of date. Reload the page before removing anyone." and offers no removal, while the last good lists stay shown.
+- Source: review (Codex, second round: a refused listener leaves People silently stale).
+- Verified: the listener unit test (`membersListen.test.ts`, mocked) now also expects the refusal to be reported, and failed first; a new harness check (`?stale=1`) failed on the panel without the change and passes with it (6 People checks); typecheck and the hygiene guard pass.
+
+### test(web): the removal check cleans up after itself and proves the sessions were revoked
+- What: if the deployed removal check failed before removing its fresh family member (the row never showing, say), or the fixture failed after the join, the account stayed joined to the test drill. Both now remove that account through `removeMember` as a command session of their own (`removeAsCommand` in `e2e/familyConsent.ts`). The check also expects the removed account's session refresh to be refused (400), since the removal record alone already refuses reads and rejoins, and only the refresh shows the sessions were revoked.
+- Source: review (Codex, second round: a failed test can leave the fresh account active; the test can pass while revocation failed).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### test(web): the removal check's cleanup fails loudly and waits for the revocation
+- What: the cleanup returned removeMember's status and its callers dropped it, so a failed cleanup left the family account joined without a word; it now throws unless the server removed the account. The fixture records the account just before the join is sent, so a join that went through with its answer lost is still cleaned up (an account the server says never joined counts as clean). The check waits for the removed account's session refresh to fail with `TOKEN_EXPIRED` (the server writes the removal record before it revokes the sessions, and any malformed token also gives a 400), and until it has seen that, a failure removes the account again, which retries the revocation. The cleanup's own command account stays joined, since command cannot remove itself; it holds no reports.
+- Source: review (Codex, third round: cleanup ignores failed removals, checks revocation too early, accepts any 400, and misses a lost join answer).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### fix(command): a refused People read with no one listed still says so
+- What: with no one to list the People panel showed nothing, so when a read was refused before any rows loaded, command saw neither the list nor the warning. The panel now shows its heading and "This list may be out of date. Reload the page before removing anyone." whenever a read was refused, even with no rows.
+- Source: review (Codex, third round, low: a first-load refusal can hide the stale warning).
+- Verified: a new harness check (`?stale=1&empty=1`) failed first, then passed with the People checks (7); typecheck passes.
+
 ### feat(data): command reads the "Report a problem" flags
 - What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
 - Source: review (a command-side list of "Report a problem" flags).
