@@ -70,6 +70,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Seed tool: refuses to create a drill, or add a code to one, when the drill retention job holds a purge record for
+  its id, and fails closed when the record cannot be read; checked before anything is written to the Keychain or
+  Firestore. Source: review (second-model: a purged id seeded again would carry old sign-ins' claims and could be hit
+  by a resumed purge). Verified: 3 new tests failed first, then pass (18).
 - LIMITS, Drill data retention: a reused id's record is dropped, the last join-code sweep, sign-ins used after the
   close are kept, and the 2026-11-21 audit (no drill had a closedAt before the rules made it the server's). Source:
   review. Verified against functions/src/retention.ts and a read of every production drill.
