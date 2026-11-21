@@ -49,6 +49,8 @@ What the model download needs, from the ML Kit and Firebase docs:
    - "The on-device model is downloading: N%." Wait for "Ready on this phone." The app checks the model again
      each time it comes back to the front.
    - "An on-device model can be downloaded to this phone." with **Get the on-device model**. Tap it.
+   - "The on-device model could not be downloaded. Try again on Wi-Fi." Check Wi-Fi and free storage, then switch
+     away from the app and back (it checks again).
    - Nothing under the title: the phone reports no model. Stop and write that down.
 4. On-device read, three times. Type "She likes to walk to the old mill by the creek" and tap **Sort it**. Do not
    agree to the cloud. The result must say "Read on this phone in N s." Write down each time.

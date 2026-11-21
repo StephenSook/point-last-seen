@@ -93,6 +93,15 @@ class NoteScreenTest {
         rule.onNodeWithText("Get the on-device model").performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun aFailedDownloadStillShowsWhenTheStatusIsUnknown() {
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.UNKNOWN, downloadFailed = true))
+            }
+        }
+        rule.onNodeWithText(Copy.MODEL_FAILED).performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun aSuggestionIsLabelledEditableAndShowsWhereItWasRead() {
         var added: FamilyNoteReading? = null
         val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill", DeviceModelStatus.UNAVAILABLE)

@@ -70,11 +70,12 @@ fun NoteScreen(
                     DeviceModelStatus.AVAILABLE, DeviceModelStatus.DOWNLOADING -> Note(Copy.model(model))
                     DeviceModelStatus.DOWNLOADABLE -> {
                         Note(Copy.model(model))
-                        if (model.downloadFailed) Note(Copy.MODEL_FAILED)
                         OtherAction(Copy.GET_MODEL, onClick = onGetModel)
                     }
                     else -> Unit
                 }
+                // Whatever the status says after it (unknown, say), a failed download is shown.
+                if (model.downloadFailed) Note(Copy.MODEL_FAILED)
                 OutlinedTextField(
                     text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
                     minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
