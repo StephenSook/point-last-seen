@@ -2267,6 +2267,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (the join error was not beside its field).
 - Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
 
+### fix(command): the Sightings list shows three at a time, those waiting for a decision first
+- What: the Sightings panel listed every sighting, decided or not, so on a phone a busy drill pushed the rest of the rail thousands of pixels down (the test drill's post was 12,579 px tall at 390 px wide). It now lists the sightings waiting for command first, then the decided ones, shows three, and offers "Show all N sightings"; a line under the heading says how many are waiting ("6 waiting for a decision."). The sightings harness gains `?many=1`; the live retraction check now sees the report listed before it checks that it leaves.
+- Source: UI review at phone width (too many words on the working screen).
+- Verified: new harness checks in `e2e/harness/sightings.spec.ts` (three shown, waiting ones first, Show all reveals all eight with the decided last; no button for three or fewer) failed first, then passed with the existing sightings checks (5); typecheck, web unit suite and the hygiene guard pass.
+
 ### fix(theme): a disabled outline button reads at 4.5:1 on a raised panel
 - What: `.btn.ghost:disabled` used fg-4 text, 4.33:1 on bg-2 (the sighting form and photo panels), a pair the theme never allows. It now uses fg-3 text (well over 4.5:1) with a dashed edge, so it still reads as off.
 - Source: UI review (disabled outline buttons on bg-2).
