@@ -3,9 +3,10 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { readPhotoOnDevice } from "../ai/photoCues";
+import { readDebriefSheetOnDevice } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { firestoreClipIo } from "../data/clips";
@@ -73,6 +74,7 @@ import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
 import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
+import type { PaperRead } from "./DebriefPaperRead";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 
@@ -253,6 +255,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const rcNow = useRef(rc);
   rcNow.current = rc;
   const [newTeamIds, setNewTeamIds] = useState<ReadonlySet<string>>(new Set());
+  // The team picked in the Teams strip: its name reads in fg-1 and its assigned cells are outlined on the map.
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
@@ -491,6 +495,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     traced(route);
     return { cues: r.cues, route, sentBytes: 0 };
   };
+  // A team's paper debrief sheet, read on this laptop only: there is no cloud read of a sheet, and the photo is not kept.
+  const readSheetHere: PaperRead = async (jpegBase64, segmentId) => {
+    const t0 = Date.now();
+    const ctx = { segmentId, segmentIds: segments.map((s) => s.segmentId), teams };
+    const r = await readDebriefSheetOnDevice(jpegBase64, ctx, { available: (o) => onDeviceAvailable(o), generate: (b) => debriefSheetGenerator(ai())(b), timeoutMs: 30_000 });
+    if (!("read" in r)) return r;
+    const route = photoRoute("on_device", Date.now() - t0);
+    traced(route);
+    return { read: r.read, route };
+  };
   const readPhotoCloud = async (p: TrayPhoto) => {
     // Every check before the bytes leave (the bytes' own hash, the family's consent from the server, the file
     // still stored) lives in readStoredPhotoInCloud; without all three no cloud model reads the photo.
@@ -713,8 +727,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         </p>
       )}
       <div className="post-body">
-        <TeamsRail teams={teams} activeTeamId={null} assignments={assignments} newTeamIds={newTeamIds} />
-        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
+        <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
+        <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
           {rc.killCloud && (
             <p className="error" role="status">
@@ -898,6 +912,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onSave={(segmentId, input, existing, clearedEventId) =>
                 saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
               }
+              paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
           </details>

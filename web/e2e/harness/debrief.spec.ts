@@ -88,3 +88,15 @@ test("a stated coverage over 100 is refused with the reason, and nothing is save
   await expect(row.getByRole("alert")).toHaveText("Coverage stated: a whole number from 0 to 100, or empty.");
   await expect(page.getByTestId("saved")).toHaveText("");
 });
+
+test("a phone number typed in a note is replaced in what is stored and in the row that shows it", async ({ page }) => {
+  await page.goto("/harness/debrief.html");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Add debrief" }).click();
+  await row.getByLabel("Time it took (minutes)").fill("45");
+  await row.getByLabel("Clues: what and where (optional)").fill("Call 404 555 0142 at the gate");
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect.poll(() => saved(page)).toMatchObject({ input: { tookMinutes: 45, clues: "Call [number removed] at the gate" } });
+  await expect(row).toContainText("Clues: Call [number removed] at the gate");
+  await expect(row).not.toContainText("0142");
+});

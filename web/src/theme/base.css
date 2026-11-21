@@ -39,7 +39,7 @@ button, input, select { font: inherit; color: inherit; }
 .post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; white-space: nowrap; }
 .post-head .code .num { font-size: 20px; letter-spacing: 0.08em; }
 
-.post-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 0; }
+.post-body { display: grid; grid-template-columns: 160px 1fr 340px; min-height: 0; }
 /* position: relative keeps a rail's absolutely placed children (the visually hidden spoken lines) inside its scroll. */
 .rail { position: relative; background: var(--bg-1); border-right: 1px solid var(--line); padding: 12px; overflow: auto; min-height: 0; }
 .rail.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
@@ -57,12 +57,14 @@ button, input, select { font: inherit; color: inherit; }
 .plate { background: var(--bg-0); color: var(--fg-1); padding: 2px 6px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
 .new-build { position: fixed; left: 16px; bottom: 16px; z-index: 50; margin: 0; padding: 8px 12px; background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--fg-4); }
 /* A cell whose labels would cover a more likely cell's labels hides them (labelDensity.ts); its dot stays. */
-.plate.crowded, .seg-code.crowded, .plate.unfit, .seg-code.unfit { visibility: hidden; }
+.plate.crowded, .seg-code.crowded, .plate.unfit, .seg-code.unfit, .plate.under-chip, .seg-code.under-chip { visibility: hidden; }
 .seg-code { background: var(--bg-0); color: var(--fg-2); padding: 1px 3px; font: 600 10px/1.2 var(--ui); letter-spacing: 0.02em; pointer-events: none; }
 
 .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.teams li { color: var(--fg-4); }
+.teams li { color: var(--fg-2); }
+.teams.picking li { color: var(--fg-4); }
 .teams li.active { color: var(--fg-1); }
+.team-pick { display: block; width: 100%; min-height: 28px; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 
 .rank { width: 100%; border-collapse: collapse; }
 .rank td { padding: 3px 0; border-bottom: 1px solid var(--line); }
@@ -184,6 +186,8 @@ button, input, select { font: inherit; color: inherit; }
 .layer select { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
 .layer label { display: grid; gap: 4px; color: var(--fg-2); }
 .layer label.check { display: flex; gap: 6px; align-items: center; }
+.debrief-paper-field { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--fg-4); }
+.debrief-camera { width: 100%; background: var(--bg-0); }
 .report-pin { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
 .beat-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
