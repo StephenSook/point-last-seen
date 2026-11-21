@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { viewState, type EventDoc } from "../hostApp";
 import { T0, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { frameKey, replayWindow, stateAt } from "./stateAt";
+import { harnessIncident } from "../testdata/replayIncident";
+import { CHANGED_PP, changedSegments, frameKey, replayWindow, stateAt } from "./stateAt";
 
 const MIN = 60_000;
 
@@ -165,5 +166,31 @@ describe("frameKey", () => {
     if (a.phase !== "replayable" || b.phase !== "replayable") throw new Error("expected replayable frames");
     expect(b.view.code).toBe(a.view.code);
     expect(b.planVersion).toBe(a.planVersion);
+  });
+});
+
+describe("changedSegments", () => {
+  // The harness incident: its current prior came into use 6 minutes after T0.
+  const harness = () => {
+    const h = harnessIncident();
+    return fromLive(h.view, h.events, h.plans)!;
+  };
+
+  it("names the segments whose share moved by at least one point with the latest report, sorted", () => {
+    const d = harness();
+    expect(CHANGED_PP).toBe(1);
+    // The clue on AB at +16 moves AB 2.2 points and AA 1.3; BA and BB move 0.4 each, the map making room.
+    expect(changedSegments(d, T0 + 16 * MIN + 123)).toEqual(["AA", "AB"]);
+    // Confirming the sighting in BB at +14 moves BB 3.1 points and AA 1.7.
+    expect(changedSegments(d, T0 + 14 * MIN + 30_000)).toEqual(["AA", "BB"]);
+  });
+
+  it("names none where no map is stored, on the first stored map (nothing before it to compare) or for a report that moved nothing", () => {
+    const d = harness();
+    expect(changedSegments(d, T0 + 4 * MIN)).toEqual([]);
+    // The prior came into use at +6; the latest report then (+5) arrived when no map was stored.
+    expect(changedSegments(d, T0 + 6 * MIN)).toEqual([]);
+    // The unconfirmed sighting at +13 moves no share until command confirms it.
+    expect(changedSegments(d, T0 + 13 * MIN)).toEqual([]);
   });
 });
