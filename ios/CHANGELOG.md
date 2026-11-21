@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): the reader checks a model's found with the subject's names, and the receipt says so
+- What: the reader loads the found-kind rule from the bundled word lists and passes the subject's names from
+  the shared profile (they stay in code and never reach a model). A report whose "found" was read as a clue
+  is journalled with the reason, and its receipt shows "Read as a clue: an object was found, not the person.
+  The model said found; check the note." under what the phone made of it.
+- Source: the found-kind rule (shared vectors).
+- Verified: tests that the reader turns a model's found object into a clue with its reason and keeps found for
+  a word of the subject's name, and that a corrected report keeps its reason and the reader gets the
+  profile's names, failed to compile before the change and pass after; 207 app tests pass.
+
 ### feat(ios-core): an outbox entry keeps the found-kind reason on the phone
 - What: an outbox entry can carry the reason a model's "found" was read as a clue, so the report's receipt
   can show it after the app restarts. It is the phone's own note, never part of the event; an entry written
