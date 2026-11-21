@@ -145,8 +145,10 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
 The rule below is the shared one. Its reference is the Android family app's
 `android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`, and the iPhone's matches it; where a
 platform's rule does not follow a case yet, that case names the platform in `pendingOn`. Seven or more digits in a row
-are a number: written digits in any script (full-width, circled and Chinese numerals too) and spoken English digit
-words count alike, joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
+are a number: written digits in any script (full-width, circled and Chinese numerals too), spoken English digit
+words (zero, oh, o, one to nine) and Spanish digit words (cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho,
+nueve; any capitals; not un or una, which are articles) count alike,
+joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
 U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an accent or a joiner inside a gap counts as
 nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
 ZIP+4 code after a state, a month-name date, a number with a unit); it stays only

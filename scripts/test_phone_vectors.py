@@ -28,13 +28,18 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    "44.2071-23.4567", "4550 142nd",
                    # A time shields itself only after a date, never joined to other digits before its hour.
                    "1 404 555 01:42", "GA 40455-5014 2:30",
-                   "GA 40455-5014 2:30 555-0142"]
+                   "GA 40455-5014 2:30 555-0142",
+                   # Spanish digit words count like English ones, so a number spelled in Spanish inside an English
+                   # note is removed too.
+                   "cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
+                   "Seis-Siete-Ocho-Nueve-Tres-Dos-Uno-Cero-Cinco-Cuatro", "404 cinco cinco cinco 0142"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
                  "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 12,345 steps", "12345 67th Ave", "5km",
                  "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880", "Seen Nov\r\n\r\n19 2026",
-                 "Seen 11/19/2026 14:03", "near 4550 142nd St"]
+                 "Seen 11/19/2026 14:03", "near 4550 142nd St", "Vimos dos ni\u00f1os y tres perros cerca del lago.",
+                 "Equipo uno dos tres cuatro cinco seis listo"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.
@@ -43,7 +48,8 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   ("Seen 11/19 555-0142", "Seen 11/19 [number removed]"),
                   ("Seen 11/19/2026, call 404-555-0142", "Seen 11/19/2026, call [number removed]"),
                   ("Seen Nov 19 2026 404-555-0142", "Seen Nov 19 2026 [number removed]"),
-                  ("Seen 11/19/2026 14:03 404-555-0142", "Seen 11/19/2026 14:03 [number removed]")]
+                  ("Seen 11/19/2026 14:03 404-555-0142", "Seen 11/19/2026 14:03 [number removed]"),
+                  ("Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos", "Seen at 14:03, [number removed]")]
 
 
 def number_chars(text: str) -> bool:
