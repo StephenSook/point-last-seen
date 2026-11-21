@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Hosting: `/privacy` and `/support` rewrite to `/privacy.html` and `/support.html` ahead of the app shell, so each
+  URL answers with its own page. Source: the App Store submission needs public privacy and support pages.
+  Verified: a new check in `scripts/test_firebase_config.py` (each path has one rewrite to its page, before the app
+  shell, and the page file exists) failed first, then passed with CI's Python gates.
 - Engine: correctFoundKind treats object-note words that are also names ("Brook", "Brown", "River") as names where a
   name would stand. A name-like colour or size word counts only inside a found item ("a brown coat"), a name-like
   place word only right after a determiner ("by the river"), and neither when capitalised after the first word.
