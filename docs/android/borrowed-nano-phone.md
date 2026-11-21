@@ -42,8 +42,9 @@ What the model download needs, from the ML Kit and Firebase docs:
    adb -s <serial> shell dumpsys package app.pointlastseen.family | grep versionCode
    ```
 
-3. Open **PLS Family**. Do not join a search: this phone is not ours, and no search data belongs on it. Open
-   "I remembered something". The line under the title is the model's state:
+3. Open **PLS Family**. Do not join a search: this phone is not ours, and no search data belongs on it. On the
+   profile screen, tap **I remembered something** (it opens before a search is joined). The line under the title is
+   the model's state:
    - "Ready on this phone." Go to step 4.
    - "The on-device model is downloading: N%." Wait for "Ready on this phone." The app checks the model again
      each time it comes back to the front.
