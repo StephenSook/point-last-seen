@@ -146,6 +146,11 @@ each line says what the limit is and why.
   (`shared/constants/evidence-terms.json`); and the phone-number rule on every platform removes any run of 7 or more
   digits, written in any script, or English or Spanish digit words. Evidence described in another language is not
   caught by the pre-screen.
+- The web's sighting form checks, at Save, whether a note reads as a team's search report rather than a sighting
+  ("Segment 4 searched, subject not seen"), with one rule and no model (`shared/engine-ts/src/searchReport.ts`, cases in
+  `shared/test-vectors/search-report.json`). It knows English words only: a search report in another language saves as
+  a sighting with no warning. It never blocks a save: "Save as a sighting anyway" saves the note as typed, and a
+  report placed in a cleared segment can go to that segment's debrief instead. Only the web runs it so far.
 
 ## Phone numbers in notes
 

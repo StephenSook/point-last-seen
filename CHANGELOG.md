@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: the web sighting form's search-report check knows English words only, so a report in another language saves as
+  a sighting with no warning; it never blocks a save; only the web runs it so far. Source: review. Verified: the hygiene
+  guard passes in public mode.
 - Search-report vectors: the shared README names each field of `search-report.json` and which platforms read it (the
   engine test and the web sighting form, for now), so a later port knows the contract. Source: review. Verified: the
   hygiene guard passes in public mode.
