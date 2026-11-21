@@ -29,7 +29,12 @@ service cloud.firestore {
       return liveFor(incidentData(incidentId));
     }
     function isMember(incidentId) {
-      return signedIn() && request.auth.token.inc == incidentId && notExpired(incidentId);
+      return signedIn() && request.auth.token.inc == incidentId && notExpired(incidentId) && !isRemoved(incidentId);
+    }
+    // Command removed this account (removeMember writes the record before clearing the claims, so a token that still
+    // carries them is refused at once, not only after it expires).
+    function isRemoved(incidentId) {
+      return exists(/databases/$(database)/documents/incidents/$(incidentId)/removed/$(request.auth.uid));
     }
     // A closed incident stays readable to its members but takes no new events or plans.
     function isOpen(incidentId) {
@@ -147,6 +152,17 @@ service cloud.firestore {
           && request.resource.data.byUid == resource.data.byUid && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.get('clearedEventId', null) == resource.data.get('clearedEventId', null);
         allow delete: if false;
+      }
+
+      // Who command removed (removeMember, admin only): command reads them; no client writes one.
+      match /removed/{uid} {
+        allow read: if isCommand(incidentId);
+        allow write: if false;
+      }
+      // Who joined, with what role and team (joinIncident, admin only): what removal decides from. Command reads them.
+      match /members/{uid} {
+        allow read: if isCommand(incidentId);
+        allow write: if false;
       }
 
       match /teams/{teamId} {
@@ -573,7 +589,7 @@ service cloud.firestore {
       let t = d.type;
       // Membership and openness from one read of the incident (same checks as isMember and isOpen).
       // No signedIn() here: reading a claim without auth is an error, and an error denies.
-      return request.auth.token.inc == incidentId && liveFor(inc)
+      return request.auth.token.inc == incidentId && liveFor(inc) && !isRemoved(incidentId)
         && inc.status != 'closed'
         && eventId.matches('^[0-9a-f]{32}$')
         && d.size() == 25
