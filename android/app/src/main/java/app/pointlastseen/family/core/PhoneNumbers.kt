@@ -64,10 +64,21 @@ object PhoneNumbers {
     )
 
     // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
-    // A comma (with up to two spaces around it, and a minus after), a semicolon, bullet, middle dot, bar or slash only
-    // with a minus after it (two dotted numbers across a slash, 020.79460958 / 020.79460959, are no pair), or a minus
-    // with a space before it: a bare minus between two decimals (44.2071-23.4567) is a dotted number, not a pair.
-    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{0,2}[;\u2022\u00B7|/][ \n]{0,2}-|[ \n]{1,2}-""")
+    // A comma, semicolon, bullet, middle dot, bar or slash (with up to two spaces around it) then a minus, or a minus
+    // with a space before it. The minus is the western longitude every drill site has: two decimals with no minus
+    // between them can be two phone numbers (33.12345678, 33.87654321 is two Mexican numbers), and a bare minus between
+    // two decimals (44.2071-23.4567) is a dotted number, not a pair.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2}[,;\u2022\u00B7|/][ \n]{0,2}-|[ \n]{1,2}-""")
+
+    // A word that says the next digits are a phone number; one of these just before a decimal pair makes it two numbers.
+    private val PHONE_CUES = setOf(
+        "call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "tel\u00e9fono", "telefono", "celular",
+        "n\u00famero", "numero",
+    )
+    // A word that may sit between a cue and its number (Llame al 33.1234, -84.5678; Call at ...).
+    private val CUE_CONNECTORS = setOf("al", "a", "at", "on", "to")
+    // What may sit between a cue word and what follows it, read after [flat]: spaces, line breaks or a colon.
+    private val CUE_GAP = Regex("""[ \n:]*""")
     private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
     private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
     private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
@@ -188,11 +199,23 @@ object PhoneNumbers {
         fun isDay(i: Int) = written(i) && len(i) <= 2 && (value(i) ?: 0) in 1..31
         fun isYear(i: Int) = written(i) && len(i) == 4 && (value(i) ?: 0) in 1900..2100
         fun degrees(whole: Int, frac: Int, max: Int): Boolean {
-            if (!written(whole) || !written(frac) || gap(whole, frac) != "." || len(whole) > 3 || len(frac) !in 4..8) return false
+            // 4 to 7 decimals: 8 after a 2-digit area code is a Mexican number (33.12345678).
+            if (!written(whole) || !written(frac) || gap(whole, frac) != "." || len(whole) > 3 || len(frac) !in 4..7) return false
             // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
             if (text(whole).length > 1 && text(whole).startsWith("0")) return false
             val v = "${text(whole)}.${text(frac)}".toDoubleOrNull() ?: return false
             return v <= max
+        }
+        // A phone cue just before part i: a "#" in the gap before it, or a cue word right before it (only spaces or a colon
+        // between), or with one connector word between (Call: 33.1234, -84.5678; Llame al 33.1234, -84.5678). A cue further
+        // back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place and stays.
+        fun cueBefore(i: Int): Boolean {
+            if (s.substring(if (i > 0) parts[i - 1].end else 0, parts[i].start).contains('#')) return true
+            fun near(a: Int, b: Int) = CUE_GAP.matches(flat(s.substring(parts[a].end, parts[b].start)))
+            fun isWord(j: Int) = j >= 0 && parts[j].digits == 0 && !parts[j].written
+            if (isWord(i - 1) && near(i - 1, i) && word(s, parts[i - 1]) in PHONE_CUES) return true
+            return isWord(i - 2) && isWord(i - 1) && word(s, parts[i - 1]) in CUE_CONNECTORS && near(i - 2, i - 1) &&
+                near(i - 1, i) && word(s, parts[i - 2]) in PHONE_CUES
         }
         val kept = mutableSetOf<Int>()
         // Written dates found below, each as its three parts; two that share a part cancel each other.
@@ -229,7 +252,7 @@ object PhoneNumbers {
             }
             // A "+" right before the first number makes the pair a phone number (+44.2071, -23.4567), not coordinates.
             if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.matches(flat(gap(i + 1, i + 2), keepIndent = true)) &&
-                !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
+                !(parts[i].start > 0 && s[parts[i].start - 1] == '+') && !cueBefore(i)
             ) {
                 kept += i..(i + 3)
             }
