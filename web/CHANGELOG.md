@@ -2146,3 +2146,9 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Found: the first note read took 27,900 ms against the command post's 30 s limit; 14 of 15 note fields right ("grey" read as unknown). Plan wording ran on device every time (3.1 to 12.3 s) but code accepted only 2 of 6 wordings; the one recorded rejection was a reply that repeated the teams up to the schema's 12 items.
 - Source: on-device evidence runs for the judge (the two rows had no tracked run).
 - Verified: typecheck, the test matrix check and the hygiene guard pass; the pages ran in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model).
+
+### test(config): the web's Remote Config defaults equal the published template's
+- What: a unit test in `web/src/config/rc.test.ts` checks that every key in `RC_DEFAULTS` has the same value as that key's default in `remoteconfig.template.json`. A browser whose fetch is refused or that is offline runs on the built-in defaults, so they must be the published values.
+- Why: Remote Config allows 60 fetch requests a minute per project per caller (the project's quota, read from Service Usage); for a web client the caller is its IP. The project's own request counts (Cloud Monitoring, last 24 h) show 90 to 200 fetches an hour from our test runs, with 2 to 34 refused with 429 only in the busiest hours. A judge's browser fetches about twice in 12 hours (the SDK's default minimum fetch interval, which the web keeps), so it should never meet the limit; if one is ever refused, it now provably runs the same configuration.
+- Source: review (the 429 seen in live checks).
+- Verified: the test passes, and it failed when a default was changed (`kill_cloud: true`), then passed again restored; web unit suite and the hygiene guard pass.

@@ -75,3 +75,15 @@ describe("Remote Config", () => {
     expect(parseRc({ kill_cloud: "TRUE" }).killCloud).toBe(true);
   });
 });
+
+describe("the web's built-in Remote Config defaults", () => {
+  // A browser whose fetch is refused (Remote Config allows 60 fetches a minute per caller IP) or offline runs on these,
+  // so each must be the published template's own default: a throttled judge sees the same app as everyone else.
+  it("equal the published template's default for every key the web reads", async () => {
+    const { readFileSync } = await import("node:fs");
+    const template = JSON.parse(readFileSync(new URL("../../../remoteconfig.template.json", import.meta.url), "utf8")) as { parameters: Record<string, { defaultValue: { value: string } }> };
+    for (const [key, value] of Object.entries(RC_DEFAULTS)) {
+      expect(template.parameters[key]?.defaultValue.value, key).toBe(String(value));
+    }
+  });
+});
