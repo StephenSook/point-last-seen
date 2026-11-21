@@ -115,5 +115,16 @@ describe("a rebuild needs the map's segments", () => {
     const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
     expect(() => rebuildPrior([], site, { linear: false, wedge: false }, null)).toThrow("The map's segments have not loaded yet.");
   });
+
+  it("refuses a partial set: a loaded segment names a neighbour, upstream or downstream segment that is missing", () => {
+    const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const };
+    const layers = { linear: false, wedge: false };
+    const linked = SEGS.map((x, i) => ({ ...x, neighbors: [SEGS[(i + 1) % 9]!.segmentId, SEGS[(i + 8) % 9]!.segmentId] }));
+    expect(() => rebuildPrior(linked, site, layers, null)).not.toThrow();
+    const partial = "The map's segments have not all loaded yet.";
+    expect(() => rebuildPrior(linked.slice(0, 8), site, layers, null)).toThrow(partial);
+    expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, upstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
+    expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, downstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
+  });
 });
 

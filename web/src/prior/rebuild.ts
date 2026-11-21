@@ -71,6 +71,12 @@ export function rebuildPrior(
   // Segments arrive through their own listener: a rebuild before they load would save a prior with every mass
   // outside the grid and leave each stored segment's old probability in place.
   if (segments.length === 0) throw new Error("The map's segments have not loaded yet.");
+  // A snapshot can also hold only some of them (a cached one, or one with an unreadable document dropped). The grid is
+  // closed: every segment it names as a neighbour, upstream or downstream is in it, so a missing name is a missing segment.
+  const have = new Set(segments.map((s) => s.segmentId));
+  if (segments.some((s) => [...s.neighbors, ...s.upstream, ...s.downstream].some((id) => !have.has(id)))) {
+    throw new Error("The map's segments have not all loaded yet.");
+  }
   const grid = gridFromDocs(segments, site.gridId, site.attribution);
   const elevations = layers.elevation ? segmentElevations(segments, site.ipp, site.elevationM) : undefined;
   const prior = buildPrior(grid, site.ipp, site.terrain, layers, travelBearingDeg, params, elevations);
