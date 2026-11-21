@@ -609,7 +609,8 @@ public enum PhoneNumbers {
             // A month and day with no year (11/19, or 19/11), joined by a slash.
             if written(i + 1), gap(i, i + 1) == "/", len(i) <= 2, len(i + 1) <= 2, let x = value(i), let y = value(i + 1),
                (1...31).contains(x), (1...31).contains(y), (1...12).contains(x) || (1...12).contains(y),
-               !sameSeparatorNeighbour(s, parts, i, i + 1) {
+               // No other slash group on either side: a written one after it, or any digits before it.
+               !(written(i + 2) && gap(i + 1, i + 2) == "/"), !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == "/") {
                 dates.append(i...(i + 1))
             }
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {

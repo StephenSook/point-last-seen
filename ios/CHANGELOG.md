@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a slash month-day keeps its exception unless a written group follows
+- What: a month and day joined by a slash (11/19) lost its date exception to any digit part after another slash,
+  a spoken digit included, so "11/19/seven 404-555-0142" removed the date with the number. As on the web, only a
+  written digit group after it (or any digits before it) cancels the exception now.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the input as a test failed before the change and passes after; 453 PLSCore tests pass; both web corpora
+  match byte for byte.
+
 ### fix(ios-core): a number with a unit is not set apart, as on the web and Android
 - What: the iPhone kept a number of up to six digits with a unit glued on (5km, 3pm) apart from the digits beside it,
   an exception the web and Android rules do not have. So "Call 1:23 45678pm" kept seven digits the web removes. The

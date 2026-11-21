@@ -48,4 +48,10 @@ import Testing
     @Test func aUnitDoesNotSetANumberApart() {
         #expect(same("Call 1:23 45678pm", "Call 1:[number removed]pm"))
     }
+
+    /// A slash month-day loses its exception only to a written digit group after it, as on the web: a spoken digit
+    /// after the slash does not cancel the date.
+    @Test func aSpokenDigitAfterASlashDateKeepsTheDate() {
+        #expect(same("11/19/seven 404-555-0142", "11/19/[number removed]"))
+    }
 }
