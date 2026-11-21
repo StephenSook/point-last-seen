@@ -32,8 +32,18 @@
 .extras-menu [role="alert"] { margin: 0.4rem 0.6rem; }
 
 /* Replay time ruler: marks differ by shape; spans and bands are neutral greys, so the map's colours keep their meaning. */
-.extras-ruler { display: grid; gap: 4px; }
+/* The scrubber is a bar fixed to the map's bottom edge, Play at its left, as a weather map's time bar is. */
+.extras-replay-stage { display: grid; }
+.extras-scrubber {
+  display: flex; align-items: center; gap: 12px; padding: 6px 12px 4px;
+  background: var(--bg-1, #1b1917); border: 1px solid var(--line, #403c3a); border-top: 0;
+}
+.extras-scrubber-play { flex: none; min-width: 72px; }
+.extras-scrubber .extras-ruler-track { flex: 1; min-width: 0; }
 .extras-ruler-track { position: relative; padding-top: 30px; }
+/* No stored map before the current prior came into use: a flat shade behind the marks, and its name. */
+.extras-ruler-unstored { fill: var(--bg-3, #302d2b); }
+.extras-ruler-unstored-label { fill: var(--fg-3, #aeaaa7); font-family: var(--mono, monospace); font-size: 10px; }
 /* The replay's one clock rides over the slider head. Tabular digits, never the 7-segment face, whose narrow "1"
    reads as a gap. At either edge it hangs inward so it is never cut off. */
 .extras-ruler-bubble {

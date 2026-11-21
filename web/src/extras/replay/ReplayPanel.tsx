@@ -81,14 +81,18 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   return (
     <div className="extras-replay" data-phase={frame.phase}>
       {data.drillLabel && <p className="drill extras-drill-line">{data.drillLabel}</p>}
-      {/* data-frame: each segment's percent and place as handed to the map, so a check can pair them. */}
-      {/* data-outlined: the segments outlined as changed by the latest report, so a check can read them. */}
-      <div
-        className="extras-replay-map"
-        data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}
-        data-outlined={changed.join(" ")}
-      >
-        <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
+      {/* The scrubber sits right under the map, as a weather map's time bar does; Play is at its left. */}
+      <div className="extras-replay-stage">
+        {/* data-frame: each segment's percent and place as handed to the map, so a check can pair them. */}
+        {/* data-outlined: the segments outlined as changed by the latest report, so a check can read them. */}
+        <div
+          className="extras-replay-map"
+          data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}
+          data-outlined={changed.join(" ")}
+        >
+          <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
+        </div>
+        <TimeRuler data={data} w={w} tMs={tMs} onChange={setT} timeZone={timeZone} play={reduced ? null : { playing, toggle }} />
       </div>
       {/* The time and the report count are the slider's one clock, so the facts line has no clock of its own. */}
       <div className="extras-replay-facts" role={playing ? undefined : "status"}>
@@ -114,9 +118,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
           </ol>
         </div>
       )}
-      <TimeRuler data={data} w={w} tMs={tMs} onChange={setT} timeZone={timeZone} />
       <div className="extras-replay-controls">
-        {!reduced && <button type="button" className="btn" onClick={toggle}>{playing ? "Pause" : "Play"}</button>}
         <button type="button" className="btn ghost" onClick={() => step(-1)} disabled={prev === null}>Previous report</button>
         <button type="button" className="btn ghost" onClick={() => step(1)} disabled={next === null}>Next report</button>
       </div>

@@ -101,6 +101,37 @@ test("the segments the latest report changed are outlined on the map and counted
   await expect(map).toHaveAttribute("data-outlined", "");
 });
 
+for (const width of [1280, 390]) {
+  test(`at ${width} px the scrubber sits right under the map, with Play at its left`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const dialog = await openReplay(page);
+    const map = (await dialog.locator(".extras-replay-map").boundingBox())!;
+    const bar = (await dialog.locator(".extras-scrubber").boundingBox())!;
+    const play = (await dialog.locator(".extras-scrubber").getByRole("button", { name: "Play" }).boundingBox())!;
+    const track = (await dialog.locator(".extras-ruler-track").boundingBox())!;
+    expect(Math.abs(bar.y - (map.y + map.height))).toBeLessThanOrEqual(1);
+    expect(play.x + play.width).toBeLessThanOrEqual(track.x);
+    // One row: Play sits beside the track, not above it.
+    expect(play.y).toBeGreaterThanOrEqual(bar.y);
+    expect(play.y + play.height).toBeLessThanOrEqual(bar.y + bar.height);
+    expect(track.y).toBeLessThan(play.y + play.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
+}
+
+test("the span with no stored map is shaded on the scrubber and says so", async ({ page }) => {
+  const dialog = await openReplay(page);
+  const band = dialog.locator(".extras-ruler-unstored");
+  await expect(band).toHaveCount(1);
+  const b = (await band.boundingBox())!;
+  const t = (await dialog.locator(".extras-ruler-track svg").boundingBox())!;
+  // The harness window runs 15 minutes from its first send; the current prior came into use 5 minutes in.
+  expect(b.x).toBeCloseTo(t.x, 0);
+  expect(b.width / t.width).toBeCloseTo(5 / 15, 1);
+  await expect(dialog.locator(".extras-ruler-unstored-label")).toHaveText("No stored map");
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });
