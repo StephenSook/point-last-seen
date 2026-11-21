@@ -27,7 +27,10 @@ carries, and how the finished run reaches the judge page.
    loaded"; "App version 0.1.0: current"; "On-device model: ready (AFM 3 Core Advanced)". If the model row says Apple
    Intelligence is off or still downloading, fix that in Settings while there is signal.
 3. Tap **Allow location** and allow it.
-4. Set **Allow cloud reading** in Ready check. On: when Apple's model is not available, does not support the phone's
+4. On the first start of a drill, iOS asks "Allow Live Activities from Point Last Seen?". Tap **Allow** while there is
+   still signal, so the lock screen shows the team's status: "Training drill. Nobody is missing.", "Your segments:
+   ..." and "All reports delivered." (`ios/PLSWidgets/TaskLiveActivity.swift`).
+5. Set **Allow cloud reading** in Ready check. On: when Apple's model is not available, does not support the phone's
    language, or the report is too long for it, Google's model reads the report (phone numbers removed) while there is
    signal. A report Apple's model refuses, cannot parse or takes too long on is not sent: the phone tries a plainer read
    or its rules instead. Off: every report stays on the phone (Apple's model, then the phone's rules). Stephen's
@@ -35,8 +38,8 @@ carries, and how the finished run reaches the judge page.
    choice. The switch is off by default and is not saved, so after any relaunch (a
    force-quit, a phone restart or a reinstall), open Ready check and turn it back on. The cloud route needs iOS 27;
    on iOS 26 it is off whatever the switch says.
-5. For filming, turn on **Say in words where each report was read (for filming)** under **Show sources**.
-6. Optional, in a practice drill only: **Ready check**, then **Check both read routes**. It saves a route-check file
+6. For filming, turn on **Say in words where each report was read (for filming)** under **Show sources**.
+7. Optional, in a practice drill only: **Ready check**, then **Check both read routes**. It saves a route-check file
    (section 5). Ready check also offers it in any drill or judge incident, including `drill-kennesaw-1`; do not run it
    there, because its cloud route sends the reader's tools, the person's description included.
 
@@ -112,7 +115,7 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
    xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source "Library/Application Support/PLS/outbox.json" --destination <folder>/outbox.json
    ```
 
-3. Copy a route-check file, if section 2's step 6 made one. Its name is shown on screen after "Saved".
+3. Copy a route-check file, if section 2's step 7 made one. Its name is shown on screen after "Saved".
 
    ```
    xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source Documents/route-check-<number>.json --destination <folder>/route-check-<number>.json
