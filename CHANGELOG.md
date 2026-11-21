@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY call table and the drill-day page now say when each cloud read actually happens, checked against the code
+  on each platform. The iPhone report read goes to the cloud only when Apple's model is not available, does not
+  support the phone's language or the report is over its token budget, and only online, with Allow cloud reading on,
+  kill_cloud off and iOS 27 (RouterPolicy.swift); a refused, unparsed or timed-out report is not sent. The Android
+  family note uses the phone's model when it has one and, without one, the cloud only after "Send to the cloud", never
+  under kill_cloud or for a non-English note; it starts at "Sort it" and joins the profile only on "Add to profile"
+  (FamilyNote.kt, NoteScreen.kt). The Android clip read starts at "Read the clip" after three consents. The web clip
+  read runs an on-device check first that can send only the flagged seconds or nothing (ClipIntake.tsx). The drill-day
+  route check is offered in any drill or judge incident, including drill-kennesaw-1, so the page says not to run it
+  there. Source: review (cloud-read audit). Verified: each statement against the cited file on main; the iPhone read's
+  streaming is consistent with Cloud Logging (no cloudGuard line for the 21:09:26Z iPhone cloud read, while its voice
+  calls do log).
 - Drill day, iPhone cloud-reading switch (part of the iPhone sections): it is on for Stephen's iPhone in this drill
   and the volunteers' choice on theirs, and because it is off by default and not saved (ios/PLS/App/AppModel.swift,
   cloudConsent = false, in memory only) the checklist says to turn it back on in Ready check after any relaunch.
