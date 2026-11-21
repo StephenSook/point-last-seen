@@ -9,7 +9,7 @@ const BANNER = new RegExp(
     `.+\\. [A-Z]{2} (\\d+\\.\\d|<0\\.1)% to (\\d+\\.\\d|<0\\.1)%\\.(${OLDER})?` +
     "|Report logged\\. Map unchanged\\. Ask the team\\." +
     "|Sighting saved\\. Confirm it under Sightings to move the map\\." +
-    "|New last known point: the sighting (at [A-Z]{2}|outside the mapped area), seen (just before it was confirmed|\\d+ min before it was confirmed)\\. The map is rebuilt from there\\." +
+    "|New last known point: the sighting (at [A-Z]{2}|beyond the drill area), seen (just before it was confirmed|\\d+ min before it was confirmed)\\. The map is rebuilt from there\\." +
     ")$",
 );
 const SPOKEN = new RegExp(
@@ -17,7 +17,7 @@ const SPOKEN = new RegExp(
     `Segment [A-Z]{2}\\. POA \\d+\\.\\d percent, (up|down) \\d+\\.\\d, after report: .+\\.(${OLDER})?` +
     "|Report logged\\. Map unchanged\\." +
     "|Sighting saved\\. Confirm it under Sightings to move the map\\." +
-    "|New last known point (at segment [A-Z]{2}|outside the mapped area)\\. The map is rebuilt from the sighting\\." +
+    "|New last known point (at segment [A-Z]{2}|beyond the drill area)\\. The map is rebuilt from the sighting\\." +
     ")$",
 );
 

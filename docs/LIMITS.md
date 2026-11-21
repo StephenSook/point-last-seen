@@ -72,6 +72,13 @@ each line says what the limit is and why.
 
 ## Search model
 
+- The drill areas are small next to the search rings: the practice area is about 1.0 by 1.6 km and the Kennesaw
+  drill area about 2.2 by 3.9 km, while the rings reach 12.8 km (flat terrain; 8.3 km in mountains, 12.6 km urban).
+  Most of the probability therefore sits beyond the drill area, shown as its own row below the top segments with a
+  computed line saying how far the rings reach. The grid is not extended before the hackathon deadline: a prior
+  rebuild writes every segment in one batch, so a 125 m grid stops near 490 segments (about 2.8 by 2.8 km, which
+  still leaves about half the probability beyond it), and a new grid would need a new iPhone build, since the iPhone
+  carries the practice grid, and a new App Store review.
 - A sighting the search command confirms, with a place (a GPS fix or a point on the map) and the time it was seen,
   becomes the new last known point: the ring prior is rebuilt from its place, with the direction-of-travel wedge when
   it says which way the person went, as a confirmed camera sighting does. The rings do not widen with the time since

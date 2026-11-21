@@ -26,7 +26,9 @@ test("a long list shows the top 5 segments, with Show all for the rest", async (
   const rank = page.getByTestId("poa-rank");
   await expect(rank.locator("tr[data-seg]")).toHaveCount(5);
   await expect(rank.locator("tr[data-seg]").first()).toContainText("S01");
-  await expect(rank.getByText("Outside the mapped area")).toBeVisible();
+  await expect(rank.getByText("Beyond the drill area")).toBeVisible();
+  // The mass beyond the grid is never the first number: it sits below the top segments.
+  await expect(rank.locator("tr").last()).toContainText("Beyond the drill area");
   await page.getByRole("button", { name: "Show all 67" }).click();
   await expect(rank.locator("tr[data-seg]")).toHaveCount(67);
   await page.getByRole("button", { name: "Show top 5" }).click();
@@ -44,4 +46,9 @@ test("the POA heading spells out what POA means", async ({ page }) => {
   const abbr = page.getByRole("heading", { name: "POA" }).locator("abbr");
   await expect(abbr).toHaveText("POA");
   await expect(abbr).toHaveAttribute("title", "Probability of area: the engine's estimate for each segment");
+});
+
+test("under the ranking, one computed line says how far the rings reach and how big the drill area is", async ({ page }) => {
+  await page.goto("/harness/rank.html?rows=67");
+  await expect(page.getByTestId("rank-reach")).toHaveText("The search rings reach 12.8 km; this drill area covers about 1.0 by 1.6 km.");
 });

@@ -9,10 +9,11 @@ export type RankRow = { segmentId: string; poa: number };
 const TOP = 5;
 
 /**
- * Segments by POA, highest first, with the mass outside the grid as its own row. When the
- * order changes, moved rows slide from their old place (FLIP), after `reorderDelayMs`.
+ * Segments by POA, highest first, with the mass beyond the grid as its own row below them (never the first number
+ * read), and under the table one computed line on how far the rings reach past the area. When the order changes,
+ * moved rows slide from their old place (FLIP), after `reorderDelayMs`.
  */
-export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly RankRow[]; row: number | null; reorderDelayMs?: number }) {
+export function PoaRank({ rows, row, reorderDelayMs = 0, reach = null }: { rows: readonly RankRow[]; row: number | null; reorderDelayMs?: number; reach?: string | null }) {
   const body = useRef<HTMLTableSectionElement>(null);
   const [all, setAll] = useState(false);
   const shown = all ? rows : rows.slice(0, TOP);
@@ -59,12 +60,17 @@ export function PoaRank({ rows, row, reorderDelayMs = 0 }: { rows: readonly Rank
             ))}
             {row !== null && (
               <tr className="row">
-                <td>Outside the mapped area</td>
+                <td>Beyond the drill area</td>
                 <td className="num">{formatPct(row)}</td>
               </tr>
             )}
           </tbody>
         </table>
+      )}
+      {rows.length > 0 && reach && (
+        <p className="small muted" data-testid="rank-reach">
+          {reach}
+        </p>
       )}
       {rows.length > TOP && (
         <button type="button" className="btn ghost" onClick={() => setAll((a) => !a)}>
