@@ -66,6 +66,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- drill-day, section 2: a new step 4 says to tap Allow when iOS asks to allow Live Activities on the first start of a
+  drill, while there is still signal, so the lock screen shows the team's status; the later steps and section 5's
+  reference move by one. Source: review (the prompt was seen on a physical iPhone, 2026-11-20). Verified: the
+  three lock-screen lines against ios/PLSWidgets/TaskLiveActivity.swift and
+  ios/PLSCore/Sources/PLSCore/TaskStatus.swift.
 - SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
   Logic hands the trigger a template call already expanded (the template's system instruction and output schema, no
   template name), so the trigger cannot tell them apart; template use is shown by the apps' code. Source: review.
