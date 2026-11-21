@@ -50,6 +50,8 @@ carries, and how the finished run reaches the judge page.
 
 Do this after command approves plan v1 on the command post. The Plan panel says "Approved as plan v1. Sent."
 
+The drill printer reported low ink: print a test page on Saturday, and if it fails, print at a library.
+
 1. On the command post, open **More**, then **Print assignment sheet**.
 2. Check the pre-filled Date From and Time From. Fill Branch, Division, Group or Staging Area only if the drill uses
    them. The box **Print the person's names and approach notes** is off. Tick it when teams should carry the names
@@ -61,6 +63,7 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
    - Margins: Default.
    - Scale: Default (100%). Not "Fit to page".
    - Background graphics: on.
+   - Two-sided: off. A printer that defaults to two-sided puts two teams' sheets back to back.
    - Headers and footers: off. With them on, the browser adds the page address and date to the page.
 4. Check the printout before handing it out:
    - One page per sheet. The footer reads "IAP Page 1 of 1".

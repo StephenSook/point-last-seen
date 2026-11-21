@@ -77,6 +77,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- drill-day, section 3: the printer settings add Two-sided: off (a printer that defaults to two-sided puts two teams'
+  sheets back to back), and a line before the steps says to print a test page on Saturday because the drill printer
+  reported low ink, or print at a library. Source: review. Verified: docs only.
 - drill-day, section 2 step 2: if a phone's on-device model row still does not read ready before leaving signal, write
   down which phone and why, since its reports are then read in the cloud (cloud reading on, with signal) or by its
   rules, and the note explains a missing on-device count after the drill. Source: review. Verified against the iPhone
