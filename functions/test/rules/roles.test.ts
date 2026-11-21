@@ -221,6 +221,13 @@ describe("ending a search: command closes it with one of three reasons", () => {
     await assertFails(setDoc(doc(db, "incidents/I1"), { status: "open", closedReason: "found" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
   });
+  it("an open incident that already carries a reason (copied from an ended seed) still takes ordinary edits", async () => {
+    await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open", closedReason: "training_ended" });
+    const db = dbAs(C, commandClaims);
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { name: "Drill 2" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), end("found"), { merge: true }));
+  });
   it("an ended search keeps its reason: it cannot be edited or reopened", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed", closedReason: "suspended" });
     const db = dbAs(C, commandClaims);
