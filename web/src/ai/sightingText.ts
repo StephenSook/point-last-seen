@@ -47,11 +47,12 @@ export function sightingTextParams(): HybridParams {
 type Reply = { text: string; inferenceSource: string | undefined };
 
 /**
- * How long a note read on this laptop may take before the form gives up and asks for the fields by hand: the photo
- * read's limit. Measured on Chrome's built-in model: a first session took 11.7 s; an image read's 95th percentile
- * was 31 s. A model download that is still running is never cancelled; only the reply is given up on.
+ * How long a note read on this laptop may take before the form gives up and asks for the fields by hand. Measured on
+ * Chrome's built-in model on a fast Mac, a page's first note read took 27.9 s and later ones 2 to 3 s
+ * (docs/evidence/web/2026-11-21-note-read-chrome.json), so a slower laptop's first read needs far more than 30 s.
+ * A model download that is still running is never cancelled; only the reply is given up on.
  */
-export const NOTE_READ_TIMEOUT_MS = 30_000;
+export const NOTE_READ_TIMEOUT_MS = 90_000;
 
 export type SightingTextDeps = {
   available: (options: LanguageModelCreateOptions) => Promise<boolean>;

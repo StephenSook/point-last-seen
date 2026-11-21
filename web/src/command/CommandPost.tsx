@@ -434,7 +434,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const suggest = (): Promise<WordedPlan> => {
     if (!draft) return Promise.reject(new Error("no draft"));
-    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb);
+    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb, draft.assignments.map((a) => a.teamId));
     return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: REPLY_TIMEOUT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
       // A model asked whose answer was not used is traced on its own, so it is never hidden behind the fixed wording.
       if (w.attempt) traced(w.attempt.route);

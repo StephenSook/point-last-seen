@@ -36,7 +36,7 @@ const DRAFT: PlanDraft = {
 
 async function measure(): Promise<object> {
   const app = initializeApp(readEnv(import.meta.env).firebase, "wording-measure");
-  const asked = wordingOnDeviceGenerator(getAI(app, { backend: new GoogleAIBackend() }));
+  const asked = wordingOnDeviceGenerator(getAI(app, { backend: new GoogleAIBackend() }), DRAFT.assignments.map((a) => a.teamId));
   // The raw reply, so a rejected wording says why (the command post keeps only the kind of failure).
   let raw = "";
   let replyMs = 0;

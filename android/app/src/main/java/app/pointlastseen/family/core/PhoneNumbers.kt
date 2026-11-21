@@ -64,9 +64,10 @@ object PhoneNumbers {
     )
 
     // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
-    // A comma (with up to two spaces around it, and a minus after), or a minus with a space before it: a bare minus
-    // between two decimals (44.2071-23.4567) is a dotted number, not a pair.
-    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{1,2}-""")
+    // A comma (with up to two spaces around it, and a minus after), a semicolon, bullet, middle dot, bar or slash only
+    // with a minus after it (two dotted numbers across a slash, 020.79460958 / 020.79460959, are no pair), or a minus
+    // with a space before it: a bare minus between two decimals (44.2071-23.4567) is a dotted number, not a pair.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{0,2}[;\u2022\u00B7|/][ \n]{0,2}-|[ \n]{1,2}-""")
     private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
     private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
     private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
@@ -182,11 +183,14 @@ object PhoneNumbers {
         fun len(i: Int) = parts[i].end - parts[i].start
         fun text(i: Int) = s.substring(parts[i].start, parts[i].end)
         fun value(i: Int): Int? = text(i).takeIf { t -> t.all { it in '0'..'9' } }?.toIntOrNull()
+        fun ascii(i: Int) = text(i).all { it in '0'..'9' }
         fun written(i: Int) = i in parts.indices && parts[i].written
         fun isDay(i: Int) = written(i) && len(i) <= 2 && (value(i) ?: 0) in 1..31
         fun isYear(i: Int) = written(i) && len(i) == 4 && (value(i) ?: 0) in 1900..2100
         fun degrees(whole: Int, frac: Int, max: Int): Boolean {
             if (!written(whole) || !written(frac) || gap(whole, frac) != "." || len(whole) > 3 || len(frac) !in 4..8) return false
+            // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
+            if (text(whole).length > 1 && text(whole).startsWith("0")) return false
             val v = "${text(whole)}.${text(frac)}".toDoubleOrNull() ?: return false
             return v <= max
         }
@@ -196,6 +200,8 @@ object PhoneNumbers {
         // Month-name dates (from the first digit part to the last, the month inside) and times (hour, minutes).
         val monthDates = mutableListOf<IntRange>()
         val times = mutableListOf<IntRange>()
+        // The whole part of each radio frequency candidate (its fraction is the next part).
+        val frequencies = mutableSetOf<Int>()
         for (i in parts.indices) {
             if (!parts[i].written) {
                 if (word(s, parts[i]) !in MONTHS) continue
@@ -227,12 +233,36 @@ object PhoneNumbers {
             ) {
                 kept += i..(i + 3)
             }
+            // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3
+            // digits, not part of a dotted chain (404.555.0142) and not after a "+". Kept below only in a run of frequencies.
+            if (written(i + 1) && gap(i, i + 1) == "." && len(i) <= 3 && len(i + 1) == 3 && ascii(i) && ascii(i + 1) &&
+                !text(i).startsWith("0") && (value(i) ?: -1) in 25..999 &&
+                !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == ".") && !(written(i + 2) && gap(i + 1, i + 2) == ".") &&
+                !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
+            ) {
+                frequencies += i
+            }
             if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&
                 text(i - 1) in STATES && gap(i - 1, i) == " "
             ) {
                 kept += i..(i + 1)
             }
         }
+        // A frequency is search information only in a run made of nothing but frequencies: joined anywhere in its run to
+        // other digits (404.555-0142 #123, 404.555 100.142 1234567) it could be part of a phone number, so it goes with the
+        // run. Candidates with a joined neighbour outside the set drop out until none does.
+        var live: Set<Int> = frequencies
+        while (true) {
+            val inFrequency = live.flatMap { listOf(it, it + 1) }.toSet()
+            val alone = { inside: Int, outside: Int ->
+                outside !in parts.indices || outside in inFrequency ||
+                    !joins(s, parts[minOf(inside, outside)], parts[maxOf(inside, outside)])
+            }
+            val next = live.filter { alone(it, it - 1) && alone(it + 1, it + 2) }.toSet()
+            if (next.size == live.size) break
+            live = next
+        }
+        for (w in live) kept += w..(w + 1)
         // Dates are found in order, so a date can overlap only the one before or after it in the list.
         val written = dates.filterIndexed { k, d ->
             !(k > 0 && dates[k - 1].last >= d.first) && !(k + 1 < dates.size && dates[k + 1].first <= d.last)

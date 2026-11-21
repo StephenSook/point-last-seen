@@ -2,9 +2,9 @@
 // line from the Android family app (android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt) and
 // checked against shared/test-vectors/phone-numbers.json. Seven or more digits in a row are a number: written
 // digits (any script, full-width folded, Chinese numerals, circled and other number characters) and spoken digit
-// words count alike, joined only by separators (spaces, - . , ( ) / or a dash, any number of them; a line break
-// with its indent counts as one, and accents or joiners in a gap count as nothing) and with an optional leading
-// + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
+// words count alike, joined by any separators (spaces, punctuation and symbols, any number of them, but never ":"
+// "%" or "°", which mark a time, a percent or a degree; a line break with its indent counts as one, and accents or
+// joiners in a gap count as nothing) and with an optional leading + or (. Report numbers (times, minutes, segments, searchers, percents) are far shorter, so they stay.
 //
 // Search information made of digits can sit inside such a run: a written date, a time, a coordinate pair, a ZIP+4
 // code after a state, a month-name date. It stays only when the rest of the run is nothing or whole numbers of
@@ -53,8 +53,10 @@ const STREETS = new Set(["ave", "avenue", "st", "street", "rd", "road", "blvd", 
 const STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR", "GU", "VI"]);
 
 // Matched against a gap after flat(), so a space is " " and a line break "\n". A comma (with up to two spaces around
-// it, and a minus after), or a minus with a space before it: a bare minus between two decimals is a dotted number.
-const COORDINATE_GAP = /^(?:[ \n]{0,2},[ \n]{0,2}-?|[ \n]{1,2}-)$/;
+// it, and a minus after), a semicolon, bullet, middle dot, bar or slash with a minus after it (two decimals across one
+// of those with no minus can be two phone numbers: 020.79460958 / 020.79460959), or a minus with a space before it: a
+// bare minus between two decimals is a dotted number.
+const COORDINATE_GAP = /^(?:[ \n]{0,2},[ \n]{0,2}-?|[ \n]{0,2}[;\u2022\u00b7|/][ \n]{0,2}-|[ \n]{1,2}-)$/;
 const MONTH_DAY_GAP = /^\.?[ \n]{1,2}$/;
 const DAY_MONTH_GAP = /^[ \n]{1,2}$/;
 const YEAR_GAP = /^,?[ \n]{1,2}$/;
@@ -181,9 +183,12 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   const degrees = (whole: number, frac: number, max: number) => {
     if (!written(whole) || !written(frac) || gap(whole, frac) !== "." || len(whole) > 3 || len(frac) < 4 || len(frac) > 8) return false;
     if (!isAsciiNumber(text(whole)) || !isAsciiNumber(text(frac))) return false;
+    // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
+    if (text(whole).length > 1 && text(whole).startsWith("0")) return false;
     return Number(`${text(whole)}.${text(frac)}`) <= max;
   };
   const kept = new Set<number>();
+  const frequencies: number[] = [];
   const dates: Span[] = [];
   const monthDates: Span[] = [];
   const times: Span[] = [];
@@ -213,10 +218,35 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
     if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.test(flat(gap(i + 1, i + 2), true)) && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
       for (const j of range(i, i + 3)) kept.add(j);
     }
+    // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3 digits,
+    // not part of a dotted chain (404.555.0142) and not after a "+". Kept below only in a run of frequencies.
+    if (written(i + 1) && gap(i, i + 1) === "." && len(i) <= 3 && len(i + 1) === 3 && isAsciiNumber(text(i)) && isAsciiNumber(text(i + 1))
+      && !text(i).startsWith("0") && between(Number(text(i)), 25, 999)
+      && !(i > 0 && parts[i - 1]!.digits > 0 && gap(i - 1, i) === ".") && !(written(i + 2) && gap(i + 1, i + 2) === ".")
+      && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
+      frequencies.push(i);
+    }
     if (len(i) === 5 && written(i + 1) && gap(i, i + 1) === "-" && len(i + 1) === 4 && i > 0 && !parts[i - 1]!.written && STATES.has(text(i - 1)) && gap(i - 1, i) === " ") {
       kept.add(i);
       kept.add(i + 1);
     }
+  }
+  // A frequency is search information only in a run made of nothing but frequencies: joined anywhere in its run to other
+  // digits (404.555-0142 #123, 404.555 0.142 1234567) it could be part of a phone number, so it goes with the run.
+  // Candidates with a joined neighbour outside the set drop out until none does.
+  let live = frequencies;
+  for (;;) {
+    const inFrequency = new Set(live.flatMap((i) => [i, i + 1]));
+    const alone = (inside: number, outside: number) =>
+      outside < 0 || outside >= parts.length || inFrequency.has(outside)
+      || !joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!);
+    const next = live.filter((i) => alone(i, i - 1) && alone(i + 1, i + 2));
+    if (next.length === live.length) break;
+    live = next;
+  }
+  for (const i of live) {
+    kept.add(i);
+    kept.add(i + 1);
   }
   // Dates are found in order, so a date can overlap only the one before or after it in the list; overlaps cancel.
   const writtenDates = dates.filter((d, k) => !(k > 0 && dates[k - 1]!.last >= d.first) && !(k + 1 < dates.length && dates[k + 1]!.first <= d.last));
@@ -301,9 +331,19 @@ function isDate(s: string, a: Part, b: Part, c: Part): boolean {
   return between(x, 1, 31) && between(y, 1, 31) && (between(x, 1, 12) || between(y, 1, 12));
 }
 
-/** What may sit between the parts of one number: spaces or - . , ( ) / or dashes, any number of them, read after flat(). */
+// The marks that never join a number: a time (14:03), a percent (45%) and a degree (33.7490°) are search information.
+// Every other mark joins, so 404|555|0142 and 404;555;0142 are removed; a coordinate pair or a radio frequency between
+// such marks stays through its own span (searchSpans).
+const NOT_A_SEPARATOR = ":%°";
+
+/**
+ * What may sit between the parts of one number, read after flat(): anything but a mark in NOT_A_SEPARATOR, any amount
+ * of it. A gap holds no letter or digit (those are parts), so every space, line break, punctuation mark and symbol
+ * joins: - . , ( ) / and the dashes, and also a middle dot, a hyphenation point, a bullet, an underscore, a star or a
+ * bracket.
+ */
 function onlySeparators(s: string): boolean {
-  return [...flat(s)].every((c) => c === " " || c === "\n" || "-.,()/".includes(c) || DASHES.includes(c));
+  return ![...flat(s)].some((c) => NOT_A_SEPARATOR.includes(c));
 }
 
 /**
