@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the iPhone's cloud route needs iOS 27
+- What: README and LIMITS now say plainly: "The iPhone's cloud route needs iOS 27; on iOS 26 it reads on
+  the device, then by rules." LIMITS adds why (Gemini runs in a Foundation Models session, which iOS 26
+  does not have) and that the iOS 26.5 simulator has no on-device model to run.
+- Source: review (minimum iOS version).
+- Verified: the sentence matches the code (the reader keeps the cloud off below iOS 27); hygiene passes.
+
 ### fix(ios): the app installs on iOS 26
 - What: the deployment target is iOS 26.0 (it was 27.0), so a phone that has not updated to iOS 27 can
   install the app. Apple's on-device model needs only iOS 26; on iOS 26 the cloud route is off, so a read
