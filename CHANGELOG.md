@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
+  lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
+  probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
+  probe tests pass.
 - functions test: the day's judge counter, which anyone may read, holds only its count and cap start after start.
   Source: review (judge quota probe, publicly readable counter). Verified: the case passes, and fails when the counter
   write gains another field.

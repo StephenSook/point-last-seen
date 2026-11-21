@@ -42,8 +42,11 @@ def test_a_malformed_doc_is_a_failure_not_a_pass():
     assert jq.evaluate({"fields": {"count": {"stringValue": "x"}}}, 50)[1] == ["the day's count is missing or not a number"]
 
 
-def test_the_deployed_cap_in_the_doc_wins_over_the_checkout():
+def test_the_lower_of_the_stored_and_checkout_caps_counts():
+    # A lower cap deployed earlier today (stored with the count) is seen even when the checkout is higher.
     assert jq.evaluate(doc(40, cap=45), 50) == (5, ["only 5 of 45 judge practice searches are left today (alarm below 10)"])
+    # A cap lowered today in the checkout is seen before the next start updates the stored one.
+    assert jq.evaluate(doc(40, cap=50), 40) == (0, ["only 0 of 40 judge practice searches are left today (alarm below 10)"])
     assert jq.evaluate({"fields": {"count": {"integerValue": "1"}, "cap": {"stringValue": "x"}}}, 50)[1] == ["the day's cap is not a number"]
 
 

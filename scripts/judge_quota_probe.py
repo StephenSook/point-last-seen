@@ -43,8 +43,9 @@ def retired(now: datetime) -> bool:
 
 
 def evaluate(d, cap: int) -> tuple[int, list[str]]:
-    """Searches left today and the problems: none used when there is no doc yet. The cap startJudgeSession wrote
-    with the count (the deployed one) wins over the checkout's."""
+    """Searches left today and the problems: none used when there is no doc yet. The lower of the cap
+    startJudgeSession stored with the count and the checkout's counts: a lower cap deployed earlier today is seen,
+    and so is a cap lowered today before the next start stores it."""
     if d is None:
         return cap, []
     fields = d.get("fields", {})
@@ -55,7 +56,7 @@ def evaluate(d, cap: int) -> tuple[int, list[str]]:
         deployed = fields["cap"].get("integerValue")
         if deployed is None or not str(deployed).isdigit():
             return 0, ["the day's cap is not a number"]
-        cap = int(deployed)
+        cap = min(cap, int(deployed))
     left = max(cap - int(raw), 0)
     return left, ([] if left >= MIN_LEFT else [f"only {left} of {cap} judge practice searches are left today (alarm below {MIN_LEFT})"])
 
