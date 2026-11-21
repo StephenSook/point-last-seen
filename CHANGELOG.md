@@ -77,6 +77,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
+  report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
+  --check passes; the numbers are the script's output, not typed.
 - scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
   route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
   (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
