@@ -2292,6 +2292,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: live suite after deploy (a 0 px map that no CI check could see).
 - Verified: it failed at both widths on the build that drew the 0 px map (`position: relative`), and passes on the build with the split reverted, with every no-backend check (45).
 
+### fix(theme): a disabled outline button reads at 4.5:1 on a raised panel
+- What: `.btn.ghost:disabled` used fg-4 text, 4.33:1 on bg-2 (the sighting form and photo panels), a pair the theme never allows. It now uses fg-3 text (well over 4.5:1) with a dashed edge, so it still reads as off.
+- Source: UI review (disabled outline buttons on bg-2).
+- Verified: a new harness check, `e2e/harness/disabledGhost.spec.ts` (text-to-surface ratio and edge style from computed styles), failed at 4.33 first and now passes with the whole harness (204); typecheck, web unit suite and the hygiene guard pass.
+
 ### fix(map): an empty map says it is waiting for the search area
 - What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
 - Source: UI review (too many words on the working screen).
