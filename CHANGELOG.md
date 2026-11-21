@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- schemas: the content report's Android type is checked for parity (no longer pending), now that
+  android/.../family/data/ContentReport.kt is on main. Source: review (content reports). Verified:
+  check_schema_parity.py reports "ok content-report # android: 7 fields" and 0 failures across 14 schemas; the web and
+  iPhone types stay pending until they land.
 - rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
   generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
   500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
