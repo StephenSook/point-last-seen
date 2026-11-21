@@ -91,10 +91,16 @@ export const deleteEndedDrillsJob = onSchedule(
   },
 );
 
-/** recordDrillClosed (Firestore trigger on incident updates): writes the server's closedAt when a drill becomes closed. */
-export const recordDrillClosedTrigger = onDocumentUpdated({ document: "incidents/{incidentId}", region: "us-central1" },
+/**
+ * recordDrillClosed (Firestore trigger on incident updates): when a drill becomes closed, writes closedAt, the close
+ * write's own commit time, once and only if absent (a transaction). That makes a repeated delivery harmless, so retry
+ * is on: a transient failure is tried again instead of leaving the drill with no closedAt.
+ */
+export const recordDrillClosedTrigger = onDocumentUpdated({ document: "incidents/{incidentId}", region: "us-central1", retry: true },
   async event => {
-    await recordDrillClosed(getFirestore(), event.params.incidentId, event.data?.before.data(), event.data?.after.data());
+    const after = event.data?.after;
+    if (!after) return;
+    await recordDrillClosed(getFirestore(), event.params.incidentId, event.data?.before.data(), after.data(), after.updateTime);
   });
 
 /**

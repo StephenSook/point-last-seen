@@ -70,6 +70,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention, after a second-model review: a purge record (ops/drillPurges/items/{id}) is written before anything
+  is deleted and cleared only when every step succeeded, so a run that stops partway, even after the incident root is
+  gone, is finished by the next one; the drill's join codes are deleted; a last media sweep after the incident is gone
+  catches an upload made during the purge; each sign-in is read again just before deletion and kept if it joined
+  another incident; a deleteUsers result with failures keeps the record. closedAt is the close write's commit time,
+  set in a transaction only if absent, and the trigger retries. Source: review (second-model). Verified: 9 new
+  failure-injection tests (resume from the record with the root gone, failed sign-in deletes, a sign-in that moved, a
+  late upload, a repeated close event) failed first, then pass; functions suite 275; ci-local gates, ts and rules
+  pass.
 - LIMITS gains Drill data retention (what is deleted and when, the server's closedAt, the orphaned anonymous sign-ins,
   the keep-list, the iPhone practice drill staying on the phone); the production checklist gets the job's row. Source:
   review (drill retention). Verified against functions/src/retention.ts, firestore.rules and

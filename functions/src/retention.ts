@@ -1,18 +1,24 @@
 // Drill retention. A drill's data is deleted 30 days after the search command closes it:
-// - closedAt is server-owned (the rules refuse it from any client) and written by recordDrillClosed when a drill's
-//   status becomes closed. Closing is final in the rules, so closedAt is never cleared.
-// - deleteEndedDrills (daily) deletes each drill whose closedAt is more than 30 days old: its media prefixes first,
-//   then the incident with everything under it, then the anonymous sign-ins whose only incident it was. A drill whose
-//   media cannot be deleted is left whole for the next run. The keep-list protects the drills the judge page and the
-//   film use. A drill closed before closedAt existed has none and is never deleted by this job.
-import type { Auth } from "firebase-admin/auth";
-import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
+// - closedAt is server-owned (the rules refuse it from any client) and written by recordDrillClosed, in a
+//   transaction and only if absent, with the close write's own commit time, so a retried or repeated delivery of the
+//   close event never moves it. Closing is final in the rules, so closedAt is never cleared.
+// - deleteEndedDrills (daily) purges each drill whose closedAt is more than 30 days old. It first writes a purge
+//   record outside the incident (ops/drillPurges/items/{id}), then deletes the media prefixes, the drill's join codes,
+//   the incident with everything under it, a last media sweep (an upload made during the purge; with the incident
+//   gone the rules refuse new ones), and the anonymous sign-ins whose only incident it was, each re-read just before
+//   it is deleted. The record is cleared only when every step succeeded, so a run that fails partway is finished by
+//   the next one from the record, even when the incident root is already gone. The keep-list protects the drills the
+//   judge page and the film use. A drill closed before closedAt existed has none and is never deleted by this job.
+import type { Auth, UserRecord } from "firebase-admin/auth";
+import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { getStorage } from "firebase-admin/storage";
 
 // The bucket type the Admin SDK hands out (as in media.ts).
 type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 
 export const DRILL_RETENTION_MS = 30 * 86_400_000;
+/** Where an unfinished purge is recorded, outside the incident it deletes. */
+export const PURGES = "ops/drillPurges/items";
 // The prefixes a drill's media live under (as in media.ts).
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
 // drill-dev-1: the development drill; drill-judge-1: the judge sandboxes' seed; drill-kennesaw-1: the drill on film,
@@ -30,69 +36,112 @@ export function keptUntil(incidentId: string): number {
 
 type Doc = Record<string, unknown> | undefined;
 
-/** The closedAt write for an incident update, or null: only a drill moving into closed, and only once. */
-export function closedAtPatch(before: Doc, after: Doc): { closedAt: FieldValue } | null {
-  if (!before || !after || after["mode"] !== "drill") return null;
-  if (before["status"] === "closed" || after["status"] !== "closed" || after["closedAt"] !== undefined) return null;
-  return { closedAt: FieldValue.serverTimestamp() };
+/** Whether an incident update moved a drill into closed. */
+export function closesDrill(before: Doc, after: Doc): boolean {
+  return !!before && !!after && after["mode"] === "drill" && before["status"] !== "closed" && after["status"] === "closed";
 }
 
-/** Writes closedAt when this update closed a drill. Returns whether it wrote. */
-export async function recordDrillClosed(db: Firestore, incidentId: string, before: Doc, after: Doc): Promise<boolean> {
-  const patch = closedAtPatch(before, after);
-  if (!patch) return false;
-  await db.doc(`incidents/${incidentId}`).update(patch);
-  return true;
+/**
+ * Writes closedAt (the close write's commit time) when this update closed a drill and the incident, read in a
+ * transaction, is still a closed drill with no closedAt. Returns whether it wrote.
+ */
+export async function recordDrillClosed(db: Firestore, incidentId: string, before: Doc, after: Doc, closedAt: Timestamp): Promise<boolean> {
+  if (!closesDrill(before, after)) return false;
+  const ref = db.doc(`incidents/${incidentId}`);
+  return db.runTransaction(async tx => {
+    const now = await tx.get(ref);
+    if (!now.exists || now.get("mode") !== "drill" || now.get("status") !== "closed" || now.get("closedAt") !== undefined) return false;
+    tx.update(ref, { closedAt });
+    return true;
+  });
 }
 
 export type RetentionResult = { deleted: string[]; kept: string[]; failed: string[]; files: number; users: number };
+type RetentionAuth = Pick<Auth, "listUsers" | "getUsers" | "deleteUsers">;
+
+const anonymous = (u: UserRecord) => u.providerData.length === 0 && !u.email && !u.phoneNumber;
+const incOf = (u: UserRecord) => String(u.customClaims?.["inc"] ?? "");
+
+async function sweepMedia(bucket: Pick<Bucket, "getFiles">, id: string, dryRun: boolean): Promise<number> {
+  let n = 0;
+  for (const prefix of MEDIA_PREFIXES) {
+    const [files] = await bucket.getFiles({ prefix: `${prefix}/${id}/` });
+    n += files.length;
+    if (!dryRun) await Promise.all(files.map(f => f.delete({ ignoreNotFound: true })));
+  }
+  return n;
+}
+
+/** Every anonymous sign-in whose incident is one of ids, from one pass over the user list. */
+async function anonymousMembers(auth: RetentionAuth, ids: ReadonlySet<string>): Promise<Map<string, string[]>> {
+  const by = new Map<string, string[]>();
+  if (ids.size === 0) return by;
+  let page: string | undefined;
+  do {
+    const r = await auth.listUsers(1000, page);
+    for (const u of r.users) {
+      const id = incOf(u);
+      if (anonymous(u) && ids.has(id)) by.set(id, [...(by.get(id) ?? []), u.uid]);
+    }
+    page = r.pageToken;
+  } while (page);
+  return by;
+}
 
 /**
- * Deletes every drill closed more than 30 days before nowMs that is not on the keep-list, with its media and the
- * anonymous sign-ins that belonged only to it. With dryRun, it lists the same and changes nothing.
+ * Deletes the sign-ins in uids that, read again now, are still anonymous and still belong to incident id. Returns
+ * how many were deleted (or would be, in a dry run); throws when any delete failed, so the purge record stays.
  */
-export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "getFiles">, auth: Pick<Auth, "listUsers" | "deleteUsers">,
+async function deleteMembers(auth: RetentionAuth, id: string, uids: readonly string[], dryRun: boolean): Promise<number> {
+  let deleted = 0;
+  for (let i = 0; i < uids.length; i += 100) {
+    const { users } = await auth.getUsers(uids.slice(i, i + 100).map(uid => ({ uid })));
+    const still = users.filter(u => anonymous(u) && incOf(u) === id).map(u => u.uid);
+    if (dryRun || still.length === 0) {
+      deleted += still.length;
+      continue;
+    }
+    const r = await auth.deleteUsers(still);
+    deleted += r.successCount;
+    if (r.failureCount > 0) throw new Error(`${r.failureCount} sign-in delete(s) failed`);
+  }
+  return deleted;
+}
+
+/**
+ * Purges every drill closed more than 30 days before nowMs that is not on the keep-list, and finishes every purge a
+ * previous run left recorded. With dryRun, it lists the same and writes nothing.
+ */
+export async function deleteEndedDrills(db: Firestore, bucket: Pick<Bucket, "getFiles">, auth: RetentionAuth,
   nowMs: number, opts: { dryRun?: boolean } = {}): Promise<RetentionResult> {
+  const dryRun = opts.dryRun === true;
   const out: RetentionResult = { deleted: [], kept: [], failed: [], files: 0, users: 0 };
-  const due: string[] = [];
+  const due = new Set((await db.collection(PURGES).listDocuments()).map(d => d.id));
   for (const doc of (await db.collection("incidents").where("mode", "==", "drill").get()).docs) {
     const at = doc.get("closedAt");
     if (doc.get("status") !== "closed" || !(at instanceof Timestamp) || at.toMillis() >= nowMs - DRILL_RETENTION_MS) continue;
     if (keptUntil(doc.id) > nowMs) out.kept.push(doc.id);
-    else due.push(doc.id);
+    else due.add(doc.id);
   }
-  for (const id of due.sort()) {
+  // The keep-list wins over a recorded purge too.
+  for (const id of [...due]) if (keptUntil(id) > nowMs) due.delete(id);
+  const members = await anonymousMembers(auth, due);
+  for (const id of [...due].sort()) {
     try {
-      // Media first: if any of it cannot be deleted, the incident stays, so the next run finds the drill again.
-      for (const prefix of MEDIA_PREFIXES) {
-        const [files] = await bucket.getFiles({ prefix: `${prefix}/${id}/` });
-        out.files += files.length;
-        if (!opts.dryRun) await Promise.all(files.map(f => f.delete({ ignoreNotFound: true })));
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).set({ startedAt: Timestamp.fromMillis(nowMs) }, { merge: true });
+      out.files += await sweepMedia(bucket, id, dryRun);
+      if (!dryRun) {
+        const codes = await db.collection("joinCodes").where("incidentId", "==", id).get();
+        await Promise.all(codes.docs.map(c => c.ref.delete()));
+        await db.recursiveDelete(db.doc(`incidents/${id}`));
+        out.files += await sweepMedia(bucket, id, false);
       }
-      if (!opts.dryRun) await db.recursiveDelete(db.doc(`incidents/${id}`));
+      out.users += await deleteMembers(auth, id, members.get(id) ?? [], dryRun);
+      if (!dryRun) await db.doc(`${PURGES}/${id}`).delete();
       out.deleted.push(id);
     } catch {
       out.failed.push(id);
     }
-  }
-  // A sign-in belongs to one incident (its inc claim). Only anonymous ones are deleted (no provider, no email, no phone
-  // number): any other is a person's account, kept even when its incident is gone.
-  const gone = new Set(out.deleted);
-  const orphans: string[] = [];
-  if (gone.size > 0) {
-    let page: string | undefined;
-    do {
-      const r = await auth.listUsers(1000, page);
-      for (const u of r.users) {
-        const anonymous = u.providerData.length === 0 && !u.email && !u.phoneNumber;
-        if (anonymous && gone.has(String(u.customClaims?.["inc"] ?? ""))) orphans.push(u.uid);
-      }
-      page = r.pageToken;
-    } while (page);
-  }
-  out.users = orphans.length;
-  if (!opts.dryRun) {
-    for (let i = 0; i < orphans.length; i += 1000) await auth.deleteUsers(orphans.slice(i, i + 1000));
   }
   out.kept.sort();
   return out;
