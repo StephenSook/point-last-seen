@@ -82,6 +82,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs(limits): removing a member. Command removes a searcher or family member (removeMember): its app can no longer
+  read or write the search, open screens included (measured live: two open listeners refused within a second), and
+  that account cannot rejoin. The four remaining limits: a new sign-in rejoins until the role's code is replaced
+  (rotateJoinCode, which stops every older code of that role); media links already received keep working until the
+  drill's media is deleted; a clip upload in progress can finish within the hour; and an account that joined before
+  membership records began and has since joined another search cannot be removed for up to an hour. The Leave
+  paragraph no longer says command has no way to remove a member. Source: review (member removal, approved wording).
 - rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
   command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
   Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
