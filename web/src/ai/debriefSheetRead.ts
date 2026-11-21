@@ -94,6 +94,9 @@ export function cleanSheet(raw: unknown, ctx: SheetContext): SheetRead | null {
 
 type Reply = { text: string; inferenceSource: string | undefined };
 
+/** Why a sheet was not read: no on-device model, a reply not made on this laptop, an unreadable reply, or a slow one. */
+export type SheetRefusal = "no-on-device-model" | "not-on-device" | "invalid" | "timeout";
+
 export type SheetDeps = {
   available: (options: LanguageModelCreateOptions) => Promise<boolean>;
   generate: (jpegBase64: string) => Promise<Reply>;
@@ -105,7 +108,7 @@ export async function readDebriefSheetOnDevice(
   jpegBase64: string,
   ctx: SheetContext,
   deps: SheetDeps,
-): Promise<{ read: SheetRead } | { refused: "no-on-device-model" | "not-on-device" | "invalid" | "timeout" }> {
+): Promise<{ read: SheetRead } | { refused: SheetRefusal }> {
   let ok = false;
   try {
     ok = await deps.available(DEBRIEF_SHEET_OPTS);

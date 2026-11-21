@@ -24,6 +24,7 @@ const ALLOWED = new Set([
   "data/debriefs.test.ts",
   "data/debriefScope.test.ts",
   "command/DebriefSection.tsx",
+  "command/DebriefPaperRead.tsx",
   "command/CommandPost.tsx",
   "harness/debriefHarness.tsx",
   // The paper sheet's on-device read: it turns a photo into the debrief form's boxes, and saves nothing itself.

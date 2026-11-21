@@ -178,6 +178,8 @@ button, input, select { font: inherit; color: inherit; }
 .layer select { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
 .layer label { display: grid; gap: 4px; color: var(--fg-2); }
 .layer label.check { display: flex; gap: 6px; align-items: center; }
+.debrief-paper-field { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--fg-4); }
+.debrief-camera { width: 100%; background: var(--bg-0); }
 .report-pin { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
 .beat-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
