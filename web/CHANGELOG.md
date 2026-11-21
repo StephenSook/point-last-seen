@@ -2302,6 +2302,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (too many words on the working screen).
 - Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.
 
+### test(web): the live suite's sign-in step no longer waits for caches the join page never writes
+- What: `web/e2e/auth.setup.ts` waits for the Remote Config and Performance Monitoring caches before saving the session, but only the joined command post starts either. Run without the drill fixture (no join), the step always failed with "Remote Config's fetch was never stored in this browser". It now waits for them only when it joined, and saves the session at once otherwise.
+- Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
+- Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
+
 ### feat(data): the write and the line for ending a search
 - What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
 - Source: review (an "End this search" control for command).
