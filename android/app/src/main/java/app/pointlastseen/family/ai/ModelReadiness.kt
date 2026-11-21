@@ -35,20 +35,26 @@ class ModelReadiness(
     private var state = ModelState()
     private var latestCheck = 0L
     private var launchChecked = false
+    // A refresh asked for the launch decision; whichever check is latest when it ends makes it.
+    private var launchWanted = false
+    // The newest check that has finished, and its answer: a check that ends after a newer one routes on that.
+    private var finishedCheck = 0L
+    private var finishedStatus = DeviceModelStatus.UNKNOWN
     private var downloadActive = false
 
     fun refresh() {
+        launchWanted = true
         val mine = ++latestCheck
-        scope.launch { checkAs(mine, launch = true) }
+        scope.launch { checkAs(mine) }
     }
 
     /**
      * A fresh check, for a note about to be routed: the shown status can be stale (another app's download of
      * the shared model ends with no word to this app, or the model was removed). Returns the status to route on.
      */
-    suspend fun current(): DeviceModelStatus = checkAs(++latestCheck, launch = false)
+    suspend fun current(): DeviceModelStatus = checkAs(++latestCheck)
 
-    private suspend fun checkAs(mine: Long, launch: Boolean): DeviceModelStatus {
+    private suspend fun checkAs(mine: Long): DeviceModelStatus {
         val status = try {
             check()
         } catch (e: CancellationException) {
@@ -56,12 +62,16 @@ class ModelReadiness(
         } catch (e: Exception) {
             DeviceModelStatus.UNKNOWN
         }
+        if (mine > finishedCheck) {
+            finishedCheck = mine
+            finishedStatus = status
+        }
         // Only the most recently started check may update the screen or decide the launch download: an
         // older one finishing out of order (a resume check during a download, say) would put back a stale
-        // status, or use up the one automatic download on a stale answer.
-        if (mine != latestCheck) return shown(status)
+        // status, or use up the one automatic download on a stale answer. It routes on the newest answer.
+        if (mine != latestCheck) return shown(finishedStatus)
         set(state.copy(status = shown(status)))
-        if (launch && !launchChecked) {
+        if (launchWanted && !launchChecked) {
             launchChecked = true
             if (status == DeviceModelStatus.DOWNLOADABLE && unmetered()) getModel()
         }

@@ -1,6 +1,8 @@
 package app.pointlastseen.family.ai
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -184,6 +186,42 @@ class ModelReadinessTest {
         assertEquals(DeviceModelStatus.DOWNLOADING, phone.seen.last().status)
         assertEquals(DeviceModelStatus.AVAILABLE, readiness.current())
         assertEquals(DeviceModelStatus.AVAILABLE, phone.seen.last().status)
+    }
+
+    @Test fun aSortDuringTheLaunchCheckStillStartsTheLaunchDownload() = runTest {
+        val first = CompletableDeferred<DeviceModelStatus>()
+        var calls = 0
+        var downloads = 0
+        val readiness = ModelReadiness(
+            this,
+            check = { if (++calls == 1) first.await() else DeviceModelStatus.DOWNLOADABLE },
+            download = { downloads++; flowOf(ModelDownload.Done) },
+            unmetered = { true },
+        ) {}
+        readiness.refresh()
+        launch { readiness.current() }
+        advanceUntilIdle()
+        first.complete(DeviceModelStatus.DOWNLOADABLE)
+        advanceUntilIdle()
+        assertEquals(1, downloads)
+    }
+
+    @Test fun aSortUsesTheNewestFinishedAnswerNotItsOwnStaleOne() = runTest {
+        val slow = CompletableDeferred<DeviceModelStatus>()
+        var calls = 0
+        val readiness = ModelReadiness(
+            this,
+            check = { if (++calls == 1) slow.await() else DeviceModelStatus.AVAILABLE },
+            download = { flowOf(ModelDownload.Done) },
+            unmetered = { false },
+        ) {}
+        val routed = async { readiness.current() }
+        advanceUntilIdle()
+        // The download finished meanwhile: a newer check already says the model is here.
+        readiness.refresh()
+        advanceUntilIdle()
+        slow.complete(DeviceModelStatus.DOWNLOADING)
+        assertEquals(DeviceModelStatus.AVAILABLE, routed.await())
     }
 
     @Test fun aCheckThatThrowsReadsAsUnknown() = runTest {
