@@ -15,6 +15,8 @@ test("the rail leads with what changed, the plan and the top segments; the rest 
   expect(lead).toEqual(expect.arrayContaining(["plan-h", "rank-h"]));
   const details = page.getByTestId("rail-details");
   await expect(details).not.toHaveAttribute("open", "");
+  // The family section draws when the family's questions arrive, which can be after the map's labels.
+  await expect(details.locator("#family-h")).toBeAttached({ timeout: 20_000 });
   const inside = await details.evaluate((el) => [...el.querySelectorAll("h2")].map((h) => h.id));
   for (const id of ["family-h", "model-h", "prior-h", "photos-h", "debrief-h"]) expect(inside, id).toContain(id);
   // The conditions stay in view until they are set; once set they move under Details and the summary reads them.
