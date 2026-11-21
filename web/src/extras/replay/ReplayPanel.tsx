@@ -4,7 +4,8 @@ import type { ExtrasMapLike } from "../types";
 import { framePlates } from "./framePlates";
 import { lastReportRoute, pendingLine, runCarriesRoutes, type ReplayData } from "./replayData";
 import { markTimes, nextMarkTime, playStops } from "./ruler";
-import { frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
+import { attachOutline, outlineCollection } from "./outline";
+import { changedSegments, frameKey, replayWindow, stateAt, type ReplayWindow } from "./stateAt";
 import { TimeRuler } from "./TimeRuler";
 import { attachTrail, legText, legs, trailCollections, trailOrder, trailPoints } from "./trail";
 import { usePlayback } from "./usePlayback";
@@ -44,8 +45,20 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
   const marks = useMemo(() => markTimes(data, w), [data, w]);
   const hasRoutes = useMemo(() => runCarriesRoutes(data.events), [data]);
   const order = useMemo(() => trailOrder(trailPoints(frame)), [frame]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const changed = useMemo(() => changedSegments(data, tMs), [data, w, key]);
   const [map, setMap] = useState<MapLibreMap | null>(null);
 
+  // The outline goes on before the trail, so the trail's dots sit on top of it.
+  useEffect(() => {
+    if (!map) return;
+    const outline = attachOutline(map as unknown as ExtrasMapLike);
+    return () => outline.remove();
+  }, [map]);
+  useEffect(() => {
+    if (!map) return;
+    attachOutline(map as unknown as ExtrasMapLike).set(outlineCollection(data.segments, changed));
+  }, [map, data, changed]);
   useEffect(() => {
     if (!map) return;
     const trail = attachTrail(map as unknown as ExtrasMapLike);
@@ -69,7 +82,12 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
     <div className="extras-replay" data-phase={frame.phase}>
       {data.drillLabel && <p className="drill extras-drill-line">{data.drillLabel}</p>}
       {/* data-frame: each segment's percent and place as handed to the map, so a check can pair them. */}
-      <div className="extras-replay-map" data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}>
+      {/* data-outlined: the segments outlined as changed by the latest report, so a check can read them. */}
+      <div
+        className="extras-replay-map"
+        data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}
+        data-outlined={changed.join(" ")}
+      >
         <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
       </div>
       {/* The time and the report count are the slider's one clock, so the facts line has no clock of its own. */}
@@ -81,6 +99,9 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
           </>
         ) : (
           <span data-testid="replay-not-stored">Earlier prior. The map for this time is not stored.</span>
+        )}
+        {changed.length > 0 && (
+          <span data-testid="replay-changed">{changed.length === 1 ? "1 segment changed, outlined" : `${changed.length} segments changed, outlined`}</span>
         )}
         {route && <span data-testid="replay-route">Last report: {route}</span>}
       </div>

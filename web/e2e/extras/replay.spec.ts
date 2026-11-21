@@ -81,6 +81,26 @@ test("a run with no route on any report shows no route line at any time", async 
   await expect(dialog.getByText("Route not reported")).toHaveCount(0);
 });
 
+test("the segments the latest report changed are outlined on the map and counted in words", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const dialog = await openReplay(page);
+  const map = dialog.locator(".extras-replay-map");
+  const changed = dialog.getByTestId("replay-changed");
+  // At the end: the last clue moved AB and AA by a point or more.
+  await expect(changed).toHaveText("2 segments changed, outlined");
+  await expect(map).toHaveAttribute("data-outlined", "AA AB");
+  // One report back: the confirmation of the sighting in BB.
+  await dialog.getByRole("button", { name: "Previous report" }).click();
+  await dialog.getByRole("button", { name: "Previous report" }).click();
+  await expect(map).toHaveAttribute("data-outlined", "AA BB");
+  // At the start no map is stored, so nothing is outlined.
+  const slider = dialog.getByRole("slider", { name: "Replay time" });
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await expect(changed).toHaveCount(0);
+  await expect(map).toHaveAttribute("data-outlined", "");
+});
+
 test("the slider works by keyboard and announces the time", async ({ page }) => {
   const dialog = await openReplay(page);
   const slider = dialog.getByRole("slider", { name: "Replay time" });
