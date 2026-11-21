@@ -19,4 +19,17 @@ import Testing
         #expect(same("33.7866, -84.3733 n\u{00FA}mero \u{200B}33.7866, -84.3733 ",
                      "33.7866, -84.3733 n\u{00FA}mero \u{200B}[number removed] "))
     }
+
+    /// The shared rule reads the note by code point too, so a mark glued to a word or a digit, a letter-number and the
+    /// gap before a street word read as on the web: each of these kept digits the web removes.
+    @Test(arguments: [
+        ("Call one\u{034F} 4:04 15:55", "Call [number removed]"),
+        ("Call triple\u{034F} 4:04 15:55", "Call [number removed]"),
+        ("Call 4:04 15:55. Call\u{034F} 33.1234, -84.5678", "Call [number removed]. Call\u{034F} [number removed]"),
+        ("Call 4:04 15:55 7th\u{0085}Ave", "Call 4:[number removed]th\u{0085}Ave"),
+        ("Call \u{10140} 4:04 15:55", "Call [number removed]"),
+    ])
+    func theSharedRuleReadsByCodePoint(input: String, output: String) {
+        #expect(same(input, output))
+    }
 }

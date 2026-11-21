@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the shared phone rule reads the note by code point
+- What: the shared phone rule now reads the note as the web and Android rules do. Parts are runs of code points (a
+  letter-number such as U+10140 is a digit), and a mark or selector a grapheme cluster would fold into a word or a
+  digit stays in the gap. A part's length is in UTF-16 units. A street ordinal's gap is Kotlin's whitespace, so
+  U+0085 is not one. The month, year and coordinate gaps are read flat (marks and format characters dropped, line
+  breaks one "\n", every other space " "). Five notes each kept digits the web removes, among them
+  "Call one<U+034F> 4:04 15:55", which the code-point run-of-times step had just made reach this rule.
+- Source: second review of the run-of-times port against the web rule.
+- Verified: the five inputs as tests failed before the change and pass after; 452 PLSCore tests pass; the web rule's
+  corpus (60,116 rows) still matches byte for byte; the run-of-times vectors file passes with none pending on the
+  iPhone, and the file adding five gaps pending on every platform passes too.
+
 ### fix(ios-core): the run-of-times step reads the note by code point
 - What: the run-of-times step now decides on the note's code points, with the web and Android rules' own parts
   (digits and words by code point, a spoken repeat counted, a street name's number apart), instead of the iPhone's
