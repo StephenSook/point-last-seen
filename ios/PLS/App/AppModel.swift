@@ -1026,8 +1026,11 @@ final class AppModel {
     private func journal(_ outcome: ReadOutcome, rawText: String, inputMethod: InputMethod, position: Position?,
                          mission: Mission, uid: String, identity: DeviceIdentity, store: EventStore,
                          submittedAt: Double, readDone: Double) -> Bool {
-        // The journal changed while the report was read (the practice drill ended): it goes nowhere.
-        guard store === self.store else { return false }
+        // The journal changed while the report was read (the practice drill ended), or the mission did
+        // (the searcher left, the token stopped naming it, another join): it goes nowhere. The same
+        // mission reloaded or with a new plan is still the same mission, so its report stays.
+        guard store === self.store, let current = self.mission, current.incidentId == mission.incidentId,
+              current.teamId == mission.teamId, current.owner == mission.owner else { return false }
         do {
             let context = OutcomeContext(
                 incidentId: mission.incidentId, teamId: mission.teamId, deviceId: uid, authorUid: uid,

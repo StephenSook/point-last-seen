@@ -4,6 +4,15 @@ import PLSCore
 import Testing
 @testable import PLS
 
+/// Auth whose token claims cannot be read: the loaded mission stays, so a test does not depend on the Auth user this
+/// simulator happens to hold.
+final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
+    func ensureSignedIn() async -> Bool { true }
+    func callJoin(_ payload: [String: String]) async throws -> JSONValue { throw JoinCallError.refused }
+    func refreshClaims() async throws -> [String: JSONValue] { throw JoinCallError.refused }
+    func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? { nil }
+}
+
 @MainActor
 @Suite struct AppModelTests {
     /// Without the cloud route (iOS 26) the live gate keeps the cloud off at every cloud dispatch, as the
@@ -115,7 +124,7 @@ import Testing
         let model = AppModel(signIn: signIn, uid: uid, measurements: FakeMeasurementWriter(), readReport: { text, situation, config, screen in
             log.events.append("read")
             return await ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: config, screen: screen).read(text, situation: situation)
-        })
+        }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("order-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -132,7 +141,7 @@ import Testing
     /// A photo model with a fake reader and a journal; the reader's answer is fixed per test.
     func photoModel(_ answer: PhotoReadResult, available: Bool = true) throws -> (AppModel, EventStore) {
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in answer }, photoReaderAvailable: { available })
+                             readPhoto: { _ in answer }, photoReaderAvailable: { available }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -179,6 +188,68 @@ import Testing
         #expect(model.problem == AppModel.photoReadFailed)
     }
 
+    @MainActor final class ModelBox { var model: AppModel? }
+
+    /// A read that finishes after the searcher left the search is dropped: nothing is journalled for that mission.
+    @Test func aPhotoReadThatOutlivesItsMissionIsDropped() async throws {
+        let box = ModelBox()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in
+                                 _ = await box.model?.leaveSearch()
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(model.mission == nil)
+        #expect(store.entries.isEmpty)
+    }
+
+    /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
+    @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
+        let box = ModelBox()
+        let mission = try quietMission()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in
+                                 await box.model?.load(mission)
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("reload-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(mission)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        #expect(store.entries.count == 1)
+    }
+
+    /// The same for a typed report.
+    @Test func aTypedReadThatOutlivesItsMissionIsDropped() async throws {
+        let box = ModelBox()
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 _ = await box.model?.leaveSearch()
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none", reason: .onDeviceDefault,
+                                                         latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        _ = await model.submit("Cleared AC", inputMethod: .typed)
+        #expect(store.entries.isEmpty)
+    }
+
     /// The photo button shows only when Apple's model can read photos here, in a drill that lets a model read.
     @Test func photosAreReadOnlyWhereAModelMayReadThem() async throws {
         let cap = PhotoDescription(showsPerson: false, object: "cap", color: .red, kind: .hat)
@@ -208,7 +279,7 @@ import Testing
             reading.segmentIds = ["AC"]
             reading.item = "blue coat"
             return ReadOutcome(reading: reading, route: route, validation: .ok, foundKindReason: FoundKind.reason)
-        })
+        }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("found-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))

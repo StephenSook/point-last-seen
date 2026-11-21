@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report read after its mission changed is not journalled
+- What: a typed, picked or photo report is journalled only if the mission it was read for is still the one loaded
+  (same incident, team and signed-in owner). Before, only the journal itself was checked, so a report read while the
+  searcher left the search, or while the claims stopped naming the mission, was still added for the old mission. The
+  same mission reloaded or with a new plan keeps its report. Tests that send now give the app a join backend whose
+  claims cannot be read, so they no longer depend on the Auth user the simulator holds (with one that is not a
+  searcher, the app drops the test's mission, which the journal used to ignore).
+- Source: review.
+- Verified: tests that leave the search during a photo read and a typed read failed (the report was journalled)
+  before the change and pass after; a test that reloads the same mission during a read keeps the report; all 218
+  app tests pass.
+
 ### fix(ios-core): a photo report's segment comes from code, never from its words
 - What: the event builder takes segment ids from the words a report names; a photo report's words come from the
   model's caption, so a caption such as "grid ae cap" could put the clue in AE. Photo reports now keep the segment
