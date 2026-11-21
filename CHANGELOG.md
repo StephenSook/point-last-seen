@@ -82,6 +82,79 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
+  generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
+  500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
+  (499 letters plus an emoji, and a note with newlines, accepted; 500 letters plus an emoji, and 501 emoji, refused)
+  failed first, then passes; all 163 rules tests pass; the generator's --check is current.
+- rules test: a member command removed cannot file a content report, while another member still can (the report rule
+  goes through isMember, which checks the removal record). Source: review (content reports after member removal
+  landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;
+  all rules tests pass.
+- rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
+  only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
+  event, none for the family's description); command reads every report, the author only its own; nobody updates or
+  deletes one. The shape check is generated from content-report.schema.json (schema_ContentReport, createdAt ==
+  request.time). Source: review (App Review guideline 1.2, approved design). Verified: rules/contentReports.test.ts (5
+  cases) failed first on create and read, then passes; all 154 rules tests pass; the generator's --check is current.
+- schemas: content-report.schema.json, the shape of incidents/{id}/contentReports/{reportId}: a searcher or family
+  member flags the team's task, the family's description or one event, with a reason (abusive, personal_information,
+  wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
+  1.2). Platform types are pending in x-parity for the web, the iPhone and Android. Source: review (approved design; a
+  collection of its own, since event docs pin 25 keys). Verified: scripts/check_schema_parity.py ok (14 schemas).
+- functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
+  sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
+  delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
+  gone still gets { ok: true }. Source: review (cross-family, round 2 on deleteMyAccount). Verified: the command case
+  failed first, then passes; the no-claims case passes; 325 functions and rules tests and the typecheck pass.
+- functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
+  after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
+  check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
+  the test passes, and fails with the deleted-account branch of the current-claims check removed; all functions and
+  rules tests pass.
+- functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
+  its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
+  whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review
+  (App Review account deletion, approved). Verified: deleteMyAccount.test.ts (deletes the caller and keeps its
+  reports; ok when already gone; leaves another user; refuses an unsigned caller) failed first (no module), then
+  passes; all functions tests and the typecheck pass.
+- functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
+  redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
+  before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
+  once is retried and the claims then go; a removed account leaves a single-use invite unused; both failed first, then
+  pass; 318 functions and rules tests pass.
+- rules: command reads incidents/{id}/members/{uid} and no client writes one; Storage keeps within its two Firestore
+  lookups per request: a photo upload and every read check the incident and the removal record, and a clip upload
+  checks the incident and its consent record (a removed account cannot create one, since Firestore refuses its
+  writes). Source: review (cross-family, approved fixes). Verified: rules tests for the members records and for a
+  removed member's photo upload and clip read failed first, then pass; an active member's clip upload passes; all
+  rules and Storage tests pass. The emulator does not enforce the lookup limit, so that part rests on the documented
+  limit.
+- functions: removal decides from a server-owned membership record, and privileged callers are checked by their
+  current claims. joinIncident writes incidents/{id}/members/{uid} (role, team, joinedAt) in one transaction with its
+  check of the removal records; removeMember reads that record (or, for an account that joined before it existed, its
+  current claims) and records the removal in a transaction, so a member who has since joined another incident can
+  still be removed and a join racing a removal is serialized. removeMember and deleteIncidentMediaNow require the
+  caller's current claims to name the incident as command and the caller not to be removed (authz.ts), not only its
+  token. Cleanup clears the claims and revokes refresh tokens only while the claims still name this incident; only a
+  missing account counts as done, and any other failure is reported (calling again finishes it). Source: review
+  (cross-family, approved fixes). Verified: new tests failed first, then pass (the members record at join; removal of
+  a moved member, whose new claims stay; a command members record; a stale command token refused on both callables; a
+  removed command refused; a cleanup failure reported after the record; a gone account); the media checks failed with
+  the check removed; 316 functions and rules tests and the typecheck pass.
+- rules: a removed account is refused at once. Firestore's isMember and the event create check, and Storage's
+  isMember, require that incidents/{id}/removed/{uid} does not exist, so a member command removed can neither read nor
+  write the incident, nor upload, while its ID token still carries the claims; command reads the removal records and
+  no client writes one. Source: review (App Review guideline 1.2, approved design). Verified: rules/removed.test.ts (5
+  cases) and the storage case failed first, then pass; all 154 Firestore rules tests and 15 Storage tests pass.
+- functions: removeMember (callable, App Check enforced): command removes a searcher or family member of its own
+  incident. It records incidents/{id}/removed/{uid} first, then clears the member's claims and revokes its refresh
+  tokens (an ID token already issued stays valid up to an hour, so the record is what the rules check). Command cannot
+  remove itself or another command; a second removal is ok. joinIncident refuses a removed account with the usual join
+  failure. Source: review (App Review guideline 1.2, approved design). Verified: removeMember.test.ts (7 cases: the
+  removal and its order, family, a second removal, refused callers, refused targets, malformed input, the rejoin
+  refused and a new account still joining) failed first (no module), then passes; 305 functions tests and the
+  typecheck pass.
 - LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
   command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
   join function's claims; teams are admin-written); no other doc claims one (git grep).
@@ -3205,3 +3278,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
+
+### feat(rules): command ends a search with one of three reasons
+- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
+- Source: review (an "End this search" control for command).
+- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
+
+### fix(rules): a closedReason copied onto an open incident never blocks its edits
+- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
+- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
+- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.

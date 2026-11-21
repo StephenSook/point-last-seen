@@ -47,6 +47,8 @@ import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
 import { subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
+import { endedLine, endSearch, writesOpen } from "../data/endSearch";
+import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
@@ -417,6 +419,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     return team ? `${team} searcher` : "A searcher";
   };
   const incident = view?.incident ?? null;
+  // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
+  // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
+  // The server's last confirmed status decides, so neither a pending close nor a pending later edit flips it.
+  const ended = endedLine(view?.serverStatus, incident?.closedReason);
+  // No new reports once the server or this browser has the search closed (the rules refuse them either way).
+  const closedHere = !writesOpen(view?.serverStatus, incident?.status);
+  // A form already open (or opened before another tab ended the search) goes too.
+  useEffect(() => {
+    if (!closedHere) return;
+    setAdding(false);
+    setClipping(false);
+    setPin(null);
+  }, [closedHere]);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -820,6 +835,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           No connection. Showing the last data received.
         </p>
       )}
+      {ended && (
+        <p role="status" data-testid="ended-line">
+          {ended}
+        </p>
+      )}
       {unreadablePlanLine(state.unreadablePlans ?? []) && (
         <p className="error" role="status" data-testid="unreadable-plans">
           {unreadablePlanLine(state.unreadablePlans ?? [])}
@@ -848,7 +868,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
-          {incident && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+          {incident && !closedHere && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
@@ -885,7 +905,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || closedHere}>
               Add sighting
             </button>
           )}
@@ -905,7 +925,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding}>
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
               Add camera clip
             </button>
           )}
@@ -1015,6 +1035,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
+            {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
         </aside>
       </div>
@@ -1023,7 +1045,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <button
           type="button"
           className="btn"
-          disabled={!incident || clipping}
+          disabled={!incident || clipping || closedHere}
           onClick={() => {
             setAdding(true);
             requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));

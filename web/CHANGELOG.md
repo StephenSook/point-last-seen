@@ -2307,6 +2307,51 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
 - Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
 
+### feat(data): the write and the line for ending a search
+- What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
+- Source: review (an "End this search" control for command).
+- Verified: new unit tests in `endSearch.test.ts` (the write's shape; the reasons equal the list in `firestore.rules`, read from the file; the line for each reason, for no reason or an unknown one, and none while open) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): an End this search control with an inline confirm
+- What: `web/src/command/EndSearch.tsx` is one button, "End this search", that opens an inline confirm asking why (person found, search suspended, training ended). End search stays disabled until a reason is picked, shows "Ending the search..." while the write is out, and on a refused write says "Could not end the search. Check the connection and try again." with the confirm still open. Cancel closes it and writes nothing. A new harness page (`web/harness/end-search.html`) renders it with a stand-in write.
+- Source: review (an "End this search" control for command).
+- Verified: three new harness checks in `e2e/harness/endSearch.spec.ts` (Cancel writes nothing; a picked reason is written once, with the button held while it is out; a refused write keeps the confirm open) failed before the component existed, then passed with the whole harness (211); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): command ends the search from the post, and the post shows it ended
+- What: the command post puts End this search at the foot of Details. Once the incident is closed, a line under the header says "Search ended: <reason>. No new reports are taken.", the control goes, and Add sighting, Add camera clip and the phone bar's Add sighting are disabled (the rules take no new reports on a closed incident). `IncidentDoc` gains `closedReason`.
+- Source: review (an "End this search" control for command).
+- Verified: a new deployed check, `e2e/endSearch.spec.ts` (ends a fresh practice copy with Training ended, then checks the line, the disabled buttons, the control gone, and the line after a reload), failed on the live site at the missing control before this change; it runs after deploy, because the join needs the hosting origin. Typecheck, web unit suite (1151), the whole harness (211), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): the post says a search ended only once the server has the close
+- What: Firestore shows this browser's own pending write to the incident listener at once, so the post said "Search ended" (and dropped the confirm) before the server had accepted the close, and offline it said so while the server still took reports. The incident listener now reads metadata changes and reports `incidentPending`; `endedLine` takes whether the server has the close, and the post shows the ended line only then. Until the server acknowledges, the confirm stays up saying it is ending.
+- Source: review (Codex: the post shows a search as ended before the server accepts the close).
+- Verified: a new unit test in `endSearch.test.ts` (no ended line for a close the server does not have yet) failed first, then passed; typecheck, web unit suite (1152), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): ending a search closes any open report form and the first-report card
+- What: the add buttons were disabled once a search ended, but a sighting form or camera clip panel already open (or opened in another tab before the close) still offered Save and Confirm, and a practice search ended before its first report still offered "Add and confirm this report". Once the server has the close, the post now closes both forms and hides the first-report card.
+- Source: review (Codex: the closed post still offers writes).
+- Verified: the deployed check `e2e/endSearch.spec.ts` now opens Add sighting before ending the search and expects the form gone after; it runs after deploy. Typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### fix(command): the End search confirm stays held after the close, and focus follows it
+- What: after the server took the close, the confirm briefly offered End search again until the post removed it; it now stays held with "Ending the search..." until then. Opening the confirm puts the focus on the first reason, and Cancel puts it back on End this search.
+- Source: review (Codex: a resubmission gap, and keyboard focus dropped on open and on Cancel).
+- Verified: two harness checks in `e2e/harness/endSearch.spec.ts` (the button stays disabled after the server has it; focus on open and on Cancel) failed first, then passed with the whole harness; typecheck and the hygiene guard pass.
+
+### fix(command): a pending edit never makes an ended search look open again
+- What: the ended line waited for the incident doc to have no pending write, so after a confirmed close any later offline edit to the incident (a prior rebuild, say, which the rules then refuse) marked the doc pending and brought back the add buttons and End this search until the server answered. The incident listener now keeps `serverStatus`, the status the server last confirmed (`confirmedStatus` in `web/src/data/endSearch.ts`: a snapshot holding this browser's pending write leaves it as it was), and the post shows the search ended from that.
+- Source: review (Codex, second round: a pending prior edit makes a closed search look open again).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite (1153), the whole harness, the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a close queued on this browser offers no second close
+- What: a close written offline stays queued across a reload, but the reloaded post offered End this search again, so command could queue a second close. While this browser holds a close the server has not confirmed, End this search now shows only "Ending the search..." and offers nothing more; it stays mounted, so if the server refuses the close the confirm comes back with the error.
+- Source: review (Codex, second round, low: reloading during a pending close allows a second submission).
+- Verified: a new harness check (`?queued=1`) failed first, then passed with the whole harness (213); typecheck and the hygiene guard pass.
+
+### fix(command): the post offers no new reports while this browser holds a close
+- What: the add buttons and open forms followed the server-confirmed close only, so after a reload with a cached close plus another pending edit (say, a rebuild queued offline), the post showed "Ending the search..." and still offered Add sighting until that edit cleared, though the server had the search closed. `writesOpen` in `web/src/data/endSearch.ts` is false once either the server or this browser has the search closed; the add buttons, the open forms and the first-report card follow it. The ended line still follows the server.
+- Source: review (Codex, third round: reloading can make a confirmed closure look pending).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
 ### feat(data): command reads the "Report a problem" flags
 - What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
 - Source: review (a command-side list of "Report a problem" flags).
