@@ -90,7 +90,9 @@ fun NoteScreen(
                         Sentence(Copy.model(model))
                         MainAction("Sort it on this phone") { onSort(ui.text, false) }
                     } else {
-                        Sentence("${Copy.model(model)} Send this note to the cloud to sort it?")
+                        // The question is the title; the model's state is one quiet line under it.
+                        Sentence("Send this note to the cloud to sort it?")
+                        Note(Copy.model(model))
                         MainAction("Send to the cloud") { onSort(ui.text, true) }
                         if (model.downloadFailed) Note(Copy.MODEL_FAILED)
                         if (model.status == DeviceModelStatus.DOWNLOADABLE) OtherAction(Copy.GET_MODEL, onClick = onGetModel)
