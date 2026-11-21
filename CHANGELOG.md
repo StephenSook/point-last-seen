@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- A judge sandbox now counts as live only with an explicit `setupReady == true`: `firestore.rules` liveFor and
+  `storage.rules` notExpired read `get('setupReady', false)`, and `deleteIncidentMediaNow` requires `setupReady ===
+  true`. Before, a sandbox with no flag (made before setup was tracked) counted as ready; every such sandbox has
+  expired, and `startJudgeSession` always writes the flag. Source: review (setup gate, medium 3). Verified test first:
+  three new no-flag assertions (rules, storage, deleteIncidentMediaNow) failed, then passed with the change;
+  live-judge fixtures now carry the flag; rules and functions suite 256 of 256.
+- Tests: the expired, no-expiry and expiry-edit judge sandbox tests (rules, storage, delete media, join) now give
+  their sandbox `setupReady: true`, so each fails only for the reason it names and would catch a removed expiry check.
+  Source: review (Codex round 1, low). Verified: suite 256 of 256.
+- `joinIncident` refuses a judge sandbox whose setup is not finished (`setupReady !== true`), as the rules do, so it
+  never grants claims that every read would then refuse. Source: review (Codex round 1, low). Verified test first: the
+  join test's no-flag and not-ready cases failed, then passed; suite 256 of 256.
 - Phone vectors and LIMITS after the web took the Android phone-number rule (web/src/data/phoneNumbers.ts): "web"
   leaves pendingOn on all 23 cases it was pending on, so the web now runs every case; LIMITS says every platform
   removes a run of 7 or more digits, a count of a million or more and a decimal pair that starts with +, renames the

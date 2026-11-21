@@ -168,3 +168,25 @@ test("Save works while a read is running, and a reply that lands after Save fill
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
   await expect(page.getByText("Suggested from the note. Check every field.")).toHaveCount(0);
 });
+
+test("a read keeps a field changed by hand, says so, and fills the rest", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("red jacket")}`);
+  // The person sets Top by hand first; the model will answer red.
+  await page.getByRole("combobox", { name: "Top" }).selectOption("green");
+  await page.getByRole("textbox", { name: "Footwear" }).fill("boots");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("green");
+  await expect(page.getByRole("textbox", { name: "Footwear" })).toHaveValue("boots");
+  await expect(page.getByText("Suggested from the note. Check every field. Your edits were kept.")).toBeVisible();
+});
+
+test("a read with no field changed by hand fills every field and says nothing about edits", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await expect(page.getByText("Suggested from the note. Check every field.", { exact: true })).toBeVisible();
+});

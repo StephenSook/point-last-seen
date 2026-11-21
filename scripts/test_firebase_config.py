@@ -34,3 +34,57 @@ def test_the_app_shell_rewrite_never_answers_for_tiles_or_evidence():
     for site in hosting_sites():
         shell = [r for r in site.get("rewrites", []) if r.get("destination") == "/index.html"]
         assert [r.get("source") for r in shell] == ["!/@(tiles|evidence)/**"], shell
+
+
+# Firebase Hosting serves every file with max-age=3600 when firebase.json sets no header, so a judge could keep
+# the old app for an hour after a deploy. Pages, version.json and the service worker must be revalidated every
+# time; Vite's hashed assets never change under one name, so they can be kept for a year.
+NO_CACHE = "no-cache"
+IMMUTABLE = "public, max-age=31536000, immutable"
+
+
+def glob_regex(pattern: str) -> re.Pattern[str]:
+    """Hosting's glob for the shapes used here: ** (any path), * (one segment), @(a|b) (one of)."""
+    out = ""
+    i = 0
+    while i < len(pattern):
+        if pattern.startswith("**", i):
+            out += ".*"
+            i += 2
+        elif pattern[i] == "*":
+            out += "[^/]*"
+            i += 1
+        elif pattern.startswith("@(", i):
+            end = pattern.index(")", i)
+            out += "(?:" + "|".join(re.escape(p) for p in pattern[i + 2 : end].split("|")) + ")"
+            i = end + 1
+        else:
+            out += re.escape(pattern[i])
+            i += 1
+    return re.compile(out + r"\Z")
+
+
+def matches(source: str, path: str) -> bool:
+    if source.startswith("!"):
+        return not glob_regex(source[1:]).match(path)
+    return bool(glob_regex(source).match(path))
+
+
+def cache_control(site: dict, path: str) -> list[str]:
+    """Every Cache-Control value the site's header rules give the path (one, when the rules do not overlap)."""
+    return [h["value"] for rule in site.get("headers", []) if matches(rule["source"], path) for h in rule["headers"] if h["key"].lower() == "cache-control"]
+
+
+def test_the_glob_reading_matches_hostings_on_known_paths():
+    assert matches("!/@(tiles|evidence)/**", "/judge") and not matches("!/@(tiles|evidence)/**", "/tiles/piedmont.pmtiles")
+    assert matches("/assets/**", "/assets/index-klvD0fVz.js") and not matches("/assets/**", "/version.json")
+
+
+def test_pages_version_and_service_worker_are_revalidated_and_hashed_assets_are_kept_a_year():
+    for site in hosting_sites():
+        for path in ["/", "/index.html", "/judge", "/version.json", "/sw.js", "/sw-takeover.js", "/manifest.webmanifest", "/evidence/published-run.json"]:
+            assert cache_control(site, path) == [NO_CACHE], path
+        for path in ["/assets/index-klvD0fVz.js", "/assets/index-Bq1x2y3z.css"]:
+            assert cache_control(site, path) == [IMMUTABLE], path
+        # Basemap tiles are large range reads under one name per grid; they keep Hosting's hour.
+        assert cache_control(site, "/tiles/piedmont-park-dev.pmtiles") == ["public, max-age=3600"]
