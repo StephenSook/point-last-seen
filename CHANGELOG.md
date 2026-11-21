@@ -66,6 +66,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions/src/index.ts: recordDrillClosedTrigger (incident updates) and deleteEndedDrillsJob (daily 07:41 UTC,
+  counts only in its log line). Source: review (drill retention). Verified: functions typecheck; the functions suite
+  passes (270); ci-local ts and rules sections pass.
 - functions/src/retention.ts: closedAtPatch and recordDrillClosed write the server's closedAt once, when a drill
   becomes closed; deleteEndedDrills deletes every drill closed more than 30 days ago (media prefixes first, then the
   incident recursively, then its orphaned anonymous sign-ins), keeps drill-dev-1, drill-judge-1 and drill-kennesaw-1
