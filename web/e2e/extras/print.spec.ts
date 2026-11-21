@@ -241,3 +241,22 @@ test("a filled SAMPLE sheet is added only when its box is ticked, and says SAMPL
   await expect(sample.locator('[data-field="coverage"] .extras-tick[data-ticked="true"]')).toHaveText("75%");
   expect(pdfPages(await page.pdf({ format: "Letter", printBackground: true }))).toBe(4);
 });
+
+test.describe("in the laptop's own time zone", () => {
+  test.use({ timezoneId: "America/New_York" });
+
+  test("the radio cards and the assignment sheet print the same local time, with its zone", async ({ page }) => {
+    await page.goto(harness);
+    await openExtra(page, "Print assignment sheet");
+    const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
+    const dateFrom = await dialog.getByLabel("Date From", { exact: true }).inputValue();
+    const timeFrom = await dialog.getByLabel("Time From", { exact: true }).inputValue();
+    expect(timeFrom).toMatch(/^\d{2}:\d{2} E[SD]T$/);
+    await expect(page.locator(".extras-ics-footer span", { hasText: "Date/Time" }).first()).toHaveText(/E[SD]T$/);
+    await page.keyboard.press("Escape");
+    await openExtra(page, "Print radio cards");
+    const card = page.locator(".extras-radio-card").first();
+    await expect(card).toContainText(`${dateFrom} ${timeFrom}`);
+    await expect(card).not.toContainText("UTC");
+  });
+});

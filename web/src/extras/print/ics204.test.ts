@@ -71,11 +71,11 @@ it("approach notes appear only when ticked", () => {
   expect(ics204Sheets(model, typed, notes, timeZone)[0]?.specialInstructions).toContain(notes[0]);
 });
 
-it("the prepared time is month/day/year and 24-hour", () => {
-  expect(sheets()[0]?.preparedDateTime).toBe("11/22/2026 14:03");
+it("the prepared time is month/day/year and 24-hour, with the time zone named", () => {
+  expect(sheets()[0]?.preparedDateTime).toBe("11/22/2026 14:03 EST");
   const approved = { ...model, planApprovedAtMs: Date.parse("2026-11-22T05:00:00Z") };
   expect(defaultTyped(approved, timeZone)).toEqual({
-    dateFrom: "11/22/2026", timeFrom: "00:00", dateTo: "", timeTo: "",
+    dateFrom: "11/22/2026", timeFrom: "00:00 EST", dateTo: "", timeTo: "",
     branch: "", division: "", group: "", stagingArea: "", includeApproachNotes: false,
   });
 });
