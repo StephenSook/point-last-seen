@@ -79,7 +79,10 @@ service cloud.firestore {
               'closedReason', 'priorVersion', 'priorInputEventIds', 'ipp', 'ippSource', 'priorLayers', 'terrain',
               'priorModel', 'priorSeed', 'priorBuiltAt'])
         && resource.data.get('status', 'open') != 'closed'
-        && request.resource.data.status in ['open', 'found', 'closed']
+        // The status stays as it is or moves to closed (ending the search, with its reason). A found person is
+        // recorded by closing with reason found: a bare "found" reads as "Found. Safe." in the family app while the
+        // search stays open, so no client sets it (one already set is kept).
+        && (request.resource.data.status == resource.data.get('status', 'open') || request.resource.data.status == 'closed')
         // What the family may be told about the search: only that teams are searching or that it is paused.
         && (!('searchState' in request.resource.data) || request.resource.data.searchState in ['searching', 'paused'])
         && (!('conditions' in request.resource.data) || schema_IncidentConditions(request.resource.data.conditions))

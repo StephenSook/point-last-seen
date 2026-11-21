@@ -30,7 +30,18 @@ describe("command updates only the fields the command post writes", () => {
       ipp: { lat: 33.79, lon: -84.36 }, ippSource: "sighting", priorInputEventIds: ["0".repeat(32)], priorVersion: 7,
     }));
     await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { priorModel: "walkers", priorSeed: 9, priorInputEventIds: [], priorVersion: 8 }));
-    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { status: "found" }));
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { status: "closed", closedReason: "found" }));
+  });
+
+  it("a found person is recorded by ending the search (closed, reason found), never by a bare status found", async () => {
+    const db = dbAs("command-uid", commandClaims);
+    // The family app shows a bare "found" as "Found. Safe." and stops reporting, while the search stays open.
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { status: "found" }));
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { status: "found", searchState: "paused" }));
+    // An incident already marked found (from before) keeps it through ordinary edits and still ends normally.
+    await admin.db.doc("incidents/I1").update({ status: "found" });
+    await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { searchState: "paused" }));
+    await assertFails(updateDoc(doc(db, "incidents/I1"), { status: "open" }));
     await assertSucceeds(updateDoc(doc(db, "incidents/I1"), { status: "closed", closedReason: "found" }));
   });
 

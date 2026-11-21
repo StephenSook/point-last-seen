@@ -82,6 +82,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
+  command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
+  Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
+  (cross-family, round 1 on the incident update whitelist). Verified: a new case (open to found refused, alone and
+  with another field; a found incident takes ordinary edits, cannot reopen, and closes with its reason) failed first,
+  then passes; two older cases that expected a bare found to succeed now expect it refused; all 173 rules tests pass.
+  No live incident has status found.
 - rules: command's update of the incident doc names only the fields the command post writes (traced in web/src/data
   and web/src/prior; the iPhone and Android apps never update the incident): conditions, searchState, status,
   closedReason, and the prior's priorVersion, priorInputEventIds, ipp, ippSource, priorLayers, terrain, priorModel,
