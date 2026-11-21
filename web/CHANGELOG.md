@@ -2248,6 +2248,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: command-side "Retract report" (good command practice; reports are user content command can remove).
 - Verified: new unit tests (`reportCards.test.ts`: the kinds listed, the map's retraction rule, the start point, one card per report) and harness checks (`e2e/harness/reports.spec.ts`: order and header lines, ask then Keep it or Retract report, author retraction and start point lines, a refused write) failed first, then passed; a live check in `e2e/beat.spec.ts` retracts a report on the test drill and checks it after a reload; full harness suite (196), typecheck, web unit suite and the hygiene guard pass.
 
+### feat(prior): a confirm that drops the elevation layer says why
+- What: `elevationDropReason` names why a rebuild turns the elevation layer off (no elevation file loaded for this site; the new start is outside the mapped segments; the new start's segment has no elevation), `usableLayers` uses it, and `elevationDropNote` words it for command. `cameraPriorWrites` (camera, family camera and sighting confirms) returns that line as `layersNote` when it drops the layer; it is shown, never stored.
+- Source: review (follow-up).
+- Verified: new tests failed first, then pass: each reason, none when the layer stays or is off, the note's wording, and the camera confirm's note with no file and outside the grid (none when kept).
+
+### feat(command): command sees why a confirm rebuilt without downhill and level ground
+- What: when a confirm turns the elevation layer off, the line ("Rebuilt without downhill and level ground: the new start is outside the mapped segments.") shows where command confirmed: after the camera clip panel's "Confirmed. Prior rebuilt as vN." and on the Sightings card. The Prior panel shows it under its switches on this seat until the next layer change here. Switching the prior model back to rings with the site's file missing says the same.
+- Source: review (follow-up).
+- Verified: three new harness checks failed first, then pass (clip, sightings, layers); 1146 web unit tests, the typecheck, 201 harness checks, the build and 43 no-backend browser checks pass. One harness check (firstReport.spec) failed once and passed on rerun; it imports none of these files.
 ### test(harness): the first report harness waits for the test at each step
 - What: `web/harness/first-report.html` no longer moves from saving to confirming to done on 400 ms timers; each step waits for its button ("Server has it", "Confirm done", "Server refuses"), and `e2e/harness/firstReport.spec.ts` presses them. A 400 ms step could pass between two of Playwright's polls (its interval grows to a second), so the check sometimes never saw "Confirming..." and timed out on "Saving the report...".
 - Source: review (the check failed about one run in five locally and once in CI).

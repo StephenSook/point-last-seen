@@ -7,7 +7,7 @@ import { buildCameraSighting, cameraReading, cameraStartPatch, type ClipFacts } 
 import { buildConfirmation, type CommandWriter } from "../data/sightings";
 import type { SegmentDoc } from "../data/incident";
 import type { LatLon } from "../map/geo";
-import { priorWrites, rebuildPrior, usableLayers, type PriorWrites } from "./rebuild";
+import { elevationDropNote, elevationDropReason, priorWrites, rebuildPrior, usableLayers, type PriorWrites } from "./rebuild";
 
 export type CameraPriorIncident = {
   gridId: string;
@@ -22,7 +22,10 @@ export type CameraPriorIncident = {
   elevationM?: Readonly<Record<string, number>>;
 };
 
-export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: CameraPriorIncident, cam: EventDoc, bearingDeg: number | null): PriorWrites {
+/** The prior a confirm writes, and, when it turned the elevation layer off, a line saying why (shown to command, not stored). */
+export type CameraPriorWrites = PriorWrites & { layersNote?: string };
+
+export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: CameraPriorIncident, cam: EventDoc, bearingDeg: number | null): CameraPriorWrites {
   const patch = cameraStartPatch(cam, incident);
   const ipp = patch.ipp ?? incident.ipp;
   const stored = incident.priorLayers ?? { linear: false, wedge: false };
@@ -33,7 +36,11 @@ export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: Cam
   const terrain = incident.terrain ?? "temperate_flat";
   const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM, priorVersion: incident.priorVersion }, layers, bearingDeg, incident.engineParams);
   const w = priorWrites(rebuilt, incident, layers, terrain);
-  return { ...w, incident: { ...w.incident, priorModel: "rings", ipp, priorInputEventIds: patch.priorInputEventIds } };
+  const note = elevationDropNote(elevationDropReason({ ...stored, wedge: bearingDeg !== null }, segments, ipp, incident.elevationM));
+  return {
+    ...w, incident: { ...w.incident, priorModel: "rings", ipp, priorInputEventIds: patch.priorInputEventIds },
+    ...(note ? { layersNote: note } : {}),
+  };
 }
 
 /**
@@ -46,7 +53,7 @@ export function cameraConfirmWrites(
   segments: readonly SegmentDoc[],
   incident: CameraPriorIncident,
   bearingDeg: number | null,
-): { events: EventDoc[]; prior: PriorWrites } {
+): { events: EventDoc[]; prior: CameraPriorWrites } {
   const cam = buildCameraSighting(clip, writers[0]);
   const conf = buildConfirmation(cam, "confirmed", writers[1]);
   const prior = cameraPriorWrites(segments, incident, cam, bearingDeg);
@@ -65,7 +72,7 @@ export function familyCameraConfirmWrites(
   writer: CommandWriter,
   segments: readonly SegmentDoc[],
   incident: CameraPriorIncident,
-): { events: EventDoc[]; prior: PriorWrites } {
+): { events: EventDoc[]; prior: CameraPriorWrites } {
   const reading = cameraReading(familyCam);
   if (!reading) throw new Error("This is not a camera clip reading.");
   const at = familyCam.position ?? (placed ? { lat: placed.lat, lon: placed.lon, accuracyM: null } : null);
