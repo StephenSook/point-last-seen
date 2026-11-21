@@ -74,4 +74,34 @@ describe("lastReportChange", () => {
   it("is null before any report", () => {
     expect(lastReportChange(prior, [], [], DEFAULT_PARAMS)).toBeNull();
   });
+
+  // A sighting command confirmed with a place is the new last known point: the prior was rebuilt from it.
+  const sighting = at(base, "seen-1", 20_000, {
+    type: "sighting", role: "command", observedAtMs: 20_000 - 10 * 60_000,
+    position: { lat: 33.7, lon: -84.3, accuracyM: null },
+    effect: { kind: "clue", influences: { AC: "strong_for" }, authenticity: "medium" },
+  });
+  const confirm = (role: "command" | "family", t: number) =>
+    at(base, `conf-${role}`, t, { type: "confirmation", role, targetEventId: "seen-1", decision: "confirmed", effect: { kind: "none", why: "informational" } });
+
+  it("names the new last known point when command's confirmation rebuilt the prior from the sighting", () => {
+    const c = lastReportChange(prior, [sighting, confirm("command", 21_000)], ["seen-1"], DEFAULT_PARAMS)!;
+    expect(c.causeEventId).toBe("conf-command");
+    expect(c.change.banner).toBe("New last known point: the sighting at AC, seen 10 min before it was confirmed. The map is rebuilt from there.");
+    expect(c.change.announce).toBe("New last known point at segment AC. The map is rebuilt from the sighting.");
+    expect(c.change.changed).toEqual([]);
+  });
+
+  it("says a confirmed sighting seen before the current last known point counts as a clue", () => {
+    const start = at(base, "lkp-1", 15_000, { ...sighting, eventId: "lkp-1", clientTimeMs: 15_000, seq: 15_000, observedAtMs: 20_000 - 5 * 60_000 });
+    const c = lastReportChange(prior, [start, sighting, confirm("command", 21_000)], ["lkp-1"], DEFAULT_PARAMS)!;
+    expect(c.change.banner).not.toMatch(/New last known point/);
+    expect(c.change.banner).toMatch(/ It was not seen after the current last known point, so it counts as a clue\.$/);
+    expect(c.change.announce).toMatch(/It was not seen after the current last known point, so it counts as a clue\.$/);
+  });
+
+  it("keeps the clue line for a sighting that did not rebuild the prior (no place, or only the family confirmed)", () => {
+    const c = lastReportChange(prior, [sighting, confirm("family", 21_000)], [], DEFAULT_PARAMS)!;
+    expect(c.change.banner).not.toMatch(/last known point/);
+  });
 });
