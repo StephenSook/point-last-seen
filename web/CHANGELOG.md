@@ -2209,3 +2209,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `e2e/auth.setup.ts` waits until Remote Config has stored its fetch (IndexedDB `firebase_remote_config`, a `last_successful_fetch_timestamp_millis` key) and Performance Monitoring its config (localStorage `@firebase/performance/config`) before saving the session every live test reuses. Setup had saved before either was written, so each test fetched both again, about 80 fetches a run against the project's 60 a minute per caller; runs were refused partway with HTTP 429 (seen as console errors, the "(default)" model on the judge page, and a missing trace).
 - Source: review (Remote Config 429 in live checks; Cloud Monitoring showed 49 fetches in one minute from one run).
 - Verified: the saved session now holds 8 Remote Config records and the Performance key; a full live run on cb464fcb made 4 Remote Config fetches (Cloud Monitoring, per minute) instead of about 80, with no 429, and ran in 46 s instead of 1.8 min; the hygiene guard passes.
+
+### test(e2e): the rail order check waits for the family section before reading Details
+- What: `e2e/railOrder.spec.ts` waits for the family section's heading (it draws when the family's questions arrive, which can come after the map's labels) before it lists the headings under Details.
+- Source: the faster live run (cached Remote Config) read Details before the questions arrived.
+- Verified: the rail order, smoke and judge checks pass live on cb464fcb (23); the hygiene guard passes.
