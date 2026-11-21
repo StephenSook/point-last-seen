@@ -47,3 +47,8 @@ test("a refused retraction says so and leaves the report as it was", async ({ pa
   await expect(glove.getByRole("button", { name: "Retract report" })).toBeEnabled();
   await expect(glove).not.toContainText("Retracted by command.");
 });
+
+test("each report's time shows its seconds, so it matches a Problem report that names it", async ({ page }) => {
+  await page.goto("/harness/reports.html");
+  await expect(page.getByRole("region", { name: "Reports" }).getByRole("listitem").first()).toContainText(/^Team 2, found, 14:30:\d\d/);
+});

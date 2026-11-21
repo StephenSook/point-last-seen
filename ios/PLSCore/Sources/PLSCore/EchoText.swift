@@ -7,6 +7,9 @@ public enum EchoText {
     /// the map only once command confirms it.
     /// In the practice drill (`practice`) there is no command to ask, so "Ask command." becomes what
     /// to do in a real search; every other line stays the same.
+    /// The receipt's line when a number in the reading came from the rules parser, not the model.
+    public static let numbersByRules = "Numbers read by rules."
+
     public static func effectLine(_ effect: Effect, type: EventType, practice: Bool) -> String {
         let line = effectLine(effect, type: type)
         let ask = "Ask command."

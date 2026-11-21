@@ -8,7 +8,9 @@ apk="${1:?usage: check-release-config.sh <apk>}"
 aa="${ANDROID_HOME:-$HOME/Library/Android/sdk}/cmdline-tools/latest/bin/apkanalyzer"
 [ -x "$aa" ] || { echo "check-release-config: apkanalyzer not found at $aa" >&2; exit 2; }
 code="$("$aa" dex code --class app.pointlastseen.family.BuildConfig "$apk")" || { echo "check-release-config: could not read BuildConfig" >&2; exit 2; }
-if printf '%s\n' "$code" | grep -q 'SCRIPT_911:Z = true'; then
+# A here-string, not a pipe: grep -q stops at its first match, and under pipefail a writer still writing into the
+# pipe dies of SIGPIPE, which turned a build with the screen on into "OFF or missing".
+if grep -q 'SCRIPT_911:Z = true' <<<"$code"; then
   echo "check-release-config: the 911 script screen is on"
   exit 0
 fi

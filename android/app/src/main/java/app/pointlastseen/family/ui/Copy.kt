@@ -32,11 +32,17 @@ object Copy {
     fun newsByPhone(name: String): String =
         "News about ${name.trim().ifEmpty { "them" }} comes from your search lead by phone, never from this app."
 
-    fun status(status: String?): String = when (status) {
-        "found" -> "Found. Safe."
-        "closed" -> "The search is closed."
+    /**
+     * The status sentence. A search that ended with the person found ([closedReason] "found", or the older bare
+     * "found" status) says only that the lead will call: the news itself comes by phone, never from this app.
+     */
+    fun status(status: String?, closedReason: String? = null): String = when {
+        status == "found" || (status == "closed" && closedReason == "found") -> SEARCH_ENDED_LEAD_CALLS
+        status == "closed" -> "The search is closed."
         else -> "Searchers are looking."
     }
+
+    const val SEARCH_ENDED_LEAD_CALLS = "The search has ended. Your search lead will call you."
 
     /** The on-device model in one sentence: ready, offered, downloading (with its percent when known), or absent. */
     fun model(m: ModelState): String = when (m.status) {

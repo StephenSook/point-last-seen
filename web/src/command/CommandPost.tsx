@@ -45,6 +45,8 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
+import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
+import { FlagsPanel } from "./FlagsPanel";
 import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
 import { MembersPanel } from "./MembersPanel";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
@@ -409,6 +411,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
+  // What searchers and family flagged with Report a problem. A searcher is named by the team of its latest report (a
+  // rejoin can move it to another team); a refused read keeps the flags and says they may be out of date.
+  const [flags, setFlags] = useState<Flag[]>([]);
+  const [flagsStale, setFlagsStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags, () => setFlagsStale(true))), [pls, incidentId, denied]);
+  const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  // A flagged report is named to the second, so two from one segment in the same minute read apart.
+  const reportClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const flagAuthor = (uid: string, role: Flag["role"]) => {
+    if (role === "family") return "Family member";
+    const teamId = latestTeamOf(uid, events);
+    const team = teams.find((t) => t.teamId === teamId)?.name;
+    return team ? `${team} searcher` : "A searcher";
+  };
   // The people command can remove: the server's members records and the authors of the incident's reports.
   const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
   const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
@@ -847,6 +863,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
         <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
