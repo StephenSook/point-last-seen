@@ -109,9 +109,15 @@ def test_refuses_times_that_go_backwards():
         it.check_speed([(T0, LAT0, LON0), (T0, LAT0, LON0)], 8.0)
 
 
-def test_thins_to_one_point_per_five_seconds():
+def test_thins_to_one_point_per_five_seconds_and_keeps_the_last_point():
     pts = walk(13, step_s=1)
-    assert [p[0] for p in it.thin(pts, 5_000)] == [T0, T0 + 5_000, T0 + 10_000]
+    assert [p[0] for p in it.thin(pts, 5_000)] == [T0, T0 + 5_000, T0 + 10_000, T0 + 12_000]
+
+
+def test_thinning_never_opens_a_gap_longer_than_the_replay_allows():
+    # Fixes at 0, 4 and 124 s: dropping the 4 s fix would leave a 124 s gap, which the replay reads as an outage.
+    pts = [(T0, LAT0, LON0), (T0 + 4_000, LAT0, LON0), (T0 + 124_000, LAT0, LON0)]
+    assert [p[0] for p in it.thin(pts, 5_000)] == [T0, T0 + 4_000, T0 + 124_000]
 
 
 # --- where she was ---
@@ -312,6 +318,33 @@ def test_a_stale_temporary_link_beside_the_track_is_never_followed(tmp_path):
     assert cli(tmp_path, out, tmp_path / "p.json", repo=repo) == 0
     assert victim.read_text() == "keep"
     assert json.loads(out.read_text())["source"] == "synthetic"
+
+
+def test_a_local_folder_inside_the_repository_that_links_outside_is_refused_too(tmp_path):
+    # Written through web/public, the track would be served there, wherever the link points.
+    repo = tmp_path / "repo"
+    (repo / "web" / "public").mkdir(parents=True)
+    private = tmp_path / "private.local"
+    private.mkdir()
+    (repo / "web" / "public" / "tracks.local").symlink_to(private, target_is_directory=True)
+    assert cli(tmp_path, repo / "web" / "public" / "tracks.local" / "t.json", tmp_path / "p.json", repo=repo) == 2
+    assert list(private.iterdir()) == []
+
+
+def test_refuses_a_gpx_file_holding_a_nul_byte_so_a_utf_16_file_with_no_byte_order_mark_cannot_hide_a_doctype():
+    utf16 = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE gpx><gpx xmlns="x"/>'.encode("utf-16-le")
+    with pytest.raises(ValueError, match="not UTF-8"):
+        it.parse_gpx(utf16)
+
+
+def test_the_passes_file_spans_every_kept_point_so_a_report_at_the_last_fix_is_inside_it(tmp_path):
+    pts = [(T0 + 60_000, LAT0, LON0), (T0 + 65_000, LAT0, LON0), (T0 + 67_000, LAT0, LON0)]
+    runs = [report("r1", "T1", "device-2", T0 + 67_000, LAT0, LON0)]
+    passes_out = tmp_path / "p.json"
+    assert cli(tmp_path, tmp_path / "out.local" / "t.json", passes_out, points=pts, events=runs) == 0
+    f = json.loads(passes_out.read_text())
+    assert (f["trackFromMs"], f["trackToMs"]) == (T0 + 60_000, T0 + 67_000)
+    assert f["passes"][0]["atMs"] == T0 + 67_000
 
 
 def test_a_synthetic_passes_file_is_never_written_inside_the_repository(tmp_path):

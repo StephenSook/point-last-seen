@@ -84,7 +84,8 @@ def read_gpx(data: bytes) -> list[list[tuple[int, float, float]]]:
     if len(data) > MAX_GPX_BYTES:
         raise ValueError(f"the GPX file is larger than {MAX_GPX_BYTES} bytes")
     # Read as UTF-8 only, so the scan below sees the text the parser will see (a UTF-16 file could hide a DOCTYPE).
-    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+    # A byte-order mark or any NUL byte (XML never holds one; UTF-16 and UTF-32 always do) means it is not UTF-8.
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")) or b"\x00" in data:
         raise ValueError("the GPX file is not UTF-8")
     try:
         text = data.decode("utf-8")
@@ -189,11 +190,13 @@ def check_speed(points, max_mps: float) -> None:
             raise ValueError(f"point {i + 1} ({iso_utc(t1)}) was reached at {mps:.1f} m/s, faster than {max_mps} m/s: trim it by hand")
 
 
-def thin(points, min_gap_ms: int):
-    """The first point, then each point at least min_gap_ms after the last one kept."""
+def thin(points, min_gap_ms: int, max_gap_ms: int = MAX_GAP_MS):
+    """The first and last points, and each point at least min_gap_ms after the last one kept. A point is never dropped
+    when dropping it would leave a gap longer than max_gap_ms, which a reader takes for a stop in the recording."""
     kept = []
-    for p in points:
-        if not kept or p[0] - kept[-1][0] >= min_gap_ms:
+    for i, p in enumerate(points):
+        nxt = points[i + 1] if i + 1 < len(points) else None
+        if not kept or nxt is None or p[0] - kept[-1][0] >= min_gap_ms or nxt[0] - kept[-1][0] > max_gap_ms:
             kept.append(p)
     return kept
 
@@ -285,6 +288,13 @@ def _inside(path: Path, root: Path) -> bool:
     return p == r or p.startswith(r + os.sep)
 
 
+def _inside_as_written(path: Path, root: Path) -> bool:
+    """Whether the path as written (links not followed) is root or under it, letter case ignored: a link inside the
+    repository that points outside still makes the file reachable through the repository."""
+    p = os.path.abspath(path).casefold()
+    return any(p == r or p.startswith(r + os.sep) for r in {os.path.abspath(root).casefold(), str(root.resolve()).casefold()})
+
+
 def _write(path: Path, data: dict) -> None:
     """Writes through a new temporary file (created exclusively, so a link planted beside it is never followed)."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -310,11 +320,11 @@ def main(argv: list[str] | None = None, repo_root: Path = REPO) -> int:
     ap.add_argument("--passes-out", required=True)
     args = ap.parse_args(argv)
     track_out, passes_out = Path(args.track_out), Path(args.passes_out)
-    if track_out.is_symlink() or not _in_local_folder(track_out) or _inside(track_out, repo_root):
+    if track_out.is_symlink() or not _in_local_folder(track_out) or _inside(track_out, repo_root) or _inside_as_written(track_out, repo_root):
         print(f"import_track: the track is a person's location; write it only inside a *.local folder outside the "
               f"repository, and not through a link: not {track_out}", file=sys.stderr)
         return 2
-    if args.source == "synthetic" and _inside(passes_out, repo_root):
+    if args.source == "synthetic" and (_inside(passes_out, repo_root) or _inside_as_written(passes_out, repo_root)):
         print("import_track: a synthetic track's passes are never written inside the repository", file=sys.stderr)
         return 2
     try:
@@ -348,8 +358,9 @@ def main(argv: list[str] | None = None, repo_root: Path = REPO) -> int:
         breaks.append(at)
     _write(track_out, {"version": 1, "source": args.source, "gridId": grid["gridId"], "runId": run["runId"],
                        "points": [[t, lat, lon] for t, lat, lon in points], "breaks": breaks})
+    # The span is that of every kept point, as the passes were measured on them.
     _write(passes_out, {"version": 1, "runId": run["runId"], "source": args.source, "basis": "reports",
-                        "trackFromMs": points[0][0], "trackToMs": points[-1][0], "passes": passes})
+                        "trackFromMs": kept[0][0][0], "trackToMs": kept[-1][-1][0], "passes": passes})
     kept_count = sum(len(seg) for seg in kept)
     print(f"import_track: kept {len(points)} of {read_count} points ({out_area} outside the drill area, {out_window} outside "
           f"the window, {kept_count - len(points)} thinned to one per {THIN_MS // 1000} s); {len(passes)} team passes; "
