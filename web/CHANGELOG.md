@@ -1993,6 +1993,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (the rail led with the profile and forms; the three things command reads every minute were below the fold).
 - Verified: new deployed check `e2e/railOrder.spec.ts` (lead order, the sections under a closed Details, Family hidden until Details opens) failed on the live site, and runs again after the deploy; typecheck, web unit suite (953), the harness suite (except the triage measurement, which needs the build env file), the no-backend set (41), CI's Python gates and the hygiene guard pass.
 
+### fix(data): the phone rule removes a number spoken in Spanish digit words
+- What: `removePhoneNumbers` counts cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho and nueve as spoken digits, matched in any case, as the shared rule now names them; "un" and "una" stay articles. An English note carrying "cuatro cero cuatro cinco cinco cinco cero uno cuatro dos" no longer keeps the number.
+- Source: privacy gap (a number spelled in Spanish digit words passed the rule).
+- Verified: run against the six new shared cases with their pending platforms forced, the web vector test failed 4 (the two keep cases already passed), then passed all 58; new unit checks in `src/data/phoneNumbers.test.ts` (a Spanish spoken number in any case is removed; un and una are kept) failed on the old rule, then passed; web unit suite, typecheck and the hygiene guard pass.
+
 ### feat(command): the rail's Details summary counts what needs a person
 - What: the Details summary reads, from live data, the conditions once set ("38 °F, wet: no"), the family photos with no reading saved by command ("2 photos to review", from a new live subscription to the photo readings, `subscribePhotoReadingIds`), and the family answers that arrived since this browser last opened Details ("1 family answer"; the time is kept per incident in local storage, and an answer with no time yet counts as new). Nothing to show reads "Details". The conditions stay in view above Details until they are set, then move under it. The counting is `web/src/command/detailsSummary.ts`.
 - Source: UI review (photos and answers under a closed Details would go unnoticed; command types the conditions at the start of a drill).

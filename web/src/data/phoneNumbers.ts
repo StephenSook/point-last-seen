@@ -15,7 +15,11 @@
 
 export const REPLACEMENT = "[number removed]";
 
-const DIGIT_WORDS = new Set(["zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]);
+// Spoken digits in English, and in Spanish (shared/test-vectors/README.md); "un" and "una" are articles, not digits.
+const DIGIT_WORDS = new Set([
+  "zero", "oh", "o", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
+]);
 // Chinese numeral digits, and the spoken "幺" (one): counted as digits.
 const CHINESE_DIGITS = "〇零一二三四五六七八九幺";
 // Dashes besides the plain hyphen, as NFKC leaves them: hyphen, non-breaking hyphen, figure, en and em dash, minus.
