@@ -113,11 +113,13 @@ printf '%s\n' "$out" | grep -E '^(INSTRUMENTATION_RESULT|INSTRUMENTATION_CODE|OK
 # A pass is exactly one start and one pass of that one method, then the runner finishing normally.
 codes="$(printf '%s\n' "$out" | sed -n 's/^INSTRUMENTATION_STATUS_CODE: //p' | sort | tr '\n' ' ')"
 tests_seen="$(printf '%s\n' "$out" | grep -Fxc "INSTRUMENTATION_STATUS: test=${probe#*#}" || true)"
+# Here-strings, not pipes: grep -q stops at its first match, and under pipefail the writer then dies of SIGPIPE.
+# Piped, a found INSTRUMENTATION_FAILED read as a failed pipeline, so the negation passed a failed run.
 if [ "$run_rc" -eq 0 ] \
   && [ "$codes" = "0 1 " ] \
   && [ "$tests_seen" = 2 ] \
-  && printf '%s\n' "$out" | grep -qx 'INSTRUMENTATION_CODE: -1' \
-  && ! printf '%s\n' "$out" | grep -q '^INSTRUMENTATION_FAILED'; then
+  && grep -qx 'INSTRUMENTATION_CODE: -1' <<<"$out" \
+  && ! grep -q '^INSTRUMENTATION_FAILED' <<<"$out"; then
   result=passed
 fi
 exit 0
