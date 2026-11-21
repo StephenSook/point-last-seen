@@ -32,14 +32,43 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    # Spanish digit words count like English ones, so a number spelled in Spanish inside an English
                    # note is removed too.
                    "cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
-                   "Seis-Siete-Ocho-Nueve-Tres-Dos-Uno-Cero-Cinco-Cuatro", "404 cinco cinco cinco 0142"]
+                   "Seis-Siete-Ocho-Nueve-Tres-Dos-Uno-Cero-Cinco-Cuatro", "404 cinco cinco cinco 0142",
+                   # Any punctuation or symbol between digit groups joins them, not only - . , ( ) / and the dashes:
+                   # a middle dot, a hyphenation point, a bullet, an underscore, a star, a bar, a semicolon, ! or ?, or a bracket.
+                   "404 555\u00b70142", "404\u00b7555\u00b70142", "404 \u00b7 555 \u00b7 0142", "404\u2027555\u20270142",
+                   "404\u2022555\u20220142",
+                   # Spaces of every width, an em dash, full stops and full-width digits and hyphens.
+                   "404\u00a0555\u00a00142", "404\u2009555\u20090142", "404\u202f555\u202f0142", "404\u2014555\u20140142",
+                   "404.555.0142", "\uff14\uff10\uff14\uff0d\uff15\uff15\uff15\uff0d\uff10\uff11\uff14\uff12",
+                   "404_555_0142", "404*555*0142", "404 | 555 | 0142", "404;555;0142", "404!555!0142", "404?555?0142",
+                   "[404] 555 0142",
+                   # A frequency's shape joined to other digits is a phone number, and two decimals across a slash
+                   # with no minus can be two numbers, not a coordinate pair.
+                   "404.555 0142", "020.79460958 / 020.79460959", "404.555-0142 #123",
+                   # Whole degrees never start with a zero, and a frequency is 25 to 999 in a run of frequencies only.
+                   "020.79460958 | -0.1276", "020.79460958, -0.1276", "404.555 0.142", "404.555 0.142 1234567",
+                   # A Mexican number in dot form is not a coordinate: a pair needs a minus after its mark, 4 to 7
+                   # decimals and no phone cue before it.
+                   "33.12345678, 33.87654321", "55.12345678, 55.87654321", "33.12345678, -103.3496",
+                   "33.12345678 / -81.12345678", "33.1234, -84.5678"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
                  "GPS 33.7490, -84.3880", "Atlanta, GA 30301-1234", "walked 12,345 steps", "12345 67th Ave", "5km",
                  "Seen Nov \r\n19 2026", "GPS 33.7490,\r\n-84.3880", "Seen Nov\r\n\r\n19 2026",
                  "Seen 11/19/2026 14:03", "near 4550 142nd St", "Vimos dos ni\u00f1os y tres perros cerca del lago.",
-                 "Equipo uno dos tres cuatro cinco seis listo"]
+                 "Equipo uno dos tres cuatro cinco seis listo",
+                 # The three marks that never join a number: a degree, a percent and a time's colon.
+                 "GPS 33.7490\u00b0, -84.3880\u00b0", "GPS 33\u00b044'56\"N 84\u00b023'17\"W", "POA 45% 30% 15% 10%",
+                 "Seen 14:03 14:30",
+                 # A coordinate pair across a semicolon or a bullet, and radio frequencies (1 to 3 digits, a full stop,
+                 # 3 digits), are search information.
+                 "GPS 33.7490; -84.3880", "Radio 155.160 | 154.205", "GPS 33.7490 \u2022 -84.3880",
+                 "Radio 146.520, 155.160 and 462.550", "Radio 155.160-155.175", "Radio 27.185 155.160 462.550",
+                 "Ubicaci\u00f3n 33.12345, -84.5678",
+                 # A cue word further back than the one before a pair (or one connector) names a thing: a found
+                 # phone, a cell ping or a call's place is a clue, and its coordinates stay.
+                 "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733", "Call came from 33.7866, -84.3733"]
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.
@@ -49,7 +78,9 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   ("Seen 11/19/2026, call 404-555-0142", "Seen 11/19/2026, call [number removed]"),
                   ("Seen Nov 19 2026 404-555-0142", "Seen Nov 19 2026 [number removed]"),
                   ("Seen 11/19/2026 14:03 404-555-0142", "Seen 11/19/2026 14:03 [number removed]"),
-                  ("Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos", "Seen at 14:03, [number removed]")]
+                  ("Seen at 14:03, cuatro cero cuatro cinco cinco cinco cero uno cuatro dos", "Seen at 14:03, [number removed]"),
+                  # A frequency joined to any other digits goes with the run.
+                  ("Radio 155.160 404 5550142", "Radio [number removed]")]
 
 
 def number_chars(text: str) -> bool:

@@ -148,9 +148,12 @@ platform's rule does not follow a case yet, that case names the platform in `pen
 are a number: written digits in any script (full-width, circled and Chinese numerals too), spoken English digit
 words (zero, oh, o, one to nine) and Spanish digit words (cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho,
 nueve; any capitals; not un or una, which are articles) count alike,
-joined only by short separators (at most three spaces, or `- . , ( ) /` or a dash such as U+2010 to
-U+2014 and U+2212; a CRLF, or a line break with its indent, counts as one; an accent or a joiner inside a gap counts as
-nothing). Search information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
+joined by separators: any spaces, punctuation or symbols between them (`- . , ( ) /`, a dash, a middle dot, a
+hyphenation point, a bullet, an underscore, a star, a bar, a semicolon, a bracket), except `:` `%` and `°`, which mark
+a time, a percent and a degree and so never join (a CRLF, or a line break with its indent, counts as one; an accent or
+a joiner
+inside a gap counts as nothing; a gap never holds a letter or a digit, since those are parts of their own). Search
+information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
 ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
 digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
