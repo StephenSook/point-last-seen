@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { debriefAuthor, parseDebriefForm, type ClearedSegment, type Debrief, type DebriefInput } from "../data/debriefs";
+import { DebriefPaperRead, type PaperRead } from "./DebriefPaperRead";
 
 type Props = {
   cleared: readonly ClearedSegment[];
@@ -11,23 +12,26 @@ type Props = {
   teams: readonly { teamId: string; name: string }[];
   /** Creates the debrief, or edits it when `existing`; rejects when the server refuses. */
   onSave: (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => Promise<void>;
+  /** Reads a team's paper sheet on this laptop; without it, no paper read is offered. */
+  paperRead?: PaperRead;
 };
 
-export function DebriefSection({ cleared, debriefs, teams, onSave }: Props) {
+export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead }: Props) {
   const ids = [...new Set([...cleared.map((c) => c.segmentId), ...Object.keys(debriefs)])].sort();
   return (
     <section aria-labelledby="debrief-h" className="layers">
       <h2 id="debrief-h" className="label">Debriefs</h2>
       {ids.length === 0 && <p className="muted small">Cleared segments get a debrief here.</p>}
       {ids.map((id) => (
-        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} />
+        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} />
       ))}
     </section>
   );
 }
 
-function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"] }) {
+function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined }) {
   const [editing, setEditing] = useState(false);
+  const [paper, setPaper] = useState(false);
   const [minutes, setMinutes] = useState("");
   const [worked, setWorked] = useState("");
   const [didNotWork, setDidNotWork] = useState("");
@@ -69,7 +73,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
   return (
     <div className="layer" data-testid={`debrief-${segmentId}`}>
       <p className="num">{segmentId}</p>
-      {!editing && (
+      {!editing && !paper && (
         <>
           {debrief ? (
             <>
@@ -86,7 +90,20 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave }: { segmentId:
           <button type="button" className="btn ghost" onClick={open}>
             {debrief ? "Edit debrief" : "Add debrief"}
           </button>
+          {paperRead && (
+            <button type="button" className="btn ghost" onClick={() => setPaper(true)}>
+              Read the paper sheet
+            </button>
+          )}
         </>
+      )}
+      {paper && paperRead && (
+        <DebriefPaperRead
+          segmentId={segmentId}
+          read={paperRead}
+          onSave={(input) => onSave(segmentId, input, debrief !== undefined, debrief?.clearedEventId ?? cleared?.eventId ?? null)}
+          onClose={() => setPaper(false)}
+        />
       )}
       {editing && (
         <div className="debrief-form">
