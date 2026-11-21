@@ -32,7 +32,7 @@ function Harness() {
   return (
     <main className="rail right" style={{ width: 340 }}>
       <p className="drill">Synthetic reports, not drill data.</p>
-      <SightingsPanel cards={cards} segmentOf={(c) => (c.needsPlace ? null : "AA")} onDecide={async () => {}} onPlace={(c) => setPlacing(c.sighting.eventId)} />
+      <SightingsPanel cards={cards} segmentOf={(c) => (c.needsPlace ? null : "AA")} onDecide={async () => (new URLSearchParams(location.search).has("note") ? "Rebuilt without downhill and level ground: the new start is outside the mapped segments." : undefined)} onPlace={(c) => setPlacing(c.sighting.eventId)} />
       <pre data-testid="placing">{placing}</pre>
     </main>
   );

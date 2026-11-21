@@ -47,3 +47,10 @@ test("three or fewer sightings show without a Show all button", async ({ page })
   await expect(panel.locator("li.sighting")).toHaveCount(3);
   await expect(panel.getByRole("button", { name: /^Show all/ })).toHaveCount(0);
 });
+test("a confirm that turned the elevation layer off says why on its card", async ({ page }) => {
+  await page.goto("/harness/sightings.html?note=1");
+  const row = page.getByTestId("sighting-cccccccccccccccccccccccccccccccc");
+  await row.getByRole("button", { name: "Confirm" }).click();
+  await expect(row).toContainText("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+});
+

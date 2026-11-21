@@ -73,7 +73,7 @@ function Harness() {
         }}
         onConfirm={(o, input) => {
           setConfirmed(JSON.stringify({ sha256: o.sha256, bearingDeg: o.bearingDeg, camera: input.camera }));
-          return { version: 8, ack: Promise.resolve() };
+          return { version: 8, ack: Promise.resolve(), ...(new URLSearchParams(location.search).has("note") ? { note: "Rebuilt without downhill and level ground: the new start is outside the mapped segments." } : {}) };
         }}
         onClose={() => {}}
         revocation={revocation}
