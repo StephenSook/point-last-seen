@@ -31,7 +31,7 @@ import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } 
 import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
 import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
+import { buildConfirmation, buildRetraction, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
@@ -51,6 +51,8 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { ReportsPanel } from "./ReportsPanel";
+import { reportCards } from "./reportCards";
 import { FirstReportCard, type FirstReportState } from "./FirstReportCard";
 import { FIRST_REPORT_LINE, firstReportInput, offerFirstReport } from "./firstReport";
 import { lastReportChange, viewState } from "./viewState";
@@ -888,6 +890,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
             </summary>
+            {/* Every report, each one command can take back: a retraction event the map stops counting on every device. */}
+            <ReportsPanel
+              cards={reportCards(events as unknown as EventDoc[], incident?.priorInputEventIds ?? [])}
+              teams={teams}
+              onRetract={async (c) => write(buildRetraction(c.report, writer()))}
+            />
             {incident && conditions && (
               <ConditionsForm conditions={conditions} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
             )}
