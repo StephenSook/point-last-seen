@@ -2205,6 +2205,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
 - Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.
 
+### test(e2e): the live run's saved session keeps Remote Config's cache, so tests stop refetching it
+- What: `e2e/auth.setup.ts` waits until Remote Config has stored its fetch (IndexedDB `firebase_remote_config`, a `last_successful_fetch_timestamp_millis` key) and Performance Monitoring its config (localStorage `@firebase/performance/config`) before saving the session every live test reuses. Setup had saved before either was written, so each test fetched both again, about 80 fetches a run against the project's 60 a minute per caller; runs were refused partway with HTTP 429 (seen as console errors, the "(default)" model on the judge page, and a missing trace).
+- Source: review (Remote Config 429 in live checks; Cloud Monitoring showed 49 fetches in one minute from one run).
+- Verified: the saved session now holds 8 Remote Config records and the Performance key; a full live run on cb464fcb made 4 Remote Config fetches (Cloud Monitoring, per minute) instead of about 80, with no 429, and ran in 46 s instead of 1.8 min; the hygiene guard passes.
+
+### test(e2e): the rail order check waits for the family section before reading Details
+- What: `e2e/railOrder.spec.ts` waits for the family section's heading (it draws when the family's questions arrive, which can come after the map's labels) before it lists the headings under Details.
+- Source: the faster live run (cached Remote Config) read Details before the questions arrived.
+- Verified: the rail order, smoke and judge checks pass live on cb464fcb (23); the hygiene guard passes.
+
 ### feat(command): a suggested plan shows beside the approved one, team by team
 - What: when a plan is already approved, a suggestion's card shows a table, "The approved plan and this suggestion": each team's segments now and suggested with the share of the probability those segments hold on the current map ("AB, 20.0%"), "Same" where a team's segments do not change, and a last row, "In these segments", with each plan's total (a segment two teams share counts once). `planCompare` in `web/src/command/planCompare.ts`; CommandPost passes the latest approved plan. With no approved plan the suggestion shows on its own. The plan harness gains `?current=1`.
 - Source: review (compare a suggested change with the current result side by side before approving).
