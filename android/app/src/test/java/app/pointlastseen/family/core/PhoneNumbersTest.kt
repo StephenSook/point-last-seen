@@ -1,6 +1,7 @@
 package app.pointlastseen.family.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class PhoneNumbersTest {
@@ -23,6 +24,23 @@ class PhoneNumbersTest {
         for (note in listOf("Call 404 | 555 | 0142 tonight", "Call 404;555;0142 tonight", "Call 404!555!0142 tonight", "Call 404?555?0142 tonight")) {
             assertEquals("Call [number removed] tonight", PhoneNumbers.remove(note))
         }
+    }
+
+    /** A ; bullet dot bar or slash joins a coordinate pair only with a minus after it, so two dotted numbers are not a pair. */
+    @Test fun twoDottedNumbersAcrossASlashOrBarAreNotACoordinatePair() {
+        for (note in listOf("Call 020.79460958 / 020.79460959", "Call 020.79460958 | 020.79460959")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("79460958") || out.contains("79460959"))
+        }
+        assertEquals("GPS 33.7490 / -84.3880", PhoneNumbers.remove("GPS 33.7490 / -84.3880"))
+    }
+
+    /** A frequency stays only when every number joined to it is a frequency too; beside other digits it goes with the run. */
+    @Test fun aFrequencyJoinedToOtherDigitsGoesWithTheRun() {
+        val out = PhoneNumbers.remove("Call 404.555-0142 #123")
+        assertFalse(out, out.contains("404") || out.contains("555") || out.contains("0142"))
+        assertEquals("Radio [number removed]", PhoneNumbers.remove("Radio 155.160 404 5550142"))
+        assertEquals("Radio 155.160 | 154.205", PhoneNumbers.remove("Radio 155.160 | 154.205"))
     }
 
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */

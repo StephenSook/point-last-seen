@@ -64,9 +64,10 @@ object PhoneNumbers {
     )
 
     // Matched against a gap after [flat], so a space is " " and a line break "\n" on every platform.
-    // A comma, semicolon, bullet, middle dot, bar or slash (with up to two spaces around it, and a minus after), or a
-    // minus with a space before it: a bare minus between two decimals (44.2071-23.4567) is a dotted number, not a pair.
-    private val COORDINATE_GAP = Regex("""[ \n]{0,2}[,;\u2022\u00B7|/][ \n]{0,2}-?|[ \n]{1,2}-""")
+    // A comma (with up to two spaces around it, and a minus after), a semicolon, bullet, middle dot, bar or slash only
+    // with a minus after it (two dotted numbers across a slash, 020.79460958 / 020.79460959, are no pair), or a minus
+    // with a space before it: a bare minus between two decimals (44.2071-23.4567) is a dotted number, not a pair.
+    private val COORDINATE_GAP = Regex("""[ \n]{0,2},[ \n]{0,2}-?|[ \n]{0,2}[;\u2022\u00B7|/][ \n]{0,2}-|[ \n]{1,2}-""")
     private val MONTH_DAY_GAP = Regex("""\.?[ \n]{1,2}""")
     private val DAY_MONTH_GAP = Regex("""[ \n]{1,2}""")
     private val YEAR_GAP = Regex(""",?[ \n]{1,2}""")
@@ -197,6 +198,8 @@ object PhoneNumbers {
         // Month-name dates (from the first digit part to the last, the month inside) and times (hour, minutes).
         val monthDates = mutableListOf<IntRange>()
         val times = mutableListOf<IntRange>()
+        // The whole part of each radio frequency candidate (its fraction is the next part).
+        val frequencies = mutableSetOf<Int>()
         for (i in parts.indices) {
             if (!parts[i].written) {
                 if (word(s, parts[i]) !in MONTHS) continue
@@ -228,19 +231,26 @@ object PhoneNumbers {
             ) {
                 kept += i..(i + 3)
             }
-            // A radio frequency (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a dotted chain
-            // (404.555.0142) and not after a "+". Beside any other short piece it goes with the run, as every span does.
+            // A radio frequency candidate (146.520, 155.160): 1 to 3 digits, a full stop, exactly 3 digits, not part of a
+            // dotted chain (404.555.0142) and not after a "+". Kept below only when every number joined to it is one too.
             if (written(i + 1) && gap(i, i + 1) == "." && len(i) <= 3 && len(i + 1) == 3 && ascii(i) && ascii(i + 1) &&
                 !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == ".") && !(written(i + 2) && gap(i + 1, i + 2) == ".") &&
                 !(parts[i].start > 0 && s[parts[i].start - 1] == '+')
             ) {
-                kept += i..(i + 1)
+                frequencies += i
             }
             if (len(i) == 5 && written(i + 1) && gap(i, i + 1) == "-" && len(i + 1) == 4 && i > 0 && !parts[i - 1].written &&
                 text(i - 1) in STATES && gap(i - 1, i) == " "
             ) {
                 kept += i..(i + 1)
             }
+        }
+        // A frequency stays only when every number joined to it (the part before its whole, the part after its fraction)
+        // is a frequency too: "Radio 155.160 | 154.205" stays, while 404.555-0142 or "155.160 404 5550142" go whole.
+        for (w in frequencies) {
+            val beforeOk = w == 0 || !joins(s, parts[w - 1], parts[w]) || (w - 2) in frequencies
+            val afterOk = w + 2 >= parts.size || !joins(s, parts[w + 1], parts[w + 2]) || (w + 2) in frequencies
+            if (beforeOk && afterOk) kept += w..(w + 1)
         }
         // Dates are found in order, so a date can overlap only the one before or after it in the list.
         val written = dates.filterIndexed { k, d ->
