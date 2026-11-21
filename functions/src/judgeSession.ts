@@ -134,7 +134,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     const currentId: string | null = user!.exists ? (user!.get("incidentId") as string) : legacy!.exists ? legacyId : null;
     const current = currentId === null ? null : currentId === legacyId ? legacy! : await tx.get(db.doc(`incidents/${currentId}`));
     const exp = current?.get("expiresAt");
-    if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs) {
+    // A sandbox the visitor ended (closed) counts as ended, like an expired one: the next start is a new session.
+    if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs && current.get("status") !== "closed") {
       if (current.get("setupReady") === true) {
         if (!user!.exists) tx.set(userRef, { incidentId: current.id, createdAt: current.get("createdAt") });
         return { kind: "ready", id: current.id };

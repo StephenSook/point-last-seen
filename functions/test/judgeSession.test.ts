@@ -93,6 +93,17 @@ describe("startJudgeSession", () => {
     expect(doc).not.toHaveProperty("closedReason");
     expect(doc).not.toHaveProperty("closedAt");
   });
+  it("a practice search the visitor ended is not handed back: the next start (after the hourly limit) is a new incident", async () => {
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    await inc(first).update({ status: "closed", closedReason: "training_ended" });
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 20 * 60_000, cfg)).rejects.toMatchObject({ code: "resource-exhausted" });
+    const second = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW + 2 * HOUR, cfg)).incidentId;
+    expect(second).toMatch(attemptId(uid));
+    expect(second).not.toBe(first);
+    expect((await inc(second).get()).get("status")).toBe("open");
+    expect(await claims(uid)).toEqual({ inc: second, role: "command", team: null });
+  });
   it("the daily cap holds per UTC day, each day on its own counter (review: a late call could reset a new day)", async () => {
     await counterAt(NOW).set({ count: 3 });
     await expect(handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg)).rejects.toMatchObject({ code: "resource-exhausted" });

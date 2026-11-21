@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: a practice search the visitor ended (status closed) is no longer handed back on the next start: like an
+  expired one, it gives a new session, subject to the same hourly limit per visitor, so Try a practice search after
+  End this search starts fresh instead of reopening the ended post. Source: review (practice copies after End this
+  search). Verified: a new case (an ended sandbox: refused within the hour as resource-exhausted, then a new open
+  incident with the command role) failed first, then passes; 353 functions and rules tests and the gates pass.
 - functions: a judge's practice copy never carries the seed's end of search: closedReason and closedAt join
   NOT_COPIED, so a copy starts open with neither. Source: review (practice copies after End this search). Verified: a
   new case with an ended seed failed first, then passes; judgeSession tests pass.
