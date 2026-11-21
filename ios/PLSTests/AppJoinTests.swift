@@ -566,6 +566,17 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.endedSearch == nil && m.endedEntries.isEmpty)
     }
 
+    /// The next account never sees the ended search's line either.
+    @Test func theEndedLineGoesWithAnAccountChange() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.joinMessage == "Search ended: person found. No new reports are taken.")
+        m.noteAccount("uid-2")
+        #expect(m.joinMessage == nil && m.endedSearch == nil)
+    }
+
     /// A read that started for one account and comes back closed after the account changed shows nothing.
     @Test func aLateClosedReadForAnOldAccountShowsNothing() async throws {
         let reader = FakeMissionReader(docs: try drillDocs(status: "closed", closedReason: "found"))

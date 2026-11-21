@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): the ended search's line goes with an account change
+- What: a change of account already cleared the ended search and its reports; it now also clears the ended line from
+  the join form's message, so the next account never sees the previous one's "Search ended: ..." reason.
+- Source: second review of the ended-search change.
+- Verified: a test that the line goes with an account change failed before the change and passes after; the
+  AppJoin suite passes.
+
 ### fix(ios): an ended search's reports never block leaving it
 - What: a report the server refused because its search had ended is retryable in the journal, so it kept "Leave
   this search" refused ("Some reports have not reached command yet") with no way to settle it, and with it the

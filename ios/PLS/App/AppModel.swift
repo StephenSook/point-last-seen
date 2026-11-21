@@ -652,7 +652,8 @@ final class AppModel {
         sessionUid = reported
         sessionGeneration += 1
         accessCheck += 1
-        // An ended search belongs to the account that was in it; another user never sees its reports.
+        // An ended search belongs to the account that was in it; another user never sees its reports or its line.
+        if let ended = endedSearch, joinMessage == ended.line { joinMessage = nil }
         endedSearch = nil
         // A practice drill belongs to no account, so a change of user leaves it and its voice alone.
         guard practice == nil else { return true }
