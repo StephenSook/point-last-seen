@@ -4,6 +4,7 @@
 
 import { collection, onSnapshot, type Firestore } from "firebase/firestore";
 import { removePhoneNumbers } from "./phoneNumbers";
+import { planDocId } from "./plans";
 
 /** Mirrors shared/schemas/content-report.schema.json. */
 export type ContentReport = {
@@ -50,9 +51,26 @@ export function reportFromDoc(reportId: string, d: Record<string, unknown>): Fla
   return { reportId, authorUid, role, target, targetId, reason, ...(shown !== "" ? { note: shown } : {}), createdAtMs: at };
 }
 
-/** "Team 1 searcher flagged a report: personal information that should not be shared." */
-export function flagLine(f: Flag, who: string): string {
-  return `${who} flagged ${TARGET_WORDS[f.target]}: ${REASON_WORDS[f.reason].toLowerCase()}.`;
+/** "Team 1 searcher flagged a report from 04:21 in segment AE: personal information that should not be shared." */
+export function flagLine(f: Flag, who: string, target: string = TARGET_WORDS[f.target]): string {
+  return `${who} flagged ${target}: ${REASON_WORDS[f.reason].toLowerCase()}.`;
+}
+
+/** What was flagged, named well enough to find it: the report's time and segment, or the plan the task came from. */
+export function flagTarget(f: Flag, events: readonly Readonly<Record<string, unknown>>[], plans: readonly { version: number }[],
+  timeOf: (ms: number) => string): string {
+  if (f.target === "event") {
+    const e = events.find((x) => x["eventId"] === f.targetId);
+    if (!e || typeof e["clientTimeMs"] !== "number") return TARGET_WORDS.event;
+    const seg = (e["reading"] as { segmentIds?: unknown } | null | undefined)?.segmentIds;
+    const where = Array.isArray(seg) && typeof seg[0] === "string" ? ` in segment ${seg[0]}` : "";
+    return `a report from ${timeOf(e["clientTimeMs"])}${where}`;
+  }
+  if (f.target === "task") {
+    const p = plans.find((x) => planDocId(x.version) === f.targetId);
+    return p ? `their task in plan v${p.version}` : TARGET_WORDS.task;
+  }
+  return TARGET_WORDS.family_description;
 }
 
 /** Newest first. A report with no stored time sorts last: command writes none, so none is ever still being saved. */

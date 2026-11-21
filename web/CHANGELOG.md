@@ -2381,3 +2381,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the flags listener replaced the list with nothing on a refusal, so command saw the same screen as with no reports, and Firestore does not restart a listener it has refused. `subscribeFlags` now keeps what was shown and reports the refusal, so the page can say the list may be out of date.
 - Source: review (Codex: a failed listener silently removes the panel).
 - Verified: a new unit test, `contentReportsListen.test.ts` (Firestore's listener mocked: a good read, then a refusal), failed first, then passed; typecheck passes.
+
+### feat(data): a Problem report names the report or task it flags
+- What: a flag read only "flagged a report" or "flagged their task", so with no note command could not tell which of several sightings to open. `flagTarget` in `web/src/data/contentReports.ts` names it when it is on hand: "a report from 04:21 in segment AE" (the report's time and first segment) or "their task in plan v3" (the plan the flagged task came from); otherwise the plain words stay. `flagLine` takes it.
+- Source: review (Codex: command cannot identify the flagged report or task).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.

@@ -39,4 +39,15 @@ describe("content reports, after review", () => {
     const c = reportFromDoc("c", doc({ createdAt: { toMillis: () => 3 } }))!;
     expect(sortNewestFirst([a, b, c]).map((r) => r.reportId)).toEqual(["c", "a", "b"]);
   });
+  it("names the flagged report or task when it is on hand", async () => {
+    const { flagTarget } = await import("./contentReports");
+    const { planDocId } = await import("./plans");
+    const at = (ms: number) => new Date(ms).toISOString().slice(11, 16);
+    const ev = { eventId: "a".repeat(32), clientTimeMs: Date.UTC(2026, 10, 22, 4, 21), reading: { segmentIds: ["AE"] } };
+    expect(flagTarget(reportFromDoc("r", doc())!, [ev], [], at)).toBe("a report from 04:21 in segment AE");
+    expect(flagTarget(reportFromDoc("r", doc({ targetId: "b".repeat(32) }))!, [ev], [], at)).toBe("a report");
+    expect(flagTarget(reportFromDoc("r", doc({ target: "task", targetId: planDocId(3) }))!, [], [{ version: 3 }], at)).toBe("their task in plan v3");
+    expect(flagTarget(reportFromDoc("r", doc({ target: "task", targetId: "x" }))!, [], [{ version: 3 }], at)).toBe("their task");
+    expect(flagTarget(reportFromDoc("r", doc({ target: "family_description", targetId: null }))!, [], [], at)).toBe("the family's description");
+  });
 });
