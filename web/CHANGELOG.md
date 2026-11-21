@@ -2366,3 +2366,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: Firestore stops a listener after it refuses it, and the members and removal lists then kept their last read with no sign it had stopped, so a person another command seat had removed could still be offered for removal. `subscribeMembers` now reports a refusal; the panel then says "This list may be out of date. Reload the page before removing anyone." and offers no removal, while the last good lists stay shown.
 - Source: review (Codex, second round: a refused listener leaves People silently stale).
 - Verified: the listener unit test (`membersListen.test.ts`, mocked) now also expects the refusal to be reported, and failed first; a new harness check (`?stale=1`) failed on the panel without the change and passes with it (6 People checks); typecheck and the hygiene guard pass.
+
+### test(web): the removal check cleans up after itself and proves the sessions were revoked
+- What: if the deployed removal check failed before removing its fresh family member (the row never showing, say), or the fixture failed after the join, the account stayed joined to the test drill. Both now remove that account through `removeMember` as a command session of their own (`removeAsCommand` in `e2e/familyConsent.ts`). The check also expects the removed account's session refresh to be refused (400), since the removal record alone already refuses reads and rejoins, and only the refresh shows the sessions were revoked.
+- Source: review (Codex, second round: a failed test can leave the fresh account active; the test can pass while revocation failed).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
