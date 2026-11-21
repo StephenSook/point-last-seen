@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): a photo report's segment comes from code, never from its words
+- What: the event builder takes segment ids from the words a report names; a photo report's words come from the
+  model's caption, so a caption such as "grid ae cap" could put the clue in AE. Photo reports now keep the segment
+  code chose (the segment under the fix, else the team's only one).
+- Source: review.
+- Verified: a test with "Photo: grid ae cap." and "Photo: segment AE cap." failed (the clue went to AE) before the
+  change and passes after; all 414 core tests pass.
+
 ### fix(ios-core): a photo matches the family's description only when the rule is sure
 - What: when the photo rule cannot read a described item for sure, the match is unknown, never consistent: a
   phrase with a negation ("no red cap", "not wearing a hat"), a word right before the item that is neither a listed
