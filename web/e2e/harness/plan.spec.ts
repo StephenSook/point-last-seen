@@ -92,3 +92,31 @@ test("each assignment is one line: the team, its task and its reason", async ({ 
   const items = page.getByTestId("suggested-plan").getByRole("listitem");
   await expect(items).toHaveText(["Team 1 Search AA. Highest.", "Team 2 Search AB. Next."]);
 });
+
+test("while the plan is worded, the card says so and that the first time can take up to a minute", async ({ page }) => {
+  await page.goto("/harness/plan.html?slow=1");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  const waiting = page.getByRole("status").filter({ hasText: "Wording the plan" });
+  await expect(waiting).toHaveText("Wording the plan. The first time on this laptop can take up to a minute.");
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(waiting).toHaveCount(0);
+});
+
+test("a suggestion shows beside the approved plan, team by team, with the probability each plan's segments hold", async ({ page }) => {
+  await page.goto("/harness/plan.html?current=1");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  const table = page.getByRole("table", { name: "The approved plan and this suggestion" });
+  await expect(table.getByRole("row")).toHaveText([
+    /^Team\s*Now\s*Suggested$/,
+    /^Team 1\s*AB, 20\.0%\s*AA, 31\.0%$/,
+    /^Team 2\s*AC, 5\.0%\s*AB, 20\.0%$/,
+    /^In these segments\s*25\.0%\s*51\.0%$/,
+  ]);
+});
+
+test("with no approved plan yet, a suggestion shows on its own", async ({ page }) => {
+  await page.goto("/harness/plan.html");
+  await page.getByRole("button", { name: /^Suggest/ }).click();
+  await expect(page.getByTestId("suggested-plan")).toBeVisible();
+  await expect(page.getByRole("table", { name: "The approved plan and this suggestion" })).toHaveCount(0);
+});

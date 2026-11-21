@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, photoTemplateGeneratorFor, templateGeneratorFor } from "./client";
+import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, debriefSheetGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, photoTemplateGeneratorFor, templateGeneratorFor } from "./client";
 import { clipParts } from "./clipRead";
 
 describe("generatorFor", () => {
@@ -35,6 +35,15 @@ describe("photoGeneratorFor", () => {
     const gen = photoGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}", inferenceSource: "on_device" } }; }) as never });
     expect(await gen("QUJD")).toEqual({ text: "{}", inferenceSource: "on_device" });
     expect(sent).toEqual([{ type: "text", text: "Read this photo." }, { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: "QUJD" } }]);
+  });
+});
+
+describe("debriefSheetGeneratorFor", () => {
+  it("sends one prompt and one inline JPEG of the sheet, and returns the text and the reported route", async () => {
+    let sent: unknown;
+    const gen = debriefSheetGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}", inferenceSource: "on_device" } }; }) as never });
+    expect(await gen("QUJD")).toEqual({ text: "{}", inferenceSource: "on_device" });
+    expect(sent).toEqual([{ type: "text", text: "Read this debrief sheet." }, { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: "QUJD" } }]);
   });
 });
 

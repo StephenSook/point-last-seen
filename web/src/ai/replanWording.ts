@@ -42,17 +42,17 @@ const SYSTEM = [
   "Return JSON with assignments (teamId, reason) and a one-sentence summary.",
 ].join(" ");
 
-export function wordingParams(model: string): HybridParams {
+export function wordingParams(model: string, teamIds: readonly string[] | null = null): HybridParams {
   return {
     mode: InferenceMode.PREFER_ON_DEVICE,
     inCloudParams: {
       model,
       systemInstruction: SYSTEM,
-      generationConfig: { responseMimeType: "application/json", responseJsonSchema: PLAN_WORDING_JSON, maxOutputTokens: CLOUD_MAX_OUTPUT_TOKENS },
+      generationConfig: { responseMimeType: "application/json", responseJsonSchema: planWordingJson(teamIds), maxOutputTokens: CLOUD_MAX_OUTPUT_TOKENS },
     },
     onDeviceParams: {
       createOptions: onDeviceCreateOptions("text", SYSTEM),
-      promptOptions: { responseConstraint: PLAN_WORDING_JSON },
+      promptOptions: { responseConstraint: planWordingJson(teamIds) },
     },
   };
 }
@@ -203,3 +203,55 @@ async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<Worde
     clearTimeout(timer);
   }
 }
+
+/**
+ * The wording's own on-device options, ONLY_ON_DEVICE and with no cloud params: what a measurement page asks for, since
+ * a dev page never builds a cloud model. With the built-in model available, PREFER_ON_DEVICE runs these same options.
+ */
+export function wordingOnDeviceParams(teamIds: readonly string[] | null = null): HybridParams {
+  return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: wordingParams("", teamIds).onDeviceParams };
+}
+
+/**
+ * The wording's JSON schema for one plan: exactly one assignment per team, naming only that plan's teams. On Chrome's
+ * built-in model the general schema let a reply repeat the teams up to its 12 items, which code then rejected
+ * (docs/evidence/web/2026-11-21-plan-wording-chrome.json). With no teams it is the general schema.
+ */
+export type PlanWordingSchema = {
+  type: "object";
+  properties: {
+    assignments: {
+      type: "array";
+      minItems?: number;
+      maxItems: number;
+      items: { type: "object"; properties: { teamId: { type: "string"; enum?: string[] }; reason: { type: "string" } }; required: readonly string[] };
+    };
+    summary: { type: "string" };
+  };
+  required: readonly string[];
+};
+
+export function planWordingJson(teamIds: readonly string[] | null): PlanWordingSchema {
+  if (!teamIds || teamIds.length === 0) return PLAN_WORDING_JSON;
+  const a = PLAN_WORDING_JSON.properties.assignments;
+  return {
+    ...PLAN_WORDING_JSON,
+    properties: {
+      ...PLAN_WORDING_JSON.properties,
+      assignments: {
+        ...a,
+        minItems: teamIds.length,
+        maxItems: teamIds.length,
+        items: { ...a.items, properties: { ...a.items.properties, teamId: { type: "string", enum: [...teamIds] } } },
+      },
+    },
+  };
+}
+
+/**
+ * How long the command post waits for a plan's wording before it uses the fixed wording. On Chrome's built-in model a
+ * page's first wording took 19.8 s on a fast Mac and later ones 2 to 3 s, past the 15 s a cloud request gets
+ * (evidence: docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json). A cloud request keeps its own 15 s limit
+ * (REPLY_TIMEOUT_MS, set on the SDK request), so a cloud fallback is no slower.
+ */
+export const WORDING_WAIT_MS = 60_000;

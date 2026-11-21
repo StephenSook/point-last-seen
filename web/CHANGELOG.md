@@ -2037,3 +2037,185 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
 - Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).
 - Verified: new `src/command/connecting.test.ts` (practice, other incident, none) failed first (no module), then passed; the live practice check now reloads the practice search and requires that the join form never appears and the opening line does, which failed on the live site (the join form showed) and runs again after the deploy; the no-backend set (42), web unit suite (987), typecheck, CI's Python gates and the hygiene guard pass.
+
+### feat(judge): the Android link opens the latest published judge release
+- What: `ANDROID_RELEASE_URL` is GitHub's `/releases/latest` instead of a fixed tag, so a new judge build (android-judge-2 and later) needs no code change. A new browser check asks GitHub for that URL signed out and requires a 200, a final address on an `android-judge` or `android-judge-N` tag, and a `point-last-seen-family-<sha>.apk` asset on the page.
+- Source: review (android-judge-2 was published; the link should follow the newest build).
+- Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).
+
+### test(command): the shared-link check runs as a visitor who has not joined
+- What: `e2e/sharedLink.spec.ts` now opens with no saved sign-in, as a forwarded link reaches someone who has not joined. The live run's saved session is a command member of the test drill, and since the post now says it is opening a linked incident while it reconnects, that session goes straight to the post, so the join form the check reads never appeared.
+- Source: the live run after the reopening change.
+- Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
+
+### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
+- What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
+- Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
+- Verified: a new deployed check in `e2e/phone.spec.ts` (the bar at the bottom of a 390 by 844 window; Plan brings the plan into view; Add sighting opens the form in view) failed on the live site (no bar) and runs again after the deploy; the post layout harness, the no-backend set (43), web unit suite (1000), typecheck and the hygiene guard pass.
+
+### fix(map): on a phone the walker model's sentence spans the foot of the map
+- What: at phone width the walker model's sentence under the map ("The walker model is a prior for planning. It does not predict where a person is.") spans the map's width just above the credit line, in one or two lines; it was held to the map's width minus 320 px, a column about 70 px wide that ran down the map's left edge. The laptop layout is unchanged. The map harness gains `?note`.
+- Source: UI review (on a phone the walker caption box covered the map's left edge).
+- Verified: a new harness check in `e2e/harness/map.spec.ts` (at 390 by 844 the sentence is at most 40 px tall, wider than 60% of the map, and clear of the credit line) failed first (138 px tall), then passed with the other map checks (16); typecheck, web unit suite and the hygiene guard pass.
+
+### fix(map): a change chip never covers another cell's percent or code
+- What: a change chip ("+0.2 pts") sat 16 px above its cell's dot whatever was there, so on a dense grid it covered the cell above's percent. Now each chip is placed after the plates and codes, on every camera move: above the dot, else right, else left, else below its own plate, whichever covers nothing. When every place covers something, it takes the one that covers the least (another cell's code before a percent, another chip last) and hides what it covers while it is there; those cells are still named in the ranked list. `chipPlace` in `web/src/map/labelFit.ts`; plates carry their segment id.
+- Source: UI review (on a laptop the "+0.2 pts" chip covered BC's percentage).
+- Verified: new `chipPlace` unit tests failed first, then passed; a new harness check in `e2e/harness/change.spec.ts` (at 1440 by 900 and 1100 by 700, then zoomed out two steps, every chip inside the map and none over a visible percent or code) failed on main ("+14.7 pts over 7.5%", "3.5%", "1.0%" two steps out), then passed with the change and map checks; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(prior): rebuilds carry the site's elevations for the elevation layer
+- What: `rebuildPrior` takes the site's per-segment elevations (`site.elevationM`) and, when the elevation layer is on, gives the engine the start segment's elevation from the rebuild's own start point (`segmentElevations`), so a rebuild from a new last known point measures from that point; it refuses without the file or with the start outside every segment. `cameraPriorWrites` passes them through (camera and sighting confirms). `loadElevationM` reads the site's elevation file (the one the terrain display reads) into a per-segment mean.
+- Source: review (terrain layer, approved).
+- Verified: new tests failed first, then pass: `rebuild.test.ts` (equals buildPrior with the start's elevation; ROW kept; refusals), `cameraPrior.test.ts` (from the camera's place; refusal without elevations), `elevation.test.ts` (this grid's file; no file, another grid's, broken, offline).
+
+### feat(command): a Downhill and level ground switch where terrain ships
+- What: the Prior panel shows a third switch, off by default, only when the site's elevation file loads (the Kennesaw drill grid). Its line gives the ISRID shares from the engine's constants (42% downhill, 39% about level, 19% uphill; p. 164; no n printed) and says the 3 m band is ours. It is disabled on urban terrain ("the source has no urban split") and when the start point's segment has no elevation; choosing the urban table turns it off. Like the other switches it asks before it rebuilds. The command post loads the file once per grid and passes the elevations to every rebuild (layers, the prior model switch, camera and sighting confirms).
+- Source: review (terrain layer, approved).
+- Verified: 4 new harness checks failed first, then pass (15 in layers.spec.ts); 1031 web unit tests, typecheck, the build and 43 no-backend browser checks pass; the Kennesaw file covers all 338 segments.
+### chore(e2e): the harness and extras dev servers take their port from the environment
+- What: `e2e/harness.config.ts` reads `PLS_HARNESS_PORT` (default 5175) and `e2e/extras.config.ts` reads `PLS_EXTRAS_PORT` (default 5176) through `e2e/harnessPort.ts`, which refuses anything but a whole number from 1024 to 65535. Each server starts with `--strictPort`, so two worktrees running the same suite at once collided on one port; now each can use its own. CI and an unset variable behave as before.
+- Source: review (two worktrees' harness runs failed on a busy port 5175).
+- Verified: new `src/e2eConfig.test.ts` (defaults 5175 and 5176, the variables move base URL, server command and ready URL, bad values refused) failed first, then passed; the map harness checks pass with `PLS_HARNESS_PORT=5185` (16); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): the Teams strip picks a team and outlines its cells
+- What: the Teams rail is a narrow strip (160 px, was 200 px), so the map gets the width. Each team is a button: pressing it makes that team the active one (its name in fg-1, the others in fg-4) and outlines its assigned cells on the map in 2 px fg-1 on a bg-0 casing, under the cyan outline of the newest change; pressing it again clears the pick. With no team picked every name reads in fg-2; before, no team could ever be active, so every name was fg-4 grey. The map element names the outlined cells in `data-team-outline`. New harness `web/harness/teams.html`.
+- Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
+- Verified: new harness checks in `e2e/harness/teams.spec.ts` (strip at most 168 px; names fg-2 with none picked; a click and the Enter key pick a team, recolour the names and outline its cells; a second press clears; a team with no task outlines nothing) failed first (rail 200 px, no team buttons), then passed; a screenshot shows Team 2's cells AB and AC outlined; typecheck, web unit suite and the hygiene guard pass.
+
+### fix(prior): the elevation layer never blocks a confirmation
+- What: `usableLayers` keeps the elevation layer on only where the site's elevations are loaded and the start point is inside a segment that has one. A camera or sighting confirm whose new start is outside every segment, or one made while the file is missing, now rebuilds and saves the prior with the layer off instead of throwing before the confirmation is written. Turning the prior model back to rings does the same.
+- Source: review (cross-family, high).
+- Verified: new tests failed first, then pass: `usableLayers` (kept; turned off without the file, outside, or with no start elevation; other layers untouched) and the camera confirm with no file and outside the grid (equal to the ring prior from that point).
+
+### fix(command): elevations bound to their grid; a saved layer can always be turned off
+- What: the command post keeps the loaded elevation map with the grid it was loaded for (`elevationFor`) and clears it on a grid change, so a slow load never applies another site's heights (Piedmont's segment ids also exist in the Kennesaw file). The elevation switch now also shows wherever the saved layer is on, even when the site's file did not load, so command can turn it off; it turns on only where the start has an elevation.
+- Source: review (cross-family, medium).
+- Verified: new tests failed first, then pass: `elevationFor` (own grid; another grid; loading) and the harness check for a saved layer whose file did not load (16 in layers.spec.ts); 1036 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild before the map's segments load
+- What: `rebuildPrior` refuses an empty segment list ("The map's segments have not loaded yet."). Segments arrive through their own listener, so a sighting or camera confirm made after the incident and events loaded but before the segments did would have saved the confirmation, the new start and a new prior version with all mass outside the grid, leaving every stored segment's old probability in place. Every rebuild path goes through `rebuildPrior`, so all are covered.
+- Source: review (cross-family, high).
+- Verified: new tests failed first ("expected [Function] to throw"), then pass: `rebuildPrior([])` and `cameraPriorWrites([])` with the elevation layer off and on; 1038 web unit tests, typecheck, the build and 43 no-backend browser checks pass.
+
+### fix(prior): no rebuild from a partly loaded grid
+- What: `rebuildPrior` refuses a segment list in which a segment names a neighbour, upstream or downstream segment that is not in the list ("The map's segments have not all loaded yet."). A cached snapshot can hold only some segments, and the listener drops a document with unreadable geometry; a confirm from either would have saved a new prior version over part of the grid and left the rest on the old prior. Both shipped grids are closed and connected (no dangling names; neighbours symmetric), so any partial set is caught.
+- Source: review (cross-family, high).
+- Verified: a new test failed first ("expected [Function] to throw"), then passes: a linked 9-segment grid rebuilds, 8 of its 9 are refused, and dangling upstream or downstream names are refused; 1039 web unit tests, typecheck, 179 harness checks, the build and 43 no-backend browser checks pass; closure and connectivity checked on shared/grid/*.grid.json.
+
+### fix(command): the Prior panel says its switches are rings settings under walkers
+- What: with the walkers prior in use, the Prior panel adds "These apply when the prior is rebuilt as rings.", since the stored layers (elevation included) are kept for the rings rebuild. The elevation line says "the source prints no sample size" instead of "no n printed"; LIMITS matches.
+- Source: review.
+- Verified: the new harness check failed first without the line, then passes (17 in layers.spec.ts).
+### test(harness): at phone width the map and change harnesses keep the map in the tall row
+- What: the phone layout's `.map-wrap { order: -1 }` moved the map ahead of the harness's drill line, into its auto row, so at 900 px and below the harness map was 0 px tall and the drill line sat over the cells; checks run there (the small and crowded map checks at 300 by 420) measured a map with no height. The drill line now has `order: -2` in `web/src/harness/mapHarness.tsx` and `changeHarness.tsx`, so the map keeps the tall row, as on the command post.
+- Source: found while adding a pointer check to the map harness at 300 by 420 (the pointer landed on the drill line).
+- Verified: new checks in `e2e/harness/map.spec.ts` (at 390 by 844 both harness maps are over 500 px tall and the canvas is the top element at their centre) failed first (0 px), then passed with every map and change check (25); typecheck and the hygiene guard pass.
+
+### feat(map): one mark per cell: small dots, and codes with zoom or the pointer
+- What: a cell's dot is now at most 35% as wide as the smaller side of the cell on screen (it could be the whole cell), so on a phone the fills carry the map instead of white dots. A cell's code shows only when the cell is 40 px or more on its smaller side, so codes come with zoom; under that, pointing at a cell shows its code on the centre. Both are decided again on every camera move (`DOT_CAP_SHARE` and `CODE_MIN_CELL_PX` in `web/src/map/labelFit.ts`). The dot keeps its fg-2 colour and bg-0 ring, which hold 3:1 against every probability step. The live phone and accessibility checks wait on a new `mapDrawn` fixture (codes in the page and the map settled), since a phone shows no codes until zoomed in.
+- Source: UI review (one mark per cell: dot capped near 35% of the cell; codes only at zoom or hover; on the phone the white dots covered the fills).
+- Verified: new `labelFit` unit tests and a new harness check (three steps out, every dot at most 35% of its cell, no code on a cell under 40 px, the pointer shows a cell's code and moving off hides it) failed first (25 dots over the cap), then passed; the crowded map check now states that codes wait and that pointing at AB names it; the full harness suite (173), the extras suite (70), typecheck, web unit suite and the hygiene guard pass. On the deployed post the phone cells were about 26 px and the laptop cells about 57 px.
+
+### fix(data): any punctuation or symbol between digit groups joins a phone number
+- What: `removePhoneNumbers` kept a number whose groups were split by a character outside its separator list: a middle dot (U+00B7), a hyphenation point (U+2027), a bullet, an underscore, a star, a bar or a bracket ("Call 404 555·0142" was stored as written). A gap between two parts now joins them unless it holds ":", "%" or "°", which mark a time, a percent and a degree; a gap never holds a letter or a digit, since those are parts. Debrief notes, sighting text and sheet reads all go through this rule.
+- Source: review (cross-family, privacy).
+- Verified: new tests in `phoneNumbers.test.ts` failed first on the old rule (the 9 split shapes), then pass; spaces of every width, an em dash, full stops and full-width forms still go; a degree-sign GPS pair, degrees-minutes-seconds, a percent list and two times stay. Against the draft shared cases (15 new removals, 4 new keeps) all 77 pass on the web; 1052 web unit tests, the typecheck, the gates, the build and 43 no-backend browser checks pass.
+
+### fix(data): a semicolon, bar, ! or ? never joins a phone number
+- What: the marks that never join two digit groups are now : % ° ; | ! and ?. With only the first three, a semicolon or a bar joined, and notes main kept were erased: "GPS 33.7490; -84.3880", "Seen 2026-11-19; 3 searchers", "Radio 155.160 | 154.205", "Check-ins 08:30; 11:45; 14:03". None of the seven sits inside a phone number; a number split by a bar ("404 | 555 | 0142") is kept, as on main.
+- Source: review (cross-family).
+- Verified: the new keep test failed first ("GPS [number removed]"), then passes, with the same notes after "?" and "!"; 80 draft shared cases pass on the web; 1051 web unit tests and the typecheck pass.
+### test(prior): a 30 s timeout on the prior rebuild tests
+- What: every describe block in `rebuild.test.ts` and `cameraPrior.test.ts` runs with `{ timeout: 30_000 }`. Each case builds a whole prior, and on a loaded machine two of them passed vitest's 5 s default (5.4 s and 5.7 s) and failed once, then passed alone.
+- Source: review.
+- Verified: a scratch 6 s test in a block with the option passed and failed without it (deleted after); 52 prior tests and the typecheck pass.
+### feat(command): the practice search offers a one-click first report that moves the map
+- What: on a practice search, until command has confirmed or rejected any report, the rail opens with "Try a report": "A park worker saw a man in a blue coat at the south end of the park, in segment CD, 10 minutes ago." and one button, "Add and confirm this report". It saves the sighting the way the sighting form does (seen 10 minutes before now, blue top, from park staff, labelled a drill inject), waits until the server has it, then confirms it through the same handler as the Sightings panel's Confirm (`decideSighting`, pulled out of the panel's inline handler unchanged), so the prior is rebuilt from it as the new last known point. The card says which step it is on and why it stopped. Rules in `web/src/command/firstReport.ts`, card in `FirstReportCard.tsx`, harness `web/harness/first-report.html`.
+- Why CD: a local simulation on the seed drill (every segment tried as the confirmed place through `sightingConfirmWrites` and `viewState`, local evidence, not in the repo) found confirming at CD changes all three of the top three (BO, BP, BH to CC, CD, CE). The seed's start point is beside the lake, so a report there would barely move the map. The card names the segment, and a test checks CD is in the southern quarter of the practice grid.
+- Source: UI review (a seeded one-click first report on the practice search that visibly reorders the top three).
+- Verified: new unit tests (`firstReport.test.ts`: when it is offered, the saved sighting, the words against the shipped grid) and harness checks (`e2e/harness/firstReport.spec.ts`: the card's words, the steps, a refused save) failed first, then passed; the live practice check in `e2e/judge.spec.ts` now presses the button and asserts the card closes and none of the old top three is still in the top three; typecheck, web unit suite (1032) and the hygiene guard pass.
+
+### test(evidence): time the command post's photo read on Chrome's built-in model
+- What: a dev-server-only measurement page, `web/harness/photo-measure.html` (`src/harness/photoMeasure.tsx`), runs the command post's on-device photo read three times on a synthetic figure (no real person) on a bare Firebase app, and reports each reply's time, its inference source and every request to a Google or Firebase host. The result is `docs/evidence/web/2026-11-21-photo-read-chrome.json`: first read 20,032 ms, then 3,208 and 2,726 ms, all on device, no Google request.
+- Source: review (the sheet read's first read took 31 s against a 30 s limit; the photo read had the same limit and had never been timed).
+- Verified: typecheck and the hygiene guard pass; the page was run in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model and reports it unavailable).
+
+### fix(photos): the command post waits up to 90 s for a photo read on this laptop, and says why
+- What: the on-device photo read's limit is `PHOTO_READ_TIMEOUT_MS` (90 s) in `web/src/ai/photoCues.ts`, used by CommandPost's `readPhotoHere`; it was 30 s. While a photo is read on this laptop, the Family photos tray says "Reading on this laptop. The first read can take up to a minute." (before, only the button greyed out). The photos harness gains `?slow=1`.
+- Source: review (the photo read had the paper sheet read's 30 s limit; measured, its first read took 20 s on a fast Mac and the sheet's 31 s).
+- Verified: a new unit test (the limit is more than twice the slowest measured photo read in `docs/evidence/web/2026-11-21-photo-read-chrome.json`, at least 90 s, and CommandPost passes it) and a new harness check in `e2e/harness/photos.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### fix(data): only : % ° stay apart; coordinates and radio frequencies keep their own spans
+- What: the never-join set is back to : % and °, so a phone number split by a bar, a semicolon, "!" or "?" is removed ("404 | 555 | 0142", "404;555;0142"). Two spans keep the search information those marks used to protect by accident: a decimal coordinate pair may have a semicolon, bullet, middle dot, bar or slash between its two numbers ("GPS 33.7490; -84.3880"), and a radio frequency (1 to 3 digits, a full stop, exactly 3 digits, not in a dotted chain, no "+" before it) is kept like a date ("Radio 155.160 | 154.205", "155.160-155.175"). Beside a short piece either span goes with the run; beside a whole number of seven or more digits only the number goes. Check-in times or a date and a count joined by a semicolon are removed, as they already were with a comma.
+- Source: review (cross-family, privacy ruling).
+- Verified: new tests failed first (the four marks kept; the coordinate and frequency notes removed), then pass; "404.555 0142" and "Call 404.555.0142" are still removed; 87 draft shared cases pass on the web; the phone and vector suites pass (121).
+
+### fix(data): a frequency joined to other digits goes; a coordinate across a bar needs a minus
+- What: a radio frequency is kept only when nothing but other frequencies joins it, so a phone number never keeps a frequency's shape ("Call 404.555-0142 #123" had kept "404.555"; "Radio 155.160 404 5550142" is now removed whole). Two decimals across a semicolon, bullet, middle dot, bar or slash are a coordinate pair only with a minus after the mark ("GPS 33.7490 | -84.3880"); without one they can be two phone numbers ("020.79460958 / 020.79460959" had been kept whole). The comma rule is unchanged.
+- Source: review (cross-family, privacy).
+- Verified: both cases failed first, then pass; the coordinate and frequency keeps still pass; 89 draft shared cases and 350 data tests pass on the web.
+
+### fix(data): no zero-led degrees, and frequencies only in a run of frequencies
+- What: a coordinate's whole degrees never start with a zero (0.1276 still counts), so a London number written "020.79460958" next to a coordinate is removed, after a comma too. A radio frequency is 25 to 999 MHz with no leading zero, and a run keeps its frequencies only when every digit group in it is one: candidates with a joined neighbour outside the set drop out until none does ("Call 404.555 0.142 1234567" had kept "404.555").
+- Source: review (cross-family, privacy).
+- Verified: the new tests failed first, then pass; 94 draft shared cases and 1105 web unit tests (with the draft file) pass; the typecheck passes.
+### feat(ai): an on-device-only wording builder, for pages that must never build a cloud model
+- What: `wordingOnDeviceParams()` in `web/src/ai/replanWording.ts` is the plan wording's own on-device options and JSON constraint with mode ONLY_ON_DEVICE and no cloud params, and `wordingOnDeviceGenerator(ai)` in `web/src/ai/client.ts` builds it with the on-device-only request options. The command post still words plans with PREFER_ON_DEVICE (`wordingGenerator`); this builder is for measurement pages, which a guard keeps from building any cloud model.
+- Source: on-device evidence runs (a wording measurement page tripped the harness no-cloud guard).
+- Verified: a new unit test (ONLY_ON_DEVICE, the same on-device options as the command post's, no cloud params) failed first, then passed; the harness no-cloud guard and the client tests pass; typecheck passes.
+
+### test(evidence): the sighting-note read and plan wording measured on Chrome's built-in model
+- What: two dev-server-only measurement pages run the command post's own code paths on a bare Firebase app: `web/harness/note-measure.html` reads five made-up drill notes (`readSightingText`, ONLY_ON_DEVICE) and `web/harness/wording-measure.html` words one made-up plan three times (`wordPlan`, PREFER_ON_DEVICE), keeping each raw reply and the check's reason. Results in `docs/evidence/web/2026-11-21-note-read-chrome.json` and `2026-11-21-plan-wording-chrome.json`; the two "Not run" rows in `docs/TEST-MATRIX.md` now cite them.
+- Found: the first note read took 27,900 ms against the command post's 30 s limit; 14 of 15 note fields right ("grey" read as unknown). Plan wording ran on device every time (3.1 to 12.3 s) but code accepted only 2 of 6 wordings; the one recorded rejection was a reply that repeated the teams up to the schema's 12 items.
+- Source: on-device evidence runs for the judge (the two rows had no tracked run).
+- Verified: typecheck, the test matrix check and the hygiene guard pass; the pages ran in the desktop Chrome on this Mac (Playwright's Chrome profile has no built-in model).
+
+### fix(ai): a plan's wording is asked for in that plan's own shape
+- What: `planWordingJson(teamIds)` in `web/src/ai/replanWording.ts` is the wording's JSON schema for one plan: exactly one assignment per team, `teamId` limited to that plan's teams (the general schema when there are none). `wordingParams(model, teamIds)` gives it to both the cloud (`responseJsonSchema`) and this laptop (`responseConstraint`); CommandPost's `suggest` passes its draft's teams. The cited mode line (`replanWording.ts:47`) does not move.
+- Source: on-device evidence (Chrome's model repeated the teams up to the general schema's 12 items, and code rejected 4 of 6 wordings).
+- Verified: new unit tests (the schema's count and team list, both routes get it, the command post passes its draft's teams) failed first, then passed; typecheck, web unit suite (1051), the test matrix check and the hygiene guard pass.
+
+### test(evidence): plan wording on Chrome's model with the per-plan schema
+- What: `docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json`: the same made-up plan worded six times on the committed measurement page with the per-plan schema; the plan wording row in `docs/TEST-MATRIX.md` cites it beside the earlier run.
+- Found: code accepted 6 of 6 (2 of 6 before), all on device, no Google request; the first wording in a new page took 19,773 ms, over the command post's 15 s wording limit, the rest 2.1 to 3.2 s.
+- Source: on-device evidence runs for the judge.
+- Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
+
+### fix(data): a Mexican number in dot form is not a coordinate pair
+- What: a decimal pair is a coordinate only with a minus before its second number (after a comma too, now), 4 to 7 decimals in each, and no phone cue just before it (call, tel, phone, cell, mobile, number, #, llame, llamar, teléfono or telefono, celular, número or numero, within the three words before it). "Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496" and "33.12345678 / -81.12345678" had all been kept whole. Every drill site is in the western hemisphere; an eastern pair with no minus is now removed.
+- Source: review (cross-family, post-merge, privacy).
+- Verified: the four strings and the cue list failed first, then pass; "Ubicación 33.12345, -84.5678" and "GPS 33.7490, -84.3880" stay; 100 draft shared cases and 1118 web unit tests (with the draft file) pass; the typecheck passes.
+### fix(command): wait up to 90 s for a note read on this laptop, and say why
+- What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
+- Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
+- Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
+
+### fix(data): a phone cue counts only right before a coordinate pair
+- What: a cue word voids a coordinate pair only when it sits right before it (spaces or a colon between) or with one connector between (al, a, at, on, to); a "#" before it still counts. A cue further back names a thing, not a number to dial, so a clue's place stays: "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733" and "Call came from 33.7866, -84.3733" had been removed. "Call 33.1234, -84.5678" and "Llame al 33.1234, -84.5678" are still removed.
+- Source: review.
+- Verified: the new keep test failed first, then passes; the cue cases still pass; 103 draft shared cases and 370 data tests pass on the web.
+### test(config): the web's Remote Config defaults equal the published template's
+- What: a unit test in `web/src/config/rc.test.ts` checks that every key in `RC_DEFAULTS` has the same value as that key's default in `remoteconfig.template.json`. A browser whose fetch is refused or that is offline runs on the built-in defaults, so they must be the published values.
+- Why: Remote Config allows 60 fetch requests a minute per project per caller (the project's quota, read from Service Usage); for a web client the caller is its IP. The project's own request counts (Cloud Monitoring, last 24 h) show 90 to 200 fetches an hour from our test runs, with 2 to 34 refused with 429 only in the busiest hours. A judge's browser fetches about twice in 12 hours (the SDK's default minimum fetch interval, which the web keeps), so it should never meet the limit; if one is ever refused, it now provably runs the same configuration.
+- Source: review (the 429 seen in live checks).
+- Verified: the test passes, and it failed when a default was changed (`kill_cloud: true`), then passed again restored; web unit suite and the hygiene guard pass.
+
+### fix(command): wait up to 60 s for a plan's wording, and say why
+- What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
+- Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
+- Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.
+
+### test(e2e): the live run's saved session keeps Remote Config's cache, so tests stop refetching it
+- What: `e2e/auth.setup.ts` waits until Remote Config has stored its fetch (IndexedDB `firebase_remote_config`, a `last_successful_fetch_timestamp_millis` key) and Performance Monitoring its config (localStorage `@firebase/performance/config`) before saving the session every live test reuses. Setup had saved before either was written, so each test fetched both again, about 80 fetches a run against the project's 60 a minute per caller; runs were refused partway with HTTP 429 (seen as console errors, the "(default)" model on the judge page, and a missing trace).
+- Source: review (Remote Config 429 in live checks; Cloud Monitoring showed 49 fetches in one minute from one run).
+- Verified: the saved session now holds 8 Remote Config records and the Performance key; a full live run on cb464fcb made 4 Remote Config fetches (Cloud Monitoring, per minute) instead of about 80, with no 429, and ran in 46 s instead of 1.8 min; the hygiene guard passes.
+
+### test(e2e): the rail order check waits for the family section before reading Details
+- What: `e2e/railOrder.spec.ts` waits for the family section's heading (it draws when the family's questions arrive, which can come after the map's labels) before it lists the headings under Details.
+- Source: the faster live run (cached Remote Config) read Details before the questions arrived.
+- Verified: the rail order, smoke and judge checks pass live on cb464fcb (23); the hygiene guard passes.
+
+### feat(command): a suggested plan shows beside the approved one, team by team
+- What: when a plan is already approved, a suggestion's card shows a table, "The approved plan and this suggestion": each team's segments now and suggested with the share of the probability those segments hold on the current map ("AB, 20.0%"), "Same" where a team's segments do not change, and a last row, "In these segments", with each plan's total (a segment two teams share counts once). `planCompare` in `web/src/command/planCompare.ts`; CommandPost passes the latest approved plan. With no approved plan the suggestion shows on its own. The plan harness gains `?current=1`.
+- Source: review (compare a suggested change with the current result side by side before approving).
+- Verified: new unit tests (`planCompare.test.ts`: pairs, unchanged and one-sided teams, shared segments counted once) and harness checks in `e2e/harness/plan.spec.ts` (the table's rows and totals; no table without an approved plan) failed first, then passed; plan harness (13), typecheck, web unit suite and the hygiene guard pass.

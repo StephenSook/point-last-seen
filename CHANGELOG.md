@@ -77,6 +77,66 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test-vectors README: the phone rule's separator sentence now describes the shared rule (any spaces, punctuation or
+  symbols join digit groups, except : % and the degree sign; a gap never holds a letter or a digit). Source: review.
+  Verified: read against web/src/data/phoneNumbers.ts and the 103 cases.
+- test-vectors: phone-numbers.json grows from 58 to 103 cases (59 remove, 35 keep, 9 exact) for the shared separator
+  rule (any mark between digit groups joins them except : % and the degree sign) and its coordinate and
+  radio-frequency spans, with scripts/test_phone_vectors.py's required lists and LIMITS (pass counts 103/103/103; the
+  accepted keeps, the over-removals, the eastern-longitude trade-off and the drill iPhone's build 9 note). Source:
+  review (privacy). Verified: all 103 pass on the web (vitest), the iPhone (swift test) and Android (gradle
+  PhoneVectorsTest) with none pending; the validator passes.
+- LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
+  ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
+  known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,
+  web/src/prior/rebuild.ts and web/public/extras/terrain/.
+- Engine and reference: elevationWeights refuses a negative or non-finite share, and returns neutral weights when the
+  classes that hold mass have shares summing to zero (it gave NaN before); a generated vector covers the zero-sum
+  case. Source: review (second-model). Verified: a reference test and the vector failed first, then pass; engine suite
+  389; reference suite 19.
+- Engine: the elevation layer's constants (ELEVATION_PARAMS, from a top-level elevation block in
+  shared/constants/engine-params.json with its own source line) stay outside EngineParams, so stored incidents and the
+  published run, which carry no copy, still pass every reader (the replay reader derives its required engine fields
+  from DEFAULT_PARAMS and refused the run); search.json is unchanged from main. Source: CI and review (second-model).
+  Verified: the replay suite (119) and the published-run test pass; engine suite and typecheck; web typecheck and unit
+  suite.
+- docs/evidence/isrid-dementia-p164.md gains the elevation table as printed (temperate uphill 19%, down 42%, same 39%;
+  dry 50%, 38%, 13%; medians 75 and 60 ft temperate, 317 and 187 ft dry), says what the source does not give (no n, no
+  band for Same, no urban column), and that the temperate shares are the engine's elevation layer. Source: review.
+  Verified against the publisher's sample PDF text.
+- Engine: an elevation prior layer, off by default (PriorLayers.elevation). elevationWeights matches the reference's
+  vectors; buildPrior applies it last, from the start's and each segment's elevation (SegmentElevations), keeps ROW,
+  and refuses urban terrain and a site with no elevations. Engine params gain elevation (temperate shares SOURCED to
+  p.164, the 3 m band OURS); search.json only gains that param. Source: review (terrain layer, approved). Verified: 7
+  vector cases and 4 buildPrior tests failed first, then pass; engine suite 387 and typecheck; web typecheck; ci-local
+  gates and ts.
+- Vector reference: elevation_weights in tools/vectors/make_vectors.py (each segment uphill, level within 3 m of the
+  start, or downhill, weighted to the class shares; an empty class returns its share pro rata; no elevation keeps
+  weight 1) and seven generated elevationWeights cases in shared/test-vectors/prior.json. Source: review (terrain
+  layer, approved). Verified: 2 reference tests failed first, then pass; the generator check passes.
+- drill-day, section 3: the printer settings add Two-sided: off (a printer that defaults to two-sided puts two teams'
+  sheets back to back), and a line before the steps says to print a test page on Saturday because the drill printer
+  reported low ink, or print at a library. Source: review. Verified: docs only.
+- drill-day, section 2 step 2: if a phone's on-device model row still does not read ready before leaving signal, write
+  down which phone and why, since its reports are then read in the cloud (cloud reading on, with signal) or by its
+  rules, and the note explains a missing on-device count after the drill. Source: review. Verified against the iPhone
+  read route (ios/PLSCore/Sources/PLSCore/ReadPlan.swift and the reader's cloud-only-with-consent fallback).
+- drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
+  segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
+  tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
+  steps move by one. Source: review (paper debrief, live on the command post). Verified against
+  web/src/extras/ExtrasDock.tsx:19, web/src/extras/debrief/DebriefSheets.tsx:39,71 and
+  web/src/extras/print/PrintSession.tsx:56 (DEBRIEF_BLANKS), and the live site at 0c9766e serving Print debrief
+  sheets.
+- Probe: the served-version check no longer counts shared/test-vectors as a production input (no production code
+  imports them; the phone and found rules only name them in comments), so a main change to the vectors alone asks for
+  no deploy. Source: review (the check asked for a deploy over phone-numbers.json). Verified: the test-only main
+  change and input-list tests failed first with a vectors file added, then pass (12); live, the check now names only
+  the 2 web files that differ.
+- README's Android row and the production checklist point at the latest judge release (/releases/latest,
+  android-judge-2 on 2026-11-21 with point-last-seen-family-0c9766ea.apk and its SHA-256 file). Source: review.
+  Verified: /releases/latest answers 200 signed out and resolves to releases/tag/android-judge-2; the release lists
+  the APK and its .sha256.
 - Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
   rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
   runner passes all 58 cases in CI on this commit.

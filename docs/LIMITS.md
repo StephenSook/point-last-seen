@@ -96,6 +96,13 @@ each line says what the limit is and why.
   rule is ours, not ISRID's: in a path-dense site the ISRID 75/25 split would otherwise move a quarter of the
   mass onto the small area far from every feature, the opposite of what the layer is for. The command post's
   source line for the layer says so.
+- The elevation layer, "Downhill and level ground", is off by default. When on, the grid's mass sits 42% downhill,
+  39% about level and 19% uphill of the start segment: the ISRID dementia split for temperate terrain (Koester, Lost
+  Person Behavior p. 164). The source prints no sample size for this table and does not define "same", so "about level" as
+  within 3 m of the start segment is ours. The layer is not used on urban terrain, for which the source has no split;
+  choosing the urban table turns it off. It needs each segment's elevation, so the switch shows only on a site with an
+  elevation file (the Kennesaw drill grid; the development grid and the judge practice search have none), and a
+  rebuild from a new last known point measures from that point's segment. The 3DEP vertical accuracy is unverified.
 - A plan holds at most 8 team assignments, and an incident has at most 8 teams: teams come only from the seed
   tool, which refuses more, and the practice search's copy of it; no app can create one. The security rules check every assignment's shape as the plan is
   written (a team id a push can reach, up to 6 segment ids, both texts within 200 characters), and they cannot loop,
@@ -129,25 +136,41 @@ each line says what the limit is and why.
 ## Phone numbers in notes
 
 - The family app and the command post remove phone numbers from a note the way the iPhone app does (the web runs a
-  port of the Android rule, `web/src/data/phoneNumbers.ts`): seven or more digits in a row,
-  written in any script or spoken, joined by separators (spaces, dashes, dots, commas, brackets, slashes), even across a line break. Search information inside
-  such a run (a date, a time, coordinates, a ZIP+4 code after a state) stays
-  only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is removed
-  (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
-- To keep a phone number out, it removes too much in two cases. A short number touching a date removes the date
-  too: "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code:
-  "ga 30301-1234" is removed, while "GA 30301-1234" stays.
-- It keeps too much in two cases. A phone number written like a street address with an ordinal street ("5550 142nd
+  port of the Android rule, `web/src/data/phoneNumbers.ts`): seven or more digits in a row, written in any script or
+  spoken, joined by separators (any spaces, punctuation or symbols, such as dashes, dots, middle dots, commas,
+  brackets, slashes, bullets or underscores, but never ":", "%" or "°", which mark a time, a percent and a degree),
+  even across a line break. Search information inside such a run (a date, a time, coordinates, a ZIP+4 code after a
+  state) stays only when the rest of the run is a whole number of seven or more digits; otherwise the whole run is
+  removed (`android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`).
+- To keep a phone number out, it removes too much in five cases. A short number touching a date removes the date too:
+  "team 5 11/19/2026" loses both. A state abbreviation written in lower case does not protect its ZIP code: "ga
+  30301-1234" is removed, while "GA 30301-1234" stays. A list of times or a date and a count joined by a comma,
+  semicolon or other mark goes with the run ("Check-ins 08:30; 11:45; 14:03", "Seen 2026-11-19; 3 searchers"). And a
+  radio frequency joined to other digits goes with them ("Radio 155.160 404 5550142" keeps only "Radio"). And a
+  coordinate pair stays only with a minus before its second number, 4 to 7 decimals in each and no phone cue right
+  before it, or with one of al, a, at, on or to between (call, tel, phone, cell, mobile, number, #, llame, llamar,
+  telefono, celular, numero, with or without accents; "Phone found at 33.7866, -84.3733" stays, "Call 33.7866,
+  -84.3733" goes), since two decimals with no minus between them can be two phone numbers ("33.12345678, 33.87654321"
+  is two Mexican numbers): an eastern longitude ("33.7490, 84.3880") and a pair after "Call" are removed. The drill
+  grids are all in the western hemisphere, where the longitude carries a minus.
+- It keeps too much in four cases. A phone number written like a street address with an ordinal street ("5550 142nd
   St") is kept, since it has the same shape as an address ("12345 67th Ave") and the two cannot be told apart. A
-  number written with a colon inside it, like a time ("Call 4:03-5551"), is kept, since the colon does not join it
-  to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its minutes.
+  number written with a colon inside it, like a time ("Call 4:03-5551" or "404-555:0142"), is kept, since the colon
+  does not join it to the digits after it and a time before a number ("Seen at 14:03, 404-555-0142") keeps its
+  minutes. A number written as two radio-frequency shapes (25 to 999, a full stop, three digits) is kept, since a
+  list of frequencies ("Radio 155.160 | 154.205") stays: "555.014 | 404.201" and "55.123 45.678" are kept. And a
+  phone number whose last digits read as a short date ("Call 404 5550-1/23") keeps those digits ("1/23"), since a
+  date beside a whole number of seven or more digits stays.
+- The separator rule (any mark between digit groups joins them except ":", "%" and "°") is on the web and Android.
+  iPhone build 9, the one used in the drill, predates it and keeps numbers split by a middle dot, bullet, underscore,
+  star, bar, semicolon, "!", "?" or brackets; build 10 carries the rule.
 - A count of a million or more written with commas ("walked 1,234,567 steps") is removed on every platform, because a
   phone number can be written the same way ("Call 4,045,550,142"); a count under seven digits ("12,345") stays.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 58 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 58, the iPhone
-  58 and the web 58. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). No case
+- Of the 103 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 103, the iPhone
+  103 and the web 103. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). No case
   is pending on any platform (`scripts/test_phone_vectors.py` checks these counts against the file).
 
 ## Photo clues (iPhone)

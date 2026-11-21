@@ -344,6 +344,13 @@ export interface EngineParams {
   wedge: { halfAngleDeg: number; inside: number; outside: number };
 }
 
+/** Elevation layer: class shares from the start (temperate, p.164) and the level band in metres (ours). */
+export interface ElevationParams {
+  levelBandM: number;
+  temperate: { up: number; level: number; down: number };
+  source: string;
+}
+
 export interface SegmentPrior {
   segmentId: string;
   priorPoa: number;

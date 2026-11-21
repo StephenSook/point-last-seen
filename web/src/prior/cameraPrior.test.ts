@@ -5,6 +5,9 @@ import type { SegmentDoc } from "../data/incident";
 import { cameraConfirmWrites, cameraPriorWrites, familyCameraConfirmWrites } from "./cameraPrior";
 import { gridFromDocs } from "./rebuild";
 
+// Each case builds a whole prior; on a loaded machine or a CI runner one can pass vitest's 5 s default.
+const SLOW = { timeout: 30_000 };
+
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
 const IPP = { lat: 33.78, lon: -84.38 };
 const D_LAT = 125 / 111_320;
@@ -29,7 +32,7 @@ const clip: ClipFacts = { sha256: "d".repeat(64), reading, route: null, clipStar
 const writer = { incidentId: "i", uid: "u1", seq: 3, clientTimeMs: 2, priorVersion: 7, segments: [] };
 const incident = { gridId: "synthetic", gridAttribution: "a", ipp: IPP, terrain: "temperate_flat" as const, priorLayers: { linear: false, wedge: false }, priorVersion: 7, priorInputEventIds: ["x"] };
 
-describe("cameraPriorWrites", () => {
+describe("cameraPriorWrites", SLOW, () => {
   it("rebuilds the ring prior from the camera with the wedge on, adds the sighting to the inputs and raises the version", () => {
     const cam = buildCameraSighting(clip, writer);
     const w = cameraPriorWrites(SEGS, incident, cam, 0);
@@ -45,7 +48,7 @@ describe("cameraPriorWrites", () => {
   });
 });
 
-describe("cameraPriorWrites with no bearing", () => {
+describe("cameraPriorWrites with no bearing", SLOW, () => {
   it("turns the stored wedge off when the newest camera sighting gives no direction", () => {
     const cam = buildCameraSighting({ ...clip, cameraFacingDeg: null }, writer);
     const w = cameraPriorWrites(SEGS, { ...incident, priorLayers: { linear: false, wedge: true } }, cam, null);
@@ -53,7 +56,7 @@ describe("cameraPriorWrites with no bearing", () => {
   });
 });
 
-describe("cameraConfirmWrites", () => {
+describe("cameraConfirmWrites", SLOW, () => {
   it("builds the camera sighting, its confirmation and the prior before anything is written", () => {
     const out = cameraConfirmWrites(clip, [writer, { ...writer, seq: 4 }], SEGS, incident, 0);
     expect(out.events.map((e) => e.type)).toEqual(["camera_sighting", "confirmation"]);
@@ -65,7 +68,7 @@ describe("cameraConfirmWrites", () => {
   });
 });
 
-describe("familyCameraConfirmWrites", () => {
+describe("familyCameraConfirmWrites", SLOW, () => {
   // The family app's camera sighting: its own clip read, no camera pin, the prior not rebuilt (only command can).
   const famCam = { ...buildCameraSighting({ ...clip, camera: null }, { ...writer, uid: "fam" }), role: "family" as const };
 
@@ -87,3 +90,38 @@ describe("familyCameraConfirmWrites", () => {
     expect(() => familyCameraConfirmWrites(famCam, null, writer, SEGS, incident)).toThrow("Place the camera on the map first.");
   });
 });
+
+describe("a camera rebuild keeps the elevation layer, measured from the camera's place", SLOW, () => {
+  // The camera is in CB, in the north row (120 m): the new start, so its row is level and the rows south are lower.
+  const cam = buildCameraSighting(clip, writer);
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, s.segmentId[0] === "C" ? 120 : s.segmentId[0] === "A" ? 80 : 100]));
+  const withElevation = { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } };
+
+  it("rebuilds with the elevations from the site's file, from the new start", () => {
+    const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, cam, null);
+    expect(w.incident.priorLayers).toMatchObject({ elevation: true });
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), CAMERA, "temperate_flat", { linear: false, wedge: false, elevation: true },
+      null, DEFAULT_PARAMS, { startM: 120, bySegment: elevationM });
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(direct.segments.map((s) => s.priorPoa));
+  });
+
+  it("never blocks a confirmation: with no elevations, or a new start outside every segment, it rebuilds with the layer off", () => {
+    const noFile = cameraPriorWrites(SEGS, withElevation, cam, null);
+    expect(noFile.incident.priorLayers).toMatchObject({ elevation: false });
+    const outside = buildCameraSighting({ ...clip, camera: { lat: IPP.lat + 0.5, lon: IPP.lon } }, writer);
+    const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, outside, null);
+    expect(w.incident.priorLayers).toMatchObject({ elevation: false });
+    const ring = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), { lat: IPP.lat + 0.5, lon: IPP.lon }, "temperate_flat", { linear: false, wedge: false }, null, DEFAULT_PARAMS);
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(ring.segments.map((s) => s.priorPoa));
+  });
+});
+
+describe("a confirm before the map's segments load", SLOW, () => {
+  it("is refused before anything is built, with the layer off or on", () => {
+    const cam = buildCameraSighting(clip, writer);
+    expect(() => cameraPriorWrites([], incident, cam, null)).toThrow("The map's segments have not loaded yet.");
+    expect(() => cameraPriorWrites([], { ...incident, priorLayers: { linear: false, wedge: false, elevation: true } }, cam, null))
+      .toThrow("The map's segments have not loaded yet.");
+  });
+});
+

@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { MAP_INK, POA_RAMP } from "../../src/map/poaStyle";
 import { hex, near, pixelAt } from "./pixel";
 
@@ -116,4 +116,36 @@ test("a line that is both shown and spoken is read out once", async ({ page }) =
   await expect(page.getByTestId("change").getByRole("status")).toHaveText(line);
   const tree = await page.getByTestId("change").ariaSnapshot();
   expect(tree.split(line).length - 1).toBe(1);
+});
+
+// The harness map has a real size only above the phone layout (at 900 px and below it sits in an auto row).
+async function chipHits(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const map = document.querySelector(".maplibregl-map")!.getBoundingClientRect();
+    if (map.height < 200) throw new Error(`map is ${map.height} px tall`);
+    const shown = (el: Element) => getComputedStyle(el).visibility !== "hidden";
+    const labels = [...document.querySelectorAll(".plate, .seg-code")].filter(shown).map((l) => ({ t: l.textContent, r: l.getBoundingClientRect() }));
+    const over = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const chips = [...document.querySelectorAll(".delta-chip")].map((c) => ({ t: c.textContent, r: c.getBoundingClientRect() }));
+    const inside = chips.filter((c) => c.r.left >= map.left && c.r.right <= map.right && c.r.top >= map.top && c.r.bottom <= map.bottom);
+    if (inside.length !== 3) throw new Error(`${inside.length} of 3 chips inside the map`);
+    return chips.flatMap((c) => labels.filter((l) => over(c.r, l.r)).map((l) => `${c.t} over ${l.t}`));
+  });
+}
+
+test("a change chip never covers another cell's percent or code, at any zoom", async ({ page }) => {
+  for (const [w, h] of [[1440, 900], [1100, 700]] as const) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto("/harness/change.html");
+    await expect(page.getByTestId("delta-chip").first()).toBeVisible();
+    await page.waitForTimeout(2500);
+    expect(await chipHits(page), `${w}x${h}`).toEqual([]);
+    // Zoom out, one step at a time, until the cells are dense: each camera move places the chips again.
+    await page.locator(".maplibregl-canvas").focus();
+    for (const step of [1, 2]) {
+      await page.keyboard.press("-");
+      await page.waitForTimeout(1500);
+      expect(await chipHits(page), `${w}x${h} zoomed out ${step}`).toEqual([]);
+    }
+  }
 });

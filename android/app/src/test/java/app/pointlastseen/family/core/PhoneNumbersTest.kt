@@ -1,9 +1,90 @@
 package app.pointlastseen.family.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class PhoneNumbersTest {
+    /** Any punctuation or symbol between digit groups joins them, except the marks of a time, a percent and a degree. */
+    @Test fun anyGapMarkJoinsExceptTimePercentAndDegree() {
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u00B7555\u00B70142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u2022555\u20220142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404_555_0142 tonight"))
+        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404 | 555 | 0142 tonight"))
+        assertEquals("POA 45% 30% 15% 10%", PhoneNumbers.remove("POA 45% 30% 15% 10%"))
+        assertEquals("Seen 14:03 14:30", PhoneNumbers.remove("Seen 14:03 14:30"))
+        assertEquals("GPS 33.7490\u00B0, -84.3880\u00B0", PhoneNumbers.remove("GPS 33.7490\u00B0, -84.3880\u00B0"))
+    }
+
+    /** A coordinate pair across ; or a bar, and a radio frequency list, stay; a number split by ; | ! ? is still removed. */
+    @Test fun coordinatesAndFrequenciesStayWhileSplitNumbersGo() {
+        for (note in listOf("GPS 33.7490; -84.3880", "GPS 33.7490 \u2022 -84.3880", "Radio 155.160 | 154.205")) {
+            assertEquals(note, PhoneNumbers.remove(note))
+        }
+        for (note in listOf("Call 404 | 555 | 0142 tonight", "Call 404;555;0142 tonight", "Call 404!555!0142 tonight", "Call 404?555?0142 tonight")) {
+            assertEquals("Call [number removed] tonight", PhoneNumbers.remove(note))
+        }
+    }
+
+    /** A ; bullet dot bar or slash joins a coordinate pair only with a minus after it, so two dotted numbers are not a pair. */
+    @Test fun twoDottedNumbersAcrossASlashOrBarAreNotACoordinatePair() {
+        for (note in listOf("Call 020.79460958 / 020.79460959", "Call 020.79460958 | 020.79460959")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("79460958") || out.contains("79460959"))
+        }
+        assertEquals("GPS 33.7490 / -84.3880", PhoneNumbers.remove("GPS 33.7490 / -84.3880"))
+    }
+
+    /** A frequency stays only when every number joined to it is a frequency too; beside other digits it goes with the run. */
+    @Test fun aFrequencyJoinedToOtherDigitsGoesWithTheRun() {
+        val out = PhoneNumbers.remove("Call 404.555-0142 #123")
+        assertFalse(out, out.contains("404") || out.contains("555") || out.contains("0142"))
+        assertEquals("Radio [number removed]", PhoneNumbers.remove("Radio 155.160 404 5550142"))
+        assertEquals("Radio 155.160 | 154.205", PhoneNumbers.remove("Radio 155.160 | 154.205"))
+    }
+
+    /** Whole degrees never start with a zero, so a London number beside a coordinate is no pair and goes. */
+    @Test fun aWholeDegreeWithALeadingZeroIsNoCoordinate() {
+        for (note in listOf("Call 020.79460958 | -0.1276", "Call 020.79460958, -0.1276")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("79460958"))
+        }
+        assertEquals("GPS 0.1276, -51.5072", PhoneNumbers.remove("GPS 0.1276, -51.5072"))
+    }
+
+    /**
+     * A frequency is 25 to 999 with no leading zero, and stays only in a run of frequencies: a candidate whose joined
+     * neighbour drops out drops out too, until nothing changes.
+     */
+    @Test fun frequenciesStayOnlyInARunOfFrequencies() {
+        for (note in listOf("Call 404.555 0.142 1234567", "Call 404.555 100.142 1234567")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("404") || out.contains("555") || out.contains("1234567"))
+        }
+        assertEquals("Radio 27.185 155.160 462.550", PhoneNumbers.remove("Radio 27.185 155.160 462.550"))
+    }
+
+    /**
+     * Two decimals are a coordinate pair only with the western minus between them, 4 to 7 decimals each, and no phone cue
+     * just before: Mexican 10-digit numbers in dot form go.
+     */
+    @Test fun mexicanNumbersInDotFormAreNoCoordinatePair() {
+        for (note in listOf("Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496",
+            "33.12345678 / -81.12345678")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("12345678") || out.contains("87654321"))
+        }
+        for (note in listOf("Call 33.7490, -84.3880", "Call: 33.7490, -84.3880", "Llame al 33.7490, -84.3880", "#33.7490, -84.3880")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, out.contains("7490") || out.contains("3880"))
+        }
+        // A cue further back names a thing, not a number to dial: the place a phone was found stays.
+        for (note in listOf("GPS 33.7490, -84.3880", "Punto 19.4326, -99.1332", "Last seen 33.7490 -84.3880",
+            "Phone found at 33.7866, -84.3733")) {
+            assertEquals(note, PhoneNumbers.remove(note))
+        }
+    }
+
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
     @Test fun spanishDigitWordsAreDigits() {
         assertEquals("Call [number removed], she has the dog.", PhoneNumbers.remove("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos, she has the dog."))
@@ -248,7 +329,7 @@ class PhoneNumbersTest {
     /** An indent after a line break is no coordinate gap: a number split across lines is never read as a pair. */
     @Test fun anIndentedLineBreakIsNoCoordinateGap() {
         assertEquals("Call [number removed]\n[number removed]", PhoneNumbers.remove("Call +44.2071\r\n    -23.4567"))
-        assertEquals("GPS 33.7490,\r\n 84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n 84.3880 x"))
+        assertEquals("GPS 33.7490,\r\n -84.3880 x", PhoneNumbers.remove("GPS 33.7490,\r\n -84.3880 x"))
     }
 
     /** A wider gap of separators alone (spaces, dashes, dots) still joins the groups of one number. */

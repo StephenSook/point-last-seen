@@ -39,8 +39,10 @@ describe("readSightingText", () => {
     expect(await readSightingText(text, deps({ generate: never, timeoutMs: 20 }))).toEqual({ refused: "timeout" });
   });
 
-  it("the note read's limit is the photo read's: 30 seconds", () => {
-    expect(NOTE_READ_TIMEOUT_MS).toBe(30_000);
+  it("the note read's limit is the photo read's: 90 seconds", async () => {
+    const { PHOTO_READ_TIMEOUT_MS } = await import("./photoCues");
+    expect(NOTE_READ_TIMEOUT_MS).toBe(90_000);
+    expect(NOTE_READ_TIMEOUT_MS).toBe(PHOTO_READ_TIMEOUT_MS);
   });
 
   it("refuses without the local model and calls nothing", async () => {
@@ -164,5 +166,17 @@ describe("the cloud read's server template", () => {
     }
     expect(template.templateId).toBe("pls-sighting-note-v1");
     expect(template.input.schema.note.maxLength).toBe(2000);
+  });
+});
+
+describe("the note read's time limit", () => {
+  it("is more than twice the slowest note read measured on Chrome's built-in model, and the command post uses it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { NOTE_READ_TIMEOUT_MS } = await import("./sightingText");
+    const ev = JSON.parse(readFileSync(new URL("../../../docs/evidence/web/2026-11-21-note-read-chrome.json", import.meta.url), "utf8")) as { runs: { replyMs: number }[] };
+    const slowest = Math.max(...ev.runs.map((r) => r.replyMs));
+    expect(slowest).toBeGreaterThan(25_000);
+    expect(NOTE_READ_TIMEOUT_MS).toBeGreaterThan(2 * slowest);
+    expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/sightingTextGenerator\(ai\(\)\)\(t\), timeoutMs: NOTE_READ_TIMEOUT_MS/);
   });
 });

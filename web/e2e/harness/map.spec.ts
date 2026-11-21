@@ -88,17 +88,22 @@ test("every segment's code is drawn beside its dot, so a judge can name the cell
   await expect(page.locator(".plate .seg-code")).toHaveCount(0);
 });
 
-test("on a crowded map no two visible labels overlap, and the most likely cell keeps its labels", async ({ page }) => {
+test("on a crowded map no two visible labels overlap, codes wait for zoom, and pointing at the most likely cell names it", async ({ page }) => {
+  // Cells of about 37 px: under the 40 px a code needs, so the fills carry the map and the codes wait.
   await page.setViewportSize({ width: 300, height: 420 });
   await page.goto("/harness/map.html");
   await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
   const boxes = await page.locator(".seg-code:visible, .plate:visible").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
   const pairs = boxes.flatMap((a, i) => boxes.slice(i + 1).filter((b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom).map((b) => [a, b]));
   expect(pairs).toEqual([]);
-  expect(boxes.length).toBeLessThan(47); // some labels gave way
-  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(1);
+  await expect(page.locator(".seg-code:visible")).toHaveCount(0);
   // Every label is still in the page for anything that reads it.
   await expect(page.locator(".seg-code")).toHaveCount(24);
+  // The most likely cell (AB) names itself under the pointer.
+  const ab = (await cellFit(page)).find((c) => c.id === "AB")!;
+  const mapBox = (await page.getByTestId("map").boundingBox())!;
+  await page.mouse.move(mapBox.x + ab.cx, mapBox.y + (ab.box.t + ab.box.b) / 2 + 6);
+  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(1);
 });
 
 test("on a roomy map every code shows, and a plate for each cell of 1.0% or more", async ({ page }) => {
@@ -233,4 +238,53 @@ test("zooming in on a small map brings codes back: the fit is decided again on e
   const before = (await cellFit(page)).filter((c) => c.code !== null && c.code.right <= c.cx - c.cap - 3 + 0.5).length;
   await page.evaluate(() => (window as unknown as { harnessMap: { zoomIn: (o: { duration: number }) => void } }).harnessMap.zoomIn({ duration: 0 }));
   await expect.poll(async () => (await cellFit(page)).filter((c) => c.code !== null && c.code.right <= c.cx - c.cap - 3 + 0.5).length).toBeGreaterThan(before);
+});
+
+test("on a phone the walker model's sentence sits across the foot of the map, not down its left edge", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/harness/map.html?note");
+  const note = page.getByTestId("map-note");
+  await expect(note).toBeVisible();
+  const n = (await note.boundingBox())!;
+  const mapBox = (await page.getByTestId("map").boundingBox())!;
+  // One or two lines across the map's width, inside the map, clear of the credit line below it.
+  expect(n.height).toBeLessThanOrEqual(40);
+  expect(n.width).toBeGreaterThan(mapBox.width * 0.6);
+  const credit = (await page.getByTestId("map-credit").boundingBox())!;
+  expect(n.y + n.height).toBeLessThanOrEqual(credit.y + 1);
+});
+
+// The phone layout moves the map first (order -1); the harness pages keep it in the tall row, as the command post does.
+for (const page_ of ["map", "change"] as const) {
+  test(`at phone width the ${page_} harness gives the map the tall row, not a 0 px one`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/harness/${page_}.html`);
+    await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+    const box = (await page.getByTestId("map").boundingBox())!;
+    expect(box.height).toBeGreaterThan(500);
+    // Nothing of the page sits over the cells.
+    const top = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.tagName ?? null, [box.x + box.width / 2, box.y + box.height / 2]);
+    expect(top).toBe("CANVAS");
+  });
+}
+test("zoomed out, every dot is at most 35% of its cell and codes wait for zoom or the pointer", async ({ page }) => {
+  await page.goto("/harness/map.html");
+  const map = page.getByTestId("map");
+  await expect(map).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  // Three steps out: cells about 21 px on the harness grid, as small as a phone's.
+  for (let i = 0; i < 3; i++) await page.evaluate(() => (window as unknown as { harnessMap: { zoomOut: (o: { duration: number }) => void } }).harnessMap.zoomOut({ duration: 0 }));
+  await page.waitForTimeout(1000);
+  const cells = await cellFit(page);
+  const side = (c: (typeof cells)[number]) => Math.min(c.box.r - c.box.l, c.box.b - c.box.t);
+  // The zoom made the cells small: the rule is tested, not skipped.
+  expect(cells.filter((c) => side(c) < 40).length).toBeGreaterThan(20);
+  expect(cells.filter((c) => 2 * c.cap > 0.35 * side(c) + 0.01).map((c) => c.id)).toEqual([]);
+  expect(cells.filter((c) => side(c) < 40 && c.code !== null).map((c) => c.id)).toEqual([]);
+  // Pointing at a cell shows its code; moving off hides it again.
+  const ab = cells.find((c) => c.id === "AB")!;
+  const mapBox = (await map.boundingBox())!;
+  await page.mouse.move(mapBox.x + ab.cx, mapBox.y + (ab.box.t + ab.box.b) / 2 + 6);
+  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(1);
+  await page.mouse.move(mapBox.x + 4, mapBox.y + 4);
+  await expect(page.locator(".seg-code:visible", { hasText: /^AB$/ })).toHaveCount(0);
 });
