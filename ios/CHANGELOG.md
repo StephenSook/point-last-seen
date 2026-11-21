@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### ci: the gates run the privacy label check's tests
+- What: the gates job (and its local mirror) runs scripts/test_check_privacy_label.py with the other script
+  tests, so the committed privacy manifest and label must keep agreeing.
+- Source: review (App Store submission prep).
+- Verified: the local mirror's gates pass, and their script-test count rose from 259 to 266 (the 7 new tests).
+
 ### fix(ios): the privacy manifest declares what the app's SDKs collect, and a check holds it to the label
 - What: the app's privacy manifest declared three data types (precise location, user ID, other user content),
   but the build's Firebase SDKs declare five more in their own manifests (device ID, crash data, other
