@@ -2513,7 +2513,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 
 ### test(data): the fuzz keeps noise off planted numbers and knows street names
 - What: at 1,000,000 notes two planted numbers read as getting through, but noise had glued onto a trailing spoken digit ("zerodouble", "nineat"), so it was no longer a digit, and a later digit completed the sequence by chance; the planted text now has a separator on each side. Three notes differed because the test's copy of the README joined a run to a street name's number (`四67th Ave`), which the shared rule never joins; the copy now has the same exception, and the shared README says so.
-- Source: review (the orchestrator's 1,000,000-note check before merge).
+- Source: review (a 1,000,000-note check before merge).
 - Verified: 1,000,000 notes on each of three random seeds (1544260262, 171560246, 1015165312): 0 differing, 0 planted numbers through, 0 isolation breaks, about 274,000 notes with a run and 49,500 keeping one per seed; the fixed-seed test passes (7).
 ### feat(judge): the Measured block says every count is from our own test runs
 - What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
