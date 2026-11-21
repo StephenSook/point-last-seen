@@ -2252,3 +2252,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/harness/first-report.html` no longer moves from saving to confirming to done on 400 ms timers; each step waits for its button ("Server has it", "Confirm done", "Server refuses"), and `e2e/harness/firstReport.spec.ts` presses them. A 400 ms step could pass between two of Playwright's polls (its interval grows to a second), so the check sometimes never saw "Confirming..." and timed out on "Saving the report...".
 - Source: review (the check failed about one run in five locally and once in CI).
 - Verified: typecheck passes; both checks passed 30 times in a row (`--repeat-each 5`, three runs); the hygiene guard passes.
+
+### fix(command): a join error sits under its field, marks it invalid and takes the focus
+- What: the join form showed every error in one line under both fields, with no `aria-invalid`, no `aria-describedby`, and the focus left where it was. Now an error about one field ("Enter the incident id."; "The join code has 8 characters." or "That code did not match this incident.") sits under that field, marks it `aria-invalid`, is its description, and takes the focus there; any other error stays under the form. `joinErrorField` in `web/src/data/join.ts` says which field an error is about.
+- Source: UI review (the join error was not beside its field).
+- Verified: a new unit test (`join.test.ts`) failed first, then passed; a new deployed check, `e2e/joinErrors.spec.ts` (the form's own checks, so no join is attempted), failed on the live site before the change and runs after deploy (the join form stays disabled off the hosting origin, so it cannot run locally); typecheck, web unit suite and the hygiene guard pass.
