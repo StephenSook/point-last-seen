@@ -45,6 +45,8 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
+import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
+import { MembersPanel } from "./MembersPanel";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
@@ -405,6 +407,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
+  // The people command can remove: the server's members records and the authors of the incident's reports.
+  const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
+  const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
+  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids)), [pls, incidentId, denied]);
+  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams), [memberDocs, events, removedUids, teams]);
   const incident = view?.incident ?? null;
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
@@ -1003,6 +1010,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            <MembersPanel rows={people} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
           </details>
         </aside>
       </div>
