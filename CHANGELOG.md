@@ -10,6 +10,26 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
   judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-4 tag;
   the hygiene guard passes.
+- Chore(schemas): the content-report schema's web type is built: `shared/schemas/content-report.schema.json` named its
+  TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops
+  "pending:" and the schema parity gate checks it on every run. Source: review (the content-report schema's owner asked
+  for "pending:" to go in whichever PR merged second). Verified: the schema parity gate reports "ok content-report # ts:
+  7 fields" and 0 failures; the hygiene guard passes.
+- Fix(rules): a closedReason copied onto an open incident never blocks its edits: the closedReason clause now applies
+  only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open"
+  (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused.
+  Setting a reason still needs status "closed" and one of the three values. Source: review (Codex: closing the seed
+  drill would make every new practice search refuse ordinary edits). Verified: a new rules test (an open incident
+  carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first;
+  all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+- Feat(rules): command ends a search with one of three reasons: the incident update rule takes an optional
+  `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`.
+  Command could already close an incident; it now says why. A searcher or the family still cannot write the incident,
+  and a closed incident still takes no edits, so its reason stays as written. Source: review (an "End this search"
+  control for command). Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted
+  from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a
+  closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the
+  rules gate and its tests, the gates and the hygiene guard pass.
 - Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
   document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
   command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
@@ -3363,18 +3383,3 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
-
-### feat(rules): command ends a search with one of three reasons
-- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
-- Source: review (an "End this search" control for command).
-- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
-
-### fix(rules): a closedReason copied onto an open incident never blocks its edits
-- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
-- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
-- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
-
-### chore(schemas): the content-report schema's web type is built
-- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
-- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
-- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.
