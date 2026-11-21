@@ -55,12 +55,33 @@ export function usableLayers(layers: PriorLayers, segments: readonly SegmentDoc[
   return start !== null && elevationM?.[start] !== undefined ? layers : { ...layers, elevation: false };
 }
 
+/**
+ * Whether the segments on hand are the whole current grid, checked before any rebuild or walker run writes a prior.
+ * Segments arrive through their own listener: before they load, a rebuild would save every mass outside the grid. A
+ * snapshot can also hold only some (a cached one, or one with an unreadable document dropped); the grid is closed, so
+ * a neighbour, upstream or downstream name with no segment is a missing segment. And every prior write stamps its
+ * version on every segment, so a segment older than the incident's version is from an older grid (a cached snapshot
+ * after a reseed). A newer one is allowed: a copy taken mid-rebuild must not leave an incident that can never rebuild.
+ */
+export function assertCurrentGrid(segments: readonly SegmentDoc[], priorVersion?: number): void {
+  if (segments.length === 0) throw new Error("The map's segments have not loaded yet.");
+  const have = new Set(segments.map((s) => s.segmentId));
+  if (segments.some((s) => [...s.neighbors, ...s.upstream, ...s.downstream].some((id) => !have.has(id)))) {
+    throw new Error("The map's segments have not all loaded yet.");
+  }
+  if (priorVersion !== undefined && segments.some((s) => s.priorVersion === undefined || s.priorVersion < priorVersion)) {
+    throw new Error("The map's segments have not all loaded yet.");
+  }
+}
+
 export function rebuildPrior(
   segments: readonly SegmentDoc[],
   site: {
     gridId: string; attribution: string; ipp: { lat: number; lon: number }; terrain: Terrain;
     /** Each segment's elevation in metres, from the site's elevation file; needed only by the elevation layer. */
     elevationM?: Readonly<Record<string, number>>;
+    /** The incident's prior version: every segment must carry it, or the grid on hand is an older one. */
+    priorVersion?: number;
   },
   layers: PriorLayers,
   travelBearingDeg: number | null,
@@ -68,15 +89,7 @@ export function rebuildPrior(
   params: EngineParams = DEFAULT_PARAMS,
 ): RebuiltPrior {
   if (layers.wedge && travelBearingDeg === null) throw new Error("The wedge needs a confirmed direction of travel.");
-  // Segments arrive through their own listener: a rebuild before they load would save a prior with every mass
-  // outside the grid and leave each stored segment's old probability in place.
-  if (segments.length === 0) throw new Error("The map's segments have not loaded yet.");
-  // A snapshot can also hold only some of them (a cached one, or one with an unreadable document dropped). The grid is
-  // closed: every segment it names as a neighbour, upstream or downstream is in it, so a missing name is a missing segment.
-  const have = new Set(segments.map((s) => s.segmentId));
-  if (segments.some((s) => [...s.neighbors, ...s.upstream, ...s.downstream].some((id) => !have.has(id)))) {
-    throw new Error("The map's segments have not all loaded yet.");
-  }
+  assertCurrentGrid(segments, site.priorVersion);
   const grid = gridFromDocs(segments, site.gridId, site.attribution);
   const elevations = layers.elevation ? segmentElevations(segments, site.ipp, site.elevationM) : undefined;
   const prior = buildPrior(grid, site.ipp, site.terrain, layers, travelBearingDeg, params, elevations);

@@ -31,7 +31,7 @@ export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: Cam
   // The elevation layer measures from the new start; where it cannot, the rebuild drops it rather than refusing.
   const layers = usableLayers({ ...stored, wedge: bearingDeg !== null }, segments, ipp, incident.elevationM);
   const terrain = incident.terrain ?? "temperate_flat";
-  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM }, layers, bearingDeg, incident.engineParams);
+  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM, priorVersion: incident.priorVersion }, layers, bearingDeg, incident.engineParams);
   const w = priorWrites(rebuilt, incident, layers, terrain);
   return { ...w, incident: { ...w.incident, priorModel: "rings", ipp, priorInputEventIds: patch.priorInputEventIds } };
 }

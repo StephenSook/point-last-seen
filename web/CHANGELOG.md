@@ -2190,6 +2190,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
 - Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
 
+### feat(data): a segment read from Firestore keeps its prior version
+- What: the segment listener reads each document through `segmentFromDoc`, which now keeps the document's `priorVersion` (left unset when missing or not a number). Every prior write stamps it on every segment and ROW, so a rebuild can tell a segment from an older grid.
+- Source: review (follow-up, approved).
+- Verified: `segmentDoc.test.ts` failed first (no export), then passes: the version kept, unset when missing or a string, null for unreadable geometry.
+
+### fix(prior): no rebuild from a stale grid
+- What: `rebuildPrior` takes the incident's `priorVersion` and refuses ("The map's segments have not all loaded yet.") when any segment carries another version or none. After a reseed, a cached snapshot can hold the older grid with the same id; a confirm or layer change on it would have saved a new version over part of the current grid. The command post's layer and model rebuilds and every camera and sighting confirm pass the version. The sighting prior tests run with the 30 s timeout the other prior tests use.
+- Source: review (cross-family, follow-up, approved).
+- Verified: new tests failed first, then pass: a stale or unversioned segment is refused, and a confirm against a stale grid is refused before anything is built. Every stored incident's segments and ROW (48 of 48) carry their incident's version, read live. 1080 web unit tests and the typecheck pass.
+
+### fix(prior): only an older grid blocks a rebuild; walkers check the grid first
+- What: the grid checks move into `assertCurrentGrid` (none loaded, some missing, or a segment older than the incident's version). A segment newer than the incident is now allowed, so an incident copied mid-rebuild can still rebuild instead of refusing forever. A walker run, which writes every segment too, makes the same check before it starts, so it never commits a new version over a stale segment list.
+- Source: review (cross-family).
+- Verified: new tests failed first, then pass: a newer segment rebuilds; `assertCurrentGrid` passes the whole current grid and refuses empty, partial and older ones; 1082 web unit tests and the typecheck pass.
 ### fix(data): a phone cue counts only right before a coordinate pair
 - What: a cue word voids a coordinate pair only when it sits right before it (spaces or a colon between) or with one connector between (al, a, at, on, to); a "#" before it still counts. A cue further back names a thing, not a number to dial, so a clue's place stays: "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733" and "Call came from 33.7866, -84.3733" had been removed. "Call 33.1234, -84.5678" and "Llame al 33.1234, -84.5678" are still removed.
 - Source: review.
@@ -2205,6 +2219,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
 - Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.
 
+### fix(command): walkers use only the route graph loaded for this grid
+- What: the command post keeps the loaded route graph with the grid it was loaded for (`graphFor`) and clears it on a grid change, so after a site change a walker run can never use the old site's routes with the new site's cells; until the new graph loads, walkers wait as on any load.
+- Source: review (cross-family).
+- Verified: `graphFor` failed first (no export), then passes (own grid; another grid; loading; no grid); 1089 web unit tests and the typecheck pass.
 ### test(e2e): the live run's saved session keeps Remote Config's cache, so tests stop refetching it
 - What: `e2e/auth.setup.ts` waits until Remote Config has stored its fetch (IndexedDB `firebase_remote_config`, a `last_successful_fetch_timestamp_millis` key) and Performance Monitoring its config (localStorage `@firebase/performance/config`) before saving the session every live test reuses. Setup had saved before either was written, so each test fetched both again, about 80 fetches a run against the project's 60 a minute per caller; runs were refused partway with HTTP 429 (seen as console errors, the "(default)" model on the judge page, and a missing trace).
 - Source: review (Remote Config 429 in live checks; Cloud Monitoring showed 49 fetches in one minute from one run).

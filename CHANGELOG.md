@@ -82,6 +82,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- tools/seed: the incident is read before the segments are listed, so the commit's updateTime precondition fails a run
+  that a concurrent seed overtook between the reads, before any write; listed first, the stale list passed with the
+  newer updateTime and left a mixed grid. Source: review (cross-family). Verified:
+  test_the_incident_is_read_before_the_segments_are_listed failed first, then passes; 42 seed tests pass.
+- tools/seed: a reseed over an existing grid must raise the prior version (version_problem; read_incident now returns
+  the stored priorVersion). At the same version, a walker run or rebuild started before the reseed still saw its
+  version unchanged and committed its old results as the next one, leaving the new grid's other cells behind for good.
+  Source: review (cross-family). Verified: test_a_reseed_over_an_existing_grid_must_raise_the_prior_version failed
+  first, then passes; 41 seed tests pass.
 - test-vectors README: the phone rule's separator sentence now describes the shared rule (any spaces, punctuation or
   symbols join digit groups, except : % and the degree sign; a gap never holds a letter or a digit). Source: review.
   Verified: read against web/src/data/phoneNumbers.ts and the 103 cases.
