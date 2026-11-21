@@ -2510,6 +2510,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
 - Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
 
+### fix(command): Problem reports follow the rail's lead instead of preceding it
+- What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
+- Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
+- Verified: the rail-order check failed on the live site with the panel first; it runs after deploy. Typecheck, web unit suite and the hygiene guard pass.
+
 ### fix(ai): the receipt says no text or image left the laptop, not that nothing did
 - What: every read sends one timing record with its route (path, reason, platform, stage and latency; `web/src/telemetry/trace.ts`, disclosed in `docs/SECURITY.md`), so "Sent: nothing left this laptop." and, for fixed wording, "Sent: nothing." overclaimed. They now read "Sent: no text or image left this laptop." and "Sent: no text or image.".
 - Source: review (the receipt claimed more than the code does).

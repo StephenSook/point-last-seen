@@ -863,7 +863,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
         <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
-          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
@@ -889,6 +888,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
+          {/* Problem reports follow the rail's lead (what changed, the plan, the top segments), so the working view stays first. */}
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
           {editingProfile ? (
             <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
