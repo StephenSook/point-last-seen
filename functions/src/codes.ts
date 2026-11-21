@@ -44,21 +44,21 @@ export async function handleRotateJoinCode(db: Firestore, auth: Pick<Auth, "getU
   }
   await assertCurrentCommand(db, auth, caller.uid, incidentId, refusal);
 
-  // As in media.ts: claims outlive an incident, so a missing or expired one refuses its command too.
-  const incident = await db.doc(`incidents/${incidentId}`).get();
-  const exp = incident.get("expiresAt") as { toMillis(): number } | null | undefined;
-  if (!incident.exists || (exp != null && exp.toMillis() <= Date.now())) {
-    throw new HttpsError("permission-denied", refusal, { reason: "not_command" });
-  }
-  if (incident.get("mode") !== "drill") {
-    throw new HttpsError("failed-precondition", "A practice search has no join codes.", { reason: "practice_search" });
-  }
-  if (incident.get("status") !== "open") {
-    throw new HttpsError("failed-precondition", "This search has ended, so it takes no new members.", { reason: "not_open" });
-  }
-
   const old = db.collection("joinCodes").where("incidentId", "==", incidentId);
   return db.runTransaction(async tx => {
+    // Read inside the transaction, so a search command ends at the same moment cannot get a new code.
+    // As in media.ts: claims outlive an incident, so a missing or expired one refuses its command too.
+    const incident = await tx.get(db.doc(`incidents/${incidentId}`));
+    const exp = incident.get("expiresAt") as { toMillis(): number } | null | undefined;
+    if (!incident.exists || (exp != null && exp.toMillis() <= Date.now())) {
+      throw new HttpsError("permission-denied", refusal, { reason: "not_command" });
+    }
+    if (incident.get("mode") !== "drill") {
+      throw new HttpsError("failed-precondition", "A practice search has no join codes.", { reason: "practice_search" });
+    }
+    if (incident.get("status") !== "open") {
+      throw new HttpsError("failed-precondition", "This search has ended, so it takes no new members.", { reason: "not_open" });
+    }
     const current = (await tx.get(old)).docs.filter(d => {
       const roles = d.get("roles");
       return Array.isArray(roles) && roles.length === 1 && roles[0] === role;

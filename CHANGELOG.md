@@ -82,6 +82,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: rotateJoinCode reads the incident inside its transaction, so a search command ends at the same moment
+  cannot get a new code. Source: review (cross-family, round 1 on join code rotation). Verified: the closed, practice
+  and expired refusals still pass; 346 functions and rules tests pass.
 - functions: joinIncident's last step (commitJoin) runs in ONE transaction that re-reads the code (it still exists and
   admits this role to this incident), the incident (still open and unexpired), the removal record, and a limited
   invite's use count, then counts the use and writes the members record. A code rotated away, a search ended or an
