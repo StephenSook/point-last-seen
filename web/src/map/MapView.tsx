@@ -3,7 +3,7 @@
 
 import { labelOrder, overlapping } from "./labelDensity";
 import { plateShown, screenBox } from "./plateRule";
-import { CODE_GAP_PX, cappedDotRadius, codePlace } from "./labelFit";
+import { CODE_GAP_PX, type ChipObstacle, cappedDotRadius, chipPlace, codePlace } from "./labelFit";
 import { dotRadiusPx } from "../theme/tokens";
 import { addProtocol, Map as MlMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
@@ -100,6 +100,10 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
   readyRef.current = onReady;
   const pinMarker = useRef<Marker | null>(null);
   const chips = useRef<Marker[]>([]);
+  // Each chip's segment, each cell's capped dot radius (from the label pass), and the chip pass that uses both.
+  const chipIds = useRef<string[]>([]);
+  const dotRadii = useRef(new Map<string, number>());
+  const placeChips = useRef<() => void>(() => {});
   // Set once the style and our sources exist. isStyleLoaded() turns false again while a source updates,
   // so it cannot gate redraws: a redraw parked on "load" then would never run.
   const ready = useRef(false);
@@ -201,6 +205,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         if (f.properties.label === "") return out;
         const plate = document.createElement("div");
         plate.className = "plate";
+        plate.dataset["seg"] = seg.segmentId;
         plate.textContent = f.properties.label;
         own.push(plate);
         // The plate hangs just below the largest dot (14 px), so the number never covers the dot.
@@ -240,6 +245,7 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         if (box === null) continue;
         // The dot: never wider than its cell (labelFit.ts).
         const dotR = cappedDotRadius(dotRadiusPx(poa[id] ?? 0, maxPoa), box);
+        dotRadii.current.set(id, dotR);
         const fid = dotId.get(id);
         if (fid !== undefined) m.setFeatureState({ source: "centres", id: fid }, { cap: dotR });
         // The code: left of its dot, else on the centre, else hidden.
@@ -259,6 +265,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       }
       const units = ids.map((id) => (labels.get(id) ?? []).filter((el) => !el.classList.contains("unfit")));
       for (const i of overlapping(units.map((els) => els.map((el) => el.getBoundingClientRect())))) for (const el of units[i]!) el.classList.add("crowded");
+      // Then the change chips, each where it covers the fewest labels left on screen (labelFit.ts chipPlace).
+      placeChips.current();
     };
     m.on("moveend", place);
     if (ready.current) draw();
@@ -291,9 +299,11 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       const ids = top.map((c) => c.segmentId);
       for (const id of ["moved-casing", "moved-line"]) if (m.getLayer(id)) m.setFilter(id, movedFilter(ids));
       for (const mk of chips.current) mk.remove();
+      chipIds.current = [];
       chips.current = top.flatMap((c) => {
         const seg = segments.find((x) => x.segmentId === c.segmentId);
         if (!seg) return [];
+        chipIds.current.push(c.segmentId);
         // The marker's own element gets its opacity rewritten by MapLibre every frame, so the
         // visible chip is an inner element the beat can fade.
         const anchor = document.createElement("div");
@@ -302,9 +312,40 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
         chip.dataset["testid"] = "delta-chip";
         chip.textContent = deltaLabel(c.deltaPts);
         anchor.append(chip);
-        // Above the dot (the plate hangs below it).
-        return [new Marker({ element: anchor, anchor: "bottom", offset: [0, -16] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
+        // Above the dot (the plate hangs below it), unless that covers another label: the chip pass moves it.
+        return [new Marker({ element: anchor, anchor: "center", offset: [0, -24] }).setLngLat([seg.centroid.lon, seg.centroid.lat]).addTo(m)];
       });
+      placeChips.current = () => {
+        const host = m.getContainer();
+        const origin = host.getBoundingClientRect();
+        const local = (r: DOMRect) => ({ left: r.left - origin.left, top: r.top - origin.top, right: r.right - origin.left, bottom: r.bottom - origin.top });
+        // A label a chip hid on the last pass is a candidate again; the label pass decides crowded and unfit.
+        for (const el of host.querySelectorAll(".under-chip")) el.classList.remove("under-chip");
+        const shown = (el: Element) => !el.classList.contains("crowded") && !el.classList.contains("unfit");
+        const labelEls = [...host.querySelectorAll<HTMLElement>(".plate, .seg-code")].filter(shown);
+        const placed: ChipObstacle[] = [];
+        chips.current.forEach((mk, i) => {
+          const id = chipIds.current[i];
+          const seg = segments.find((x) => x.segmentId === id);
+          const chip = mk.getElement().firstElementChild;
+          if (!seg || !(chip instanceof HTMLElement)) return;
+          const c = m.project([seg.centroid.lon, seg.centroid.lat]);
+          const own = labelEls.find((el) => el.classList.contains("plate") && el.dataset["seg"] === id);
+          const size = { w: chip.offsetWidth, h: chip.offsetHeight };
+          // The chip's own cell's labels cost as much to cover as a percent, so its code is not given up lightly.
+          const labels: ChipObstacle[] = labelEls.map((el) => ({
+            box: local(el.getBoundingClientRect()),
+            kind: el.classList.contains("plate") || el.dataset["seg"] === id || (el.classList.contains("seg-code") && el.textContent === id) ? "plate" : "code",
+          }));
+          const where = chipPlace({ chip: size, centre: { x: c.x, y: c.y }, dotR: dotRadii.current.get(id!) ?? 14, ownPlateH: own ? own.offsetHeight : 0, obstacles: [...labels, ...placed] });
+          mk.setOffset(where.offset);
+          // What the chip covers is hidden while it is there: the change is the newest thing on the map.
+          for (const k of where.covered) if (k < labelEls.length) labelEls[k]!.classList.add("under-chip");
+          const [dx, dy] = where.offset;
+          placed.push({ box: { left: c.x + dx - size.w / 2, top: c.y + dy - size.h / 2, right: c.x + dx + size.w / 2, bottom: c.y + dy + size.h / 2 }, kind: "chip" });
+        });
+      };
+      placeChips.current();
     };
     if (ready.current) draw();
     else m.once("load", draw);

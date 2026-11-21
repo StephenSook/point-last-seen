@@ -2058,6 +2058,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (on a phone the walker caption box covered the map's left edge).
 - Verified: a new harness check in `e2e/harness/map.spec.ts` (at 390 by 844 the sentence is at most 40 px tall, wider than 60% of the map, and clear of the credit line) failed first (138 px tall), then passed with the other map checks (16); typecheck, web unit suite and the hygiene guard pass.
 
+### fix(map): a change chip never covers another cell's percent or code
+- What: a change chip ("+0.2 pts") sat 16 px above its cell's dot whatever was there, so on a dense grid it covered the cell above's percent. Now each chip is placed after the plates and codes, on every camera move: above the dot, else right, else left, else below its own plate, whichever covers nothing. When every place covers something, it takes the one that covers the least (another cell's code before a percent, another chip last) and hides what it covers while it is there; those cells are still named in the ranked list. `chipPlace` in `web/src/map/labelFit.ts`; plates carry their segment id.
+- Source: UI review (on a laptop the "+0.2 pts" chip covered BC's percentage).
+- Verified: new `chipPlace` unit tests failed first, then passed; a new harness check in `e2e/harness/change.spec.ts` (at 1440 by 900 and 1100 by 700, then zoomed out two steps, every chip inside the map and none over a visible percent or code) failed on main ("+14.7 pts over 7.5%", "3.5%", "1.0%" two steps out), then passed with the change and map checks; typecheck, web unit suite and the hygiene guard pass.
+
 ### feat(command): the Teams strip picks a team and outlines its cells
 - What: the Teams rail is a narrow strip (160 px, was 200 px), so the map gets the width. Each team is a button: pressing it makes that team the active one (its name in fg-1, the others in fg-4) and outlines its assigned cells on the map in 2 px fg-1 on a bg-0 casing, under the cyan outline of the newest change; pressing it again clears the pick. With no team picked every name reads in fg-2; before, no team could ever be active, so every name was fg-4 grey. The map element names the outlined cells in `data-team-outline`. New harness `web/harness/teams.html`.
 - Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
