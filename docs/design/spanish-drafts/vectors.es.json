@@ -1,0 +1,277 @@
+{
+  "status": "DRAFT, machine-reviewed, no native speaker yet. No code reads this file. A fluent Spanish speaker checks every note and every expected value, and says whether each note reads like something a person would type, before any case moves into shared/test-vectors.",
+  "language": [
+    {
+      "name": "es_walked_to_park",
+      "input": "Se fue caminando hacia el parque esta mañana",
+      "expect": "es",
+      "today": "refused"
+    },
+    {
+      "name": "es_short_not_here",
+      "input": "Ella no está aquí",
+      "expect": "es",
+      "why": "Today a known miss: it passes as English.",
+      "today": "en"
+    },
+    {
+      "name": "en_quoting_mi_casa",
+      "input": "She kept saying \"mi casa\" before she left",
+      "expect": "en",
+      "today": "en"
+    },
+    {
+      "name": "es_called_grandma_store",
+      "input": "Llamen a la abuela, la vimos en la tienda",
+      "expect": "es",
+      "today": "refused"
+    }
+  ],
+  "familyNotes": [
+    {
+      "name": "es_church_sundays",
+      "input": "Le gusta caminar hasta la iglesia de San José los domingos",
+      "expect": "place, label copied from the note (iglesia de San José)"
+    },
+    {
+      "name": "es_old_address",
+      "input": "Vivía en la calle Maple 412 antes de mudarse",
+      "expect": "address"
+    },
+    {
+      "name": "es_found_before_parking",
+      "input": "Una vez la encontraron en el estacionamiento del supermercado",
+      "expect": "wandering"
+    },
+    {
+      "name": "es_clothing_red_sweater",
+      "input": "Siempre lleva un suéter rojo y zapatos blancos",
+      "expect": "clothing"
+    }
+  ],
+  "grounding": [
+    {
+      "name": "es_blue_jacket_north",
+      "input": "Vimos a una mujer con chaqueta azul caminando hacia el norte",
+      "reading": {
+        "topColor": "blue",
+        "direction": "n"
+      },
+      "expect": {
+        "topColor": "blue",
+        "direction": "n"
+      },
+      "today": {
+        "topColor": "unknown",
+        "direction": "unknown"
+      }
+    },
+    {
+      "name": "es_capital_o_west",
+      "input": "Iba hacia el O por el sendero",
+      "reading": {
+        "direction": "w"
+      },
+      "expect": {
+        "direction": "w"
+      },
+      "today": {
+        "direction": "unknown"
+      }
+    },
+    {
+      "name": "es_color_not_in_note",
+      "input": "Llevaba algo en la mano",
+      "reading": {
+        "carried": "algo",
+        "topColor": "red"
+      },
+      "expect": {
+        "topColor": "unknown",
+        "carried": ""
+      },
+      "today": {
+        "topColor": "unknown",
+        "carried": "algo"
+      }
+    },
+    {
+      "name": "es_accented_brown",
+      "input": "Tenía un abrigo marrón",
+      "reading": {
+        "topColor": "brown"
+      },
+      "expect": {
+        "topColor": "brown"
+      },
+      "why": "Needs grounding to fold accents.",
+      "today": {
+        "topColor": "unknown"
+      }
+    },
+    {
+      "name": "es_west_word",
+      "input": "Iba hacia el oeste por el sendero",
+      "reading": {
+        "direction": "w"
+      },
+      "expect": {
+        "direction": "w"
+      },
+      "today": {
+        "direction": "unknown"
+      }
+    }
+  ],
+  "foundKind": [
+    {
+      "name": "es_jacket_by_creek",
+      "input": "Encontramos una chaqueta azul junto al arroyo",
+      "kindIn": "found",
+      "expect": {
+        "kindOut": "clue",
+        "feature": "creek_or_drainage",
+        "item": "chaqueta azul"
+      },
+      "today": {
+        "kindOut": "found",
+        "feature": "none",
+        "item": ""
+      }
+    },
+    {
+      "name": "es_clitic_found_her",
+      "input": "La encontramos junto al arroyo, está bien",
+      "kindIn": "found",
+      "expect": {
+        "kindOut": "found"
+      },
+      "today": {
+        "kindOut": "found",
+        "feature": "none",
+        "item": ""
+      }
+    },
+    {
+      "name": "es_personal_a_lady",
+      "input": "Encontramos a la señora sentada en una banca",
+      "kindIn": "found",
+      "expect": {
+        "kindOut": "found"
+      },
+      "today": {
+        "kindOut": "found",
+        "feature": "none",
+        "item": ""
+      }
+    },
+    {
+      "name": "es_found_his_glasses",
+      "input": "Encontramos sus lentes en el sendero",
+      "kindIn": "found",
+      "expect": {
+        "kindOut": "clue",
+        "feature": "trail",
+        "item": "lentes"
+      },
+      "today": {
+        "kindOut": "found",
+        "feature": "none",
+        "item": ""
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "name": "es_blood_on_jacket",
+      "input": "Hay sangre en la chaqueta",
+      "expect": "possible evidence",
+      "today": "not evidence"
+    },
+    {
+      "name": "es_shovel_disturbed_soil",
+      "input": "Vimos una pala y tierra removida",
+      "expect": "possible evidence",
+      "today": "not evidence"
+    },
+    {
+      "name": "es_plain_sighting",
+      "input": "Vimos a una señora con un suéter rojo cerca del parque",
+      "expect": "not evidence",
+      "today": "not evidence"
+    }
+  ],
+  "phoneNumbers": {
+    "mustRemove": [
+      {
+        "name": "es_digit_words",
+        "input": "Llame al cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
+        "number": "cuatro cero cuatro cinco cinco cinco cero uno cuatro dos",
+        "today": "Llame al [number removed]"
+      },
+      {
+        "name": "es_written_digits",
+        "input": "Llamen al 404-555-0142",
+        "number": "404-555-0142",
+        "today": "Llamen al [number removed]"
+      },
+      {
+        "name": "es_pairs_and_hundreds",
+        "input": "Llame a su hijo al cuatro cero cuatro, quinientos cincuenta y cinco, cero uno, cuarenta y dos",
+        "number": "cuatro cero cuatro, quinientos cincuenta y cinco, cero uno, cuarenta y dos",
+        "needs": "spokenNumbers",
+        "today": "Llame a su hijo al cuatro cero cuatro, quinientos cincuenta y cinco, cero uno, cuarenta y dos"
+      },
+      {
+        "name": "es_tens_pairs",
+        "input": "Marque al seis setenta y ocho, doscientos treinta y cuatro, noventa y uno, cero cinco",
+        "number": "seis setenta y ocho, doscientos treinta y cuatro, noventa y uno, cero cinco",
+        "needs": "spokenNumbers",
+        "today": "Marque al seis setenta y ocho, doscientos treinta y cuatro, noventa y uno, cero cinco"
+      }
+    ],
+    "mustKeep": [
+      {
+        "name": "es_numeric_date_time",
+        "input": "Visto el 19/11/2026 a las 14:30",
+        "today": "kept"
+      },
+      {
+        "name": "es_month_date",
+        "input": "La vieron el 19 de noviembre de 2026",
+        "today": "kept"
+      },
+      {
+        "name": "es_spoken_year",
+        "input": "Se mudó en el dos mil veintiséis",
+        "today": "kept"
+      },
+      {
+        "name": "es_age",
+        "input": "Tiene setenta y ocho años y camina despacio",
+        "today": "kept"
+      },
+      {
+        "name": "es_time_spoken",
+        "input": "La vimos a las tres y media",
+        "today": "kept"
+      },
+      {
+        "name": "es_street_address",
+        "input": "Vivía en la calle Maple 412",
+        "today": "kept"
+      },
+      {
+        "name": "es_road_marker",
+        "input": "Cerca del kilómetro cuarenta y dos de la carretera",
+        "today": "kept"
+      },
+      {
+        "name": "es_street_address_number_first",
+        "input": "Vivía en el 412 de Maple Street",
+        "today": "kept"
+      }
+    ]
+  },
+  "today": "Each case's `today` is what the shared rules on main (web and engine ports) return for it now, measured 2026-11-21, so the gap each twin closes is visible."
+}

@@ -97,6 +97,13 @@ export function cleanSheet(raw: unknown, ctx: SheetContext): SheetRead | null {
 
 type Reply = { text: string; inferenceSource: string | undefined };
 
+/**
+ * How long the command post waits for a sheet's reply. Chrome's first image read took 31 s on a fast Mac
+ * (docs/evidence/web/2026-11-21-debrief-sheet-chrome.json) and later ones 4 to 7 s, so the limit leaves room for a
+ * first read on a slower laptop. The read runs on this laptop and costs nothing, so waiting longer spends only time.
+ */
+export const SHEET_READ_TIMEOUT_MS = 90_000;
+
 /** Why a sheet was not read: no on-device model, a reply not made on this laptop, an unreadable reply, or a slow one. */
 export type SheetRefusal = "no-on-device-model" | "not-on-device" | "invalid" | "timeout";
 

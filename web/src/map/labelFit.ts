@@ -1,15 +1,21 @@
-// How a cell's dot and its code fit the cell on screen (the rule is written out in plateRule.ts). A dot is never
-// wider than its cell: its radius is capped at half the smaller side of the cell's on-screen box. A code sits left of
-// its dot when it fits there inside the box, moves onto the centre when it does not, and is hidden only when it fits
-// nowhere; the cell is still named in the ranked list and the Place list. Both are decided again on every camera move.
+// How a cell's dot and its code fit the cell on screen (the rule is written out in plateRule.ts). The fill is the
+// cell's mark, so a dot is at most 35% as wide as the smaller side of the cell's on-screen box. A code shows only on a
+// cell 40 px or more on its smaller side (zoomed in), or while the pointer is over the cell; then it sits left of its
+// dot when it fits there inside the box, moves onto the centre when it does not, and is hidden when it fits nowhere.
+// A hidden code's cell is still named in the ranked list and the Place list. Both are decided again on every move.
 
 import type { Box } from "./labelDensity";
 
 /** The space between a code and the dot to its right. */
 export const CODE_GAP_PX = 3;
 
+/** A dot's width, at most, as a share of the smaller side of its cell on screen. */
+export const DOT_CAP_SHARE = 0.35;
+/** The smallest cell (its smaller side on screen) whose code shows without the pointer over it. */
+export const CODE_MIN_CELL_PX = 40;
+
 export function cappedDotRadius(r: number, box: Box): number {
-  return Math.max(0, Math.min(r, Math.min(box.right - box.left, box.bottom - box.top) / 2));
+  return Math.max(0, Math.min(r, (DOT_CAP_SHARE * Math.min(box.right - box.left, box.bottom - box.top)) / 2));
 }
 
 /** The space between a change chip and the dot or plate it sits beside. */
@@ -52,6 +58,7 @@ export type CodePlace = "left" | "centre" | "hidden";
 
 export function codePlace(p: { code: { w: number; h: number }; box: Box; centre: { x: number; y: number }; dotR: number }): CodePlace {
   const { code, box, centre, dotR } = p;
+  if (Math.min(box.right - box.left, box.bottom - box.top) < CODE_MIN_CELL_PX) return "hidden";
   const top = centre.y - code.h / 2;
   const bottom = centre.y + code.h / 2;
   if (top < box.top || bottom > box.bottom) return "hidden";

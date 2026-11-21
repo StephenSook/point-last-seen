@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, joinCommand, openDetails, test, withDebugToken } from "./fixtures";
+import { expect, joinCommand, mapDrawn, openDetails, test, withDebugToken } from "./fixtures";
 
 // axe with the WCAG 2.0 to 2.2 A and AA rules. Each finding prints its rule and the nodes it flags.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
@@ -26,8 +26,7 @@ for (const width of [1440, 390]) {
     test("the joined command post has no WCAG A or AA violation", async ({ page }) => {
       await withDebugToken(page);
       await joinCommand(page);
-      // Segment codes always draw; at phone width a plate shows only where it fits its segment, so there may be none.
-      await expect(page.locator(".seg-code:visible").first()).toBeVisible({ timeout: 20_000 });
+      await mapDrawn(page);
       // The map canvas and its markers are drawn by MapLibre; the rail, header and forms are ours.
       const r = await new AxeBuilder({ page }).withTags(TAGS).exclude(".maplibregl-canvas").analyze();
       expect(describe(r.violations)).toEqual([]);

@@ -1,0 +1,132 @@
+{
+  "status": "DRAFT, machine-reviewed, no native speaker yet. No code reads this file. A fluent Spanish speaker checks every word and sentence (CHECKLIST.md) before any of it moves into shared/constants or shared/test-vectors.",
+  "twinOf": "the phone-number rule (shared/test-vectors/README.md, phone-numbers.json)",
+  "digitWords": {
+    "note": "Already in the rule on every platform. un and una stay out: they are articles.",
+    "words": [
+      "cero",
+      "uno",
+      "dos",
+      "tres",
+      "cuatro",
+      "cinco",
+      "seis",
+      "siete",
+      "ocho",
+      "nueve"
+    ]
+  },
+  "spokenNumbers": {
+    "note": "PROPOSED rule change, on every platform: today a spoken word adds one digit and only single digit words count. Spanish speakers often say a phone number in pairs and hundreds (cuatro cero cuatro, quinientos cincuenta y cinco, cero uno, cuarenta y dos). A group is a hundreds word with the tens and units after it, or a tens or teen word with the unit after it, or a unit word alone: it adds 3 digits when it starts with a hundreds word (doscientos treinta y cuatro is 234, one group of 3), 2 when it starts with a tens or teen word (treinta y dos), and 1 for a unit word. y joins a tens word, including veinte and diez in the split spellings veinte y dos and diez y seis, to the unit after it. un and una count only right after such a y (treinta y un, cuarenta y una); alone they are articles. mil is not a number word here, so a spoken year (dos mil veintiséis) never builds a run. Words are listed folded (no accents), as the rule folds a note before matching.",
+    "teens": {
+      "diez": 2,
+      "once": 2,
+      "doce": 2,
+      "trece": 2,
+      "catorce": 2,
+      "quince": 2,
+      "dieciseis": 2,
+      "diecisiete": 2,
+      "dieciocho": 2,
+      "diecinueve": 2
+    },
+    "twenties": {
+      "veinte": 2,
+      "veintiuno": 2,
+      "veintiun": 2,
+      "veintidos": 2,
+      "veintitres": 2,
+      "veinticuatro": 2,
+      "veinticinco": 2,
+      "veintiseis": 2,
+      "veintisiete": 2,
+      "veintiocho": 2,
+      "veintinueve": 2,
+      "veintiuna": 2
+    },
+    "tens": {
+      "treinta": 2,
+      "cuarenta": 2,
+      "cincuenta": 2,
+      "sesenta": 2,
+      "setenta": 2,
+      "ochenta": 2,
+      "noventa": 2
+    },
+    "hundreds": {
+      "cien": 3,
+      "ciento": 3,
+      "doscientos": 3,
+      "trescientos": 3,
+      "cuatrocientos": 3,
+      "quinientos": 3,
+      "seiscientos": 3,
+      "setecientos": 3,
+      "ochocientos": 3,
+      "novecientos": 3
+    },
+    "joiner": "y",
+    "notNumbers": [
+      "un (except after y)",
+      "una (except after y)",
+      "mil",
+      "millon",
+      "medio",
+      "media"
+    ]
+  },
+  "months": {
+    "note": "Twin of the English month-name date: a run beside a month name stays a date (19 de noviembre de 2026). de may sit between the day, the month and the year.",
+    "full": [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "setiembre",
+      "octubre",
+      "noviembre",
+      "diciembre"
+    ],
+    "short": [
+      "ene",
+      "feb",
+      "mar",
+      "abr",
+      "may",
+      "jun",
+      "jul",
+      "ago",
+      "sep",
+      "sept",
+      "set",
+      "oct",
+      "nov",
+      "dic"
+    ],
+    "question": "mar (sea) and may are also other words; the short forms count only right before or after digits, as the English short months do."
+  },
+  "streetWords": {
+    "note": "Twin of the English street words: a number written right after or before one of these is an address, not a phone number (calle Maple 412, avenida 5).",
+    "words": [
+      "calle",
+      "avenida",
+      "av",
+      "avda",
+      "camino",
+      "carretera",
+      "carr",
+      "paseo",
+      "bulevar",
+      "boulevard",
+      "callejon",
+      "privada",
+      "cerrada"
+    ]
+  },
+  "radio": "On the radio, read a phone number back digit by digit (seis, siete, ocho), never in pairs: sesenta and setenta, and dos and doce, are easy to mishear."
+}

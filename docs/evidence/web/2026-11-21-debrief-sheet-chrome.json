@@ -1,0 +1,59 @@
+{
+  "what": "The paper debrief sheet read on Chrome's built-in model, measured on a local page with the command post's own code path (local page, same code path): the gate with the sheet's image options, debriefSheetGenerator (ONLY_ON_DEVICE, private request options), readDebriefSheetOnDevice and its checks",
+  "date": "2026-11-21",
+  "browser": "Stephen's Google Chrome 157.0.8103.80 stable on this Mac (macOS, Apple M5 Pro); the built-in model reported available for image + text and for text only; its model version was not recorded",
+  "page": "web/harness/sheet.html (dev server http://127.0.0.1:5176), bare Firebase app with no App Check and no sign-in, at the commit that adds the page",
+  "sheet": "The SAMPLE debrief sheet as the app prints it (Print debrief sheets, Add a filled SAMPLE sheet): a screen capture of the rendered page, 720 x 952 pixels, with made-up values in a handwriting face and no person named. A rendered sheet, not a camera photo of a handwritten one.",
+  "context": "Checked against a made-up search with segments AA and AB and teams Alfa and Team 2",
+  "runs": [
+    {
+      "run": 1,
+      "openedFor": "AA",
+      "note": "first read after the browser started the page",
+      "replyMs": 31088,
+      "inferenceSource": "on_device",
+      "fieldsRight": "8 of 8",
+      "problems": {},
+      "googleRequests": 0
+    },
+    {
+      "run": 2,
+      "openedFor": "AA",
+      "note": "the same page, right after run 1",
+      "replyMs": 3842,
+      "inferenceSource": "on_device",
+      "fieldsRight": "8 of 8",
+      "problems": {},
+      "googleRequests": 0
+    },
+    {
+      "run": 3,
+      "openedFor": "AB",
+      "note": "a freshly loaded page, opened as segment AB's debrief",
+      "replyMs": 7372,
+      "inferenceSource": "on_device",
+      "fieldsRight": "8 of 8",
+      "problems": {
+        "segment": "This sheet is for segment AA, not AB."
+      },
+      "googleRequests": 0
+    }
+  ],
+  "reply": {
+    "team": "Alfa",
+    "segment": "AA",
+    "minutes": "45",
+    "coverage": "75",
+    "worked": "LINE SEARCH 10 M APART ALONG THE CREEK",
+    "didNotWork": "THICK BRUSH ON THE NORTH SLOPE",
+    "clues": "BLUE SCARF ON TRAIL MARKER 4",
+    "hazards": "LOOSE ROCK BY THE OVERLOOK"
+  },
+  "findings": [
+    "Every run read all eight boxes as printed, ran on this laptop as the SDK reported, and made no request to a Google or Firebase host.",
+    "The first read took 31,088 ms, longer than the 30,000 ms the command post then allowed a sheet read, so a first read in the command post would have been refused as too slow; later reads took 3,842 and 7,372 ms.",
+    "Opened as another segment's debrief, the read flagged the segment, as the code's check intends.",
+    "Not measured: a camera photo of a handwritten sheet, other laptops or browsers, and the click path inside the signed-in command post (the browser checks on the debrief harness cover that path with a canned reply)."
+  ],
+  "n": "3 runs on 1 rendered sheet; timings are single observations, not distributions"
+}

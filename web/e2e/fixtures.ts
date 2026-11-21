@@ -73,6 +73,15 @@ export async function joinCommand(page: Page): Promise<string> {
   return incident;
 }
 
+/**
+ * Waits until the map has drawn the drill's cells: every cell's code is in the page (shown or not; on a phone the
+ * cells are too small for codes until zoomed in) and the map has settled.
+ */
+export async function mapDrawn(page: Page): Promise<void> {
+  await expect(page.locator(".seg-code").first()).toBeAttached({ timeout: 20_000 });
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+}
+
 /** Opens the command post rail's Details (conditions, family, prior, photos, debriefs), closed when the post opens. */
 export async function openDetails(page: Page): Promise<void> {
   const details = page.getByTestId("rail-details");
