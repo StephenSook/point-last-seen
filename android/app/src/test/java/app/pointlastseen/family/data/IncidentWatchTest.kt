@@ -85,6 +85,14 @@ class IncidentWatchTest {
         assertNull(IncidentWatch.statusFor(null, currentIncident = "a"))
     }
 
+    /** Why a search ended counts, like its status, only for the search this phone is in now. */
+    @Test fun aClosedReasonCountsOnlyForTheCurrentSearch() {
+        val info = IncidentInfo.from(mapOf("status" to "closed", "closedReason" to "found"))!!.copy(incidentId = "a")
+        assertEquals("found", IncidentWatch.closedReasonFor(info, currentIncident = "a"))
+        assertNull(IncidentWatch.closedReasonFor(info, currentIncident = "b"))
+        assertNull(IncidentWatch.closedReasonFor(null, currentIncident = "a"))
+    }
+
     /** After a refused read that kept the search, the watch is tried again a few times, then waits for the foreground. */
     @Test fun reattachingIsBounded() {
         assertEquals(listOf(5_000L, 30_000L, 120_000L, null), (0..3).map { IncidentWatch.reattachDelay(it) })

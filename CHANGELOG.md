@@ -82,6 +82,23 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
+  command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
+  Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
+  (cross-family, round 1 on the incident update whitelist). Verified: a new case (open to found refused, alone and
+  with another field; a found incident takes ordinary edits, cannot reopen, and closes with its reason) failed first,
+  then passes; two older cases that expected a bare found to succeed now expect it refused; all 173 rules tests pass.
+  No live incident has status found.
+- rules: command's update of the incident doc names only the fields the command post writes (traced in web/src/data
+  and web/src/prior; the iPhone and Android apps never update the incident): conditions, searchState, status,
+  closedReason, and the prior's priorVersion, priorInputEventIds, ipp, ippSource, priorLayers, terrain, priorModel,
+  priorSeed and priorBuiltAt. Every other field (mode, expiry, the grid, the name and labels, engineParams, codes,
+  media and setup state, closedAt) is admin-owned, replacing the deny list. The prior's one-step version rule and the
+  end-search rules are unchanged. Source: review (approved incident update whitelist). Verified:
+  rules/incidentUpdate.test.ts (each written field accepted; 15 other fields refused alone and riding along with an
+  allowed one; engineParams refused even with a version step; the version moves exactly one step) failed first on the
+  refused fields, then passes; two older cases that edited the name now edit searchState and assert a name edit is
+  refused; all 172 rules tests pass.
 - functions: rotateJoinCode reads the incident inside its transaction, so a search command ends at the same moment
   cannot get a new code. Source: review (cross-family, round 1 on join code rotation). Verified: the closed, practice
   and expired refusals still pass; 346 functions and rules tests pass.
@@ -3314,3 +3331,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
 - Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
 - Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+
+### chore(schemas): the content-report schema's web type is built
+- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
+- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
+- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.

@@ -107,7 +107,8 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: new Date(Date.now() + 365 * 86400_000) }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/J1"), { mode: "drill" }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mode: "judge" }, { merge: true }));
-    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Renamed drill" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { searchState: "paused" }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Renamed drill" }, { merge: true }));
   });
   it("closing is final: a closed incident cannot be reopened or edited by a client", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
@@ -224,7 +225,7 @@ describe("ending a search: command closes it with one of three reasons", () => {
   it("an open incident that already carries a reason (copied from an ended seed) still takes ordinary edits", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open", closedReason: "training_ended" });
     const db = dbAs(C, commandClaims);
-    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { name: "Drill 2" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { searchState: "paused" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
     await assertSucceeds(setDoc(doc(db, "incidents/I1"), end("found"), { merge: true }));
   });

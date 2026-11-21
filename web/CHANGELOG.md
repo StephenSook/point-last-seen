@@ -2426,3 +2426,68 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: with no one to list the People panel showed nothing, so when a read was refused before any rows loaded, command saw neither the list nor the warning. The panel now shows its heading and "This list may be out of date. Reload the page before removing anyone." whenever a read was refused, even with no rows.
 - Source: review (Codex, third round, low: a first-load refusal can hide the stale warning).
 - Verified: a new harness check (`?stale=1&empty=1`) failed first, then passed with the People checks (7); typecheck passes.
+
+### feat(data): command reads the "Report a problem" flags
+- What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: new unit tests in `contentReports.test.ts` failed first, then passed; with the schema from the branch that adds it, the schema parity gate reports `ContentReport` ok (7 fields, enum values equal); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a Problem reports panel for command
+- What: `web/src/command/FlagsPanel.tsx` lists the "Report a problem" flags newest first, one line each ("Family member flagged the family's description: wrong or misleading."), with the time and the reporter's note in quotes. With no flags there is no panel. A harness page (`web/harness/flags.html`) renders it with synthetic flags.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: two new harness checks in `e2e/harness/flags.spec.ts` failed with the component moved aside, then passed with the whole harness; web unit suite and the hygiene guard pass.
+
+### feat(command): the command post shows Problem reports at the top of its right rail
+- What: the command post listens to the incident's "Report a problem" flags and shows the Problem reports panel first in the right rail whenever there is one (a flag can be about personal information, so it is not tucked under Details). A searcher is named by the team its reports carry ("Team 1 searcher", or "A searcher" before it has sent one); family reads "Family member"; times are local hours and minutes.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: typecheck, web unit suite (1151), the whole harness (210), the build and every no-backend check (45) pass, with the hygiene guard. No deployed check: command cannot create a flag, and the family's channel is not exercised on the live drill, so the panel's lines are covered by the harness.
+
+### fix(data): a Problem report's note never shows a phone number
+- What: the reporter's app removes phone numbers before it stores a note, but the rules only check the note's type and length, so a note could carry one and the panel showed it verbatim. `reportFromDoc` now runs `removePhoneNumbers` (the same remover the sighting notes use) on every note before it is shown.
+- Source: review (Codex: private details in notes are shown verbatim).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a Problem report with no stored time sorts last, not first
+- What: a flag with no server time was sorted first as if it were still being saved, but command writes no flags, so on the command post a missing time only means a malformed document; it now sorts last. The test that assumed the old order now checks plain newest-first order.
+- Source: review (Codex, low: a malformed timestamp can move an old flag to the top).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a refused Problem reports read keeps the flags and says so
+- What: the flags listener replaced the list with nothing on a refusal, so command saw the same screen as with no reports, and Firestore does not restart a listener it has refused. `subscribeFlags` now keeps what was shown and reports the refusal, so the page can say the list may be out of date.
+- Source: review (Codex: a failed listener silently removes the panel).
+- Verified: a new unit test, `contentReportsListen.test.ts` (Firestore's listener mocked: a good read, then a refusal), failed first, then passed; typecheck passes.
+
+### feat(data): a Problem report names the report or task it flags
+- What: a flag read only "flagged a report" or "flagged their task", so with no note command could not tell which of several sightings to open. `flagTarget` in `web/src/data/contentReports.ts` names it when it is on hand: "a report from 04:21 in segment AE" (the report's time and first segment) or "their task in plan v3" (the plan the flagged task came from); otherwise the plain words stay. `flagLine` takes it.
+- Source: review (Codex: command cannot identify the flagged report or task).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(command): Problem reports names what was flagged, shows three, and says when it is out of date
+- What: the panel now names each flagged item ("a report from 04:21 in segment AE", "their task in plan v3") with `flagTarget`; shows the newest three with "Show all N problem reports", so a run of flags never pushes the working rail out of view; lets a long unbroken note wrap instead of pushing the page sideways; marks its list as a list for screen readers; and, once a read is refused, says "These reports may be out of date. Reload the page." (even with no flags shown). The command post passes the incident's reports and plans for the names and the refusal from `subscribeFlags`.
+- Source: review (Codex: command cannot identify the flagged item; the list can push working controls out of view; a long note overflows; a refused read hides the panel; Safari can drop list semantics).
+- Verified: three new harness checks in `e2e/harness/flags.spec.ts` (the named report; three shown then Show all, with no sideways overflow; the out-of-date line with no flags) failed first, then passed with the flags checks (5); the first check now expects the named report. Typecheck, web unit suite (1161), the whole harness (218), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a flagging searcher is named by the team of its latest report
+- What: the flag's author label took the team of the first event the account wrote, so a searcher who rejoined on another team was named by the old one ("Team 1 searcher flagged their task" for a Team 2 task). It now takes the team of the account's latest report.
+- Source: review (Codex: a flag can name the wrong team).
+- Verified: typecheck passes; the label's lookup is a two-line change in `CommandPost.tsx`, which no harness renders, so it rests on the review and the deployed post.
+
+### fix(data): a flagging searcher's team comes from its latest report by server time
+- What: the author label picked the report with the largest phone time, so a phone clock set back between a Team 1 report and a newer Team 2 report kept the old team, and a report with no time stopped every later match. `latestTeamOf` in `web/src/data/contentReports.ts` orders by server time, then the report's own time, and skips reports with neither; the command post uses it.
+- Source: review (Codex, second round: the team lookup can keep the old team after a rejoin).
+- Verified: a new unit test in `contentReports.test.ts` (a skewed phone clock and a report with no time) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(command): a flagged report is named to the second, and never as "Invalid Date"
+- What: two reports from one segment in the same minute were both named "a report from 14:03 in segment AE", so with no note command still could not tell which was flagged; the command post now names a flagged report to the second ("14:03:07"). A report time outside the date range now falls back to "a report" instead of "a report from Invalid Date".
+- Source: review (Codex, second round: same-minute reports get identical labels; an out-of-range time renders as Invalid Date).
+- Verified: a new unit test in `contentReports.test.ts` (an out-of-range time gives the plain words) failed first, then passed with the file (8); typecheck and the hygiene guard pass.
+
+### fix(command): each report's time shows its seconds
+- What: a Problem report names a flagged report to the second ("a report from 14:03:42 in segment AE"), but the Reports rows showed only hours and minutes, so two reports from one segment in the same minute still could not be matched to the flag. Report rows now show seconds too.
+- Source: review (Codex, third round: command still cannot match a flag to the right report).
+- Verified: a new harness check in `e2e/harness/reports.spec.ts` failed first, then passed with the whole harness (219); the existing report checks match on the time's start and still pass; typecheck and the hygiene guard pass.
+
+### fix(data): a report the server timed outranks one it did not, for the flagger's team
+- What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
+- Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.

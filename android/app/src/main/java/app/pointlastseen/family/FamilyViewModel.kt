@@ -294,7 +294,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun calledFirst() = apply(Nav.calledFirst(nav))
 
-    /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
+    /** After a search that ended (found or closed): forget the incident and the gone flag; keep the profile. */
     fun leaveSearch() = leave(keepGone = false)
 
     /** The family left a search still open: forget it, keep the profile and its "gone" state, so it can join again. */
