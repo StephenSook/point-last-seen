@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
+  generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
+  500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
+  (499 letters plus an emoji, and a note with newlines, accepted; 500 letters plus an emoji, and 501 emoji, refused)
+  failed first, then passes; all 163 rules tests pass; the generator's --check is current.
 - rules test: a member command removed cannot file a content report, while another member still can (the report rule
   goes through isMember, which checks the removal record). Source: review (content reports after member removal
   landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;

@@ -389,7 +389,8 @@ service cloud.firestore {
         && (m.reasons is list && m.reasons.size() <= 11 && m.reasons.hasOnly(['no_person', 'first_seen_format', 'last_seen_format', 'key_frame_format', 'first_after_last', 'last_after_clip_end', 'first_after_clip_end', 'key_frame_after_clip_end', 'box', 'unreadable_reply', 'model_error']) && m.reasons.size() >= 1);
     }
 
-    // A content report's createdAt is the server's time of the write.
+    // A content report's createdAt is the server's time of the write. Its note's maxLength counts characters
+    // (Unicode code points), as JSON Schema does; size() counts UTF-16 units, so a regex bounds it instead.
     function schema_ContentReport(m) {
       return m is map
         && m.keys().hasOnly(['authorUid', 'role', 'target', 'targetId', 'reason', 'note', 'createdAt'])
@@ -399,7 +400,7 @@ service cloud.firestore {
         && (m.target in ['task', 'family_description', 'event'])
         && (m.targetId == null || (m.targetId.matches('^[A-Za-z0-9_-]{1,64}$')))
         && (m.reason in ['abusive', 'personal_information', 'wrong_or_misleading', 'other'])
-        && (!('note' in m) || (m.note is string && m.note.size() <= 500))
+        && (!('note' in m) || (m.note is string && m.note.matches('(?s)^.{0,500}$')))
         && m.createdAt == request.time;
     }
 

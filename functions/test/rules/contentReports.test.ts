@@ -35,6 +35,15 @@ describe("content reports: a member flags shared content (App Review guideline 1
     await assertFails(setDoc(doc(db, `incidents/I1/contentReports/${ID}`), report(S, "searcher", { extra: 1 })));
   });
 
+  it("the note's 500 is counted in characters (Unicode code points), as the schema says, newlines included", async () => {
+    const db = dbAs(S, searcherClaims);
+    const emoji = "\u{1F600}";
+    await assertSucceeds(setDoc(doc(db, `incidents/I1/contentReports/${ID}`), report(S, "searcher", { note: "x".repeat(499) + emoji })));
+    await assertSucceeds(setDoc(doc(db, `incidents/I1/contentReports/${ID2}`), report(S, "searcher", { note: "line one\nline two" })));
+    await assertFails(setDoc(doc(db, `incidents/I1/contentReports/${"a".repeat(32)}`), report(S, "searcher", { note: "x".repeat(500) + emoji })));
+    await assertFails(setDoc(doc(db, `incidents/I1/contentReports/${"b".repeat(32)}`), report(S, "searcher", { note: emoji.repeat(501) })));
+  });
+
   it("the target id fits the target: an event id for an event, none for the family's description", async () => {
     const db = dbAs(S, searcherClaims);
     await assertFails(setDoc(doc(db, `incidents/I1/contentReports/${ID}`), report(S, "searcher", { targetId: null })));
