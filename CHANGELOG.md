@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Judge page route-order check: waits for the replay region before reading the route's targets, since the replay step
+  points at #d1-h until the run file loads and that section then goes away; without the wait it timed out in CI.
+  Source: CI. Verified: the check passed 3 runs in a row locally and the full no-backend set passes (34).
 - Judge page: links the published Android release (android-judge, point-last-seen-family-424e5f9c.apk with its SHA-256
   file) as "Android family app" (ANDROID_RELEASE_URL in web/src/judge/judge.ts), and the numbered three-minute route
   now follows the page's own order, the cloud model before the laptop step. README's Android row points at the
