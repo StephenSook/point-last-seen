@@ -1,7 +1,7 @@
 {
  "what": "The command post's on-device read of a sighting note (Read the note, ONLY_ON_DEVICE) on the deployed site with the browser tab offline. One made-up drill note, read twice in the same open form; the sighting was cancelled, never saved.",
  "date": "2026-11-21",
- "browser": "Stephen's Google Chrome 157.0.8103.80 on this Mac (macOS, Apple M5 Pro); LanguageModel.availability() for English text reported \"available\"; the model folder on disk (OptGuideOnDeviceModel) is 2025.8.8.1141",
+ "browser": "Stephen's Google Chrome 157.0.8103.80 on this Mac (macOS, Apple M5 Pro); the built-in model's availability check for English text reported \"available\"; the model folder on disk (OptGuideOnDeviceModel) is 2025.8.8.1141",
  "page": "The deployed command post, https://buildhybridai-2026-yg3m.web.app/?incident=drill-test-1, build commit 1b7d3571 (bundle /assets/main-CQsIXPgo.js), signed in to the test drill drill-test-1 as command; App Check as on the live site",
  "offline": "The tab was set to Offline in Chrome DevTools (Network throttling) before the reads. A same-origin fetch of /version.json failed with \"TypeError: Failed to fetch\" just before each read (22:15:23Z and 22:17:15Z). navigator.onLine stayed true under this per-tab setting, so the failed fetches are the proof, not onLine.",
  "note": "Drill check, network off. A caller saw an older man in a red coat walking north on the trail by the creek, alone, about ten minutes ago. Training drill inject.",
