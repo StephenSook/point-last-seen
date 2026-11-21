@@ -9,7 +9,7 @@ import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { runNumbers, runNumbersLine } from "../extras/runNumbers";
 import { PURPOSE_LINE } from "../purpose";
-import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, ANDROID_RELEASE_URL, TESTFLIGHT_URL, d2Copy, fetchedTime, judgeLinks, loadPublishedRun, modelLines } from "./judge";
 
 const DRILL_LINE = "Training drill. Nobody is missing.";
 // Said while the server is still setting the practice search up and the page is starting it again by itself.
@@ -103,8 +103,13 @@ export function JudgePage() {
       <p data-testid="judge-purpose">{PURPOSE_LINE}</p>
       <p data-testid="judge-advice" className="judge-advice">{ADVICE_LINE}</p>
       <nav aria-label="Links" className="judge-links">
-        <a href="/">Command post</a>
-        <a href="https://github.com/StephenSook/point-last-seen" target="_blank" rel="noopener noreferrer">Source code</a>
+        {judgeLinks({ android: ANDROID_RELEASE_URL, testflight: TESTFLIGHT_URL }).map((l) =>
+          l.external ? (
+            <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
+          ) : (
+            <a key={l.label} href={l.href}>{l.label}</a>
+          ),
+        )}
       </nav>
       {/* The three-minute route, in order; each step jumps to its section on this page. */}
       <ol aria-label="Three minutes, in order" className="judge-route">

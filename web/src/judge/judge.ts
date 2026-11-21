@@ -12,6 +12,27 @@ import { fromPublishedRun } from "../extras/replay/replayData";
 export const ADVICE_LINE =
   "Kim Franklin of the Alzheimer's Association Georgia told us to check the immediate area first and, if the person is not found within five minutes, call police, because the longer you wait, the further they can get.";
 
+const REPO = "https://github.com/StephenSook/point-last-seen";
+
+/** The Android family app's published release; null until the release is public, so no dead link ships. */
+export const ANDROID_RELEASE_URL: string | null = null;
+/** The iPhone app's TestFlight public link; null until Apple clears review. */
+export const TESTFLIGHT_URL: string | null = null;
+
+export type JudgeLink = { label: string; href: string; external: boolean };
+
+/** The judge page's links, every one public for a signed-out browser; an app link appears only once its URL is set. */
+export function judgeLinks(apps: { android: string | null; testflight: string | null }): JudgeLink[] {
+  return [
+    { label: "Command post", href: "/", external: false },
+    { label: "Source code", href: REPO, external: true },
+    ...(apps.android ? [{ label: "Android family app", href: apps.android, external: true }] : []),
+    ...(apps.testflight ? [{ label: "iPhone app (TestFlight)", href: apps.testflight, external: true }] : []),
+    { label: "iPhone test runs", href: `${REPO}/tree/main/docs/evidence/ios`, external: true },
+    { label: "Which model ran where", href: `${REPO}/blob/main/docs/TEST-MATRIX.md`, external: true },
+  ];
+}
+
 /** `replay` is true only when a published run exists, so the line never points at a replay that is not there. */
 export function d2Copy(state: DeviceState, opts: { replay: boolean; downloadFailed?: boolean }): { lines: string[] } {
   if (opts.downloadFailed && state !== "text" && state !== "image") {

@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
+  (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
+  web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
+  link ships. README's iPhone row points at the recorded runs while TestFlight waits on Apple; the production
+  checklist no longer says the repo goes public on 2026-11-28 (it is public now). Source: review (judge reachability
+  audit). Verified: all four external links answer 200 to a signed-out request; web typecheck, 922 web tests
+  (judgeLinks tests red first), the web build and 33 no-backend browser checks pass locally.
 - SECURITY call table and the drill-day page now say when each cloud read actually happens, checked against the code
   on each platform. The iPhone report read goes to the cloud only when Apple's model is not available, does not
   support the phone's language or the report is over its token budget, and only online, with Allow cloud reading on,
