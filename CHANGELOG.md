@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
+  Logic hands the trigger a template call already expanded (the template's system instruction and output schema, no
+  template name), so the trigger cannot tell them apart; template use is shown by the apps' code. Source: review.
+  Verified in Cloud Logging on 2026-11-20: the web sighting note (22:26:29Z), the Android clip read (22:10:53Z) and
+  the iPhone voice (21:03:15Z), all template calls in the apps' code, each logged path direct, template null, with
+  systemInstruction and _responseJsonSchema present on the two text templates; functions/src/cloudGuard.ts sets path
+  from data.template alone.
 - SECURITY call table and the drill-day page now say when each cloud read actually happens, checked against the code
   on each platform. The iPhone report read goes to the cloud only when Apple's model is not available, does not
   support the phone's language or the report is over its token budget, and only online, with Allow cloud reading on,
