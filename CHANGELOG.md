@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
+  document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
+  command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
+  own retraction of someone else's report. Source: command-side "Retract report". Verified: the rules suite on the
+  emulator, 292 passed (events.test.ts 32, two new).
 - Drill day: the runbook names the header's match code by its new label, Radio check. Source: review. Verified
   against web/src/command/CommandPost.tsx.
 - LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
@@ -93,6 +98,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   version unchanged and committed its old results as the next one, leaving the new grid's other cells behind for good.
   Source: review (cross-family). Verified: test_a_reseed_over_an_existing_grid_must_raise_the_prior_version failed
   first, then passes; 41 seed tests pass.
+- test-vectors README: the phone rule's separator sentence now describes the shared rule (any spaces, punctuation or
+  symbols join digit groups, except : % and the degree sign; a gap never holds a letter or a digit). Source: review.
+  Verified: read against web/src/data/phoneNumbers.ts and the 103 cases.
+- test-vectors: phone-numbers.json grows from 58 to 103 cases (59 remove, 35 keep, 9 exact) for the shared separator
+  rule (any mark between digit groups joins them except : % and the degree sign) and its coordinate and
+  radio-frequency spans, with scripts/test_phone_vectors.py's required lists and LIMITS (pass counts 103/103/103; the
+  accepted keeps, the over-removals, the eastern-longitude trade-off and the drill iPhone's build 9 note). Source:
+  review (privacy). Verified: all 103 pass on the web (vitest), the iPhone (swift test) and Android (gradle
+  PhoneVectorsTest) with none pending; the validator passes.
 - LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
   ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
   known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,

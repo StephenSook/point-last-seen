@@ -31,7 +31,7 @@ import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } 
 import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
 import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
+import { buildConfirmation, buildRetraction, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
@@ -51,6 +51,8 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { ReportsPanel } from "./ReportsPanel";
+import { reportCards } from "./reportCards";
 import { FirstReportCard, type FirstReportState } from "./FirstReportCard";
 import { FIRST_REPORT_LINE, firstReportInput, offerFirstReport } from "./firstReport";
 import { lastReportChange, viewState } from "./viewState";
@@ -809,7 +811,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
@@ -893,6 +895,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
             </summary>
+            {/* Every report, each one command can take back: a retraction event the map stops counting on every device. */}
+            <ReportsPanel
+              cards={reportCards(events as unknown as EventDoc[], incident?.priorInputEventIds ?? [])}
+              teams={teams}
+              onRetract={async (c) => write(buildRetraction(c.report, writer()))}
+            />
             {incident && conditions && (
               <ConditionsForm conditions={conditions} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
             )}
