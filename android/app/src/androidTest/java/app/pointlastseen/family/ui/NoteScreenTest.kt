@@ -67,6 +67,32 @@ class NoteScreenTest {
         assertTrue(asked)
     }
 
+    @Test fun onceTheModelIsReadyTheConsentQuestionSortsTheSameNoteOnThisPhone() {
+        var sent: Pair<String, Boolean>? = null
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(
+                    null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { t, c -> sent = t to c }, onAdd = {}, onBack = {},
+                    model = ModelState(DeviceModelStatus.AVAILABLE),
+                )
+            }
+        }
+        rule.onNodeWithText("Ready on this phone.").assertIsDisplayed()
+        rule.onNodeWithText("Send to the cloud").assertDoesNotExist()
+        rule.onNodeWithText("Sort it on this phone").performScrollTo().performClick()
+        assertEquals("old mill" to false, sent)
+    }
+
+    @Test fun aFailedDownloadShowsOnTheNoteScreen() {
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.DOWNLOADABLE, downloadFailed = true))
+            }
+        }
+        rule.onNodeWithText(Copy.MODEL_FAILED).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Get the on-device model").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun aSuggestionIsLabelledEditableAndShowsWhereItWasRead() {
         var added: FamilyNoteReading? = null
         val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill", DeviceModelStatus.UNAVAILABLE)

@@ -70,6 +70,7 @@ fun NoteScreen(
                     DeviceModelStatus.AVAILABLE, DeviceModelStatus.DOWNLOADING -> Note(Copy.model(model))
                     DeviceModelStatus.DOWNLOADABLE -> {
                         Note(Copy.model(model))
+                        if (model.downloadFailed) Note(Copy.MODEL_FAILED)
                         OtherAction(Copy.GET_MODEL, onClick = onGetModel)
                     }
                     else -> Unit
@@ -82,9 +83,16 @@ fun NoteScreen(
             }
             is NoteUi.Done -> when (val o = ui.outcome) {
                 NoteOutcome.NeedsConsent -> {
-                    Sentence("${Copy.model(model)} Send this note to the cloud to sort it?")
-                    MainAction("Send to the cloud") { onSort(ui.text, true) }
-                    if (model.status == DeviceModelStatus.DOWNLOADABLE) OtherAction(Copy.GET_MODEL, onClick = onGetModel)
+                    if (model.status == DeviceModelStatus.AVAILABLE) {
+                        // The model arrived while the question was open: the same note now sorts here, no cloud needed.
+                        Sentence(Copy.model(model))
+                        MainAction("Sort it on this phone") { onSort(ui.text, false) }
+                    } else {
+                        Sentence("${Copy.model(model)} Send this note to the cloud to sort it?")
+                        MainAction("Send to the cloud") { onSort(ui.text, true) }
+                        if (model.downloadFailed) Note(Copy.MODEL_FAILED)
+                        if (model.status == DeviceModelStatus.DOWNLOADABLE) OtherAction(Copy.GET_MODEL, onClick = onGetModel)
+                    }
                     Note("Or sort it yourself, on this phone:")
                     ManualKind(ui.text, onAdd)
                 }
