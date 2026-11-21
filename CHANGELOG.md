@@ -82,6 +82,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions test: the day's judge counter, which anyone may read, holds only its count and cap start after start.
+  Source: review (judge quota probe, publicly readable counter). Verified: the case passes, and fails when the counter
+  write gains another field.
 - scripts: the judge quota probe reads its doc with a Firestore batchGet, so only a reply naming that exact doc
   missing counts as an unused day (a database or endpoint 404 now fails instead of reading as a full quota), and it
   prefers the cap stored with the count over the checkout's. Source: review (cross-family, round 1 on the judge quota
