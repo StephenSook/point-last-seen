@@ -2180,3 +2180,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Found: code accepted 6 of 6 (2 of 6 before), all on device, no Google request; the first wording in a new page took 19,773 ms, over the command post's 15 s wording limit, the rest 2.1 to 3.2 s.
 - Source: on-device evidence runs for the judge.
 - Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
+
+### fix(data): a Mexican number in dot form is not a coordinate pair
+- What: a decimal pair is a coordinate only with a minus before its second number (after a comma too, now), 4 to 7 decimals in each, and no phone cue just before it (call, tel, phone, cell, mobile, number, #, llame, llamar, teléfono or telefono, celular, número or numero, within the three words before it). "Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496" and "33.12345678 / -81.12345678" had all been kept whole. Every drill site is in the western hemisphere; an eastern pair with no minus is now removed.
+- Source: review (cross-family, post-merge, privacy).
+- Verified: the four strings and the cue list failed first, then pass; "Ubicación 33.12345, -84.5678" and "GPS 33.7490, -84.3880" stay; 100 draft shared cases and 1118 web unit tests (with the draft file) pass; the typecheck passes.

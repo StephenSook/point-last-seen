@@ -163,13 +163,31 @@ describe("removePhoneNumbers: a phone number written like a coordinate or a freq
     for (const s of ["Call 020.79460958 / -020.79460959", "Call 020.79460958 | -0.1276", "Call 020.79460958, -0.1276"]) {
       expect(removePhoneNumbers(s)).not.toMatch(/79460958/);
     }
-    expect(removePhoneNumbers("GPS 0.1276, 51.5072")).toBe("GPS 0.1276, 51.5072");
+    expect(removePhoneNumbers("GPS 51.5072, -0.1276")).toBe("GPS 51.5072, -0.1276");
   });
   it("a frequency is 25 to 999 with no leading zero, and one other group anywhere in the run removes it all", () => {
     expect(removePhoneNumbers("Call 404.555 0.142")).not.toMatch(/\d/);
     expect(removePhoneNumbers("Call 404.555 0.142 1234567")).not.toMatch(/\d/);
     expect(removePhoneNumbers("Call 404.555 012.345")).not.toMatch(/\d/);
     expect(removePhoneNumbers("Radio 27.185 155.160 462.550")).toBe("Radio 27.185 155.160 462.550");
+  });
+});
+
+describe("removePhoneNumbers: a Mexican number in dot form is not a coordinate pair", () => {
+  it("removes pairs that are two numbers: no minus after a comma, a phone cue before, or 8 decimals", () => {
+    for (const s of ["Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496", "33.12345678 / -81.12345678"]) {
+      expect(removePhoneNumbers(s)).not.toMatch(/\d/);
+    }
+  });
+  it("a phone cue just before a pair voids it, in English and Spanish, with or without accents", () => {
+    for (const cue of ["Call", "Tel:", "phone", "Cell", "mobile", "Number", "#", "Llame al", "llamar", "Tel\u00e9fono:", "telefono", "Celular", "N\u00famero", "numero"]) {
+      expect(removePhoneNumbers(`${cue} 33.1234, -84.5678`)).not.toMatch(/\d/);
+    }
+  });
+  it("keeps a typed coordinate pair with a minus and 4 to 7 decimals", () => {
+    for (const s of ["Ubicaci\u00f3n 33.12345, -84.5678", "GPS 33.7490, -84.3880", "Seen at 33.1234567, -84.1234567 near the creek"]) {
+      expect(removePhoneNumbers(s)).toBe(s);
+    }
   });
 });
 

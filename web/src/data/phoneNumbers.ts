@@ -52,11 +52,13 @@ const STREETS = new Set(["ave", "avenue", "st", "street", "rd", "road", "blvd", 
 // US state and territory codes, written in capitals (GA 30301-1234); lower case would match common words.
 const STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "PR", "GU", "VI"]);
 
-// Matched against a gap after flat(), so a space is " " and a line break "\n". A comma (with up to two spaces around
-// it, and a minus after), a semicolon, bullet, middle dot, bar or slash with a minus after it (two decimals across one
-// of those with no minus can be two phone numbers: 020.79460958 / 020.79460959), or a minus with a space before it: a
-// bare minus between two decimals is a dotted number.
-const COORDINATE_GAP = /^(?:[ \n]{0,2},[ \n]{0,2}-?|[ \n]{0,2}[;\u2022\u00b7|/][ \n]{0,2}-|[ \n]{1,2}-)$/;
+// Matched against a gap after flat(), so a space is " " and a line break "\n". A comma, semicolon, bullet, middle dot,
+// bar or slash (with up to two spaces around it) then a minus, or a minus with a space before it. The minus is the
+// western longitude every drill site has: two decimals with no minus between them can be two phone numbers
+// (33.12345678, 33.87654321 is two Mexican numbers), and a bare minus between two decimals is a dotted number.
+const COORDINATE_GAP = /^(?:[ \n]{0,2}[,;\u2022\u00b7|/][ \n]{0,2}-|[ \n]{1,2}-)$/;
+// A word that says the next digits are a phone number; one of these just before a decimal pair makes it two numbers.
+const PHONE_CUES = new Set(["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "tel\u00e9fono", "telefono", "celular", "n\u00famero", "numero"]);
 const MONTH_DAY_GAP = /^\.?[ \n]{1,2}$/;
 const DAY_MONTH_GAP = /^[ \n]{1,2}$/;
 const YEAR_GAP = /^,?[ \n]{1,2}$/;
@@ -181,11 +183,21 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   const isDay = (i: number) => written(i) && len(i) <= 2 && between(value(i) ?? 0, 1, 31);
   const isYear = (i: number) => written(i) && len(i) === 4 && between(value(i) ?? 0, 1900, 2100);
   const degrees = (whole: number, frac: number, max: number) => {
-    if (!written(whole) || !written(frac) || gap(whole, frac) !== "." || len(whole) > 3 || len(frac) < 4 || len(frac) > 8) return false;
+    // 4 to 7 decimals: 8 after a 2-digit area code is a Mexican number (33.12345678).
+    if (!written(whole) || !written(frac) || gap(whole, frac) !== "." || len(whole) > 3 || len(frac) < 4 || len(frac) > 7) return false;
     if (!isAsciiNumber(text(whole)) || !isAsciiNumber(text(frac))) return false;
     // Whole degrees never start with a zero (0.1276 is fine, 020.79460958 is a London number).
     if (text(whole).length > 1 && text(whole).startsWith("0")) return false;
     return Number(`${text(whole)}.${text(frac)}`) <= max;
+  };
+  // A phone cue just before part i: a "#" in the gap before it, or a cue word among the up to three words before it
+  // with no digits between (Call 33.1234, -84.5678; Llame al 33.1234, -84.5678).
+  const cueBefore = (i: number) => {
+    if (s.substring(i > 0 ? parts[i - 1]!.end : 0, parts[i]!.start).includes("#")) return true;
+    for (let j = i - 1; j >= Math.max(0, i - 3) && parts[j]!.digits === 0; j--) {
+      if (PHONE_CUES.has(word(s, parts[j]!))) return true;
+    }
+    return false;
   };
   const kept = new Set<number>();
   const frequencies: number[] = [];
@@ -215,7 +227,8 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
       times.push({ first: i, last: i + 1, isTime: true });
     }
     // A "+" right before the first number makes the pair a phone number (+44.2071, -23.4567), not coordinates.
-    if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.test(flat(gap(i + 1, i + 2), true)) && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")) {
+    if (degrees(i, i + 1, 90) && degrees(i + 2, i + 3, 180) && COORDINATE_GAP.test(flat(gap(i + 1, i + 2), true)) && !(parts[i]!.start > 0 && s[parts[i]!.start - 1] === "+")
+      && !cueBefore(i)) {
       for (const j of range(i, i + 3)) kept.add(j);
     }
     // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3 digits,
