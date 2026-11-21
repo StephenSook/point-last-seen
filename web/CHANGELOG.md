@@ -2523,3 +2523,38 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the live browser run skips any check tagged `@quota` unless `PLS_ALLOW_QUOTA=1` is set, and the two checks that start a real practice search (judge.spec's first practice start and endSearch.spec) are tagged, so a deploy check spends at most two of the judges' 50 a UTC day and only when asked to. A new guard, `src/practiceQuota.test.ts`, scans every file under `web/e2e`, the workflows and the scripts: a press of the "Try a practice search" button, the button held in a variable, a request to `/startJudgeSession` or a `startJudgeSession` callable must sit in a `@quota` test or behind a `page.route` stub whose every `continue()` is behind a POST check. It proves itself on six planted samples (an untagged start, a tagged one, two good stubs, a stub that lets the start through, a held button, a helper's request) and refuses to pass on a scan of fewer than 80 browser-check files or 40 others.
 - Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
 - Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
+
+### fix(command): Problem reports follow the rail's lead instead of preceding it
+- What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
+- Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
+- Verified: the rail-order check failed on the live site with the panel first; it runs after deploy. Typecheck, web unit suite and the hygiene guard pass.
+
+### fix(ai): the receipt says no text or image left the laptop, not that nothing did
+- What: every read sends one timing record with its route (path, reason, platform, stage and latency; `web/src/telemetry/trace.ts`, disclosed in `docs/SECURITY.md`), so "Sent: nothing left this laptop." and, for fixed wording, "Sent: nothing." overclaimed. They now read "Sent: no text or image left this laptop." and "Sent: no text or image.".
+- Source: review (the receipt claimed more than the code does).
+- Verified: the receipt and whatRan unit tests failed first, then passed; the plan and debrief-paper harness checks pass with the new line; web unit suite and typecheck pass.
+
+### feat(ai): the receipt gives the time each read took
+- What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
+- Source: review (the Android app already shows the time of a cloud read).
+- Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.
+
+### test(web): the live clip check makes a clip no earlier run has made
+- What: the check made each run's clip "fresh" from a random height (0 to 199), but neighbouring heights encode to the same bytes, so only 100 distinct clips exist, and 24 of them already had a stored reading on the test drill: about one run in four read a stored answer and called no model, failing "read once in the cloud". `make-moving-box.sh` takes the square's colour as a third argument (default red, so the harness clips are unchanged), and the check picks one of 512 colours (each channel in steps of 32; adjacent colours also encode alike) as well as the height, about 51,000 clips.
+- Source: live suite (the clip check failed twice in three runs after the rules deploy).
+- Verified: the 200 heights give 100 distinct SHA-256s and 24 match stored readings on drill-test-1 (read-only); 18 colours in steps of 32 give 18 distinct clips; the harness clip, frames and triage checks pass (28); the live check passed twice in a row.
+
+### test(web): the removal check signs in fresh and joins the test drill itself
+- What: in the full live suite the removal check used the run's shared signed-in account, which by then could hold a practice search's claims (the judge checks start practice searches on it). Its cached token still showed command of the test drill, so the post offered Remove, but `removeMember` checks the caller's current claims and refused with "Only command can remove someone." The check now starts from an empty browser and joins the test drill as command itself. (Its cleanup removed the fresh member it had made, as designed.)
+- Source: live suite after the People panel deploy (the check failed with that refusal; the removal record its cleanup wrote is on the test drill).
+- Verified: run alone against the live site, it passes end to end (the fresh member is removed from the People panel; its read is refused, its session refresh fails with TOKEN_EXPIRED, and its rejoin is refused).
+
+### test(web): the retract check finds its report under Sightings whatever else is waiting
+- What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
+- Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
+- Verified: run alone against the live site, the retract check passes.
+
+### test(data): a phone case pending on the web must still fail there
+- What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
+- Source: review (parity with the iPhone's vector test).
+- Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.

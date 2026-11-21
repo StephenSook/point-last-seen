@@ -33,7 +33,7 @@ test("reading the sheet fills every box, asks for each to be checked, and saves 
   // The read went to the model as a JPEG.
   await expect(page.getByTestId("read-jpeg")).toHaveText(/^\/9j\//);
   await expect(row.getByText("Ran: on this laptop (reported by the SDK).")).toBeVisible();
-  await expect(row.getByText("Sent: nothing left this laptop.")).toBeVisible();
+  await expect(row.getByText("Sent: no text or image left this laptop.")).toBeVisible();
 
   const save = row.getByRole("button", { name: "Save debrief" });
   for (const f of FIELDS.slice(0, -1)) await tick(row, f).check();

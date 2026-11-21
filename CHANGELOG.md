@@ -81,6 +81,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   times were removed as a phone number). Verified: the two new cases failed on the web first, then passed with every
   phone case (146); `scripts/test_phone_vectors.py` (the cases pinned, well formed, and the LIMITS counts) passes; web
   unit suite (1166), typecheck, the gates (329) and the hygiene guard pass.
+- Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
+  1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
+  ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
+  `docs/evidence/web/2026-11-21-note-read-offline-deployed.json` and its screenshot. Source: review (the iPhone already
+  has a network-off row). Verified: `scripts/test_test_matrix.py` passes; the hygiene guard passes.
 - Docs: the README's Android row and the production checklist name android-judge-4
   (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
@@ -183,6 +188,21 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
+  has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
+  path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  judge page for on-device claims; only the README's three lines claimed more than ran.
+- functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
+  read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
+  deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
+  purge marker present: removal refused, no record written) failed first, then passes; 364 functions and rules tests
+  pass; no live drill has a purge marker.
+- functions: removeMember refuses a missing or expired incident (permission-denied, not_command), as
+  deleteIncidentMediaNow and rotateJoinCode do, reading it inside its transaction, so no removal record is written
+  under a deleted drill; a closed search still allows a removal. Source: review (deferred minor from member removal).
+  Verified: a new case (missing incident and expired incident refused with no record written; a closed one allowed)
+  failed first, then passes; 363 functions and rules tests and the typecheck pass.
 - evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
   report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
   over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
