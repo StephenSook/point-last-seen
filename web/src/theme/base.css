@@ -40,6 +40,9 @@ button, input, select { font: inherit; color: inherit; }
 .post-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 0; }
 .rail { background: var(--bg-1); border-right: 1px solid var(--line); padding: 12px; overflow: auto; min-height: 0; }
 .rail.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+/* The sections command opens less often, under one closed disclosure at the foot of the rail. */
+.rail-details > summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; gap: 6px; }
+.rail-details[open] { display: flex; flex-direction: column; gap: 20px; }
 .rail h2 { margin: 0 0 8px; }
 
 .map-wrap { position: relative; min-height: 0; background: var(--bg-0); }

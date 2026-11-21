@@ -1,8 +1,9 @@
-import { expect, joinCommand, test, withDebugToken } from "./fixtures";
+import { expect, joinCommand, openDetails, test, withDebugToken } from "./fixtures";
 
 test("keyboard focus on Add photos is visible on its label", async ({ page }) => {
   await withDebugToken(page);
   await joinCommand(page);
+  await openDetails(page);
   const tray = page.locator(".tray");
   await tray.getByRole("button", { name: "Get this laptop ready" }).focus();
   await page.keyboard.press("Tab");
