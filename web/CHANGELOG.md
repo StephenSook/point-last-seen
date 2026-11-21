@@ -2068,6 +2068,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (two worktrees' harness runs failed on a busy port 5175).
 - Verified: new `src/e2eConfig.test.ts` (defaults 5175 and 5176, the variables move base URL, server command and ready URL, bad values refused) failed first, then passed; the map harness checks pass with `PLS_HARNESS_PORT=5185` (16); typecheck, web unit suite and the hygiene guard pass.
 
+### feat(command): the Teams strip picks a team and outlines its cells
+- What: the Teams rail is a narrow strip (160 px, was 200 px), so the map gets the width. Each team is a button: pressing it makes that team the active one (its name in fg-1, the others in fg-4) and outlines its assigned cells on the map in 2 px fg-1 on a bg-0 casing, under the cyan outline of the newest change; pressing it again clears the pick. With no team picked every name reads in fg-2; before, no team could ever be active, so every name was fg-4 grey. The map element names the outlined cells in `data-team-outline`. New harness `web/harness/teams.html`.
+- Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
+- Verified: new harness checks in `e2e/harness/teams.spec.ts` (strip at most 168 px; names fg-2 with none picked; a click and the Enter key pick a team, recolour the names and outline its cells; a second press clears; a team with no task outlines nothing) failed first (rail 200 px, no team buttons), then passed; a screenshot shows Team 2's cells AB and AC outlined; typecheck, web unit suite and the hygiene guard pass.
+
 ### test(harness): at phone width the map and change harnesses keep the map in the tall row
 - What: the phone layout's `.map-wrap { order: -1 }` moved the map ahead of the harness's drill line, into its auto row, so at 900 px and below the harness map was 0 px tall and the drill line sat over the cells; checks run there (the small and crowded map checks at 300 by 420) measured a map with no height. The drill line now has `order: -2` in `web/src/harness/mapHarness.tsx` and `changeHarness.tsx`, so the map keeps the tall row, as on the command post.
 - Source: found while adding a pointer check to the map harness at 300 by 420 (the pointer landed on the drill line).
