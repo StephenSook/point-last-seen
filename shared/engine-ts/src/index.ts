@@ -8,6 +8,7 @@ export { assignTeams } from "./assign";
 export { deriveClearedEffect, deriveClueEffect, isWellFormedEffect, malformedEventIds, toEngineEvents } from "./effects";
 export { validateReading } from "./validate";
 export { groundReading } from "./ground";
+export { correctFoundKind, FOUND_AS_CLUE_REASON } from "./found";
 export { convergenceCode, eventId, eventSetHash } from "./ids";
 export { isPossibleEvidence } from "./evidence";
 export { looksEnglish } from "./language";
