@@ -259,4 +259,34 @@ test.describe("in the laptop's own time zone", () => {
     await expect(card).toContainText(`${dateFrom} ${timeFrom}`);
     await expect(card).not.toContainText("UTC");
   });
+
+  test("at Letter width in print media, each period date and time, and the prepared time, sits on one line", async ({ page }) => {
+    // Lines a field's text takes up on the page.
+    const lines = (label: string) => page.evaluate((name) => {
+      const field = [...document.querySelectorAll(".extras-ics-sheet .extras-ics-fields > div")].find((d) => d.querySelector("dt")?.textContent === name);
+      const range = document.createRange();
+      range.selectNodeContents(field!.querySelector("dd")!);
+      return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top))).size;
+    }, label);
+    // Letter is 8.5 in and the page margin 0.4 in a side: the sheet lays out in 7.7 in, 739 px at 96 per inch.
+    await page.setViewportSize({ width: 739, height: 960 });
+    await page.goto(harness);
+    await openExtra(page, "Print assignment sheet");
+    const dialog = page.getByRole("dialog", { name: "Print assignment sheet" });
+    await dialog.getByLabel("Date To", { exact: true }).fill("11/22/2026");
+    await dialog.getByLabel("Time To", { exact: true }).fill("23:59 EST");
+    await page.emulateMedia({ media: "print" });
+    for (const label of ["Date From", "Date To", "Time From", "Time To"]) expect(await lines(label), label).toBe(1);
+    const footer = await page.locator(".extras-ics-footer span", { hasText: "Date/Time" }).first().evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top))).size;
+    });
+    expect(footer).toBe(1);
+    // The check can fail: a time far too long for the box takes more than one line.
+    await page.emulateMedia({ media: "screen" });
+    await dialog.getByLabel("Time To", { exact: true }).fill("23:59 Eastern Standard Time, then the next shift");
+    await page.emulateMedia({ media: "print" });
+    expect(await lines("Time To")).toBeGreaterThan(1);
+  });
 });
