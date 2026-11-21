@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Language: every platform now screens a note before the cloud read (the web since #158, with the iPhone and
+  Android), so the section states the shared rule and where each platform runs it, what the person sees (fill the
+  fields by hand; pick on the iPhone), and its limits: it is a word count, a short note in another language can pass
+  ("Ella no está aquí"), and a note in another Latin-script language such as French passes. The old line that any
+  non-English note can go to the cloud is gone. Source: the language screen on all three platforms. Verified against
+  shared/constants/language-words.json (matching, 90 foreign words), shared/test-vectors/language.json (knownMiss) and
+  the three screen files on main.
 - Phone vectors: the iPhone takes the current Android rule (#157), so "ios" leaves pendingOn on its last five cases
   (bare minus between decimals, an ordinal with no street word, and three times joined to digits) and no case is
   pending on any platform; LIMITS states 52 of 52 on Android, the iPhone and the web. Source: the iPhone port.
