@@ -3,6 +3,13 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-21
+
+- Hosting: `/privacy` and `/support` rewrite to `/privacy.html` and `/support.html` ahead of the app shell, so each
+  URL answers with its own page. Source: the App Store submission needs public privacy and support pages.
+  Verified: a new check in `scripts/test_firebase_config.py` (each path has one rewrite to its page, before the app
+  shell, and the page file exists) failed first, then passed with CI's Python gates.
+
 ## 2026-11-20
 
 - SECURITY call table and the drill-day page now say when each cloud read actually happens, checked against the code
