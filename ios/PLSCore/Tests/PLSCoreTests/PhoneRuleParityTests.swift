@@ -12,4 +12,11 @@ import Testing
     func everyLineBreakIsALineBreak(br: String) {
         #expect(same("call 555\(br)1234 now", "call [number removed]\n[number removed] now"))
     }
+
+    /// A format character (a zero-width space) between a phone cue and a decimal pair is read through, as the web
+    /// reads every gap: the pair after the cue is a number, not a place.
+    @Test func aFormatCharacterAfterACueIsReadThrough() {
+        #expect(same("33.7866, -84.3733 n\u{00FA}mero \u{200B}33.7866, -84.3733 ",
+                     "33.7866, -84.3733 n\u{00FA}mero \u{200B}[number removed] "))
+    }
 }

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the gap after a phone cue is read as the web and Android rules read it
+- What: when the rule asks whether a phone cue sits right before a decimal pair, the gap between them is now read as
+  the web and Android rules read every gap: a mark or a format character (a zero-width space) is dropped, and a line
+  break or Kotlin's whitespace (including U+001C to U+001F) is a space. Before, "numero <U+200B>33.7866, -84.3733"
+  kept the pair as a place; it is now removed as a number after its cue.
+- Source: the web rule's fixed-seed corpus run through the iPhone rule.
+- Verified: the corpus row as a test failed before the change and passes after; 450 PLSCore tests pass; all 60,116
+  rows of the corpus (the 116 shared inputs and 60,000 generated notes) now match the web rule's output byte for byte.
+
 ### fix(ios-core): every line break keeps its line when a number is removed
 - What: a number split across lines is replaced line by line, one "[number removed]" per line, and now a next line
   (U+0085), a line separator and a paragraph separator count as line breaks there too, as they do in the web and

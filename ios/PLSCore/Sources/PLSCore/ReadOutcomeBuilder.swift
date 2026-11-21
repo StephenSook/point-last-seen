@@ -444,6 +444,16 @@ public enum PhoneNumbers {
         return pieces
     }
 
+    /// Whether a gap reads this character as a space, as the web and Android rules read every gap: a mark or a format
+    /// character (a zero-width space) is dropped, and a line break or Kotlin's whitespace (Java's, which includes the
+    /// information separators U+001C to U+001F, plus every space separator) is a space.
+    static func readsAsSpace(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .nonspacingMark, .enclosingMark, .spacingMark, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
+        default: return ["\t", "\n", "\u{0B}", "\u{0C}", "\r", "\u{1C}", "\u{1D}", "\u{1E}", "\u{1F}", "\u{0085}"].contains(c)
+        }
+    }
+
     /// The line breaks a note may hold, as the web and Android rules read them: CRLF, LF, CR, a next line (U+0085), a
     /// line separator and a paragraph separator.
     static let lineBreaks: Set<Character> = ["\r\n", "\n", "\r", "\u{0085}", "\u{2028}", "\u{2029}"]
@@ -494,7 +504,7 @@ public enum PhoneNumbers {
         func cueBefore(_ i: Int) -> Bool {
             let start = i > 0 ? parts[i - 1].range.upperBound : s.startIndex
             if s[start..<parts[i].range.lowerBound].contains("#") { return true }
-            func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).allSatisfy { $0.isWhitespace || $0 == ":" } }
+            func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).unicodeScalars.allSatisfy { $0 == ":" || readsAsSpace($0) } }
             func isWord(_ j: Int) -> Bool { j >= 0 && parts[j].digits == 0 && !parts[j].written }
             if isWord(i - 1), near(i - 1, i), phoneCues.contains(word(s, parts[i - 1])) { return true }
             return isWord(i - 2) && isWord(i - 1) && cueConnectors.contains(word(s, parts[i - 1])) && near(i - 2, i - 1)
