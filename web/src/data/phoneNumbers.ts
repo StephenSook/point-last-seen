@@ -147,7 +147,8 @@ function ruleParts(folded: string): Part[] {
   return parts;
 }
 
-function removeByRule(text: string): string {
+/** The shared rule on its own, as every platform runs it, without the run-of-times step above. */
+export function removeByRule(text: string): string {
   const folded = text.normalize("NFKC");
   const parts = ruleParts(folded);
   const { found, kept, glued } = searchSpans(folded, parts);
