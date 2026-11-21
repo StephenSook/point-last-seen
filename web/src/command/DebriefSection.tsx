@@ -2,7 +2,7 @@
 // covered and what clues and hazards it saw, for the team's own review. Command adds or edits one per segment. A
 // debrief never moves the map, the probabilities or the plans: a stated coverage is the team's words, not a claim.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { debriefAuthor, parseDebriefForm, type ClearedSegment, type Debrief, type DebriefInput } from "../data/debriefs";
 import { DebriefPaperRead, type PaperRead } from "./DebriefPaperRead";
 
@@ -14,22 +14,27 @@ type Props = {
   onSave: (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => Promise<void>;
   /** Reads a team's paper sheet on this laptop; without it, no paper read is offered. */
   paperRead?: PaperRead;
+  /**
+   * A search report the sighting form sent here: that segment's row opens its form with the note added under What
+   * worked (the team's account of the search), unsaved until command saves it. A new `seq` opens it again.
+   */
+  prefill?: { segmentId: string; note: string; seq: number } | null;
 };
 
-export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead }: Props) {
+export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead, prefill = null }: Props) {
   const ids = [...new Set([...cleared.map((c) => c.segmentId), ...Object.keys(debriefs)])].sort();
   return (
     <section aria-labelledby="debrief-h" className="layers">
       <h2 id="debrief-h" className="label">Debriefs</h2>
       {ids.length === 0 && <p className="muted small">Cleared segments get a debrief here.</p>}
       {ids.map((id) => (
-        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} />
+        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} prefill={prefill?.segmentId === id ? prefill : null} />
       ))}
     </section>
   );
 }
 
-function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined }) {
+function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, prefill }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined; prefill: Props["prefill"] }) {
   const [editing, setEditing] = useState(false);
   const [paper, setPaper] = useState(false);
   const [minutes, setMinutes] = useState("");
@@ -40,6 +45,26 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
   const [hazards, setHazards] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const workedBox = useRef<HTMLTextAreaElement>(null);
+  const focusWorked = useRef(false);
+
+  // A search report from the sighting form: open the form as Add or Edit would, add the note after what What worked
+  // already says, and put the cursor there so command sees it and fills in the rest.
+  useEffect(() => {
+    if (!prefill) return;
+    open();
+    setPaper(false);
+    setWorked((w) => (w ? `${w} ${prefill.note}` : prefill.note));
+    focusWorked.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.seq]);
+  useEffect(() => {
+    if (!focusWorked.current || !workedBox.current) return;
+    focusWorked.current = false;
+    workedBox.current.focus();
+    workedBox.current.scrollIntoView({ block: "center" });
+  });
 
   function open() {
     setMinutes(debrief ? String(debrief.tookMinutes) : "");
@@ -113,7 +138,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
           </label>
           <label>
             What worked (optional)
-            <textarea maxLength={500} value={worked} onChange={(e) => setWorked(e.target.value)} disabled={saving} />
+            <textarea ref={workedBox} maxLength={500} value={worked} onChange={(e) => setWorked(e.target.value)} disabled={saving} />
           </label>
           <label>
             What didn't work (optional)

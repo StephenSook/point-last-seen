@@ -2549,3 +2549,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
 - Source: review (a team's search report typed into the sighting form).
 - Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.
+
+### feat(command): a debrief can open with a search report from the sighting form
+- What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.

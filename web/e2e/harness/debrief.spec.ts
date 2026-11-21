@@ -100,3 +100,20 @@ test("a phone number typed in a note is replaced in what is stored and in the ro
   await expect(row).toContainText("Clues: Call [number removed] at the gate");
   await expect(row).not.toContainText("0142");
 });
+
+test("a search report sent from the sighting form opens that segment's debrief with the note under What worked, unsaved", async ({ page }) => {
+  await page.goto("/harness/debrief.html?prefill=AA");
+  const row = page.getByTestId("debrief-AA");
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Swept the creek bank twice, no trace.");
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await expect(page.getByTestId("saved")).toHaveText("");
+  await row.getByLabel("Time it took (minutes)").fill("40");
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect(page.getByTestId("saved")).toContainText('"worked":"Swept the creek bank twice, no trace."');
+});
+
+test("a search report sent to a segment that already has a debrief is added after what it already says", async ({ page }) => {
+  await page.goto("/harness/debrief.html?prefill=AB");
+  await expect(page.getByTestId("debrief-AB").getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
+  await expect(page.getByTestId("debrief-AB").getByLabel("Time it took (minutes)")).toHaveValue("30");
+});

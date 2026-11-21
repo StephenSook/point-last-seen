@@ -19,6 +19,8 @@ const params = new URLSearchParams(location.search);
 const fail = params.get("save") === "fail";
 const paper = params.get("paper");
 const inDetails = params.get("details") === "1";
+// ?prefill=AA or AB: a search report the sighting form sent to that segment's debrief (once, at load).
+const prefillSegment = params.get("prefill");
 const cleared = [
   { segmentId: "AA", eventId: "a".repeat(32), deviceId: "d1", teamId: "T1" },
   { segmentId: "AB", eventId: "b".repeat(32), deviceId: "d2", teamId: "T2" },
@@ -76,6 +78,7 @@ function Harness() {
           setStored((s) => ({ ...s, [segmentId]: { ...input, segmentId, byUid: "harness", createdAtMs: 2, clearedEventId } }));
         }}
         paperRead={paperRead}
+        prefill={prefillSegment ? { segmentId: prefillSegment, note: "Swept the creek bank twice, no trace.", seq: 1 } : null}
       />)}
       <pre data-testid="saved">{saved}</pre>
       <pre data-testid="read-jpeg">{jpeg}</pre>
