@@ -1,0 +1,87 @@
+{
+ "what": "The command post's on-device read of a sighting note (Read the note, ONLY_ON_DEVICE) on the deployed site with the browser tab offline. One made-up drill note, read twice in the same open form; the sighting was cancelled, never saved.",
+ "date": "2026-11-21",
+ "browser": "Stephen's Google Chrome 157.0.8103.80 on this Mac (macOS, Apple M5 Pro); the built-in model's availability check for English text reported \"available\"; the model folder on disk (OptGuideOnDeviceModel) is 2025.8.8.1141",
+ "page": "The deployed command post, https://buildhybridai-2026-yg3m.web.app/?incident=drill-test-1, build commit 1b7d3571 (bundle /assets/main-CQsIXPgo.js), signed in to the test drill drill-test-1 as command; App Check as on the live site",
+ "offline": "The tab was set to Offline in Chrome DevTools (Network throttling) before the reads. A same-origin fetch of /version.json failed with \"TypeError: Failed to fetch\" just before each read (22:15:23Z and 22:17:15Z). navigator.onLine stayed true under this per-tab setting, so the failed fetches are the proof, not onLine.",
+ "note": "Drill check, network off. A caller saw an older man in a red coat walking north on the trail by the creek, alone, about ten minutes ago. Training drill inject.",
+ "runs": [
+  {
+   "run": 1,
+   "at": "about 22:15Z",
+   "clickToDoneMs": null,
+   "timing": "not timed: the timer waited for a receipt line inside the closed What ran section, which innerText does not include",
+   "receipt": [
+    "Asked for: this laptop only.",
+    "Ran: on this laptop (reported by the SDK).",
+    "Model: chrome-built-in.",
+    "Sent: nothing left this laptop."
+   ]
+  },
+  {
+   "run": 2,
+   "at": "22:17:16Z",
+   "clickToDoneMs": 2361,
+   "timing": "from the click on Read the note until the status settled on \"Suggested from the note. Check every field.\" (busy seen 20 ms after the click: \"Reading the note on this laptop. The first read can take up to a minute.\")",
+   "receipt": [
+    "Asked for: this laptop only.",
+    "Ran: on this laptop (reported by the SDK).",
+    "Model: chrome-built-in.",
+    "Sent: nothing left this laptop."
+   ],
+   "read": {
+    "going": "North",
+    "top": "red",
+    "bottom": "Not known",
+    "reportedBy": "Stranger",
+    "quote": "A caller saw an older man in a red coat walking north on the trail by the creek, alone, about ten minutes ago."
+   }
+  }
+ ],
+ "requests": {
+  "how": "The tab's request log (Claude in Chrome read_network_requests), cleared before each read window",
+  "run1Window": [
+   {
+    "url": "https://firebaselogging-pa.googleapis.com/v1/firelog/legacy/log",
+    "method": "POST",
+    "status": 503
+   }
+  ],
+  "run2Window": [
+   {
+    "url": "https://buildhybridai-2026-yg3m.web.app/version.json (the offline probe)",
+    "method": "GET",
+    "status": 503
+   },
+   {
+    "url": "https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel",
+    "method": "POST",
+    "status": 503
+   },
+   {
+    "url": "https://www.google.com/images/cleardot.gif",
+    "method": "GET",
+    "status": 503
+   },
+   {
+    "url": "https://firebaselogging-pa.googleapis.com/v1/firelog/legacy/log",
+    "method": "POST",
+    "status": 503
+   },
+   {
+    "url": "https://firebaselogging-pa.googleapis.com/v1/firelog/legacy/log",
+    "method": "POST",
+    "status": 503
+   }
+  ],
+  "toAnAiHost": 0,
+  "reading": "Every request in both windows was refused while the tab was offline (logged as 503); none went to an AI host (Firebase AI Logic or Gemini). The firelog posts are Firebase's telemetry log, which carries the route-only timing record the receipt mentions."
+ },
+ "screenshot": "docs/evidence/web/2026-11-21-note-read-offline-deployed.jpg (the receipt after read 2, at 0.6 scale in a narrow tab)",
+ "findings": [
+  "The on-device read ran with the tab offline and filled the form as the SDK reported it ran on this laptop.",
+  "Read 2 took 2,361 ms from the click on the deployed site, within the 2.3 to 2.9 s of later reads in 2026-11-21-note-read-chrome.json.",
+  "The receipt then said \"Sent: nothing left this laptop.\", which overclaims: the telemetry log tries to send a timing record; a later build words it \"Sent: no text or image left this laptop.\""
+ ],
+ "n": 2
+}
