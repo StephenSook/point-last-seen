@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone vectors README: the colon-gap paragraph says the remaining gap is two times beside a month name; two times after
+  a cue with no month are removed whole by the run-of-times step. Source: review (merging the run-of-times step with the
+  colon-gap cases). Verified: the vector tests pass; the hygiene guard passes.
 - Phone vectors README: the list of search information that can sit inside a digit run no longer names "a number with a
   unit"; no platform's rule keeps one there (a short quantity glued to a unit, `5km`, stays because it never reaches
   seven digits). Source: review (the iPhone port's notes). Verified: the hygiene guard passes.

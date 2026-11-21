@@ -142,7 +142,8 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
   is removed from the list. Every runner checks all three case types.
   The five `colon_gap_*` cases are pending on every platform: a known gap, not behaviour we want. A colon breaks a
-  digit run, so a number written as two times after a cue or beside a month ("Call 5:55 01:42 May") survives; issue
+  digit run, so a number written as two times beside a month name ("Call 5:55 01:42 May") survives (two times after a
+  cue with no month beside them are removed whole by the run-of-times step); issue
   #298 tracks closing it. Four are `mustRemove` and one is `exact` (it keeps the date beside the times); none is ever
   moved to `mustKeep`.
 
