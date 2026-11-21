@@ -2336,3 +2336,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: after the server took the close, the confirm briefly offered End search again until the post removed it; it now stays held with "Ending the search..." until then. Opening the confirm puts the focus on the first reason, and Cancel puts it back on End this search.
 - Source: review (Codex: a resubmission gap, and keyboard focus dropped on open and on Cancel).
 - Verified: two harness checks in `e2e/harness/endSearch.spec.ts` (the button stays disabled after the server has it; focus on open and on Cancel) failed first, then passed with the whole harness; typecheck and the hygiene guard pass.
+
+### fix(command): a pending edit never makes an ended search look open again
+- What: the ended line waited for the incident doc to have no pending write, so after a confirmed close any later offline edit to the incident (a prior rebuild, say, which the rules then refuse) marked the doc pending and brought back the add buttons and End this search until the server answered. The incident listener now keeps `serverStatus`, the status the server last confirmed (`confirmedStatus` in `web/src/data/endSearch.ts`: a snapshot holding this browser's pending write leaves it as it was), and the post shows the search ended from that.
+- Source: review (Codex, second round: a pending prior edit makes a closed search look open again).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite (1153), the whole harness, the build and every no-backend check (45) pass, with the hygiene guard.

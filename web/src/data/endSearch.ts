@@ -31,3 +31,8 @@ export function endedLine(status: string | undefined, reason: unknown, serverHas
 export function endSearch(db: Firestore, incidentId: string, reason: EndReason): Promise<void> {
   return updateDoc(doc(db, "incidents", incidentId), endSearchPatch(reason));
 }
+
+/** The incident status the server last confirmed: a snapshot holding this browser's pending write leaves it as it was. */
+export function confirmedStatus(prev: string | undefined, status: string | undefined, pending: boolean): string | undefined {
+  return pending ? prev : status;
+}

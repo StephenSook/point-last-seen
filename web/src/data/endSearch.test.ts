@@ -25,3 +25,13 @@ describe("ending a search", () => {
     expect(endedLine("closed", "lost")).toBe("Search ended. No new reports are taken.");
   });
 });
+
+describe("confirmedStatus: the status the server last confirmed", () => {
+  it("follows the server and ignores this browser's pending writes, so a later pending edit never un-ends a search", async () => {
+    const { confirmedStatus } = await import("./endSearch");
+    expect(confirmedStatus(undefined, "open", false)).toBe("open");
+    expect(confirmedStatus("open", "closed", true)).toBe("open");
+    expect(confirmedStatus("open", "closed", false)).toBe("closed");
+    expect(confirmedStatus("closed", "closed", true)).toBe("closed");
+  });
+});

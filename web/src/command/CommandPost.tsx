@@ -410,7 +410,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const incident = view?.incident ?? null;
   // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
   // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
-  const ended = endedLine(incident?.status, incident?.closedReason, !view?.incidentPending);
+  // The server's last confirmed status decides, so neither a pending close nor a pending later edit flips it.
+  const ended = endedLine(view?.serverStatus, incident?.closedReason);
   // A form already open (or opened before another tab ended the search) goes too.
   useEffect(() => {
     if (!ended) return;

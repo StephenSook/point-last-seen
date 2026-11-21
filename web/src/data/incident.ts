@@ -3,6 +3,7 @@
 
 import { collection, doc, onSnapshot, type Firestore, type Unsubscribe } from "firebase/firestore";
 import { withEngineDefaults, type EngineParams, type GridSegment, type PriorLayers, type Terrain } from "@pls/engine";
+import { confirmedStatus } from "./endSearch";
 import type { MapSegment } from "../map/poaStyle";
 
 export type IncidentDoc = {
@@ -49,6 +50,8 @@ export type IncidentView = {
   incident: IncidentDoc | null;
   /** True while the incident doc on hand includes this browser's own write the server has not acknowledged. */
   incidentPending?: boolean;
+  /** The status the server last confirmed (a pending local write does not change it). */
+  serverStatus?: string;
   teams: Team[];
   segments: SegmentDoc[];
   /** Prior mass outside the grid: the reserved "ROW" segment. Null until the prior is built. */
@@ -104,6 +107,7 @@ export function subscribeIncident(
     onSnapshot(doc(db, ...base), { includeMetadataChanges: true }, (s) => {
       view.incident = s.exists() ? incidentFromDoc(s.data()) : null;
       view.incidentPending = s.metadata.hasPendingWrites;
+      view.serverStatus = confirmedStatus(view.serverStatus, view.incident?.status, s.metadata.hasPendingWrites);
       emit();
     }, onError),
     onSnapshot(collection(db, ...base, "segments"), (s) => {
