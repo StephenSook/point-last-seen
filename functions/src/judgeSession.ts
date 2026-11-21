@@ -14,9 +14,10 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 // Seed fields a practice incident must not inherit; everything else (grid, IPP, terrain, prior and engine settings)
 // is copied so the practice search runs the real engine on the real grid.
+// The seed's own end of search (closedReason, closedAt) is never copied: a copy starts open.
 const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabel", "status", "priorInputEventIds",
   "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty", "mediaRevokedAt",
-  "setupReady", "setupId", "setupStartedAtMs"]);
+  "setupReady", "setupId", "setupStartedAtMs", "closedReason", "closedAt"]);
 /** startJudgeSession's timeout (index.ts). A 2nd gen function can keep running after it, so it is not a kill switch. */
 export const JUDGE_SESSION_TIMEOUT_S = 120;
 /**

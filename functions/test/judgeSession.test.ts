@@ -85,6 +85,14 @@ describe("startJudgeSession", () => {
     expect((await inc(first).collection("events").doc("x").get()).exists).toBe(true);
     expect(await used()).toBe(2);
   });
+  it("a copy never carries the seed's end of search: no closedReason, no closedAt, and it starts open", async () => {
+    await inc("SEED").update({ closedReason: "training_ended", closedAt: Timestamp.fromMillis(NOW - DAY) });
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
+    const doc = (await inc(incidentId).get()).data()!;
+    expect(doc.status).toBe("open");
+    expect(doc).not.toHaveProperty("closedReason");
+    expect(doc).not.toHaveProperty("closedAt");
+  });
   it("the daily cap holds per UTC day, each day on its own counter (review: a late call could reset a new day)", async () => {
     await counterAt(NOW).set({ count: 3 });
     await expect(handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg)).rejects.toMatchObject({ code: "resource-exhausted" });

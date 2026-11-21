@@ -82,6 +82,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: a judge's practice copy never carries the seed's end of search: closedReason and closedAt join
+  NOT_COPIED, so a copy starts open with neither. Source: review (practice copies after End this search). Verified: a
+  new case with an ended seed failed first, then passes; judgeSession tests pass.
 - rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
   command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
   Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
