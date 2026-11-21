@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- docs: the App Review drill's seed record (drill-review-1): what it holds, the three commands that seeded it, and the
+  checks (read-back of mode drill, the segment contract at prior version 1, 8-character codes kept in the Keychain
+  only, and a live searcher join that then deleted its own sign-in). Source: review (App Review needs a dedicated
+  drill). Verified: each check run on 2026-11-21 against the live project.
 - rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
   generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
   500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
