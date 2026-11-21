@@ -39,8 +39,14 @@ each line says what the limit is and why.
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
   and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
-  Reports already sent stay in the incident until its data is deleted, and command still lists that member: the app
-  has no way yet for command to remove a member from a search.
+  Reports already sent stay in the incident until its data is deleted. The member stays on the command post's
+  Members list (the join wrote it; deleting the sign-in does not remove it) until command removes it there with
+  "Remove from this drill", which also works once the sign-in is gone.
+- When command ends a search, an iPhone in it shows the command post's own line ("Search ended: training ended. No
+  new reports are taken.") and its reports stay on screen, read-only, with no Send. With signal the phone hears it
+  at once from a listener on the incident; without signal it learns at the next check in signal (a launch, a return
+  to the app or to signal, or a push it opens). A report sent offline after the search ended is refused by the
+  server when the phone reconnects, and its receipt then says "Not taken: the search had ended."
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,

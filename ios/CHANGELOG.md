@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs(limits): an iPhone in a search command ends, and removing a member who left
+- What: LIMITS says what an iPhone shows when command ends its search (the command post's line, read-only reports,
+  no Send), when it learns it (at once with signal, otherwise at its next check in signal), and what a report sent
+  offline after the end shows. The Leave line now says a member who left stays on the command post's Members list
+  until command removes it with "Remove from this drill", which also works once the sign-in is gone; it no longer
+  says command has no way to remove a member.
+- Source: the ended-search change before this entry; removeMember is on main.
+- Verified: each sentence checked against AppModel (watchIncident, searchEnded, the access check triggers),
+  functions/src/join.ts (the members record), functions/src/account.ts and functions/src/members.ts at this commit.
+
 ### feat(ios): the phone shows at once when command ends its search
 - What: while a search is loaded, the phone listens to its incident, so when command ends the search the phone
   shows it at once instead of at its next access check, which could be long after. It shows the command post's own
