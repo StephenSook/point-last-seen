@@ -70,6 +70,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Drill data retention: the purge record and the next-run finish, join codes, the last media sweep, the
+  commit-time closedAt and the re-read before a sign-in is deleted. Source: review. Verified against
+  functions/src/retention.ts and functions/src/index.ts.
 - Rules test: no client reads or writes a drill purge record (ops/drillPurges/items), signed in or not. Source:
   review. Verified: the functions suite passes (275).
 - Drill retention, after a second-model review: a purge record (ops/drillPurges/items/{id}) is written before anything

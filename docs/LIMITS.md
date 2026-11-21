@@ -233,15 +233,21 @@ each line says what the limit is and why.
 ## Drill data retention
 
 - A drill's data is deleted 30 days after the search command closes it: the incident with its events, plans,
-  debriefs, consents and everything else under it, and its clips, photos and packs. `deleteEndedDrillsJob` runs
-  daily at 07:41 UTC (`functions/src/retention.ts`). A drill whose media cannot be deleted is left whole, and the
-  next day's run tries again.
-- The close time is the server's: `recordDrillClosedTrigger` writes `closedAt` when a drill's status becomes
-  closed, and the security rules refuse `closedAt` from every client, so no seat can move a drill's deletion.
-  Closing is final, so `closedAt` is never cleared. A drill closed before this job existed has no `closedAt` and
-  is not deleted by it (on 2026-11-21 every drill was still open).
-- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. A sign-in with an email,
-  a phone number or another provider is a person's account and is kept.
+  debriefs, consents and everything else under it, its clips, photos and packs, and its join codes.
+  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`). It writes a purge record
+  (`ops/drillPurges/items/{id}`, which no client can read or write) before deleting anything and clears it only when
+  every step succeeded, so a run that stops partway is finished by the next one, even after the incident itself is
+  gone. A last media sweep after the incident is deleted catches a photo uploaded during the purge; with the incident
+  gone, the rules refuse new uploads.
+- The close time is the server's: `recordDrillClosedTrigger` writes `closedAt`, the close write's own commit time,
+  once and only if it is absent, so a repeated or retried trigger cannot move it, and the security rules refuse
+  `closedAt` from every client, so no seat can move a drill's deletion. Closing is final, so `closedAt` is never
+  cleared. A drill closed before this job existed has no `closedAt` and is not deleted by it (on 2026-11-21 every
+  drill was still open).
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. Each is read again just
+  before it is deleted and kept if it has joined another incident since; a sign-in with an email, a phone number or
+  another provider is a person's account and is kept. A failed sign-in delete keeps the purge record, so the next
+  run tries again.
 - Kept whatever their close: `drill-dev-1` (the development drill) and `drill-judge-1` (the judge sandboxes'
   seed), and `drill-kennesaw-1` until 2027-01-01 (the drill on film and on the judge page). A live search and a
   judge sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
