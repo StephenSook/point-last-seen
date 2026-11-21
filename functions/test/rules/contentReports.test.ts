@@ -43,9 +43,13 @@ describe("content reports: a member flags shared content (App Review guideline 1
     await assertFails(setDoc(doc(db, `incidents/I1/contentReports/${ID}`), report(S, "searcher", { target: "task", targetId: null })));
   });
 
-  it("command does not file one; a non-member cannot", async () => {
+  it("command does not file one; a non-member or a member command removed cannot", async () => {
     await assertFails(setDoc(doc(dbAs(C, commandClaims), `incidents/I1/contentReports/${ID}`), report(C, "command")));
     await assertFails(setDoc(doc(dbAs("x", { inc: "I2", role: "searcher", team: "T1" }), `incidents/I1/contentReports/${ID}`), report("x", "searcher")));
+    await admin.db.doc(`incidents/I1/removed/${S}`).set({ removedAt: new Date(), removedBy: C, role: "searcher" });
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), `incidents/I1/contentReports/${ID}`), report(S, "searcher")));
+    await assertSucceeds(setDoc(doc(dbAs(F, familyClaims), `incidents/I1/contentReports/${ID2}`),
+      report(F, "family", { target: "family_description", targetId: null })));
   });
 
   it("command reads every report; an author reads only its own; nobody updates or deletes one", async () => {

@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules test: a member command removed cannot file a content report, while another member still can (the report rule
+  goes through isMember, which checks the removal record). Source: review (content reports after member removal
+  landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;
+  all rules tests pass.
 - rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
   only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
   event, none for the family's description); command reads every report, the author only its own; nobody updates or
