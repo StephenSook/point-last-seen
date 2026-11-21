@@ -123,7 +123,7 @@ function ReplayBody({ data, w, drillLine, trackInput }: { data: ReplayData; w: R
           className="extras-replay-map"
           data-frame={frame.phase === "replayable" ? JSON.stringify(framePlates(data.segments, frame.view.result.poa)) : undefined}
           data-outlined={changed.join(" ")}
-          data-track-points={walked ? String(walked.length) : undefined}
+          data-track-points={walked ? String(walked.lines.reduce((n, l) => n + l.length, 0)) : undefined}
         >
           <MapView segments={data.segments} poa={frame.phase === "replayable" ? frame.view.result.poa : NO_POA} onReady={setMap} attribution={data.gridAttribution ?? undefined} />
         </div>
@@ -167,7 +167,7 @@ function ReplayBody({ data, w, drillLine, trackInput }: { data: ReplayData; w: R
           {trackError && <p role="alert">This track cannot be shown. {trackError}</p>}
           {track && (
             <p data-testid="track-label">
-              {track.synthetic ? "SYNTHETIC track, made up for tests." : "The role-player's GPS track."} Shown on this computer only.
+              {track.synthetic ? "SYNTHETIC track, made up for tests." : "The role-player's GPS track."} Run {track.runId}, grid {track.gridId}. Shown on this computer only.
             </p>
           )}
         </div>

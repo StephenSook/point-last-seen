@@ -5,9 +5,11 @@
 import { COMMAND } from "../hostApp";
 import type { ExtrasMapLike } from "../types";
 
-export type Track = { synthetic: boolean; points: [number, number, number][] };
+export type Track = { synthetic: boolean; runId: string; gridId: string; points: [number, number, number][]; breaks: number[] };
+/** The path walked so far, one line per recorded segment, and the place at that moment (none outside a segment). */
+export type Walked = { lines: [number, number][][]; now: [number, number] | null };
 
-const FIELDS = ["version", "source", "gridId", "runId", "points"];
+const FIELDS = ["version", "source", "gridId", "runId", "points", "breaks"];
 /** Across a gap longer than this the logger had no fix, so no place is drawn inside it (as the import tool). */
 const MAX_GAP_MS = 120_000;
 const MAX_POINTS = 50_000;
@@ -20,6 +22,7 @@ export function readTrack(json: unknown): { ok: true; track: Track } | { ok: fal
   const no = (reason: string) => ({ ok: false as const, reason });
   if (!isObj(json) || Object.keys(json).some((k) => !FIELDS.includes(k)) || json["version"] !== 1) return no("This is not a track file from the import tool.");
   if (json["source"] !== "gps-logger" && json["source"] !== "synthetic") return no("The track does not say where it came from.");
+  if (typeof json["runId"] !== "string" || typeof json["gridId"] !== "string") return no("The track does not name its run and grid.");
   const pts = json["points"];
   if (!Array.isArray(pts) || pts.length === 0 || pts.length > MAX_POINTS) return no("The track has no points, or too many.");
   const points: [number, number, number][] = [];
@@ -30,37 +33,56 @@ export function readTrack(json: unknown): { ok: true; track: Track } | { ok: fal
     if (points.length > 0 && t <= points[points.length - 1]![0]) return no("The track's times do not run forward.");
     points.push([t, lat, lon]);
   }
-  return { ok: true, track: { synthetic: json["source"] === "synthetic", points } };
+  // Where each new recorded segment starts: rising point numbers inside the track.
+  const breaks = json["breaks"];
+  if (!Array.isArray(breaks) || !breaks.every((b, i) => Number.isInteger(b) && b >= 1 && b < points.length && (i === 0 || b > breaks[i - 1]))) {
+    return no("The track's segment starts cannot be read.");
+  }
+  return { ok: true, track: { synthetic: json["source"] === "synthetic", runId: json["runId"], gridId: json["gridId"], points, breaks: breaks as number[] } };
 }
 
-/** [lon, lat] of every point up to tMs, then the place at tMs on the line to the next point (none inside a gap). */
-export function trackUpTo(track: Track, tMs: number): [number, number][] {
-  const out: [number, number][] = [];
+/**
+ * [lon, lat] of every point up to tMs, one line per recorded segment (a new one at each segment start and after any gap
+ * of more than 2 minutes), and the place at tMs: a recorded fix, or a point on the line between two fixes of the same
+ * segment. Between segments, before the track or after it there is no place: nothing is drawn across a stop.
+ */
+export function trackUpTo(track: Track, tMs: number): Walked {
+  const lines: [number, number][][] = [];
+  let line: [number, number][] = [];
+  let now: [number, number] | null = null;
   const pts = track.points;
+  const breaks = new Set(track.breaks);
   for (let i = 0; i < pts.length; i++) {
     const [t, lat, lon] = pts[i]!;
+    const prev = pts[i - 1];
+    const newSegment = !prev || breaks.has(i) || t - prev[0] > MAX_GAP_MS;
     if (t > tMs) {
-      const prev = pts[i - 1];
-      if (prev && t - prev[0] <= MAX_GAP_MS) {
+      // Between two fixes of one segment; at a fix itself the fix is already the place.
+      if (prev && !newSegment && prev[0] < tMs) {
         const f = (tMs - prev[0]) / (t - prev[0]);
-        out.push([prev[2] + f * (lon - prev[2]), prev[1] + f * (lat - prev[1])]);
+        now = [prev[2] + f * (lon - prev[2]), prev[1] + f * (lat - prev[1])];
+        line.push(now);
       }
       break;
     }
-    out.push([lon, lat]);
+    if (newSegment) {
+      line = [];
+      lines.push(line);
+    }
+    line.push([lon, lat]);
+    if (t === tMs) now = [lon, lat];
   }
-  return out;
+  return { lines, now };
 }
 
-/** The walked path as a line and the place now as a point; empty before the track starts. */
-export function trackCollection(walked: readonly [number, number][]): unknown {
-  if (walked.length === 0) return { type: "FeatureCollection", features: [] };
-  const now = walked[walked.length - 1]!;
+/** The walked path as lines (a one-point piece is no line) and the place now as a point; empty before the track. */
+export function trackCollection(walked: Walked): unknown {
+  const lines = walked.lines.filter((l) => l.length > 1);
   return {
     type: "FeatureCollection",
     features: [
-      { type: "Feature", geometry: { type: "LineString", coordinates: walked.length > 1 ? walked : [now, now] }, properties: { part: "walked" } },
-      { type: "Feature", geometry: { type: "Point", coordinates: now }, properties: { part: "now" } },
+      ...(lines.length > 0 ? [{ type: "Feature", geometry: { type: "MultiLineString", coordinates: lines }, properties: { part: "walked" } }] : []),
+      ...(walked.now ? [{ type: "Feature", geometry: { type: "Point", coordinates: walked.now }, properties: { part: "now" } }] : []),
     ],
   };
 }

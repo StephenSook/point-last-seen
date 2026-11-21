@@ -141,7 +141,7 @@ test("the command post's replay dialog carries the drill line, since nothing els
 // north-east across the four cells. It has the import tool's shape.
 const HARNESS_T0 = 1_795_372_800_000;
 const syntheticTrack = JSON.stringify({
-  version: 1, source: "synthetic", gridId: "harness", runId: "harness-run",
+  version: 1, source: "synthetic", gridId: "harness", runId: "harness-run", breaks: [],
   points: Array.from({ length: 41 }, (_, i) => [HARNESS_T0 + i * 30_000, 33.7805 + i * 0.00015, -84.3695 + i * 0.00015]),
 });
 
@@ -151,15 +151,15 @@ test("a track loaded from this computer is drawn up to the slider time, labelled
   const sent: string[] = [];
   page.on("request", (r) => { if (r.method() !== "GET" || /track/i.test(r.url())) sent.push(`${r.method()} ${r.url()}`); });
   await dialog.getByLabel("Load a GPS track from this computer").setInputFiles({ name: "synthetic.track.json", mimeType: "application/json", buffer: Buffer.from(syntheticTrack) });
-  await expect(dialog.getByTestId("track-label")).toHaveText("SYNTHETIC track, made up for tests. Shown on this computer only.");
+  await expect(dialog.getByTestId("track-label")).toHaveText("SYNTHETIC track, made up for tests. Run harness-run, grid harness. Shown on this computer only.");
   const map = dialog.locator(".extras-replay-map");
   // At the end (16 minutes in) the walk has 33 points behind it and the place now.
   await expect(map).toHaveAttribute("data-track-points", "34");
   const slider = dialog.getByRole("slider", { name: "Replay time" });
   await slider.focus();
   await page.keyboard.press("Home");
-  // The window starts a minute after T0: two points walked, and the place now.
-  await expect(map).toHaveAttribute("data-track-points", "4");
+  // The window starts a minute after T0, exactly on the third recorded fix: three points walked.
+  await expect(map).toHaveAttribute("data-track-points", "3");
   expect(sent).toEqual([]);
 });
 
