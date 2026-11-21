@@ -217,7 +217,7 @@ construction. The reading becomes a clue only when all three hold:
 - Every word of the note is one the rule knows an object-found note may hold (`OBJECT_NOTE_WORDS`): the
   determiners, objects, the rules parser's stop words and place words, the shared colour and direction words
   (`shared/constants/grounding-words.json`), clue words (tracks, footprints, dropped, ...), a short list of words for
-  where and what state the object is in (nearby, edge, torn, wet, feet, ...), numbers, and a segment id typed in
+  where and what state the object is in (nearby, fence, bench, torn, snagged, wool, feet, ...), numbers, and a segment id typed in
   capitals (two letters, AA to MZ) in a note that is not all capitals. One unknown word ("snagged", or a name such
   as "bea" the profile does not list) keeps the model's kind.
 - No word could name the person (`PERSON_WORDS`, which shares no word with `OBJECT_NOTE_WORDS`): pronouns, the
@@ -235,6 +235,8 @@ sees both: "Read as a clue: an object was found, not the person. The model said 
   a corrected case also expects `item` and `feature`, and an unchanged one the reading as given. The engine test
   also checks that no generated note pairing a found object with a way of saying the person was found, a family
   word, a name, or a second find of a person is ever corrected (more than 2,600 notes).
+- The `drill_*` cases are the 10 drill reports the phone's read path was tuned on, each with the kind the on-device
+  model gave as `kindIn`; after the rule every one has the right kind.
 - `parserKind` is what the phones' rules parser (`ReportParser.kind`) gives the same note, checked by the engine test
   against a copy of the parser's rule. It differs from `kindOut` on purpose: the parser reads no profile names
   ("Found Mr. Lee", `unclear`); it calls "found a man", "Found a coat and grandma nearby" and other notes that also

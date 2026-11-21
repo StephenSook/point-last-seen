@@ -33,6 +33,7 @@ const OBJECTS = new Set([
   "phone", "wallet", "keys", "key", "scarf", "glasses", "sunglasses", "cane", "walker", "id", "badge", "slipper", "slippers",
   "boot", "boots", "sandal", "sandals", "sock", "socks", "sweater", "hoodie", "shirt", "blanket", "umbrella", "watch",
   "bracelet", "card", "cards", "belt", "hearing", "aid", "dentures", "pill", "pills", "medication", "bottle",
+  "wrapper", "cup", "paper", "receipt", "tissue", "napkin", "can", "ticket", "book", "pen", "mask",
 ]);
 // The rules parser's determiners after "found", and the possessives ("found his glasses", "found her coat").
 const DETERMINERS = new Set(["a", "an", "some", "the", "his", "their"]);
@@ -48,18 +49,28 @@ const FEATURES: [Feature, string[]][] = [
   ["woods", ["woods", "forest", "trees", "treeline"]],
   ["field", ["field", "meadow", "pasture", "clearing"]],
 ];
-// Every word an object-found note may hold: the lists above, the shared colour and direction words, clue words, and a
-// short list of words for where and what state the object is in.
+// Every word an object-found note may hold, none of which can name a person: the lists above, the shared colour and
+// direction words, clue words, places and terrain, positions, colours, materials and sizes, what happened to the
+// object ("snagged" is an event, not a person), and a few words for where and how far.
 export const OBJECT_NOTE_WORDS: ReadonlySet<string> = new Set([
   "found", ...DETERMINERS, ...OBJECTS, ...STOP_WORDS, ...FEATURES.flatMap(([, w]) => w),
   ...Object.values(groundingWords.colorWords as Record<string, string[]>).flat(),
   ...Object.values(groundingWords.directionWords as Record<string, string[]>).flat(),
   "clue", "clues", "item", "track", "tracks", "footprint", "footprints", "print", "prints", "dropped",
+  "fence", "bridge", "bench", "tree", "parking", "lot", "porch", "yard", "rock", "rocks", "hill", "hillside", "slope",
+  "ridge", "gate", "wall", "sidewalk", "curb", "playground", "picnic", "table", "shelter", "steps", "stairs", "boardwalk",
+  "dock", "pier", "shore", "mud", "grass", "leaves", "log", "stump", "entrance", "sign", "post", "pole", "pavilion",
+  "garden", "lawn", "alley", "corner", "intersection",
+  "behind", "beneath", "below", "above", "against", "between", "among", "underneath", "inside", "outside", "over", "past",
+  "along", "across", "off", "up", "down", "into", "onto", "toward", "towards", "around", "about",
+  "dark", "light", "navy", "beige", "khaki", "maroon", "plaid", "striped",
+  "wool", "cotton", "leather", "denim", "plastic", "metal", "wooden", "fleece", "nylon", "rubber", "knit",
+  "small", "large", "big", "little", "tiny", "long", "short", "old", "torn", "wet", "muddy", "dirty", "broken", "ripped",
+  "snagged", "caught", "hanging", "stuck", "buried", "discarded", "abandoned", "covered", "soaked", "folded", "left",
+  "lying",
   "then", "also", "it", "its", "was", "were", "is", "are", "there", "here", "nearby", "just", "one", "two", "three", "pair",
-  "small", "large", "big", "little", "old", "torn", "wet", "muddy", "dirty", "broken", "ripped", "left", "lying",
   "side", "edge", "bank", "base", "top", "bottom", "end", "middle", "this", "that", "area", "segment", "team", "we", "our",
-  "feet", "ft", "foot", "meters", "metres", "yards", "about", "around", "behind", "inside", "outside", "over", "past",
-  "along", "across", "off", "up", "down", "into", "onto", "toward", "towards", "ago", "min", "mins", "minutes",
+  "feet", "ft", "foot", "meters", "metres", "yards", "ago", "min", "mins", "minutes",
 ]);
 const ITEM_MAX = 40;
 // A segment id as the grid writes it (AA to MZ), typed in capitals inside a note that is not all capitals.

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Engine: correctFoundKind's object-note vocabulary grows with words that cannot name a person: places and terrain
+  (fence, bridge, bench, tree, parking lot, porch, yard, rock, hill, gate, ...), positions, more colours, materials
+  and sizes, what happened to an object (snagged, caught, hanging, buried, ...), and clue objects (wrapper, cup,
+  paper, receipt, tissue, can, ...). found-kind.json gains 10 cases: "Found a coat snagged on the fence" and a cup and
+  wrapper by the pond become clues, an unknown word ("smells of smoke") still keeps the model's kind, and the 10
+  drill reports the phone's read path was tuned on, each with the kind the on-device model gave, all end with the
+  right kind. Source: review. Verified: the two new clue cases failed first, then passed; the lists still share no
+  word; the engine's 364 tests, typecheck and lint pass; the web's unit tests and CI's Python gates pass.
 - Vectors README: the found-kind.json section describes the conservative rule (all three conditions, the two word
   lists, segment ids, the reason the human sees) and the generated checks. Source: review. Verified: hygiene guard
   and CI's Python gates pass.

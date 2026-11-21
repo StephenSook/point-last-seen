@@ -317,7 +317,7 @@
     },
     {
       "name": "unknown_word_kept_found",
-      "note": "Found a coat snagged on the fence",
+      "note": "Found a coat that smells of smoke",
       "names": [],
       "kindIn": "found",
       "kindOut": "found",
@@ -350,6 +350,100 @@
       "kindOut": "found",
       "corrected": false,
       "parserKind": "clue"
+    },
+    {
+      "name": "snagged_on_fence",
+      "note": "Found a coat snagged on the fence",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "coat snagged",
+      "feature": "none",
+      "corrected": true,
+      "parserKind": "clue"
+    },
+    {
+      "name": "cup_and_wrapper_near_bench",
+      "note": "Found a paper cup and a wrapper near the bench by the pond",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "paper cup",
+      "feature": "water",
+      "corrected": true,
+      "parserKind": "clue"
+    },
+    {
+      "name": "drill_cleared_nothing_found",
+      "note": "Cleared segment BO, nothing found.",
+      "names": [],
+      "kindIn": "cleared",
+      "kindOut": "cleared",
+      "corrected": false,
+      "parserKind": "cleared"
+    },
+    {
+      "name": "drill_cleared_coverage",
+      "note": "Cleared segment BO, coverage point eight, nothing found.",
+      "names": [],
+      "kindIn": "cleared",
+      "kindOut": "cleared",
+      "corrected": false,
+      "parserKind": "cleared"
+    },
+    {
+      "name": "drill_sighting_walking_north",
+      "note": "Saw an older woman walking north on the trail in BO",
+      "names": [],
+      "kindIn": "sighting",
+      "kindOut": "sighting",
+      "corrected": false,
+      "parserKind": "sighting"
+    },
+    {
+      "name": "drill_team_finished",
+      "note": "Team two finished BO, about seventy percent coverage",
+      "names": [],
+      "kindIn": "cleared",
+      "kindOut": "cleared",
+      "corrected": false,
+      "parserKind": "unclear"
+    },
+    {
+      "name": "drill_cleared_two",
+      "note": "Cleared BO and BP, nothing found",
+      "names": [],
+      "kindIn": "cleared",
+      "kindOut": "cleared",
+      "corrected": false,
+      "parserKind": "cleared"
+    },
+    {
+      "name": "drill_sighting_red_jacket",
+      "note": "Saw a person in a red jacket near the water in BO",
+      "names": [],
+      "kindIn": "sighting",
+      "kindOut": "sighting",
+      "corrected": false,
+      "parserKind": "sighting"
+    },
+    {
+      "name": "drill_found_her_safe",
+      "note": "Found her, she is safe, in segment BO",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "found"
+    },
+    {
+      "name": "drill_unclear_radio",
+      "note": "Not sure where we are, the radio is weak",
+      "names": [],
+      "kindIn": "unclear",
+      "kindOut": "unclear",
+      "corrected": false,
+      "parserKind": "unclear"
     }
   ]
 }
