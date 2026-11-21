@@ -1,7 +1,10 @@
 // Dev-server-only harness (web/harness/members.html; never in the production build). It renders the People panel
-// with synthetic members and a stand-in removal: ?fail=<reason> makes the call fail with that server reason.
+// with synthetic members and a stand-in removal: ?fail=<reason> makes the call fail with that server reason. Below
+// it, the join codes with a stand-in replacement (a fixed test code): ?rotatefail=<reason> refuses it, and
+// ?mode=judge shows a practice search, which has no join codes.
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { JoinCodes } from "../command/JoinCodes";
 import { MembersPanel } from "../command/MembersPanel";
 import { memberRows } from "../data/members";
 import "../theme/fonts.css";
@@ -27,6 +30,15 @@ function Harness() {
           if (q.get("noecho") !== "1") setRemoved((s) => new Set([...s, uid]));
         }}
       />
+      {q.get("mode") !== "judge" && (
+        <JoinCodes
+          onRotate={async (role) => {
+            const reason = q.get("rotatefail");
+            if (reason) throw Object.assign(new Error("refused"), { code: "functions/failed-precondition", details: { reason } });
+            return { code: "7K3M9QX2", role, replaced: 1 };
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -56,3 +56,35 @@ test("a refused read with no one to list still says the list may be out of date"
   await page.goto("/harness/members.html?stale=1&empty=1");
   await expect(page.getByRole("region", { name: "People" })).toContainText("This list may be out of date.");
 });
+
+test("a new searcher code is asked for first; Cancel makes none; Replace shows it once with Copy and how many it replaced", async ({ page }) => {
+  await page.goto("/harness/members.html");
+  const codes = page.getByRole("region", { name: "Join codes" });
+  await codes.getByRole("button", { name: "Give searchers a new code" }).click();
+  await expect(codes).toContainText("Every searcher code given out stops working. People already in the search stay in.");
+  await codes.getByRole("button", { name: "Cancel" }).click();
+  await expect(codes.getByTestId("new-code")).toHaveCount(0);
+  await codes.getByRole("button", { name: "Give searchers a new code" }).click();
+  await codes.getByRole("button", { name: "Replace the code" }).click();
+  await expect(codes.getByTestId("new-code")).toHaveText("7K3M9QX2");
+  await expect(codes).toContainText("New searcher code. It is shown once and replaced 1 old code.");
+  await expect(codes.getByRole("button", { name: "Copy" })).toBeVisible();
+  await codes.getByRole("button", { name: "Done" }).click();
+  await expect(codes.getByTestId("new-code")).toHaveCount(0);
+});
+
+test("a refused code replacement says why and keeps the confirm open", async ({ page }) => {
+  await page.goto("/harness/members.html?rotatefail=not_open");
+  const codes = page.getByRole("region", { name: "Join codes" });
+  await codes.getByRole("button", { name: "Give family a new code" }).click();
+  await codes.getByRole("button", { name: "Replace the code" }).click();
+  await expect(codes.getByRole("alert")).toHaveText("This search has ended, so it takes no new members.");
+  await expect(codes.getByRole("button", { name: "Replace the code" })).toBeEnabled();
+  await expect(codes.getByTestId("new-code")).toHaveCount(0);
+});
+
+test("a practice search offers no join codes", async ({ page }) => {
+  await page.goto("/harness/members.html?mode=judge");
+  await expect(page.getByRole("region", { name: "People" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Join codes" })).toHaveCount(0);
+});
