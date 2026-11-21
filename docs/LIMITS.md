@@ -172,10 +172,13 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 105 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 103, the iPhone
-  103 and the web 105. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Two are
+- Of the 109 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 107, the iPhone
+  107 and the web 109. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Two are
   pending on Android and the iPhone: a run of times kept whole, and the same run before a number
   (`scripts/test_phone_vectors.py` checks these counts against the file).
+- A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
+  as rising times (`2:12 5:55 6:42`) is not removed. Out of order (`12:12 5:55 01:42`) or right after a cue (`Call 21:25
+  5:50 1:42`) it is.
 
 ## Photo clues (iPhone)
 

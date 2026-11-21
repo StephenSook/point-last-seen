@@ -59,6 +59,8 @@ const STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "F
 const COORDINATE_GAP = /^(?:[ \n]{0,2}[,;\u2022\u00b7|/][ \n]{0,2}-|[ \n]{1,2}-)$/;
 // A word that says the next digits are a phone number; one of these just before a decimal pair makes it two numbers.
 const PHONE_CUES = new Set(["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "tel\u00e9fono", "telefono", "celular", "n\u00famero", "numero"]);
+// Before a time, two more words cue a number (Text 21:25 5:50 1:42; Reach me at ...): a run of times after a cue goes.
+const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
 // The one short word that may sit between a cue and its number (Llame al 33.1234, -84.5678; Call at ...).
 const CUE_CONNECTORS = new Set(["al", "a", "at", "on", "to"]);
 const MONTH_DAY_GAP = /^\.?[ \n]{1,2}$/;
@@ -195,13 +197,13 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   // A phone cue just before part i: a "#" in the gap before it, or a cue word right before it (only spaces or a colon
   // between), or with one connector word between (Call: 33.1234, -84.5678; Llame al 33.1234, -84.5678). A cue further
   // back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place and stays.
-  const cueBefore = (i: number) => {
+  const cueBefore = (i: number, cues: ReadonlySet<string> = PHONE_CUES) => {
     if (s.substring(i > 0 ? parts[i - 1]!.end : 0, parts[i]!.start).includes("#")) return true;
     const near = (a: number, b: number) => /^[ \n:]*$/.test(flat(s.substring(parts[a]!.end, parts[b]!.start)));
     const isWord = (j: number) => j >= 0 && parts[j]!.digits === 0 && !parts[j]!.written;
-    if (isWord(i - 1) && near(i - 1, i) && PHONE_CUES.has(word(s, parts[i - 1]!))) return true;
+    if (isWord(i - 1) && near(i - 1, i) && cues.has(word(s, parts[i - 1]!))) return true;
     return isWord(i - 2) && isWord(i - 1) && CUE_CONNECTORS.has(word(s, parts[i - 1]!)) && near(i - 2, i - 1) && near(i - 1, i)
-      && PHONE_CUES.has(word(s, parts[i - 2]!));
+      && cues.has(word(s, parts[i - 2]!));
   };
   const kept = new Set<number>();
   const frequencies: number[] = [];
@@ -271,14 +273,29 @@ function searchSpans(s: string, parts: Part[]): { found: Set<number>; kept: Set<
   const digitsOf = (r: Span) => range(r.first, r.last).filter((i) => parts[i]!.written);
   const found = new Set([...kept, ...spans.flatMap(digitsOf)]);
   // A time joined before its hour to digits that are not search information could be a phone number's last four
-  // digits (1 404 555 01:42), so it is dropped and goes with them; a date then a time keep each other, and so do
-  // kept times in a row (14:03, 14:10, 14:17). A time after a dropped one is dropped too, so privacy still wins.
+  // digits (1 404 555 01:42), so it is dropped and goes with them. A date then a time keep each other, and so do kept
+  // times in clock order (14:03, 14:10, 14:17); a time earlier than the kept time before it is dropped (12:12 5:55
+  // 01:42 is a number). A time right after a phone cue is dropped too (Call 21:25 5:50 1:42), and a time after a
+  // dropped one goes with it, so privacy wins whenever the run is in doubt.
   const glued = new Set<number>();
+  const clock = (r: Span) => (value(r.first) ?? NaN) * 60 + (value(r.last) ?? NaN);
   for (;;) {
-    const inSpans = new Set(spans.flatMap(digitsOf));
-    const joinedOutside = (inside: number, outside: number) =>
-      outside >= 0 && outside < parts.length && joins(s, parts[Math.min(inside, outside)]!, parts[Math.max(inside, outside)]!) && !inSpans.has(outside);
-    const drop = spans.filter((r) => r.isTime && joinedOutside(r.first, r.first - 1));
+    const inDates = new Set(spans.filter((r) => !r.isTime).flatMap(digitsOf));
+    const keptTimeEndingAt = new Map(spans.filter((r) => r.isTime).map((r) => [r.last, r] as const));
+    const shielded = (r: Span) => {
+      const before = r.first - 1;
+      if (before < 0 || !joins(s, parts[before]!, parts[r.first]!) || inDates.has(before)) return true;
+      const prev = keptTimeEndingAt.get(before);
+      // NaN (a digit outside 0-9) compares false, so such a run is never shielded.
+      return prev !== undefined && clock(r) >= clock(prev);
+    };
+    const drop = spans.filter((r) => r.isTime && (!shielded(r) || cueBefore(r.first, TIME_CUES)));
+    // A time out of clock order puts the run in doubt: the kept time it is joined to goes with it, so no part of the
+    // number (1212 of 1212 555 0142) is left behind.
+    for (const r of [...drop]) {
+      const prev = keptTimeEndingAt.get(r.first - 1);
+      if (prev && !drop.includes(prev) && joins(s, parts[r.first - 1]!, parts[r.first]!) && !(clock(r) >= clock(prev))) drop.push(prev);
+    }
     if (drop.length === 0) break;
     spans = spans.filter((r) => !drop.includes(r));
     for (const r of drop) glued.add(r.first);

@@ -165,9 +165,12 @@ count of a million or more is removed too. A decimal pair that starts with `+` i
 space stays, while a bare minus with no space or comma (`44.2071-23.4567`) makes it a number. A date beside a phone
 number stays and only the number goes (`Seen 11/19/2026 [number removed]`): when someone was seen is search
 information, and keeping the date leaks nothing once the number is removed. A time keeps its place only after a
-date (`Seen 11/19/2026 14:03`), after another kept time (`The possible times are 14:03, 14:10, 14:17.`) or on its own
-beside a number (`Seen at 14:03, [number removed]`); joined to other digits before its hour, after a dropped time, or
-after a ZIP+4 code, it goes with the run (`Call 1 404 555 01:42`, `Call GA 40455-5014 2:30`).
+date (`Seen 11/19/2026 14:03`), after a kept time no later than it on the clock (`The possible times are 14:03, 14:10,
+14:17.`) or on its own beside a number (`Seen at 14:03, [number removed]`). It goes with the run when it is joined to
+other digits before its hour, after a dropped time, after a ZIP+4 code (`Call 1 404 555 01:42`, `Call GA 40455-5014
+2:30`), or right after a phone cue (the cue words above, plus `text` and `reach`, or a `#`: `Call 21:25 5:50 1:42`). A
+time earlier on the clock than the kept time it is joined to puts the run in doubt, and both go (`12:12 5:55 01:42`):
+when in doubt, remove.
 
 ## language.json (hand-written)
 

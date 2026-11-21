@@ -591,6 +591,46 @@
         "Llame al",
         "tonight"
       ]
+    },
+    {
+      "name": "phone_cue_before_a_run_of_times",
+      "input": "Call 21:25 5:50 1:42 tonight",
+      "number": "21:25 5:50 1:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_before_a_run_of_times_with_commas",
+      "input": "Call 21:25, 5:50, 1:42 tonight",
+      "number": "21:25, 5:50, 1:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "times_out_of_clock_order",
+      "input": "Try 12:12 5:55 01:42 tonight",
+      "number": "12:12 5:55 01:42",
+      "forbidden": [],
+      "keep": [
+        "Try",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_before_times_written_as_a_number",
+      "input": "Call 4:04 5:55 01:42 tonight",
+      "number": "4:04 5:55 01:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
     }
   ],
   "mustKeep": [
