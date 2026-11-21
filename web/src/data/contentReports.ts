@@ -60,11 +60,14 @@ export function sortNewestFirst(flags: readonly Flag[]): Flag[] {
   return [...flags].sort((a, b) => (b.createdAtMs ?? -Infinity) - (a.createdAtMs ?? -Infinity));
 }
 
-/** Command's live view of the flags; a refused read (rules not yet deployed) reads as none. */
-export function subscribeFlags(db: Firestore, incidentId: string, cb: (flags: Flag[]) => void): () => void {
+/**
+ * Command's live view of the flags. A refused read keeps what was shown and calls onRefused: Firestore stops a
+ * listener after a refusal, so the page says the list may be out of date.
+ */
+export function subscribeFlags(db: Firestore, incidentId: string, cb: (flags: Flag[]) => void, onRefused: () => void = () => undefined): () => void {
   return onSnapshot(
     collection(db, "incidents", incidentId, "contentReports"),
     (s) => cb(sortNewestFirst(s.docs.flatMap((d) => reportFromDoc(d.id, d.data()) ?? []))),
-    () => cb([]),
+    () => onRefused(),
   );
 }

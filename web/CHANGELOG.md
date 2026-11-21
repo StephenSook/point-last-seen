@@ -2376,3 +2376,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a flag with no server time was sorted first as if it were still being saved, but command writes no flags, so on the command post a missing time only means a malformed document; it now sorts last. The test that assumed the old order now checks plain newest-first order.
 - Source: review (Codex, low: a malformed timestamp can move an old flag to the top).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a refused Problem reports read keeps the flags and says so
+- What: the flags listener replaced the list with nothing on a refusal, so command saw the same screen as with no reports, and Firestore does not restart a listener it has refused. `subscribeFlags` now keeps what was shown and reports the refusal, so the page can say the list may be out of date.
+- Source: review (Codex: a failed listener silently removes the panel).
+- Verified: a new unit test, `contentReportsListen.test.ts` (Firestore's listener mocked: a good read, then a refusal), failed first, then passed; typecheck passes.
