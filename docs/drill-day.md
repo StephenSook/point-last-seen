@@ -1,8 +1,8 @@
 # Drill day: Kennesaw Mountain
 
 The drill incident is `drill-kennesaw-1`: teams T1, T2 and T3 on the `kennesaw-mountain-drill` grid, south of Dallas
-Highway. It holds made-up drill data. Nobody is missing. This page covers the paper each team carries and how the
-finished run reaches the judge page.
+Highway. It holds made-up drill data. Nobody is missing. This page covers the searchers' iPhones, the paper each team
+carries, and how the finished run reaches the judge page.
 
 ## 1. Checked before the drill
 
@@ -13,7 +13,31 @@ finished run reaches the judge page.
 - One radio card per team, two cards per page, each with the training line, the team, its segments and its task, and
   the map match code spelled out letter by letter.
 
-## 2. Drill morning: print each team's paper
+## 2. Before leaving signal: each searcher's iPhone
+
+1. With the phone plugged into the Mac, check its build. Note the phone's identifier from the first command; the second
+   must say build 8 (commit 8dfa5358). The app itself shows only "App version 0.1.0", not the build.
+
+   ```
+   xcrun devicectl list devices
+   xcrun devicectl device info apps --device <phone-id> --bundle-id app.pointlastseen.field
+   ```
+
+2. Open **Ready check** (top right). Under "Before you leave signal", every row must read ready: "Signed in"; "Pack:
+   loaded"; "App version 0.1.0: current"; "On-device model: ready (AFM 3 Core Advanced)". If the model row says Apple
+   Intelligence is off or still downloading, fix that in Settings while there is signal.
+3. Tap **Allow location** and allow it.
+4. Set **Allow cloud reading** in Ready check. On: when the phone cannot read a report, Google's model reads it (phone
+   numbers removed) while there is signal. Off: every report stays on the phone (Apple's model, then the phone's
+   rules). Stephen's iPhone: on for this drill, so the drill shows the cloud route when the phone cannot read.
+   Volunteers' phones: their own choice. The switch is off by default and is not saved, so after any relaunch (a
+   force-quit, a phone restart or a reinstall), open Ready check and turn it back on. The cloud route needs iOS 27;
+   on iOS 26 it is off whatever the switch says.
+5. For filming, turn on **Say in words where each report was read (for filming)** under **Show sources**.
+6. Optional, in a practice drill only: **Ready check**, then **Check both read routes**. It saves a route-check file
+   (section 5). It is not offered in a real drill incident.
+
+## 3. Drill morning: print each team's paper
 
 Do this after command approves plan v1 on the command post. The Plan panel says "Approved as plan v1. Sent."
 
@@ -41,7 +65,7 @@ Do this after command approves plan v1 on the command post. The Plan panel says 
    same reports.
 7. If command approves a new plan, print again: the paper names the plan version it was printed for.
 
-## 3. After the drill: publish the run to the judge page
+## 4. After the drill: publish the run to the judge page
 
 The judge page replays the published run. To replace the development run with the drill's run:
 
@@ -65,3 +89,31 @@ The judge page replays the published run. To replace the development run with th
    - Its last frame shows the same match code.
    - The space-time view appears only if the run passes its gate: four or more positioned reports, and one report
      that waited a minute or more for signal.
+
+## 5. After the drill: pull each iPhone's files
+
+Do this with the Mac before anything else touches the phone. Installing over USB keeps the app's data, but deleting
+the app or ending a practice drill removes it, so do not reinstall before pulling. `<phone-id>` is the identifier from
+`xcrun devicectl list devices`.
+
+1. List what is there:
+
+   ```
+   xcrun devicectl device info files --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --subdirectory "Library/Application Support"
+   ```
+
+2. Copy the report outbox (the reports this phone sent or still holds). A practice drill keeps its own outbox at
+   `Library/Application Support/PLS-practice/outbox.json` while it runs.
+
+   ```
+   xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source "Library/Application Support/PLS/outbox.json" --destination <folder>/outbox.json
+   ```
+
+3. Copy a route-check file, if section 2's step 6 made one. Its name is shown on screen after "Saved".
+
+   ```
+   xcrun devicectl device copy from --device <phone-id> --domain-type appDataContainer --domain-identifier app.pointlastseen.field --source Documents/route-check-<number>.json --destination <folder>/route-check-<number>.json
+   ```
+
+4. The outbox holds the drill's report text, with phone numbers already removed. Read it before any of it goes into
+   the repository, and never commit it raw.
