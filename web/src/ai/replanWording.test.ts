@@ -242,3 +242,13 @@ describe("numbers in the model's wording", () => {
     expect(out.attempt).toMatchObject({ failure: "number", route: { path: "cloud" } });
   });
 });
+
+describe("the wording's on-device-only params (for measurement pages, which never build a cloud model)", () => {
+  it("are the command post's own on-device options, ONLY_ON_DEVICE, with no cloud params", async () => {
+    const { wordingOnDeviceParams } = await import("./replanWording");
+    const p = wordingOnDeviceParams();
+    expect(p.mode).toBe(InferenceMode.ONLY_ON_DEVICE);
+    expect(p.onDeviceParams).toEqual(wordingParams("gemini-3.5-flash-lite").onDeviceParams);
+    expect(p.inCloudParams).toBeUndefined();
+  });
+});
