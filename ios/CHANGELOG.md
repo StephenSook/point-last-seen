@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): the parser reads search times, signs and percents exactly
+- What: "in 30 minutes" is a search time again ("cleared AE in 45 minutes") unless a word a little before says what
+  happens next ("radio check in 30 minutes", "back in an hour", "will report again in 20 minutes"); a unit joined by
+  "and" belongs to the phrase before it ("next check in 1 hour and 30 minutes" is no search time). A minus pasted as
+  U+2212 stays a minus sign. "Per" alone is no percent ("coverage 1 per the field lead" stays 1), "per cent" is. A
+  negative "minutes ago" is not read, so a sighting is never put after its report.
+- Source: second review of the numbers fix.
+- Verified: new parser tests for each case and its control failed before the change and pass after; 442 PLSCore
+  tests pass.
+
 ### fix(ios): a number from the rules is used only while the reading stays valid
 - What: the rules fill a model reading's empty numbers only after the model's own reading has passed validation, and
   the filled reading is used only if it passes too. Otherwise the model's reading stands without the fill (no "Numbers

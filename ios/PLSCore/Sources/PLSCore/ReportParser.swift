@@ -98,7 +98,7 @@ public enum ReportParser {
         var j = k + 1
         while j < t.lower.count, filler.contains(t.lower[j]) { j += 1 }
         if let (v, n) = NumberWords.parse(t.lower, at: j) {
-            return j + n < t.lower.count && percentWords.contains(t.lower[j + n]) ? Self.percent(v) : v
+            return percentAfter(t.lower, at: j + n) ? Self.percent(v) : v
         }
         if k >= 1, percentWords.contains(t.lower[k - 1]), let v = NumberWords.parse(t.lower, endingBefore: k - 1) { return Self.percent(v) }
         if let v = NumberWords.parse(t.lower, endingBefore: k) { return v }
@@ -108,32 +108,50 @@ public enum ReportParser {
     /// A stated percent: kept as stated above 3 (normalizing divides it by 100), made a ratio at 3 or less.
     static func percent(_ v: Double) -> Double { v > 3 ? v : v / 100 }
 
+    /// Whether a percent follows at `i`: "percent", "%", "pct" or "per cent", never "per" alone ("1 per the lead").
+    static func percentAfter(_ w: [String], at i: Int) -> Bool {
+        guard i < w.count else { return false }
+        if ["percent", "%", "pct"].contains(w[i]) { return true }
+        return w[i] == "per" && i + 1 < w.count && w[i + 1] == "cent"
+    }
+
     static func minutes(_ t: Tokens) -> Double? {
         let w = t.lower
+        var whenUnit = -2                                   // the unit word of the last time phrase that said when
         for i in w.indices {
-            if ["minutes", "minute", "mins", "min"].contains(w[i]), let (v, start) = NumberWords.span(w, endingBefore: i) {
-                if !whenNotHowLong(w, before: start) { return v }
-            }
-            if ["hours", "hour", "hrs", "hr"].contains(w[i]) {
+            let found: (minutes: Double, start: Int)?
+            if ["minutes", "minute", "mins", "min"].contains(w[i]) {
+                found = NumberWords.span(w, endingBefore: i).map { ($0.value, $0.start) }
+            } else if ["hours", "hour", "hrs", "hr"].contains(w[i]) {
                 if i >= 1, ["an", "a"].contains(w[i - 1]) {
-                    let start = i >= 2 && w[i - 2] == "half" ? i - 2 : i - 1
-                    if !whenNotHowLong(w, before: start) { return start == i - 2 ? 30 : 60 }
-                } else if let (v, start) = NumberWords.span(w, endingBefore: i), !whenNotHowLong(w, before: start) {
-                    return v * 60
+                    found = i >= 2 && w[i - 2] == "half" ? (30, i - 2) : (60, i - 1)
+                } else {
+                    found = NumberWords.span(w, endingBefore: i).map { ($0.value * 60, $0.start) }
                 }
+            } else {
+                continue
             }
+            guard let (m, start) = found else { continue }
+            // "In 1 hour and 30 minutes": a unit joined by "and" belongs to the phrase before it.
+            let joined = start >= 2 && w[start - 1] == "and" && start - 2 == whenUnit
+            if joined || whenNotHowLong(w, before: start) { whenUnit = i; continue }
+            return m
         }
         return nil
     }
 
-    static let whenWords: Set<String> = ["in", "every", "next", "until", "till"]
+    static let whenWords: Set<String> = ["every", "next", "until", "till"]
+    /// Words that, a little before "in", say what happens next ("radio check in 30 minutes", "back in an hour").
+    static let nextCues: Set<String> = ["next", "check", "back", "again", "will", "return", "returning", "report", "update", "regroup"]
 
-    /// True when the words just before a time ("in about 30 minutes", "every 2 hours") say when something happens,
-    /// not how long the team searched.
+    /// True when the words just before a time say when something happens ("every 2 hours", "check in 30 minutes"),
+    /// not how long the team searched ("cleared AE in 45 minutes").
     static func whenNotHowLong(_ w: [String], before start: Int) -> Bool {
         var k = start - 1
         while k >= 0, filler.contains(w[k]) { k -= 1 }
-        return k >= 0 && whenWords.contains(w[k])
+        guard k >= 0 else { return false }
+        if whenWords.contains(w[k]) { return true }
+        return w[k] == "in" && w[max(0, k - 4)..<k].contains(where: nextCues.contains)
     }
 
     /// Minutes before now for "20 minutes ago", "an hour ago" or "two hours ago"; nil otherwise.
@@ -141,10 +159,11 @@ public enum ReportParser {
         let w = Tokens(text).lower
         guard let ago = w.firstIndex(of: "ago"), ago >= 2 else { return nil }
         let unit = w[ago - 1]
-        if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1) }
+        // Never negative, so a sighting is never put after the report.
+        if ["minutes", "minute", "mins", "min"].contains(unit) { return NumberWords.parse(w, endingBefore: ago - 1).flatMap { $0 >= 0 ? $0 : nil } }
         if ["hours", "hour", "hrs", "hr"].contains(unit) {
             if ["an", "a"].contains(w[ago - 2]) { return ago >= 3 && w[ago - 3] == "half" ? 30 : 60 }
-            return NumberWords.parse(w, endingBefore: ago - 1).map { $0 * 60 }
+            return NumberWords.parse(w, endingBefore: ago - 1).flatMap { $0 >= 0 ? $0 * 60 : nil }
         }
         return nil
     }
@@ -284,7 +303,8 @@ struct Tokens {
     init(_ text: String) {
         var out: [String] = []
         var current = ""
-        let chars = Array(text)
+        // A minus sign pasted as U+2212 is the same sign, so a negative number stays negative.
+        let chars = Array(text).map { $0 == "\u{2212}" ? "-" : $0 }
         func flush() { if !current.isEmpty { out.append(current); current = "" } }
         for (i, ch) in chars.enumerated() {
             if ch.isLetter || ch.isNumber {

@@ -154,4 +154,36 @@ import Testing
         #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage -.7.")), -0.7))
         #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage 0.7.")), 0.7))
     }
+
+    /// "In 30 minutes" is a search time unless the words before it say what happens next.
+    @Test func inMinutesIsTheSearchTimeUnlessItSaysWhatHappensNext() {
+        #expect(ReportParser.minutes(Tokens("We searched segment AE in 30 minutes with 2 searchers.")) == 30)
+        #expect(ReportParser.minutes(Tokens("Cleared AE in 45 minutes, nothing found.")) == 45)
+        #expect(ReportParser.minutes(Tokens("Searched segment AE with 2 searchers. Next radio check in 30 minutes.")) == nil)
+        #expect(ReportParser.minutes(Tokens("Searched AE with 2 searchers, will report again in 20 minutes.")) == nil)
+    }
+
+    /// A second unit joined by "and" belongs to the same time phrase as the first.
+    @Test func aJoinedTimeKeepsItsFirstPartsMeaning() {
+        #expect(ReportParser.minutes(Tokens("Searched segment AE with 2 searchers. Next check in 1 hour and 30 minutes.")) == nil)
+    }
+
+    /// A minus sign pasted as U+2212 is still a minus sign.
+    @Test func aUnicodeMinusKeepsTheNumberNegative() {
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage \u{2212}.7.")), -0.7))
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage \u{2212}0.7.")), -0.7))
+    }
+
+    /// "Per" alone is not a percent; "per cent" is.
+    @Test func perAloneIsNotAPercent() {
+        #expect(ReportParser.coverage(Tokens("Cleared segment AE, coverage 1 per the field lead.")) == 1)
+        #expect(near(ReportParser.coverage(Tokens("Cleared segment AE, coverage 1 per cent.")), 0.01))
+    }
+
+    /// A sighting cannot be in the future: a negative "minutes ago" is not read.
+    @Test func aNegativeMinutesAgoIsNotRead() {
+        #expect(ReportParser.minutesAgo("Saw her -.7 minutes ago in AE.") == nil)
+        #expect(ReportParser.minutesAgo("Saw her -5 minutes ago in AE.") == nil)
+        #expect(ReportParser.minutesAgo("Saw her 5 minutes ago in AE.") == 5)
+    }
 }
