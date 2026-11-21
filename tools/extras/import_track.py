@@ -301,21 +301,39 @@ def _ancestors(path: Path):
     yield from p.parents
 
 
+# Folders a build never serves and a commit never takes; skipped when listing the repository's folders.
+_NOT_SHIPPED = {".git", "node_modules"}
+
+
+def _repository_folders(root: Path) -> set[tuple[int, int]]:
+    """(device, inode) of the repository's root and every folder under it, links not followed."""
+    folders = set()
+    for here, dirs, _files in os.walk(root, followlinks=False):
+        dirs[:] = [d for d in dirs if d not in _NOT_SHIPPED]
+        try:
+            st = os.stat(here)
+        except OSError:
+            continue
+        folders.add((st.st_dev, st.st_ino))
+    return folders
+
+
 def _inside_repository(path: Path, root: Path) -> bool:
-    """Whether the path, as written or with links followed, lies in the repository. Folders are compared as folders
-    (device and inode), so another name for the repository (a link, a letter-case variant, the Mac's
-    /System/Volumes/Data path) is still the repository. The name checks remain for a root that does not exist yet."""
-    try:
-        root_stat = os.stat(root)
-    except OSError:
-        root_stat = None
-    if root_stat is not None:
-        for a in [*_ancestors(path), *_ancestors(path.resolve())]:
-            try:
-                if os.path.samestat(os.stat(a), root_stat):
+    """Whether the path lies in the repository, by any name. Folders are compared as folders (device and inode): the
+    nearest existing folder above the target, as written and with links followed, is checked against every folder of
+    the repository, so another name for the repository or for any folder in it (a link, a letter-case variant, the
+    Mac's /System/Volumes/Data path, a mount) is still the repository. The name checks remain for a root that does
+    not exist yet."""
+    if os.path.isdir(root):
+        folders = _repository_folders(root)
+        for start in (path, path.resolve()):
+            for a in _ancestors(start):
+                try:
+                    st = os.stat(a)
+                except OSError:
+                    continue
+                if (st.st_dev, st.st_ino) in folders:
                     return True
-            except OSError:
-                continue
     return _inside(path, root) or _inside_as_written(path, root)
 
 

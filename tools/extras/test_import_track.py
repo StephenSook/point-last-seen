@@ -361,6 +361,19 @@ def test_the_repository_reached_by_another_name_is_still_the_repository(tmp_path
     assert not (repo / "web" / "public" / "x.local").exists()
 
 
+def test_a_folder_of_the_repository_mounted_under_another_name_is_still_the_repository(tmp_path, monkeypatch):
+    # A bind mount shows a repository folder (web/public) at another path that following links cannot see through.
+    # Simulated with a link and a resolve() that does not follow it: the folder is the same, its name is not.
+    repo = tmp_path / "repo"
+    (repo / "web" / "public").mkdir(parents=True)
+    (tmp_path / "mount.local").symlink_to(repo / "web" / "public", target_is_directory=True)
+    monkeypatch.setattr(it.Path, "resolve", lambda self, strict=False: it.Path(it.os.path.abspath(self)))
+    assert it._inside_repository(tmp_path / "mount.local" / "t.json", repo)
+    assert not it._inside_repository(tmp_path / "elsewhere.local" / "t.json", repo)
+    assert cli(tmp_path, tmp_path / "mount.local" / "t.json", tmp_path / "p.json", repo=repo) == 2
+    assert list((repo / "web" / "public").iterdir()) == []
+
+
 def test_a_synthetic_passes_file_is_never_written_inside_the_repository(tmp_path):
     repo = tmp_path / "repo"
     for served in (repo / "web" / "public" / "extras" / "passes" / "x.passes.json", repo / "web" / "dist" / "x.passes.json",
