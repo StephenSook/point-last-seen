@@ -236,8 +236,47 @@ public enum PhoneNumbers {
         var alone = false
     }
 
+    /// Removes phone numbers from a note. A run made only of clock times is decided first, as a whole (the shared
+    /// vectors' README); the text between decided runs, and every note NFKC changes, follows the shared rule (`byRule`).
     public static func scrub(_ text: String) -> String {
         let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
+        // A note NFKC changes skips the times step: folding can turn other characters into the ASCII digits a run is
+        // made of. Compared scalar by scalar, since String equality calls a decomposed note unchanged.
+        guard s.unicodeScalars.elementsEqual(text.unicodeScalars) else { return byRule(s) }
+        let parts = ruleParts(s)
+        let scalars = Array(s.unicodeScalars)
+        func offset(_ i: String.Index) -> Int { s.unicodeScalars.distance(from: s.startIndex, to: i) }
+        var startsAt: [Int: Int] = [:], endsAt: [Int: Int] = [:]
+        for (k, p) in parts.enumerated() {
+            startsAt[offset(p.range.lowerBound)] = k
+            endsAt[offset(p.range.upperBound)] = k
+        }
+        func slice(_ r: Range<Int>) -> String {
+            var v = String.UnicodeScalarView()
+            v.append(contentsOf: scalars[r])
+            return String(v)
+        }
+        var out = "", from = 0
+        for run in timesRuns(scalars) {
+            // The run must be a whole number of the shared rule's parts, and no digit, written or spoken, may join it.
+            guard let first = startsAt[run.lowerBound], let last = endsAt[run.upperBound] else { continue }
+            let joined = (first > 0 && joins(s, parts[first - 1], parts[first]))
+                || (last + 1 < parts.count && joins(s, parts[last], parts[last + 1]))
+            // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00), which changes how the
+            // shared rule groups the digits around it, so such a run stays with the text around it.
+            func month(_ i: Int) -> Bool { i >= 0 && i < parts.count && !parts[i].written && months.contains(word(s, parts[i])) }
+            if joined || month(first - 1) || month(last + 1) { continue }
+            let runText = slice(run)
+            // In clock order with no cue it is search information (14:03, 14:10, 14:17); otherwise it could be a
+            // number written as times (Call 21:25 5:50 1:42), and the whole run goes: when in doubt, remove.
+            out += byRule(slice(from..<run.lowerBound)) + (inClockOrder(runText) && !cuedRun(s, parts, first) ? runText : replacement)
+            from = run.upperBound
+        }
+        return out + byRule(slice(from..<scalars.count))
+    }
+
+    /// The parts of s as the shared rule reads them: a spoken repeat counted, and a street name's number set apart.
+    static func ruleParts(_ s: String) -> [Part] {
         var parts = parts(s)
         for i in parts.indices.dropLast() {
             guard let extra = repeats[word(s, parts[i])], !parts[i].written, parts[i + 1].digits > 0,
@@ -252,6 +291,109 @@ public enum PhoneNumbers {
             let gap = s[parts[i + 1].range.upperBound..<parts[i + 2].range.lowerBound]
             if !gap.isEmpty, gap.allSatisfy(\.isWhitespace) { parts[i].alone = true }
         }
+        return parts
+    }
+
+    /// Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach me at 4:04 5:55 6:42).
+    static let timeCues: Set<String> = phoneCues.union(["text", "reach"])
+    /// How many words before a run of times are read for a cue.
+    static let cueWindow = 3
+
+    /// The runs of two or more clock times in s, as scalar ranges, found left to right as the shared rule's pattern
+    /// finds them: a time is h:mm or hh:mm in ASCII digits (hour 0 to 23, minutes 00 to 59), the times are joined by
+    /// spaces and commas, and no number character sits before or after the run with only marks or spaces between.
+    /// A run that would end beside a number gives up its last times until it does not, and needs two times left.
+    static func timesRuns(_ u: [Unicode.Scalar]) -> [Range<Int>] {
+        var runs: [Range<Int>] = []
+        var p = 0
+        while p < u.count {
+            if let end = timesRun(u, at: p) { runs.append(p..<end); p = end } else { p += 1 }
+        }
+        return runs
+    }
+
+    static func timesRun(_ u: [Unicode.Scalar], at p: Int) -> Int? {
+        var b = p - 1
+        while b >= 0, !isLetter(u[b]), !isNumber(u[b]) { b -= 1 }
+        if b >= 0, isNumber(u[b]) { return nil }
+        guard let firstEnd = clockTime(u, at: p) else { return nil }
+        var ends = [firstEnd]
+        while true {
+            var q = ends[ends.count - 1]
+            while q < u.count, u[q] == " " || u[q] == "," { q += 1 }
+            guard q > ends[ends.count - 1], let next = clockTime(u, at: q) else { break }
+            ends.append(next)
+        }
+        for k in stride(from: ends.count - 1, through: 1, by: -1) {
+            var a = ends[k]
+            while a < u.count, !isLetter(u[a]), !isNumber(u[a]) { a += 1 }
+            if a == u.count || !isNumber(u[a]) { return ends[k] }
+        }
+        return nil
+    }
+
+    /// The end of a clock time starting at i, read as the pattern reads it: hour [01]?d or 2[0-3], a colon, minutes
+    /// [0-5]d, in ASCII digits only.
+    static func clockTime(_ u: [Unicode.Scalar], at i: Int) -> Int? {
+        func digit(_ k: Int) -> UInt32? { k < u.count && u[k].value >= 48 && u[k].value <= 57 ? u[k].value - 48 : nil }
+        func colon(_ k: Int) -> Bool { k < u.count && u[k] == ":" }
+        let hourEnd: Int
+        if let a = digit(i), a <= 1, digit(i + 1) != nil, colon(i + 2) {
+            hourEnd = i + 2
+        } else if digit(i) != nil, colon(i + 1) {
+            hourEnd = i + 1
+        } else if digit(i) == 2, let b = digit(i + 1), b <= 3, colon(i + 2) {
+            hourEnd = i + 2
+        } else {
+            return nil
+        }
+        guard let m = digit(hourEnd + 1), m <= 5, digit(hourEnd + 2) != nil else { return nil }
+        return hourEnd + 3
+    }
+
+    static func isNumber(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .decimalNumber, .letterNumber, .otherNumber: true
+        default: false
+        }
+    }
+
+    static func isLetter(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter: true
+        default: false
+        }
+    }
+
+    /// Whether each time in the run is no earlier on the clock than the one before.
+    static func inClockOrder(_ run: String) -> Bool {
+        let minutes = run.split(whereSeparator: { $0 == " " || $0 == "," }).compactMap { t -> Int? in
+            let hm = t.split(separator: ":")
+            guard hm.count == 2, let h = Int(hm[0]), let m = Int(hm[1]) else { return nil }
+            return h * 60 + m
+        }
+        return zip(minutes, minutes.dropFirst()).allSatisfy { $0 <= $1 }
+    }
+
+    /// Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it,
+    /// or a "#". A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one
+    /// of the three words, so "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+    static func cuedRun(_ s: String, _ parts: [Part], _ first: Int) -> Bool {
+        var j = first - 1, words = 0
+        while j >= 0, words < cueWindow {
+            if parts[j].digits > 0 { j -= 1; continue }
+            if timeCues.contains(word(s, parts[j])) { return true }
+            words += 1
+            j -= 1
+        }
+        let from = j >= 0 ? parts[j].range.upperBound : s.startIndex
+        return s[from..<parts[first].range.lowerBound].contains("#")
+    }
+
+    /// The shared rule on its own, as every platform runs it, without the run-of-times step.
+    static func byRule(_ text: String) -> String {
+        let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
+        let parts = ruleParts(s)
         let spans = searchSpans(s, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         var out = s

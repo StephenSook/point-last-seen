@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios-core): a run of clock times is decided as a whole before the phone rule
+- What: before the shared phone rule, a run of two or more clock times (h:mm or hh:mm in ASCII digits, joined by
+  spaces and commas, with no number beside it) is decided as a whole, as the web and Android rules do. In clock order
+  with no phone cue before it, it is search information and stays ("The possible times are 14:03, 14:10, 14:17.");
+  out of order, or after a cue (a cue word among the three words before it, reading past digits, or a "#"), it could
+  be a number written as times and is replaced by one "[number removed]". A run that a digit joins, or that stands
+  beside a month name, is left to the shared rule, and so is every note NFKC changes. The text between decided runs
+  follows the shared rule unchanged.
+- Source: the shared phone rule's run-of-times step (shared/test-vectors README).
+- Verified: the 12 shared cases still pending on the iPhone, copied as inline tests, and a "#" cue test failed before
+  the change and pass after; 448 PLSCore tests pass.
+
 ### fix(ios): only a cleared report is filled, and only a stated coverage refuses the read
 - What: numbers matter only to a cleared report, so a sighting or clue is no longer filled from the rules ("There were
   200 people at the entrance" no longer costs a valid sighting). In a cleared report, a stated coverage the app
