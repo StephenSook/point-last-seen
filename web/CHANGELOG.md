@@ -2023,6 +2023,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: drill retention is deployed; the earlier line said nothing deleted drill data automatically.
 - Verified: a new check in `src/legalPages.test.ts` reads `functions/src/retention.ts` and requires the policy's days to equal `DRILL_RETENTION_MS`, exactly four kept drills, and all four on the one date the policy names (a named constant is resolved); it failed while two drills had no end date and passes on the retention job that deletes all four on January 1, 2027. The page's text still equals the policy file.
 
+### fix(command): the plan card says one thing about where its words came from
+- What: the draft line now reads "Draft for the current reports." (it said "from this laptop" while What ran could name the cloud), and a fallback plan no longer adds a notice sentence such as "The cloud step did not answer. The plan below uses fixed wording.": its route mark (Fixed wording) shows it, and What ran says why the model was not used. Each assignment stays one line: the team, its task and its reason, as the team's phone receives them.
+- Source: UI review (the card said "Draft from this laptop" and "The cloud step did not answer" together, while What ran said cloud).
+- Verified: a new harness check in `e2e/harness/plan.spec.ts` (a fallback shows Fixed wording, no notice sentence, the reason under What ran, no "this laptop") failed first, then passed; a second check pins one line per assignment (it passed before and after); the plan checks (10), web unit suite (983), typecheck and the hygiene guard pass.
+
 ### fix(command): a reopened practice search says it is opening, not show the join form
 - What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
 - Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).

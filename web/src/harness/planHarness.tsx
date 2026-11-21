@@ -25,6 +25,9 @@ const DRAFT: PlanDraft = {
 const slow = new URLSearchParams(location.search).get("slow") === "1";
 // ?route=cloud|on_device: the route the wording reports (default: the fixed template).
 const routePath = (new URLSearchParams(location.search).get("route") ?? "rules") as "cloud" | "on_device" | "rules";
+// ?fallback=1: the cloud was asked and failed, so the plan uses the fixed template (with the notice the wording carries).
+const fallback = new URLSearchParams(location.search).get("fallback") === "1";
+const CLOUD_TRY = { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "on_device_unavailable", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0 } as const;
 
 function Harness() {
   const [draft, setDraft] = useState<PlanDraft>(DRAFT);
@@ -42,7 +45,8 @@ function Harness() {
           route: routePath === "rules"
             ? { platform: "web", path: "rules", stage: "sdk", model: "template", reason: "template_fallback", latencyMs: 0, sdkReported: false, blocked: null, decidedAtMs: 0 }
             : { platform: "web", path: routePath, stage: "sdk", model: routePath === "cloud" ? "gemini-3.5-flash-lite" : "chrome-built-in", reason: routePath === "cloud" ? "on_device_unavailable" : "sdk_prefer_on_device", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0 },
-          notice: null,
+          notice: fallback ? "The cloud step did not answer. The plan below uses fixed wording." : null,
+          ...(fallback ? { attempt: { route: CLOUD_TRY, failure: "error" as const } } : {}),
           promptBytes: 1234,
           };
         }}
