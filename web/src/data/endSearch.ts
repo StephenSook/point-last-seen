@@ -16,9 +16,13 @@ export function endSearchPatch(reason: EndReason): { status: "closed"; closedRea
   return { status: "closed", closedReason: reason };
 }
 
-/** The line every seat shows once the search has ended; null while it is open. */
-export function endedLine(status: string | undefined, reason: unknown): string | null {
-  if (status !== "closed") return null;
+/**
+ * The line every seat shows once the search has ended; null while it is open. `serverHasIt` is false while the close
+ * is only this browser's pending write (Firestore shows it to the listener at once), so the post never says ended
+ * before the server has accepted it.
+ */
+export function endedLine(status: string | undefined, reason: unknown, serverHasIt = true): string | null {
+  if (status !== "closed" || !serverHasIt) return null;
   const label = END_REASONS.find((r) => r.value === reason)?.label;
   return label ? `Search ended: ${label.toLowerCase()}. No new reports are taken.` : "Search ended. No new reports are taken.";
 }

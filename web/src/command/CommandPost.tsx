@@ -408,8 +408,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
   const incident = view?.incident ?? null;
-  // Once command ends the search the rules take no new reports, so the post stops offering them.
-  const ended = endedLine(incident?.status, incident?.closedReason);
+  // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
+  // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
+  const ended = endedLine(incident?.status, incident?.closedReason, !view?.incidentPending);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });

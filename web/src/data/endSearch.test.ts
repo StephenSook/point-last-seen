@@ -11,6 +11,10 @@ describe("ending a search", () => {
     const list = rules.match(/closedReason in \[([^\]]*)\]/)?.[1] ?? "";
     expect(END_REASONS.map((r) => r.value)).toEqual([...list.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
   });
+  it("says nothing until the server has the close (a pending local write is not an ended search)", () => {
+    expect(endedLine("closed", "found", false)).toBeNull();
+    expect(endedLine("closed", "found", true)).toBe("Search ended: person found. No new reports are taken.");
+  });
   it("says the search ended and why, only once it is closed", () => {
     expect(endedLine("open", undefined)).toBeNull();
     expect(endedLine("found", undefined)).toBeNull();
