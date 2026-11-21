@@ -16,15 +16,18 @@ public struct ReadOutcome: Sendable, Equatable {
     public var stageNotes: [String]
     /// Set when a model's "found" was read as a clue (the found-kind rule): the reason the receipt shows.
     public var foundKindReason: String?
+    /// Set when a number in the reading came from the rules parser, not the model: the receipt says so.
+    public var numbersFromRules: Bool
 
     public init(reading: ReportReading, route: RouteRecord, validation: ValidationResult, cloudTransport: CloudTransport = .notUsed,
-                stageNotes: [String] = [], foundKindReason: String? = nil) {
+                stageNotes: [String] = [], foundKindReason: String? = nil, numbersFromRules: Bool = false) {
         self.reading = reading
         self.route = route
         self.validation = validation
         self.cloudTransport = cloudTransport
         self.stageNotes = stageNotes
         self.foundKindReason = foundKindReason
+        self.numbersFromRules = numbersFromRules
     }
 }
 
