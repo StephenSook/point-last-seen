@@ -5,6 +5,54 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### build(ios): the release check runs the privacy label check on every exported build
+- What: ios/scripts/archive_release.sh now runs scripts/check_privacy_label.py on the exported app, so a release
+  build fails its checks when any bundled privacy manifest collects data the App Store label does not list.
+- Source: review (App Store submission prep).
+- Verified: the script's syntax checks; the same command fails on build 8's exported app (its manifest lacked
+  five types) and the committed manifest passes the check's own tests; the next archive from main runs it for
+  real.
+
+### ci: the gates run the privacy label check's tests
+- What: the gates job (and its local mirror) runs scripts/test_check_privacy_label.py with the other script
+  tests, so the committed privacy manifest and label must keep agreeing.
+- Source: review (App Store submission prep).
+- Verified: the local mirror's gates pass, and their script-test count rose from 259 to 266 (the 7 new tests).
+
+### fix(ios): the privacy manifest declares what the app's SDKs collect, and a check holds it to the label
+- What: the app's privacy manifest declared three data types (precise location, user ID, other user content),
+  but the build's Firebase SDKs declare five more in their own manifests (device ID, crash data, other
+  diagnostic data, other data types) and Firebase Performance sends performance traces. The app's manifest now
+  declares all eight, none used for tracking, and ios/app-privacy-label.json records the App Store privacy
+  label to enter. scripts/check_privacy_label.py fails a build when any bundled manifest collects a type the
+  label does not list, links data the label says is not linked, uses data for tracking, or when the app's own
+  manifest does not declare exactly the label's types.
+- Source: review (App Store submission prep: the union of build 8's 36 bundled manifests).
+- Verified: seven tests of the check failed before it existed and pass after, including one that the committed
+  manifest and label agree; on build 8's App Store IPA the check fails on exactly the five types its own
+  manifest lacked, and no SDK type is off the label.
+
+### fix(ios): the route check runs only in the practice drill
+- What: the route check said "practice incidents only" but ran in any drill or judge incident; its cloud
+  route sends the reader's tools, the subject's description included, so a live drill (such as Kennesaw)
+  could send its drill subject's description. It now runs only in the practice drill. The code change
+  went out in 8fb0c3b with the live gate fix, because both edits were in AppModel.swift; this commit adds
+  its tests.
+- Source: review (lane audit of the route check).
+- Verified: a test that a live drill is never route checked failed before the change and passes after; the
+  route check test now uses a practice drill; a real search is still never checked; 205 app tests pass.
+
+### fix(ios): on iOS 26 the live gate keeps the cloud off too
+- What: the reader turned the cloud off on iOS 26 for its first decision, but the live gate the read checks
+  at every cloud dispatch and reroute was built from the kill switch alone. After Apple's model failed as
+  unavailable, a reroute could pick the cloud, the runner refused it, and the read recorded the cloud
+  transport as used though nothing was sent. The live gate now keeps the cloud off when this phone has no
+  cloud route, so a reroute reads by rules.
+- Source: review (lane audit of the iOS 26 path).
+- Verified: a test that the live gate keeps the cloud off without the cloud route failed to compile before
+  the change and passes after; a core test pins that a closed live gate keeps a reroute off the cloud with
+  no cloud transport recorded, and that an open one would go; all app tests pass.
+
 ### docs: the eval notes record the clue line that was tried and not shipped
 - What: docs/evidence/eval/README.md now says that Apple's model reads a report of a found object as the
   person found, that two prompt lines were measured against it, and why neither shipped (one moved the

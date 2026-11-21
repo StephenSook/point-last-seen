@@ -24,12 +24,15 @@ function Harness() {
   const cloud = new URLSearchParams(location.search).get("read") === "cloud";
   // ?lang=other: the cloud read's language screen refuses the note.
   const notEnglish = new URLSearchParams(location.search).get("lang") === "other";
+  // ?paused=1: command has paused cloud reading before the form opens; ?paused=late: it pauses after the consent tap.
+  const paused = new URLSearchParams(location.search).get("paused");
   // ?read=timeout: the laptop's model does not answer within the read's time limit.
   const timeout = new URLSearchParams(location.search).get("read") === "timeout";
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid, not drill data.</p>
       <SightingForm
+        cloudPaused={paused === "1"}
         place={place}
         placeSegmentId={place ? segmentContaining(place, HARNESS_SEGMENTS) : null}
         choices={segmentChoices(HARNESS_SEGMENTS)}
@@ -46,7 +49,9 @@ function Harness() {
               : async () => ({ refused: "no-on-device-model" })
         }
         readNoteInCloud={async (text) =>
-          notEnglish
+          paused === "late"
+            ? { refused: "cloud-paused" as const }
+            : notEnglish
             ? { refused: "not-english" as const }
             : cloud
             ? {

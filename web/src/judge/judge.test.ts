@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { harnessRun } from "../extras/testdata/replayIncident";
-import { ADVICE_LINE, d2Copy, fetchedTime, loadPublishedRun, modelLines } from "./judge";
+import { ADVICE_LINE, ANDROID_RELEASE_URL, TESTFLIGHT_URL, d2Copy, fetchedTime, judgeLinks, loadPublishedRun, modelLines } from "./judge";
 
 describe("d2Copy", () => {
   it("(a) no built-in model: nothing private was sent, and the replay is named only when it exists", () => {
@@ -116,3 +116,25 @@ describe("ADVICE_LINE", () => {
     expect(ADVICE_LINE).toMatch(/^[\x20-\x7e]+$/);
   });
 });
+
+describe("judgeLinks", () => {
+  const REPO = "https://github.com/StephenSook/point-last-seen";
+  it("links the command post, the source, the iPhone's recorded runs and the test matrix, all public", () => {
+    const links = judgeLinks({ android: null, testflight: null });
+    expect(links).toEqual([
+      { label: "Command post", href: "/", external: false },
+      { label: "Source code", href: REPO, external: true },
+      { label: "iPhone test runs", href: `${REPO}/tree/main/docs/evidence/ios`, external: true },
+      { label: "Which model ran where", href: `${REPO}/blob/main/docs/TEST-MATRIX.md`, external: true },
+    ]);
+  });
+  it("adds the Android app and the TestFlight link only when each URL is set", () => {
+    const labels = judgeLinks({ android: `${REPO}/releases/tag/android-judge`, testflight: "https://testflight.apple.com/join/x" }).map(l => l.label);
+    expect(labels).toEqual(["Command post", "Source code", "Android family app", "iPhone app (TestFlight)", "iPhone test runs", "Which model ran where"]);
+  });
+  it("ships no TestFlight link until Apple clears review", () => {
+    expect(TESTFLIGHT_URL).toBeNull();
+    expect(judgeLinks({ android: ANDROID_RELEASE_URL, testflight: TESTFLIGHT_URL }).some(l => l.label.includes("TestFlight"))).toBe(false);
+  });
+});
+

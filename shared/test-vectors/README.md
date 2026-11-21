@@ -201,3 +201,53 @@ Where it applies: the web and the iPhone, which read a searcher's or a caller's 
 family app has none to ground: its note read fills only kind, label, summary and evidenceQuote; on a family sighting
 the family picks the direction and colours and sends footwear and carried empty; and a camera clip's colours come
 from the video frames, with no note and no profile in the request (no server prompt template names the profile).
+
+## found-kind.json (hand-written)
+
+A model can read "Found a blue coat by the creek in BO" as the person found. A found event moves no probability and
+the command post labels it Found, so the coat's clue value is lost and a commander reads Found. After grounding,
+each platform that reads a report's kind checks a `found` reading against its note with `correctFoundKind` in
+`shared/engine-ts/src/found.ts`.
+
+A person-found note read as a clue is the one wrong answer that must never happen, so the rule is conservative by
+construction. The reading becomes a clue only when all three hold:
+
+- Every "found" in the note is followed by a determiner (a, an, some, the, his, their, or a possessive her) and a
+  known object (coat, shoe, glasses, keys, ...). "Found a glove. Found mom too" fails here.
+- Every word of the note is one the rule knows an object-found note may hold (`OBJECT_NOTE_WORDS`): the
+  determiners, objects, the rules parser's stop words and place words, the shared colour and direction words
+  (`shared/constants/grounding-words.json`), clue words (tracks, footprints, dropped, ...), a short list of words for
+  where and what state the object is in (nearby, fence, bench, torn, snagged, wool, feet, ...), numbers, and a segment id typed in
+  capitals (two letters, AA to MZ) in a note that is not all capitals. One unknown word ("snagged", or a name such
+  as "bea" the profile does not list) keeps the model's kind.
+- No word could name the person (`PERSON_WORDS`, which shares no word with `OBJECT_NOTE_WORDS`): pronouns, the
+  rules parser's subject words, words for a person, family and relations, the person's state, the response to them,
+  or a word of one of the profile's names. A contraction counts by its first part ("she's" is she).
+
+Some object-note words are also names ("Brook", "Brown", "River"). A name-like colour or size word (black, white,
+brown, gray, grey, green, red, tan, long, short) counts only inside a found item, where it describes the object ("a
+brown coat"); a name-like place word (brook, river, hill, field, woods, forest, wall, bush, shore, post, rock, lake)
+counts only right after a determiner ("by the river"); neither counts when written with a capital after the note's
+first word. So "Found a coat near brown", "found a hat near brook" and "Found a coat by the River" stay found.
+
+"her" is a possessive only when spaces alone separate it from a known object: "Found her coat by the creek" becomes a
+clue, while "Found her, coat nearby" and "Found her blue coat" stay found. Item is up to three words after the first
+determiner, ending at a stop word, a number or punctuation, and feature comes from the rules parser's place words, read the way `ReportParser` reads them. The reason
+(`reason`, `FOUND_AS_CLUE_REASON`) is shown in the UI and the receipt and says the model said found, so the human
+sees both: "Read as a clue: an object was found, not the person. The model said found; check the note."
+
+- `cases[]`: `{ name, note, names, kindIn, kindOut, item?, feature?, corrected, parserKind }`. Give a blank reading
+  of kind `kindIn`, check it against `note` and the profile's `names`, and expect kind `kindOut` and `corrected`;
+  a corrected case also expects `item` and `feature`, and an unchanged one the reading as given. The engine test
+  also checks that no generated note pairing a found object with a way of saying the person was found, a family
+  word, a name, or a second find of a person is ever corrected (more than 2,600 notes).
+- The `drill_*` cases are the 10 drill reports the phone's read path was tuned on, each with the kind the on-device
+  model gave as `kindIn`; after the rule every one has the right kind.
+- `parserKind` is what the phones' rules parser (`ReportParser.kind`) gives the same note, checked by the engine test
+  against a copy of the parser's rule. It differs from `kindOut` on purpose: the parser reads no profile names
+  ("Found Mr. Lee", `unclear`); it calls "found a man", "Found a coat and grandma nearby" and other notes that also
+  name the person a clue; it reads "Found her coat by the creek" as the person found and "Found his glasses on the
+  trail" as `unclear`. A platform follows `kindOut`, not its parser's kind.
+
+Where it applies: the iPhone, whose searcher reads produce a kind. The web and the Android family app never produce
+kind `found` from a model; the web runs the vector against the engine.

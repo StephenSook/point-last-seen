@@ -32,14 +32,18 @@ type Props = {
   readNote: (text: string) => Promise<SightingRead | ({ reading: SightingCues } & Ran)>;
   readNoteInCloud: (text: string) => Promise<CloudRead>;
   onClose: () => void;
+  /** Command has paused cloud reading (Remote Config kill_cloud): the form offers no cloud read and says why. */
+  cloudPaused?: boolean;
 };
+
+const CLOUD_PAUSED = "Cloud reading is paused by command.";
 
 function localInput(ms: number): string {
   const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60_000);
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -55,7 +59,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const [saving, setSaving] = useState(false);
   // Each read takes a number, and Save takes the next: a reply whose number is no longer the latest is dropped.
   const readSeq = useRef(0);
-  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout" | "not-english">("none");
+  const [readState, setReadState] = useState<"none" | "no-model" | "filled" | "not-read" | "evidence" | "consent" | "changed" | "timeout" | "not-english" | "cloud-paused">("none");
   // The last read that filled the fields: what was asked for, where it ran and what it sent.
   const [ran, setRan] = useState<{ asked: string; route: RouteRecord; sentBytes: number } | null>(null);
   // The read that filled the fields, kept for the saved sighting's route even if its receipt is no longer shown.
@@ -130,7 +134,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         setRan(r.route ? { asked: "the cloud, after the consent tap", route: r.route, sentBytes: r.sentBytes ?? 0 } : null);
         setReadFilled({ route: r.route ?? null });
       }
-      else setReadState(r.refused === "possible-evidence" ? "evidence" : r.refused === "not-english" ? "not-english" : "not-read");
+      else setReadState(r.refused === "possible-evidence" ? "evidence" : r.refused === "not-english" ? "not-english" : r.refused === "cloud-paused" ? "cloud-paused" : "not-read");
     } catch {
       if (readSeq.current === mine) setReadState("not-read");
     } finally {
@@ -243,19 +247,30 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {readState === "no-model" && (
         <div role="status" className="note-state">
           <p>This laptop has no local model. Nothing was sent.</p>
-          <button type="button" className="btn ghost" onClick={() => setReadState("consent")} disabled={busy !== null}>
-            Read in the cloud
-          </button>
+          {cloudPaused ? (
+            <p>{CLOUD_PAUSED}</p>
+          ) : (
+            <button type="button" className="btn ghost" onClick={() => setReadState("consent")} disabled={busy !== null}>
+              Read in the cloud
+            </button>
+          )}
         </div>
       )}
       {readState === "consent" && (
         <div role="status" className="note-state">
-          <p>The note goes to Gemini in the cloud. Phone numbers are removed first.</p>
-          <button type="button" className="btn ghost" onClick={readInCloud} disabled={busy !== null}>
-            {busy === "cloud" ? "Reading" : "I consent for this note"}
-          </button>
+          {cloudPaused ? (
+            <p>{CLOUD_PAUSED}</p>
+          ) : (
+            <>
+              <p>The note goes to Gemini in the cloud. Phone numbers are removed first.</p>
+              <button type="button" className="btn ghost" onClick={readInCloud} disabled={busy !== null}>
+                {busy === "cloud" ? "Reading" : "I consent for this note"}
+              </button>
+            </>
+          )}
         </div>
       )}
+      {readState === "cloud-paused" && <p role="status">{CLOUD_PAUSED} Fill the fields by hand.</p>}
       {readState === "filled" && <p role="status" className="muted">{keptEdits ? "Suggested from the note. Check every field. Your edits were kept." : "Suggested from the note. Check every field."}</p>}
       {/* Shown only while the note still holds these exact words. */}
       {readState === "filled" && quote && note.includes(quote) && <p className="small">From the note: "{quote}"</p>}

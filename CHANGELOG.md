@@ -3,6 +3,67 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-21
+
+- Engine: correctFoundKind treats object-note words that are also names ("Brook", "Brown", "River") as names where a
+  name would stand. A name-like colour or size word counts only inside a found item ("a brown coat"), a name-like
+  place word only right after a determiner ("by the river"), and neither when capitalised after the first word.
+  A found item now also ends at punctuation, so it never runs into the next sentence. found-kind.json gains 7 cases.
+  Source: review. Verified: three new cases and a generated check (29 name-like words, both cases, 5 shapes) failed
+  first; the item crossing a sentence ("found a hat. brown nearby") was the last failure, fixed by the punctuation
+  stop; all pass now with the engine's 372 tests, typecheck and lint; the web's unit tests and CI's Python gates pass.
+- Engine: correctFoundKind's object-note vocabulary grows with words that cannot name a person: places and terrain
+  (fence, bridge, bench, tree, parking lot, porch, yard, rock, hill, gate, ...), positions, more colours, materials
+  and sizes, what happened to an object (snagged, caught, hanging, buried, ...), and clue objects (wrapper, cup,
+  paper, receipt, tissue, can, ...). found-kind.json gains 10 cases: "Found a coat snagged on the fence" and a cup and
+  wrapper by the pond become clues, an unknown word ("smells of smoke") still keeps the model's kind, and the 10
+  drill reports the phone's read path was tuned on, each with the kind the on-device model gave, all end with the
+  right kind. Source: review. Verified: the two new clue cases failed first, then passed; the lists still share no
+  word; the engine's 364 tests, typecheck and lint pass; the web's unit tests and CI's Python gates pass.
+- Vectors README: the found-kind.json section describes the conservative rule (all three conditions, the two word
+  lists, segment ids, the reason the human sees) and the generated checks. Source: review. Verified: hygiene guard
+  and CI's Python gates pass.
+- Engine: correctFoundKind is conservative by construction. A found reading becomes a clue only when every "found" in
+  the note is followed by a determiner and a known object, every word of the note is a known object-note word
+  (OBJECT_NOTE_WORDS: determiners, objects, place, colour, direction and clue words, a short list of where and state
+  words, numbers, a two-capital segment id in a note that is not all capitals), and no word could name the person
+  (PERSON_WORDS, now with family and relation words; a profile name). The reason now says the model said found:
+  "Read as a clue: an object was found, not the person. The model said found; check the note." found-kind.json gains
+  8 cases. Source: review ("Found a coat and grandma nearby" and "Found a glove. Found mom too" came back as clues).
+  Verified: the new cases, a check of more than 2,600 generated notes (an object beside a family word, a name, or a
+  second find of a person) and a check that the two word lists share no word failed on the previous rule, then
+  passed; the engine's 354 tests, typecheck and lint pass; the web's unit tests and CI's Python gates pass.
+- Vectors README: the found-kind.json section now lists the full rule (determiners including possessives, every
+  kind of person-found word, when "her" is a possessive) and every way the rules parser's kind differs from the
+  rule's, with the line that a platform follows `kindOut`. Source: review. Verified: hygiene guard and CI's Python
+  gates pass.
+- Engine: correctFoundKind keeps every note that could say the person was found. It now also treats as person-found
+  he, she, they; words for a person (man, woman, lady, child, body, ...); the person's state (alive, conscious, awake,
+  talking, hurt, injured, ok, fine, dead, ...); and the response to them (ambulance, EMS, medic, paramedics, 911,
+  hospital, CPR). It also reads possessive his, their and her as determiners, so "Found her coat by the creek" and
+  "Found his glasses on the trail" become clues; "her" counts as a possessive only when spaces alone separate it
+  from a known object, so "Found her, coat nearby" and "Found her blue coat" stay found. found-kind.json gains 12
+  cases. Source: review (seven person-found notes, such as "Found a coat, she is sitting by the creek", came back
+  as clues). Verified: the new cases and a check that 660 notes pairing a found object with a way of saying the
+  person was found are never corrected failed first (10 of 31 tests), then passed; the engine's 344 tests,
+  typecheck and lint pass; the web's unit tests and CI's Python gates pass.
+- Engine: correctFoundKind(reading, note, names) in `shared/engine-ts/src/found.ts` runs found-kind.json. A `found`
+  reading becomes a clue when the note has "found a/an/some/the" then a known object and no word says the person was
+  found (him, her, them, subject, person, patient, located, safe, breathing, "with us", or a word of the profile's
+  names); its item (up to three words) and feature come from the note as the phones' rules parser reads them, and
+  FOUND_AS_CLUE_REASON ("Read as a clue: an object was found, not the person.") is returned for the UI and the
+  receipt. Any other reading comes back unchanged. Source: the found-kind vectors. Verified: the new engine test
+  (every case, the reason, the input left untouched, and each case's parserKind against a copy of ReportParser.kind)
+  failed first (no export), then passed; the engine's 331 tests, typecheck and lint pass, with every existing vector;
+  the web's 919 unit tests and CI's Python gates pass.
+- Vectors: new `shared/test-vectors/found-kind.json` (16 hand-written cases) and its README section: a model reading
+  of kind `found` checked against its note. "Found a blue coat by the creek in BO" and "Found a shoe on the path in
+  segment BP" become clues with their item and feature from the note; "Found him by the creek, he is safe", "Found
+  Mr. Lee near the bench" (a profile name), "Found his coat and then found him", "found a man" and a sighting stay as
+  they are. Each case also records the phones' rules parser's own kind for the note. Source: a model read those two
+  notes as the person found. Verified: the file is well formed JSON and every value is one the reading schema allows;
+  the engine rule that runs it follows in the next commit.
+
 ## 2026-11-20
 
 - SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
@@ -12,6 +73,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   the iPhone voice (21:03:15Z), all template calls in the apps' code, each logged path direct, template null, with
   systemInstruction and _responseJsonSchema present on the two text templates; functions/src/cloudGuard.ts sets path
   from data.template alone.
+- Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
+  (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
+  web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
+  link ships. README's iPhone row points at the recorded runs while TestFlight waits on Apple; the production
+  checklist no longer says the repo goes public on 2026-11-28 (it is public now). Source: review (judge reachability
+  audit). Verified: all four external links answer 200 to a signed-out request; web typecheck, 922 web tests
+  (judgeLinks tests red first), the web build and 33 no-backend browser checks pass locally.
 - SECURITY call table and the drill-day page now say when each cloud read actually happens, checked against the code
   on each platform. The iPhone report read goes to the cloud only when Apple's model is not available, does not
   support the phone's language or the report is over its token budget, and only online, with Allow cloud reading on,

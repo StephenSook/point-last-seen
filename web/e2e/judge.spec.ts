@@ -41,6 +41,14 @@ test("the judge page links to the public source code", { tag: "@no-backend" }, a
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
 });
 
+test("the judge page links the iPhone's recorded runs and the test matrix, and no TestFlight link yet", { tag: "@no-backend" }, async ({ page }) => {
+  await page.goto("/judge");
+  const nav = page.getByRole("navigation", { name: "Links" });
+  await expect(nav.getByRole("link", { name: "iPhone test runs" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/tree/main/docs/evidence/ios");
+  await expect(nav.getByRole("link", { name: "Which model ran where" })).toHaveAttribute("href", "https://github.com/StephenSook/point-last-seen/blob/main/docs/TEST-MATRIX.md");
+  await expect(nav.getByRole("link", { name: /TestFlight/ })).toHaveCount(0);
+});
+
 test("a practice search opens a labelled training incident on the real park map, with no code", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");

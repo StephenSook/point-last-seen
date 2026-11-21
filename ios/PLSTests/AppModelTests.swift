@@ -5,6 +5,17 @@ import Testing
 
 @MainActor
 @Suite struct AppModelTests {
+    /// Without the cloud route (iOS 26) the live gate keeps the cloud off at every cloud dispatch, as the
+    /// reader's first decision does, so a reroute after an on-device failure can never pick the cloud.
+    @Test func withoutTheCloudRouteTheLiveGateKeepsTheCloudOff() {
+        let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))
+        model.cloudConsent = true
+        model.cloudRouteAvailable = false
+        #expect(model.gate.current.killCloud)
+        model.cloudRouteAvailable = true
+        #expect(!model.gate.current.killCloud)
+    }
+
     @Test func aReportThatCannotBeJournaledStaysInTheField() async {
         let model = AppModel(signIn: SignIn(isSignedIn: { false }, attempt: { false }))   // no pack, nothing started
         let left = await model.submit("cleared segment AC, coverage point eight", inputMethod: .typed)
