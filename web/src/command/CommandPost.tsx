@@ -36,6 +36,7 @@ import { beatDistances, type LatLon, segmentChoices, segmentContaining } from ".
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
+import { NoAccessPanel } from "./NoAccessPanel";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards, type SightingCard } from "./sightingCards";
@@ -841,17 +842,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
         <p>Its data was cleared from the screen.</p>
-        <p data-testid="claims-line">{claimsNote ?? (practice ? "Open it again from the judge's page." : "Reopen this drill; it asks for the command code if this browser needs one.")}</p>
-        {practice ? (
-          <button type="button" onClick={() => location.assign("/judge")}>
-            Open the judge's page
-          </button>
-        ) : (
-          // A reload keeps the drill in the link, so a browser whose sign-in is back opens the post again at once.
-          <button type="button" onClick={() => location.reload()}>
-            Reopen this drill
-          </button>
-        )}
+        <NoAccessPanel line={claimsNote} practice={knownMode.current ? (practice ? "yes" : "no") : practice ? "guess" : "no"} />
       </main>
     );
   }
