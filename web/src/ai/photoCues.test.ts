@@ -122,3 +122,17 @@ describe("the cloud photo read's server template", () => {
     expect(template.input.schema.mimeType.enum).toEqual(["image/jpeg"]);
   });
 });
+
+describe("the photo read's time limit", () => {
+  it("is more than twice the slowest photo read measured on Chrome's built-in model, and the command post uses it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { PHOTO_READ_TIMEOUT_MS } = await import("./photoCues");
+    const ev = JSON.parse(readFileSync(new URL("../../../docs/evidence/web/2026-11-21-photo-read-chrome.json", import.meta.url), "utf8")) as { runs: { replyMs: number }[] };
+    const slowest = Math.max(...ev.runs.map((r) => r.replyMs));
+    expect(slowest).toBeGreaterThan(15_000);
+    expect(PHOTO_READ_TIMEOUT_MS).toBeGreaterThan(2 * slowest);
+    // The paper sheet's first read on the same Mac took 31 s; a photo read gets at least as long.
+    expect(PHOTO_READ_TIMEOUT_MS).toBeGreaterThanOrEqual(90_000);
+    expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/photoGenerator\(ai\(\)\)\(b\), timeoutMs: PHOTO_READ_TIMEOUT_MS/);
+  });
+});

@@ -51,9 +51,17 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   const [checked, setChecked] = useState(NONE_CHECKED);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const live = useRef(true);
+  // Each camera request and each read is numbered. Starting a read or closing makes every earlier camera request and
+  // read stale; closing the rail's Details makes camera requests stale but lets a read finish. A stale camera is
+  // stopped and a stale read is dropped, so neither can take over the screen or fill the form.
+  const camAttempt = useRef(0);
+  const readAttempt = useRef(0);
+  const camCurrent = (mine: number) => live.current && mine === camAttempt.current;
+  const readCurrent = (mine: number) => live.current && mine === readAttempt.current;
 
   useEffect(() => {
     live.current = true;
@@ -77,30 +85,53 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     setCamReady(false);
   }
 
-  function close() {
+  /** Stops the camera, drops a request the browser has not answered yet, and makes asking again possible. */
+  function cancelCamera() {
+    camAttempt.current++;
     stopCamera();
+    setOpening(false);
+  }
+
+  function close() {
+    readAttempt.current++;
+    cancelCamera();
     onClose();
   }
 
+  // The command post's rail can close the Details that holds this read: the camera stops, and a read on screen stays.
+  useEffect(() => {
+    const details = root.current?.closest("details");
+    if (!details) return;
+    const onToggle = () => {
+      if (details.open) return;
+      cancelCamera();
+      setPhase((p) => (p === "camera" ? "pick" : p));
+    };
+    details.addEventListener("toggle", onToggle);
+    return () => details.removeEventListener("toggle", onToggle);
+  }, []);
+
   async function openCamera() {
+    const mine = ++camAttempt.current;
     setMessage(null);
     setOpening(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-      // Closed while the browser asked: stop it at once.
-      if (!live.current) return s.getTracks().forEach((t) => t.stop());
+      // Closed, or a photo chosen, while the browser asked: stop it at once.
+      if (!camCurrent(mine)) return s.getTracks().forEach((t) => t.stop());
       stream.current = s;
       setPhase("camera");
     } catch {
-      if (live.current) setMessage(SAY.camera);
+      if (camCurrent(mine)) setMessage(SAY.camera);
     } finally {
-      if (live.current) setOpening(false);
+      if (camCurrent(mine)) setOpening(false);
     }
   }
 
   async function takePhoto() {
     const v = video.current;
     if (!v || v.videoWidth === 0) return;
+    const mine = readAttempt.current;
     const c = document.createElement("canvas");
     c.width = v.videoWidth;
     c.height = v.videoHeight;
@@ -109,6 +140,8 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     const photo = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, "image/jpeg", 0.92));
     c.width = 0;
     c.height = 0;
+    // Cancelled while the photo was taken: nothing is read.
+    if (!readCurrent(mine)) return;
     if (!photo) {
       setPhase("pick");
       setMessage(SAY.photo);
@@ -118,29 +151,33 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   async function readPhoto(photo: Blob) {
+    const mine = ++readAttempt.current;
+    cancelCamera();
     setPhase("reading");
     setMessage(null);
     let jpeg: string;
     try {
       jpeg = bytesToBase64(await toStandardJpeg(photo));
     } catch {
-      if (live.current) {
+      if (readCurrent(mine)) {
         setPhase("pick");
         setMessage(SAY.photo);
       }
       return;
     }
+    // Cancelled while the photo was prepared: the model is never asked.
+    if (!readCurrent(mine)) return;
     let r: PaperReadResult;
     try {
       r = await read(jpeg, segmentId);
     } catch {
-      if (live.current) {
+      if (readCurrent(mine)) {
         setPhase("pick");
         setMessage(SAY.failed);
       }
       return;
     }
-    if (!live.current) return;
+    if (!readCurrent(mine)) return;
     if ("refused" in r) {
       setPhase("pick");
       setMessage(SAY[r.refused]);
@@ -186,7 +223,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
 
   if (phase === "confirm" && values && sheet && route) {
     return (
-      <div className="debrief-form">
+      <div ref={root} className="debrief-form">
         <p className="small">Read on this laptop. Check each box against the paper; change any the read got wrong.</p>
         {receiptLines({ asked: "this laptop only", route, sentBytes: 0, what: "the photo of the sheet" }).map((l) => (
           <p key={l} className="muted small">
@@ -251,7 +288,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   return (
-    <div className="debrief-form">
+    <div ref={root} className="debrief-form">
       <p className="small">Read the team's paper sheet on this laptop. The photo is not kept.</p>
       {phase === "pick" && (
         <>
@@ -280,7 +317,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
           </button>
         </>
       )}
-      {phase === "reading" && <p role="status">Reading the sheet on this laptop...</p>}
+      {phase === "reading" && <p role="status">Reading the sheet on this laptop. The first read can take up to a minute.</p>}
       {message && (
         <p className="error" role="alert">
           {message}

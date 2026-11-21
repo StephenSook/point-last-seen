@@ -5,7 +5,7 @@ import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint,
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { aiClient, clipCloudGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
-import { readPhotoOnDevice } from "../ai/photoCues";
+import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
 import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
 import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
@@ -38,7 +38,7 @@ import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
-import { sightingCards } from "./sightingCards";
+import { sightingCards, type SightingCard } from "./sightingCards";
 import { PURPOSE_LINE } from "../purpose";
 import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSendState, subscribePlans, unreadablePlanLine, writePlan } from "../data/plans";
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
@@ -51,6 +51,8 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { FirstReportCard, type FirstReportState } from "./FirstReportCard";
+import { FIRST_REPORT_LINE, firstReportInput, offerFirstReport } from "./firstReport";
 import { lastReportChange, viewState } from "./viewState";
 import { ChangeBeat } from "./ChangeBeat";
 import { perfSink } from "../telemetry/perf";
@@ -457,6 +459,48 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     setPin(null);
   };
   const cards = useMemo(() => sightingCards(events as unknown as EventDoc[]), [events]);
+  // Command's decision on a sighting card: the Sightings panel's buttons, and the practice search's first report.
+  const decideSighting = async (c: SightingCard, d: "confirmed" | "rejected") => {
+    const priorIncident = incident?.ipp && incident.gridId
+      ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM }
+      : null;
+    // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
+    // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
+    // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
+    if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
+      const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
+      await writePrior(pls.db, incidentId, prior, built);
+      return;
+    }
+    if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
+    // A family camera clip: command's confirmation and the camera prior, in one batch.
+    if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
+    const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
+    await writePrior(pls.db, incidentId, prior, built);
+  };
+  // The practice search's one-click first report (firstReport.ts): saved like a typed report, then, once the server
+  // has it, confirmed through decideSighting like a press of Confirm.
+  const [firstReport, setFirstReport] = useState<FirstReportState & { eventId?: string }>({ phase: "idle" });
+  const addFirstReport = () => {
+    const input = firstReportInput(segments, Date.now());
+    if (!input) return;
+    const doc = buildSightingEvent(input, writer());
+    setFirstReport({ phase: "saving", eventId: doc.eventId });
+    write(doc);
+  };
+  useEffect(() => {
+    const id = firstReport.eventId;
+    if (firstReport.phase !== "saving" || !id) return;
+    const w = writes[id];
+    if (w?.state === "rejected") return setFirstReport({ phase: "idle", error: "The report was not saved. Check the connection and try again." });
+    const card = cards.find((c) => c.sighting.eventId === id);
+    if (w?.state !== "acked" || !card) return;
+    setFirstReport({ phase: "confirming", eventId: id });
+    decideSighting(card, "confirmed").then(
+      () => setFirstReport({ phase: "idle" }),
+      (e: unknown) => setFirstReport({ phase: "idle", error: e instanceof Error ? e.message : "The report was saved but not confirmed. Confirm it under Sightings." }),
+    );
+  }, [firstReport, writes, cards]);
   const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
   const readNote = async (text: string) => {
     const t0 = Date.now();
@@ -490,7 +534,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   });
   const readPhotoHere = async (p: TrayPhoto) => {
     const t0 = Date.now();
-    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: 30_000 });
+    const r = await readPhotoOnDevice(bytesToBase64(p.bytes), { available: (o) => onDeviceAvailable(o), generate: (b) => photoGenerator(ai())(b), timeoutMs: PHOTO_READ_TIMEOUT_MS });
     if (!("cues" in r)) return r;
     const route = photoRoute("on_device", Date.now() - t0);
     traced(route);
@@ -756,6 +800,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
+          {incident && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+            <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
+          )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
@@ -820,24 +867,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               const at = c.sighting.position ?? (c.camera ? placedCameras[c.sighting.eventId] : undefined);
               return at ? segmentContaining(at, segments) : null;
             }}
-            onDecide={async (c, d) => {
-              const priorIncident = incident?.ipp && incident.gridId
-                ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM }
-                : null;
-              // A sighting with a place and a time: command's confirmation makes it the new last known point, so the
-              // confirmation and the prior rebuilt from it go in one batch. Without a place it stays a clue.
-              // An older sighting (seen no later than the newest input) stays a clue: confirming it never moves the start back.
-              if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
-                const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
-                await writePrior(pls.db, incidentId, prior, built);
-                return;
-              }
-              if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
-              // A family camera clip: command's confirmation and the camera prior, in one batch.
-              if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
-              const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
-              await writePrior(pls.db, incidentId, prior, built);
-            }}
+            onDecide={decideSighting}
             onPlace={(c) =>
               setPicker(() => (p: LatLon) => {
                 setPicker(null);

@@ -59,7 +59,7 @@ test("the Android link opens a published judge release for a signed-out browser"
   expect(await res.text()).toMatch(/point-last-seen-family-[0-9a-f]{8}\.apk/);
 });
 
-test("a practice search opens a labelled training incident on the real park map, with no code, and reopens without the join form", async ({ page }) => {
+test("a practice search opens a labelled training incident on the real park map, with no code, reopens without the join form, and its first report moves the top three", async ({ page }) => {
   await withDebugToken(page);
   await page.goto("/judge");
   await page.getByRole("button", { name: "Try a practice search" }).click();
@@ -83,6 +83,14 @@ test("a practice search opens a labelled training incident on the real park map,
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => (window as { sawJoinForm?: boolean }).sawJoinForm)).toBe(false);
   expect(await page.evaluate(() => (window as { sawOpening?: boolean }).sawOpening)).toBe(true);
+  // The one-click first report: saved and confirmed through the real engine, and the top three all change.
+  const top3 = () => page.locator("[data-testid=poa-rank] tr[data-seg]").evaluateAll((rows) => rows.slice(0, 3).map((r) => r.getAttribute("data-seg")));
+  await expect.poll(async () => (await top3()).length, { timeout: 20_000 }).toBe(3);
+  const before = await top3();
+  const card = page.getByRole("region", { name: "Try a report" });
+  await card.getByRole("button", { name: "Add and confirm this report" }).click();
+  await expect(card).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(async () => (await top3()).filter((id) => before.includes(id)), { timeout: 20_000 }).toEqual([]);
 });
 
 // The start callable answered here instead of by the server, so these checks never use up practice searches.

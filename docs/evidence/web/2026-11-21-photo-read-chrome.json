@@ -1,0 +1,19 @@
+{
+  "what": "The command post's on-device photo read (readPhotoOnDevice with photoGenerator, the same path as CommandPost's readPhotoHere) on Chrome's built-in model, measured on a local page with the same code path (local page, same code path). Three reads of one photo in a row in a newly opened page.",
+  "date": "2026-11-21",
+  "browser": "Stephen's Google Chrome stable on this Mac (macOS, Apple M5 Pro); the built-in model reported available for image + text; the Chrome and model versions were not recorded",
+  "page": "web/harness/photo-measure.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in, at the commit that adds the page",
+  "photo": "A synthetic figure drawn by the page: a blue coat and grey trousers on green, 640 x 480 JPEG (7,224 base64 characters). No real person.",
+  "note": "Run 1 is the first read in the newly opened page. How long it had been since the browser last used its model is not known, so this is one cold-start sample, not a worst case. Playwright's own Chrome profile has no built-in model (availability unavailable), so the measurement ran in the desktop browser.",
+  "runs": [
+    { "run": 1, "replyMs": 20032, "inferenceSource": "on_device", "outdoors": "yes", "evidence": "A solitary figure stands on a green surface." },
+    { "run": 2, "replyMs": 3208, "inferenceSource": "on_device", "outdoors": "yes", "evidence": "A person is standing on a grassy area." },
+    { "run": 3, "replyMs": 2726, "inferenceSource": "on_device", "outdoors": "yes", "evidence": "A person is standing on a green surface." }
+  ],
+  "googleRequests": [],
+  "findings": [
+    "The first read took 20,032 ms and the next two about 3 s. The command post gave a photo read 30 s, only 1.5 times the first read here; the paper sheet read's first read on the same Mac took 31,088 ms (2026-11-21-debrief-sheet-chrome.json), so a slower laptop's first photo read could be refused.",
+    "All three reads ran on device as the SDK reported, and the page made no request to a Google or Firebase host."
+  ],
+  "n": 3
+}
