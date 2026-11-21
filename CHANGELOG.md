@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill day, iPhone cloud-reading switch (part of the iPhone sections): it is on for Stephen's iPhone in this drill
+  and the volunteers' choice on theirs, and because it is off by default and not saved (ios/PLS/App/AppModel.swift,
+  cloudConsent = false, in memory only) the checklist says to turn it back on in Ready check after any relaunch.
+  Source: the iPhone team's correction. Verified in AppModel.swift.
 - Drill day: two iPhone sections from the iPhone team. Before leaving signal: check the build over USB (build 8,
   commit 8dfa5358), the Ready check rows, location, the cloud-reading switch (off whatever it says on iOS 26), the
   filming caption, and the practice-only route check. After the drill: list and copy the phone's outbox and any
