@@ -411,7 +411,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
   const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
   useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids)), [pls, incidentId, denied]);
-  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams), [memberDocs, events, removedUids, teams]);
+  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.

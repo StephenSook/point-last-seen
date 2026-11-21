@@ -30,16 +30,20 @@ export type MemberRow = { uid: string; role: "searcher" | "family"; teamId: stri
 
 /**
  * Everyone command can remove: the members records joined with the authors of the incident's events (an account that
- * joined before the records existed is known only by what it wrote). Command is never listed. A members record wins
- * over an event for role and team. Two people with the same label are told apart by the last four characters of
- * their id. Removed members come last.
+ * joined before the records existed is known only by what it wrote). Never listed: the caller, and any account ever
+ * seen as command (in a members record or in any of its events, whichever came first). A members record wins over an
+ * event for role and team. Two people with the same label are told apart by the last four characters of their id. Removed members come last.
  */
 export function memberRows(
   members: Readonly<Record<string, MemberDoc>>,
   events: readonly Readonly<Record<string, unknown>>[],
   removed: ReadonlySet<string>,
   teams: readonly { teamId: string; name: string }[],
+  selfUid: string | null = null,
 ): MemberRow[] {
+  const command = new Set<string>(selfUid ? [selfUid] : []);
+  for (const e of events) if (e["role"] === "command" && typeof e["authorUid"] === "string") command.add(e["authorUid"]);
+  for (const [uid, m] of Object.entries(members)) if (m.role === "command") command.add(uid);
   const known = new Map<string, { role: string; teamId: string | null }>();
   for (const e of events) {
     const uid = e["authorUid"], teamId = e["teamId"];
@@ -50,7 +54,7 @@ export function memberRows(
   const name = (teamId: string | null) => teams.find((t) => t.teamId === teamId)?.name ?? teamId ?? "No team";
   const rows: MemberRow[] = [];
   for (const [uid, k] of known) {
-    if (k.role !== "searcher" && k.role !== "family") continue;
+    if (command.has(uid) || (k.role !== "searcher" && k.role !== "family")) continue;
     const label = k.role === "family" ? "Family member" : `${name(k.teamId)} searcher`;
     rows.push({ uid, role: k.role, teamId: k.teamId, label, removed: removed.has(uid) });
   }

@@ -51,3 +51,24 @@ describe("memberRows: who command can remove", () => {
     expect(rows.map((r) => [r.label, r.removed])).toEqual([["T9 searcher", false], ["Family member", true]]);
   });
 });
+
+describe("memberRows: never the caller or a command account, and never two identical labels", () => {
+  const teams = [{ teamId: "T1", name: "Team 1" }];
+  it("leaves out the caller and anyone ever seen as command, whatever came first", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows(
+      { s2: { role: "command", team: null } },
+      [
+        { authorUid: "me", role: "searcher", teamId: "T1" },
+        { authorUid: "s1", role: "searcher", teamId: "T1" },
+        { authorUid: "s1", role: "command", teamId: null },
+        { authorUid: "s2", role: "searcher", teamId: "T1" },
+        { authorUid: "s3", role: "searcher", teamId: "T1" },
+      ],
+      new Set(),
+      teams,
+      "me",
+    );
+    expect(rows.map((r) => r.uid)).toEqual(["s3"]);
+  });
+});
