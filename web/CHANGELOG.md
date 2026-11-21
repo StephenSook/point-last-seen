@@ -2181,11 +2181,19 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence runs for the judge.
 - Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
 
+### fix(data): a Mexican number in dot form is not a coordinate pair
+- What: a decimal pair is a coordinate only with a minus before its second number (after a comma too, now), 4 to 7 decimals in each, and no phone cue just before it (call, tel, phone, cell, mobile, number, #, llame, llamar, teléfono or telefono, celular, número or numero, within the three words before it). "Call 33.12345678, 33.87654321", "55.12345678, 55.87654321", "Call 33.12345678, -103.3496" and "33.12345678 / -81.12345678" had all been kept whole. Every drill site is in the western hemisphere; an eastern pair with no minus is now removed.
+- Source: review (cross-family, post-merge, privacy).
+- Verified: the four strings and the cue list failed first, then pass; "Ubicación 33.12345, -84.5678" and "GPS 33.7490, -84.3880" stay; 100 draft shared cases and 1118 web unit tests (with the draft file) pass; the typecheck passes.
 ### fix(command): wait up to 90 s for a note read on this laptop, and say why
 - What: `NOTE_READ_TIMEOUT_MS` in `web/src/ai/sightingText.ts` is 90 s (was 30 s), the same as the photo read's. While the note is read on this laptop the sighting form says "Reading the note on this laptop. The first read can take up to a minute."
 - Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
 - Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
 
+### fix(data): a phone cue counts only right before a coordinate pair
+- What: a cue word voids a coordinate pair only when it sits right before it (spaces or a colon between) or with one connector between (al, a, at, on, to); a "#" before it still counts. A cue further back names a thing, not a number to dial, so a clue's place stays: "Phone found at 33.7866, -84.3733", "Cell ping 33.7866, -84.3733" and "Call came from 33.7866, -84.3733" had been removed. "Call 33.1234, -84.5678" and "Llame al 33.1234, -84.5678" are still removed.
+- Source: review.
+- Verified: the new keep test failed first, then passes; the cue cases still pass; 103 draft shared cases and 370 data tests pass on the web.
 ### test(config): the web's Remote Config defaults equal the published template's
 - What: a unit test in `web/src/config/rc.test.ts` checks that every key in `RC_DEFAULTS` has the same value as that key's default in `remoteconfig.template.json`. A browser whose fetch is refused or that is offline runs on the built-in defaults, so they must be the published values.
 - Why: Remote Config allows 60 fetch requests a minute per project per caller (the project's quota, read from Service Usage); for a web client the caller is its IP. The project's own request counts (Cloud Monitoring, last 24 h) show 90 to 200 fetches an hour from our test runs, with 2 to 34 refused with 429 only in the busiest hours. A judge's browser fetches about twice in 12 hours (the SDK's default minimum fetch interval, which the web keeps), so it should never meet the limit; if one is ever refused, it now provably runs the same configuration.
