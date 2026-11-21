@@ -2331,3 +2331,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the add buttons were disabled once a search ended, but a sighting form or camera clip panel already open (or opened in another tab before the close) still offered Save and Confirm, and a practice search ended before its first report still offered "Add and confirm this report". Once the server has the close, the post now closes both forms and hides the first-report card.
 - Source: review (Codex: the closed post still offers writes).
 - Verified: the deployed check `e2e/endSearch.spec.ts` now opens Add sighting before ending the search and expects the form gone after; it runs after deploy. Typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### fix(command): the End search confirm stays held after the close, and focus follows it
+- What: after the server took the close, the confirm briefly offered End search again until the post removed it; it now stays held with "Ending the search..." until then. Opening the confirm puts the focus on the first reason, and Cancel puts it back on End this search.
+- Source: review (Codex: a resubmission gap, and keyboard focus dropped on open and on Cancel).
+- Verified: two harness checks in `e2e/harness/endSearch.spec.ts` (the button stays disabled after the server has it; focus on open and on Cancel) failed first, then passed with the whole harness; typecheck and the hygiene guard pass.

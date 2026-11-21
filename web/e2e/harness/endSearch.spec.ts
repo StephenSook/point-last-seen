@@ -20,6 +20,18 @@ test("picking a reason and pressing End search writes that reason once", async (
   await expect(page.getByRole("button", { name: "End search", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Server has it" }).click();
   await expect(page.getByTestId("ended")).toHaveText("training_ended");
+  // Held until the post shows the search ended, so it cannot be pressed again in between.
+  await expect(page.getByRole("button", { name: "End search", exact: true })).toBeDisabled();
+  await expect(page.getByRole("status")).toHaveText("Ending the search...");
+});
+
+test("opening the confirm puts the focus on the first reason, and Cancel puts it back on the button", async ({ page }) => {
+  await page.goto("/harness/end-search.html");
+  await page.getByRole("button", { name: "End this search" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("radio", { name: "Person found" })).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "End this search" })).toBeFocused();
 });
 
 test("a refused write says so and keeps the confirm open to try again", async ({ page }) => {

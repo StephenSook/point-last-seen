@@ -1,7 +1,8 @@
 // Command ends the search here: one button, then an inline confirm that asks why. Nothing is written until a reason
-// is picked and End search is pressed; a refused write keeps the confirm open to try again.
+// is picked and End search is pressed; a refused write keeps the confirm open to try again. Once the server has the
+// close, the confirm stays held ("Ending the search...") until the post shows the search ended and removes it.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { END_REASONS, type EndReason } from "../data/endSearch";
 
 export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<void> }) {
@@ -9,10 +10,19 @@ export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<voi
   const [reason, setReason] = useState<EndReason | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const firstReason = useRef<HTMLInputElement>(null);
+  // Focus follows the confirm: to the first reason when it opens, back to the button when it closes.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (asking) firstReason.current?.focus();
+    else if (opened.current) trigger.current?.focus();
+    opened.current = asking;
+  }, [asking]);
 
   if (!asking) {
     return (
-      <button type="button" className="btn ghost" onClick={() => setAsking(true)}>
+      <button ref={trigger} type="button" className="btn ghost" onClick={() => setAsking(true)}>
         End this search
       </button>
     );
@@ -24,9 +34,9 @@ export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<voi
     setErr(null);
     try {
       await onEnd(reason);
+      // Stays busy: the post removes this control once it shows the search ended.
     } catch {
       setErr("Could not end the search. Check the connection and try again.");
-    } finally {
       setBusy(false);
     }
   }
@@ -34,9 +44,17 @@ export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<voi
   return (
     <fieldset className="end-search">
       <legend>Why is the search ending?</legend>
-      {END_REASONS.map((r) => (
+      {END_REASONS.map((r, i) => (
         <label key={r.value} className="check">
-          <input type="radio" name="end-reason" value={r.value} checked={reason === r.value} disabled={busy} onChange={() => setReason(r.value)} />
+          <input
+            ref={i === 0 ? firstReason : undefined}
+            type="radio"
+            name="end-reason"
+            value={r.value}
+            checked={reason === r.value}
+            disabled={busy}
+            onChange={() => setReason(r.value)}
+          />
           {r.label}
         </label>
       ))}
