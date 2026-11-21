@@ -70,3 +70,14 @@ describe("content reports, second round", () => {
     expect(flagTarget(reportFromDoc("r", doc())!, [ev], [], (ms) => new Date(ms).toISOString())).toBe("a report");
   });
 });
+
+describe("latestTeamOf, third round", () => {
+  it("prefers any report the server timed over one it did not, whatever the phone's clock said", async () => {
+    const { latestTeamOf } = await import("./contentReports");
+    const events = [
+      { authorUid: "u1", teamId: "T1", clientTimeMs: 10_000, serverTimeMs: null },
+      { authorUid: "u1", teamId: "T2", clientTimeMs: 1_000, serverTimeMs: 5_000 },
+    ];
+    expect(latestTeamOf("u1", events)).toBe("T2");
+  });
+});

@@ -2411,3 +2411,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a Problem report names a flagged report to the second ("a report from 14:03:42 in segment AE"), but the Reports rows showed only hours and minutes, so two reports from one segment in the same minute still could not be matched to the flag. Report rows now show seconds too.
 - Source: review (Codex, third round: command still cannot match a flag to the right report).
 - Verified: a new harness check in `e2e/harness/reports.spec.ts` failed first, then passed with the whole harness (219); the existing report checks match on the time's start and still pass; typecheck and the hygiene guard pass.
+
+### fix(data): a report the server timed outranks one it did not, for the flagger's team
+- What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
+- Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
