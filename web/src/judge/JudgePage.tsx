@@ -8,6 +8,7 @@ import { practiceErrorMessage, practiceSearch, startWithRetry } from "../data/pr
 import { ensureSignedIn, getPls } from "../firebase";
 import { JudgeExtras } from "../extras/JudgeExtras";
 import { runNumbers, runNumbersLine } from "../extras/runNumbers";
+import { loadMeasured, measuredLines, type MeasuredLoad } from "./measured";
 import { PURPOSE_LINE } from "../purpose";
 import { ADVICE_LINE, ANDROID_RELEASE_URL, TESTFLIGHT_URL, d2Copy, fetchedTime, judgeLinks, loadPublishedRun, modelLines } from "./judge";
 
@@ -17,6 +18,7 @@ const WAITING_LINE = "Your practice search is still being set up. This page open
 
 export function JudgePage() {
   const [run, setRun] = useState<Awaited<ReturnType<typeof loadPublishedRun>> | null>(null);
+  const [measuredFile, setMeasuredFile] = useState<MeasuredLoad | null>(null);
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [checking, setChecking] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
@@ -49,6 +51,7 @@ export function JudgePage() {
   useEffect(() => {
     document.title = "Judge's door: Point Last Seen";
     void loadPublishedRun().then(setRun);
+    void loadMeasured().then(setMeasuredFile);
   }, []);
 
   async function check() {
@@ -93,6 +96,8 @@ export function JudgePage() {
   // why there is nothing to replay, so the page has one replay section either way.
   const runFile = run?.state === "run" || run?.state === "refused" ? run.run : null;
   const numbers = run?.state === "run" ? runNumbers(run.run) : null;
+  // The Measured block shows only when the file is served; its numbers come from the file alone.
+  const measured = measuredFile?.state === "file" ? measuredLines(measuredFile.file, Date.now()) : null;
   // Before Remote Config starts (or if it cannot), the pinned default is still named.
   const [modelLine, sourceLine, ...more] = rc
     ? modelLines({ cloudModelWeb: rc.cloudModelWeb, cloudModelSource: rc.cloudModelSource ?? "default", fetchedAt: rc.fetchedAtMs ? fetchedTime(rc.fetchedAtMs) : null, killCloud: rc.killCloud })
@@ -167,6 +172,21 @@ export function JudgePage() {
         <section aria-labelledby="d5-h">
           <h2 id="d5-h" className="label">Numbers</h2>
           <p>{runNumbersLine(numbers)}</p>
+        </section>
+      )}
+      {measured && (
+        <section aria-labelledby="measured-h">
+          <h2 id="measured-h" className="label">Measured</h2>
+          {measured.state === "ok" ? (
+            <>
+              <h3 className="small">{measured.heading}</h3>
+              <p data-testid="measured-source">{measured.source}</p>
+              {measured.lines.map((l) => <p key={l}>{l}</p>)}
+              <p className="muted small">{measured.asOf}</p>
+            </>
+          ) : (
+            <p data-testid="measured-refused">{measured.line}</p>
+          )}
         </section>
       )}
       <footer className="judge-footer">

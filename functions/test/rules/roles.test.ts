@@ -107,7 +107,8 @@ describe("incident lifecycle: claims outlive an incident, so the rules check it"
     await assertFails(setDoc(doc(db, "incidents/J1"), { expiresAt: new Date(Date.now() + 365 * 86400_000) }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/J1"), { mode: "drill" }, { merge: true }));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { mode: "judge" }, { merge: true }));
-    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Renamed drill" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { searchState: "paused" }, { merge: true }));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), { name: "Renamed drill" }, { merge: true }));
   });
   it("closing is final: a closed incident cannot be reopened or edited by a client", async () => {
     await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed" });
@@ -200,5 +201,38 @@ describe("a judge's practice incident (startJudgeSession)", () => {
     await assertFails(getDoc(doc(dbAs(J, claims), "incidents/I1")));
     await assertFails(getDoc(doc(dbAs(J, claims), "incidents/I1/segments/AC")));
     await assertFails(setDoc(doc(dbAs(J, claims), `incidents/I1/events/${validEvent(J).eventId as string}`), validEvent(J)));
+  });
+});
+
+describe("ending a search: command closes it with one of three reasons", () => {
+  const end = (reason: unknown) => ({ status: "closed", closedReason: reason });
+  it("command ends an open search with each reason", async () => {
+    for (const reason of ["found", "suspended", "training_ended"]) {
+      await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open" });
+      await assertSucceeds(setDoc(doc(dbAs(C, commandClaims), "incidents/I1"), end(reason), { merge: true }));
+    }
+  });
+  it("a searcher or the family cannot end it", async () => {
+    await assertFails(setDoc(doc(dbAs(S, searcherClaims), "incidents/I1"), end("found"), { merge: true }));
+    await assertFails(setDoc(doc(dbAs(F, familyClaims), "incidents/I1"), end("found"), { merge: true }));
+  });
+  it("the reason is one of the three, and comes only with closing", async () => {
+    const db = dbAs(C, commandClaims);
+    for (const bad of ["lost", "", 3, null, { why: "found" }]) await assertFails(setDoc(doc(db, "incidents/I1"), end(bad), { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { status: "open", closedReason: "found" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
+  });
+  it("an open incident that already carries a reason (copied from an ended seed) still takes ordinary edits", async () => {
+    await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "open", closedReason: "training_ended" });
+    const db = dbAs(C, commandClaims);
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { searchState: "paused" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, "incidents/I1"), end("found"), { merge: true }));
+  });
+  it("an ended search keeps its reason: it cannot be edited or reopened", async () => {
+    await admin.db.doc("incidents/I1").set({ name: "Drill", mode: "drill", status: "closed", closedReason: "suspended" });
+    const db = dbAs(C, commandClaims);
+    await assertFails(setDoc(doc(db, "incidents/I1"), { closedReason: "found" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { status: "open" }, { merge: true }));
   });
 });

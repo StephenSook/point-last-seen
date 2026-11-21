@@ -36,6 +36,10 @@ struct ReportEchoView: View {
                 if let reason = entry.foundKindReason {
                     Text(reason).font(.title3.weight(.semibold)).accessibilityIdentifier("found-kind-line")
                 }
+                // Numbers the rules read, not the model, say so, always: the receipt never credits a model with them.
+                if entry.numbersFromRules == true {
+                    Text(EchoText.numbersByRules).font(.title3.weight(.semibold)).accessibilityIdentifier("numbers-line")
+                }
                 // Proof is a glyph; the sentence is for filming and judges only.
                 if showSources, let route = entry.doc.route {
                     Text(EchoText.routeLine(route)).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))

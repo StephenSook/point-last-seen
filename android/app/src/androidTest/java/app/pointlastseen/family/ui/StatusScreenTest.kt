@@ -48,17 +48,32 @@ class StatusScreenTest {
             .performScrollTo().assertIsDisplayed()
     }
 
-    @Test fun aFoundIncidentSaysFoundSafeAndOffersNothingToSend() {
+    @Test fun aFoundIncidentSaysTheLeadWillCallAndOffersNothingToSend() {
         rule.setContent { PaperTheme { StatusScreen(status = "found", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
-        rule.onNodeWithText("Found. Safe.").assertIsDisplayed()
+        rule.onNodeWithText("The search has ended. Your search lead will call you.").assertIsDisplayed()
         rule.onNodeWithText("Share a camera clip").assertDoesNotExist()
         rule.onNodeWithText("Someone saw them").assertDoesNotExist()
+    }
+
+    /** Command records a find as a closed search with the reason found: the same line, and nothing to send. */
+    @Test fun aSearchClosedAsFoundSaysTheLeadWillCall() {
+        rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, closedReason = "found") } }
+        rule.onNodeWithText("The search has ended. Your search lead will call you.").assertIsDisplayed()
+        rule.onNodeWithText("The search is closed.").assertDoesNotExist()
+        rule.onNodeWithText("I remembered something").assertDoesNotExist()
     }
 
     @Test fun aClosedSearchOffersNothingToSend() {
         rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
         rule.onNodeWithText("The search is closed.").assertIsDisplayed()
         rule.onNodeWithText("I remembered something").assertDoesNotExist()
+    }
+
+    /** A search that has ended takes nothing again: refused items are counted, with no "Try again". */
+    @Test fun anEndedSearchOffersNoTryAgain() {
+        rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = null, killCloud = false, pending = 0, rejected = 1, onOpen = {}, onRetry = {}, onLeave = {}, closedReason = "found") } }
+        rule.onNodeWithText("1 item was not accepted.").assertIsDisplayed()
+        rule.onNodeWithText("Try again").assertDoesNotExist()
     }
 
     /** The fixed line: news about the missing person comes from the search lead by phone, never from the app. */

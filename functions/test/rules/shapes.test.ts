@@ -164,9 +164,9 @@ describe("clip readings expire within 31 days; the incident status stays in its 
       await (ok ? assertSucceeds(write) : assertFails(write));
     }
   });
-  it("command cannot set the status outside open, found and closed, or remove it", async () => {
+  it("command cannot set the status outside open and closed (a bare found is refused), or remove it", async () => {
     const db = dbAs(C, commandClaims);
-    await assertSucceeds(setDoc(doc(db, "incidents/I1"), { status: "found" }, { merge: true }));
+    await assertFails(setDoc(doc(db, "incidents/I1"), { status: "found" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { status: "Closed" }, { merge: true }));
     await assertFails(setDoc(doc(db, "incidents/I1"), { name: "Drill", mode: "drill" }));
   });
@@ -197,5 +197,13 @@ describe("ops/storage is the one public doc: readable without sign-in, writable 
     await assertFails(getDoc(doc(dbAs(null), "ops/other")));
     await assertFails(setDoc(doc(dbAs(C, commandClaims), "ops/storage"), { lifecycleOk: true }));
     await assertFails(setDoc(doc(dbAs(null), "ops/storage"), { lifecycleOk: true }));
+  });
+  it("a day's judge practice count is readable too, for the quota probe; nobody writes it", async () => {
+    await admin.db.doc("ops/judgeSessions-2026-11-21").set({ count: 12 });
+    await admin.db.doc("ops/judgeSessions-latest").set({ count: 1 });
+    await assertSucceeds(getDoc(doc(dbAs(null), "ops/judgeSessions-2026-11-21")));
+    await assertFails(getDoc(doc(dbAs(null), "ops/judgeSessions-latest")));
+    await assertFails(setDoc(doc(dbAs(C, commandClaims), "ops/judgeSessions-2026-11-21"), { count: 0 }));
+    await assertFails(setDoc(doc(dbAs(null), "ops/judgeSessions-2026-11-21"), { count: 0 }));
   });
 });

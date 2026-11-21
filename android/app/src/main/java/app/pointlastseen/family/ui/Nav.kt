@@ -16,6 +16,8 @@ object Nav {
     // A note is not among them: writing down what the family remembers is preparation, and it sorts into the
     // profile on this phone, so it opens before a search is joined too.
     private val ACTIONS = setOf(Screen.CLIP, Screen.PHOTOS, Screen.SIGHTING)
+    // The screens that send to the search, and the search lead's question: none opens once the search has ended.
+    private val SENDING = ACTIONS + Screen.QUESTION
 
     fun start(joined: Boolean, gone: Boolean) =
         NavState(if (joined && gone) Screen.STATUS else Screen.PROFILE, gone, joined)
@@ -32,12 +34,17 @@ object Nav {
         if (s.gone) NavStep(s.copy(screen = Screen.STATUS, joined = true), publishProfile = true)
         else NavStep(s.copy(screen = Screen.PROFILE, joined = true))
 
-    fun open(s: NavState, target: Screen): NavState = when {
+    fun open(s: NavState, target: Screen, ended: Boolean = false): NavState = when {
+        // An ended search takes nothing more: the server refuses it.
+        ended && target in SENDING -> s
         target in ACTIONS && !(s.joined && s.gone) -> s
         // The search lead's question belongs to a search the family has joined.
         target == Screen.QUESTION && !s.joined -> s
         else -> s.copy(screen = target)
     }
+
+    /** The search has ended: a sending screen open now goes back to the status card, which says so. */
+    fun ended(s: NavState): NavState = if (s.screen in SENDING) s.copy(screen = Screen.STATUS) else s
 
     /** The 911 script is read during the call, so Back returns to "Call 911 first". */
     fun back(s: NavState): NavState = s.copy(

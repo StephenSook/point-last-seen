@@ -504,7 +504,16 @@ final class AppModel {
         return signedIn ? "Signed in" : "Not signed in. Stay in signal."
     }
 
+    static let leaveNeedsDelete = "Could not delete this phone's sign-in. Stay in signal, then leave again."
+    /// Why the last Leave was refused; nil once a Leave goes through.
+    private(set) var leaveRefusal: String?
     static let leaveBlocked = "Some reports have not reached command yet. Stay in signal until each one says Delivered, then leave."
+
+    private func refuseLeave(_ reason: String) -> Bool {
+        problem = reason
+        leaveRefusal = reason
+        return false
+    }
 
     /// True while a report from this phone is not settled with the server. Its write waits in this
     /// user's queue, so signing out now would strand it.
@@ -520,20 +529,23 @@ final class AppModel {
         } ?? false
     }
 
-    /// The searcher leaves the search on this phone: speech stops, the team's topic is left, the
-    /// mission goes, and the anonymous account is signed out, so the next join is a new user and
-    /// the join form shows again. Only this phone changes: the old user's claims stay on the server,
-    /// and command still lists that member until command removes them. Refused, with the reason,
-    /// while a report is not yet settled.
+    /// The searcher leaves the search on this phone: the anonymous account is deleted on the server, then
+    /// speech stops, the team's topic is left, the mission goes and the phone signs out, so the next join is
+    /// a new user and the join form shows again. Refused, with the reason, while a report is not yet settled
+    /// or when the delete fails (no signal, or the server refused): then nothing has changed, and no sign-in
+    /// is left behind on the server.
     @discardableResult
     func leaveSearch() async -> Bool {
         if practice != nil {
             endPractice()
             joinMessage = nil
             problem = nil
+            leaveRefusal = nil
             return true
         }
-        guard !hasUnsettledReports else { problem = Self.leaveBlocked; return false }
+        guard !hasUnsettledReports else { return refuseLeave(Self.leaveBlocked) }
+        // The server deletes its caller's own account, so this runs first, while the phone is still signed in.
+        guard await joinBackend.deleteMyAccount() else { return refuseLeave(Self.leaveNeedsDelete) }
         // Any access check still running has no say after this.
         accessCheck += 1
         await dropMission()
@@ -544,6 +556,7 @@ final class AppModel {
         await accountChanged()
         joinMessage = nil
         problem = nil
+        leaveRefusal = nil
         return true
     }
 
@@ -1125,7 +1138,7 @@ final class AppModel {
                 params: mission.params)
             let event = ReadOutcomeBuilder.event(from: outcome, rawText: rawText, position: position, context: context,
                                                  seq: try identity.nextSeq())
-            try store.append(event, foundKindReason: outcome.foundKindReason)
+            try store.append(event, foundKindReason: outcome.foundKindReason, numbersFromRules: outcome.numbersFromRules ? true : nil)
             problem = nil
             recomputePosterior(mission)
             // A practice report's timings stay off the server, like the report.

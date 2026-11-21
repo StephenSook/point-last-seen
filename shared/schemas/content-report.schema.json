@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pointlastseen.app/schemas/content-report.schema.json",
+  "title": "ContentReport",
+  "description": "incidents/{id}/contentReports/{reportId}: a member flags shared content as a problem (App Review guideline 1.2). A searcher or family member creates its own, once; command reads every report, the author only its own; nobody updates or deletes one. reportId is the document id (32 lowercase hex).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authorUid",
+    "role",
+    "target",
+    "targetId",
+    "reason",
+    "createdAt"
+  ],
+  "properties": {
+    "authorUid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "The writer's auth uid."
+    },
+    "role": {
+      "type": "string",
+      "enum": ["searcher", "family"],
+      "description": "The writer's role claim."
+    },
+    "target": {
+      "type": "string",
+      "enum": ["task", "family_description", "event"],
+      "description": "What is flagged: the team's shared task (the current plan's assignment), the family's description of the person (profile/shared), or one event (a report, a sighting)."
+    },
+    "targetId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "For event: the event id (32 lowercase hex). For task: the plan document id. For family_description: null."
+    },
+    "reason": {
+      "type": "string",
+      "enum": ["abusive", "personal_information", "wrong_or_misleading", "other"],
+      "description": "Why: abusive or offensive; personal information that should not be shared; wrong or misleading; other."
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Optional words from the reporter, phone numbers removed before it is stored."
+    },
+    "createdAt": {
+      "description": "Firestore server timestamp of the write (request.time)."
+    }
+  },
+  "x-parity": {
+    "#": {
+      "ts": "web/src/data/contentReports.ts#ContentReport",
+      "ios": "pending:ios/PLSCore/Sources/PLSCore/ContentReport.swift#ContentReport",
+      "android": "android/app/src/main/java/app/pointlastseen/family/data/ContentReport.kt#ContentReport"
+    }
+  }
+}

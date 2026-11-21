@@ -5,6 +5,103 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): only a cleared report is filled, and only a stated coverage refuses the read
+- What: numbers matter only to a cleared report, so a sighting or clue is no longer filled from the rules ("There were
+  200 people at the entrance" no longer costs a valid sighting). In a cleared report, a stated coverage the app
+  refuses still refuses the read, but a time or count the rules read out of range is left out and the rest is kept.
+- Source: third review of the numbers fix.
+- Verified: tests for a sighting with a crowd count and for a misread count in a cleared report failed before the
+  change and pass after; 446 PLSCore tests pass.
+
+### fix(ios-core): an explicit search time beats an "in N minutes" one
+- What: an "in N minutes" time with no cue word now counts only when the report states no other search time, so
+  "pickup in 45 minutes. Search took 10 minutes." reads 10, while "cleared AE in 45 minutes" still reads 45. A unit
+  is joined to the time phrase before it only by a lower-case "and"; a sentence that starts with "And" is a new
+  sentence ("Next radio check in an hour. And 30 minutes spent on the search." reads 30).
+- Source: third review of the numbers fix.
+- Verified: new parser tests failed before the change and pass after; 446 PLSCore tests pass.
+
+### fix(ios): a stated number the app refuses refuses the read, and a permissive percent stays a percent
+- What: when the rules find a number the report states that the app refuses (coverage 400, or -.7), the model's
+  reading is no longer used without it, because its effort numbers could then clear the area; the read goes on as
+  the rules alone end it, refused ("Could not read this report. Ask command."), with a stage note. The quote retry
+  still sees only the model's own reasons. The permissive line's coverage keeps a stated percent ("cleared|AE|1%" is
+  0.01, as the parser reads it, not a whole ratio).
+- Source: second review of the numbers fix.
+- Verified: tests for both refused values, the quote retry and the permissive percent failed before the change and
+  pass after; 442 PLSCore tests pass.
+
+### fix(ios-core): the parser reads search times, signs and percents exactly
+- What: "in 30 minutes" is a search time again ("cleared AE in 45 minutes") unless a word a little before says what
+  happens next ("radio check in 30 minutes", "back in an hour", "will report again in 20 minutes"); a unit joined by
+  "and" belongs to the phrase before it ("next check in 1 hour and 30 minutes" is no search time). A minus pasted as
+  U+2212 stays a minus sign. "Per" alone is no percent ("coverage 1 per the field lead" stays 1), "per cent" is. A
+  negative "minutes ago" is not read, so a sighting is never put after its report.
+- Source: second review of the numbers fix.
+- Verified: new parser tests for each case and its control failed before the change and pass after; 442 PLSCore
+  tests pass.
+
+### fix(ios): a number from the rules is used only while the reading stays valid
+- What: the rules fill a model reading's empty numbers only after the model's own reading has passed validation, and
+  the filled reading is used only if it passes too. Otherwise the model's reading stands without the fill (no "Numbers
+  read by rules." line). Before, the fill ran first, so a stated value out of range (coverage 400) could make a
+  valid reading fail and skip the one quote retry Apple's model gets.
+- Source: review of the numbers fix.
+- Verified: tests for a fill that would break a valid reading and for the quote retry with such a fill failed on the
+  earlier rule and pass now; 436 PLSCore tests pass.
+
+### fix(ios-core): the parser reads only stated search numbers
+- What: the rules parser now also reads the numbers a model leaves empty, so three misreadings were fixed. A time that
+  says when something happens ("next radio check in 30 minutes", "every 2 hours", "in about 1 hour") is no longer read
+  as the minutes searched; "for 45 minutes" still is. A stated percent of 3 or less is made a ratio ("coverage 1%" was
+  read as a whole ratio, 100%; it is now 0.01), while larger stated values stay as stated for normalizing. A leading
+  dot keeps its number and sign (".7" was read as 7, so 0.07; it is now 0.7, and "-.7" stays negative and is refused).
+- Source: review of the numbers fix.
+- Verified: new parser tests for each case and its control failed before the change and pass after; 436 PLSCore
+  tests pass.
+
+### fix(ios): numbers a model leaves empty are read from the report by the rules
+- What: Apple's on-device model returns every number in its reading empty, even one the report states, so a typed
+  "cleared" report never moved the map on a phone with Apple Intelligence ("Cleared segment AE, coverage 0.7, nothing
+  found." was answered "Ask command."). After a model's reading, each number it left empty (coverage, minutes,
+  searchers) is now taken from the rules parser, which reads only numbers the report states; a model's own number
+  stays, and kind, area and route stay the model's. The receipt then adds "Numbers read by rules." That note lives only
+  in this phone's journal, like the found-kind note, never in the event. The permissive stage, whose line carries only
+  kind, area and coverage, says so too when its other numbers came from the parser.
+- Source: a simulator run of the drill step card. All five test reports came back with no numbers. A spike on the
+  Mac's on-device model with the same schema, instructions and greedy options returned no numbers for all five, and a
+  schema with required numbers made it invent ones the reports never stated (10 minutes, 1 searcher, 100 m, coverage
+  0.8 on a report that states none), so the numbers come from code.
+- Verified: new PLSCore tests for the four coverage sentences, minutes and searchers, a model's own number, a report
+  with no numbers, the permissive stage, a rules-only read, the receipt line and an older journal without the flag;
+  an app test that the flag stays with the report. Each new test failed before the change and passes after; 430
+  PLSCore tests and the full app suite pass.
+### docs(limits): Leave deletes the account first and needs signal
+- What: the LIMITS line on "Leave this search" now says the phone asks the server to delete its anonymous account
+  first, that leaving needs signal (every report settled, and a failed delete changes nothing and asks to try again),
+  that an account already gone counts as deleted, and that sent reports stay in the incident until its data is
+  deleted. It no longer says the old user's claims stay on the server.
+- Source: the Leave change before this entry.
+- Verified: each sentence checked against AppModel.leaveSearch and FirebaseJoinBackend.deleteMyAccount at this commit.
+
+### feat(ios): Leave this search deletes the phone's account on the server
+- What: "Leave this search" first asks the server to delete this phone's anonymous account (the deleteMyAccount
+  callable, with limited-use App Check tokens and nothing sent), while still signed in; only then does the phone leave
+  the team's topic, drop the mission and sign out. If the delete fails (no signal, or the server refused), nothing
+  changes and the phone says: "Could not delete this phone's sign-in. Stay in signal, then leave again." So no sign-in
+  is left behind on the server. An account already gone counts as deleted, so a Leave whose earlier reply was lost
+  cannot get stuck: no user left on the phone, Auth answering userNotFound, userDisabled, userTokenExpired or
+  invalidUserToken, or Auth having signed that user out during the call. The Ready check shows the actual reason a
+  Leave was refused (it always showed the unsettled-reports reason). The leave dialog now says the sign-in is deleted
+  and that reports already sent stay with command; it no longer says command can remove you. Ending the practice drill
+  does not touch the account.
+- Source: App Review's request for account deletion in apps that create accounts (the join makes an anonymous one).
+- Verified: tests for the delete asked while signed in, a failed delete keeping the search (still signed in, on the
+  topic, the reason shown), a second Leave after a lost reply, the adapter (callable name, limited-use tokens, empty
+  payload, only ok counts, each gone-user answer, Auth dropping the user mid-call, no user on the phone) and no delete
+  while a report is unsettled or in the practice drill. The new tests failed before the change and pass after. The
+  callable is not deployed yet, so on a phone today Leave is refused until it is.
+
 ### fix(ios): Ready check shows no sign-in line in the practice drill
 - What: Ready check's "Not signed in. Stay in signal." line is hidden in the practice drill, which never signs in, so a
   tester trying the app without a team is not told to do something the practice drill does not need. Outside the

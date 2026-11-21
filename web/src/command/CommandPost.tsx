@@ -45,6 +45,12 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
+import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
+import { FlagsPanel } from "./FlagsPanel";
+import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
+import { MembersPanel } from "./MembersPanel";
+import { endedLine, endSearch, writesOpen } from "../data/endSearch";
+import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
@@ -405,7 +411,41 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const teams = view?.teams ?? [];
   const segments = view?.segments ?? [];
   const lanes = useMemo(() => mergeModel(events.map(asMergeDoc), teams, now, view?.clockOffsets ?? {}), [events, teams, now, view]);
+  // What searchers and family flagged with Report a problem. A searcher is named by the team of its latest report (a
+  // rejoin can move it to another team); a refused read keeps the flags and says they may be out of date.
+  const [flags, setFlags] = useState<Flag[]>([]);
+  const [flagsStale, setFlagsStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeFlags(pls.db, incidentId, setFlags, () => setFlagsStale(true))), [pls, incidentId, denied]);
+  const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  // A flagged report is named to the second, so two from one segment in the same minute read apart.
+  const reportClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const flagAuthor = (uid: string, role: Flag["role"]) => {
+    if (role === "family") return "Family member";
+    const teamId = latestTeamOf(uid, events);
+    const team = teams.find((t) => t.teamId === teamId)?.name;
+    return team ? `${team} searcher` : "A searcher";
+  };
+  // The people command can remove: the server's members records and the authors of the incident's reports.
+  const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
+  const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
+  // A refused read stops its listener for good, so the panel says the list may be out of date and offers no removal.
+  const [membersStale, setMembersStale] = useState(false);
+  useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids, () => setMembersStale(true))), [pls, incidentId, denied]);
+  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
+  // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
+  // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.
+  // The server's last confirmed status decides, so neither a pending close nor a pending later edit flips it.
+  const ended = endedLine(view?.serverStatus, incident?.closedReason);
+  // No new reports once the server or this browser has the search closed (the rules refuse them either way).
+  const closedHere = !writesOpen(view?.serverStatus, incident?.status);
+  // A form already open (or opened before another tab ended the search) goes too.
+  useEffect(() => {
+    if (!closedHere) return;
+    setAdding(false);
+    setClipping(false);
+    setPin(null);
+  }, [closedHere]);
   const conditions = conditionsOf(incident);
   // What under Details needs a person, from live data: the conditions' reading, photos to review, new family answers.
   const summary = detailsSummary({ conditions, photosToReview: photosToReview(photos, reviewedPhotos), newAnswers: newFamilyAnswers(questions ?? [], detailsSeenAt) });
@@ -809,6 +849,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           No connection. Showing the last data received.
         </p>
       )}
+      {ended && (
+        <p role="status" data-testid="ended-line">
+          {ended}
+        </p>
+      )}
       {unreadablePlanLine(state.unreadablePlans ?? []) && (
         <p className="error" role="status" data-testid="unreadable-plans">
           {unreadablePlanLine(state.unreadablePlans ?? [])}
@@ -836,13 +881,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               </button>
             </div>
           )}
-          {incident && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
+          {incident && !closedHere && (offerFirstReport(incidentId, events as unknown as EventDoc[]) || firstReport.phase !== "idle") && firstReportInput(segments, 0) && (
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
           <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
+          {/* Problem reports follow the rail's lead (what changed, the plan, the top segments), so the working view stays first. */}
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
           {editingProfile ? (
             <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
@@ -873,7 +920,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping}>
+            <button type="button" className="btn" onClick={() => setAdding(true)} disabled={!incident || clipping || closedHere}>
               Add sighting
             </button>
           )}
@@ -893,7 +940,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding}>
+            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
               Add camera clip
             </button>
           )}
@@ -1003,6 +1050,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
+            <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
+            {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
+            {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
         </aside>
       </div>
@@ -1011,7 +1061,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <button
           type="button"
           className="btn"
-          disabled={!incident || clipping}
+          disabled={!incident || clipping || closedHere}
           onClick={() => {
             setAdding(true);
             requestAnimationFrame(() => document.querySelector(".sighting-form")?.scrollIntoView({ block: "start" }));

@@ -11,6 +11,8 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
     func callJoin(_ payload: [String: String]) async throws -> JSONValue { throw JoinCallError.refused }
     func refreshClaims() async throws -> [String: JSONValue] { throw JoinCallError.refused }
     func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? { nil }
+    /// The server deletes the account, so a test's Leave goes through.
+    func deleteMyAccount() async -> Bool { true }
 }
 
 @MainActor
@@ -573,6 +575,29 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(await model.submit("Found a blue coat by the creek in AC", inputMethod: .typed) == "")
         #expect(store.entries.first?.foundKindReason == FoundKind.reason)
         #expect(seen.names == ["Bea", "Mama Bea"])
+    }
+
+    /// A read whose numbers came from the rules, not the model, keeps that with the report on this phone, for the
+    /// receipt's line; a read whose numbers were the model's keeps nothing.
+    @Test func numbersReadByRulesStayWithTheReport() async throws {
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 640, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .cleared
+            reading.segmentIds = ["AC"]
+            reading.coverage = 0.7
+            return ReadOutcome(reading: reading, route: route, validation: .ok, numbersFromRules: text.contains("rules"))
+        }, joinBackend: NoClaimsJoinBackend())
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("numbers-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submit("Cleared AC, coverage 0.7 (rules)", inputMethod: .typed) == "")
+        #expect(await model.submit("Cleared AC, coverage 0.7", inputMethod: .typed) == "")
+        #expect(store.entries.map(\.numbersFromRules) == [true, nil])
     }
 
     @Test func aFailedSignInReadsNothingAndSendsNothing() async throws {

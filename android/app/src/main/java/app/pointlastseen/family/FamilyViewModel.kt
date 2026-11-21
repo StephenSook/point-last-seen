@@ -209,7 +209,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
         profileShareFailed = false
     }
 
+    /** Whether the search this phone is in has ended: no new sighting, clip, photo or answer is sent to it. */
+    private fun searchEnded(): Boolean = IncidentWatch.ended(incident.value, session.incidentId())
+
     init {
+        // When the search ends, a sending screen open now goes back to the status card.
+        viewModelScope.launch { incident.collect { if (searchEnded()) nav = Nav.ended(nav) } }
         rc.start()
         viewModelScope.launch { writer.run() }
         session.incidentId()?.let { watch.watch(it); familyTopic.joined(it); checkQuestions(it, fromPush = false); startJoined(it) }
@@ -254,7 +259,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     fun warnings(): List<String> = Profiles.warnings(profile, System.currentTimeMillis(), zone)
 
     fun open(target: Screen) {
-        nav = Nav.open(nav, target)
+        nav = Nav.open(nav, target, ended = searchEnded())
         // The photos this phone allowed earlier (also before a restart) can be withdrawn from the photos screen.
         if (nav.screen == Screen.PHOTOS) session.incidentId()?.let { photosUi = photosUi.copy(consented = consentedPhotos.list(it).size, withdrawNote = null) }
     }
@@ -294,7 +299,7 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     fun calledFirst() = apply(Nav.calledFirst(nav))
 
-    /** After "Found. Safe." or a closed search: forget the incident and the gone flag; keep the profile. */
+    /** After a search that ended (found or closed): forget the incident and the gone flag; keep the profile. */
     fun leaveSearch() = leave(keepGone = false)
 
     /** The family left a search still open: forget it, keep the profile and its "gone" state, so it can join again. */
@@ -476,12 +481,17 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Sends every refused event of the search this phone is in again, with its same id. */
     fun retryRejected() {
+        if (searchEnded()) return
         val incidentId = session.incidentId() ?: return
         writer.retryRejected(incidentId)
     }
 
     // Someone saw them
     fun sendSighting(input: FamilySightingInput) {
+        if (searchEnded()) {
+            sightingError = Copy.SEARCH_ENDED_NOT_SENT
+            return
+        }
         sightingError = null
         val doc = try {
             Events.familySighting(input, context())
@@ -540,6 +550,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun readClip(form: ClipForm) {
+        if (searchEnded()) {
+            clipUi = ClipUi.Done(ClipOutcome.Refused(Copy.SEARCH_ENDED_NOT_SENT))
+            return
+        }
         val uri = clipUri ?: return
         val incidentId = session.incidentId() ?: return
         val uid = Firebase.auth.currentUser?.uid ?: return
@@ -585,6 +599,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun confirmClip() {
+        if (searchEnded()) {
+            clipUi = ClipUi.Done(ClipOutcome.Refused(Copy.SEARCH_ENDED_NOT_SENT))
+            return
+        }
         val (read, form) = lastClip ?: return
         val events = try {
             Events.confirmClip(
@@ -606,6 +624,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
 
     // Photos
     fun pickedPhotos(uris: List<Uri>) {
+        if (searchEnded()) {
+            photosUi = photosUi.copy(error = Copy.SEARCH_ENDED_NOT_SENT)
+            return
+        }
         val incidentId = session.incidentId() ?: return
         if (uris.isEmpty()) return
         photosUi = photosUi.copy(busy = true, error = null)
@@ -678,6 +700,10 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun sendAnswer(text: String) {
+        if (searchEnded()) {
+            questionUi = questionUi.copy(error = Copy.SEARCH_ENDED_NOT_SENT)
+            return
+        }
         val (incidentId, questionId) = openQuestion ?: return
         val uid = Firebase.auth.currentUser?.uid ?: return
         questionUi = questionUi.copy(sending = true, error = null)

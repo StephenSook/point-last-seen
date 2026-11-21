@@ -34,11 +34,24 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
-- "Leave this search" on the iPhone changes only the phone: it leaves the team's push topic, drops the mission and
-  signs the anonymous account out, so the next join is a new user. The old user's claims stay on the server, and
-  command still lists that member: the app has no way yet for command to remove a member from a search. It waits
-  until every report from the phone is settled with the server, since a report still in that user's write queue
-  would otherwise be stranded.
+- "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
+  `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
+  is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
+  a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
+  and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
+  Reports already sent stay in the incident until its data is deleted, and command still lists that member, so
+  command can still remove it like any other.
+- Command removes a searcher or family member from the People panel (the `removeMember` callable). From that moment
+  the member's app can no longer read or write anything in the search, screens already open included (measured on
+  2026-11-21: two open listeners were refused within a second of the removal), and that account cannot join again.
+  Four limits remain:
+  - A removed person can join again with a new sign-in until that role's join code is replaced (the
+    `rotateJoinCode` callable). Replacing it stops every older code of that role, an extra one such as a reviewer's
+    included.
+  - A removed member can still open media through links they already received, until the drill's media is deleted.
+  - A member removed while a clip upload is in progress can finish that one upload within the hour.
+  - Removal takes effect at once for every account that joined after membership records began (2026-11-21, 18:48
+    UTC). An account that joined before and has since joined another search cannot be removed for up to an hour.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,
@@ -305,7 +318,8 @@ each line says what the limit is and why.
   `closedAt` from every client, so no seat can move a drill's deletion. Closing is final, so `closedAt` is never
   cleared. A drill closed before this job existed has no `closedAt` and is not deleted by it (on 2026-11-21, before
   the rules made `closedAt` the server's, every drill was still open and none had a `closedAt`).
-- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. Each is read again just
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it, a member command removed
+  included (its claims were cleared, so it is found through the drill's removal records). Each is read again just
   before it is deleted and kept if it has joined another incident since or was used after the drill closed; a
   sign-in with an email, a phone number or another provider is a person's account and is kept. A failed sign-in
   delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close

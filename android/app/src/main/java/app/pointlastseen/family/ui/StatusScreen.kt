@@ -34,18 +34,21 @@ fun StatusScreen(
     subjectName: String = "",
     /** Leaving a search still open, after the family confirms it. */
     onLeaveOpen: () -> Unit = {},
+    /** Why command ended the search (found, suspended or training_ended), when it is closed. */
+    closedReason: String? = null,
 ) {
     val open = status != "found" && status != "closed"
     var asking by rememberSaveable { mutableStateOf(false) }
     FamilyScaffold(mode, killCloud) {
-        Sentence(Copy.status(status))
+        Sentence(Copy.status(status, closedReason))
         Note(Copy.newsByPhone(subjectName))
         if (unsaved) Note("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
         if (shareFailed) Note("The profile did not reach command. It will be sent again when you save it.")
         if (pending > 0) Note(if (pending == 1) "1 item waiting to send." else "$pending items waiting to send.")
         if (rejected > 0) {
             Note(if (rejected == 1) "1 item was not accepted." else "$rejected items were not accepted.")
-            OtherAction("Try again", onClick = onRetry)
+            // An ended search takes nothing again, so there is nothing to try.
+            if (open) OtherAction("Try again", onClick = onRetry)
         }
         if (open) {
             OtherAction("Someone saw them") { onOpen(Screen.SIGHTING) }

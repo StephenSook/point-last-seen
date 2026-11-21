@@ -5,13 +5,28 @@ import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.data.RouteRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CopyTest {
     @Test fun statusSentences() {
         assertEquals("Searchers are looking.", Copy.status("open"))
-        assertEquals("Found. Safe.", Copy.status("found"))
         assertEquals("The search is closed.", Copy.status("closed"))
+        assertEquals("The search is closed.", Copy.status("closed", "suspended"))
+        assertEquals("The search is closed.", Copy.status("closed", "training_ended"))
+    }
+
+    /** A search that ended with the person found says only that the lead will call: news comes by phone, never from the app. */
+    @Test fun aFoundSearchSaysTheLeadWillCall() {
+        assertEquals("The search has ended. Your search lead will call you.", Copy.status("closed", "found"))
+        assertEquals("The search has ended. Your search lead will call you.", Copy.status("found"))
+        for (s in listOf(Copy.status("found"), Copy.status("closed", "found"))) {
+            assertTrue(s, !s.contains("found", ignoreCase = true) && !s.contains("safe", ignoreCase = true))
+        }
+    }
+
+    @Test fun aSendAfterTheSearchEndedSaysSo() {
+        assertEquals("The search has ended, so this was not sent.", Copy.SEARCH_ENDED_NOT_SENT)
     }
 
     @Test fun callFirstSaysTheDrillCallTakerInADrill() {

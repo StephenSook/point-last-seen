@@ -15,12 +15,18 @@ service firebase.storage {
     // exist and not be expired. Cross-service rules: the deploy grants Storage read access to Firestore.
     // A judge sandbox must carry a timestamp expiry in the future and have finished its setup (as in
     // firestore.rules liveFor; only an explicit setupReady == true counts); any other incident may have no expiry.
-    function notExpired(incidentId) {
+    // With mustBeOpen, the same single lookup also requires the search not to have ended (status closed): an
+    // ended search takes no new media, while what it holds stays readable until its data is deleted.
+    function liveIncident(incidentId, mustBeOpen) {
       let i = firestore.get(/databases/(default)/documents/incidents/$(incidentId)).data;
       let exp = i.get('expiresAt', null);
-      return i.get('mode', '') == 'judge'
-        ? (exp is timestamp && request.time < exp && i.get('setupReady', false) == true)
-        : (exp == null || (exp is timestamp && request.time < exp));
+      return (i.get('mode', '') == 'judge'
+          ? (exp is timestamp && request.time < exp && i.get('setupReady', false) == true)
+          : (exp == null || (exp is timestamp && request.time < exp)))
+        && (!mustBeOpen || i.get('status', 'open') != 'closed');
+    }
+    function notExpired(incidentId) {
+      return liveIncident(incidentId, false);
     }
     // Ruling I9: the uploader's own clip reading, with the three required consents, exists before the upload.
     function clipReadingReady(incidentId, file) {
@@ -34,8 +40,11 @@ service firebase.storage {
     // Storage rules may make at most two Firestore lookups per request. isMember uses two: the incident and the removal
     // record (functions/src/members.ts writes it before clearing the claims, so a token that still carries them is
     // refused at once).
+    function claimsMemberOf(incidentId, mustBeOpen) {
+      return request.auth != null && request.auth.token.inc == incidentId && liveIncident(incidentId, mustBeOpen);
+    }
     function claimsMember(incidentId) {
-      return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId);
+      return claimsMemberOf(incidentId, false);
     }
     function isMember(incidentId) {
       return claimsMember(incidentId)
@@ -53,7 +62,7 @@ service firebase.storage {
       allow read: if isMember(incidentId);
       // Two lookups here are the incident and the clip's consent record, so no removal lookup: a removed account
       // cannot create the consent record (Firestore refuses its writes), so it cannot start a new clip.
-      allow create: if claimsMember(incidentId) && request.auth.token.role in ['command', 'family']
+      allow create: if claimsMemberOf(incidentId, true) && request.auth.token.role in ['command', 'family']
         && resource == null
         && file.matches('^[0-9a-f]{64}[.]mp4$')
         && clipReadingReady(incidentId, file)
@@ -64,7 +73,10 @@ service firebase.storage {
 
     match /photos/{incidentId}/{file} {
       allow read: if isCommandOrFamily(incidentId);
-      allow create: if isCommandOrFamily(incidentId)
+      // The same two lookups as isMember (the incident, open, and the removal record).
+      allow create: if claimsMemberOf(incidentId, true)
+        && !firestore.exists(/databases/(default)/documents/incidents/$(incidentId)/removed/$(request.auth.uid))
+        && request.auth.token.role in ['command', 'family']
         && resource == null
         && file.matches('^[0-9a-f]{64}[.]jpg$')
         && request.resource.size <= 2 * 1024 * 1024
