@@ -61,13 +61,13 @@ export function newLastKnownPointChange(sighting: EventDoc, confirmation: EventD
   const seg = sighting.effect.kind === "clue"
     ? Object.entries(sighting.effect.influences).find(([, v]) => v === "strong_for")?.[0] ?? null
     : null;
-  const where = seg ? `at ${seg}` : "outside the mapped area";
+  const where = seg ? `at ${seg}` : "beyond the drill area";
   const mins = Math.max(0, Math.round((confirmation.clientTimeMs - (sighting.observedAtMs ?? confirmation.clientTimeMs)) / 60_000));
   const age = mins < 1 ? "seen just before it was confirmed" : `seen ${mins} min before it was confirmed`;
   return {
     changed: [],
     banner: `New last known point: the sighting ${where}, ${age}. The map is rebuilt from there.`,
-    announce: seg ? `New last known point at segment ${seg}. The map is rebuilt from the sighting.` : "New last known point outside the mapped area. The map is rebuilt from the sighting.",
+    announce: seg ? `New last known point at segment ${seg}. The map is rebuilt from the sighting.` : "New last known point beyond the drill area. The map is rebuilt from the sighting.",
   };
 }
 
