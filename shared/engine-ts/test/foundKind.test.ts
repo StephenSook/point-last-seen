@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import vector from "../../test-vectors/found-kind.json";
 import { correctFoundKind, FOUND_AS_CLUE_REASON, type ReportKind, type ReportReading } from "../src/index";
+import { OBJECT_NOTE_WORDS, PERSON_WORDS } from "../src/found";
 
 const BLANK: ReportReading = {
   kind: "found", segmentIds: [], method: "unknown", coverage: null, minutes: null, searchers: null, searchType: "unknown",
@@ -47,6 +48,8 @@ describe("a found reading checked against its note (shared/test-vectors/found-ki
       "ambulance on the way", "she is ok", "he is okay", "she is fine", "he is awake", "she is responsive", "he is injured",
       "EMS on scene", "medic with him", "called 911 for her", "the man is cold but breathing", "a lady is with us",
       "he is dead", "she was located", "the subject is safe", "taking him to the hospital", "paramedics have them",
+      "grandma nearby", "found mom too", "found Bea by the bench", "grandpa is with the team", "her husband is here",
+      "my dad is sitting down", "nana answered", "found Bea", "and then found grandpa",
     ];
     for (const o of objects) {
       for (const p of people) {
@@ -57,6 +60,34 @@ describe("a found reading checked against its note (shared/test-vectors/found-ki
         }
       }
     }
+  });
+
+  // Generated notes pairing a found object with a family word, a name, or a second "found" about a person.
+  it("never corrects an object found beside a family word, a name, or a second find of a person", () => {
+    const objects = ["a coat", "the walker", "a shoe", "some keys", "her coat", "his hat", "a blue jacket"];
+    const family = ["grandma", "grandpa", "grandmother", "grandfather", "granny", "nana", "papa", "mom", "mother", "dad", "father",
+      "wife", "husband", "partner", "son", "daughter", "brother", "sister", "aunt", "uncle", "friend", "neighbor", "someone"];
+    const names = ["Bea", "bea", "Arthur", "Rosa", "Mr. Kim", "Art", "Lee"];
+    const people = [...family, ...names, "him", "her", "them", "the man", "the woman", "the person", "the patient", "the subject"];
+    const shapes = (o: string, p: string) => [`Found ${o} and ${p} nearby`, `Found ${o}. Found ${p} too`, `Found ${o} near ${p}`,
+      `Found ${o}, ${p} is here`, `found ${o}, then found ${p}`, `Found ${o} by the creek. ${p} by the bench`];
+    let count = 0;
+    for (const o of objects) {
+      for (const p of people) {
+        for (const note of shapes(o, p)) {
+          for (const profile of [[], ["Arthur Lee"]]) {
+            const out = correctFoundKind({ ...BLANK, kind: "found" }, note, profile);
+            expect(out.corrected, note).toBe(false);
+            count++;
+          }
+        }
+      }
+    }
+    expect(count).toBeGreaterThan(2000);
+  });
+
+  it("no word that could name the person is ever an object-note word", () => {
+    for (const w of PERSON_WORDS) expect(OBJECT_NOTE_WORDS.has(w), w).toBe(false);
   });
 
   it("each case's parserKind is what the phones' rules parser gives the note", () => {

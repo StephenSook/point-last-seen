@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "note": "A model reading of kind found, checked against its note by a fixed rule (shared/engine-ts/src/found.ts, correctFoundKind). When the note says an object was found (found a, an, some, the, his, their, or a possessive her, then a known object) and nothing says the person was found (a subject or person word, a word for the person's state or the response to them, or one of the profile's names), the reading becomes a clue, with its item and feature read from the note, and the reason is shown. Any other reading is returned unchanged. parserKind is what the phones' rules parser (ReportParser.kind) gives the same note, so a platform can check its parser agrees.",
-  "reason": "Read as a clue: an object was found, not the person.",
+  "note": "A model reading of kind found, checked against its note by a fixed rule (shared/engine-ts/src/found.ts, correctFoundKind). The reading becomes a clue only when every \"found\" in the note is followed by a determiner (a, an, some, the, his, their, or a possessive her) and a known object, every word of the note is one the rule knows an object-found note may hold, and no word could name the person (a person, family, state or response word, or one of the profile's names). Any other reading is returned unchanged, including a note with a single unknown word. The corrected reading's item and feature come from the note, and the reason is shown. parserKind is what the phones' rules parser (ReportParser.kind) gives the same note, so a platform can check its parser agrees.",
+  "reason": "Read as a clue: an object was found, not the person. The model said found; check the note.",
   "cases": [
     {
       "name": "coat_by_creek",
@@ -274,6 +274,82 @@
       "kindOut": "found",
       "corrected": false,
       "parserKind": "found"
+    },
+    {
+      "name": "coat_and_grandma",
+      "note": "Found a coat and grandma nearby",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "glove_then_found_mom",
+      "note": "Found a glove. Found mom too",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "coat_then_found_unlisted_name",
+      "note": "Found a coat by the bench, then found Bea",
+      "names": [
+        "Arthur Lee"
+      ],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "two_objects_found",
+      "note": "Found a hat by the road and found a glove on the trail",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "clue",
+      "item": "hat",
+      "feature": "road",
+      "corrected": true,
+      "parserKind": "clue"
+    },
+    {
+      "name": "unknown_word_kept_found",
+      "note": "Found a coat snagged on the fence",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "lowercase_unlisted_name",
+      "note": "found a coat near bea",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "unlisted_name_starts_sentence",
+      "note": "Found a coat. Bea nearby",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
+    },
+    {
+      "name": "all_capitals_note",
+      "note": "FOUND A COAT IN BO",
+      "names": [],
+      "kindIn": "found",
+      "kindOut": "found",
+      "corrected": false,
+      "parserKind": "clue"
     }
   ]
 }

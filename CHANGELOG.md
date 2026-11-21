@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Engine: correctFoundKind is conservative by construction. A found reading becomes a clue only when every "found" in
+  the note is followed by a determiner and a known object, every word of the note is a known object-note word
+  (OBJECT_NOTE_WORDS: determiners, objects, place, colour, direction and clue words, a short list of where and state
+  words, numbers, a two-capital segment id in a note that is not all capitals), and no word could name the person
+  (PERSON_WORDS, now with family and relation words; a profile name). The reason now says the model said found:
+  "Read as a clue: an object was found, not the person. The model said found; check the note." found-kind.json gains
+  8 cases. Source: review ("Found a coat and grandma nearby" and "Found a glove. Found mom too" came back as clues).
+  Verified: the new cases, a check of more than 2,600 generated notes (an object beside a family word, a name, or a
+  second find of a person) and a check that the two word lists share no word failed on the previous rule, then
+  passed; the engine's 354 tests, typecheck and lint pass; the web's unit tests and CI's Python gates pass.
 - Vectors README: the found-kind.json section now lists the full rule (determiners including possessives, every
   kind of person-found word, when "her" is a possessive) and every way the rules parser's kind differs from the
   rule's, with the line that a platform follows `kindOut`. Source: review. Verified: hygiene guard and CI's Python
