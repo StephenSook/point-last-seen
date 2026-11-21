@@ -6,6 +6,7 @@
 
 import { InferenceMode, type HybridParams, type LanguageModelCreateOptions } from "firebase/ai";
 import { MAX_MINUTES, MAX_NOTE } from "../data/debriefs";
+import { removePhoneNumbers } from "../data/phoneNumbers";
 import { onDeviceCreateOptions } from "./gate";
 
 /** The sheet's coverage ticks (the printed sheet offers the same four), or none ticked. */
@@ -75,7 +76,9 @@ export function cleanSheet(raw: unknown, ctx: SheetContext): SheetRead | null {
   const tick = s("coverage");
   const coverage = (COVERAGE as readonly string[]).includes(tick) ? tick : "";
   if (coverage === "") problems.coverage = "No box ticked, or more than one.";
-  const note = (f: SheetField) => s(f).slice(0, MAX_NOTE);
+  // A debrief is stored for the whole drill, so a number written on the sheet is removed before command sees it,
+  // then the note is kept to the debrief's length (the replacement can be longer than the number).
+  const note = (f: SheetField) => removePhoneNumbers(s(f)).slice(0, MAX_NOTE);
 
   return {
     form: {

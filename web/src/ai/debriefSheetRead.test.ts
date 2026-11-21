@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InferenceMode } from "firebase/ai";
 import { COVERAGE_TICKS, SAMPLE_VALUES } from "../extras/debrief/debriefSheet";
+import { REPLACEMENT } from "../data/phoneNumbers";
 import { cleanSheet, DEBRIEF_SHEET_JSON, DEBRIEF_SHEET_OPTS, debriefSheetParams, readDebriefSheetOnDevice, type SheetDeps } from "./debriefSheetRead";
 
 // The read is opened from segment AA's debrief, so AA is the segment the sheet must be for.
@@ -68,6 +69,14 @@ describe("cleanSheet", () => {
     const r = cleanSheet({ ...sampleReply, clues: `  ${"x".repeat(600)}  `, hazards: "" }, ctx)!;
     expect(r.form.clues).toHaveLength(500);
     expect(r.form.hazards).toBe("");
+  });
+
+  it("removes a phone number from every note before it can be stored", () => {
+    const r = cleanSheet({ ...sampleReply, worked: "Radio 404-555-0142 worked", didNotWork: "", clues: "Call 404 555 0142 at the gate", hazards: "Ranger at (404) 555 0142" }, ctx)!;
+    expect(r.form.clues).toBe(`Call ${REPLACEMENT} at the gate`);
+    expect(r.form.worked).toBe(`Radio ${REPLACEMENT} worked`);
+    expect(r.form.hazards).toBe(`Ranger at ${REPLACEMENT}`);
+    expect(JSON.stringify(r.form)).not.toMatch(/0142/);
   });
 
   it("is null for a reply that is not the sheet's shape", () => {
