@@ -298,22 +298,28 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
   const [claimsNote, setClaimsNote] = useState<string | null>(null);
   const claimsWatch = useRef<{ stop: () => void; recheck: () => void } | null>(null);
-  // A practice search (judge-...) has no join code: its lines and buttons point back to the judge's page.
-  const practice = incidentId.startsWith("judge-");
+  // A practice search has no join code: its lines and buttons point back to the judge's page. The incident's own mode
+  // decides once it has loaded (and is remembered after a refusal clears the view); until then its id does.
+  const knownMode = useRef<string | null>(null);
+  if (view?.incident?.mode) knownMode.current = view.incident.mode;
+  const practice = knownMode.current ? knownMode.current === "judge" : incidentId.startsWith("judge-");
   useEffect(() => {
     const w = watchClaims(pls.auth, { incidentId, practice }, setClaimsNote);
     claimsWatch.current = w;
-    // Fresh claims when the tab is shown again (after a practice search started in another tab) and every 5 minutes,
-    // since a refused action alone may not show the line when this tab's token is older than the server's claims.
+    // Fresh claims when this tab is shown or focused again (after a practice search started in another tab or
+    // window) and every 5 minutes while it is shown, since a refused action alone may not show the line when this
+    // tab's token is older than the server's claims. watchClaims spaces the forced reads.
     const onShow = () => {
       if (document.visibilityState === "visible") w.recheck();
     };
     document.addEventListener("visibilitychange", onShow);
-    const every = setInterval(() => w.recheck(), 5 * 60_000);
+    window.addEventListener("focus", onShow);
+    const every = setInterval(onShow, 5 * 60_000);
     return () => {
       w.stop();
       claimsWatch.current = null;
       document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
       clearInterval(every);
     };
   }, [pls, incidentId, practice]);
@@ -834,14 +840,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
         <p>Its data was cleared from the screen.</p>
-        <p data-testid="claims-line">{claimsNote ?? (practice ? "Open it again from the judge's page." : "Join again with a current code.")}</p>
+        <p data-testid="claims-line">{claimsNote ?? (practice ? "Open it again from the judge's page." : "Reopen this drill; it asks for the command code if this browser needs one.")}</p>
         {practice ? (
           <button type="button" onClick={() => location.assign("/judge")}>
             Open the judge's page
           </button>
         ) : (
-          <button type="button" onClick={() => location.assign(location.pathname)}>
-            Join again
+          // A reload keeps the drill in the link, so a browser whose sign-in is back opens the post again at once.
+          <button type="button" onClick={() => location.reload()}>
+            Reopen this drill
           </button>
         )}
       </main>

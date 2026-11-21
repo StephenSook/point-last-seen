@@ -22,20 +22,35 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
 
 /**
  * Calls `onLine` with claimsLine each time this browser's sign-in changes, in any tab (the SDK shares the signed-in
- * user across tabs); `recheck` asks the server for fresh claims, for after a refusal or when the tab is shown again.
- * A read that finishes after `stop` is dropped, so it never overwrites the next watch's line.
+ * user across tabs); `recheck` asks the server for fresh claims, for when the tab is shown or focused again or after
+ * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), nothing is applied
+ * after `stop`, and a forced read runs at most once in 30 seconds and never while another is running.
  */
-export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: string | null) => void): { stop: () => void; recheck: () => void } {
+export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: string | null) => void, now: () => number = Date.now): { stop: () => void; recheck: () => void } {
   let stopped = false;
+  let latest = 0;
+  let forcing = false;
+  let lastForced = -Infinity;
   const read = (force: boolean) => {
+    const seq = ++latest;
     const user = auth.currentUser;
     if (!user) {
       onLine(claimsLine(null, ctx));
       return;
     }
-    user.getIdTokenResult(force).then((r) => {
-      if (!stopped) onLine(claimsLine(r.claims, ctx));
-    }, () => {});
+    if (force) {
+      forcing = true;
+      lastForced = now();
+    }
+    user.getIdTokenResult(force).then(
+      (r) => {
+        if (force) forcing = false;
+        if (!stopped && seq === latest) onLine(claimsLine(r.claims, ctx));
+      },
+      () => {
+        if (force) forcing = false;
+      },
+    );
   };
   const unsubscribe = onIdTokenChanged(auth, () => {
     if (!stopped) read(false);
@@ -46,7 +61,8 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       unsubscribe();
     },
     recheck: () => {
-      if (!stopped) read(true);
+      if (stopped || forcing || now() - lastForced < 30_000) return;
+      read(true);
     },
   };
 }

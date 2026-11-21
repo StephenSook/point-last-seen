@@ -82,3 +82,47 @@ describe("watchClaims: the line follows this browser's sign-in", () => {
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: only the newest read decides the line, and forced reads are spaced", () => {
+  it("drops a read that finishes after a newer one, so an old sign-in never overwrites the current line", async () => {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    const pending: ((v: { claims: Record<string, unknown> }) => void)[] = [];
+    const user = { getIdTokenResult: () => new Promise<{ claims: Record<string, unknown> }>((r) => pending.push(r)) };
+    const lines: (string | null)[] = [];
+    watchClaims({ currentUser: user } as never, drill, (l) => lines.push(l));
+    listener!(user);
+    listener!(user);
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" } });
+    await new Promise((r) => setTimeout(r, 0));
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" } });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("asks the server again at most once in 30 seconds, and never while a forced read is running", async () => {
+    const { vi } = await import("vitest");
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: () => () => {} }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    let release: () => void = () => {};
+    const forced: boolean[] = [];
+    const user = { getIdTokenResult: (force?: boolean) => (forced.push(force === true), new Promise<{ claims: Record<string, unknown> }>((r) => { release = () => r({ claims: { inc: "drill-test-1", role: "command" } }); })) };
+    let t = 1_000_000;
+    const w = watchClaims({ currentUser: user } as never, drill, () => {}, () => t);
+    w.recheck();
+    w.recheck();
+    release();
+    await new Promise((r) => setTimeout(r, 0));
+    t += 10_000;
+    w.recheck();
+    t += 25_000;
+    w.recheck();
+    expect(forced).toEqual([true, true]);
+    vi.doUnmock("firebase/auth");
+  });
+});
