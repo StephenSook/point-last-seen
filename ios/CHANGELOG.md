@@ -5,6 +5,57 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the iOS 26 matrix row names its call without a pipe
+- What: the new iPhone row cited `killCloud: config.killCloud || !cloudRouteAvailable`; the matrix check
+  splits rows on "|", so it read the row as having too many columns. The row now cites
+  `!cloudRouteAvailable` on the same line.
+- Source: the matrix check (scripts/test_test_matrix.py).
+- Verified: the matrix check passes in the local CI mirror on the branch merged with main.
+
+### docs: the test matrix records the iOS 26.5 simulator run
+- What: a new iPhone row in docs/TEST-MATRIX.md: iOS 26, on-device then rules with no cloud route, run on the
+  iOS 26.5 simulator, with what ran and what could not (no on-device model in the simulator).
+- Source: review (minimum iOS version).
+- Verified: scripts/test_test_matrix.py passes.
+
+### docs(evidence): the iPhone app on an iOS 26.5 simulator
+- What: docs/evidence/ios/ios26-5-simulator-2026-11-20 records the app at the iOS 26.0 target on an iOS 26.5
+  simulator: the app's tests passed (203, the four iOS 27-only tests skipped), and on 10 drill sentences
+  Apple's model said it was available but every read failed for lack of model assets in the simulator, so
+  each was read by rules and none went to the cloud. It says plainly that a read by Apple's model on iOS 26
+  is not shown.
+- Source: review (minimum iOS version).
+- Verified: the counts match the test run and the probe output.
+
+### docs: the iPhone's cloud route needs iOS 27
+- What: README and LIMITS now say plainly: "The iPhone's cloud route needs iOS 27; on iOS 26 it reads on
+  the device, then by rules." LIMITS adds why (Gemini runs in a Foundation Models session, which iOS 26
+  does not have) and that the iOS 26.5 simulator has no on-device model to run.
+- Source: review (minimum iOS version).
+- Verified: the sentence matches the code (the reader keeps the cloud off below iOS 27); hygiene passes.
+
+### fix(ios): the app installs on iOS 26
+- What: the deployment target is iOS 26.0 (it was 27.0), so a phone that has not updated to iOS 27 can
+  install the app. Apple's on-device model needs only iOS 26; on iOS 26 the cloud route is off, so a read
+  is Apple's model, then rules.
+- Source: review (minimum iOS version).
+- Verified: a test that the app's MinimumOSVersion is 26.0 failed at 27.0 and passes after; the whole
+  app suite builds and passes at the 26.0 target on an iOS 27.2 simulator and on an iOS 26.5 simulator
+  (203 tests, the four iOS 27-only tests skipped there).
+
+### fix(ios): an iOS 26 path for each iOS 27 call; the cloud route needs iOS 27
+- What: every call the app makes that needs iOS 27 now has an iOS 26 path. The model's variant name
+  (iOS 27) reads as a plain name on iOS 26. Below iOS 26.4 the model cannot count tokens, so the
+  reader uses the characters-per-token estimate. Apple's model's errors on iOS 26
+  (LanguageModelSession.GenerationError) map to the same read failures as LanguageModelError on iOS 27.
+  The cloud route runs Gemini in a FoundationModels session, which needs iOS 27: below that the reader
+  keeps the cloud off (as the kill switch does), so a read is Apple's model, then rules, and the runner's
+  cloud case refuses. Nothing changes on iOS 27.
+- Source: review (minimum iOS version).
+- Verified: tests for the plain name, the estimate, the iOS 26 error mapping, the cloud route from iOS 27
+  and a read that never goes to the cloud without the route failed to compile before the change and
+  pass after; the iOS 27 error tests are marked iOS 27; tests that need the cloud route say so.
+
 ### fix(ios-core): the phone rule's last three cases, as on Android
 - What: the iPhone's phone rule now matches Android's on the five shared cases still pending on the
   iPhone. A bare minus between two decimals (44.2071-23.4567) is a dotted number, not a coordinate pair:

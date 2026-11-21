@@ -31,6 +31,8 @@ struct ReportReader {
     var language: LanguageScreen? = try? BundledConstants.languageScreen()
     /// The grounding rule run on every reading; when it cannot be loaded the fields it checks are blanked.
     var grounding: Grounding? = try? BundledConstants.grounding()
+    /// Whether this phone has the cloud route (iOS 27); without it a read never goes to the cloud (a seam for tests).
+    var cloudRouteAvailable: Bool = ModelSessionFactory.cloudRouteSupported
     /// Counts tokens with Apple's model (a seam for tests).
     var estimateTokens: @Sendable (String, [any Tool]) async -> Int = { await ModelSessionFactory.estimateTokens(report: $0, tools: $1) }
     /// The count is a call into Apple's model and can stall like any model call (spike S1 on the
@@ -67,7 +69,8 @@ struct ReportReader {
             // The count is a call into Apple's model too, so it gets the text without phone numbers.
             estimatedTokens: modelAllowed ? await countTokens(PhoneNumbers.scrub(text), tools) : 0,
             tokenBudgetFraction: config.tokenBudgetFraction, cloudConsent: situation.cloudConsent,
-            killCloud: config.killCloud, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
+            // Without the cloud route (iOS 26) the cloud is off, as with the kill switch: Apple's model, then rules.
+            killCloud: config.killCloud || !cloudRouteAvailable, cloudModel: config.cloudModelIOS, screen: screen, liveGate: situation.liveGate)
         context.positionSegmentId = situation.positionSegmentId          // segment ids come from code, not the model
         context.language = language
         context.grounding = grounding

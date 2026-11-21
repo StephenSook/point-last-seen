@@ -11,6 +11,11 @@ each line says what the limit is and why.
   and the debug provider (the debug APK reports 5).
 - An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
   and the rules require 31 to 33 days, so the consent and the upload are refused.
+- The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules. The app installs from
+  iOS 26.0, but the cloud route runs Gemini in a Foundation Models session (`ai.geminiLanguageModel(name:)`),
+  which iOS 26 does not have, so the reader keeps the cloud off there. The iOS 26.5 simulator runs the app's tests
+  but has no on-device model to run, so on it every report was read by rules
+  (`docs/evidence/ios/ios26-5-simulator-2026-11-20/README.md`).
 
 ## Sign-in and joining
 

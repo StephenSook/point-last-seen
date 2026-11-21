@@ -4,12 +4,15 @@ import PLSCore
 import Testing
 @testable import PLS
 
+/// The iOS 27 error types (iOS 26's are in IOS26PathTests); each test runs from iOS 27.
 @Suite struct ModelFailureMappingTests {
+    @available(iOS 27, *)
     @Test func guardrailAndRefusalKeepTheirOwnCases() {
         #expect(ModelSessionFactory.failure(from: LanguageModelError.guardrailViolation(.init(debugDescription: "x"))) == .guardrailBlock)
         #expect(ModelSessionFactory.failure(from: LanguageModelError.refusal(.init(explanation: "no", debugDescription: "x"))) == .refusal)
     }
 
+    @available(iOS 27, *)
     @Test func otherModelErrorsMapToTheirReadFailures() {
         #expect(ModelSessionFactory.failure(from: LanguageModelError.contextSizeExceeded(.init(contextSize: 4096, tokenCount: 5000, debugDescription: "x"))) == .contextExceeded)
         #expect(ModelSessionFactory.failure(from: LanguageModelError.unsupportedLanguageOrLocale(.init(languageCode: .french, debugDescription: "x"))) == .unavailable)
@@ -21,10 +24,12 @@ import Testing
 
     /// An answer cut off by the response cap comes back as "The model produced an empty response."
     /// (unsupportedTranscriptContent, measured on the simulator), so it gets its own failure and note.
+    @available(iOS 27, *)
     @Test func anAnswerCutOffByTheCapIsAnEmptyResponse() {
         #expect(ModelSessionFactory.failure(from: LanguageModelError.unsupportedTranscriptContent(.init(unsupportedContent: [], debugDescription: "x"))) == .emptyResponse)
     }
 
+    @available(iOS 27, *)
     @Test func aCloudRateLimitBecomesARetryWithTheServersDelay() {
         let now = Date(timeIntervalSince1970: 1_000)
         let withDelay = LanguageModelError.rateLimited(.init(resetDate: now.addingTimeInterval(3), debugDescription: "x"))
