@@ -77,6 +77,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- tools/seed: a reseed over an existing grid must raise the prior version (version_problem; read_incident now returns
+  the stored priorVersion). At the same version, a walker run or rebuild started before the reseed still saw its
+  version unchanged and committed its old results as the next one, leaving the new grid's other cells behind for good.
+  Source: review (cross-family). Verified: test_a_reseed_over_an_existing_grid_must_raise_the_prior_version failed
+  first, then passes; 41 seed tests pass.
 - LIMITS, Search model: the elevation layer (off by default; 42/39/19% from p. 164; no n printed; the 3 m band is
   ours; not used on urban terrain; only where an elevation file ships, the Kennesaw grid; measured from a new last
   known point's segment). Source: review (terrain layer, approved). Verified against shared/engine-ts/src/prior.ts,

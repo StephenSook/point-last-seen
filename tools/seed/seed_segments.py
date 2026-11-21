@@ -146,9 +146,9 @@ def segment_ids(project: str, incident_id: str, token: str) -> set[str]:
             return ids
 
 
-def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str]:
-    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), and the
-    updateTime of the version read, which the commit is bound to."""
+def read_incident(project: str, incident_id: str, token: str, terrain: str) -> tuple[list | None, str, int | None]:
+    """The incident's own engineParams.rings[terrain] as numbers (None when it holds no such column), the updateTime
+    of the version read, which the commit is bound to, and its stored priorVersion (None when it has none)."""
     url = f"https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents/incidents/{incident_id}"
     doc = _request("GET", url, token, project)
     f = doc.get("fields", {})
@@ -156,7 +156,21 @@ def read_incident(project: str, incident_id: str, token: str, terrain: str) -> t
            .get("fields", {}).get(terrain))
     rings = None if col is None else [float(v.get("doubleValue", v.get("integerValue", "nan")))
                                       for v in col.get("arrayValue", {}).get("values", [])]
-    return rings, doc["updateTime"]
+    pv = f.get("priorVersion", {}).get("integerValue")
+    return rings, doc["updateTime"], (int(pv) if pv is not None else None)
+
+
+def version_problem(existing_ids: set[str], stored_version: int | None, new_version: int) -> str | None:
+    """Why a seed may not write at new_version, or None. A grid written over an existing one must raise the incident's
+    prior version: at the same version, a walker run or rebuild started before the reseed still sees its version
+    unchanged and commits its old results as the next one, leaving the new grid's other cells behind for good."""
+    if not existing_ids:
+        return None
+    if stored_version is None:
+        return "the incident has segments but no prior version; set one before reseeding"
+    if new_version <= stored_version:
+        return f"a reseed over an existing grid must raise the prior version above {stored_version} (got {new_version})"
+    return None
 
 
 def main(argv: list[str]) -> int:
@@ -168,7 +182,11 @@ def main(argv: list[str]) -> int:
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()
     existing = segment_ids(project, incident_id, token)
-    stored, update_time = read_incident(project, incident_id, token, p["terrain"])
+    stored, update_time, stored_version = read_incident(project, incident_id, token, p["terrain"])
+    why = version_problem(existing, stored_version, int(version))
+    if why:
+        print(f"seed_segments: REFUSED: {why}", file=sys.stderr)
+        return 1
     problems = prewrite_problems(p, int(version))
     if problems:
         print(f"seed_segments: REFUSED, the apps could not read these docs: {problems[:5]}", file=sys.stderr)

@@ -130,3 +130,14 @@ def test_a_stored_ring_column_is_kept_and_a_different_one_refuses_the_seed():
     with pytest.raises(ValueError, match="urban"):
         seed.build_writes("proj", "drill-dev-1", {**payload(), "terrain": "urban"}, existing_ids=set(), prior_version=2,
                           stored_rings=[0.3, 1.0, 3.0, 12.0], incident_update_time=UT)
+
+
+def test_a_reseed_over_an_existing_grid_must_raise_the_prior_version():
+    # Review: a replacement grid written at the incident's own version let a walker run started before the reseed
+    # commit its old results as the next version, leaving the new cells behind for good.
+    assert seed.version_problem(set(), None, 1) is None
+    assert seed.version_problem({"AA", "ROW"}, 4, 5) is None
+    assert "raise" in seed.version_problem({"AA", "ROW"}, 4, 4)
+    assert "raise" in seed.version_problem({"AA", "ROW"}, 4, 3)
+    assert "prior version" in seed.version_problem({"AA", "ROW"}, None, 2)
+
