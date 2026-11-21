@@ -14,6 +14,19 @@ test("the shell loads with the drill line, the join form and no console errors",
   expect(consoleErrors).toEqual([]);
 });
 
+// Hosting serves an hour of cache when firebase.json sets no header; a judge must get a new deploy at once.
+test("the live site revalidates pages, version.json and the service worker, and keeps hashed assets a year", async ({ request }) => {
+  deployedOnly();
+  for (const path of ["/", "/judge", "/version.json", "/sw.js"]) {
+    const res = await request.get(path, { headers: { "Cache-Control": "no-cache" } });
+    expect(res.headers()["cache-control"], path).toBe("no-cache");
+  }
+  const html = await (await request.get("/")).text();
+  const asset = /\/assets\/[^"']+\.js/.exec(html)?.[0];
+  expect(asset).toBeTruthy();
+  expect((await request.get(asset!)).headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+});
+
 test("the live site serves this commit", async ({ request }) => {
   const want = process.env["EXPECT_COMMIT"] ?? execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   const res = await request.get(`/version.json?t=${Date.now()}`);

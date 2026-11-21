@@ -67,13 +67,19 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
   const [quote, setQuote] = useState("");
+  // Fields the person changed by hand. A read fills only the others, and says when it kept an edit: what a person
+  // typed or picked is never overwritten by a model's guess.
+  const handEdited = useRef(new Set<"direction" | "topColor" | "bottomColor" | "footwear" | "carried">());
+  const [keptEdits, setKeptEdits] = useState(false);
   function fill(c: { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote?: string }) {
+    const mine = handEdited.current;
     setQuote(c.evidenceQuote?.trim() ?? "");
-    setDirection(c.direction);
-    setTop(c.topColor);
-    setBottom(c.bottomColor);
-    setFootwear(c.footwear);
-    setCarried(c.carried);
+    if (!mine.has("direction")) setDirection(c.direction);
+    if (!mine.has("topColor")) setTop(c.topColor);
+    if (!mine.has("bottomColor")) setBottom(c.bottomColor);
+    if (!mine.has("footwear")) setFootwear(c.footwear);
+    if (!mine.has("carried")) setCarried(c.carried);
+    setKeptEdits(mine.size > 0);
     setReadState("filled");
   }
 
@@ -184,7 +190,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       </p>
       <label>
         Going
-        <select value={direction} onChange={(e) => setDirection(e.target.value as Direction)}>
+        <select value={direction} onChange={(e) => { handEdited.current.add("direction"); setDirection(e.target.value as Direction); }}>
           {DIRECTIONS.map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
@@ -193,7 +199,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       <div className="two">
         <label>
           Top
-          <select value={topColor} onChange={(e) => setTop(e.target.value as ClothingColor)}>
+          <select value={topColor} onChange={(e) => { handEdited.current.add("topColor"); setTop(e.target.value as ClothingColor); }}>
             {COLORS.map((c) => (
               <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
             ))}
@@ -201,7 +207,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         </label>
         <label>
           Bottom
-          <select value={bottomColor} onChange={(e) => setBottom(e.target.value as ClothingColor)}>
+          <select value={bottomColor} onChange={(e) => { handEdited.current.add("bottomColor"); setBottom(e.target.value as ClothingColor); }}>
             {COLORS.map((c) => (
               <option key={c} value={c}>{c === "unknown" ? "Not known" : c}</option>
             ))}
@@ -210,11 +216,11 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       </div>
       <label>
         Footwear
-        <input value={footwear} maxLength={40} onChange={(e) => setFootwear(e.target.value)} />
+        <input value={footwear} maxLength={40} onChange={(e) => { handEdited.current.add("footwear"); setFootwear(e.target.value); }} />
       </label>
       <label>
         Carrying
-        <input value={carried} maxLength={40} onChange={(e) => setCarried(e.target.value)} />
+        <input value={carried} maxLength={40} onChange={(e) => { handEdited.current.add("carried"); setCarried(e.target.value); }} />
       </label>
       <label>
         Reported by
@@ -250,7 +256,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
           </button>
         </div>
       )}
-      {readState === "filled" && <p role="status" className="muted">Suggested from the note. Check every field.</p>}
+      {readState === "filled" && <p role="status" className="muted">{keptEdits ? "Suggested from the note. Check every field. Your edits were kept." : "Suggested from the note. Check every field."}</p>}
       {/* Shown only while the note still holds these exact words. */}
       {readState === "filled" && quote && note.includes(quote) && <p className="small">From the note: "{quote}"</p>}
       {readState === "filled" && ran && (

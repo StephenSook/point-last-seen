@@ -1909,6 +1909,21 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the shared grounding rule (a reading's colour, direction, footwear and carried value must come from its note).
 - Verified: two new tests in `src/ai/sightingText.test.ts` (a reply claiming "red" for a note that says "blue coat" comes back with the top colour blanked and the direction kept, on the laptop and in the cloud) failed first, then passed (19/19); web unit suite and CI's Python gates (the test-matrix check among them) pass; typecheck clean.
 
+### fix(command): a note read keeps the fields a person changed by hand
+- What: `SightingForm` remembers which of Going, Top, Bottom, Footwear and Carrying the person changed by hand, and `fill` sets only the others, so a model's guess never overwrites what a person picked or typed. When a read kept an edit, the status reads "Suggested from the note. Check every field. Your edits were kept."
+- Source: review finding (a read overwrote hand edits).
+- Verified: a new harness check in `e2e/harness/sighting.spec.ts` (Top set to green and Footwear typed by hand, then a read that answers red: Top stays green, Footwear stays, and the status says the edits were kept) failed first, then passed; a second (no edits: every field fills and the status says nothing about edits) guards the plain case; 20/20 sighting and sightings harness checks; web unit suite and CI's Python gates pass; typecheck clean.
+
+### fix(hosting): pages, version.json and the service worker are revalidated on every load; hashed assets are kept a year
+- What: `firebase.json` hosting gets three header rules that never overlap: `no-cache` for everything outside `/assets/` and `/tiles/` (pages, `version.json`, `sw.js`, `sw-takeover.js`, the manifest, the published run), `public, max-age=31536000, immutable` for Vite's hashed `/assets/`, and `public, max-age=3600` for the basemap tiles (unchanged). Before, Hosting served every file with `max-age=3600`, so a judge could keep the old app for an hour after a deploy.
+- Source: found on another project with the same hosting; confirmed on this site (every path answered `max-age=3600`).
+- Verified: new tests in `scripts/test_firebase_config.py` read each path through the header rules the way Hosting matches its globs (a glob check against known paths; pages, `version.json`, the service worker and evidence get exactly `no-cache`, a hashed asset exactly the year, a tile the hour) and failed first with no headers, then passed; a deployed check in `e2e/smoke.spec.ts` failed against the live site ("max-age=3600") and passes once this is deployed; CI's Python gates pass.
+
+### test(e2e): the offline reopen check marks its note with letters, which the phone-number rule keeps
+- What: `e2e/beat.spec.ts` builds each note's unique marker from the timestamp's digits written as letters. With the shared phone-number rule, a run of seven or more digits is removed before the note is stored, so the timestamp marker the reopen check looked for was never in the saved note, and the check failed although the report arrived.
+- Source: the full live run after deploying the phone-number rule failed this one check.
+- Verified: against the live site at 32d36fec the reopen check failed with the digit marker (the note was not found), and all five checks in `e2e/beat.spec.ts` pass with the letter marker.
+
 ### fix(ai): a note that does not look like English is not sent to the cloud
 - What: `readSightingTextInCloud` checks the note with `looksEnglish` (`@pls/engine`) exactly as typed, before phone numbers are removed (removing one writes "[number removed]", English words that could let another language pass), and refuses with `not-english` before anything is sent. `SightingForm` then says "This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand."; the laptop read and hand entry stay available. `InferenceMode.ONLY_ON_DEVICE` stays on line 44.
 - Source: the shared language screen (English-only prompts; a note in another language is filled by hand).

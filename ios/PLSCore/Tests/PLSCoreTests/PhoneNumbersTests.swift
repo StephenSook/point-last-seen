@@ -258,14 +258,16 @@ import Testing
     }
 
     @Test func everyNumberIsRemovedAndTheTextAroundItStays() throws {
-        for c in try file().mustRemove where Self.runsHere(c.pendingOn) {
-            let out = PhoneNumbers.scrub(c.input)
-            #expect(!out.contains(c.number), "\(c.name): \(out)")
-            // No number character of any script is left (Unicode Nd, Nl, No), not only 0 to 9.
-            #expect(!out.unicodeScalars.contains(where: Self.isNumber), "\(c.name): \(out)")
-            for word in c.forbidden { #expect(!out.lowercased().contains(word.lowercased()), "\(c.name): \(word) in \(out)") }
-            for part in c.keep { #expect(out.contains(part), "\(c.name): \(part) missing from \(out)") }
-        }
+        for c in try file().mustRemove where Self.runsHere(c.pendingOn) { Self.checkRemoved(c) }
+    }
+
+    static func checkRemoved(_ c: Remove) {
+        let out = PhoneNumbers.scrub(c.input)
+        #expect(!out.contains(c.number), "\(c.name): \(out)")
+        // No number character of any script is left (Unicode Nd, Nl, No), not only 0 to 9.
+        #expect(!out.unicodeScalars.contains(where: Self.isNumber), "\(c.name): \(out)")
+        for word in c.forbidden { #expect(!out.lowercased().contains(word.lowercased()), "\(c.name): \(word) in \(out)") }
+        for part in c.keep { #expect(out.contains(part), "\(c.name): \(part) missing from \(out)") }
     }
 
     @Test func timesSegmentsCountsAndPercentsStayExactly() throws {
@@ -279,6 +281,17 @@ import Testing
         for c in try file().exact ?? [] where Self.runsHere(c.pendingOn) {
             let out = PhoneNumbers.scrub(c.input)
             #expect(Array(out.utf8) == Array(c.output.utf8), "\(c.name): \(out)")
+        }
+    }
+
+    /// The cases still marked pending on the iPhone pass too, with the same checks: the shared rule has
+    /// been ported. Once the marks are dropped from the file, the tests above run them.
+    @Test func theCasesStillPendingOnTheIPhonePass() throws {
+        let f = try file()
+        for c in f.mustRemove where !Self.runsHere(c.pendingOn) { Self.checkRemoved(c) }
+        for c in f.mustKeep where !Self.runsHere(c.pendingOn) { #expect(PhoneNumbers.scrub(c.input) == c.input, "\(c.name)") }
+        for c in f.exact ?? [] where !Self.runsHere(c.pendingOn) {
+            #expect(Array(PhoneNumbers.scrub(c.input).utf8) == Array(c.output.utf8), "\(c.name)")
         }
     }
 }

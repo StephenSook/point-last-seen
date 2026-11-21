@@ -178,3 +178,25 @@ test("a note that does not look like English is not sent to the cloud, and the f
   await expect(page.getByRole("status").filter({ hasText: "This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand." })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("unknown");
 });
+
+test("a read keeps a field changed by hand, says so, and fills the rest", async ({ page }) => {
+  await page.goto(`/harness/sighting.html?read=slow&quote=${encodeURIComponent("red jacket")}`);
+  // The person sets Top by hand first; the model will answer red.
+  await page.getByRole("combobox", { name: "Top" }).selectOption("green");
+  await page.getByRole("textbox", { name: "Footwear" }).fill("boots");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("green");
+  await expect(page.getByRole("textbox", { name: "Footwear" })).toHaveValue("boots");
+  await expect(page.getByText("Suggested from the note. Check every field. Your edits were kept.")).toBeVisible();
+});
+
+test("a read with no field changed by hand fills every field and says nothing about edits", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=slow");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Model answers" }).click();
+  await expect(page.getByRole("combobox", { name: "Top" })).toHaveValue("red");
+  await expect(page.getByText("Suggested from the note. Check every field.", { exact: true })).toBeVisible();
+});

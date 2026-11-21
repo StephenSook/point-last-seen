@@ -25,7 +25,10 @@ test("a new report plays the beat once on the live post, and a reload does not r
 // Each saves its report while the browser is offline, so the write waits in the browser (Firestore keeps it in
 // IndexedDB) until the link is back.
 
-const note = (what: string) => `Drill check: ${what} ${Date.now()}. Training drill inject.`;
+// A unique marker in letters only: a run of seven or more digits (a timestamp, say) is a phone number to the
+// note's scrubber and would be removed before the note is stored, so a check could never find it again.
+const marker = () => Date.now().toString().replace(/[0-9]/g, (d) => "abcdefghij"[Number(d)]!);
+const note = (what: string) => `Drill check: ${what} ${marker()}. Training drill inject.`;
 
 async function addSighting(page: import("@playwright/test").Page, text: string): Promise<void> {
   await page.getByRole("button", { name: "Add sighting" }).click();
