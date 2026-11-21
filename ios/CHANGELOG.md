@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): the task screen takes a photo of something found; the receipt says it was not kept
+- What: a "Photo of something found" button on the task screen, shown only where Apple's model can read a photo,
+  in a drill that lets a model read. It opens the camera (the photo library where there is no camera); the photo is
+  drawn upright at most 1024 points on its long side, read on the phone, and never saved. The receipt under a photo
+  report says "Read from a photo on this phone. The photo was not kept." The camera prompt says "Used to read a
+  photo of something found, on this phone. The photo is not kept."
+- Source: the photo clue feature.
+- Verified: tests of the camera prompt and the photo sizing (large, small, rotated) failed before the change and pass
+  after; 215 app tests pass. On the simulator, in the practice drill, a photo of a black cap from the library came
+  back "Photo: black baseball cap." / "Clue logged in BO." / "Read from a photo on this phone. The photo was not kept."
+
 ### feat(ios): Apple's model reads a photo of something found, on the phone
 - What: PhotoReader asks Apple's on-device model (iOS 27 with the vision capability, greedy, capped, 30-second
   limit) what one photo shows: a person or not, the object, its color and its kind. It is never shown the family's

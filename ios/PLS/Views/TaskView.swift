@@ -11,6 +11,7 @@ struct TaskView: View {
     @State private var text = ""
     @FocusState private var focused: Bool
     @State private var picking = false
+    @State private var photographing = false
     @Environment(\.fieldTheme) private var theme
 
     var body: some View {
@@ -61,6 +62,19 @@ struct TaskView: View {
                         Task { _ = await model.submitPick(choice) }
                     }
                     .environment(\.fieldTheme, theme)
+                }
+                // Only where Apple's model can read a photo (iOS 27), in a drill that lets a model read.
+                if model.canReadPhoto {
+                    Button { photographing = true } label: {
+                        Label("Photo of something found", systemImage: "camera").frame(maxWidth: .infinity, minHeight: 60)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.sending)
+                    .accessibilityIdentifier("photo-button")
+                    .accessibilityHint("Takes a photo of an object. It is read on this phone and not kept.")
+                    .fullScreenCover(isPresented: $photographing) {
+                        PhotoPicker { image in Task { _ = await model.submitPhoto(image) } }.ignoresSafeArea()
+                    }
                 }
                 if model.sending {
                     ProgressView("Reading your report")
