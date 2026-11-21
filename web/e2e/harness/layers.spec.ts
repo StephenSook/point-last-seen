@@ -163,3 +163,8 @@ test("under the walkers model the switches say they apply when the prior is rebu
   await expect(page.getByRole("region", { name: "Prior" })).not.toContainText("These apply when the prior is rebuilt as rings.");
 });
 
+test("the Prior panel says why a confirm turned the elevation layer off", async ({ page }) => {
+  await page.goto("/harness/layers.html?elevation=1&layersnote=1");
+  await expect(page.getByRole("region", { name: "Prior" })).toContainText("Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+});
+

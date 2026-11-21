@@ -65,7 +65,7 @@ import { graphFor, loadRouteGraph, runAgainstVersion, walkerPriorWrites, type Gr
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
-import { assertCurrentGrid, priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
+import { assertCurrentGrid, elevationDropNote, elevationDropReason, priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
 import { elevationFor, loadElevationM } from "../prior/elevation";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
@@ -462,7 +462,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const cards = useMemo(() => sightingCards(events as unknown as EventDoc[]), [events]);
   // Command's decision on a sighting card: the Sightings panel's buttons, and the practice search's first report.
-  const decideSighting = async (c: SightingCard, d: "confirmed" | "rejected") => {
+  // Why this seat's last confirm rebuilt without the elevation layer; shown in Prior until the next rebuild here.
+  const [elevationNote, setElevationNote] = useState<string | null>(null);
+  const decideSighting = async (c: SightingCard, d: "confirmed" | "rejected"): Promise<string | void> => {
     const priorIncident = incident?.ipp && incident.gridId
       ? { gridId: incident.gridId, gridAttribution: incident.gridAttribution, ipp: incident.ipp, terrain: incident.terrain, priorLayers: incident.priorLayers, priorVersion: incident.priorVersion, priorInputEventIds: incident.priorInputEventIds, engineParams: incident.engineParams, elevationM }
       : null;
@@ -472,13 +474,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!c.camera && d === "confirmed" && priorIncident && sightingNewLkp(c.sighting, incident?.priorInputEventIds ?? [], events as unknown as EventDoc[])) {
       const { events: built, prior } = sightingConfirmWrites(c.sighting, writer(), segments, priorIncident, events as unknown as EventDoc[]);
       await writePrior(pls.db, incidentId, prior, built);
-      return;
+      setElevationNote(prior.layersNote ?? null);
+      return prior.layersNote;
     }
     if (!(c.camera && d === "confirmed")) return write(buildConfirmation(c.sighting, d, writer()));
     // A family camera clip: command's confirmation and the camera prior, in one batch.
     if (!priorIncident) throw new Error("This incident has no start point or grid yet.");
     const { events: built, prior } = familyCameraConfirmWrites(c.sighting, placedCameras[c.sighting.eventId] ?? null, writer(), segments, priorIncident);
     await writePrior(pls.db, incidentId, prior, built);
+    setElevationNote(prior.layersNote ?? null);
+    return prior.layersNote;
   };
   // The practice search's one-click first report (firstReport.ts): saved like a typed report, then, once the server
   // has it, confirmed through decideSighting like a press of Confirm.
@@ -627,7 +632,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
-      const layers = usableLayers(incident.priorLayers ?? { linear: false, wedge: false }, segments, incident.ipp, elevationM);
+      const stored = incident.priorLayers ?? { linear: false, wedge: false };
+      const layers = usableLayers(stored, segments, incident.ipp, elevationM);
+      setElevationNote(elevationDropNote(elevationDropReason(stored, segments, incident.ipp, elevationM)) ?? null);
       const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
@@ -655,6 +662,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
+    setElevationNote(null);
     const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
     const w = priorWrites(rebuilt, incident, layers, terrain);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
@@ -695,7 +703,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   // Confirm: the camera sighting and its confirmation (create-only, not awaited), then one batch
   // that rebuilds the ring prior from the camera with the wedge on and the sighting as an input.
-  const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void> } => {
+  const confirmCameraClip = (o: ClipRead, input: ClipIntakeInput): { version: number; ack: Promise<void>; note?: string } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
     // Everything is built first; if any part cannot be built, nothing is written.
     const { events: built, prior } = cameraConfirmWrites(
@@ -706,8 +714,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       o.bearingDeg,
     );
     setPin(null);
+    setElevationNote(prior.layersNote ?? null);
     // One batch: the sighting, its confirmation and the prior land together or not at all.
-    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built) };
+    return { version: prior.incident.priorVersion, ack: writePrior(pls.db, incidentId, prior, built), ...(prior.layersNote ? { note: prior.layersNote } : {}) };
   };
   const saveProfile = (p: FamilyProfile, opened: FamilyProfile) => {
     setProfileError(null);
@@ -928,6 +937,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 rings={incident.engineParams?.rings[incident.terrain ?? "temperate_flat"]}
                 terrainNote={(incident as { terrainNote?: unknown }).terrainNote}
                 hasBearing={bearing !== null}
+                layersNote={elevationNote ?? undefined}
                 elevation={{
                   available: elevationM !== undefined,
                   startHasElevation: (() => {

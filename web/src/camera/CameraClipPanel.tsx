@@ -18,7 +18,8 @@ type Props = {
   onPlaceCamera: (p: LatLon) => void;
   onRead: (input: ClipIntakeInput, how: ReadHow) => Promise<ClipReadOutcome>;
   onTriage?: (clip: Blob) => Promise<TriageResult>;
-  onConfirm: (read: ClipRead, input: ClipIntakeInput) => { version: number; ack: Promise<void> };
+  /** note: why the rebuild turned the elevation layer off, when it did. */
+  onConfirm: (read: ClipRead, input: ClipIntakeInput) => { version: number; ack: Promise<void>; note?: string };
   onClose: () => void;
   /** Changes whenever this search's media is deleted; the clip form then drops every consent given. */
   revocation?: number;
@@ -32,6 +33,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
   // A result applies only while its Confirm is the latest one sent.
   const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const clip = useMemo(() => (read ? new Blob([read.input.bytes as BlobPart], { type: read.input.mimeType }) : null), [read]);
 
   if (!read) {
@@ -57,9 +59,10 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     if (!read) return;
     setError(null);
     try {
-      const { version, ack } = onConfirm(read.o, read.input);
+      const { version, ack, note: why } = onConfirm(read.o, read.input);
       const id = ++latest.current;
       setSent(version);
+      setNote(why ?? null);
       ack.then(
         () => id === latest.current && setAcked(version),
         () => {
@@ -97,7 +100,10 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         </div>
       ) : (
         <>
-          <p role="status">{acked === sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
+          <p role="status">
+            {acked === sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this laptop as v${sent}. Sending.`}
+            {note ? ` ${note}` : ""}
+          </p>
           <button type="button" className="btn ghost" onClick={onClose}>
             Done
           </button>

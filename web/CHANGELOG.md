@@ -2252,3 +2252,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `elevationDropReason` names why a rebuild turns the elevation layer off (no elevation file loaded for this site; the new start is outside the mapped segments; the new start's segment has no elevation), `usableLayers` uses it, and `elevationDropNote` words it for command. `cameraPriorWrites` (camera, family camera and sighting confirms) returns that line as `layersNote` when it drops the layer; it is shown, never stored.
 - Source: review (follow-up).
 - Verified: new tests failed first, then pass: each reason, none when the layer stays or is off, the note's wording, and the camera confirm's note with no file and outside the grid (none when kept).
+
+### feat(command): command sees why a confirm rebuilt without downhill and level ground
+- What: when a confirm turns the elevation layer off, the line ("Rebuilt without downhill and level ground: the new start is outside the mapped segments.") shows where command confirmed: after the camera clip panel's "Confirmed. Prior rebuilt as vN." and on the Sightings card. The Prior panel shows it under its switches on this seat until the next layer change here. Switching the prior model back to rings with the site's file missing says the same.
+- Source: review (follow-up).
+- Verified: three new harness checks failed first, then pass (clip, sightings, layers); 1146 web unit tests, the typecheck, 201 harness checks, the build and 43 no-backend browser checks pass. One harness check (firstReport.spec) failed once and passed on rerun; it imports none of these files.

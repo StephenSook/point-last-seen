@@ -17,7 +17,8 @@ function clothing(c: SightingCard): string {
 type Props = {
   cards: readonly SightingCard[];
   segmentOf: (c: SightingCard) => string | null;
-  onDecide: (c: SightingCard, decision: "confirmed" | "rejected") => Promise<void>;
+  /** Resolves with a line to show on the card when the decision rebuilt the prior with a change command should know. */
+  onDecide: (c: SightingCard, decision: "confirmed" | "rejected") => Promise<string | void>;
   /** Starts a map pick for a report with no place (a family report); command's placement is then confirmed as usual. */
   onPlace?: (c: SightingCard) => void;
 };
@@ -26,12 +27,14 @@ type Props = {
 export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{ id: string; text: string } | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   async function decide(c: SightingCard, d: "confirmed" | "rejected") {
     setBusy(c.sighting.eventId);
     setError(null);
     try {
-      await onDecide(c, d);
+      const note = await onDecide(c, d);
+      if (typeof note === "string") setNotes((n) => ({ ...n, [c.sighting.eventId]: note }));
     } catch {
       setError({ id: c.sighting.eventId, text: "Not saved. Try again." });
     } finally {
@@ -57,6 +60,7 @@ export function SightingsPanel({ cards, segmentOf, onDecide, onPlace }: Props) {
               {clothing(c) && <p className="muted">{clothing(c)}</p>}
               {c.sighting.rawText && <p className="muted">"{c.sighting.rawText}"</p>}
               {c.outside && <p role="status">Sighting outside the search area. Consider moving the start point.</p>}
+              {notes[id] && <p className="muted small" role="status">{notes[id]}</p>}
               {c.status === "awaiting" ? (
                 <div className="row">
                   {c.needsPlace && onPlace && (

@@ -282,3 +282,16 @@ test("a clip reading carries a closed What ran receipt with the bytes of the cli
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
   await expect(receipt).toContainText("Sent: 5,000 bytes of the clip, as base64.");
 });
+
+test("a confirm that turned the elevation layer off says why where command confirmed", async ({ page }) => {
+  await page.goto("/harness/clip.html?outcome=read&note=1");
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  await page.getByRole("radio", { name: "East", exact: true }).check();
+  await page.getByRole("combobox", { name: /^Camera at\b/ }).selectOption("AB");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await page.getByRole("button", { name: "Confirm sighting" }).click();
+  await expect(page.getByRole("status")).toHaveText("Confirmed. Prior rebuilt as v8. Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
+});
+
