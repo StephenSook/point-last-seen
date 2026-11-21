@@ -1,6 +1,7 @@
 package app.pointlastseen.family.ui
 
 import app.pointlastseen.family.ai.DeviceModelStatus
+import app.pointlastseen.family.ai.ModelState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -42,12 +43,18 @@ class CopyTest {
         assertEquals("Cloud reading is paused. You can still type everything in.", Copy.KILL_CLOUD)
     }
 
-    @Test fun aboutThisPhone() {
-        assertEquals("This phone has no on-device model.", Copy.aboutModel(DeviceModelStatus.UNAVAILABLE))
-        assertEquals("This phone has an on-device model.", Copy.aboutModel(DeviceModelStatus.AVAILABLE))
-        assertEquals("An on-device model can be downloaded to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADABLE))
-        assertEquals("An on-device model is downloading to this phone.", Copy.aboutModel(DeviceModelStatus.DOWNLOADING))
-        assertEquals("This phone could not report its on-device model.", Copy.aboutModel(DeviceModelStatus.UNKNOWN))
+    @Test fun theModelSentenceForEachState() {
+        assertEquals("This phone has no on-device model.", Copy.model(ModelState(DeviceModelStatus.UNAVAILABLE)))
+        assertEquals("Ready on this phone.", Copy.model(ModelState(DeviceModelStatus.AVAILABLE)))
+        assertEquals("An on-device model can be downloaded to this phone.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADABLE)))
+        assertEquals("The on-device model is downloading.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADING)))
+        assertEquals("The on-device model is downloading: 40%.", Copy.model(ModelState(DeviceModelStatus.DOWNLOADING, 40, 100)))
+        assertEquals("This phone could not report its on-device model.", Copy.model(ModelState(DeviceModelStatus.UNKNOWN)))
+    }
+
+    @Test fun theDownloadOfferAndItsFailure() {
+        assertEquals("Get the on-device model", Copy.GET_MODEL)
+        assertEquals("The on-device model could not be downloaded. Try again on Wi-Fi.", Copy.MODEL_FAILED)
     }
 
     /** News about the missing person comes only by phone from the search lead, never from the app. */

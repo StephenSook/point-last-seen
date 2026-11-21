@@ -1,6 +1,7 @@
 package app.pointlastseen.family.ui
 
 import app.pointlastseen.family.ai.DeviceModelStatus
+import app.pointlastseen.family.ai.ModelState
 
 /** Fixed app copy, in one place so tests pin it. */
 object Copy {
@@ -34,11 +35,15 @@ object Copy {
         else -> "Searchers are looking."
     }
 
-    fun aboutModel(s: DeviceModelStatus): String = when (s) {
-        DeviceModelStatus.AVAILABLE -> "This phone has an on-device model."
+    /** The on-device model in one sentence: ready, offered, downloading (with its percent when known), or absent. */
+    fun model(m: ModelState): String = when (m.status) {
+        DeviceModelStatus.AVAILABLE -> "Ready on this phone."
         DeviceModelStatus.DOWNLOADABLE -> "An on-device model can be downloaded to this phone."
-        DeviceModelStatus.DOWNLOADING -> "An on-device model is downloading to this phone."
+        DeviceModelStatus.DOWNLOADING -> m.percent?.let { "The on-device model is downloading: $it%." } ?: "The on-device model is downloading."
         DeviceModelStatus.UNAVAILABLE -> "This phone has no on-device model."
         DeviceModelStatus.UNKNOWN -> "This phone could not report its on-device model."
     }
+
+    const val GET_MODEL = "Get the on-device model"
+    const val MODEL_FAILED = "The on-device model could not be downloaded. Try again on Wi-Fi."
 }

@@ -11,11 +11,14 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNoteReading
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteOutcome
 import app.pointlastseen.family.data.RouteRecord
 import app.pointlastseen.family.ui.theme.PaperTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -42,6 +45,26 @@ class NoteScreenTest {
         rule.onNodeWithText("Or sort it yourself, on this phone:").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Send to the cloud").performScrollTo().performClick()
         assertEquals("old mill" to true, sent)
+    }
+
+    @Test fun theNoteScreenSaysWhenTheModelIsReadyOnThisPhone() {
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.AVAILABLE)) } }
+        rule.onNodeWithText("Ready on this phone.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun withADownloadableModelTheConsentQuestionOffersTheModel() {
+        var asked = false
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(
+                    null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {},
+                    model = ModelState(DeviceModelStatus.DOWNLOADABLE), onGetModel = { asked = true },
+                )
+            }
+        }
+        rule.onNodeWithText("An on-device model can be downloaded to this phone. Send this note to the cloud to sort it?").assertIsDisplayed()
+        rule.onNodeWithText("Get the on-device model").performScrollTo().performClick()
+        assertTrue(asked)
     }
 
     @Test fun aSuggestionIsLabelledEditableAndShowsWhereItWasRead() {

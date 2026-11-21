@@ -18,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.FamilyNoteReading
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.NoteOutcome
 
 sealed class NoteUi {
@@ -51,6 +53,8 @@ fun NoteScreen(
     onSort: (text: String, cloudConsent: Boolean) -> Unit,
     onAdd: (FamilyNoteReading) -> Unit,
     onBack: () -> Unit,
+    model: ModelState = ModelState(DeviceModelStatus.UNAVAILABLE),
+    onGetModel: () -> Unit = {},
 ) {
     FamilyScaffold(mode, killCloud) {
         when (ui) {
@@ -61,6 +65,15 @@ fun NoteScreen(
                 val focus = remember { FocusRequester() }
                 LaunchedEffect(Unit) { focus.requestFocus() }
                 Sentence("I remembered something.")
+                // Ready, downloading, or offered (with its button); nothing for a phone without a model.
+                when (model.status) {
+                    DeviceModelStatus.AVAILABLE, DeviceModelStatus.DOWNLOADING -> Note(Copy.model(model))
+                    DeviceModelStatus.DOWNLOADABLE -> {
+                        Note(Copy.model(model))
+                        OtherAction(Copy.GET_MODEL, onClick = onGetModel)
+                    }
+                    else -> Unit
+                }
                 OutlinedTextField(
                     text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
                     minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
@@ -69,8 +82,9 @@ fun NoteScreen(
             }
             is NoteUi.Done -> when (val o = ui.outcome) {
                 NoteOutcome.NeedsConsent -> {
-                    Sentence("This phone has no on-device model. Send this note to the cloud to sort it?")
+                    Sentence("${Copy.model(model)} Send this note to the cloud to sort it?")
                     MainAction("Send to the cloud") { onSort(ui.text, true) }
+                    if (model.status == DeviceModelStatus.DOWNLOADABLE) OtherAction(Copy.GET_MODEL, onClick = onGetModel)
                     Note("Or sort it yourself, on this phone:")
                     ManualKind(ui.text, onAdd)
                 }

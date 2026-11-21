@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.pointlastseen.family.ai.DeviceModelStatus
+import app.pointlastseen.family.ai.ModelState
 import app.pointlastseen.family.ai.FamilyNoteReading
 import app.pointlastseen.family.ai.NoteOutcome
 import app.pointlastseen.family.data.RouteRecord
@@ -85,7 +86,7 @@ class AccessibilityChecksTest {
         NoteScreen(null, false, NoteUi.Done(NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill"), "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {})
     }
     @Test fun sighting() = audit { SightingScreen(null, false, busy = false, error = "That did not send. Try again.", nowMs = { 1_700_000_000_000 }, onSend = {}, onBack = {}) }
-    @Test fun about() = audit { AboutPhoneScreen(DeviceModelStatus.UNAVAILABLE, "drill", false, "gemini-3.5-flash-lite", "debug", "0.1.0", onBack = {}) }
+    @Test fun about() = audit { AboutPhoneScreen(ModelState(DeviceModelStatus.UNAVAILABLE), "drill", false, "gemini-3.5-flash-lite", "debug", "0.1.0", onGetModel = {}, onBack = {}) }
     @Test fun update() = audit { UpdateScreen("drill", onOpenDownloads = {}) }
     @Test fun script() = audit { Script911Screen(SubjectProfile(answersTo = "Mae", ageYears = 82), "drill", false, onBack = {}) }
 }
